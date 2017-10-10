@@ -184,6 +184,11 @@ bool RtcModule::selectAudioInDevice(const string &devname)
 {
     return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
 }
+
+void RtcModule::loadDeviceList()
+{
+    mDeviceManager.enumInputDevices();
+}
 bool RtcModule::selectVideoInDevice(const string &devname)
 {
     return selectDevice(devname, mDeviceManager.inputDevices().video, mVideoInDeviceName);

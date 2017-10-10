@@ -2061,7 +2061,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
-
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
 
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
@@ -2070,18 +2069,12 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
     loadHistory(a2, chatid, chatroomListener);
 
+    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
+    megaChatApi[a1]->loadAudioVideoDeviceList();
+    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for receiving a call");
+
     mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
     mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
-
-    if (audioInDevices != NULL && audioInDevices->size() > 0)
-    {
-        megaChatApi[a1]->setChatAudioInDevice(audioInDevices->get(0));
-    }
-
-    if (videoInDevices != NULL && videoInDevices->size() > 0)
-    {
-        megaChatApi[a1]->setChatVideoInDevice(videoInDevices->get(0));
-    }
 
     TestChatVideoListener localVideoListener("Local");
     TestChatVideoListener remoteVideoListener("Remote");
@@ -2163,6 +2156,11 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
+    delete audioInDevices;
+    audioInDevices = NULL;
+    delete videoInDevices;
+    videoInDevices = NULL;
 
     delete chatroomListener;
     chatroomListener = NULL;

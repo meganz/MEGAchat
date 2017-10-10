@@ -743,6 +743,7 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2629,6 +2630,14 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Search all audio and video devices at the system at that moment.
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
 
 #endif
 

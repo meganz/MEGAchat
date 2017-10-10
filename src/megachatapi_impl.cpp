@@ -1044,6 +1044,13 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
+        {
+            mClient->rtc->loadDeviceList();
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
 #endif
         default:
         {
@@ -2534,6 +2541,13 @@ void MegaChatApiImpl::disableVideoCall(MegaChatHandle chatid, bool videoCall, Me
     request->setChatHandle(chatid);
     request->setFlag(videoCall);
     request->setParamType(MegaChatRequest::VIDEO);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES, listener);
     requestQueue.push(request);
     waiter->notify();
 }

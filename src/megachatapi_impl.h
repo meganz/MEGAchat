@@ -901,6 +901,8 @@ public:
     void hangAllChatCalls(MegaChatRequestListener *listener);
     void muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener = NULL);
     void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
+    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
+
 
 #endif
 

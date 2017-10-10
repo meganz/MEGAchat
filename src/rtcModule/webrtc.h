@@ -329,6 +329,11 @@ public:
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
 
     /**
+     * @brief Search all audio and video devices at system at that moment.
+     */
+    virtual void loadDeviceList() = 0;
+
+    /**
      * @brief Initiates a call to the specified JID.
      * @param userHandler - the event handler interface that will receive further events
      * about the call

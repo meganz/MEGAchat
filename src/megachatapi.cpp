@@ -500,6 +500,11 @@ void MegaChatApi::disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaCh
     pImpl->disableVideoCall(chatid, videoCall, listener);
 }
 
+void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
+{
+    pImpl->loadAudioVideoDeviceList(listener);
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);
