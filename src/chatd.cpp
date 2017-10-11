@@ -311,7 +311,7 @@ Promise<void> Connection::reconnect()
                 return pms;
             }
 
-            reset();
+            disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
             mDisconnectPromise = Promise<void>();
@@ -405,7 +405,7 @@ void Connection::enableInactivityTimer()
     }, 10000, mClient.karereClient->appCtx);
 }
 
-promise::Promise<void> Connection::disconnect() //should be graceful disconnect
+promise::Promise<void> Connection::disconnect()
 {
     mTerminating = true;
     if (wsIsConnected())
@@ -447,11 +447,6 @@ promise::Promise<void> Client::retryPendingConnections()
         promises.push_back(conn.second->retryPendingConnection());
     }
     return promise::when(promises);
-}
-
-void Connection::reset() //immediate disconnect
-{
-    wsDisconnect(true);
 }
 
 bool Connection::sendBuf(Buffer&& buf)

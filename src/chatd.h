@@ -321,7 +321,6 @@ protected:
     void notifyLoggedIn();
     void enableInactivityTimer();
     void disableInactivityTimer();
-    void reset();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
     promise::Promise<void> rejoinExistingChats();
@@ -336,8 +335,7 @@ public:
     promise::Promise<void> retryPendingConnection();
     virtual ~Connection()
     {
-        disableInactivityTimer();
-        reset();
+        disconnect();
     }
 };
 
