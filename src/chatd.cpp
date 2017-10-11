@@ -405,26 +405,16 @@ void Connection::enableInactivityTimer()
     }, 10000, mClient.karereClient->appCtx);
 }
 
-promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
+promise::Promise<void> Connection::disconnect() //should be graceful disconnect
 {
     mTerminating = true;
-    if (!wsIsConnected())
+    if (wsIsConnected())
     {
-        onSocketClose(0, 0, "terminating");
-        return promise::Void();
+        wsDisconnect(true);
     }
     
-    auto wptr = getDelTracker();
-    setTimeout([this, wptr]()
-    {
-        if (wptr.deleted())
-            return;
-        if (!mDisconnectPromise.done())
-            mDisconnectPromise.resolve();
-    }, timeoutMs, mClient.karereClient->appCtx);
-    
-    wsDisconnect(false);
-    return mDisconnectPromise;
+    onSocketClose(0, 0, "terminating");
+    return promise::Void();
 }
 
 promise::Promise<void> Connection::retryPendingConnection()

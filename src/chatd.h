@@ -317,7 +317,7 @@ protected:
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
-    promise::Promise<void> disconnect(int timeoutMs=2000);
+    promise::Promise<void> disconnect();
     void notifyLoggedIn();
     void enableInactivityTimer();
     void disableInactivityTimer();
