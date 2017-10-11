@@ -251,7 +251,6 @@ protected:
     karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
-    bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
@@ -309,7 +308,6 @@ public:
         const Config& Config);
     void disconnect();
     promise::Promise<void> retryPendingConnection();
-    void reset();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
