@@ -208,6 +208,9 @@ Client::~Client()
 
 promise::Promise<void> Client::retryPendingConnections()
 {
+    if (mConnState == kConnecting)
+        return mConnectPromise;
+
     std::vector<Promise<void>> promises;
 
     promises.push_back(mPresencedClient.retryPendingConnection());
@@ -720,14 +723,14 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     this->isInBackground = isInBackground;
 
     assert(mConnState == kDisconnected);
-    auto sessDone = mSessionReadyPromise.done();
+    auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
-    case promise::kSucceeded:
+    case promise::kSucceeded:   // if session was already ready...
         return doConnect(pres);
     case promise::kFailed:
         return mSessionReadyPromise.error();
-    default:
+    default:                    // if session is not ready yet
         assert(sessDone == promise::kNotResolved);
         mConnectPromise = mSessionReadyPromise
             .then([this, pres]() mutable
