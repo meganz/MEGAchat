@@ -113,7 +113,8 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
     // 1. Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
-    megaChatApi[accountIndex]->init(session);
+    int initializationState = megaChatApi[accountIndex]->init(session);
+    ASSERT_CHAT_TEST(initializationState >= 0, "MegaChatApiImpl::init returns MegaChatApi::INIT_ERROR");
     MegaApi::removeLoggerObject(logger);
     ASSERT_CHAT_TEST(waitForResponse(flagInit), "Initialization failed");
     int initStateValue = initState[accountIndex];
@@ -159,17 +160,19 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogout = &requestFlags[accountIndex][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
+    bool *flagRequestLogoutChat = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogoutChat = false;
     closeSession ? megaApi[accountIndex]->logout() : megaApi[accountIndex]->localLogout();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for logout from sdk");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Error sdk logout. Error: " + std::to_string(lastError[accountIndex]));
 
-    flagRequestLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
     if (!closeSession)  // for closed session, karere automatically logs out itself
     {
         megaChatApi[accountIndex]->localLogout();
-        ASSERT_CHAT_TEST(waitForResponse(flagRequestLogout), "Expired timeout for chat logout");
-        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+
     }
+
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestLogoutChat), "Expired timeout for chat logout");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     MegaApi::addLoggerObject(logger);   // need to restore customized logger
 
 }
