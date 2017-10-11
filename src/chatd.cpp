@@ -247,12 +247,8 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         chat.onDisconnect();
     }
 
-    if (mTerminating)
-    {
-        if (!mDisconnectPromise.done())
-            mDisconnectPromise.resolve(); //may delete this
+    if (oldState == kStateDisconnected)
         return;
-    }
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
@@ -314,7 +310,6 @@ Promise<void> Connection::reconnect()
             disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
-            mDisconnectPromise = Promise<void>();
 
             mState = kStateResolving;
             CHATD_LOG_DEBUG("Resolving hostname...", mShardNo);
@@ -405,16 +400,15 @@ void Connection::enableInactivityTimer()
     }, 10000, mClient.karereClient->appCtx);
 }
 
-promise::Promise<void> Connection::disconnect()
+void Connection::disconnect()
 {
-    mTerminating = true;
+    mState = kStateDisconnected;
     if (wsIsConnected())
     {
         wsDisconnect(true);
     }
-    
+
     onSocketClose(0, 0, "terminating");
-    return promise::Void();
 }
 
 promise::Promise<void> Connection::retryPendingConnection()
@@ -429,14 +423,12 @@ promise::Promise<void> Connection::retryPendingConnection()
     return promise::Error("No valid URL provided to retry pending connections");
 }
 
-promise::Promise<void> Client::disconnect()
+void Client::disconnect()
 {
-    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        promises.push_back(conn.second->disconnect());
+        conn.second->disconnect();
     }
-    return promise::when(promises);
 }
 
 promise::Promise<void> Client::retryPendingConnections()

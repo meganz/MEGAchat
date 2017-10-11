@@ -316,12 +316,12 @@ void Client::heartbeat()
 
 void Client::disconnect()
 {
+    setConnState(kDisconnected);
     if (wsIsConnected())
     {
         wsDisconnect(true);
     }
 
-    setConnState(kDisconnected);
     onSocketClose(0, 0, "terminating");
 }
 
@@ -589,12 +589,7 @@ void Client::setConnState(ConnState newState)
 #ifndef LOG_LISTENER_CALLS
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
-    //dont use CALL_LISTENER because we need more intelligent logging
-    try
-    {
-        mListener->onConnStateChange(mConnState);
-    }
-    catch(...){}
+    CALL_LISTENER(onConnStateChange, mConnState);
 }
 void Client::addPeer(karere::Id peer)
 {

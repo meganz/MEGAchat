@@ -196,26 +196,18 @@ void AppDelegate::onAppTerminate()
     static bool called = false;
     assert(!called);
     called = true;
-    gClient->terminate()
-    .then([this]()
+    gClient->terminate();
+
+    gSdk->localLogout(nullptr);
+
+    marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
     {
-        return gSdk->localLogout(nullptr);
-    })
-    .fail([](const promise::Error& err)
-    {
-        KR_LOG_ERROR("Error logging out the Mega client: ", err.what());
-    })
-    .then([this]()
-    {
-        marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
-        {
-            qApp->quit(); //stop processing marshalled call messages
-            gClient.reset();
-            gSdk.reset();
-            gWebsocketsIO.reset();
-            karere::globalCleanup();
-        }, NULL);
-    });
+        qApp->quit(); //stop processing marshalled call messages
+        gClient.reset();
+        gSdk.reset();
+        gWebsocketsIO.reset();
+        karere::globalCleanup();
+    }, NULL);
 }
 
 void saveSid(const char* sdkSid)
@@ -228,33 +220,31 @@ void saveSid(const char* sdkSid)
 
 void AppDelegate::onEsidLogout()
 {
-    gClient->terminate(true)
-    .then([this]()
+    gClient->terminate(true);
+
+    marshallCall([this]() //post destruction asynchronously so that all pending messages get processed before that
     {
-        marshallCall([this]() //post destruction asynchronously so that all pending messages get processed before that
+        QObject::disconnect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+
+        gClient.reset();
+        remove((gAppDir+"/sid").c_str());
+        delete mainWin;
+        QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
+        createWindowAndClient();
+
+        gClient->loginSdkAndInit(nullptr)
+        .then([]()
         {
-            QObject::disconnect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-
-            gClient.reset();
-            remove((gAppDir+"/sid").c_str());
-            delete mainWin;
-            QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
-            createWindowAndClient();
-
-            gClient->loginSdkAndInit(nullptr)
-            .then([]()
-            {
-                KR_LOG_DEBUG("New client initialized with new session");
-                saveSid(gSdk->dumpSession());
-                QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-                gClient->connect(Presence::kInvalid);
-            })
-            .fail([](const promise::Error& err)
-            {
-                KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
-            });
-        }, NULL);
-    });
+            KR_LOG_DEBUG("New client initialized with new session");
+            saveSid(gSdk->dumpSession());
+            QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+            gClient->connect(Presence::kInvalid);
+        })
+        .fail([](const promise::Error& err)
+        {
+            KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
+        });
+    }, NULL);
 }
 
 #include <main.moc>

@@ -296,9 +296,7 @@ protected:
     karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
-    bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mDisconnectPromise;
     promise::Promise<void> mLoginPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
@@ -317,7 +315,7 @@ protected:
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
-    promise::Promise<void> disconnect();
+    void disconnect();
     void notifyLoggedIn();
     void enableInactivityTimer();
     void disableInactivityTimer();
@@ -1047,7 +1045,7 @@ public:
     Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    promise::Promise<void> disconnect();
+    void disconnect();
     void sendKeepalive();
     promise::Promise<void> retryPendingConnections();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
