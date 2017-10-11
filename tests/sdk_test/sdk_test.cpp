@@ -936,11 +936,13 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
     }
+    delete user;
+    user = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1002,14 +1004,17 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
-        MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-        uh = user->getHandle();
         delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
+
+    MegaChatHandle uh = user->getHandle();
+    delete user;
+    user = NULL;
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
@@ -1384,14 +1389,17 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
-        MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-        uh = user->getHandle();
         delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
+
+    MegaChatHandle uh = user->getHandle();
+    delete user;
+    user = NULL;
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
@@ -1550,11 +1558,13 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     char *secondarySession = login(a2);
 
     // 0. Ensure both accounts are contacts and there's a 1on1 chatroom
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
     }
+    delete user;
+    user = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1694,11 +1704,13 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
     }
+    delete user;
+    user = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1797,11 +1809,13 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
     }
+    delete user;
+    user = NULL;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -1821,7 +1835,7 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
 
-    MegaUser* user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     ASSERT_CHAT_TEST(user, "Failed to get contact with email" + mAccounts[a2].getEmail());
     MegaChatHandle uh1 = user->getHandle();
     delete user;
@@ -1893,14 +1907,17 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     char *session1 = login(a2);
 
     // Prepare peers, privileges...
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
-        MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-        uh = user->getHandle();
         delete user;
+        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
+
+    MegaChatHandle uh = user->getHandle();
+    delete user;
+    user = NULL;
 
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
