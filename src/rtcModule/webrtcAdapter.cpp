@@ -136,7 +136,10 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
     std::unique_ptr<cricket::VideoCapturer> capturer(
         factory.Create(cricket::Device(mOptions->device.name, 0)));
     if (!capturer)
-        throw std::runtime_error("Could not create video capturer");
+    {
+        RTCM_LOG_WARNING("Could not create video capturer for device '%s'", mOptions->device.name.c_str());
+        return;
+    }
 
     mSource = gWebrtcContext->CreateVideoSource(capturer.release(),
         &(mOptions->constraints));

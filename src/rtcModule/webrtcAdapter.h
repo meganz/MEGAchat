@@ -16,7 +16,7 @@
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
 #include "webrtcAsyncWaiter.h"
-
+#include "rtcmPrivate.h"
 namespace artc
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
@@ -413,7 +413,14 @@ public:
     {
         auto shared = Base::get();
         if (!shared->mSource)
+        {
             shared->createSource();
+            if (!shared->mSource)
+            {
+                RTCM_LOG_WARNING("getTrack: Cannot create video source");
+                return nullptr;
+            }
+        }
         return std::make_shared<Handle>(*this, shared->createTrack());
     }
 };
