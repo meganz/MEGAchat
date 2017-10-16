@@ -67,6 +67,13 @@ MegaChatApiImpl::~MegaChatApiImpl()
     requestQueue.push(request);
     waiter->notify();
     thread.join();
+
+    // TODO: destruction of waiter hangs forever or may cause crashes
+    //delete waiter;
+
+    // TODO: destruction of network layer may cause hangs on MegaApi's network layer.
+    // It may terminate the OpenSSL required by cUrl in SDK, so better to skip it.
+    //delete websocketsIO;
 }
 
 void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
