@@ -405,18 +405,21 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]()
+        if (connState() == kConnecting || connState() == kConnected)
         {
-            if (wptr.deleted())
+            auto wptr = weakHandle();
+            marshallCall([wptr, this]()
             {
-                return;
-            }
+                if (wptr.deleted())
+                {
+                    return;
+                }
 
-            KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
-            retryPendingConnections();
+                KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
+                retryPendingConnections();
 
-        }, appCtx);
+            }, appCtx);
+        }
         break;
     }
 
