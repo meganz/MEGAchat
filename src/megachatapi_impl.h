@@ -671,6 +671,7 @@ public:
     void push_front(void *event);
     void* pop();
     bool isEmpty();
+    size_t size();
 };
 
 class MegaChatApiImpl :

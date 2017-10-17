@@ -540,7 +540,7 @@ class Client: public rtcModule::IGlobalHandler,
               public karere::DeleteTrackable
 {
 public:
-    enum ConnState { kDisconnected = 0, kConnecting, kDisconnecting, kConnected };
+    enum ConnState { kDisconnected = 0, kConnecting, kConnected };
 /** @cond PRIVATE */
 protected:
     std::string mAppDir;
@@ -551,7 +551,6 @@ protected:
     std::string mMyEmail;
     ConnState mConnState = kDisconnected;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mDisconnectPromise;
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
     enum InitState: uint8_t
@@ -573,9 +572,6 @@ public:
          * It has to be explicitly connected via \c connect()
          */
         kInitHasOnlineSession,
-
-        /** The client is terminating (due to a call to \c terminate()) */
-        kInitTerminating,
 
         /** Client has disconnected and terminated */
         kInitTerminated,
@@ -734,7 +730,7 @@ public:
     promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
 
     /** @brief Disconnects the client from chatd and presenced */
-    promise::Promise<void> disconnect();
+    void disconnect();
 
     /**
      * @brief Retry pending connections to chatd and presenced
@@ -771,7 +767,7 @@ public:
      * and cleaning up state
      * @param deleteDb - if set to \c true, deletes the local cache db.
      */
-    promise::Promise<void> terminate(bool deleteDb=false);
+    void terminate(bool deleteDb=false);
 
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };

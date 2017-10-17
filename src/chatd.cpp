@@ -254,12 +254,8 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         chat.onDisconnect();
     }
 
-    if (mTerminating)
-    {
-        if (!mDisconnectPromise.done())
-            mDisconnectPromise.resolve(); //may delete this
+    if (oldState == kStateDisconnected)
         return;
-    }
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
@@ -318,10 +314,9 @@ Promise<void> Connection::reconnect()
                 return pms;
             }
 
-            reset();
+            disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
-            mDisconnectPromise = Promise<void>();
 
             mState = kStateResolving;
             CHATD_LOG_DEBUG("Resolving hostname...", mShardNo);
@@ -413,26 +408,15 @@ void Connection::enableInactivityTimer()
     }, 10000, mClient.karereClient->appCtx);
 }
 
-promise::Promise<void> Connection::disconnect(int timeoutMs) //should be graceful disconnect
+void Connection::disconnect()
 {
-    mTerminating = true;
-    if (!wsIsConnected())
+    mState = kStateDisconnected;
+    if (wsIsConnected())
     {
-        onSocketClose(0, 0, "terminating");
-        return promise::Void();
+        wsDisconnect(true);
     }
-    
-    auto wptr = getDelTracker();
-    setTimeout([this, wptr]()
-    {
-        if (wptr.deleted())
-            return;
-        if (!mDisconnectPromise.done())
-            mDisconnectPromise.resolve();
-    }, timeoutMs, mClient.karereClient->appCtx);
-    
-    wsDisconnect(false);
-    return mDisconnectPromise;
+
+    onSocketClose(0, 0, "terminating");
 }
 
 promise::Promise<void> Connection::retryPendingConnection()
@@ -447,14 +431,12 @@ promise::Promise<void> Connection::retryPendingConnection()
     return promise::Error("No valid URL provided to retry pending connections");
 }
 
-promise::Promise<void> Client::disconnect()
+void Client::disconnect()
 {
-    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        promises.push_back(conn.second->disconnect());
+        conn.second->disconnect();
     }
-    return promise::when(promises);
 }
 
 promise::Promise<void> Client::retryPendingConnections()
@@ -465,11 +447,6 @@ promise::Promise<void> Client::retryPendingConnections()
         promises.push_back(conn.second->retryPendingConnection());
     }
     return promise::when(promises);
-}
-
-void Connection::reset() //immediate disconnect
-{
-    wsDisconnect(true);
 }
 
 bool Connection::sendBuf(Buffer&& buf)
@@ -751,7 +728,7 @@ void Chat::requestHistoryFromServer(int32_t count)
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
     ICrypto* crypto, bool isGroup)
-    : mConnection(conn), mClient(conn.mClient), mChatId(chatid),
+    : mClient(conn.mClient), mConnection(conn), mChatId(chatid),
       mListener(listener), mUsers(initialUsers), mCrypto(crypto),
       mLastMsgTs(chatCreationTs), mIsGroup(isGroup)
 {
