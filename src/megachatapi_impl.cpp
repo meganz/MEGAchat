@@ -2766,7 +2766,7 @@ MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &dev
         devicesArray = new char*[devicesNumber];
         for (int i = 0; i < devicesNumber; ++i)
         {
-            char *device = mega::MegaApi::strdup(devicesVector[i].c_str());
+            char *device = MegaApi::strdup(devicesVector[i].c_str());
             devicesArray[i] = device;
         }
     }
