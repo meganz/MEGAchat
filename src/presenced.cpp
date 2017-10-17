@@ -83,11 +83,13 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
     
     mHeartbeatEnabled = false;
-    
-    if (mConnState == kDisconnected)
+    auto oldState = mConnState;
+    setConnState(kDisconnected);
+
+    if (oldState == kDisconnected)
         return;
 
-    if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
+    if (oldState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
         assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
@@ -202,7 +204,7 @@ Client::reconnect(const std::string& url)
                 return pms;
             }
 
-            reset();
+            disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
 
@@ -312,12 +314,15 @@ void Client::heartbeat()
     }
 }
 
-void Client::disconnect() //should be graceful disconnect
+void Client::disconnect()
 {
-    mHeartbeatEnabled = false;
-    mTerminating = true;
-    reset();
     setConnState(kDisconnected);
+    if (wsIsConnected())
+    {
+        wsDisconnect(true);
+    }
+
+    onSocketClose(0, 0, "terminating");
 }
 
 promise::Promise<void> Client::retryPendingConnection()
@@ -330,11 +335,6 @@ promise::Promise<void> Client::retryPendingConnection()
         return reconnect();
     }
     return promise::Error("No valid URL provided to retry pending connections");
-}
-
-void Client::reset() //immediate disconnect
-{
-    wsDisconnect(true);
 }
 
 bool Client::sendBuf(Buffer&& buf)
@@ -479,7 +479,7 @@ uint16_t Config::toCode() const
 
 Client::~Client()
 {
-    reset();
+    disconnect();
     CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
 }
 
@@ -589,12 +589,7 @@ void Client::setConnState(ConnState newState)
 #ifndef LOG_LISTENER_CALLS
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
-    //dont use CALL_LISTENER because we need more intelligent logging
-    try
-    {
-        mListener->onConnStateChange(mConnState);
-    }
-    catch(...){}
+    CALL_LISTENER(onConnStateChange, mConnState);
 }
 void Client::addPeer(karere::Id peer)
 {

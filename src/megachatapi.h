@@ -1128,8 +1128,7 @@ public:
     {
         DISCONNECTED    = 0,    /// No connection established
         CONNECTING      = 1,    /// A call to connect() is in progress
-        DISCONNECTING   = 2,    /// A call to disconnect() is in progress
-        CONNECTED       = 3     /// A call to connect() succeed
+        CONNECTED       = 2     /// A call to connect() succeed
     };
 
     enum
