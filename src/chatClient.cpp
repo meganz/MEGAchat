@@ -378,25 +378,56 @@ void Client::commit(const std::string& scsn)
 void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 {
     assert(event);
-    if ((event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB) && db)
+    int type = event->getType();
+    switch (type)
     {
-        auto pscsn = event->getText();
-        if (!pscsn)
+    case ::mega::MegaEvent::EVENT_COMMIT_DB:
+    {
+        if (db)
         {
-            KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
-            return;
-        }
-        std::string scsn = pscsn;
-        auto wptr = weakHandle();
-        marshallCall([wptr, this, scsn]()
-        {
-            if (wptr.deleted())
+            auto pscsn = event->getText();
+            if (!pscsn)
             {
+                KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
                 return;
             }
+            std::string scsn = pscsn;
+            auto wptr = weakHandle();
+            marshallCall([wptr, this, scsn]()
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
 
-            commit(scsn);
-        }, appCtx);
+                commit(scsn);
+            }, appCtx);
+        }
+        break;
+    }
+
+    case ::mega::MegaEvent::EVENT_DISCONNECT:
+    {
+        if (connState() == kConnecting || connState() == kConnected)
+        {
+            auto wptr = weakHandle();
+            marshallCall([wptr, this]()
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+
+                KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
+                retryPendingConnections();
+
+            }, appCtx);
+        }
+        break;
+    }
+
+    default:
+        break;
     }
 }
 

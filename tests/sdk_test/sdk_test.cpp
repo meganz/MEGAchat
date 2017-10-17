@@ -501,11 +501,6 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
             {
                 for (int i = 0; i < NUM_ACCOUNTS; i++)
                 {
-                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
-                    {
-                        megaChatApi[i]->retryPendingConnections();
-                    }
-
                     if (megaApi[i] && megaApi[i]->isLoggedIn())
                     {
                         megaApi[i]->retryPendingConnections();
