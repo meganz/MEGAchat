@@ -1107,7 +1107,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     }
 
     // --> Set title
-    string title = "My groupchat with title";
+    string title = "My groupchat with title " + dateToString().substr(dateToString().length() - 5, 5);
     bool *flagChatRoomName = &requestFlagsChat[a1][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
     bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
     bool *titleItemChanged1 = &titleUpdated[a2]; *titleItemChanged1 = false;
