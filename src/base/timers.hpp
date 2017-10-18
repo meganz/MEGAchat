@@ -47,8 +47,10 @@ struct TimerMsg: public megaMessage
             #ifndef USE_LIBWEBSOCKETS
                 event_free(timerEvent);
             #else
-                uv_close((uv_handle_t *)timerEvent, NULL);
-                delete timerEvent;
+                uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* handle)
+                {
+                    delete handle;
+                });
             #endif
         }
     }
