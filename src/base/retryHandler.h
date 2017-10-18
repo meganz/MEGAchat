@@ -111,6 +111,9 @@ protected:
     unsigned long mTimer = 0;
     unsigned short mInitialWaitTime;
     unsigned mRestart = 0;
+    void *appCtx;
+    DeleteTrackable::Handle wptr;
+    
 public:
     /** Gets the output promise that is resolved. */
     promise::Promise<RetType>& getPromise() {return mPromise;}
@@ -131,12 +134,13 @@ public:
      * This can be used for high frequency initial retrying.
      */
     RetryController(const std::string& aName, Func&& func, CancelFunc&& cancelFunc, unsigned attemptTimeout,
-        unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
+        DeleteTrackable::Handle wptr, void *ctx, unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime,
         size_t maxAttemptCount=kDefaultMaxAttemptCount, unsigned short backoffStart=1000)
         :IRetryController(aName), mFunc(std::forward<Func>(func)), mCancelFunc(std::forward<CancelFunc>(cancelFunc)),
          mMaxAttemptCount(maxAttemptCount), mAttemptTimeout(attemptTimeout),
          mMaxSingleWaitTime(maxSingleWaitTime),
-         mInitialWaitTime(backoffStart)
+         mInitialWaitTime(backoffStart),
+         appCtx(ctx), wptr(wptr)
     {}
     ~RetryController()
     {
@@ -160,7 +164,7 @@ public:
                     return;
                 mTimer = 0;
                 nextTry();
-            }, delay);
+            }, delay, appCtx);
         }
         else
         {
@@ -261,7 +265,7 @@ protected:
     {
         if (!mTimer)
             return;
-        cancelTimeout(mTimer);
+        cancelTimeout(mTimer, appCtx);
         mTimer = 0;
     }
 
@@ -332,11 +336,11 @@ protected:
                         return;
                 }
                 schedNextRetry(timeoutError);
-            }, mAttemptTimeout);
+            }, mAttemptTimeout, appCtx);
         }
         mState = kStateInProgress;
 
-        auto pms = mFunc(mCurrentAttemptNo);
+        auto pms = mFunc(mCurrentAttemptNo, wptr);
         attachThenHandler(pms, attempt);
         pms.fail([this, attempt](const promise::Error& err)
         {
@@ -385,7 +389,7 @@ protected:
                 return;
             mTimer = 0;
             nextTry();
-        }, waitTime);
+        }, waitTime, appCtx);
         return true;
     }
 };
@@ -410,16 +414,16 @@ static inline void _emptyCancelFunc(){}
    See the constructor of RetryController for more details
  */
 template <class Func, class CancelFunc=decltype(&rh::_emptyCancelFunc)>
-static inline auto retry(const std::string& aName, Func&& func,
+static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable::Handle wptr, void *ctx,
     CancelFunc&& cancelFunc = &rh::_emptyCancelFunc,
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = 1000)
-->decltype(func(0))
+->decltype(func(0, wptr))
 {
     auto self = new rh::RetryController<Func, CancelFunc>(aName,
-        std::forward<Func>(func), std::forward<CancelFunc>(cancelFunc), attemptTimeout,
+        std::forward<Func>(func), std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr, ctx,
         maxSingleWaitTime, maxRetries, backoffStart);
     auto promise = self->getPromise();
     self->setAutoDestroy();

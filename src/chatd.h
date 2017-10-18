@@ -1,7 +1,6 @@
 #ifndef __CHATD_H__
 #define __CHATD_H__
 
-#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -14,6 +13,7 @@
 #include <base/trackDelete.h>
 #include "chatdMsg.h"
 #include "url.h"
+#include "net/websocketsIO.h"
 
 namespace karere {
     class Client;
@@ -283,22 +283,20 @@ public:
 class Client;
 
 // need DeleteTrackable for graceful disconnect timeout
-class Connection: public karere::DeleteTrackable
+class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateDisconnected, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+
 protected:
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
-    ws_t mWebSocket = nullptr;
     State mState = kStateNew;
     karere::Url mUrl;
     megaHandle mInactivityTimer = 0;
     int mInactivityBeats = 0;
-    bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mDisconnectPromise;
     promise::Promise<void> mLoginPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
     State state() { return mState; }
@@ -310,17 +308,17 @@ protected:
     {
         return mState == kStateLoggedIn;
     }
-    static void websockConnectCb(ws_t ws, void* arg);
-    static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
-        size_t reason_len, void *arg);
-    static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
+    
+    virtual void wsConnectCb();
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsHandleMsgCb(char *data, size_t len);
+
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect(const std::string& url=std::string());
-    promise::Promise<void> disconnect(int timeoutMs=2000);
+    promise::Promise<void> reconnect();
+    void disconnect();
     void notifyLoggedIn();
     void enableInactivityTimer();
     void disableInactivityTimer();
-    void reset();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
     promise::Promise<void> rejoinExistingChats();
@@ -333,10 +331,9 @@ protected:
     friend class Chat;
 public:
     promise::Promise<void> retryPendingConnection();
-    ~Connection()
+    virtual ~Connection()
     {
-        disableInactivityTimer();
-        reset();
+        disconnect();
     }
 };
 
@@ -672,7 +669,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect(const std::string& url=std::string());
+    void connect();
 
     void disconnect();
     /** @brief The online state of the chatroom */
@@ -1013,7 +1010,6 @@ protected:
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
     karere::Id mUserId;
-    static bool sWebsockCtxInitialized;
     bool mMessageReceivedConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
     {
@@ -1026,13 +1022,13 @@ protected:
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
-    static ws_base_s sWebsocketContext;
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
     MyMegaApi *mApi;
+    karere::Client *karereClient;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
-    Client(MyMegaApi *api, karere::Id userId);
+    Client(karere::Client *client, karere::Id userId);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
     {
@@ -1049,7 +1045,7 @@ public:
     Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
-    promise::Promise<void> disconnect();
+    void disconnect();
     void sendKeepalive();
     promise::Promise<void> retryPendingConnections();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
@@ -1059,6 +1055,20 @@ public:
     friend class Connection;
     friend class Chat;
 };
+
+static inline const char* connStateToStr(Connection::State state)
+{
+    switch (state)
+    {
+    case Connection::State::kStateDisconnected: return "Disconnected";
+    case Connection::State::kStateConnecting: return "Connecting";
+    case Connection::State::kStateConnected: return "Connected";
+    case Connection::State::kStateLoggedIn: return "Logged-in";
+    case Connection::State::kStateNew: return "New";
+    case Connection::State::kStateFetchingUrl: return "Fetching URL";
+    default: return "(invalid)";
+    }
+}
 
 struct ChatDbInfo
 {

@@ -1,21 +1,5 @@
 #include "presenced.h"
-#include <base/cservices.h>
-#include <gcmpp.h>
-#include <retryHandler.h>
-#include <libws_log.h>
-#include <event2/dns.h>
-#include <event2/dns_compat.h>
-#include <chatClient.h>
-#include <arpa/inet.h>
-
-#ifdef __ANDROID__
-    #include <sys/system_properties.h>
-#elif defined(__APPLE__)
-    #include <TargetConditionals.h>
-    #ifdef TARGET_OS_IPHONE
-        #include <resolv.h>
-    #endif
-#endif
+#include "chatClient.h"
 
 using namespace std;
 using namespace promise;
@@ -43,63 +27,11 @@ using namespace karere;
 
 namespace presenced
 {
-ws_base_s Client::sWebsocketContext;
-bool Client::sWebsockCtxInitialized = false;
 
-    Client::Client(MyMegaApi *api, Listener& listener, uint8_t caps)
-: mListener(&listener), mApi(api), mCapabilities(caps)
+    Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
+: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps)
 {
-    if (!sWebsockCtxInitialized)
-        initWebsocketCtx();
 }
-
-void Client::initWebsocketCtx()
-{
-    assert(!sWebsockCtxInitialized);
-    ws_global_init(&sWebsocketContext, services_get_event_loop(), NULL,
-        [](struct bufferevent* bev, void* userp)
-        {
-            marshallCall([bev, userp]()
-            {
-                //CHATD_LOG_DEBUG("Read event");
-                ws_read_callback(bev, userp);
-            });
-        },
-        [](struct bufferevent* bev, short events, void* userp)
-        {
-            marshallCall([bev, events, userp]()
-            {
-                //CHATD_LOG_DEBUG("Buffer event 0x%x", events);
-                ws_event_callback(bev, events, userp);
-            });
-        },
-        [](int fd, short events, void* userp)
-        {
-            marshallCall([events, userp]()
-            {
-                //CHATD_LOG_DEBUG("Timer %p event", userp);
-                ws_handle_marshall_timer_cb(0, events, userp);
-            });
-        });
-//        ws_set_log_cb(ws_default_log_cb);
-//        ws_set_log_level(LIBWS_TRACE);
-    sWebsockCtxInitialized = true;
-}
-
-#define checkLibwsCall(call, opname) \
-    do {                             \
-        int _cls_ret = (call);       \
-        if (_cls_ret) throw std::runtime_error("Websocket error " +std::to_string(_cls_ret) + \
-        " on operation " #opname);   \
-    } while(0)
-
-//Stale event from a previous connect attempt?
-#define ASSERT_NOT_ANOTHER_WS(event)    \
-    if (ws != self.mWebSocket && self.mWebSocket) {   \
-        PRESENCED_LOG_WARNING("Websocket '" event     \
-        "' callback: ws param %p is not equal to self.mWebSocket %p, ignoring", \
-        ws, self.mWebSocket);                         \
-    }
 
 promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
@@ -125,30 +57,13 @@ void Client::pushPeers()
     }
 }
 
-void Client::websockConnectCb(ws_t ws, void* arg)
+void Client::wsConnectCb()
 {
-    Client& self = *static_cast<Client*>(arg);
-    auto wptr = self.getDelTracker();
-    ASSERT_NOT_ANOTHER_WS("connect");
-    CHATD_LOG_DEBUG("Presenced connected");
-    marshallCall([&self, wptr]()
-    {
-        if (wptr.deleted())
-            return;
-        self.setConnState(kConnected);
-        self.mConnectPromise.resolve();
-    });
+    PRESENCED_LOG_DEBUG("Presenced connected");
+    setConnState(kConnected);
+    mConnectPromise.resolve();
 }
-
-void Client::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg)
-{
-    Client& self = *static_cast<Client*>(arg);
-    ASSERT_NOT_ANOTHER_WS("message");
-    self.mTsLastRecv = time(NULL);
-    self.mTsLastPingSent = 0;
-    self.handleMessage(StaticBuffer(msg, len));
-}
-
+    
 void Client::notifyLoggedIn()
 {
     assert(mConnState < kLoggedIn);
@@ -158,45 +73,30 @@ void Client::notifyLoggedIn()
     mLoginPromise.resolve();
 }
 
-void Client::websockCloseCb(ws_t ws, int errcode, int errtype, const char *preason,
-                                size_t reason_len, void *arg)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    auto& self = *static_cast<Client*>(arg);
-    auto track = self.getDelTracker();
-    ASSERT_NOT_ANOTHER_WS("close/error");
-    std::string reason;
-    if (preason)
-        reason.assign(preason, reason_len);
-
-    //we don't want to initiate websocket reconnect from within a websocket callback
-    marshallCall([&self, track, reason, errcode, errtype]()
-    {
-        if (track.deleted())
-            return;
-        self.onSocketClose(errcode, errtype, reason);
-    });
+    onSocketClose(errcode, errtype, preason);
 }
-
+    
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
     
     mHeartbeatEnabled = false;
-    if (mWebSocket)
-    {
-        ws_destroy(&mWebSocket);
-    }
-    if (mConnState == kDisconnected)
+    auto oldState = mConnState;
+    setConnState(kDisconnected);
+
+    if (oldState == kDisconnected)
         return;
 
-    if (mConnState < kLoggedIn) //tell retry controller that the connect attempt failed
+    if (oldState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
         assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        if (!mConnectPromise.done())
+        if (!mLoginPromise.done())
         {
             mLoginPromise.reject(reason, errcode, errtype);
         }
@@ -253,16 +153,19 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
-    bool needTimer = !mConfig.mPersist
-                && mConfig.mPresence != Presence::kOffline
-                && mConfig.mPresence != Presence::kAway
-                && mConfig.mAutoawayTimeout
-                && mConfig.mAutoawayActive;
-    return needTimer;
+    return mConfig.mPresence.isValid()    // don't want to change to away from default status
+            && !mConfig.mPersist
+            && mConfig.mPresence != Presence::kOffline
+            && mConfig.mPresence != Presence::kAway
+            && mConfig.mAutoawayTimeout
+            && mConfig.mAutoawayActive;
 }
 
 void Client::signalActivity(bool force)
 {
+    if (!mConfig.mPresence.isValid())
+        return;
+
     mTsLastUserActivity = time(NULL);
     if (mConfig.mPresence == Presence::kAway)
         sendUserActive(false);
@@ -288,24 +191,26 @@ Client::reconnect(const std::string& url)
                 return promise::Error("No valid URL provided and current URL is not valid");
         }
 
-        setConnState(kConnecting);
-        return retry("presenced", [this](int no)
+        setConnState(kResolving);
+        auto wptr = weakHandle();
+        return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
         {
-            reset();
-            mConnectPromise = Promise<void>();
-            mLoginPromise = Promise<void>();
-            PRESENCED_LOG_DEBUG("Attempting connect...");
-            checkLibwsCall((ws_init(&mWebSocket, &Client::sWebsocketContext)), "create socket");
-            ws_set_onconnect_cb(mWebSocket, &websockConnectCb, this);
-            ws_set_onclose_cb(mWebSocket, &websockCloseCb, this);
-            ws_set_onmsg_cb(mWebSocket, &websockMsgCb, this);
-
-            if (mUrl.isSecure)
+            if (wptr.deleted())
             {
-                ws_set_ssl_state(mWebSocket, LIBWS_SSL_SELFSIGNED);
+                PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
+
+                promise::Promise<void> pms = Promise<void>();
+                pms.resolve();
+                return pms;
             }
 
-            auto wptr = weakHandle();
+            disconnect();
+            mConnectPromise = Promise<void>();
+            mLoginPromise = Promise<void>();
+
+            setConnState(kResolving);
+            PRESENCED_LOG_DEBUG("Resolving hostmane...");
+
             mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
             .then([wptr, this](ReqResult result)
             {
@@ -314,40 +219,23 @@ Client::reconnect(const std::string& url)
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
-                if (!mWebSocket)
-                {
-                    PRESENCED_LOG_DEBUG("Disconnect called while resolving DNS.");
-                    return;
-                }
-                if (mConnState != kConnecting)
+                if (mConnState != kResolving)
                 {
                     PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
                     return;
                 }
 
+                setConnState(kConnecting);
                 string ip = result->getText();
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                
-                if (ip[0] == '[')
+                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
+                          mUrl.host.c_str(),
+                          mUrl.port,
+                          mUrl.path.c_str(),
+                          mUrl.isSecure);
+                if (!rt)
                 {
-                    struct sockaddr_in6 ipv6addr = { 0 };
-                    ip = ip.substr(1, ip.size() - 2);
-                    ipv6addr.sin6_family = AF_INET6;
-                    ipv6addr.sin6_port = htons(mUrl.port);
-                    inet_pton(AF_INET6, ip.c_str(), &ipv6addr.sin6_addr);
-                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
-                                                    (struct sockaddr *)&ipv6addr, sizeof(ipv6addr),
-                                                    mUrl.port, (mUrl.path).c_str())), "connect");
-                }
-                else
-                {
-                    struct sockaddr_in ipv4addr = { 0 };
-                    ipv4addr.sin_family = AF_INET;
-                    ipv4addr.sin_port = htons(mUrl.port);
-                    inet_pton(AF_INET, ip.c_str(), &ipv4addr.sin_addr);
-                    checkLibwsCall((ws_connect_addr(mWebSocket, mUrl.host.c_str(),
-                                                    (struct sockaddr *)&ipv4addr, sizeof(ipv4addr),
-                                                    mUrl.port, (mUrl.path).c_str())), "connect");
+                    throw std::runtime_error("Websocket error on wsConnect (presenced)");
                 }
             })
             .fail([this](const promise::Error& err)
@@ -367,10 +255,11 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 return login();
             });
-        }, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
+    
 bool Client::sendKeepalive(time_t now)
 {
     mTsLastPingSent = now ? now : time(NULL);
@@ -425,12 +314,15 @@ void Client::heartbeat()
     }
 }
 
-void Client::disconnect() //should be graceful disconnect
+void Client::disconnect()
 {
-    mHeartbeatEnabled = false;
-    mTerminating = true;
-    reset();
     setConnState(kDisconnected);
+    if (wsIsConnected())
+    {
+        wsDisconnect(true);
+    }
+
+    onSocketClose(0, 0, "terminating");
 }
 
 promise::Promise<void> Client::retryPendingConnection()
@@ -445,28 +337,17 @@ promise::Promise<void> Client::retryPendingConnection()
     return promise::Error("No valid URL provided to retry pending connections");
 }
 
-void Client::reset() //immediate disconnect
-{
-    if (!mWebSocket)
-        return;
-
-    ws_close_immediately(mWebSocket);
-    ws_destroy(&mWebSocket);
-    assert(!mWebSocket);
-}
-
 bool Client::sendBuf(Buffer&& buf)
 {
     if (!isOnline())
         return false;
-//WARNING: ws_send_msg_ex() is destructive to the buffer - it applies the websocket mask directly
-//Copy the data to preserve the original
-    auto rc = ws_send_msg_ex(mWebSocket, buf.buf(), buf.dataSize(), 1);
-    buf.free(); //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    bool result = (!rc && isOnline());
+    
+    bool rc = wsSendMessage(buf.buf(), buf.dataSize());
+    buf.free();  //just in case, as it's content is xor-ed with the websock datamask so it's unusable
     mTsLastSend = time(NULL);
-    return result;
+    return rc && isOnline();
 }
+    
 bool Client::sendCommand(Command&& cmd)
 {
     if (krLoggerWouldLog(krLogChannel_presenced, krLogLevelDebug))
@@ -598,7 +479,7 @@ uint16_t Config::toCode() const
 
 Client::~Client()
 {
-    reset();
+    disconnect();
     CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
 }
 
@@ -613,6 +494,13 @@ Client::~Client()
     assert(offset==pos-base); uint16_t varname(buf.read<uint16_t>(pos)); pos+=2
 #define READ_8(varname, offset)\
     assert(offset==pos-base); uint8_t varname(buf.read<uint8_t>(pos)); pos+=1
+
+void Client::wsHandleMsgCb(char *data, size_t len)
+{
+    mTsLastRecv = time(NULL);
+    mTsLastPingSent = 0;
+    handleMessage(StaticBuffer(data, len));
+}
 
 // inbound command processing
 void Client::handleMessage(const StaticBuffer& buf)
@@ -701,12 +589,7 @@ void Client::setConnState(ConnState newState)
 #ifndef LOG_LISTENER_CALLS
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
-    //dont use CALL_LISTENER because we need more intelligent logging
-    try
-    {
-        mListener->onConnStateChange(mConnState);
-    }
-    catch(...){}
+    CALL_LISTENER(onConnStateChange, mConnState);
 }
 void Client::addPeer(karere::Id peer)
 {

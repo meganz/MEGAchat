@@ -78,11 +78,6 @@ MegaChatApi::~MegaChatApi()
     delete pImpl;
 }
 
-void MegaChatApi::cleanupServices()
-{
-    ServiceManager::cleanup();
-}
-
 void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
 {
     MegaChatApiImpl::setLoggerClass(megaLogger);
@@ -116,6 +111,11 @@ int MegaChatApi::getInitState()
 void MegaChatApi::connect(MegaChatRequestListener *listener)
 {
     pImpl->connect(listener);
+}
+
+void MegaChatApi::connectInBackground(MegaChatRequestListener *listener)
+{
+    pImpl->connectInBackground(listener);
 }
 
 void MegaChatApi::disconnect(MegaChatRequestListener *listener)

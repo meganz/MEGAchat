@@ -53,30 +53,13 @@ using namespace mega;
 using namespace karere;
 using namespace chatd;
 
-vector<MegaChatApiImpl *> MegaChatApiImpl::megaChatApiRefs;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
-MegaMutex MegaChatApiImpl::sdkMutex(true);
-MegaMutex MegaChatApiImpl::refsMutex(true);
-
-std::shared_ptr<ServiceManager> ServiceManager::mInstance;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
-: localVideoReceiver(nullptr)
+: sdkMutex(true), localVideoReceiver(nullptr)
 {
-    refsMutex.lock();
-    megaChatApiRefs.push_back(this);
-
-    ServiceManager::init();
-
-    refsMutex.unlock();
-
     init(chatApi, megaApi);
 }
-
-//MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, const char *appKey, const char *appDir)
-//{
-//    init(chatApi, (MegaApi*) new MyMegaApi(appKey, appDir));
-//}
 
 MegaChatApiImpl::~MegaChatApiImpl()
 {
@@ -84,17 +67,30 @@ MegaChatApiImpl::~MegaChatApiImpl()
     requestQueue.push(request);
     waiter->notify();
     thread.join();
+
+    // TODO: destruction of waiter hangs forever or may cause crashes
+    //delete waiter;
+
+    // TODO: destruction of network layer may cause hangs on MegaApi's network layer.
+    // It may terminate the OpenSSL required by cUrl in SDK, so better to skip it.
+    //delete websocketsIO;
 }
 
 void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
 {
+    if (!megaPostMessageToGui)
+    {
+        megaPostMessageToGui = MegaChatApiImpl::megaApiPostMessage;
+    }
+
     this->chatApi = chatApi;
     this->megaApi = megaApi;
 
-    this->waiter = new MegaWaiter();
     this->mClient = NULL;
     this->terminating = false;
-
+    this->waiter = new MegaChatWaiter();
+    this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, this);
+    
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
@@ -122,7 +118,8 @@ void MegaChatApiImpl::loop()
         sdkMutex.unlock();
 
         waiter->init(NEVER);
-        waiter->wait();         // waken up directly by Waiter::notify()
+        waiter->wakeupby(websocketsIO, ::mega::Waiter::NEEDEXEC);
+        waiter->wait();
 
         sdkMutex.lock();
 
@@ -131,37 +128,31 @@ void MegaChatApiImpl::loop()
 
         if (threadExit)
         {
-            // remove the MegaChatApiImpl that is being deleted
-            refsMutex.lock();
-            for (vector<MegaChatApiImpl*>::iterator it = megaChatApiRefs.begin(); it != megaChatApiRefs.end(); it++)
-            {
-                if (*it == this)
-                {
-                    megaChatApiRefs.erase(it);
-                    break;
-                }
-            }
-            sendPendingEvents();    // process any pending events in the queue
-            refsMutex.unlock();
+            // There must be only one pending events, at maximum: the logout marshall call to delete the client
+            assert(eventQueue.isEmpty() || (eventQueue.size() == 1));
+            sendPendingEvents();
+
             sdkMutex.unlock();
             break;
         }
     }
 }
 
-void MegaChatApiImpl::megaApiPostMessage(void* msg)
-{
-    // Add the message to the queue of events
-    refsMutex.lock();
-    if (megaChatApiRefs.size())
+void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
+{    
+    MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
+    if (megaChatApi)
     {
-        megaChatApiRefs[0]->postMessage(msg);
+        megaChatApi->postMessage(msg);
     }
-    else    // no more instances running, only one left --> directly process messages
+    else
     {
+        // For compatibility with the QT example app,
+        // there are some marshallCall() without context
+        // that don't need to be marshalled using the
+        // intermediate layer
         megaProcessMessage(msg);
     }
-    refsMutex.unlock();
 }
 
 void MegaChatApiImpl::postMessage(void *msg)
@@ -193,10 +184,10 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
-        if (terminating)
+        if (terminating && request->getType() != MegaChatRequest::TYPE_DELETE)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-            API_LOG_WARNING("Chat engine is being terminated, cannot process the request");
+            API_LOG_WARNING("Chat engine is terminated, cannot process the request");
             fireOnChatRequestFinish(request, megaChatError);
             continue;
         }
@@ -205,7 +196,9 @@ void MegaChatApiImpl::sendPendingRequests()
         {
         case MegaChatRequest::TYPE_CONNECT:
         {
-            mClient->connect(karere::Presence::kInvalid)
+            bool isInBackground = request->getFlag();
+
+            mClient->connect(karere::Presence::kInvalid, isInBackground)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -221,17 +214,9 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_DISCONNECT:
         {
-            mClient->disconnect()
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const promise::Error& e)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            mClient->disconnect();
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
 
             break;
         }
@@ -310,35 +295,19 @@ void MegaChatApiImpl::sendPendingRequests()
             if (mClient)
             {
                 bool deleteDb = request->getFlag();
-                mClient->terminate(deleteDb)
-                .then([request, this]()
+                terminating = true;
+                mClient->terminate(deleteDb);
+
+                API_LOG_INFO("Chat engine is logged out!");
+                marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
                 {
-                    API_LOG_INFO("Chat engine is logged out!");
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
 
-                    marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
-                    {
-                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                        fireOnChatRequestFinish(request, megaChatError);
-
-                        delete mClient;
-                        mClient = NULL;
-                        terminating = false;
-                     });
-                })
-                .fail([request, this](const promise::Error& e)
-                {
-                    API_LOG_INFO("Chat engine is logged out with error!");
-
-                    marshallCall([request, this, e]() //post destruction asynchronously so that all pending messages get processed before that
-                    {
-                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                        fireOnChatRequestFinish(request, megaChatError);
-
-                        delete mClient;
-                        mClient = NULL;
-                        terminating = false;
-                     });
-                });
+                    delete mClient;
+                    mClient = NULL;
+                    terminating = false;
+                 }, this);
             }
             else
             {
@@ -350,23 +319,16 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_DELETE:
         {
-            if (mClient)
+            if (mClient && !terminating)
             {
-                mClient->terminate()
-                .then([this]()
-                {
-                    API_LOG_INFO("Chat engine closed!");
-                    threadExit = 1;
-                })
-                .fail([](const promise::Error& err)
-                {
-                    API_LOG_ERROR("Error closing chat engine: %s", err.what());
-                });
+                mClient->terminate();
+                API_LOG_INFO("Chat engine closed!");
+
+                delete mClient;
+                mClient = NULL;
             }
-            else
-            {
-                threadExit = 1;
-            }
+
+            threadExit = 1;
             break;
         }
         case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
@@ -944,7 +906,7 @@ void MegaChatApiImpl::sendPendingRequests()
 void MegaChatApiImpl::sendPendingEvents()
 {
     void *msg;
-    while((msg = eventQueue.pop()))
+    while ((msg = eventQueue.pop()))
     {
         megaProcessMessage(msg);
     }
@@ -997,7 +959,7 @@ int MegaChatApiImpl::init(const char *sid)
     sdkMutex.lock();
     if (!mClient)
     {
-        mClient = new karere::Client(*this->megaApi, *this, this->megaApi->getBasePath(), karere::kClientIsMobile);
+        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), karere::kClientIsMobile, this);
         terminating = false;
     }
 
@@ -1372,6 +1334,14 @@ void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
+void MegaChatApiImpl::connectInBackground(MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISCONNECT, listener);
@@ -1512,7 +1482,7 @@ bool MegaChatApiImpl::isOnlineStatusPending()
 
 int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 {
-    int status = MegaChatApi::STATUS_OFFLINE;
+    int status = MegaChatApi::STATUS_INVALID;
 
     sdkMutex.lock();
 
@@ -2158,7 +2128,7 @@ void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle han
     waiter->notify();
 }
 
-bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
+bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle)
 {
     bool ret = false;
 
@@ -2540,11 +2510,6 @@ void MegaChatApiImpl::onInitStateChange(int newState)
         return;
     }
 
-    if (newState == karere::Client::kInitTerminating)
-    {
-        terminating = true;
-    }
-
     int state = MegaChatApiImpl::convertInitState(newState);
 
     // only notify meaningful state to the app
@@ -2581,7 +2546,6 @@ int MegaChatApiImpl::convertInitState(int state)
         return MegaChatApi::INIT_ONLINE_SESSION;
 
     case karere::Client::kInitCreated:
-    case karere::Client::kInitTerminating:
     case karere::Client::kInitTerminated:
     case karere::Client::kInitErrSidInvalid:
     default:
@@ -2782,6 +2746,28 @@ void* EventQueue::pop()
     events.pop_front();
     mutex.unlock();
     return event;
+}
+
+bool EventQueue::isEmpty()
+{
+    bool ret;
+
+    mutex.lock();
+    ret = events.empty();
+    mutex.unlock();
+
+    return ret;
+}
+
+size_t EventQueue::size()
+{
+    size_t ret;
+
+    mutex.lock();
+    ret = events.size();
+    mutex.unlock();
+
+    return ret;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener *listener)
@@ -3480,9 +3466,13 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     chatApi->fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onOnlineStateChange(ChatState)
+void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
 {
-    // apps not interested about this event
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onOnlineStateChange(state);
+    }
 }
 
 void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
@@ -4672,6 +4662,7 @@ LoggerHandler::LoggerHandler()
 
     gLogger.addUserLogger("MegaChatApi", this);
     gLogger.logChannels[krLogChannel_megasdk].logLevel = krLogLevelDebugVerbose;
+    gLogger.logChannels[krLogChannel_websockets].logLevel = krLogLevelDebugVerbose;
     gLogger.logToConsoleUseColors(false);
 }
 
@@ -5255,25 +5246,3 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     return messageContents;
 }
 
-void ServiceManager::init()
-{
-    if (!mInstance.get())
-    {
-        mInstance = std::shared_ptr<ServiceManager>(new ServiceManager());
-    }
-}
-
-void ServiceManager::cleanup()
-{
-    mInstance.reset();
-}
-
-ServiceManager::ServiceManager()
-{
-    globalInit(MegaChatApiImpl::megaApiPostMessage);
-}
-
-ServiceManager::~ServiceManager()
-{
-    globalCleanup();
-}

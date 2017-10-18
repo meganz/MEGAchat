@@ -13,6 +13,7 @@ include (utils.cmake)
 
 set(optKarereBuildShared 0 CACHE BOOL "Build libkarere as a shared library")
 set(optKarereDisableWebrtc 1 CACHE BOOL "Disable webrtc")
+set(optKarereUseLibwebsockets 0 CACHE BOOL "Use libwebsockets + libuv")
 
 find_package(Cryptopp REQUIRED)
 find_package(Mega REQUIRED)
@@ -35,8 +36,15 @@ set (SRCS
     strongvelope/strongvelope.cpp
     presenced.cpp
     megachatapi.cpp
-    megachatapi_impl.cpp
+    megachatapi_impl.cpp 
+    net/websocketsIO.cpp   
 )
+
+if (optKarereUseLibwebsockets)
+    list(APPEND SRCS waiter/libuvWaiter.cpp net/libwebsocketsIO.cpp)	
+else()
+    list(APPEND SRCS waiter/libeventWaiter.cpp net/libwsIO.cpp)	
+endif()
 
 if (NOT optKarereDisableWebrtc)
     list(APPEND SRCS dummyCrypto.cpp megaCryptoFunctions.cpp strophe.disco.cpp)
@@ -51,7 +59,10 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
         endif()
     endif()
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GET_APPDATA_DIR_WEAKLINK_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")   
+	if (optKarereUseLibwebsockets)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_LIBWEBSOCKETS=1") 
+	endif()
     if (CLANG_STDLIB)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
     endif()
@@ -73,7 +84,10 @@ endif()
 
 get_property(SERVICES_INCLUDE_DIRS GLOBAL PROPERTY SERVICES_INCLUDE_DIRS)
 
-add_subdirectory(${LIBWS_DIR} libws)
+if (NOT optKarereUseLibwebsockets)
+	add_subdirectory(${LIBWS_DIR} libws)
+endif()
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     COMMAND ${CMAKE_COMMAND} -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dbSchema.sql ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
@@ -91,14 +105,22 @@ set(KARERE_INCLUDE_DIRS
     ${LIBMEGA_INCLUDE_DIRS}
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
-    ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws
 )
+
+if (NOT optKarereUseLibwebsockets)
+    list(APPEND KARERE_INCLUDE_DIRS ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws)
+endif()
 
 set(KARERE_DEP_LIBS
     ${LIBMEGA_LIBRARIES}
-    ws
     ${SQLITE3_LIBRARY}
 )
+
+if (optKarereUseLibwebsockets)
+    list(APPEND KARERE_DEP_LIBS websockets uv crypto ssl)
+else()
+    list(APPEND KARERE_DEP_LIBS ws)
+endif()
 
 if (NOT optKarereDisableWebrtc)
     list(APPEND KARERE_INCLUDE_DIRS ${RTCMODULE_INCLUDE_DIRS})

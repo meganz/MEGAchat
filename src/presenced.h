@@ -1,7 +1,6 @@
 #ifndef __PRESENCED_H__
 #define __PRESENCED_H__
 
-#include <libws.h>
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
@@ -10,6 +9,7 @@
 #include <karereId.h>
 #include "url.h"
 #include <base/trackDelete.h>
+#include "net/websocketsIO.h"
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -37,7 +37,7 @@ public:
         kInvalid = 0xff,
         kFlagsMask = 0xf0
     };
-    Presence(Code pres=kOffline): mPres(pres){}
+    Presence(Code pres = kInvalid): mPres(pres){}
     Code code() const { return mPres & ~kFlagsMask; }
     Code status() const { return code(); }
     operator Code() const { return code(); }
@@ -230,28 +230,27 @@ struct IdRefMap: public std::map<karere::Id, int>
 
 class Listener;
 
-class Client: public karere::DeleteTrackable
+class Client: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum ConnState
     {
         kConnNew = 0,
         kDisconnected,
+        kResolving,
         kConnecting,
         kConnected,
         kLoggedIn
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
+
 protected:
-    static ws_base_s sWebsocketContext;
-    static bool sWebsockCtxInitialized;
-    ws_t mWebSocket = nullptr;
     ConnState mConnState = kConnNew;
     Listener* mListener;
+    karere::Client *karereClient;
     karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
-    bool mTerminating = false;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
@@ -266,10 +265,11 @@ protected:
     IdRefMap mCurrentPeers;
     void initWebsocketCtx();
     void setConnState(ConnState newState);
-    static void websockConnectCb(ws_t ws, void* arg);
-    static void websockCloseCb(ws_t ws, int errcode, int errtype, const char *reason,
-        size_t reason_len, void *arg);
-    static void websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, void *arg);
+
+    virtual void wsConnectCb();
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsHandleMsgCb(char *data, size_t len);
+    
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
@@ -289,8 +289,9 @@ protected:
     void configChanged();
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
+    
 public:
-    Client(MyMegaApi *api, Listener& listener, uint8_t caps);
+    Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
     bool isOnline() const { return (mConnState >= kConnected); }
@@ -307,7 +308,6 @@ public:
         const Config& Config);
     void disconnect();
     promise::Promise<void> retryPendingConnection();
-    void reset();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
@@ -347,6 +347,7 @@ static inline const char* connStateToStr(Client::ConnState state)
     switch (state)
     {
     case Client::kDisconnected: return "Disconnected";
+    case Client::kResolving: return "Resolving";
     case Client::kConnecting: return "Connecting";
     case Client::kConnected: return "Connected";
     case Client::kLoggedIn: return "Logged-in";
@@ -357,8 +358,3 @@ static inline const char* connStateToStr(Client::ConnState state)
 }
 
 #endif
-
-
-
-
-

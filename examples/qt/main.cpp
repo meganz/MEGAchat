@@ -17,6 +17,7 @@
 #include <mega/megaclient.h>
 #include <karereCommon.h>
 #include <fstream>
+#include <net/libwsIO.h>
 
 using namespace std;
 using namespace promise;
@@ -52,7 +53,7 @@ public:
 
 AppDelegate appDelegate;
 
-extern "C" void myMegaPostMessageToGui(void* msg)
+extern "C" void myMegaPostMessageToGui(void* msg, void* appCtx)
 {
     QEvent* event = new GcmEvent(msg);
     QApplication::postEvent(&appDelegate, event);
@@ -67,10 +68,11 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
-    marshallCall([]{appDelegate.onAppTerminate();});
+    marshallCall([]{appDelegate.onAppTerminate();}, NULL);
 }
 
 std::string gAppDir = karere::createAppDir();
+std::unique_ptr<WebsocketsIO> gWebsocketsIO;
 std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
 
@@ -78,7 +80,10 @@ void createWindowAndClient()
 {
     mainWin = new MainWindow();
     gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
-    gClient.reset(new karere::Client(*gSdk, *mainWin, gAppDir, 0));
+
+    // Websockets network layer based on libws
+    gWebsocketsIO.reset(new LibwsIO());
+    gClient.reset(new karere::Client(*gSdk, gWebsocketsIO.get(), *mainWin, gAppDir, 0));
     mainWin->setClient(*gClient);
     QObject::connect(mainWin, SIGNAL(esidLogout()), &appDelegate, SLOT(onEsidLogout()));
 }
@@ -149,7 +154,7 @@ int main(int argc, char **argv)
         marshallCall([]()
         {
             appDelegate.onAppTerminate();
-        });
+        }, NULL);
     });
     return a.exec();
 }
@@ -191,24 +196,18 @@ void AppDelegate::onAppTerminate()
     static bool called = false;
     assert(!called);
     called = true;
-    gClient->terminate()
-    .then([this]()
+    gClient->terminate();
+
+    gSdk->localLogout(nullptr);
+
+    marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
     {
-        return gSdk->localLogout(nullptr);
-    })
-    .fail([](const promise::Error& err)
-    {
-        KR_LOG_ERROR("Error logging out the Mega client: ", err.what());
-    })
-    .then([this]()
-    {
-        marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
-        {
-            qApp->quit(); //stop processing marshalled call messages
-            gClient.reset();
-            karere::globalCleanup();
-        });
-    });
+        qApp->quit(); //stop processing marshalled call messages
+        gClient.reset();
+        gSdk.reset();
+        gWebsocketsIO.reset();
+        karere::globalCleanup();
+    }, NULL);
 }
 
 void saveSid(const char* sdkSid)
@@ -221,33 +220,31 @@ void saveSid(const char* sdkSid)
 
 void AppDelegate::onEsidLogout()
 {
-    gClient->terminate(true)
-    .then([this]()
+    gClient->terminate(true);
+
+    marshallCall([this]() //post destruction asynchronously so that all pending messages get processed before that
     {
-        marshallCall([this]() //post destruction asynchronously so that all pending messages get processed before that
+        QObject::disconnect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+
+        gClient.reset();
+        remove((gAppDir+"/sid").c_str());
+        delete mainWin;
+        QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
+        createWindowAndClient();
+
+        gClient->loginSdkAndInit(nullptr)
+        .then([]()
         {
-            QObject::disconnect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-
-            gClient.reset();
-            remove((gAppDir+"/sid").c_str());
-            delete mainWin;
-            QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
-            createWindowAndClient();
-
-            gClient->loginSdkAndInit(nullptr)
-            .then([]()
-            {
-                KR_LOG_DEBUG("New client initialized with new session");
-                saveSid(gSdk->dumpSession());
-                QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-                gClient->connect(Presence::kInvalid);
-            })
-            .fail([](const promise::Error& err)
-            {
-                KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
-            });
+            KR_LOG_DEBUG("New client initialized with new session");
+            saveSid(gSdk->dumpSession());
+            QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
+            gClient->connect(Presence::kInvalid);
+        })
+        .fail([](const promise::Error& err)
+        {
+            KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
         });
-    });
+    }, NULL);
 }
 
 #include <main.moc>
