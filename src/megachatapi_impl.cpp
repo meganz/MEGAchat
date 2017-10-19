@@ -3382,12 +3382,10 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
 
 void MegaChatVideoReceiver::onVideoAttach()
 {
-
 }
 
 void MegaChatVideoReceiver::onVideoDetach()
 {
-    delete this;
 }
 
 void MegaChatVideoReceiver::clearViewport()
