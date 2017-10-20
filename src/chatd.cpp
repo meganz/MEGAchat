@@ -1940,10 +1940,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
 
-            if (idx >= mNextHistFetchIdx)
+            if (idx > mNextHistFetchIdx)
             {
                 // msg.ts is zero - chatd doesn't send the original timestamp
                 CALL_LISTENER(onMessageEdited, histmsg, idx);
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet message");
             }
 
             if (msg->userid != client().userId() && // is not our own message
