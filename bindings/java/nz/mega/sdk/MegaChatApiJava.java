@@ -24,6 +24,7 @@ public class MegaChatApiJava {
     static Set<DelegateMegaChatRequestListener> activeRequestListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRequestListener>());
     static Set<DelegateMegaChatListener> activeChatListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatListener>());
     static Set<DelegateMegaChatRoomListener> activeChatRoomListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRoomListener>());
+    static Set<DelegateMegaChatCallListener> activeChatCallListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatCallListener>());
 
     void runCallback(Runnable runnable) {
         runnable.run();
@@ -47,6 +48,11 @@ public class MegaChatApiJava {
     public void addChatListener(MegaChatListenerInterface listener)
     {
         megaChatApi.addChatListener(createDelegateChatListener(listener));
+    }
+
+    public void addChatCallListener(MegaChatCallListenerInterface listener)
+    {
+        megaChatApi.addChatCallListener(createDelegateChatCallListener(listener));
     }
 
     public void removeChatRequestListener(MegaChatRequestListenerInterface listener) {
@@ -83,6 +89,24 @@ public class MegaChatApiJava {
 
         for (int i=0;i<listenersToRemove.size();i++){
             megaChatApi.removeChatListener(listenersToRemove.get(i));
+        }
+    }
+
+    public void removeChatCallListener(MegaChatCallListenerInterface listener) {
+        ArrayList<DelegateMegaChatCallListener> listenersToRemove = new ArrayList<DelegateMegaChatCallListener>();
+        synchronized (activeChatCallListeners) {
+            Iterator<DelegateMegaChatCallListener> it = activeChatCallListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatCallListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i=0;i<listenersToRemove.size();i++){
+            megaChatApi.removeChatCallListener(listenersToRemove.get(i));
         }
     }
 
@@ -1386,9 +1410,130 @@ public class MegaChatApiJava {
         megaChatApi.sendTypingNotification(chatid);
     }
 
-    public void startChatCall(long chatid, boolean enableVideo)
+
+    // Call management
+    /**
+     * Start a call in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void startChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
     {
-        megaChatApi.startChatCall(chatid, enableVideo);
+        megaChatApi.startChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Answer a call received in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void answerChatCall(long chatid, boolean enableVideo, MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.answerChatCall(chatid, enableVideo, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Refuse a call received in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void rejectChatCall(long chatid, MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.rejectChatCall(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Hang a call in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+
+    public void hangChatCall(long chatid, MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.hangChatCall(chatid, createDelegateRequestListener(listener));
+    }
+    /**
+     * Hang all active calls
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void hangAllChatCalls(MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.hangAllChatCalls(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Mute or unmute a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to mute audio, false to unmute
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param mute True for mute the call, false for unmute
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void muteCall(long chatid, boolean mute, MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.muteCall(chatid, mute, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Disable or enable video on a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to disable video, false to enable video
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param videoCall True for disable video, false for enable video
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void disableVideoCall(long chatid, boolean videoCall, MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.disableVideoCall(chatid, videoCall, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Search all audio and video devices at the system at that moment.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
+     * After call this funciton, available devices can be obtained calling getChatAudioInDevices
+     * or getChatVideoInDevices
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void loadAudioVideoDeviceList(MegaChatRequestListenerInterface listener)
+    {
+        megaChatApi.loadAudioVideoDeviceList(createDelegateRequestListener(listener));
     }
 
     public static void setCatchException(boolean enable) {
@@ -1459,6 +1604,12 @@ public class MegaChatApiJava {
     private MegaChatListener createDelegateChatListener(MegaChatListenerInterface listener) {
         DelegateMegaChatListener delegateListener = new DelegateMegaChatListener(this, listener);
         activeChatListeners.add(delegateListener);
+        return delegateListener;
+    }
+
+    private MegaChatCallListener createDelegateChatCallListener(MegaChatCallListenerInterface listener) {
+        DelegateMegaChatCallListener delegateListener = new DelegateMegaChatCallListener(this, listener);
+        activeChatCallListeners.add(delegateListener);
         return delegateListener;
     }
 
