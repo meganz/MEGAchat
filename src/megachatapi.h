@@ -1128,8 +1128,7 @@ public:
     {
         DISCONNECTED    = 0,    /// No connection established
         CONNECTING      = 1,    /// A call to connect() is in progress
-        DISCONNECTING   = 2,    /// A call to disconnect() is in progress
-        CONNECTED       = 3     /// A call to connect() succeed
+        CONNECTED       = 2     /// A call to connect() succeed
     };
 
     enum
@@ -1264,6 +1263,29 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void connect(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Establish the connection with chat-related servers (chatd, presenced and Gelb).
+     *
+     * This function is intended to be used instead of MegaChatApi::connect when the connection
+     * is done by a service in background, which is launched without user-interaction. It avoids
+     * to notify to the server that this client is active, but actually the user is away.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::init to initialize the chat engine
+     *  - MegaApi::login to login in MEGA
+     *  - MegaApi::fetchNodes to retrieve current state of the account
+     *
+     * At that point, the initialization state should be MegaChatApi::INIT_ONLINE_SESSION.
+     * The online status after connecting will be whatever was last used.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CONNECT
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void connectInBackground(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Disconnect from chat-related servers (chatd, presenced and Gelb).

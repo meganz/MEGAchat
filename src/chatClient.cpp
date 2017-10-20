@@ -208,6 +208,9 @@ Client::~Client()
 
 promise::Promise<void> Client::retryPendingConnections()
 {
+    if (mConnState == kConnecting)
+        return mConnectPromise;
+
     std::vector<Promise<void>> promises;
 
     promises.push_back(mPresencedClient.retryPendingConnection());
@@ -375,25 +378,56 @@ void Client::commit(const std::string& scsn)
 void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 {
     assert(event);
-    if ((event->getType() == ::mega::MegaEvent::EVENT_COMMIT_DB) && db)
+    int type = event->getType();
+    switch (type)
     {
-        auto pscsn = event->getText();
-        if (!pscsn)
+    case ::mega::MegaEvent::EVENT_COMMIT_DB:
+    {
+        if (db)
         {
-            KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
-            return;
-        }
-        std::string scsn = pscsn;
-        auto wptr = weakHandle();
-        marshallCall([wptr, this, scsn]()
-        {
-            if (wptr.deleted())
+            auto pscsn = event->getText();
+            if (!pscsn)
             {
+                KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
                 return;
             }
+            std::string scsn = pscsn;
+            auto wptr = weakHandle();
+            marshallCall([wptr, this, scsn]()
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
 
-            commit(scsn);
-        }, appCtx);
+                commit(scsn);
+            }, appCtx);
+        }
+        break;
+    }
+
+    case ::mega::MegaEvent::EVENT_DISCONNECT:
+    {
+        if (connState() == kConnecting || connState() == kConnected)
+        {
+            auto wptr = weakHandle();
+            marshallCall([wptr, this]()
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+
+                KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
+                retryPendingConnections();
+
+            }, appCtx);
+        }
+        break;
+    }
+
+    default:
+        break;
     }
 }
 
@@ -489,7 +523,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             if (wptr.deleted())
                 return;
 
-            if (initState() < kInitTerminating)
+            if (initState() != kInitTerminated)
             {
                 setInitState(kInitErrSidInvalid);
             }
@@ -511,7 +545,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 if (wptr.deleted())
                     return;
 
-                if (initState() < kInitTerminating)
+                if (initState() != kInitTerminated)
                 {
                     setInitState(kInitErrSidInvalid);
                 }
@@ -707,7 +741,7 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres)
+promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 {
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
@@ -717,15 +751,17 @@ promise::Promise<void> Client::connect(Presence pres)
     else if (mConnState == kConnected)
         return promise::_Void();
 
+    this->isInBackground = isInBackground;
+
     assert(mConnState == kDisconnected);
-    auto sessDone = mSessionReadyPromise.done();
+    auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
-    case promise::kSucceeded:
+    case promise::kSucceeded:   // if session was already ready...
         return doConnect(pres);
     case promise::kFailed:
         return mSessionReadyPromise.error();
-    default:
+    default:                    // if session is not ready yet
         assert(sessDone == promise::kNotResolved);
         mConnectPromise = mSessionReadyPromise
             .then([this, pres]() mutable
@@ -793,13 +829,11 @@ promise::Promise<void> Client::doConnect(Presence pres)
     return pms;
 }
 
-promise::Promise<void> Client::disconnect()
+void Client::disconnect()
 {
     if (mConnState == kDisconnected)
-        return promise::_Void();
-    else if (mConnState == kDisconnecting)
-        return mDisconnectPromise;
-    setConnState(kDisconnecting);
+        return;
+    setConnState(kDisconnected);
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
     mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
@@ -809,18 +843,8 @@ promise::Promise<void> Client::disconnect()
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
-    mDisconnectPromise = chatd->disconnect()
-    .then([this]()
-    {
-        setConnState(kDisconnected);
-    })
-    .fail([this](const promise::Error& err)
-    {
-        setConnState(kDisconnected);
-        return err;
-    });
+    chatd->disconnect();
     mPresencedClient.disconnect();
-    return mDisconnectPromise;
 }
 void Client::setConnState(ConnState newState)
 {
@@ -1064,13 +1088,10 @@ void Client::notifyUserActive()
     }
 }
 
-promise::Promise<void> Client::terminate(bool deleteDb)
+void Client::terminate(bool deleteDb)
 {
-    if (mInitState == kInitTerminating)
-    {
-        return promise::Error("Already terminating");
-    }
-    setInitState(kInitTerminating);
+    setInitState(kInitTerminated);
+
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
 
@@ -1079,31 +1100,19 @@ promise::Promise<void> Client::terminate(bool deleteDb)
         rtc->hangupAll();
 #endif
 
-    return disconnect()
-    .fail([](const promise::Error& err)
+    disconnect();
+    mUserAttrCache.reset();
+
+    if (deleteDb && !mSid.empty())
     {
-        KR_LOG_ERROR("Error disconnecting client: %s", err.toString().c_str());
-        return promise::_Void();
-    })
-    .then([this, deleteDb]()
+        wipeDb(mSid);
+    }
+    else if (db)
     {
-        mUserAttrCache.reset();
-        if (db)
-        {
-            KR_LOG_INFO("Doing final COMMIT to database");
-            db.commit();
-        }
-        if (deleteDb && !mSid.empty())
-        {
-            wipeDb(mSid);
-        }
-        else if (db)
-        {
-            sqlite3_close(db);
-            db = nullptr;
-        }
-        setInitState(kInitTerminated);
-    });
+        KR_LOG_INFO("Doing final COMMIT to database");
+        db.commit();
+        db.close();
+    }
 }
 
 promise::Promise<void> Client::setPresence(Presence pres)
@@ -1450,7 +1459,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat,
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && (parent.client.initState() < Client::kInitTerminating))
+    if (mRoomGui && (parent.client.initState() != Client::kInitTerminated))
         parent.client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
     auto chatd = parent.client.chatd.get();
     if (chatd)
@@ -2023,7 +2032,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui && (parent.client.initState() < Client::kInitTerminating))
+    if (mRoomGui && (parent.client.initState() != Client::kInitTerminated))
         parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
     auto chatd = parent.client.chatd.get();
@@ -2732,8 +2741,7 @@ Contact::~Contact()
 {
     auto& client = mClist.client;
     client.userAttrCache().removeCb(mUsernameAttrCbId);
-    // this is not normally needed, as we never delete contacts - just make them invisible
-    if (client.initState() < Client::kInitTerminating)
+    if (client.initState() != Client::kInitTerminated)
     {
         client.presenced().removePeer(mUserid, true);
         if (mDisplay)
@@ -2822,7 +2830,6 @@ const char* Client::initStateToStr(unsigned char state)
         RETURN_ENUM_NAME(kInitWaitingNewSession);
         RETURN_ENUM_NAME(kInitHasOfflineSession);
         RETURN_ENUM_NAME(kInitHasOnlineSession);
-        RETURN_ENUM_NAME(kInitTerminating);
         RETURN_ENUM_NAME(kInitTerminated);
         RETURN_ENUM_NAME(kInitErrGeneric);
         RETURN_ENUM_NAME(kInitErrNoCache);
@@ -2839,7 +2846,6 @@ const char* Client::connStateToStr(ConnState state)
     {
         RETURN_ENUM_NAME(kDisconnected);
         RETURN_ENUM_NAME(kConnecting);
-        RETURN_ENUM_NAME(kDisconnecting);
         RETURN_ENUM_NAME(kConnected);
         default: return "(invalid)";
     }
