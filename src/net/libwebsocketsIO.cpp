@@ -28,10 +28,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
     info.uid = -1;
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
-    
-#ifdef LWS_USE_LIBUV
     info.options |= LWS_SERVER_OPTION_LIBUV;
-#endif
     
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
