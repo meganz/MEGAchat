@@ -5,6 +5,17 @@
 #include <media/engine/webrtcvideocapturerfactory.h>
 #include "webrtcAsyncWaiter.h"
 
+#ifdef __ANDROID__
+#include <jni.h>
+#include <webrtc/api/videosourceproxy.h>
+#include <webrtc/sdk/android/src/jni/androidvideotracksource.h>
+
+extern JavaVM *MEGAjvm;
+extern jclass applicationClass;
+extern jmethodID startVideoCaptureMID;
+extern jobject surfaceTextureHelper;
+#endif
+
 namespace artc
 {
 
@@ -102,6 +113,7 @@ void DeviceManager::enumInputDevices()
     // TODO: Implement audio device enumeration, when webrtc has it again
     // Maybe VoEHardware in src/voice_engine/main/interface/voe_hardware.h
     mInputDevices.audio.push_back(cricket::Device("default", "0"));
+    mInputDevices.video.push_back(cricket::Device("default", "0"));
 
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
         webrtc::VideoCaptureFactory::CreateDeviceInfo());
@@ -129,6 +141,7 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
 {
     assert(!mSource.get());
 
+#ifndef __ANDROID__
     cricket::WebRtcVideoDeviceCapturerFactory factory;
     std::unique_ptr<cricket::VideoCapturer> capturer(
         factory.Create(cricket::Device(mOptions->device.name, 0)));
@@ -140,9 +153,19 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
 
     mSource = gWebrtcContext->CreateVideoSource(capturer.release(),
         &(mOptions->constraints));
+#else
+    JNIEnv *env;
+    MEGAjvm->AttachCurrentThread(&env, NULL);
+    rtc::Thread *currentThread = rtc::ThreadManager::Instance()->CurrentThread();
+    mSource = new rtc::RefCountedObject<webrtc::AndroidVideoTrackSource>(currentThread, env, surfaceTextureHelper, false);
+    rtc::scoped_refptr<webrtc::VideoTrackSourceProxy> proxySource = webrtc::VideoTrackSourceProxy::Create(currentThread, currentThread, mSource);
+    env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jlong)proxySource.release(), surfaceTextureHelper);
+#endif
 
     if (!mSource.get())
-        throw std::runtime_error("Could not create a video source");
+    {
+        RTCM_LOG_WARNING("Could not create a video source for device '%s'", mOptions->device.name.c_str());
+    }
 }
 template<> webrtc::VideoTrackInterface*
 InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::createTrack()
