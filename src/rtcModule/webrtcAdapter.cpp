@@ -99,15 +99,15 @@ void DeviceManager::enumInputDevices()
     mInputDevices.audio.clear();
     mInputDevices.video.clear();
 
+    // TODO: Implement audio device enumeration, when webrtc has it again
+    // Maybe VoEHardware in src/voice_engine/main/interface/voe_hardware.h
+    mInputDevices.audio.push_back(cricket::Device("default", "0"));
+
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
         webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info)
     {
-#ifndef __ANDROID__
-        throw std::runtime_error("Can't enumerate video devices");
-#else
         return;
-#endif
     }
 
     int numDevices = info->NumberOfDevices();
@@ -122,9 +122,6 @@ void DeviceManager::enumInputDevices()
             devices.push_back(cricket::Device(name, id));
         }
     }
-    // TODO: Implement audio device enumeration, when webrtc has it again
-    // Maybe VoEHardware in src/voice_engine/main/interface/voe_hardware.h
-     mInputDevices.audio.push_back(cricket::Device("default", "0"));
 }
 
 template<>
