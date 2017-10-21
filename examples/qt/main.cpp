@@ -68,7 +68,7 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
-    marshallCall([]{ appDelegate.onAppTerminate(); }, NULL);
+    marshallCall([]{mainWin->close();}, NULL);
 }
 
 std::string gAppDir = karere::createAppDir();
@@ -140,10 +140,13 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized");
         }
-        setVidencParams();
         signal(SIGINT, sigintHandler);
         QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-        gClient->connect(Presence::kInvalid);
+        return gClient->connect(Presence::kInvalid);
+    })
+    .then([]()
+    {
+        setVidencParams();
     })
     .fail([](const promise::Error& err)
     {
@@ -153,7 +156,7 @@ int main(int argc, char **argv)
         }
         marshallCall([]()
         {
-            appDelegate.onAppTerminate();
+            mainWin->close();
         }, NULL);
     });
     return a.exec();
@@ -203,9 +206,9 @@ void AppDelegate::onAppTerminate()
 
     marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
     {
-        qApp->quit(); //stop processing marshalled call messages
         gClient.reset();
         gSdk.reset();
+        qApp->quit(); //stop processing marshalled call messages
         gWebsocketsIO.reset();
         karere::globalCleanup();
     }, NULL);

@@ -203,7 +203,6 @@ Client::~Client()
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
-    //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
 promise::Promise<void> Client::retryPendingConnections()
@@ -2734,9 +2733,9 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    client.userAttrCache().removeCb(mUsernameAttrCbId);
     if (client.initState() != Client::kInitTerminated)
     {
+        client.userAttrCache().removeCb(mUsernameAttrCbId);
         client.presenced().removePeer(mUserid, true);
         if (mDisplay)
         {
