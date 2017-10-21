@@ -2049,8 +2049,12 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
-            // msg.ts is zero - chatd doesn't send the original timestamp
-            CALL_LISTENER(onMessageEdited, histmsg, idx);
+
+            if (idx >= mNextHistFetchIdx)
+            {
+                // msg.ts is zero - chatd doesn't send the original timestamp
+                CALL_LISTENER(onMessageEdited, histmsg, idx);
+            }
 
             if (msg->userid != client().userId() && // is not our own message
                     msg->updated && !msg->size())   // is deleted
