@@ -948,6 +948,9 @@ void Call::startIncallPingTimer()
     auto wptr = weakHandle();
     mInCallPingTimer = setInterval([this, wptr]()
     {
+        if (wptr.deleted())
+            return;
+
         if (!mChat.sendCommand(Command(OP_INCALL) + mChat.chatId() + mManager.mClient.myHandle() + mChat.connection().clientId()))
         {
             asyncDestroy(TermCode::kErrNetSignalling, true);
