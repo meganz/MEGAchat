@@ -25,6 +25,7 @@ public class MegaChatApiJava {
     static Set<DelegateMegaChatListener> activeChatListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatListener>());
     static Set<DelegateMegaChatRoomListener> activeChatRoomListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRoomListener>());
     static Set<DelegateMegaChatCallListener> activeChatCallListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatCallListener>());
+    static Set<DelegateMegaChatVideoListener> activeChatVideoListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatVideoListener>());
 
     void runCallback(Runnable runnable) {
         runnable.run();
@@ -53,6 +54,16 @@ public class MegaChatApiJava {
     public void addChatCallListener(MegaChatCallListenerInterface listener)
     {
         megaChatApi.addChatCallListener(createDelegateChatCallListener(listener));
+    }
+
+    public void addChatLocalVideoListener(MegaChatVideoListenerInterface listener)
+    {
+        megaChatApi.addChatLocalVideoListener(createDelegateChatVideoListener(listener, false));
+    }
+
+    public void addChatRemoteVideoListener(MegaChatVideoListenerInterface listener)
+    {
+        megaChatApi.addChatRemoteVideoListener(createDelegateChatVideoListener(listener, true));
     }
 
     public void removeChatRequestListener(MegaChatRequestListenerInterface listener) {
@@ -109,6 +120,32 @@ public class MegaChatApiJava {
             megaChatApi.removeChatCallListener(listenersToRemove.get(i));
         }
     }
+
+    public void removeChatVideoListener(MegaChatVideoListenerInterface listener) {
+        ArrayList<DelegateMegaChatVideoListener> listenersToRemove = new ArrayList<DelegateMegaChatVideoListener>();
+        synchronized (activeChatVideoListeners) {
+            Iterator<DelegateMegaChatVideoListener> it = activeChatVideoListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatVideoListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i = 0; i < listenersToRemove.size(); i++) {
+            DelegateMegaChatVideoListener delegateListener = listenersToRemove.get(i);
+            delegateListener.setRemoved();
+            if (delegateListener.isRemote()) {
+                megaChatApi.removeChatRemoteVideoListener(delegateListener);
+            }
+            else {
+                megaChatApi.removeChatLocalVideoListener(delegateListener);
+            }
+        }
+    }
+
 
     public int init(String sid)
     {
@@ -1610,6 +1647,12 @@ public class MegaChatApiJava {
     private MegaChatCallListener createDelegateChatCallListener(MegaChatCallListenerInterface listener) {
         DelegateMegaChatCallListener delegateListener = new DelegateMegaChatCallListener(this, listener);
         activeChatCallListeners.add(delegateListener);
+        return delegateListener;
+    }
+
+    private MegaChatVideoListener createDelegateChatVideoListener(MegaChatVideoListenerInterface listener, boolean remote) {
+        DelegateMegaChatVideoListener delegateListener = new DelegateMegaChatVideoListener(this, listener, remote);
+        activeChatVideoListeners.add(delegateListener);
         return delegateListener;
     }
 
