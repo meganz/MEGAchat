@@ -142,7 +142,7 @@ public:
      *
      *  The MegaChatVideoListener retains the ownership of the buffer.
      */
-    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer);
+    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer, size_t size);
 };
 
 /**

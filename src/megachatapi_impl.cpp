@@ -1372,7 +1372,7 @@ void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int w
 {
     for(set<MegaChatVideoListener *>::iterator it = remoteVideoListeners.begin(); it != remoteVideoListeners.end() ; it++)
     {
-        (*it)->onChatVideoData(chatApi, call, width, height, buffer);
+        (*it)->onChatVideoData(chatApi, call, width, height, buffer, width * height * 4);
     }
 
     delete call;
@@ -1382,7 +1382,7 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatCallPrivate *call, int wi
 {
     for(set<MegaChatVideoListener *>::iterator it = localVideoListeners.begin(); it != localVideoListeners.end() ; it++)
     {
-        (*it)->onChatVideoData(chatApi, call, width, height, buffer);
+        (*it)->onChatVideoData(chatApi, call, width, height, buffer, width * height * 4);
     }
 
     delete call;

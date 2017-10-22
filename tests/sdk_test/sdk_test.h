@@ -388,7 +388,7 @@ public:
     TestChatVideoListener(const std::string& type);
     virtual ~TestChatVideoListener();
 
-    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatCall *chatCall, int width, int height, char*buffer);
+    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatCall *chatCall, int width, int height, char *buffer, size_t size);
 
 private:
     std::string mType;
