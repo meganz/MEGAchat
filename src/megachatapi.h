@@ -2566,6 +2566,8 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * To receive call notifications, you have to register MegaChatCallListener once at beginning of the program
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
      * @param listener MegaChatRequestListener to track this request
@@ -2579,6 +2581,10 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getParamType() - Return true if call is goint to be answered or
+     *   false if call is going to be rejected
+     *
+     * To receive call notifications, you have to register MegaChatCallListener once at beginning of the program
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
