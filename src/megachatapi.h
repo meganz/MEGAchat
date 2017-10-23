@@ -2581,7 +2581,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
-     * - MegaChatRequest::getParamType() - Return true if call is goint to be answered or
+     * - MegaChatRequest::getParamType - Return true if call is goint to be answered or
      *   false if call is going to be rejected
      *
      * To receive call notifications, you have to register MegaChatCallListener once at beginning of the program
