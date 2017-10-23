@@ -2524,6 +2524,57 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     waiter->notify();
 }
 
+MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle callId)
+{
+    MegaChatCall *chatCall = NULL;
+    sdkMutex.lock();
+
+    for (std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.begin(); it != callHandlers.end(); ++it)
+    {
+        if (it->second != NULL && it->second->getCall() != NULL && callId == it->second->getCall()->id())
+        {
+            chatCall = new MegaChatCallPrivate(*(it->second->getCall()));
+            break;
+        }
+        else if (it->second != NULL && it->second->getCall() == NULL)
+        {
+            API_LOG_ERROR("Invalid rtcModule::ICall at MegaChatCallHandler");
+        }
+        else if (it->second == NULL)
+        {
+            API_LOG_ERROR("Invalid MegaChatCallHandler at callHandlers");
+        }
+    }
+
+    sdkMutex.unlock();
+    return chatCall;
+}
+
+MegaChatCall *MegaChatApiImpl::getChatCallByChatId(MegaChatHandle chatId)
+{
+    MegaChatCall *chatCall = NULL;
+
+    sdkMutex.lock();
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatId);
+
+    if (it != callHandlers.end() && it->second != NULL && it->second->getCall() != NULL)
+    {
+        chatCall = new MegaChatCallPrivate(*(it->second->getCall()));
+    }
+    else if (it != callHandlers.end() && it->second != NULL && it->second->getCall() == NULL)
+    {
+        API_LOG_ERROR("Invalid rtcModule::ICall at MegaChatCallHandler");
+    }
+    else if (it->second == NULL)
+    {
+        API_LOG_ERROR("Invalid MegaChatCallHandler at callHandlers");
+    }
+
+    sdkMutex.unlock();
+    return chatCall;
+
+}
+
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 {
     if (!listener)

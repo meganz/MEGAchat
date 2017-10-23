@@ -2658,6 +2658,31 @@ public:
      */
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Get the MegaChatCall that has a specific handle
+     *
+     * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
+     *
+     * You take the ownership of the returned value
+     *
+     * @param callId MegaChatHandle that identifies the call
+     * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
+     */
+    MegaChatCall *getChatCall(MegaChatHandle callId);
+
+    /**
+     * @brief Get the MegaChatCall associated with a chatRoom
+     *
+     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
+     * returned
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     */
+    MegaChatCall *getChatCallByChatId(MegaChatHandle chatId);
+
 #endif
 
     // Listeners

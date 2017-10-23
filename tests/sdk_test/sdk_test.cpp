@@ -2127,6 +2127,17 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     std::cerr << "Enable Video" << std::endl;
     megaChatApi[a1]->disableVideoCall(chatid, true);
 
+    MegaChatCall *chatCall = megaChatApi[a1]->getChatCallByChatId(chatid);
+    ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCallByChatId");
+
+    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCall(chatCall->getId());
+    ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall");
+
+    delete chatCall;
+    chatCall = NULL;
+    delete chatCall2;
+    chatCall2 = NULL;
+
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
