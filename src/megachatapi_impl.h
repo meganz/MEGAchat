@@ -154,7 +154,7 @@ class MegaChatCallPrivate :
         public MegaChatCall
 {
 public:
-    MegaChatCallPrivate(rtcModule::ICall& call);
+    MegaChatCallPrivate(const rtcModule::ICall& call);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate();
@@ -165,12 +165,20 @@ public:
     virtual MegaChatHandle getChatid() const;
     virtual MegaChatHandle getId() const;
 
+    virtual bool isLocalAudioEnable() const;
+    virtual bool isLocalVideoEnable() const;
+    virtual bool isRemoteAudioEnable() const;
+    virtual bool isRemoteVideoEnable() const;
+
     void setStatus(int status);
+    void setRemoteAudioVideoFlags(karere::AvFlags audioVideoFlags);
 
 protected:
     MegaChatHandle chatid;
     int status;
     MegaChatHandle callid;
+    karere::AvFlags audioVideoFlags;
+    karere::AvFlags remoteAudioVideoFlags;
 };
 
 class MegaChatVideoFrame
@@ -429,7 +437,7 @@ public:
 private:
     MegaChatApiImpl *megaChatApi;
     MegaChatCallHandler *callHandler;
-    rtcModule::ISession *sessionHandler;
+    rtcModule::ISession *session;
     rtcModule::IVideoRenderer *remoteVideoRender;
 
 };
@@ -791,6 +799,7 @@ public:
     void fireOnChatCallStateChange(MegaChatCallPrivate *call);
     void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e);
     void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e);
+    void fireOnChatCallRemoteAudioVideoFlagsChange(MegaChatCallPrivate *call);
 
     // MegaChatVideoListener callbacks
     void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);

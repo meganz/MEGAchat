@@ -68,6 +68,26 @@ MegaChatHandle MegaChatCall::getId() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+bool MegaChatCall::isLocalAudioEnable() const
+{
+    return false;
+}
+
+bool MegaChatCall::isLocalVideoEnable() const
+{
+    return false;
+}
+
+bool MegaChatCall::isRemoteAudioEnable() const
+{
+    return false;
+}
+
+bool MegaChatCall::isRemoteVideoEnable() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -892,6 +912,11 @@ void MegaChatCallListener::onChatCallTemporaryError(MegaChatApi *api, MegaChatCa
 }
 
 void MegaChatCallListener::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
+{
+
+}
+
+void MegaChatCallListener::onChatCallRemoteAudioVideoFlagsChange(MegaChatApi *api, MegaChatCall *call)
 {
 
 }

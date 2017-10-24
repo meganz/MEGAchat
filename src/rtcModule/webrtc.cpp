@@ -1191,6 +1191,18 @@ AvFlags Call::muteUnmute(AvFlags av)
     return av;
 }
 
+std::map<Id, AvFlags> Call::avFlagsRemotePeers() const
+{
+    std::map<Id, AvFlags> peerFlags;
+
+    for (auto& item: mSessions)
+    {
+        peerFlags[item.first] = item.second->receivedAv();
+    }
+
+    return peerFlags;
+}
+
 AvFlags Call::sentAv() const
 {
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);

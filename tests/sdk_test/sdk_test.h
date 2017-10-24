@@ -331,6 +331,7 @@ public:
     virtual void onChatCallStateChange(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
     virtual void onChatCallTemporaryError(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
     virtual void onChatCallFinish(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
+    virtual void onChatCallRemoteAudioVideoFlagsChange(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
 #endif
 };
 

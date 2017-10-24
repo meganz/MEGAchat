@@ -118,6 +118,30 @@ public:
      * @return MegaChatHandle of the call.
      */
     virtual MegaChatHandle getId() const;
+
+    /**
+     * @brief Return true if local audio is enable, false if it is disable
+     * @return true local audio is enable, false local audio is disable
+     */
+    virtual bool isLocalAudioEnable() const;
+
+    /**
+     * @brief Return true if local video is enable, false if it is disable
+     * @return true local video is enable, false local video is disable
+     */
+    virtual bool isLocalVideoEnable() const;
+
+    /**
+     * @brief Return true if remote audio is enable, false if it is disable
+     * @return true remote audio is enable, false remote audio is disable
+     */
+    virtual bool isRemoteAudioEnable() const;
+
+    /**
+     * @brief Return true if remote video is enable, false if it is disable
+     * @return true remote video is enable, false remote video is disable
+     */
+    virtual bool isRemoteVideoEnable() const;
 };
 
 /**
@@ -195,6 +219,15 @@ public:
      * @param error Error information
      */
     virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
+
+    /**
+     * @brief This call is called when a peer change their audio/video flags
+     *
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall that represents the call that is finishing
+     * @param error Error information
+     */
+    virtual void onChatCallRemoteAudioVideoFlagsChange(MegaChatApi* api, MegaChatCall *call);
 };
 
 class MegaChatPeerList
@@ -2568,6 +2601,9 @@ public:
      *
      * To receive call notifications, you have to register MegaChatCallListener once at beginning of the program
      *
+     * At beginning, remote audio/video flags are disabled, until onChatCallRemoteAudioVideoFlagsChange notifies
+     * correct values
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
      * @param listener MegaChatRequestListener to track this request
@@ -2585,6 +2621,9 @@ public:
      *   false if call is going to be rejected
      *
      * To receive call notifications, you have to register MegaChatCallListener once at beginning of the program
+     *
+     * At beginning, remote audio/video flags are disabled, until onChatCallRemoteAudioVideoFlagsChange notifies
+     * correct values
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
