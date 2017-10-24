@@ -1573,6 +1573,35 @@ public class MegaChatApiJava {
         megaChatApi.loadAudioVideoDeviceList(createDelegateRequestListener(listener));
     }
 
+    /**
+     * Get the MegaChatCall that has a specific handle
+     *
+     * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
+     *
+     * You take the ownership of the returned value
+     *
+     * @param callId MegaChatHandle that identifies the call
+     * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
+     */
+    public MegaChatCall getChatCall(long callId){
+        return megaChatApi.getChatCall(callId);
+    }
+
+    /**
+     * Get the MegaChatCall associated with a chatRoom
+     *
+     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
+     * returned
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     */
+    public MegaChatCall getChatCallByChatId(long chatId){
+        return megaChatApi.getChatCallByChatId(chatId);
+    }
+
     public static void setCatchException(boolean enable) {
         MegaChatApi.setCatchException(enable);
     }
