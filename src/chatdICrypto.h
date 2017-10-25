@@ -94,6 +94,7 @@ public:
      */
     virtual void onKeyConfirmed(KeyId keyxid, KeyId keyid)  = 0;
 
+    virtual KeyId currentKeyId() const = 0;
 /**
  * @brief Invalidates the current send key, forcing a new send key to be generated
  * and posted on next message encrypt.

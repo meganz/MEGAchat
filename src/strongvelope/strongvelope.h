@@ -327,6 +327,7 @@ protected:
         legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
 public:
 //chatd::ICrypto interface
+        uint32_t currentKeyId() const { return mCurrentKeyId; }
         promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
             msgEncrypt(chatd::Message *message, chatd::MsgCommand* msgCmd);
         virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);

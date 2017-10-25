@@ -1800,8 +1800,16 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         return CHATD_IDX_INVALID;
 
     CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
-    //put into history
+
+    // update msgxid to msgid
     msg->setId(msgid, false);
+
+    // set final keyid
+    assert(mCrypto->currentKeyId() != CHATD_KEYID_INVALID);
+    assert(mCrypto->currentKeyId() != CHATD_KEYID_UNCONFIRMED);
+    msg->keyid = mCrypto->currentKeyId();
+
+    // add message to history
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
