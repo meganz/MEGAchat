@@ -174,7 +174,7 @@ enum Opcode
       * Send: <chatid> <keyxid> <payload>
       *
       * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
-      * Receive: <chatid> <keyxid> <payload>
+      * Receive: <chatid> <keyid> <payload>
       *
       * Keep <keyxid> as constant as possible (e.g. 0xffffffff).
       * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor

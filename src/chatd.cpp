@@ -498,9 +498,9 @@ void Chat::logSend(const Command& cmd)
         }
         case OP_NEWKEY:
         {
-            //auto& keycmd = static_cast<const KeyCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY\n",
-                        ID_CSTR(mChatId));
+            auto& keycmd = static_cast<const KeyCommand&>(cmd);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY - keyxid: %u\n",
+                        ID_CSTR(mChatId), keycmd.keyId());
             break;
         }
         default:
@@ -966,18 +966,18 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_32(keyxid, 8);
                 READ_32(keyid, 12);
-                CHATD_LOG_DEBUG("%s: recv KEYID %u", ID_CSTR(chatid), keyid);
+                CHATD_LOG_DEBUG("%s: recv KEYID: %u -> %u", ID_CSTR(chatid), keyxid, keyid);
                 mClient.chats(chatid).keyConfirm(keyxid, keyid);
                 break;
             }
             case OP_NEWKEY:
             {
                 READ_CHATID(0);
-                pos += 4; //skip dummy 32bit keyid
+                READ_32(keyid, 8);
                 READ_32(totalLen, 12);
                 const char* keys = buf.readPtr(pos, totalLen);
                 pos+=totalLen;
-                CHATD_LOG_DEBUG("%s: recv NEWKEY", ID_CSTR(chatid));
+                CHATD_LOG_DEBUG("%s: recv NEWKEY %u", ID_CSTR(chatid), keyid);
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
             }
