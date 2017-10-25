@@ -88,7 +88,12 @@ public:
  */
     virtual void onKeyReceived(KeyId keyid, karere::Id sender, karere::Id receiver,
         const char* keydata, uint16_t keylen) = 0;
+
+    /**
+     * @brief A new key sent to server has been confirmed by the server, and added to Chat.keys
+     */
     virtual void onKeyConfirmed(KeyId keyxid, KeyId keyid)  = 0;
+
 /**
  * @brief Invalidates the current send key, forcing a new send key to be generated
  * and posted on next message encrypt.

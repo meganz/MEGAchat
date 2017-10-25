@@ -478,22 +478,22 @@ void Chat::logSend(const Command& cmd)
         case OP_NEWMSG:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s, keyid: %u\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId());
             break;
         }
         case OP_MSGUPD:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s, keyid: %u\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId());
             break;
         }
         case OP_MSGUPDX:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, tsdelta: %hu\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, keyid: %u, tsdelta: %hu\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.updated());
             break;
         }
         case OP_NEWKEY:
@@ -848,7 +848,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(msglen, 34);
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
-                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %x",
+                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid);
 
