@@ -1023,7 +1023,7 @@ void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
     if (!mCurrentKey || (mCurrentKeyId != CHATD_KEYID_UNCONFIRMED))
         throw std::runtime_error("strongvelope: setCurrentKeyId: Current send key is not unconfirmed");
     if (keyxid != CHATD_KEYID_UNCONFIRMED)
-        throw std::runtime_error("strongvelope: setCurrentKeyId: Usage error: trying to set keyid to the UNOCNFIRMED value");
+        throw std::runtime_error("strongvelope: setCurrentKeyId: Usage error: trying to set keyid to the UNCONFIRMED value");
 
     mUnconfirmedKeyCmd.reset();
     mCurrentKeyId = keyid;

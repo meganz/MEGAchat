@@ -1754,12 +1754,14 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
     auto& item = mSending.front();
     if (item.opcode() == OP_MSGUPDX)
     {
-        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG OR MSGUPD, but with MSGUPDX");
+        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG or MSGUPD, but with MSGUPDX");
         return nullptr;
     }
-    if ((item.opcode() == OP_NEWMSG) && (item.msg->id() != msgxid))
+    Id msgxidOri = item.msg->id();
+    if ((item.opcode() == OP_NEWMSG) && (msgxidOri != msgxid))
     {
-        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different");
+        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different"
+                         " (sent msgxid: '%s', received '%s')", ID_CSTR(msgxidOri), ID_CSTR(msgxid));
         return nullptr;
     }
 
