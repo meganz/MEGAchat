@@ -897,11 +897,6 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                if (!msgid)
-                {
-                    CHATD_LOG_ERROR("MSGID with zero message id received, ignoring");
-                    break;
-                }
                 CHATD_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.onMsgAlreadySent(msgxid, msgid);
                 break;
