@@ -1287,14 +1287,7 @@ void Chat::createMsgBackRefs(Message& msg)
 Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg)
 {
     mSending.emplace_back(opcode, msg, mUsers);
-
-    auto& item = mSending.back();
-    CALL_DB(saveMsgToSending, item);
-    if (opcode == OP_MSGUPD)    // comfirmed messages always use the original key for edits
-    {
-        CALL_DB(confirmKeyOfSendingItem, item.rowid, msg->keyid);
-    }
-
+    CALL_DB(saveMsgToSending, mSending.back());
     if (mNextUnsent == mSending.end())
     {
         mNextUnsent--;
