@@ -2292,7 +2292,7 @@ public:
      * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status 
      * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
-     * to know when an edit has been delived to the target user, but only when the edit has been
+     * to know when an edit has been delivered to the target user, but only when the edit has been
      * received by the server, so for convenience the status of the original message is kept.
      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
      * reach the status delivered, since the target user will not send the required acknowledge to the

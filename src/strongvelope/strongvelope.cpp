@@ -696,7 +696,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     if ((msg->keyid == CHATD_KEYID_INVALID)
      || (msg->keyid == CHATD_KEYID_UNCONFIRMED)) //we have to use the current send key
     {
-        if (!mCurrentKey || mParticipantsChanged)
+        if (!mCurrentKey || mParticipantsChanged) // create a new key and prepare the KeyCommand
         {
             auto wptr = weakHandle();
             return updateSenderKey()

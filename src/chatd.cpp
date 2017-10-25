@@ -902,6 +902,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     CHATD_LOG_ERROR("MSGID with zero message id received, ignoring");
                     break;
                 }
+                CHATD_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.onMsgAlreadySent(msgxid, msgid);
                 break;
             }
@@ -909,6 +910,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
+                CHATD_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.msgConfirm(msgxid, msgid);
                 break;
             }
@@ -1332,8 +1334,10 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
     auto pms = mCrypto->msgEncrypt(it->msg, msgCmd);
+    // if using current keyid or original keyid from msg, promise is resolved directly
     if (pms.succeeded())
         return sendKeyAndMessage(pms.value());
+    // else --> new key is required: KeyCommand != NULL in pms.value()
 
     mEncryptionHalted = true;
     CHATID_LOG_DEBUG("Can't encrypt message immediately, halting output");
@@ -1709,7 +1713,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 
 void Client::msgConfirm(Id msgxid, Id msgid)
 {
-    // CHECK: is it more efficient to keep a separate mapping of msgxid to messages?
+    // TODO: maybe it's more efficient to keep a separate mapping of msgxid to messages?
     for (auto& chat: mChatForChatId)
     {
         if (chat.second->msgConfirm(msgxid, msgid) != CHATD_IDX_INVALID)
@@ -1734,7 +1738,7 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
     if (!msg)
         return false;
 
-    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
+    CHATID_LOG_DEBUG("message is sending status was already received by server '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     CALL_LISTENER(onMessageRejected, *msg, 0);
     delete msg;
     return true;
@@ -1742,7 +1746,7 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
 
 Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 {
-    // as msgConirm() is tried on all chatids, it's normal that we don't have
+    // as msgConfirm() is tried on all chatids, it's normal that we don't have
     // the message, so no error logging of error, just return invalid index
     if (mSending.empty())
         return nullptr;
