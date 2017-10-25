@@ -61,34 +61,16 @@ public:
  * that message instead of the 0xffffffff keyid.
  */
     virtual promise::Promise<std::pair<MsgCommand*, KeyCommand*> >
-    msgEncrypt(Message* msg, MsgCommand* cmd)
-    {
-        promise::Promise<std::pair<MsgCommand*, KeyCommand*>> pms;
-        karere::setTimeout([pms, msg, cmd]() mutable
-        {
-            cmd->setMsg(msg->buf(), msg->dataSize());
-            cmd->setKeyId(1);
-            msg->keyid = 1;
-            pms.resolve(std::make_pair(cmd, (KeyCommand*)nullptr));
-        }, 2000, appCtx);
-        return pms;
-    }
+    msgEncrypt(Message* msg, MsgCommand* cmd) = 0;
+
 /**
  * @brief Called by the client for received messages to decrypt them.
  * The crypto module \b must also set the type of the message, so that the client
  * knows whether to pass it to the application (i.e. contains an actual message)
  * or should not (i.e. contains a crypto system packet)
  */
-    virtual promise::Promise<Message*> msgDecrypt(Message* src)
-    { //test implementation
-        promise::Promise<Message*> pms;
-        int delay = rand() % 400+20;
-        karere::setTimeout([src, pms]() mutable
-        {
-            pms.resolve(src);
-        }, delay, appCtx);
-        return pms;
-    }
+    virtual promise::Promise<Message*> msgDecrypt(Message* src) = 0;
+
 /**
  * @brief The chatroom connection (to the chatd server shard) state state has changed.
  */
