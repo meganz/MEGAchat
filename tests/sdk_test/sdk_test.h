@@ -326,12 +326,8 @@ public:
     virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 
 #ifndef KARERE_DISABLE_WEBRTC
-    virtual void onChatCallStart(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
-    virtual void onChatCallIncoming(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
-    virtual void onChatCallStateChange(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
+    virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
     virtual void onChatCallTemporaryError(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
-    virtual void onChatCallFinish(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
-    virtual void onChatCallRemoteAudioVideoFlagsChange(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
 #endif
 };
 
@@ -389,7 +385,7 @@ public:
     TestChatVideoListener(const std::string& type);
     virtual ~TestChatVideoListener();
 
-    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatCall *chatCall, int width, int height, char *buffer, size_t size);
+    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
 
 private:
     std::string mType;

@@ -2133,10 +2133,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCall(chatCall->getId());
     ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall");
 
-    delete chatCall;
-    chatCall = NULL;
-    delete chatCall2;
-    chatCall2 = NULL;
 
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
@@ -2986,50 +2982,54 @@ bool MegaChatApiTest::onTransferData(MegaApi *api, MegaTransfer *transfer, char 
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-void MegaChatApiTest::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
-{
-    LOG_debug << "On chat call start ";
-}
-
-void MegaChatApiTest::onChatCallIncoming(MegaChatApi *api, MegaChatCall *call)
-{
-    LOG_debug << "On chat call incoming ";
-
-    unsigned int apiIndex = getMegaChatApiIndex(api);
-
-    mCallReceived[apiIndex] = true;
-    mIncomingCallId[apiIndex] = call->getId();
-    mCallEmisorId[apiIndex] = call->getChatid();
-}
-
-void MegaChatApiTest::onChatCallStateChange(MegaChatApi *api, MegaChatCall *call)
+void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    switch (call->getStatus())
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
-    case MegaChatCall::CALL_STATUS_IN_PROGRESS:
-        mCallAnswered[apiIndex] = true;
-        break;
+        std::cerr << "API: " << apiIndex << "   MegaChatCall::CHANGE_TYPE_STATUS - " << call->getStatus() << std::endl;
+        unsigned int apiIndex = getMegaChatApiIndex(api);
+        switch (call->getStatus())
+        {
+        case MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            mCallAnswered[apiIndex] = true;
+            break;
 
-    case MegaChatCall::CALL_STATUS_REQUEST_SENT:
-        mCallRequestSent[apiIndex] = true;
-        mCallRequestSentId[apiIndex] = call->getId();
-        break;
+        case MegaChatCall::CALL_STATUS_REQUEST_SENT:
+            mCallRequestSent[apiIndex] = true;
+            mCallRequestSentId[apiIndex] = call->getId();
+            break;
 
-    default:
-        break;
+        case MegaChatCall::CALL_STATUS_RING_IN:
+            mCallReceived[apiIndex] = true;
+            mIncomingCallId[apiIndex] = call->getId();
+            mCallEmisorId[apiIndex] = call->getChatid();
+            break;
+
+        case MegaChatCall::CALL_STATUS_TERMINATING:
+            std::cerr << "API: " << apiIndex << "    Termination  " << call->getDuration() << std::endl;
+        default:
+            break;
+        }
     }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
+    {
+       std::cerr << "API: " << apiIndex << "   MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS" << std::endl;
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
+    {
+        std::cerr << "API: " << apiIndex << "   MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS" << std::endl;
+    }
+
     LOG_debug << "On chat call change state ";
 }
 
 void MegaChatApiTest::onChatCallTemporaryError(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
 {
     LOG_debug << "On chat call temporay error ";
-}
-
-void MegaChatApiTest::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
-{
-    LOG_debug << "On chat call finish ";
 }
 
 TestChatVideoListener::TestChatVideoListener(const string &type)
@@ -3041,7 +3041,7 @@ TestChatVideoListener::~TestChatVideoListener()
 {
 }
 
-void TestChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer, size_t size)
+void TestChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
 }
 

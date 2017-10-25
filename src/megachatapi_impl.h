@@ -165,20 +165,32 @@ public:
     virtual MegaChatHandle getChatid() const;
     virtual MegaChatHandle getId() const;
 
-    virtual bool isLocalAudioEnable() const;
-    virtual bool isLocalVideoEnable() const;
-    virtual bool isRemoteAudioEnable() const;
-    virtual bool isRemoteVideoEnable() const;
+    virtual bool hasAudio(bool local = true);
+    virtual bool hasVideo(bool local = true);
+
+    virtual int getChanges() const;
+    virtual bool hasChanged(int changeType) const;
+
+    virtual int64_t getDuration() const;
+    virtual int64_t getInitialTimeStamp() const;
+    virtual int64_t getFinalTimeStamp() const;
 
     void setStatus(int status);
-    void setRemoteAudioVideoFlags(karere::AvFlags audioVideoFlags);
+    void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
+    void setRemoteAudioVideoFlags(karere::AvFlags remoteAVFlags);
+    void setInitialTimeStamp(int64_t timeStamp);
+    void setFinalTimeStamp(int64_t timeStamp);
+    void removeChanges();
 
 protected:
     MegaChatHandle chatid;
     int status;
     MegaChatHandle callid;
-    karere::AvFlags audioVideoFlags;
-    karere::AvFlags remoteAudioVideoFlags;
+    karere::AvFlags localAVFlags;
+    karere::AvFlags remoteAVFlags;
+    int changed;
+    int64_t initialTs;
+    int64_t finalTs;
 };
 
 class MegaChatVideoFrame
@@ -209,6 +221,7 @@ public:
 protected:
     MegaChatApiImpl *chatApi;
     rtcModule::ICall *call;
+    MegaChatHandle chatid;
     bool local;
 };
 
@@ -414,9 +427,11 @@ public:
     virtual void onCallStarting();
     virtual void onCallStarted();
     rtcModule::ICall *getCall();
+    MegaChatCallPrivate *getMegaChatCall();
 private:
     MegaChatApiImpl *megaChatApi;
     rtcModule::ICall *call;
+    MegaChatCallPrivate *chatCall;
 
     MegaChatSessionHandler *sessionHandler;
     rtcModule::IVideoRenderer *localVideoReceiver;
@@ -764,6 +779,7 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     MegaChatCallHandler *findChatCallHandler(MegaChatHandle chatid);
+    void removeChatCallHandler(MegaChatHandle chatid);
 #endif
 
     static void setCatchException(bool enable);
@@ -794,16 +810,12 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     // MegaChatCallListener callbacks
-    void fireOnChatCallStart(MegaChatCallPrivate *call);
-    void fireOnChatCallIncoming(MegaChatCallPrivate *call);
-    void fireOnChatCallStateChange(MegaChatCallPrivate *call);
+    void fireOnChatCallUpdate(MegaChatCallPrivate *call);
     void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e);
-    void fireOnChatCallFinish(MegaChatCallPrivate *call, MegaChatError *e);
-    void fireOnChatCallRemoteAudioVideoFlagsChange(MegaChatCallPrivate *call);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatRemoteVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
-    void fireOnChatLocalVideoData(MegaChatCallPrivate *call, int width, int height, char*buffer);
+    void fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
+    void fireOnChatLocalVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
 #endif
 
     // MegaChatRoomListener callbacks

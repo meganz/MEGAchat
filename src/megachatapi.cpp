@@ -68,24 +68,39 @@ MegaChatHandle MegaChatCall::getId() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatCall::isLocalAudioEnable() const
+bool MegaChatCall::hasAudio(bool local)
 {
     return false;
 }
 
-bool MegaChatCall::isLocalVideoEnable() const
+bool MegaChatCall::hasVideo(bool local)
 {
     return false;
 }
 
-bool MegaChatCall::isRemoteAudioEnable() const
+int MegaChatCall::getChanges() const
+{
+    return 0;
+}
+
+bool MegaChatCall::hasChanged(int changeType) const
 {
     return false;
 }
 
-bool MegaChatCall::isRemoteVideoEnable() const
+int64_t MegaChatCall::getDuration() const
 {
-    return false;
+    return 0;
+}
+
+int64_t MegaChatCall::getInitialTimeStamp() const
+{
+    return 0;
+}
+
+int64_t MegaChatCall::getFinalTimeStamp() const
+{
+    return 0;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -885,23 +900,13 @@ int MegaChatPeerList::size() const
 }
 
 
-void MegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer, size_t size)
+void MegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
 
 }
 
 
-void MegaChatCallListener::onChatCallStart(MegaChatApi *api, MegaChatCall *call)
-{
-
-}
-
-void MegaChatCallListener::onChatCallIncoming(MegaChatApi *api, MegaChatCall *call)
-{
-
-}
-
-void MegaChatCallListener::onChatCallStateChange(MegaChatApi *api, MegaChatCall *call)
+void MegaChatCallListener::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
 
 }
@@ -910,17 +915,6 @@ void MegaChatCallListener::onChatCallTemporaryError(MegaChatApi *api, MegaChatCa
 {
 
 }
-
-void MegaChatCallListener::onChatCallFinish(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
-{
-
-}
-
-void MegaChatCallListener::onChatCallRemoteAudioVideoFlagsChange(MegaChatApi *api, MegaChatCall *call)
-{
-
-}
-
 
 void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
 {

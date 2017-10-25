@@ -73,6 +73,13 @@ public:
         CALL_STATUS_DISCONNECTED        ///
     };
 
+    enum
+    {
+        CHANGE_TYPE_STATUS = 0x01,
+        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -120,28 +127,89 @@ public:
     virtual MegaChatHandle getId() const;
 
     /**
-     * @brief Return true if local audio is enable, false if it is disable
-     * @return true local audio is enable, false local audio is disable
+     * @brief Return audio state for local or remote in function of
+     * parameter value
+     *
+     * @param local Indicate if we want to know local or remote audio state
+     * @return true if audio is enable, false if audio is disable
      */
-    virtual bool isLocalAudioEnable() const;
+    virtual bool hasAudio(bool local = true);
 
     /**
-     * @brief Return true if local video is enable, false if it is disable
-     * @return true local video is enable, false local video is disable
+     * @brief Return video state for local or remote in function of
+     * parameter value
+     *
+     * @param local Indicate if we want to know local or remote video state
+     * @return true if video is enable, false if video is disable
      */
-    virtual bool isLocalVideoEnable() const;
+    virtual bool hasVideo(bool local = true);
 
     /**
-     * @brief Return true if remote audio is enable, false if it is disable
-     * @return true remote audio is enable, false remote audio is disable
+     * @brief Returns a bit field with the changes of the call
+     *
+     * This value is only useful for call notified by MegaChatCallListener::onChatCallUpdate
+     * that can notify about call modifications.The value only will be valid inside
+     * MegaChatCallListener::onChatCallUpdate. A copy of MegaChatCall will be necessary to use
+     * outside this callback
+     *
+     * @return The returned value is an OR combination of these flags:
+     *
+     * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
+     * Check if the content of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
+     * Check if the content of the call changed
      */
-    virtual bool isRemoteAudioEnable() const;
+    virtual int getChanges() const;
 
     /**
-     * @brief Return true if remote video is enable, false if it is disable
-     * @return true remote video is enable, false remote video is disable
+     * @brief Returns true if this call has an specific change
+     *
+     * This value is only useful for call notified by MegaChatCallListener::onChatCallUpdate
+     * that can notify about call modifications. The value only will be valid inside
+     * MegaChatCallListener::onChatCallUpdate. A copy of MegaChatCall will be necessary to use
+     * outside this callback
+     *
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     *
+     * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS  = 0x02
+     * Check if the content of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
+     * Check if the content of the call changed
+     *
+     * @return true if this call has an specific change
      */
-    virtual bool isRemoteVideoEnable() const;
+    virtual bool hasChanged(int changeType) const;
+
+    /**
+     * @brief Return call duration. If the call is not finished, duration is the time lag between
+     * the beginning of the call until now. If the call has finished, duration is the time lag between
+     * the beginning of the call until until call has finished
+     *
+     * @return Call duration
+     */
+    virtual int64_t getDuration() const;
+
+    /**
+     * @brief Return the timestamp when call has started
+     * @return Initial timestamp
+     */
+    virtual int64_t getInitialTimeStamp() const;
+
+    /**
+     * @brief Return the timestamp when call has finished. If call is in progress, 0 will be returned
+     * @return Final timestamp or 0 if call is in progress
+     */
+    virtual int64_t getFinalTimeStamp() const;
 };
 
 /**
@@ -166,7 +234,7 @@ public:
      *
      *  The MegaChatVideoListener retains the ownership of the buffer.
      */
-    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char *buffer, size_t size);
+    virtual void onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
 };
 
 /**
@@ -179,55 +247,36 @@ public:
     virtual ~MegaChatCallListener() {}
 
     /**
-     * @brief This function is called when a call is starting
+     * @brief This function is called when there are changes in the call
+     *
+     * The changes can include: state change, audio/video flags changes
+     * for local and remote
+     *
+     * The SDK retains the ownership of the MegaChatCall.
+     * To use it, after this function, it is necessary a copy.
+     *
+     * The api object is the one created by the application, it will be valid until
+     * the application deletes it.
      *
      * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the call that is starting
+     * @param call MegaChatCall that contains the call with its changes
      */
-    virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
-
-    /**
-     * @brief This function is called when there is an incoming call
-     *
-     * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the incoming call
-     */
-    virtual void onChatCallIncoming(MegaChatApi* api, MegaChatCall *call);
-
-    /**
-     * @brief This function is called when the call state changes
-     *
-     * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the call whose state has changed
-     */
-    virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
+    virtual void onChatCallUpdate(MegaChatApi* api, MegaChatCall *call);
 
     /**
      * @brief This function is called when a temporary error has occurred over a call
+     *
+     * The SDK retains the ownership of the MegaChatCall.
+     * To use it, after this function, it is necessary a copy.
+     *
+     * The api object is the one created by the application, it will be valid until
+     * the application deletes it.
      *
      * @param api MegaChatApi connected to the account
      * @param call MegaChatCall that represents the call that observed a temporary error
      * @param error Error information
      */
     virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
-
-    /**
-     * @brief This function is called when a call finished
-     *
-     * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the call that is finishing
-     * @param error Error information
-     */
-    virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
-
-    /**
-     * @brief This call is called when a peer change their audio/video flags
-     *
-     * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the call that is finishing
-     * @param error Error information
-     */
-    virtual void onChatCallRemoteAudioVideoFlagsChange(MegaChatApi* api, MegaChatCall *call);
 };
 
 class MegaChatPeerList
@@ -2708,7 +2757,8 @@ public:
      *
      * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
      *
-     * You take the ownership of the returned value
+     * The SDK retains the ownership of the MegaChatCall.
+     * To use it, after this function, it is necessary a copy.
      *
      * @param callId MegaChatHandle that identifies the call
      * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
@@ -2721,7 +2771,8 @@ public:
      * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
      * returned
      *
-     * You take the ownership of the returned value
+     * The SDK retains the ownership of the MegaChatCall.
+     * To use it, after this function, it is necessary a copy.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
