@@ -1752,14 +1752,14 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
         return nullptr;
 
     auto& item = mSending.front();
-    if (item.opcode() != OP_NEWMSG)
+    if (item.opcode() == OP_MSGUPDX)
     {
-//        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG, but with %s", Command::opcodeToStr(item.opcode()));
+        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG OR MSGUPD, but with MSGUPDX");
         return nullptr;
     }
-    if (item.msg->id() != msgxid)
+    if ((item.opcode() == OP_NEWMSG) && (item.msg->id() != msgxid))
     {
-//        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different");
+        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different");
         return nullptr;
     }
 
