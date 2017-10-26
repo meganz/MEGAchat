@@ -2137,7 +2137,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
-    megaChatApi[a1]->hangChatCall(mCallEmisorId[a1]);
+    megaChatApi[a1]->hangChatCall(chatid);
     std::cout << "Call finished." << std::endl;
 
     // Receive call
@@ -2164,7 +2164,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
-    megaChatApi[a1]->hangChatCall(mCallEmisorId[a1]);
+    megaChatApi[a1]->hangChatCall(chatid);
     std::cout << "Call finished." << std::endl;
     sleep(5);
 
