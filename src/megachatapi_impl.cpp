@@ -2487,18 +2487,20 @@ MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle callId)
             {
                 if (callId == call->getId())
                 {
-                    chatCall = call;
+                    chatCall = call->copy();
                     break;
                 }
             }
             else
             {
                 API_LOG_ERROR("MegaChatApiImpl::getChatCall - Invalid MegaChatCall at MegaChatCallHandler");
+                assert(false);
             }
         }
         else
         {
             API_LOG_ERROR("MegaChatApiImpl::getChatCall - Invalid MegaChatCallHandler at callHandlers");
+            assert(false);
         }
     }
 
@@ -2513,17 +2515,26 @@ MegaChatCall *MegaChatApiImpl::getChatCallByChatId(MegaChatHandle chatId)
     sdkMutex.lock();
     std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatId);
 
-    if (it != callHandlers.end() && it->second != NULL)
+    if (it != callHandlers.end())
     {
-        chatCall = it->second->getMegaChatCall();
-        if (!chatCall)
+        if(it->second != NULL)
         {
-            API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCall at MegaChatCallHandler");
+            chatCall = it->second->getMegaChatCall();
+            if (!chatCall)
+            {
+                API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCall at MegaChatCallHandler");
+                assert(false);
+            }
+            else
+            {
+                chatCall = chatCall->copy();
+            }
         }
-    }
-    else if (it->second != NULL)
-    {
-        API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCallHandler at callHandlers");
+        else
+        {
+            API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCallHandler at callHandlers");
+            assert(false);
+        }
     }
 
     sdkMutex.unlock();
@@ -3434,7 +3445,7 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
     return finalTs;
 }
 
-const char *MegaChatCallPrivate::getError() const
+const char *MegaChatCallPrivate::getTemporaryError() const
 {
     return temporaryError.c_str();
 }
@@ -3473,10 +3484,10 @@ void MegaChatCallPrivate::setFinalTimeStamp(int64_t timeStamp)
 void MegaChatCallPrivate::removeChanges()
 {
     changed = 0;
-    temporaryError = std::string("");
+    temporaryError.clear();
 }
 
-void MegaChatCallPrivate::setError(const string temporaryError)
+void MegaChatCallPrivate::setError(const string &temporaryError)
 {
     this->temporaryError = temporaryError;
     changed |= MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR;
@@ -5138,10 +5149,10 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
                 state = MegaChatCall::CALL_STATUS_TERMINATING;
-                chatCall->setFinalTimeStamp(time(NULL));
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 state = MegaChatCall::CALL_STATUS_DESTROYED;
+                chatCall->setFinalTimeStamp(time(NULL));
                 break;
             default:
                 state = newState;

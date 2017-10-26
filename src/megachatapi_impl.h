@@ -174,7 +174,7 @@ public:
     virtual int64_t getDuration() const;
     virtual int64_t getInitialTimeStamp() const;
     virtual int64_t getFinalTimeStamp() const;
-    virtual const char *getError() const;
+    virtual const char *getTemporaryError() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -182,7 +182,7 @@ public:
     void setInitialTimeStamp(int64_t timeStamp);
     void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
-    void setError(const std::string temporaryError);
+    void setError(const std::string &temporaryError);
 
 protected:
     MegaChatHandle chatid;

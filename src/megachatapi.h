@@ -222,14 +222,16 @@ public:
     virtual int64_t getFinalTimeStamp() const;
 
     /**
-     * @brief Returns the content of the error
+     * @brief Returns the content of the temporary error
+     *
+     * This temporary error is cleared after notification with MegaChatCallListener::onChatCallUpdate
      *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatCall object is deleted.
      *
      * @return Content of the error. If there isn't a error, it returns a empty string.
      */
-    virtual const char *getError() const;
+    virtual const char *getTemporaryError() const;
 };
 
 /**
@@ -269,11 +271,11 @@ public:
     /**
      * @brief This function is called when there are changes in the call
      *
-     * The changes can include: state change, audio/video flags changes
-     * for local and remote
+     * The changes can be accessed by MegaChatCall::getChanges or MegaChatCall::hasChanged
      *
      * The SDK retains the ownership of the MegaChatCall.
-     * To use it, after this function, it is necessary a copy.
+     * The call object that it contains will be valid until this function returns.
+     * If you want to save the object, use MegaChatCall::copy.
      *
      * The api object is the one created by the application, it will be valid until
      * the application deletes it.
@@ -2724,11 +2726,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to enable audio, false to disableVideoCall
-     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
-     *  MegachatRequest::VIDEO for video operation
-     *  MegachatRequest::AUDIO = 0,
-     *  MegachatRequest::VIDEO = 1
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2741,11 +2740,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to enable , false to disable
-     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
-     *  MegachatRequest::VIDEO for video operation
-     *  MegachatRequest::AUDIO = 0,
-     *  MegachatRequest::VIDEO = 1
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2758,11 +2754,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to enable, false to disable
-     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
-     *  MegachatRequest::VIDEO for video operation
-     *  MegachatRequest::AUDIO = 0,
-     *  MegachatRequest::VIDEO = 1
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2775,11 +2768,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to enable, false to disable
-     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
-     *  MegachatRequest::VIDEO for video operation
-     *  MegachatRequest::AUDIO = 0,
-     *  MegachatRequest::VIDEO = 1
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2800,10 +2790,9 @@ public:
     /**
      * @brief Get the MegaChatCall that has a specific handle
      *
-     * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
+     * A copy of MegaChatCall is returned and you take the ownership of the returned value.
      *
-     * The SDK retains the ownership of the MegaChatCall.
-     * To use it, after this function, it is necessary a copy.
+     * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
      *
      * @param callId MegaChatHandle that identifies the call
      * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
@@ -2813,11 +2802,10 @@ public:
     /**
      * @brief Get the MegaChatCall associated with a chatRoom
      *
+     * A copy of MegaChatCall is returned and you take the ownership of the returned value.
+     *
      * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
      * returned
-     *
-     * The SDK retains the ownership of the MegaChatCall.
-     * To use it, after this function, it is necessary a copy.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist

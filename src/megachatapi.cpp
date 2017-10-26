@@ -103,7 +103,7 @@ int64_t MegaChatCall::getFinalTimeStamp() const
     return 0;
 }
 
-const char* MegaChatCall::getError() const
+const char* MegaChatCall::getTemporaryError() const
 {
     return NULL;
 }
