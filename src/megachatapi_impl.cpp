@@ -2731,6 +2731,10 @@ rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
     MegaChatHandle chatid = call.chat().chatId();
     callHandlers[chatid] = chatCallHandler;
 
+    // Notify onIncomingCall like state change becouse rtcModule::ICall::kStateRingIn status
+    // it is not notify
+    chatCallHandler->onStateChange(call.state());
+
     return chatCallHandler;
 }
 
