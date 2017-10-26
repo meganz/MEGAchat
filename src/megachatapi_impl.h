@@ -168,8 +168,8 @@ public:
     virtual bool hasAudio(bool local = true);
     virtual bool hasVideo(bool local = true);
 
-    virtual int getChanges() const;
-    virtual bool hasChanged(int changeType) const;
+    virtual unsigned int getChanges() const;
+    virtual bool hasChanged(unsigned int changeType) const;
 
     virtual int64_t getDuration() const;
     virtual int64_t getInitialTimeStamp() const;
@@ -190,7 +190,7 @@ protected:
     MegaChatHandle callid;
     karere::AvFlags localAVFlags;
     karere::AvFlags remoteAVFlags;
-    int changed;
+    unsigned int changed;
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
