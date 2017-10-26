@@ -78,12 +78,12 @@ bool MegaChatCall::hasVideo(bool local)
     return false;
 }
 
-unsigned int MegaChatCall::getChanges() const
+int MegaChatCall::getChanges() const
 {
     return 0;
 }
 
-bool MegaChatCall::hasChanged(unsigned int changeType) const
+bool MegaChatCall::hasChanged(int changeType) const
 {
     return false;
 }

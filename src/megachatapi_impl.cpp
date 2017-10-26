@@ -3391,12 +3391,12 @@ bool MegaChatCallPrivate::hasVideo(bool local)
     }
 }
 
-unsigned int MegaChatCallPrivate::getChanges() const
+int MegaChatCallPrivate::getChanges() const
 {
     return changed;
 }
 
-bool MegaChatCallPrivate::hasChanged(unsigned int changeType) const
+bool MegaChatCallPrivate::hasChanged(int changeType) const
 {
     return (changed & changeType);
 }

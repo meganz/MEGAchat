@@ -167,7 +167,7 @@ public:
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
      * Check if the content of the call changed
      */
-    virtual unsigned int getChanges() const;
+    virtual int getChanges() const;
 
     /**
      * @brief Returns true if this call has an specific change
@@ -195,7 +195,7 @@ public:
      *
      * @return true if this call has an specific change
      */
-    virtual bool hasChanged(unsigned int changeType) const;
+    virtual bool hasChanged(int changeType) const;
 
     /**
      * @brief Return call duration. If the call is not finished, duration is the time lag between
