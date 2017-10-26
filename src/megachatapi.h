@@ -247,7 +247,7 @@ public:
      * @brief This function is called when a new image from a local or remote device is available
      *
      * @param api MegaChatApi connected to the account
-     * @param chatCall MegaChatCall that provides the video
+     * @param chatid MegaChatHandle that provides the video
      * @param width Size on pixels
      * @param height Size on pixels
      * @param buffer Data buffer in format ARGB: 4 bytes per pixel (total size: width * height * 4)

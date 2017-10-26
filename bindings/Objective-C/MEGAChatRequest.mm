@@ -99,4 +99,8 @@ using namespace megachat;
     return self.megaChatRequest ? [[MEGANodeList alloc] initWithNodeList:self.megaChatRequest->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
 }
 
+- (NSInteger)paramType {
+    return self.megaChatRequest ? self.megaChatRequest->getParamType() : 0;
+}
+
 @end

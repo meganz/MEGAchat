@@ -12,10 +12,14 @@
 #import "MEGAChatPresenceConfig+init.h"
 #import "MEGANodeList+init.h"
 #import "MEGAHandleList+init.h"
+#import "MEGAStringList+init.h"
+#import "MEGAChatCall+init.h"
 #import "DelegateMEGAChatRequestListener.h"
 #import "DelegateMEGAChatLoggerListener.h"
 #import "DelegateMEGAChatRoomListener.h"
 #import "DelegateMEGAChatListener.h"
+#import "DelegateMEGAChatCallListener.h"
+#import "DelegateMEGAChatVideoListener.h"
 
 #import <set>
 #import <pthread.h>
@@ -29,6 +33,9 @@ using namespace megachat;
 @property (nonatomic, assign) std::set<DelegateMEGAChatRequestListener *>activeRequestListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatRoomListener *>activeChatRoomListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatListener *>activeChatListeners;
+@property (nonatomic, assign) std::set<DelegateMEGAChatCallListener *>activeChatCallListeners;
+@property (nonatomic, assign) std::set<DelegateMEGAChatVideoListener *>activeChatLocalVideoListeners;
+@property (nonatomic, assign) std::set<DelegateMEGAChatVideoListener *>activeChatRemoteVideoListeners;
 
 - (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener;
 
@@ -248,6 +255,94 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         delete listenersToRemove[i];
     }
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
+
+- (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate {
+    self.megaChatApi->addChatCallListener([self createDelegateMEGAChatCallListener:delegate singleListener:NO]);
+}
+
+- (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate {
+    std::vector<DelegateMEGAChatCallListener *> listenersToRemove;
+    
+    pthread_mutex_lock(&listenerMutex);
+    std::set<DelegateMEGAChatCallListener *>::iterator it = _activeChatCallListeners.begin();
+    while (it != _activeChatCallListeners.end()) {
+        DelegateMEGAChatCallListener *delegateListener = *it;
+        if (delegateListener->getUserListener() == delegate) {
+            listenersToRemove.push_back(delegateListener);
+            _activeChatCallListeners.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+    pthread_mutex_unlock(&listenerMutex);
+    
+    for (int i = 0; i < listenersToRemove.size(); i++)
+    {
+        self.megaChatApi->removeChatCallListener(listenersToRemove[i]);
+        delete listenersToRemove[i];
+    }
+}
+
+- (void)addChatLocalVideoDelegate:(id<MEGAChatVideoDelegate>)delegate {
+    self.megaChatApi->addChatLocalVideoListener([self createDelegateMEGAChatLocalVideoListener:delegate singleListener:YES]);
+}
+
+- (void)removeChatLocalVideoDelegate:(id<MEGAChatVideoDelegate>)delegate {
+    std::vector<DelegateMEGAChatVideoListener *> listenersToRemove;
+    
+    pthread_mutex_lock(&listenerMutex);
+    std::set<DelegateMEGAChatVideoListener *>::iterator it = _activeChatLocalVideoListeners.begin();
+    while (it != _activeChatLocalVideoListeners.end()) {
+        DelegateMEGAChatVideoListener *delegateListener = *it;
+        if (delegateListener->getUserListener() == delegate) {
+            listenersToRemove.push_back(delegateListener);
+            _activeChatLocalVideoListeners.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+    pthread_mutex_unlock(&listenerMutex);
+    
+    for (int i = 0; i < listenersToRemove.size(); i++)
+    {
+        self.megaChatApi->removeChatLocalVideoListener(listenersToRemove[i]);
+        delete listenersToRemove[i];
+    }
+}
+
+- (void)addChatRemoteVideoDelegate:(id<MEGAChatVideoDelegate>)delegate {
+    self.megaChatApi->addChatRemoteVideoListener([self createDelegateMEGAChatRemoteVideoListener:delegate singleListener:YES]);
+}
+
+- (void)removeChatRemoteVideoDelegate:(id<MEGAChatVideoDelegate>)delegate {
+    std::vector<DelegateMEGAChatVideoListener *> listenersToRemove;
+    
+    pthread_mutex_lock(&listenerMutex);
+    std::set<DelegateMEGAChatVideoListener *>::iterator it = _activeChatRemoteVideoListeners.begin();
+    while (it != _activeChatRemoteVideoListeners.end()) {
+        DelegateMEGAChatVideoListener *delegateListener = *it;
+        if (delegateListener->getUserListener() == delegate) {
+            listenersToRemove.push_back(delegateListener);
+            _activeChatRemoteVideoListeners.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+    pthread_mutex_unlock(&listenerMutex);
+    
+    for (int i = 0; i < listenersToRemove.size(); i++)
+    {
+        self.megaChatApi->removeChatRemoteVideoListener(listenersToRemove[i]);
+        delete listenersToRemove[i];
+    }
+}
+
+#endif
 
 #pragma mark - My user attributes
 
@@ -541,6 +636,114 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->sendTypingNotification(chatId);
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
+- (MEGAStringList *)chatAudioInDevices {
+    return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getChatAudioInDevices() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAStringList *)chatVideoInDevices {
+    return self.megaChatApi ? [[MEGAStringList alloc] initWithMegaStringList:self.megaChatApi->getChatVideoInDevices() cMemoryOwn:YES] : nil;
+}
+
+- (BOOL)setChatAudioInDevices:(NSString *)devices {
+    return self.megaChatApi->setChatAudioInDevice(devices ? [devices UTF8String] : NULL);
+}
+
+- (BOOL)setChatVideoInDevices:(NSString *)devices {
+    return self.megaChatApi->setChatVideoInDevice(devices ? [devices UTF8String] : NULL);
+}
+
+- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->startChatCall(chatId, enableVideo, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo {
+    self.megaChatApi->startChatCall(chatId, enableVideo);
+}
+
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->answerChatCall(chatId, enableVideo, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo {
+    self.megaChatApi->answerChatCall(chatId, enableVideo);
+}
+
+- (void)rejectChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->rejectChatCall(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)rejectChatCall:(uint64_t)chatId {
+    self.megaChatApi->rejectChatCall(chatId);
+}
+
+-(void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->hangChatCall(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+-(void)hangChatCall:(uint64_t)chatId {
+    self.megaChatApi->hangChatCall(chatId);
+}
+
+- (void)hangAllChatCallsWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->hangAllChatCalls([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)hangAllChatCalls {
+    self.megaChatApi->hangAllChatCalls();
+}
+
+- (void)enableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->enableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+}
+
+- (void)enableAudioForChat:(uint64_t)chatId {
+    self.megaChatApi->enableAudio(chatId);
+}
+
+- (void)disableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->disableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+}
+
+- (void)disableAudioForChat:(uint64_t)chatId {
+    self.megaChatApi->disableAudio(chatId);
+}
+
+- (void)enableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->enableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+}
+
+- (void)enableVideoForChat:(uint64_t)chatId {
+    self.megaChatApi->enableVideo(chatId);
+}
+
+- (void)disableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->disableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+}
+
+- (void)disableVideoForChat:(uint64_t)chatId {
+    self.megaChatApi->disableVideo(chatId);
+}
+
+- (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->loadAudioVideoDeviceList([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)loadAudioVideoDeviceList {
+    self.megaChatApi->loadAudioVideoDeviceList();
+}
+
+- (MEGAChatCall *)chatCallForCallId:(uint64_t)callId {
+    return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCall(callId) cMemoryOwn:YES];
+}
+
+- (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId {
+    return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCallByChatId(chatId) cMemoryOwn:YES];
+}
+
+#endif
+
 #pragma mark - Debug log messages
 
 + (void)setLogLevel:(MEGAChatLogLevel)level {
@@ -617,6 +820,63 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     
     pthread_mutex_lock(&listenerMutex);
     _activeChatListeners.erase(delegate);
+    pthread_mutex_unlock(&listenerMutex);
+    delete delegate;
+}
+
+- (MegaChatCallListener *)createDelegateMEGAChatCallListener:(id<MEGAChatCallDelegate>)delegate singleListener:(BOOL)singleListener {
+    if (delegate == nil) return nil;
+    
+    DelegateMEGAChatCallListener *delegateListener = new DelegateMEGAChatCallListener(self, delegate, singleListener);
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatCallListeners.insert(delegateListener);
+    pthread_mutex_unlock(&listenerMutex);
+    return delegateListener;
+}
+
+- (void)freeChatCallListener:(DelegateMEGAChatCallListener *)delegate {
+    if (delegate == nil) return;
+    
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatCallListeners.erase(delegate);
+    pthread_mutex_unlock(&listenerMutex);
+    delete delegate;
+}
+
+- (MegaChatVideoListener *)createDelegateMEGAChatLocalVideoListener:(id<MEGAChatVideoDelegate>)delegate singleListener:(BOOL)singleListener {
+    if (delegate == nil) return nil;
+    
+    DelegateMEGAChatVideoListener *delegateListener = new DelegateMEGAChatVideoListener(self, delegate, singleListener);
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatLocalVideoListeners.insert(delegateListener);
+    pthread_mutex_unlock(&listenerMutex);
+    return delegateListener;
+}
+
+- (void)freeChatLocalVideoListener:(DelegateMEGAChatVideoListener *)delegate {
+    if (delegate == nil) return;
+    
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatLocalVideoListeners.erase(delegate);
+    pthread_mutex_unlock(&listenerMutex);
+    delete delegate;
+}
+
+- (MegaChatVideoListener *)createDelegateMEGAChatRemoteVideoListener:(id<MEGAChatVideoDelegate>)delegate singleListener:(BOOL)singleListener {
+    if (delegate == nil) return nil;
+    
+    DelegateMEGAChatVideoListener *delegateListener = new DelegateMEGAChatVideoListener(self, delegate, singleListener);
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatRemoteVideoListeners.insert(delegateListener);
+    pthread_mutex_unlock(&listenerMutex);
+    return delegateListener;
+}
+
+- (void)freeChatRemoteVideoListener:(DelegateMEGAChatVideoListener *)delegate {
+    if (delegate == nil) return;
+    
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatRemoteVideoListeners.erase(delegate);
     pthread_mutex_unlock(&listenerMutex);
     delete delegate;
 }
