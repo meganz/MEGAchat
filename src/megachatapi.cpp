@@ -530,14 +530,24 @@ void MegaChatApi::hangAllChatCalls(MegaChatRequestListener *listener)
     pImpl->hangAllChatCalls(listener);
 }
 
-void MegaChatApi::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener)
+void MegaChatApi::enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->muteCall(chatid, mute, listener);
+    pImpl->setAudioEnable(chatid, true, listener);
 }
 
-void MegaChatApi::disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener)
+void MegaChatApi::disableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->disableVideoCall(chatid, videoCall, listener);
+    pImpl->setAudioEnable(chatid, false, listener);
+}
+
+void MegaChatApi::enableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->setVideoEnable(chatid, true, listener);
+}
+
+void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->setVideoEnable(chatid,false, listener);
 }
 
 void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)

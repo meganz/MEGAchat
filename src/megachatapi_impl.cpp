@@ -973,7 +973,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            bool muteAudioVideo = request->getFlag();
+            bool enable = request->getFlag();
             int operationType = request->getParamType();
 
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
@@ -996,12 +996,12 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags newFlags;
             if (operationType == MegaChatRequest::AUDIO)
             {
-                karere::AvFlags flags(muteAudioVideo, currentFlags.video());
+                karere::AvFlags flags(enable, currentFlags.video());
                 newFlags = flags;
             }
             else if (operationType == MegaChatRequest::VIDEO)
             {
-                karere::AvFlags flags(currentFlags.audio(), muteAudioVideo);
+                karere::AvFlags flags(currentFlags.audio(), enable);
                 newFlags = flags;
             }
             else
@@ -2446,21 +2446,21 @@ void MegaChatApiImpl::hangAllChatCalls(MegaChatRequestListener *listener = NULL)
     waiter->notify();
 }
 
-void MegaChatApiImpl::muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
-    request->setFlag(mute);
+    request->setFlag(enable);
     request->setParamType(MegaChatRequest::AUDIO);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
-    request->setFlag(videoCall);
+    request->setFlag(enable);
     request->setParamType(MegaChatRequest::VIDEO);
     requestQueue.push(request);
     waiter->notify();

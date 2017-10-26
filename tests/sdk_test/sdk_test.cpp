@@ -2116,16 +2116,16 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
-    megaChatApi[a1]->muteCall(chatid, false);
+    megaChatApi[a1]->disableAudio(chatid);
     sleep(5);
     std::cerr << "Disable Video" << std::endl;
-    megaChatApi[a1]->disableVideoCall(chatid, false);
+    megaChatApi[a1]->disableVideo(chatid);
     sleep(5);
     std::cerr << "Unmute Call" << std::endl;
-    megaChatApi[a1]->muteCall(chatid, true);
+    megaChatApi[a1]->enableAudio(chatid);
     sleep(5);
     std::cerr << "Enable Video" << std::endl;
-    megaChatApi[a1]->disableVideoCall(chatid, true);
+    megaChatApi[a1]->enableVideo(chatid);
 
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCallByChatId(chatid);
     ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCallByChatId");
@@ -2150,16 +2150,16 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
-    megaChatApi[a1]->muteCall(chatid, false);
+    megaChatApi[a1]->disableAudio(chatid);
     sleep(5);
     std::cerr << "Disable Video" << std::endl;
-    megaChatApi[a1]->disableVideoCall(chatid, false);
+    megaChatApi[a1]->disableVideo(chatid);
     sleep(5);
     std::cerr << "Unmute Call" << std::endl;
-    megaChatApi[a1]->muteCall(chatid, true);
+    megaChatApi[a1]->enableAudio(chatid);
     sleep(5);
     std::cerr << "Enable Video" << std::endl;
-    megaChatApi[a1]->disableVideoCall(chatid, true);
+    megaChatApi[a1]->enableVideo(chatid);
 
     sleep(10);
     std::cerr << "Finish Call" << std::endl;

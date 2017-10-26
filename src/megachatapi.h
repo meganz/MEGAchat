@@ -2719,32 +2719,72 @@ public:
     void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Mute or unmute a call that is in progress
+     * @brief Enable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to mute audio, false to unmute
+     * - MegaChatRequest::getFlag - Returns true to enable audio, false to disableVideoCall
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
+     *  MegachatRequest::VIDEO for video operation
+     *  MegachatRequest::AUDIO = 0,
+     *  MegachatRequest::VIDEO = 1
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param mute True for mute the call, false for unmute
      * @param listener MegaChatRequestListener to track this request
      */
-    void muteCall(MegaChatHandle chatid, bool mute, MegaChatRequestListener *listener = NULL);
+    void enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Disable or enable video on a call that is in progress
+     * @brief Disable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to disable video, false to enable video
+     * - MegaChatRequest::getFlag - Returns true to enable , false to disable
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
+     *  MegachatRequest::VIDEO for video operation
+     *  MegachatRequest::AUDIO = 0,
+     *  MegachatRequest::VIDEO = 1
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param videoCall True for disable video, false for enable video
      * @param listener MegaChatRequestListener to track this request
      */
-    void disableVideoCall(MegaChatHandle chatid, bool videoCall, MegaChatRequestListener *listener = NULL);
+    void disableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Enable video for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to enable, false to disable
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
+     *  MegachatRequest::VIDEO for video operation
+     *  MegachatRequest::AUDIO = 0,
+     *  MegachatRequest::VIDEO = 1
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Disable video for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to enable, false to disable
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::AUDIO for audio operation,
+     *  MegachatRequest::VIDEO for video operation
+     *  MegachatRequest::AUDIO = 0,
+     *  MegachatRequest::VIDEO = 1
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Search all audio and video devices at the system at that moment.
