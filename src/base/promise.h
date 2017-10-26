@@ -205,7 +205,7 @@ public:
 struct _Empty{};
 typedef _Empty Empty;
 
-template<typename T, int L=4>
+template<typename T, int L=10>
 class Promise: public PromiseBase
 {
 public:
