@@ -238,8 +238,14 @@ Client::reconnect(const std::string& url)
                     throw std::runtime_error("Websocket error on wsConnect (presenced)");
                 }
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution failed, but presenced client was deleted. Error: %s", err.what());
+                    return;
+                }
+
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
                     mConnectPromise.reject(err.msg(), err.code(), err.type());
@@ -248,12 +254,15 @@ Client::reconnect(const std::string& url)
             });
             
             return mConnectPromise
-            .then([this]()
+            .then([wptr, this]()
             {
+                if (wptr.deleted())
+                    return;
+
                 mTsLastPingSent = 0;
                 mTsLastRecv = time(NULL);
                 mHeartbeatEnabled = true;
-                return login();
+                login();
             });
         }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
