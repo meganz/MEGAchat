@@ -77,7 +77,8 @@ public:
     {
         CHANGE_TYPE_STATUS = 0x01,
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
-        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08
     };
 
     virtual ~MegaChatCall();
@@ -162,6 +163,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
      * Check if the content of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
+     * Check if the content of the call changed
      */
     virtual int getChanges() const;
 
@@ -186,12 +190,16 @@ public:
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
      * Check if the content of the call changed
      *
+     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
+     * Check if the content of the call changed
+     *
      * @return true if this call has an specific change
      */
     virtual bool hasChanged(int changeType) const;
 
     /**
      * @brief Return call duration. If the call is not finished, duration is the time lag between
+     *
      * the beginning of the call until now. If the call has finished, duration is the time lag between
      * the beginning of the call until until call has finished
      *
@@ -201,15 +209,27 @@ public:
 
     /**
      * @brief Return the timestamp when call has started
+     *
      * @return Initial timestamp
      */
     virtual int64_t getInitialTimeStamp() const;
 
     /**
      * @brief Return the timestamp when call has finished. If call is in progress, 0 will be returned
+     *
      * @return Final timestamp or 0 if call is in progress
      */
     virtual int64_t getFinalTimeStamp() const;
+
+    /**
+     * @brief Returns the content of the error
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatCall object is deleted.
+     *
+     * @return Content of the error. If there isn't a error, it returns a empty string.
+     */
+    virtual const char *getError() const;
 };
 
 /**
@@ -262,21 +282,6 @@ public:
      * @param call MegaChatCall that contains the call with its changes
      */
     virtual void onChatCallUpdate(MegaChatApi* api, MegaChatCall *call);
-
-    /**
-     * @brief This function is called when a temporary error has occurred over a call
-     *
-     * The SDK retains the ownership of the MegaChatCall.
-     * To use it, after this function, it is necessary a copy.
-     *
-     * The api object is the one created by the application, it will be valid until
-     * the application deletes it.
-     *
-     * @param api MegaChatApi connected to the account
-     * @param call MegaChatCall that represents the call that observed a temporary error
-     * @param error Error information
-     */
-    virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
 };
 
 class MegaChatPeerList

@@ -103,6 +103,11 @@ int64_t MegaChatCall::getFinalTimeStamp() const
     return 0;
 }
 
+const char* MegaChatCall::getError() const
+{
+    return NULL;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -907,11 +912,6 @@ void MegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle cha
 
 
 void MegaChatCallListener::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
-{
-
-}
-
-void MegaChatCallListener::onChatCallTemporaryError(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
 {
 
 }

@@ -327,7 +327,6 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
-    virtual void onChatCallTemporaryError(megachat::MegaChatApi* api, megachat::MegaChatCall *call, megachat::MegaChatError* error);
 #endif
 };
 

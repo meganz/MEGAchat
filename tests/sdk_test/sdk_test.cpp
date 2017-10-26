@@ -3027,11 +3027,6 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     LOG_debug << "On chat call change state ";
 }
 
-void MegaChatApiTest::onChatCallTemporaryError(MegaChatApi *api, MegaChatCall *call, MegaChatError *error)
-{
-    LOG_debug << "On chat call temporay error ";
-}
-
 TestChatVideoListener::TestChatVideoListener(const string &type)
     : mType(type)
 {

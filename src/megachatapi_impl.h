@@ -174,6 +174,7 @@ public:
     virtual int64_t getDuration() const;
     virtual int64_t getInitialTimeStamp() const;
     virtual int64_t getFinalTimeStamp() const;
+    virtual const char *getError() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -181,6 +182,7 @@ public:
     void setInitialTimeStamp(int64_t timeStamp);
     void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
+    void setError(const std::string temporaryError);
 
 protected:
     MegaChatHandle chatid;
@@ -191,6 +193,7 @@ protected:
     int changed;
     int64_t initialTs;
     int64_t finalTs;
+    std::string temporaryError;
 };
 
 class MegaChatVideoFrame
@@ -811,7 +814,6 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     // MegaChatCallListener callbacks
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
-    void fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e);
 
     // MegaChatVideoListener callbacks
     void fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char*buffer);

@@ -1321,19 +1321,6 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
     call->removeChanges();
 }
 
-void MegaChatApiImpl::fireOnChatCallTemporaryError(MegaChatCallPrivate *call, MegaChatError *e)
-{
-    API_LOG_INFO("Chat call temporary error: %s. Chatid %s", e->getErrorString(), Id(call->getChatid()).toString().c_str());
-
-    for(set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
-    {
-        (*it)->onChatCallTemporaryError(chatApi, call, e);
-    }
-
-    delete call;
-    delete e;
-}
-
 void MegaChatApiImpl::fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char *buffer)
 {
     for(set<MegaChatVideoListener *>::iterator it = remoteVideoListeners.begin(); it != remoteVideoListeners.end() ; it++)
@@ -3340,6 +3327,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     changed = 0;
     initialTs = 0;
     finalTs = 0;
+    temporaryError = std::string("");
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -3352,6 +3340,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->changed = call.changed;
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
+    this->temporaryError = call.temporaryError;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3441,6 +3430,11 @@ int64_t MegaChatCallPrivate::getFinalTimeStamp() const
     return finalTs;
 }
 
+const char *MegaChatCallPrivate::getError() const
+{
+    return temporaryError.c_str();
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -3475,6 +3469,13 @@ void MegaChatCallPrivate::setFinalTimeStamp(int64_t timeStamp)
 void MegaChatCallPrivate::removeChanges()
 {
     changed = 0;
+    temporaryError = std::string("");
+}
+
+void MegaChatCallPrivate::setError(const string temporaryError)
+{
+    this->temporaryError = temporaryError;
+    changed |= MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -5181,8 +5182,8 @@ void MegaChatCallHandler::onLocalMediaError(const string errors)
 {
     if (chatCall != NULL)
     {
-        MegaChatError *err = new MegaChatErrorPrivate(errors, MegaChatError::ERROR_UNKNOWN);
-        megaChatApi->fireOnChatCallTemporaryError(chatCall, err);
+        chatCall->setError(errors);
+        megaChatApi->fireOnChatCallUpdate(chatCall);
     }
 }
 
