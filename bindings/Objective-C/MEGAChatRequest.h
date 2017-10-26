@@ -1,14 +1,14 @@
 #import <Foundation/Foundation.h>
 
 typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
-    MEGAChatRequestTypeInitialize,
+    MEGAChatRequestTypeInitialize, // (Obsolete)
     MEGAChatRequestTypeConnect,
     MEGAChatRequestTypeDelete,
     MEGAChatRequestTypeLogout,
     MEGAChatRequestTypeSetOnlineStatus,
     MEGAChatRequestTypeStartChatCall,
     MEGAChatRequestTypeAnswerChatCall,
-    MEGAChatRequestTypeMuteChatCall,
+    MEGAChatRequestTypeDisableAudioVideoCall,
     MEGAChatRequestTypeHangChatCall,
     MEGAChatRequestTypeCreateChatRoom,
     MEGAChatRequestTypeRemoveFromChatRoom,
@@ -25,7 +25,17 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeNodeMessage,
     MEGAChatRequestTypeRevokeNodeMessage,
     MEGAChatRequestTypeSetBackgroundStatus,
-    MEGAChatRequestTypeRetryPendingConnections
+    MEGAChatRequestTypeRetryPendingConnections,
+    MEGAChatRequestTypeSendTypingNotification,
+    MEGAChatRequestTypeSignalActivity,
+    MEGAChatRequestTypeSetPresencePersist,
+    MEGAChatRequestTypeSetPresenceAutoaway,
+    MEGAChatRequestTypeLoadAudioVideoDevices
+};
+
+typedef NS_ENUM (NSInteger, MEGAChatRequest) {
+    MEGAChatRequestAudio = 0,
+    MEGAChatRequestVideo = 1
 };
 
 @class MEGAChatMessage;
@@ -46,6 +56,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
 @property (readonly, nonatomic) NSString *text;
 @property (readonly, nonatomic) MEGAChatMessage *chatMessage;
 @property (readonly, nonatomic) MEGANodeList *nodeList;
+@property (readonly, nonatomic) NSInteger paramType;
 
 - (instancetype)clone;
 
