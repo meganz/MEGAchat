@@ -29,7 +29,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly) int64_t duration;
 @property (nonatomic, readonly) int64_t initialTimeStamp;
 @property (nonatomic, readonly) int64_t finalTimeStamp;
-@property (nonatomic, readonly) NSString *error;
+@property (nonatomic, readonly) NSString *temporaryError;
 @property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
 @property (nonatomic, readonly, getter=hasRemoteAudio) BOOL remoteAudio;

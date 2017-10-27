@@ -79,7 +79,7 @@ using namespace megachat;
 }
 
 - (NSString *)error {
-    const char *val = self.megaChatCall->getError();
+    const char *val = self.megaChatCall->getTemporaryError();
     if (!val) return nil;
     
     NSString *ret = [[NSString alloc] initWithUTF8String:val];
