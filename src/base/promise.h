@@ -150,7 +150,7 @@ public:
     CallbackList():mCount(0){}
     inline void checkCanAdd(int cnt = 0) const
     {
-        if (mCount>=L)
+        if (mCount + cnt >= L)
             throw std::runtime_error(kNoMoreCallbacksMsg);
     }
 /**
