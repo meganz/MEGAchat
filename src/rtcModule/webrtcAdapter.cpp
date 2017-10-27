@@ -113,12 +113,12 @@ void DeviceManager::enumInputDevices()
     // TODO: Implement audio device enumeration, when webrtc has it again
     // Maybe VoEHardware in src/voice_engine/main/interface/voe_hardware.h
     mInputDevices.audio.push_back(cricket::Device("default", "0"));
-    mInputDevices.video.push_back(cricket::Device("default", "0"));
 
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
         webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info)
     {
+        mInputDevices.video.push_back(cricket::Device("default", "0"));
         return;
     }
 
