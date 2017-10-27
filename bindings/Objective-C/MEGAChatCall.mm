@@ -43,7 +43,11 @@ using namespace megachat;
     NSString *status = [MEGAChatCall stringForStatus:self.status];
     NSString *base64ChatId = [MEGASdk base64HandleForUserHandle:self.chatId];
     NSString *base64CallId = [MEGASdk base64HandleForUserHandle:self.callId];
-    return [NSString stringWithFormat:@"<%@: status: %@, chatId: %@, callId: %@", [self class], status, base64ChatId, base64CallId];
+    NSString *localAudio = [self hasLocalAudio] ? @"ON" : @"OFF";
+    NSString *localVideo = [self hasLocalVideo] ? @"ON" : @"OFF";
+    NSString *remoteAudio = [self hasRemoteAudio] ? @"ON" : @"OFF";
+    NSString *remoteVideo = [self hasRemoteVideo] ? @"ON" : @"OFF";
+    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo];
 }
 
 - (MEGAChatCallStatus)status {
@@ -84,12 +88,20 @@ using namespace megachat;
     return ret;
 }
 
-- (BOOL)hasAudio:(BOOL)local {
-    return self.megaChatCall ? self.megaChatCall->hasAudio(local) : NO;
+- (BOOL)hasLocalAudio {
+    return self.megaChatCall ? self.megaChatCall->hasAudio(true) : NO;
 }
 
-- (BOOL)hasVideo:(BOOL)local {
-    return self.megaChatCall ? self.megaChatCall->hasVideo(local) : NO;
+- (BOOL)hasLocalVideo {
+    return self.megaChatCall ? self.megaChatCall->hasVideo(true) : NO;
+}
+
+- (BOOL)hasRemoteAudio {
+    return self.megaChatCall ? self.megaChatCall->hasAudio(false) : NO;
+}
+
+- (BOOL)hasRemoteVideo {
+    return self.megaChatCall ? self.megaChatCall->hasVideo(false) : NO;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType {

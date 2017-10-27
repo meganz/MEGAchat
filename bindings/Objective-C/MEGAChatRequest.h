@@ -33,9 +33,9 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeLoadAudioVideoDevices
 };
 
-typedef NS_ENUM (NSInteger, MEGAChatRequest) {
-    MEGAChatRequestAudio = 0,
-    MEGAChatRequestVideo = 1
+enum {
+    audio = 0,
+    video = 1
 };
 
 @class MEGAChatMessage;
