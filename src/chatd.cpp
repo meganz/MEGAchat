@@ -478,22 +478,22 @@ void Chat::logSend(const Command& cmd)
         case OP_NEWMSG:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s, keyid: %u\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId());
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s, keyid: %u, ts: %u\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.ts());
             break;
         }
         case OP_MSGUPD:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s, keyid: %u\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId());
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s, keyid: %u, ts: %u, tsdelta: %uh\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.ts(), msgcmd.updated());
             break;
         }
         case OP_MSGUPDX:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, keyid: %u, tsdelta: %hu\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.updated());
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, keyid: %u, ts: %u, tsdelta: %uh\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.ts());
             break;
         }
         case OP_NEWKEY:

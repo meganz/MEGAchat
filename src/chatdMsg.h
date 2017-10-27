@@ -495,6 +495,7 @@ public:
     }
     uint32_t msglen() const { return read<uint32_t>(35); }
     uint16_t updated() const { return read<uint16_t>(29); }
+    uint32_t ts() const { return read<uint32_t>(25); }
     void clearMsg()
     {
         if (msglen() > 0)
