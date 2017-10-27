@@ -1859,21 +1859,25 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
 {
     if (mSending.empty())
+    {
         throw std::runtime_error("rejectMsgupd: Send queue is empty");
+    }
 
     auto& front = mSending.front();
     auto opcode = front.opcode();
     if (opcode != OP_MSGUPD && opcode != OP_MSGUPDX)
+    {
         throw std::runtime_error(std::string("rejectMsgupd: Front of send queue does not match - expected opcode MSGUPD or MSGUPDX, actual opcode: ")
         +Command::opcodeToStr(opcode));
+    }
 
     auto& msg = *front.msg;
     if (msg.id() != id)
     {
         std::string errorMsg = "rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue. Rejected: '";
-        errorMsg.append(msg.id().toString());
-        errorMsg.append("' Sent: '");
         errorMsg.append(id.toString());
+        errorMsg.append("' Sent: '");
+        errorMsg.append(msg.id().toString());
         errorMsg.append("'");
 
         throw std::runtime_error(errorMsg);
