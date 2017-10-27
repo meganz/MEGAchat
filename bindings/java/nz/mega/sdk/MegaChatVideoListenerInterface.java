@@ -17,5 +17,5 @@
 package nz.mega.sdk;
 
 public interface MegaChatVideoListenerInterface {
-    public void onChatVideoData(MegaChatApiJava api, MegaChatCall chatCall, int width, int height, byte[] byteBuffer);
+    public void onChatVideoData(MegaChatApiJava api, long chatid, int width, int height, byte[] byteBuffer);
 }

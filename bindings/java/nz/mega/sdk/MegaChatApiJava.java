@@ -1526,38 +1526,78 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Mute or unmute a call that is in progress
+     * Enable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to mute audio, false to unmute
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param mute True for mute the call, false for unmute
      * @param listener MegaChatRequestListener to track this request
      */
-    public void muteCall(long chatid, boolean mute, MegaChatRequestListenerInterface listener)
-    {
-        megaChatApi.muteCall(chatid, mute, createDelegateRequestListener(listener));
+    void enableAudio(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.enableAudio(chatid, createDelegateRequestListener(listener));
     }
 
     /**
-     * Disable or enable video on a call that is in progress
+     * Disable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true to disable video, false to enable video
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param videoCall True for disable video, false for enable video
      * @param listener MegaChatRequestListener to track this request
      */
-    public void disableVideoCall(long chatid, boolean videoCall, MegaChatRequestListenerInterface listener)
-    {
-        megaChatApi.disableVideoCall(chatid, videoCall, createDelegateRequestListener(listener));
+    void disableAudio(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.disableAudio(chatid, createDelegateRequestListener(listener));
     }
+
+    /**
+     * Enable video for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableVideo(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.enableVideo(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Disable video for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disableVideo(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.disableVideo(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Search all audio and video devices at the system at that moment.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
+     * After call this funciton, available devices can be obtained calling getChatAudioInDevices
+     * or getChatVideoInDevices
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
 
     /**
      * Search all audio and video devices at the system at that moment.

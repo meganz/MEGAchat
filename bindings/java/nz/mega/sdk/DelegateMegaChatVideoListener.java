@@ -22,7 +22,6 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
     boolean remote;
     boolean removed;
 
-
     DelegateMegaChatVideoListener(MegaChatApiJava megaApi, MegaChatVideoListenerInterface listener, boolean remote) {
         this.megaChatApi = megaApi;
         this.listener = listener;
@@ -43,7 +42,7 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
     }
 
     @Override
-    public void onChatVideoData(MegaChatApi api, MegaChatCall chatCall, int width, int height, byte[] byteBuffer)
+    public void onChatVideoData(MegaChatApi api, long chatid, int width, int height, byte[] byteBuffer)
     {
         if (listener != null) {
             // Uncomment this if it's needed to send the callback to the GUI thread
@@ -54,7 +53,7 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
             //megaChatApi.runCallback(new Runnable() {
             //    public void run() {
                     if (!removed) {
-                        listener.onChatVideoData(megaChatApi, chatCall, width, height, byteBuffer);
+                        listener.onChatVideoData(megaChatApi, chatid, width, height, byteBuffer);
                     }
             //    }
             //});

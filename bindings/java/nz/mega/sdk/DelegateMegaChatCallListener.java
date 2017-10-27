@@ -30,63 +30,12 @@ class DelegateMegaChatCallListener extends MegaChatCallListener{
     }
 
     @Override
-    public void onChatCallStart(MegaChatApi api, MegaChatCall call) {
+    public void onChatCallUpdate(MegaChatApi api, MegaChatCall call) {
         if (listener != null) {
             final MegaChatCall megaChatCall = call.copy();
             megaChatApi.runCallback(new Runnable() {
                 public void run() {
-                    listener.onChatCallStart(megaChatApi, megaChatCall);
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onChatCallIncoming(MegaChatApi api, MegaChatCall call){
-        if (listener != null) {
-            final MegaChatCall megaChatCall = call.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onChatCallIncoming(megaChatApi, megaChatCall);
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onChatCallStateChange(MegaChatApi api, MegaChatCall call){
-        if (listener != null) {
-            final MegaChatCall megaChatCall = call.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onChatCallStateChange(megaChatApi, megaChatCall);
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onChatCallTemporaryError(MegaChatApi api, MegaChatCall call, MegaChatError error){
-        if (listener != null) {
-            final MegaChatCall megaChatCall = call.copy();
-            final MegaChatError megaChatError = error.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onChatCallTemporaryError(megaChatApi, megaChatCall, megaChatError);
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onChatCallFinish(MegaChatApi api, MegaChatCall call, MegaChatError error){
-
-        if (listener != null) {
-            final MegaChatCall megaChatCall = call.copy();
-            final MegaChatError megaChatError = error.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onChatCallFinish(megaChatApi, megaChatCall, megaChatError);
+                    listener.onChatCallUpdate(megaChatApi, megaChatCall);
                 }
             });
         }

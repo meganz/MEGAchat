@@ -17,9 +17,5 @@
 package nz.mega.sdk;
 
 public interface MegaChatCallListenerInterface {
-    public void onChatCallStart(MegaChatApiJava api, MegaChatCall call);
-    public void onChatCallIncoming(MegaChatApiJava api, MegaChatCall call);
-    public void onChatCallStateChange(MegaChatApiJava api, MegaChatCall call);
-    public void onChatCallTemporaryError(MegaChatApiJava api, MegaChatCall call, MegaChatError error);
-    public void onChatCallFinish(MegaChatApiJava api, MegaChatCall call, MegaChatError error);
+    public void onChatCallUpdate(MegaChatApiJava api, MegaChatCall call);
 }
