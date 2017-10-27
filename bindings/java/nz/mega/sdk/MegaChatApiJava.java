@@ -1537,7 +1537,7 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void enableAudio(long chatid, MegaChatRequestListenerInterface listener){
+    public void enableAudio(long chatid, MegaChatRequestListenerInterface listener){
         megaChatApi.enableAudio(chatid, createDelegateRequestListener(listener));
     }
 
@@ -1553,7 +1553,7 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void disableAudio(long chatid, MegaChatRequestListenerInterface listener){
+    public void disableAudio(long chatid, MegaChatRequestListenerInterface listener){
         megaChatApi.disableAudio(chatid, createDelegateRequestListener(listener));
     }
 
@@ -1569,7 +1569,7 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void enableVideo(long chatid, MegaChatRequestListenerInterface listener){
+    public void enableVideo(long chatid, MegaChatRequestListenerInterface listener){
         megaChatApi.enableVideo(chatid, createDelegateRequestListener(listener));
     }
 
@@ -1585,7 +1585,7 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void disableVideo(long chatid, MegaChatRequestListenerInterface listener){
+    public void disableVideo(long chatid, MegaChatRequestListenerInterface listener){
         megaChatApi.disableVideo(chatid, createDelegateRequestListener(listener));
     }
 
