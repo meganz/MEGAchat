@@ -3330,6 +3330,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     status = call.state();
     chatid = call.chat().chatId();
     callid = call.id();
+    // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
     localAVFlags = call.sentAv();
     std::map<karere::Id, karere::AvFlags> remoteFlags = call.avFlagsRemotePeers();
     remoteAVFlags = karere::AvFlags(false, false);
@@ -5134,6 +5135,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateHasLocalStream:
                 state = MegaChatCall::CALL_STATUS_HAS_LOCAL_STREAM;
+                chatCall->setLocalAudioVideoFlags(call->sentAv());
                 break;
             case rtcModule::ICall::kStateReqSent:
                 state = MegaChatCall::CALL_STATUS_REQUEST_SENT;
