@@ -6,7 +6,7 @@
 #include <assert.h>
 
 VideoRendererQt::VideoRendererQt(QWidget *parent)
-    :QWidget(parent), mFrame(new QImage(size(), QImage::Format_ARGB32))
+    :QWidget(parent), mFrame(new QImage(size(), QImage::Format_RGBA8888))
 {
     clearViewport();
 }

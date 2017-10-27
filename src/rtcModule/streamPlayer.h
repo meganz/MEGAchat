@@ -161,7 +161,7 @@ public:
         void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
         if (!frameBuf) //image is frozen or app is minimized/covered
             return;
-        libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(),
+        libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
                            buffer->DataU(), buffer->StrideU(),
                            buffer->DataV(), buffer->StrideV(),
                            (uint8_t*)frameBuf, width * 4, width, height);
