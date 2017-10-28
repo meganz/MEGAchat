@@ -695,7 +695,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)enableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->enableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+    self.megaChatApi->enableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)enableAudioForChat:(uint64_t)chatId {
@@ -703,7 +703,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)disableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->disableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+    self.megaChatApi->disableAudio(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)disableAudioForChat:(uint64_t)chatId {
@@ -711,7 +711,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)enableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->enableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+    self.megaChatApi->enableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)enableVideoForChat:(uint64_t)chatId {
@@ -719,7 +719,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)disableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->disableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:self]);
+    self.megaChatApi->disableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)disableVideoForChat:(uint64_t)chatId {
