@@ -13,6 +13,7 @@
 extern JavaVM *MEGAjvm;
 extern jclass applicationClass;
 extern jmethodID startVideoCaptureMID;
+extern jmethodID stopVideoCaptureMID;
 extern jobject surfaceTextureHelper;
 #endif
 
@@ -160,6 +161,7 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
     mSource = new rtc::RefCountedObject<webrtc::AndroidVideoTrackSource>(currentThread, env, surfaceTextureHelper, false);
     rtc::scoped_refptr<webrtc::VideoTrackSourceProxy> proxySource = webrtc::VideoTrackSourceProxy::Create(currentThread, currentThread, mSource);
     env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jlong)proxySource.release(), surfaceTextureHelper);
+    MEGAjvm->DetachCurrentThread();
 #endif
 
     if (!mSource.get())
@@ -179,6 +181,14 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
     if (!mSource)
         return;
 //  mSource->GetVideoCapturer()->Stop(); //Seems this must not be called directly, but is called internally by the same webrtc worker thread that started the capture
+
+#ifdef __ANDROID__
+    JNIEnv *env;
+    MEGAjvm->AttachCurrentThread(&env, NULL);
+    env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
+    MEGAjvm->DetachCurrentThread();
+#endif
+
     mSource = nullptr;
 }
 
