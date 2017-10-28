@@ -361,6 +361,7 @@ class InputDeviceShared
 {
 private:
     rtc::scoped_refptr<S> mSource;
+    cricket::VideoCapturer *mCapturer;
     std::shared_ptr<MediaGetOptions> mOptions;
     int mRefCount = 0;
     void createSource();
@@ -384,7 +385,7 @@ protected:
     friend class TrackHandle<This>;
 public:
     InputDeviceShared(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
-    : mOptions(options), mManager(manager) { assert(mOptions); }
+    : mCapturer(NULL), mOptions(options), mManager(manager) { assert(mOptions); }
     ~InputDeviceShared()
     {
         if (mRefCount)

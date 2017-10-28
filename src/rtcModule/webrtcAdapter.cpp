@@ -152,6 +152,7 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
         return;
     }
 
+    mCapturer = capturer.get();
     mSource = gWebrtcContext->CreateVideoSource(capturer.release(),
         &(mOptions->constraints));
 #else
@@ -180,13 +181,20 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
 {
     if (!mSource)
         return;
-//  mSource->GetVideoCapturer()->Stop(); //Seems this must not be called directly, but is called internally by the same webrtc worker thread that started the capture
 
 #ifdef __ANDROID__
     JNIEnv *env;
     MEGAjvm->AttachCurrentThread(&env, NULL);
     env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
     MEGAjvm->DetachCurrentThread();
+#else
+    if (mCapturer)
+    {
+        // This seems to be needed on iOS
+        // TODO: Check if this breaks desktop builds
+        mCapturer->Stop();
+        mCapturer = NULL;
+    }
 #endif
 
     mSource = nullptr;
