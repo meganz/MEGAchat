@@ -132,7 +132,16 @@ void DeviceManager::enumInputDevices()
         char id[kSize] = {0};
         if (info->GetDeviceName(i, name, kSize, id, kSize) != -1)
         {
-            devices.push_back(cricket::Device(name, id));
+            std::string sName = name;
+            std::transform(sName.begin(), sName.end(), sName.begin(), ::tolower);
+            if (sName.find("front") == std::string::npos)
+            {
+                devices.push_back(cricket::Device(name, id));
+            }
+            else
+            {
+                devices.insert(devices.begin(), cricket::Device(name, id));
+            }
         }
     }
 }
