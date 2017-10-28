@@ -958,12 +958,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 chat.onHistDone();
                 break;
             }
-            case OP_KEYID:
+            case OP_NEWKEYID:
             {
                 READ_CHATID(0);
                 READ_32(keyxid, 8);
                 READ_32(keyid, 12);
-                CHATD_LOG_DEBUG("%s: recv KEYID: %u -> %u", ID_CSTR(chatid), keyxid, keyid);
+                CHATD_LOG_DEBUG("%s: recv NEWKEYID: %u -> %u", ID_CSTR(chatid), keyxid, keyid);
                 mClient.chats(chatid).keyConfirm(keyxid, keyid);
                 break;
             }
@@ -1635,7 +1635,7 @@ void Chat::flushOutputQueue(bool fromStart)
 //Indeed, if we flush the send queue from the start, this means that
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
-//the KEYID responses for the keys we flush from the output queue
+//the NEWKEYID responses for the keys we flush from the output queue
     if(mEncryptionHalted || !mConnection.isLoggedIn())
         return;
 
@@ -2722,7 +2722,7 @@ const char* Command::opcodeToStr(uint8_t opcode)
         RET_ENUM_NAME(BROADCAST);
         RET_ENUM_NAME(HISTDONE);
         RET_ENUM_NAME(NEWKEY);
-        RET_ENUM_NAME(KEYID);
+        RET_ENUM_NAME(NEWKEYID);
         RET_ENUM_NAME(JOINRANGEHIST);
         RET_ENUM_NAME(MSGUPDX);
         RET_ENUM_NAME(MSGID);
