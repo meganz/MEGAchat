@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <assert.h>
 #include "cservices-thread.h"
+#include <sys/time.h>
 
 extern "C"
 {
