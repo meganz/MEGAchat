@@ -148,9 +148,9 @@ protected:
     int mCount;
 public:
     CallbackList():mCount(0){}
-    inline void checkCanAdd() const
+    inline void checkCanAdd(int cnt = 0) const
     {
-        if (mCount>=L)
+        if (mCount + cnt >= L)
             throw std::runtime_error(kNoMoreCallbacksMsg);
     }
 /**
@@ -162,8 +162,7 @@ public:
     template<class SP>
     inline void push(SP& cb)
     {
-        if (mCount >= L)
-            throw std::runtime_error(kNoMoreCallbacksMsg);
+        checkCanAdd();
         items[mCount++] = cb.release();
     }
 
@@ -186,8 +185,7 @@ public:
     inline void addListMoveItems(CallbackList& other)
     {
         int cnt = other.count();
-        if (mCount+cnt > L)
-            throw std::runtime_error(kNoMoreCallbacksMsg);
+        checkCanAdd(cnt);
         for (int i=0; i<cnt; i++)
             items[mCount++] = other.items[i];
         other.mCount = 0;
