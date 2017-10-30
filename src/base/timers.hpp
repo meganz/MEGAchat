@@ -30,14 +30,12 @@ namespace karere
 {
 struct TimerMsg: public megaMessage
 {
-    typedef void(*DestroyFunc)(TimerMsg*);
     timerevent* timerEvent = nullptr;
     bool canceled = false;
-    DestroyFunc destroy;
     megaHandle handle;
-    TimerMsg(megaMessageFunc aFunc, DestroyFunc aDestroy)
-    :megaMessage(aFunc), destroy(aDestroy),
-      handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
+    TimerMsg(megaMessageFunc aFunc)
+        :megaMessage(aFunc),
+          handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
     {}
    ~TimerMsg()
     {
@@ -70,10 +68,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
         CB cb;
         void *appCtx;
         Msg(CB&& aCb, megaMessageFunc cFunc)
-        :TimerMsg(cFunc, [](TimerMsg* m)
-          {
-            delete static_cast<Msg*>(m);
-          }), cb(aCb)
+        :TimerMsg(cFunc), cb(aCb)
         {}
         unsigned time;
         int loop;
@@ -81,17 +76,18 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
     megaMessageFunc cfunc = persist
         ? (megaMessageFunc) [](void* arg)
           {
-              auto msg = static_cast<Msg*>(arg);
+              Msg* msg = static_cast<Msg*>(arg);
               if (msg->canceled)
                   return;
               msg->cb();
           }
         : (megaMessageFunc) [](void* arg)
           {
-              if (static_cast<Msg*>(arg)->canceled)
+              Msg* msg = static_cast<Msg*>(arg);
+              if (msg->canceled)
                   return;
-              std::unique_ptr<Msg> msg(static_cast<Msg*>(arg));
               msg->cb();
+              delete msg;
           };
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
     pMsg->appCtx = ctx;
@@ -143,9 +139,7 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 //we first stop the timer, and only then post a call to delete the timer.
 //That call should be processed after all timer messages
     assert(timer->timerEvent);
-    assert(timer->destroy);
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
-    
 #ifndef USE_LIBWEBSOCKETS
     event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
 #endif
@@ -155,7 +149,7 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 #ifdef USE_LIBWEBSOCKETS
         uv_timer_stop(timer->timerEvent);
 #endif
-        timer->destroy(timer); //also deletes the timerEvent
+        delete timer;   //also deletes the timerEvent
     }, ctx);
     return true;
 }
