@@ -25,7 +25,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly) MEGAChatCallStatus status;
 @property (nonatomic, readonly) uint64_t chatId;
 @property (nonatomic, readonly) uint64_t callId;
-@property (nonatomic, readonly) NSInteger changes;
+@property (nonatomic, readonly) MEGAChatCallChangeType changes;
 @property (nonatomic, readonly) int64_t duration;
 @property (nonatomic, readonly) int64_t initialTimeStamp;
 @property (nonatomic, readonly) int64_t finalTimeStamp;

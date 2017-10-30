@@ -62,8 +62,8 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getId() : MEGACHAT_INVALID_HANDLE;
 }
 
-- (NSInteger)changes {
-    return self.megaChatCall ? self.megaChatCall->getChanges() : 0;
+- (MEGAChatCallChangeType)changes {
+    return (MEGAChatCallChangeType) (self.megaChatCall ? self.megaChatCall->getChanges() : 0);
 }
 
 - (int64_t)duration {
