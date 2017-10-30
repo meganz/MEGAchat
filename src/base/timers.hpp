@@ -163,12 +163,12 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
     event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
 #endif
     
-    marshallCall([timer]()
+    marshallCall([timer, ctx]()
     {
 #ifdef USE_LIBWEBSOCKETS
         uv_timer_stop(timer->timerEvent);
 
-        marshallCall([timer, ctx])
+        marshallCall([timer, ctx]()
         {
             delete timer;
         }, ctx);
