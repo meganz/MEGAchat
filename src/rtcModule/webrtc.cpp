@@ -1688,7 +1688,9 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     {
         if (!mTerminatePromise.done())
         {
-            mTerminatePromise.resolve();
+            auto pms = mTerminatePromise;
+            pms.resolve();
+            return pms;
         }
     }
     auto wptr = weakHandle();
@@ -1699,7 +1701,8 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         if (!mTerminatePromise.done())
         {
             SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
-            mTerminatePromise.resolve();
+            auto pms = mTerminatePromise;
+            pms.resolve();
         }
     }, 1000, mManager.mClient.appCtx);
     auto pms = mTerminatePromise;
