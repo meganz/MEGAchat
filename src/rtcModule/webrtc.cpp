@@ -1410,8 +1410,10 @@ void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
     // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     if (!cand)
         return;
+    
     RtMessageComposer msg(OP_RTMSG_ENDPOINT, RTCMD_ICE_CANDIDATE,
         mCall.mChat.chatId(), mPeer, mPeerClient, 10+cand->candidate.size());
+    msg.payloadAppend(mSid);
     msg.payloadAppend(static_cast<uint8_t>(cand->sdpMLineIndex));
     auto& mid = cand->sdpMid;
     if (!mid.empty())
