@@ -797,9 +797,10 @@ promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
     SUB_LOG_ERROR("gracefully term all sessions");
     std::vector<promise::Promise<void>> promises;
-    for (auto& item: mSessions)
+    for (auto it = mSessions.begin(); it != mSessions.end();)
     {
-        promises.push_back(item.second->terminateAndDestroy(code));
+        std::shared_ptr<Session> session = it++->second;
+        promises.push_back(session->terminateAndDestroy(code));
     }
     return promise::when(promises)
     .fail([](const promise::Error& err)
