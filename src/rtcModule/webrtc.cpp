@@ -1706,6 +1706,8 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     return pms
     .then([wptr, this, code, msg]()
     {
+        if (wptr.deleted())
+            return;
         destroy(code, msg);
     });
 }
