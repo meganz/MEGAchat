@@ -100,7 +100,11 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
               delete msg;
               timerMutex.unlock();
           };
+
+    timerMutex.lock();
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
+    timerMutex.unlock();
+
     pMsg->appCtx = ctx;
     pMsg->time = time;
     pMsg->loop = persist;
@@ -142,8 +146,7 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
     timerMutex.lock();
 
     assert(handle);
-    TimerMsg* timer = static_cast<TimerMsg*>(
-                services_hstore_get_handle(MEGA_HTYPE_TIMER, handle));
+    TimerMsg* timer = static_cast<TimerMsg*>(services_hstore_get_handle(MEGA_HTYPE_TIMER, handle));
     if (!timer)
     {
         timerMutex.unlock();
@@ -154,7 +157,6 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 //timer messages in the app's message queue are processed. For this purpose,
 //we first stop the timer, and only then post a call to delete the timer.
 //That call should be processed after all timer messages
-    assert(timer->timerEvent);
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
 
     timerMutex.unlock();
