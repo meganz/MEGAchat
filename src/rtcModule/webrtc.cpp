@@ -882,6 +882,8 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     {
         pms = waitAllSessionsTerminated(code);
     }
+    
+    mDestroyPromise = pms;
     auto wptr = weakHandle();
     auto retPms = pms.then([wptr, this, code, msg]()
     {
@@ -895,7 +897,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
         mManager.removeCall(*this);
     });
-    mDestroyPromise = retPms;
     return retPms;
 }
 template <class... Args>
