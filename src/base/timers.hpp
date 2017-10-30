@@ -25,6 +25,7 @@
 #include "gcmpp.h"
 #include <memory>
 #include <assert.h>
+extern std::recursive_mutex timerMutex;
 
 namespace karere
 {
@@ -83,11 +84,21 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
           }
         : (megaMessageFunc) [](void* arg)
           {
+              timerMutex.lock();
               Msg* msg = static_cast<Msg*>(arg);
               if (msg->canceled)
+              {
+                  timerMutex.unlock();
                   return;
+              }
               msg->cb();
+              if (msg->canceled)
+              {
+                  timerMutex.unlock();
+                  return;
+              }
               delete msg;
+              timerMutex.unlock();
           };
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
     pMsg->appCtx = ctx;
@@ -128,11 +139,16 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
  */
 static inline bool cancelTimeout(megaHandle handle, void *ctx)
 {
+    timerMutex.lock();
+
     assert(handle);
     TimerMsg* timer = static_cast<TimerMsg*>(
                 services_hstore_get_handle(MEGA_HTYPE_TIMER, handle));
     if (!timer)
+    {
+        timerMutex.unlock();
         return false; //not valid anymore
+    }
 
 //we have to make sure that we delete the timer only after all possibly queued
 //timer messages in the app's message queue are processed. For this purpose,
@@ -140,6 +156,9 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 //That call should be processed after all timer messages
     assert(timer->timerEvent);
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
+
+    timerMutex.unlock();
+
 #ifndef USE_LIBWEBSOCKETS
     event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
 #endif
@@ -148,8 +167,14 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
     {
 #ifdef USE_LIBWEBSOCKETS
         uv_timer_stop(timer->timerEvent);
-#endif
+
+        marshallCall([timer, ctx])
+        {
+            delete timer;
+        }, ctx);
+#else
         delete timer;   //also deletes the timerEvent
+#endif
     }, ctx);
     return true;
 }
