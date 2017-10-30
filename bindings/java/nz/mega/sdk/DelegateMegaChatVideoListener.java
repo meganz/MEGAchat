@@ -45,18 +45,18 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
     public void onChatVideoData(MegaChatApi api, long chatid, int width, int height, byte[] byteBuffer)
     {
         if (listener != null) {
-            // Uncomment this if it's needed to send the callback to the GUI thread
-            // Initially disabled for performance
-
-            //final MegaChatCall megaChatCall = chatCall.copy();
-            //final byte[] megaByteBuffer = byteBuffer.clone();
-            //megaChatApi.runCallback(new Runnable() {
-            //    public void run() {
-                    if (!removed) {
-                        listener.onChatVideoData(megaChatApi, chatid, width, height, byteBuffer);
+            final byte[] megaByteBuffer = byteBuffer;
+            final long megaChatid = chatid;
+            final int megaWidth = width;
+            final int megaHeigth = height;
+            final DelegateMegaChatVideoListener delegate = this;
+            megaChatApi.runCallback(new Runnable() {
+                public void run() {
+                    if (!delegate.removed) {
+                        listener.onChatVideoData(megaChatApi, megaChatid, megaWidth, megaHeigth, megaByteBuffer);
                     }
-            //    }
-            //});
+                }
+            });
         }
     }
 }
