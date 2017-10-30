@@ -61,6 +61,7 @@ void Client::wsConnectCb()
 {
     PRESENCED_LOG_DEBUG("Presenced connected");
     setConnState(kConnected);
+    assert(!mConnectPromise.done());
     mConnectPromise.resolve();
 }
     
@@ -242,8 +243,14 @@ Client::reconnect(const std::string& url)
             {
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), err.type());
-                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    if (!mConnectPromise.done())
+                    {
+                        mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    }
+                    if(!mLoginPromise.done())
+                    {
+                        mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    }
                 }
             });
             
