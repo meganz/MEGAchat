@@ -618,7 +618,6 @@ public:
     bool isInBackground = false;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
-    unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
