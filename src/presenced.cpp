@@ -61,6 +61,7 @@ void Client::wsConnectCb()
 {
     PRESENCED_LOG_DEBUG("Presenced connected");
     setConnState(kConnected);
+    assert(!mConnectPromise.done());
     mConnectPromise.resolve();
 }
     
