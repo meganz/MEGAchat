@@ -2557,29 +2557,24 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
         msg = &mLastTextMsg;
         return LastTextMsgState::kHave;
     }
-    if (mLastTextMsg.isFetching())
-        return LastTextMsgState::kFetching;
 
-    findLastTextMsg();
-    if (mLastTextMsg.isValid())
+    if (mLastTextMsg.isFetching() || !findLastTextMsg())
+    {
+        msg = nullptr;
+        return LastTextMsgState::kFetching;
+    }
+
+    if (mLastTextMsg.isValid()) // findlLastTextMsg() may have found it locally
     {
         msg = &mLastTextMsg;
         return LastTextMsgState::kHave;
     }
 
     msg = nullptr;
-    if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
-    {
-        CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
-        return LastTextMsgState::kFetching;
-    }
-    else
-    {
-        return mLastTextMsg.state();
-    }
+    return mLastTextMsg.state();
 }
 
-void Chat::findLastTextMsg()
+bool Chat::findLastTextMsg()
 {
     if (!mSending.empty())
     {
@@ -2591,7 +2586,7 @@ void Chat::findLastTextMsg()
             {
                 mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
-                return;
+                return true;
             }
         }
     }
@@ -2606,7 +2601,7 @@ void Chat::findLastTextMsg()
             {
                 mLastTextMsg.assign(msg, i);
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
-                return;
+                return true;
             }
         }
         //check in db
@@ -2614,26 +2609,36 @@ void Chat::findLastTextMsg()
         if (mLastTextMsg.isValid())
         {
             CHATID_LOG_DEBUG("lastTextMessage: Text message found in DB");
-            return;
+            return true;
         }
     }
     if (mHaveAllHistory)
     {
         CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
         assert(!mLastTextMsg.isValid());
-        return;
+        return true;
     }
 
-    //we are empty or there is no text messsage in ram or db - fetch from server
-    if (mOnlineState != kChatStateOnline)
+    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally");
+    if (mOnlineState == kChatStateOnline)
     {
-//      CHATID_LOG_DEBUG("lastTextMesage: We are not online, can't fetch messages from server");
-        return;
+        CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
+
+        // prevent access to websockets from app's thread
+        auto wptr = weakHandle();
+        marshallCall([wptr, this]()
+        {
+            if (wptr.deleted())
+                return;
+
+            mServerOldHistCbEnabled = false;
+            requestHistoryFromServer(-16);
+            mLastTextMsg.setState(LastTextMsgState::kFetching);
+
+        }, mClient.karereClient->appCtx);
     }
-    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
-    mServerOldHistCbEnabled = false;
-    requestHistoryFromServer(-16);
-    mLastTextMsg.setState(LastTextMsgState::kFetching);
+
+    return false;
 }
 
 void Chat::findAndNotifyLastTextMsg()
@@ -2643,9 +2648,10 @@ void Chat::findAndNotifyLastTextMsg()
     {
         if (wptr.deleted())
             return;
-        findLastTextMsg();
-        if (mLastTextMsg.state() == LastTextMsgState::kFetching)
+
+        if (!findLastTextMsg())
             return;
+
         notifyLastTextMsg();
     }, mClient.karereClient->appCtx);
 }

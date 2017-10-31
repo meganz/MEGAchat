@@ -983,7 +983,7 @@ protected:
      * listener state */
     void replayUnsentNotifications();
     void onLastTextMsgUpdated(const Message& msg, Idx idx=CHATD_IDX_INVALID);
-    void findLastTextMsg();
+    bool findLastTextMsg();
     /**
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
