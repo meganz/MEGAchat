@@ -118,9 +118,15 @@ void WebsocketsClient::wsDisconnect(bool immediate)
     {
         return;
     }
-    
-    assert (thread_id == pthread_self());
-    ctx->wsDisconnect(immediate);
+    else if (ctx->wsIsConnected())
+    {
+        assert (thread_id == pthread_self());
+        ctx->wsDisconnect(immediate);
+    }
+    else
+    {
+        WEBSOCKETS_LOG_DEBUG("Socket is already closed by server, discarding existing context.");
+    }
 
     delete ctx;
     ctx = NULL;
@@ -134,5 +140,13 @@ bool WebsocketsClient::wsIsConnected()
     }
     
     assert (thread_id == pthread_self());
-    return ctx->wsIsConnected();
+    bool ret = ctx->wsIsConnected();
+    if (!ret)
+    {
+         WEBSOCKETS_LOG_DEBUG("Socket was closed by server, discarding existing context.");
+         delete ctx;
+         ctx = NULL;
+    }
+
+    return ret;
 }
