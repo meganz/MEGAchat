@@ -946,6 +946,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 handler->getCall()->hangup();
             }
 
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
