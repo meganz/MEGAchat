@@ -512,12 +512,7 @@ void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaCha
 
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
-    pImpl->answerChatCall(chatid, true, enableVideo, listener);
-}
-
-void MegaChatApi::rejectChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    pImpl->answerChatCall(chatid, false, false, listener);
+    pImpl->answerChatCall(chatid, enableVideo, listener);
 }
 
 void MegaChatApi::hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener)

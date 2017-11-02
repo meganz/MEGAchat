@@ -2673,8 +2673,6 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
-     * - MegaChatRequest::getParamType - Return true if call is goint to be answered or
-     *   false if call is going to be rejected
      *
      * To receive call notifications, you have to register MegaChatCallListener once at beginning of the program
      *
@@ -2686,18 +2684,6 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Refuse a call received in a chat room
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void rejectChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Hang a call in a chat room

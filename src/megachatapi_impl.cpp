@@ -927,7 +927,6 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle chatid = request->getChatHandle();
             bool enableVideo = request->getFlag();
-            bool answerOrHangup = request->getParamType();
 
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
@@ -936,15 +935,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (answerOrHangup)
-            {
-                karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
-                handler->getCall()->answer(avFlags);
-            }
-            else
-            {
-                handler->getCall()->hangup();
-            }
+            karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
+            handler->getCall()->answer(avFlags);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -2422,12 +2414,11 @@ void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, Meg
     waiter->notify();
 }
 
-void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool answerOrHangup, bool enableVideo, MegaChatRequestListener *listener)
+void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
-    request->setParamType(answerOrHangup);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3163,6 +3154,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_LOAD_AUDIO_VIDEO_DEVICES: return "LOAD_AUDIO_VIDEO_DEVICES";
         case TYPE_ATTACH_NODE_MESSAGE: return "ATTACH_NODE_MESSAGE";
         case TYPE_REVOKE_NODE_MESSAGE: return "REVOKE_NODE_MESSAGE";
+        case TYPE_SHARE_CONTACT: return "SHARE_CONTACT";
         case TYPE_SEND_TYPING_NOTIF: return "SEND_TYPING_NOTIF";
         case TYPE_SIGNAL_ACTIVITY: return "SIGNAL_ACTIVITY";
         case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
