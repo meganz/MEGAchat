@@ -210,8 +210,6 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
-- (void)rejectChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)rejectChatCall:(uint64_t)chatId;
 - (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)hangChatCall:(uint64_t)chatId;
 - (void)hangAllChatCallsWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
