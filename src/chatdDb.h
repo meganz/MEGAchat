@@ -66,7 +66,7 @@ public:
         item.recipients.save(rcpts);
         mDb.query("insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
                          "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
-            (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
+            (uint64_t)mMessages.chatId(), item.opcode(), msg->ts, msg->id(),
             *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
