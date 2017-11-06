@@ -372,10 +372,9 @@ struct LastTextMsg
      * This function returns the type of the message, as in Message::type.
      * @see \c Message::kMsgXXX enums.
      *
-     * If no text message exists in history, type is \c LastTextMsg::kNone.
-     * If the message is being fetched from server, type is \c LastTextMsg::kFetching.
-     * If an error has occurred when trying to determine the message, like
-     * server being offline, then LastTextMsg::kOffline will be returned.
+     * If no text message exists in history, type is \c LastTextMsgState::kNone.
+     * If the message is being fetched from server, type is \c LastTextMsgState::kFetching.
+     * Otherwise, the returned type will match the type of the message.
      */
     uint8_t type() const { return mType; }
     /**
@@ -403,7 +402,7 @@ protected:
 struct LastTextMsgState: public LastTextMsg
 {
     /** Enum for mState */
-    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
+    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kHave = 0x1 };
 
     bool mIsNotified = false;
     uint8_t state() const { return mState; }
@@ -899,10 +898,7 @@ public:
      * be displayed as text in the chat list. If it is not found in RAM,
      * the database will be queried. If not found there as well, server is queried,
      * and 0xff is returned. When the message is received from server, the
-     * \c onLastTextMsgUpdated callback will be called. If the network connection
-     * is offline, then 0xfe will be returned, and upon reconnect and join, the
-     * client will fetch messages from the server until it finds a text message
-     * and will call the callback with it.
+     * \c onLastTextMsgUpdated callback will be called.
      * @param [out] msg Output pointer that will be set to the internal last-text-message
      * object. The object is owned by the client, and you should use this
      * pointer synchronously after the call to this function, and not in an
@@ -914,10 +910,6 @@ public:
      *   0xff - no text message is avaliable locally, the client is fetching
      * more history from server. The fetching will continue until a text
      * message is found, at which point the callback will be called.
-     *   0xfe - no text message is available locally, and there is no internet
-     * connection to fetch more history from server. When connection is
-     * restored, the client will fetch history until a text message is found,
-     * then it will call the callback.
      */
     uint8_t lastTextMessage(LastTextMsg*& msg);
 
@@ -991,7 +983,7 @@ protected:
      * listener state */
     void replayUnsentNotifications();
     void onLastTextMsgUpdated(const Message& msg, Idx idx=CHATD_IDX_INVALID);
-    void findLastTextMsg();
+    bool findLastTextMsg();
     /**
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */

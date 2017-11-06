@@ -478,29 +478,29 @@ void Chat::logSend(const Command& cmd)
         case OP_NEWMSG:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWMSG - msgxid: %s, keyid: %u, ts: %u\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.ts());
             break;
         }
         case OP_MSGUPD:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()));
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPD - msgid: %s, keyid: %u, ts: %u, tsdelta: %uh\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.ts(), msgcmd.updated());
             break;
         }
         case OP_MSGUPDX:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, tsdelta: %hu\n",
-                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.updated());
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send MSGUPDX - msgxid: %s, keyid: %u, ts: %u, tsdelta: %uh\n",
+                ID_CSTR(mChatId), ID_CSTR(msgcmd.msgid()), msgcmd.keyId(), msgcmd.ts());
             break;
         }
         case OP_NEWKEY:
         {
-            //auto& keycmd = static_cast<const KeyCommand&>(cmd);
-            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY\n",
-                        ID_CSTR(mChatId));
+            auto& keycmd = static_cast<const KeyCommand&>(cmd);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send NEWKEY - keyxid: %u\n",
+                        ID_CSTR(mChatId), keycmd.keyId());
             break;
         }
         default:
@@ -848,7 +848,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(msglen, 34);
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
-                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %x",
+                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid);
 
@@ -897,11 +897,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                if (!msgid)
-                {
-                    CHATD_LOG_ERROR("MSGID with zero message id received, ignoring");
-                    break;
-                }
+                CHATD_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.onMsgAlreadySent(msgxid, msgid);
                 break;
             }
@@ -909,6 +905,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
+                CHATD_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
                 mClient.msgConfirm(msgxid, msgid);
                 break;
             }
@@ -961,23 +958,23 @@ void Connection::execCommand(const StaticBuffer& buf)
                 chat.onHistDone();
                 break;
             }
-            case OP_KEYID:
+            case OP_NEWKEYID:
             {
                 READ_CHATID(0);
                 READ_32(keyxid, 8);
                 READ_32(keyid, 12);
-                CHATD_LOG_DEBUG("%s: recv KEYID %u", ID_CSTR(chatid), keyid);
+                CHATD_LOG_DEBUG("%s: recv NEWKEYID: %u -> %u", ID_CSTR(chatid), keyxid, keyid);
                 mClient.chats(chatid).keyConfirm(keyxid, keyid);
                 break;
             }
             case OP_NEWKEY:
             {
                 READ_CHATID(0);
-                pos += 4; //skip dummy 32bit keyid
+                READ_32(keyid, 8);
                 READ_32(totalLen, 12);
                 const char* keys = buf.readPtr(pos, totalLen);
                 pos+=totalLen;
-                CHATD_LOG_DEBUG("%s: recv NEWKEY", ID_CSTR(chatid));
+                CHATD_LOG_DEBUG("%s: recv NEWKEY %u", ID_CSTR(chatid), keyid);
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
             }
@@ -1332,8 +1329,10 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
     auto pms = mCrypto->msgEncrypt(it->msg, msgCmd);
+    // if using current keyid or original keyid from msg, promise is resolved directly
     if (pms.succeeded())
         return sendKeyAndMessage(pms.value());
+    // else --> new key is required: KeyCommand != NULL in pms.value()
 
     mEncryptionHalted = true;
     CHATID_LOG_DEBUG("Can't encrypt message immediately, halting output");
@@ -1636,7 +1635,7 @@ void Chat::flushOutputQueue(bool fromStart)
 //Indeed, if we flush the send queue from the start, this means that
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
-//the KEYID responses for the keys we flush from the output queue
+//the NEWKEYID responses for the keys we flush from the output queue
     if(mEncryptionHalted || !mConnection.isLoggedIn())
         return;
 
@@ -1709,7 +1708,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 
 void Client::msgConfirm(Id msgxid, Id msgid)
 {
-    // CHECK: is it more efficient to keep a separate mapping of msgxid to messages?
+    // TODO: maybe it's more efficient to keep a separate mapping of msgxid to messages?
     for (auto& chat: mChatForChatId)
     {
         if (chat.second->msgConfirm(msgxid, msgid) != CHATD_IDX_INVALID)
@@ -1734,7 +1733,7 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
     if (!msg)
         return false;
 
-    CHATID_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
+    CHATID_LOG_DEBUG("message is sending status was already received by server '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
     CALL_LISTENER(onMessageRejected, *msg, 0);
     delete msg;
     return true;
@@ -1742,20 +1741,22 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
 
 Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 {
-    // as msgConirm() is tried on all chatids, it's normal that we don't have
+    // as msgConfirm() is tried on all chatids, it's normal that we don't have
     // the message, so no error logging of error, just return invalid index
     if (mSending.empty())
         return nullptr;
 
     auto& item = mSending.front();
-    if (item.opcode() != OP_NEWMSG)
+    if (item.opcode() == OP_MSGUPDX)
     {
-//        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG, but with %s", Command::opcodeToStr(item.opcode()));
+        CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG or MSGUPD, but with MSGUPDX");
         return nullptr;
     }
-    if (item.msg->id() != msgxid)
+    Id msgxidOri = item.msg->id();
+    if ((item.opcode() == OP_NEWMSG) && (msgxidOri != msgxid))
     {
-//        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different");
+        CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different"
+                         " (sent msgxid: '%s', received '%s')", ID_CSTR(msgxidOri), ID_CSTR(msgxid));
         return nullptr;
     }
 
@@ -1787,8 +1788,16 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         return CHATD_IDX_INVALID;
 
     CHATID_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
-    //put into history
+
+    // update msgxid to msgid
     msg->setId(msgid, false);
+
+    // set final keyid
+    assert(mCrypto->currentKeyId() != CHATD_KEYID_INVALID);
+    assert(mCrypto->currentKeyId() != CHATD_KEYID_UNCONFIRMED);
+    msg->keyid = mCrypto->currentKeyId();
+
+    // add message to history
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
@@ -1850,15 +1859,29 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
 {
     if (mSending.empty())
+    {
         throw std::runtime_error("rejectMsgupd: Send queue is empty");
+    }
+
     auto& front = mSending.front();
     auto opcode = front.opcode();
     if (opcode != OP_MSGUPD && opcode != OP_MSGUPDX)
+    {
         throw std::runtime_error(std::string("rejectMsgupd: Front of send queue does not match - expected opcode MSGUPD or MSGUPDX, actual opcode: ")
         +Command::opcodeToStr(opcode));
+    }
+
     auto& msg = *front.msg;
     if (msg.id() != id)
-        throw std::runtime_error("rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue");
+    {
+        std::string errorMsg = "rejectMsgupd: Message msgid/msgxid does not match the one at the front of send queue. Rejected: '";
+        errorMsg.append(id.toString());
+        errorMsg.append("' Sent: '");
+        errorMsg.append(msg.id().toString());
+        errorMsg.append("'");
+
+        throw std::runtime_error(errorMsg);
+    }
 
     /* Server reason:
         0 - insufficient privs or not in chat
@@ -2557,29 +2580,24 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
         msg = &mLastTextMsg;
         return LastTextMsgState::kHave;
     }
-    if (mLastTextMsg.isFetching())
-        return LastTextMsgState::kFetching;
 
-    findLastTextMsg();
-    if (mLastTextMsg.isValid())
+    if (mLastTextMsg.isFetching() || !findLastTextMsg())
+    {
+        msg = nullptr;
+        return LastTextMsgState::kFetching;
+    }
+
+    if (mLastTextMsg.isValid()) // findlLastTextMsg() may have found it locally
     {
         msg = &mLastTextMsg;
         return LastTextMsgState::kHave;
     }
 
     msg = nullptr;
-    if ((mOnlineState == kChatStateJoining) || (mServerFetchState & kHistFetchingOldFromServer))
-    {
-        CHATID_LOG_DEBUG("getLastTextMsg: We are joining or fetch is in progress");
-        return LastTextMsgState::kFetching;
-    }
-    else
-    {
-        return mLastTextMsg.state();
-    }
+    return mLastTextMsg.state();
 }
 
-void Chat::findLastTextMsg()
+bool Chat::findLastTextMsg()
 {
     if (!mSending.empty())
     {
@@ -2591,7 +2609,7 @@ void Chat::findLastTextMsg()
             {
                 mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
-                return;
+                return true;
             }
         }
     }
@@ -2606,7 +2624,7 @@ void Chat::findLastTextMsg()
             {
                 mLastTextMsg.assign(msg, i);
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
-                return;
+                return true;
             }
         }
         //check in db
@@ -2614,26 +2632,36 @@ void Chat::findLastTextMsg()
         if (mLastTextMsg.isValid())
         {
             CHATID_LOG_DEBUG("lastTextMessage: Text message found in DB");
-            return;
+            return true;
         }
     }
     if (mHaveAllHistory)
     {
         CHATID_LOG_DEBUG("lastTextMessage: No text message in whole history");
         assert(!mLastTextMsg.isValid());
-        return;
+        return true;
     }
 
-    //we are empty or there is no text messsage in ram or db - fetch from server
-    if (mOnlineState != kChatStateOnline)
+    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally");
+    if (mOnlineState == kChatStateOnline)
     {
-//      CHATID_LOG_DEBUG("lastTextMesage: We are not online, can't fetch messages from server");
-        return;
+        CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
+
+        // prevent access to websockets from app's thread
+        auto wptr = weakHandle();
+        marshallCall([wptr, this]()
+        {
+            if (wptr.deleted())
+                return;
+
+            mServerOldHistCbEnabled = false;
+            requestHistoryFromServer(-16);
+            mLastTextMsg.setState(LastTextMsgState::kFetching);
+
+        }, mClient.karereClient->appCtx);
     }
-    CHATID_LOG_DEBUG("lastTextMessage: No text message found locally, fetching more history from server");
-    mServerOldHistCbEnabled = false;
-    requestHistoryFromServer(-16);
-    mLastTextMsg.setState(LastTextMsgState::kFetching);
+
+    return false;
 }
 
 void Chat::findAndNotifyLastTextMsg()
@@ -2643,9 +2671,10 @@ void Chat::findAndNotifyLastTextMsg()
     {
         if (wptr.deleted())
             return;
-        findLastTextMsg();
-        if (mLastTextMsg.state() == LastTextMsgState::kFetching)
+
+        if (!findLastTextMsg())
             return;
+
         notifyLastTextMsg();
     }, mClient.karereClient->appCtx);
 }
@@ -2699,7 +2728,7 @@ const char* Command::opcodeToStr(uint8_t opcode)
         RET_ENUM_NAME(BROADCAST);
         RET_ENUM_NAME(HISTDONE);
         RET_ENUM_NAME(NEWKEY);
-        RET_ENUM_NAME(KEYID);
+        RET_ENUM_NAME(NEWKEYID);
         RET_ENUM_NAME(JOINRANGEHIST);
         RET_ENUM_NAME(MSGUPDX);
         RET_ENUM_NAME(MSGID);
