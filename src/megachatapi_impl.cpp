@@ -340,14 +340,16 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            std::vector<promise::Promise<void> > promises;
             if (status == MegaChatApi::STATUS_ONLINE)
             {
                 // if setting to online, better to use dynamic in order to avoid sticky online that
                 // would be kept even when the user goes offline
-                mClient->setPresence(karere::Presence::kClear);
+                promises.push_back(mClient->setPresence(karere::Presence::kClear));
             }
 
-            mClient->setPresence(request->getNumber())
+            promises.push_back(mClient->setPresence(request->getNumber()));
+            promise::when(promises)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
