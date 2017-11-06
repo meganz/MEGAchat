@@ -2600,7 +2600,6 @@ public:
      *  - MegaChatMessage::TYPE_ATTACHMENT: for messages sharing a node
      *  - MegaChatMessage::TYPE_CONTACT: for messages sharing a contact
      *  - 0xFF when it's still fetching from server (for the public API)
-     *  - 0xFE when cannot fetch from server, since we're offline (for the public API)
      *
      * @return The type of the last message
      */
