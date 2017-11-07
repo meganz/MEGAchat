@@ -1544,7 +1544,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     delete [] session;
     session = NULL;
 
-    // LOgin over same index account but with other user
+    // Login over same index account but with other user
     session = login(a1, NULL, mAccounts[a2].getEmail().c_str(), mAccounts[a2].getPassword().c_str());
 
     delete [] session;

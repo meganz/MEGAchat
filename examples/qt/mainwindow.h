@@ -181,7 +181,7 @@ public:
     {
         chatd::LastTextMsg* msg;
         auto ret = room().chat().lastTextMessage(msg);
-        if (ret != 0 && ret < 0xfe)
+        if (ret == 1)   // state is kHave
             onLastMessageUpdated(*msg);
         else
             mLastTextMsg = "<none>";

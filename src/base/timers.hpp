@@ -25,19 +25,18 @@
 #include "gcmpp.h"
 #include <memory>
 #include <assert.h>
+extern std::recursive_mutex timerMutex;
 
 namespace karere
 {
 struct TimerMsg: public megaMessage
 {
-    typedef void(*DestroyFunc)(TimerMsg*);
     timerevent* timerEvent = nullptr;
     bool canceled = false;
-    DestroyFunc destroy;
     megaHandle handle;
-    TimerMsg(megaMessageFunc aFunc, DestroyFunc aDestroy)
-    :megaMessage(aFunc), destroy(aDestroy),
-      handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
+    TimerMsg(megaMessageFunc aFunc)
+        :megaMessage(aFunc),
+          handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
     {}
    ~TimerMsg()
     {
@@ -70,10 +69,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
         CB cb;
         void *appCtx;
         Msg(CB&& aCb, megaMessageFunc cFunc)
-        :TimerMsg(cFunc, [](TimerMsg* m)
-          {
-            delete static_cast<Msg*>(m);
-          }), cb(aCb)
+        :TimerMsg(cFunc), cb(aCb)
         {}
         unsigned time;
         int loop;
@@ -81,19 +77,34 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
     megaMessageFunc cfunc = persist
         ? (megaMessageFunc) [](void* arg)
           {
-              auto msg = static_cast<Msg*>(arg);
+              Msg* msg = static_cast<Msg*>(arg);
               if (msg->canceled)
                   return;
               msg->cb();
           }
         : (megaMessageFunc) [](void* arg)
           {
-              if (static_cast<Msg*>(arg)->canceled)
+              timerMutex.lock();
+              Msg* msg = static_cast<Msg*>(arg);
+              if (msg->canceled)
+              {
+                  timerMutex.unlock();
                   return;
-              std::unique_ptr<Msg> msg(static_cast<Msg*>(arg));
+              }
               msg->cb();
+              if (msg->canceled)
+              {
+                  timerMutex.unlock();
+                  return;
+              }
+              delete msg;
+              timerMutex.unlock();
           };
+
+    timerMutex.lock();
     Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
+    timerMutex.unlock();
+
     pMsg->appCtx = ctx;
     pMsg->time = time;
     pMsg->loop = persist;
@@ -132,30 +143,40 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
  */
 static inline bool cancelTimeout(megaHandle handle, void *ctx)
 {
+    timerMutex.lock();
+
     assert(handle);
-    TimerMsg* timer = static_cast<TimerMsg*>(
-                services_hstore_get_handle(MEGA_HTYPE_TIMER, handle));
+    TimerMsg* timer = static_cast<TimerMsg*>(services_hstore_get_handle(MEGA_HTYPE_TIMER, handle));
     if (!timer)
+    {
+        timerMutex.unlock();
         return false; //not valid anymore
+    }
 
 //we have to make sure that we delete the timer only after all possibly queued
 //timer messages in the app's message queue are processed. For this purpose,
 //we first stop the timer, and only then post a call to delete the timer.
 //That call should be processed after all timer messages
-    assert(timer->timerEvent);
-    assert(timer->destroy);
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
-    
+
+    timerMutex.unlock();
+
 #ifndef USE_LIBWEBSOCKETS
     event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
 #endif
     
-    marshallCall([timer]()
+    marshallCall([timer, ctx]()
     {
 #ifdef USE_LIBWEBSOCKETS
         uv_timer_stop(timer->timerEvent);
+
+        marshallCall([timer, ctx]()
+        {
+            delete timer;
+        }, ctx);
+#else
+        delete timer;   //also deletes the timerEvent
 #endif
-        timer->destroy(timer); //also deletes the timerEvent
     }, ctx);
     return true;
 }

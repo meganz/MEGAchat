@@ -342,9 +342,12 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 
     mUserAttrCache.reset(new UserAttrCache(*this));
 
+    auto wptr = weakHandle();
     return loadOwnKeysFromApi()
-    .then([this, scsn, contactList, chatList]()
+    .then([this, scsn, contactList, chatList, wptr]()
     {
+        if (wptr.deleted())
+            return;
         loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(this, mMyHandle));
         assert(chats->empty());

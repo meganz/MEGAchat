@@ -174,7 +174,7 @@ enum Opcode
       * Send: <chatid> <keyxid> <payload>
       *
       * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
-      * Receive: <chatid> <keyxid> <payload>
+      * Receive: <chatid> <keyid> <payload>
       *
       * Keep <keyxid> as constant as possible (e.g. 0xffffffff).
       * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor
@@ -187,7 +187,7 @@ enum Opcode
       * S->C: Signal the final <keyid> for a newly allocated key.
       * Receive: <chatid> <keyxid> <keyid>
       */
-    OP_KEYID = 18,
+    OP_NEWKEYID = 18,
 
     /**
       * @brief
@@ -520,6 +520,7 @@ public:
     }
     uint32_t msglen() const { return read<uint32_t>(35); }
     uint16_t updated() const { return read<uint16_t>(29); }
+    uint32_t ts() const { return read<uint32_t>(25); }
     void clearMsg()
     {
         if (msglen() > 0)

@@ -106,6 +106,7 @@ struct HandleItem
 
 std::unordered_map<megaHandle, HandleItem> gHandleStore;
 megaHandle gHandleCtr = 0;
+std::recursive_mutex timerMutex;
 
 MEGAIO_EXPORT void* services_hstore_get_handle(unsigned short type, megaHandle handle)
 {
