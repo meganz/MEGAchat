@@ -536,12 +536,6 @@ public:
     {
         write<uint32_t>(35, dataSize()-39);
     }
-    static std::string toString(uint8_t opcode, karere::Id msgid, karere::Id userid, uint16_t updated,
-            uint32_t keyid);
-    virtual std::string toString() const
-    {
-        return toString(opcode(), msgid(), userId(), updated(), keyId());
-    }
 };
 
 //for exception message purposes

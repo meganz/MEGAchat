@@ -543,6 +543,8 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(to_string(msgcmd.keyId()));
             tmpString.append(", ts: ");
             tmpString.append(to_string(msgcmd.ts()));
+            tmpString.append(", tsdelta: ");
+            tmpString.append(to_string(msgcmd.updated()));
             return tmpString;
         }
         case OP_NEWKEY:
@@ -554,13 +556,39 @@ string Command::toString(const StaticBuffer& data)
             return tmpString;
         }
         case OP_CLIENTID:
+        {
             char tmpbuf[64];
             snprintf(tmpbuf, 63, "0x%" PRIx64, data.read<uint64_t>(1));
             return string("CLIENTID: ")+tmpbuf;
+        }
         case OP_INCALL:
-            return "INCALL";
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id userId = data.read<uint64_t>(9);
+            uint32_t clientId = data.read<uint32_t>(17);
+            tmpString.append("INCALL - chatId: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", userId: ");
+            tmpString.append(ID_CSTR(userId));
+            tmpString.append(", clientId: ");
+            tmpString.append(to_string(clientId));
+            return tmpString;
+        }
         case OP_ENDCALL:
-            return "ENDCALL";
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id userId = data.read<uint64_t>(9);
+            uint32_t clientId = data.read<uint32_t>(17);
+            tmpString.append("ENDCALL - chatId: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", userId: ");
+            tmpString.append(ID_CSTR(userId));
+            tmpString.append(", clientId: ");
+            tmpString.append(to_string(clientId));
+            return tmpString;
+        }
 #ifndef KARERE_DISABLE_WEBRTC
         case OP_RTMSG_ENDPOINT:
         case OP_RTMSG_USER:
@@ -574,31 +602,6 @@ string Command::toString(const StaticBuffer& data)
 string Command::toString() const
 {
     return toString(*this);
-}
-string MsgCommand::toString(uint8_t opcode, Id msgid, Id userid, uint16_t updated,
-    uint32_t keyid)
-{
-    string result;
-    switch (opcode)
-    {
-      case OP_NEWMSG:
-        result = "NEWMSG msgxid: ";
-        result.append(msgid.toString());
-        break;
-      case OP_MSGUPD:
-        result = "MSGUPD msgid: ";
-        result.append(msgid.toString());
-        break;
-      case OP_MSGUPDX:
-        result = "MSGUPDX msgxid: ";
-        result.append(msgid.toString()).append(", tsdelta: ")
-              .append(to_string(updated));
-      default:
-        return "(invalid message command)";
-    }
-    result.append(" from user ").append(userid.toString())
-          .append(" with keyid ").append(to_string(keyid));
-    return result;
 }
 
 string KeyCommand::toString() const
@@ -945,9 +948,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
 
-                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u",
+                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %uh",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
-                    ID_CSTR(userid), keyid);
+                    ID_CSTR(userid), keyid, ts, updated);
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
                 msg->setEncrypted(1);
