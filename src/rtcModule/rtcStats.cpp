@@ -29,8 +29,8 @@ EmptyStats::EmptyStats(const Session& sess, const std::string& aTermRsn)
 :mIsCaller(sess.isCaller()), mTermRsn(aTermRsn), mCallId(sess.call().id()){}
 
 Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
-    :mSession(sess), mScanPeriod(scanPeriod), mMaxSamplePeriod(maxSamplePeriod),
-    mCurrSample(new Sample), mStats(new RtcStats)
+    :mScanPeriod(scanPeriod), mMaxSamplePeriod(maxSamplePeriod),
+    mCurrSample(new Sample), mSession(sess), mStats(new RtcStats)
 {
     memset(mCurrSample.get(), 0, sizeof(Sample));
     AddRef();

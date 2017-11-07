@@ -299,7 +299,7 @@ protected:
     std::string mAudioInDeviceName;
     IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         karere::Id ownAnonId)
-        :mClient(client), mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId) {}
+        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
 public:
     karere::Client& mClient;
 
