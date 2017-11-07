@@ -47,6 +47,10 @@
 #include <signal.h>
 #endif
 
+#ifndef KARERE_DISABLE_WEBRTC
+namespace rtcModule {void globalCleanup(); }
+#endif
+
 using namespace std;
 using namespace megachat;
 using namespace mega;
@@ -335,6 +339,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
             }
+
+#ifndef KARERE_DISABLE_WEBRTC
+            rtcModule::globalCleanup();
+#endif
 
             threadExit = 1;
             break;
