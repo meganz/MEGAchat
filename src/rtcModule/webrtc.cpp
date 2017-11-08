@@ -933,7 +933,6 @@ bool Call::broadcastCallReq()
     }
     assert(mState == Call::kStateHasLocalStream);
     if (!cmdBroadcast(RTCMD_CALL_REQUEST, mId, sentAv().value()))
-    //if (!cmdBroadcast(RTCMD_CALL_REQUEST, mId))
     {
         return false;
     }
