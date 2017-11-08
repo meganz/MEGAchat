@@ -2756,7 +2756,7 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
+rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call, AvFlags av)
 {
     if (findChatCallHandler(call.chat().chatId()))
     {
@@ -2772,6 +2772,7 @@ rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
     // Notify onIncomingCall like state change becouse rtcModule::ICall::kStateRingIn status
     // it is not notify
     chatCallHandler->onStateChange(call.state());
+    chatCallHandler->getMegaChatCall()->setRemoteAudioVideoFlags(av);
 
     return chatCallHandler;
 }

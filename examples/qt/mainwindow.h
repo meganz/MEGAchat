@@ -53,7 +53,7 @@ public:
     virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
     IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call)
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)
     {
 #ifndef KARERE_DISABLE_WEBRTC
         return new CallAnswerGui(*this, call);

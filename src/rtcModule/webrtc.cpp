@@ -275,7 +275,13 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         RTCM_LOG_DEBUG("Ignoring call request from another client of our user");
         return;
     }
+
     packet.callid = packet.payload.read<uint64_t>(0);
+    AvFlags avFlags;
+    if ( packet.payload.size() > 8)
+    {
+         avFlags = packet.payload.read<uint8_t>(8);
+    }
     assert(packet.callid);
     if (!mCalls.empty())
     {
@@ -302,7 +308,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     auto& call = ret.first->second;
-    call->mHandler = mHandler.onCallIncoming(*call);
+    call->mHandler = mHandler.onCallIncoming(*call, avFlags);
     assert(call->mHandler);
     assert(call->state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
@@ -926,7 +932,8 @@ bool Call::broadcastCallReq()
         return false;
     }
     assert(mState == Call::kStateHasLocalStream);
-    if (!cmdBroadcast(RTCMD_CALL_REQUEST, mId))
+    if (!cmdBroadcast(RTCMD_CALL_REQUEST, mId, sentAv().value()))
+    //if (!cmdBroadcast(RTCMD_CALL_REQUEST, mId))
     {
         return false;
     }
