@@ -2768,11 +2768,11 @@ rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call,
     chatCallHandler->setCall(&call);
     MegaChatHandle chatid = call.chat().chatId();
     callHandlers[chatid] = chatCallHandler;
+    chatCallHandler->getMegaChatCall()->setRemoteAudioVideoFlags(av);
 
     // Notify onIncomingCall like state change becouse rtcModule::ICall::kStateRingIn status
     // it is not notify
     chatCallHandler->onStateChange(call.state());
-    chatCallHandler->getMegaChatCall()->setRemoteAudioVideoFlags(av);
 
     return chatCallHandler;
 }
