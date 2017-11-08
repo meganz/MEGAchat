@@ -951,6 +951,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("There is not any call associated to call handler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
+                assert(false);
                 break;
             }
 
@@ -979,6 +980,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     API_LOG_ERROR("There is not any call associated to call handler");
                     errorCode = MegaChatError::ERROR_UNKNOWN;
+                    assert(false);
                     break;
                 }
 
@@ -1014,6 +1016,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("There is not any call associated to call handler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
+                assert(false);
                 break;
             }
 
