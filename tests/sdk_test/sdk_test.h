@@ -282,6 +282,7 @@ private:
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallAnswered[NUM_ACCOUNTS];
+    bool mCallDestroyed[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallEmisorId[NUM_ACCOUNTS];
     bool mCallRequestSent[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallRequestSentId[NUM_ACCOUNTS];

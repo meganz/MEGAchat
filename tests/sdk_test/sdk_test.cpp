@@ -2134,11 +2134,14 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall");
 
 
+    bool *callDestroyed= &mCallDestroyed[a1]; *callDestroyed = false;
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
     megaChatApi[a1]->hangChatCall(chatid);
     std::cout << "Call finished." << std::endl;
+
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -3009,6 +3012,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
         case MegaChatCall::CALL_STATUS_TERMINATING:
             std::cerr << "API: " << apiIndex << "    Termination  " << call->getDuration() << std::endl;
+            break;
+
+        case MegaChatCall::CALL_STATUS_DESTROYED:
+            std::cerr << "API: " << apiIndex << "    Destroyed" << std::endl;
+            mCallDestroyed[apiIndex] = true;
+            break;
         default:
             break;
         }
