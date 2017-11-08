@@ -123,9 +123,9 @@ void MegaChatApi::disconnect(MegaChatRequestListener *listener)
     pImpl->disconnect(listener);
 }
 
-int MegaChatApi::getConnectionState()
+bool MegaChatApi::getOnlineMode()
 {
-    return pImpl->getConnectionState();
+    return pImpl->getOnlineMode();
 }
 
 int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)

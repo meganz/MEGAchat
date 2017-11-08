@@ -271,7 +271,7 @@ protected:
     virtual void wsHandleMsgCb(char *data, size_t len);
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    promise::Promise<void> reconnect(const std::string& url=std::string());
+    void reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
     void disableInactivityTimer();
     void notifyLoggedIn();
@@ -303,11 +303,10 @@ public:
      *  set to away
      */
     bool setAutoaway(bool enable, time_t timeout);
-    promise::Promise<void>
-    connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
+    void connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
-    promise::Promise<void> retryPendingConnection();
+    void retryPendingConnection();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */

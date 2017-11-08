@@ -180,8 +180,17 @@ void Chat::connect()
             {
                 CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
             });
-        });
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Chatd URL request failed, but chatd client was deleted");
+                return;
+            }
 
+            CHATID_LOG_ERROR("Error connecting to server, cannot get chatd URL: %s", err.what());
+        });
     }
     else if (mConnection.state() == Connection::kStateDisconnected)
     {
@@ -371,7 +380,13 @@ Promise<void> Connection::reconnect()
             .then([wptr, this]() -> promise::Promise<void>
             {
                 if (wptr.deleted())
-                    return promise::_Void();
+                {
+                    CHATD_LOG_DEBUG("Connection established, but chatd client was already deleted.");
+
+                    promise::Promise<void> pms = Promise<void>();
+                    pms.resolve();
+                    return pms;
+                }
 
                 assert(isConnected());
                 enableInactivityTimer();
@@ -807,7 +822,7 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                //CHATD_LOG_DEBUG("Server heartbeat received");
+                CHATD_LOG_DEBUG("shard %d: recv KEEPALIVE", mShardNo);
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }

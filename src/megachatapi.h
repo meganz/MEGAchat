@@ -1297,16 +1297,17 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returns the current state of the connection
+     * @brief Returns the operation mode
      *
-     * It can be one of the following values:
-     *  - MegaChatApi::DISCONNECTED = 0
-     *  - MegaChatApi::CONNECTING   = 1
-     *  - MegaChatApi::CONNECTED    = 2
+     * When the app has called MegaChatApi::connect, the client enters into online mode.
+     * The online mode will change if you MegaChatApi::disconnect or MegaChatApi::logout
      *
-     * @return The state of connection
+     * Note that online mode does NOT mean you are connected to server/s, but that the
+     * library is expected to connect and, upon connection loss, reconnect automatically.
+     *
+     * @return True if the client is in online mode, false otherwise.
      */
-    int getConnectionState();
+    bool getOnlineMode();
 
     /**
      * @brief Returns the current state of the connection to chatd

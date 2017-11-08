@@ -33,14 +33,13 @@ namespace presenced
 {
 }
 
-promise::Promise<void>
-Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
-    const Config& config)
+void Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers, const Config& config)
 {
     mMyHandle = myHandle;
     mConfig = config;
     mCurrentPeers = std::move(currentPeers);
-    return reconnect(url);
+
+    reconnect(url);
 }
 
 void Client::pushPeers()
@@ -174,14 +173,17 @@ void Client::signalActivity(bool force)
         sendUserActive(true, force);
 }
 
-Promise<void>
-Client::reconnect(const std::string& url)
+void Client::reconnect(const std::string& url)
 {
     assert(!mHeartbeatEnabled);
     try
     {
         if (mConnState >= kConnecting) //would be good to just log and return, but we have to return a promise
-            return promise::Error("Already connecting/connected");
+        {
+            PRESENCED_LOG_WARNING("Already connecting/connected");
+            return;
+        }
+
         if (!url.empty())
         {
             mUrl.parse(url);
@@ -189,12 +191,14 @@ Client::reconnect(const std::string& url)
         else
         {
             if (!mUrl.isValid())
-                return promise::Error("No valid URL provided and current URL is not valid");
+            {
+                PRESENCED_LOG_ERROR("No valid URL provided and current URL is not valid");
+            }
         }
 
         setConnState(kResolving);
         auto wptr = weakHandle();
-        return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
+        retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
         {
             if (wptr.deleted())
             {
@@ -264,7 +268,13 @@ Client::reconnect(const std::string& url)
             .then([wptr, this]()
             {
                 if (wptr.deleted())
-                    return;
+                {
+                    PRESENCED_LOG_DEBUG("Connection established, but presenced client was already deleted.");
+
+                    promise::Promise<void> pms = Promise<void>();
+                    pms.resolve();
+                    return pms;
+                }
 
                 mTsLastPingSent = 0;
                 mTsLastRecv = time(NULL);
@@ -338,19 +348,18 @@ void Client::disconnect()
         wsDisconnect(true);
     }
 
-    onSocketClose(0, 0, "terminating");
+    onSocketClose(0, 0, "disconnecting");
 }
 
-promise::Promise<void> Client::retryPendingConnection()
+void Client::retryPendingConnection()
 {
     if (mUrl.isValid())
     {
         setConnState(kDisconnected);
         mHeartbeatEnabled = false;
         PRESENCED_LOG_WARNING("Retry pending connections...");
-        return reconnect();
+        reconnect();
     }
-    return promise::Error("No valid URL provided to retry pending connections");
 }
 
 bool Client::sendBuf(Buffer&& buf)

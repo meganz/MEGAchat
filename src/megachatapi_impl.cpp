@@ -197,18 +197,10 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_CONNECT:
         {
             bool isInBackground = request->getFlag();
+            mClient->connect(karere::Presence::kInvalid, isInBackground);
 
-            mClient->connect(karere::Presence::kInvalid, isInBackground)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const promise::Error& e)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
 
             break;
         }
@@ -224,17 +216,10 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient)
             {
-                mClient->retryPendingConnections()
-                .then([this, request]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([this, request](const promise::Error& e)
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                mClient->retryPendingConnections();
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
             }
             else
             {
@@ -1351,12 +1336,15 @@ void MegaChatApiImpl::disconnect(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
-int MegaChatApiImpl::getConnectionState()
+bool MegaChatApiImpl::getOnlineMode()
 {
-    int ret = 0;
+    if (!mClient)
+        return false;
+
+    bool ret = 0;
 
     sdkMutex.lock();
-    ret = mClient->connState();
+    ret = mClient->onlineMode();
     sdkMutex.unlock();
 
     return ret;

@@ -778,7 +778,7 @@ public:
     void connect(MegaChatRequestListener *listener = NULL);
     void connectInBackground(MegaChatRequestListener *listener = NULL);
     void disconnect(MegaChatRequestListener *listener = NULL);
-    int getConnectionState();
+    bool getOnlineMode();
     int getChatConnectionState(MegaChatHandle chatid);
     static int convertChatConnectionState(chatd::ChatState state);
     void retryPendingConnections(MegaChatRequestListener *listener = NULL);

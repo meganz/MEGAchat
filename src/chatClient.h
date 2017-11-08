@@ -536,7 +536,6 @@ class Client: public rtcModule::IGlobalEventHandler,
               public karere::DeleteTrackable
 {
 public:
-    enum ConnState { kDisconnected = 0, kConnecting, kConnected };
 /** @cond PRIVATE */
 protected:
     std::string mAppDir;
@@ -545,8 +544,7 @@ protected:
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
-    ConnState mConnState = kDisconnected;
-    promise::Promise<void> mConnectPromise;
+    bool mOnlineMode = false;
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
     enum InitState: uint8_t
@@ -629,8 +627,7 @@ public:
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
-    ConnState connState() const { return mConnState; }
-    bool connected() const { return mConnState == kConnected; }
+    bool onlineMode() const { return mOnlineMode; }
     /** @endcond PRIVATE */
 
     /** @brief The contact list of the client */
@@ -708,8 +705,6 @@ public:
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
-    const char* connStateStr() const { return connStateToStr(mConnState); }
-    static const char* connStateToStr(ConnState state);
 
 
     /** @brief Does the actual connection to chatd and presenced. Assumes the
@@ -723,7 +718,7 @@ public:
      * background, it should not send KEEPALIVE, but KEEPALIVEAWAY. Hence, it will
      * avoid to tell chatd that the client is active.
      */
-    promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
+    void connect(Presence pres=Presence::kClear, bool isInBackground = false);
 
     /** @brief Disconnects the client from chatd and presenced */
     void disconnect();
@@ -732,7 +727,7 @@ public:
      * @brief Retry pending connections to chatd and presenced
      * @return A promise to track the result of the action.
      */
-    promise::Promise<void> retryPendingConnections();
+    void retryPendingConnections();
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
@@ -830,8 +825,8 @@ protected:
     void loadContactListFromApi();
     void loadContactListFromApi(::mega::MegaUserList& contactList);
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
-    promise::Promise<void> connectToPresenced(Presence pres);
-    promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
+    void connectToPresenced(Presence pres);
+    void connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
  //   void setOwnPresence(Presence pres);
     promise::Promise<int> initializeContactList();
     /** @brief A convenience method to log in the associated Mega SDK instance,
@@ -857,8 +852,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres);
-    void setConnState(ConnState newState);
+    void doConnect(Presence pres);
 #ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
     virtual rtcModule::IEventHandler* onIncomingCallRequest(

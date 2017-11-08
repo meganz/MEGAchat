@@ -168,7 +168,6 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     if (!closeSession)  // for closed session, karere automatically logs out itself
     {
         megaChatApi[accountIndex]->localLogout();
-
     }
 
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogoutChat), "Expired timeout for chat logout");
@@ -692,23 +691,23 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // ___ Disconnect from chat server and reconnect ___
     for (int i = 0; i < 5; i++)
     {
-        int conState = megaChatApi[accountIndex]->getConnectionState();
-        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
+        bool onlineMode = megaChatApi[accountIndex]->getOnlineMode();
+        ASSERT_CHAT_TEST(onlineMode, "Offline mode after connect");
 
         bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
         megaChatApi[accountIndex]->disconnect();
         ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
         ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-        conState = megaChatApi[accountIndex]->getConnectionState();
-        ASSERT_CHAT_TEST(conState == MegaChatApi::DISCONNECTED, "Wrong connection state: " + std::to_string(conState));
+        onlineMode = megaChatApi[accountIndex]->getOnlineMode();
+        ASSERT_CHAT_TEST(!onlineMode, "Online mode after disconnect");
 
         // reconnect
         flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
         megaChatApi[accountIndex]->connect();
         ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
         ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-        conState = megaChatApi[accountIndex]->getConnectionState();
-        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
+        onlineMode = megaChatApi[accountIndex]->getOnlineMode();
+        ASSERT_CHAT_TEST(onlineMode, "Offline mode after connect");
 
         // check there's a list of chats already available
         list = megaChatApi[accountIndex]->getChatListItems();

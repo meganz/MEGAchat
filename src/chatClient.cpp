@@ -187,7 +187,7 @@ void Client::heartbeat()
         db.timedCommit();
     }
 
-    if (mConnState != kConnected)
+    if (!mOnlineMode)
     {
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
@@ -205,19 +205,13 @@ Client::~Client()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnections()
+void Client::retryPendingConnections()
 {
-    if (mConnState == kConnecting)
-        return mConnectPromise;
-
-    std::vector<Promise<void>> promises;
-
-    promises.push_back(mPresencedClient.retryPendingConnection());
+    mPresencedClient.retryPendingConnection();
     if (chatd)
     {
-        promises.push_back(chatd->retryPendingConnections());
+        chatd->retryPendingConnections();
     }
-    return promise::when(promises);
 }
 
 #define TOKENPASTE2(a,b) a##b
@@ -410,7 +404,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
-        if (connState() == kConnecting || connState() == kConnected)
+        if (mOnlineMode)
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]()
@@ -743,52 +737,54 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
+void Client::connect(Presence pres, bool isInBackground)
 {
-// only the first connect() needs to wait for the mSessionReadyPromise.
-// Any subsequent connect()-s (preceded by disconnect()) can initiate
-// the connect immediately
-    if (mConnState == kConnecting)
-        return mConnectPromise;
-    else if (mConnState == kConnected)
-        return promise::_Void();
+    if (mOnlineMode)
+        return;
 
+    this->mOnlineMode = true;
     this->isInBackground = isInBackground;
 
-    assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
     case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres);
+        doConnect(pres);
+        break;
     case promise::kFailed:
-        return mSessionReadyPromise.error();
+        KR_LOG_ERROR("Initialization failed. Client cannot connect. Error: %s", mSessionReadyPromise.error().toString().c_str());
+        this->mOnlineMode = false;
+        break;
     default:                    // if session is not ready yet
         assert(sessDone == promise::kNotResolved);
-        mConnectPromise = mSessionReadyPromise
-            .then([this, pres]() mutable
+        mSessionReadyPromise
+        .then([this, pres]() mutable
+        {
+            if (mOnlineMode)    // in case disconnect() was called between connect() and promise resolution
             {
-                return doConnect(pres);
-            })
-            .then([this]()
+                doConnect(pres);
+            }
+            else
             {
-                setConnState(kConnected);
-            })
-            .fail([this](const promise::Error& err)
-            {
-                setConnState(kDisconnected);
-                return err;
-            });
-        return mConnectPromise;
+                KR_LOG_ERROR("Initialization succeed, but will not connect because disconnect was called.");
+            }
+        })
+        .fail([this](const promise::Error& err)
+        {
+            KR_LOG_ERROR("Initialization failed. Client cannot connect. Error: %s", err.toString().c_str());
+            this->mOnlineMode = false;
+        });
+        break;
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres)
+void Client::doConnect(Presence pres)
 {
-    assert(mSessionReadyPromise.succeeded());
-    setConnState(kConnecting);
+    assert(mSessionReadyPromise.succeeded());   // ensure fetchnodes has finished
     mOwnPresence = pres;
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
+    // subscribe to changes on user attributes
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
@@ -802,16 +798,8 @@ promise::Promise<void> Client::doConnect(Presence pres)
     });
 
     connectToChatd();
-    auto pms = connectToPresenced(mOwnPresence)
-    .then([this]()
-    {
-        setConnState(kConnected);
-    })
-    .fail([this](const promise::Error& err)
-    {
-        setConnState(kDisconnected);
-        return err;
-    });
+    connectToPresenced(mOwnPresence);
+
     assert(!mHeartbeatTimer);
     auto wptr = weakHandle();
     mHeartbeatTimer = karere::setInterval([this, wptr]()
@@ -823,14 +811,15 @@ promise::Promise<void> Client::doConnect(Presence pres)
 
         heartbeat();
     }, 10000, appCtx);
-    return pms;
 }
 
 void Client::disconnect()
 {
-    if (mConnState == kDisconnected)
+    if (!mOnlineMode)
         return;
-    setConnState(kDisconnected);
+
+    mOnlineMode = false;
+
     // stop sync of user attributes in cache
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
@@ -848,11 +837,7 @@ void Client::disconnect()
     chatd->disconnect();
     mPresencedClient.disconnect();
 }
-void Client::setConnState(ConnState newState)
-{
-    mConnState = newState;
-    KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
-}
+
 karere::Id Client::getMyHandleFromSdk()
 {
     SdkString uh = api.sdk.getMyUserHandle();
@@ -971,27 +956,47 @@ void Client::loadOwnKeysFromDb()
 }
 
 
-promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
+void Client::connectToPresenced(Presence forcedPres)
 {
     if (mPresencedUrl.empty())
     {
-        return api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([this, forcedPres](ReqResult result) -> Promise<void>
+        auto wptr = getDelTracker();
+        api.call(&::mega::MegaApi::getChatPresenceURL)
+        .then([wptr, this, forcedPres](ReqResult result)
         {
+            if (wptr.deleted())
+            {
+                KR_LOG_ERROR("Presenced URL request completed, but client was deleted");
+                return;
+            }
+
             auto url = result->getLink();
             if (!url)
-                return promise::Error("No presenced URL received from API");
+            {
+                KR_LOG_ERROR("No presenced URL received from API");
+                return;
+            }
             mPresencedUrl = url;
-            return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+            connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            if (wptr.deleted())
+            {
+                KR_LOG_ERROR("Presenced URL request failed, but karere client was deleted");
+                return;
+            }
+
+            KR_LOG_ERROR("Error connecting to server, cannot get presenced URL: %s", err.what());
         });
     }
     else
     {
-        return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+        connectToPresencedWithUrl(mPresencedUrl, forcedPres);
     }
 }
 
-promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
+void Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
 
@@ -1026,16 +1031,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
 
-// Create and register the rtcmodule plugin
-// the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
-// To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-//        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
-//        conn->registerPlugin("rtcmodule", rtc);
-
-//        KR_LOG_DEBUG("webrtc plugin initialized");
-//        return mXmppContactList.ready();
+    mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1659,14 +1656,14 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
             continue;
         chatids.insert(room->chatid());
 
-        if (!isInactive && client.connState() == Client::kConnected)
+        if (!isInactive && client.mOnlineMode)
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
         }
         else
         {
-            KR_LOG_DEBUG("...client is not connected or room is inactive, not connecting new room");
+            KR_LOG_DEBUG("...client is not at online mode or room is inactive, not connecting new room");
         }
     }
 }
@@ -1679,7 +1676,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     if(apiRoom.isGroup())
     {
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
-        if (client.connected())
+        if (client.mOnlineMode)
         {
             GroupChatRoom *groupchat = static_cast<GroupChatRoom*>(room);
             if (groupchat->hasTitle())
@@ -1812,7 +1809,7 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
                 if (!room)
                     continue;
                 client.app.notifyInvited(*room);
-                if (client.connected())
+                if (client.mOnlineMode)
                 {
                     room->connect();
                 }
@@ -2358,7 +2355,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         mEncryptedTitle = title;
         mHasTitle = true;
-        if (parent.client.connected())
+        if (parent.client.onlineMode())
         {
             decryptTitle()
             .fail([](const promise::Error& err)
@@ -2392,7 +2389,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
             //we were reinvited
             mChat->disable(false);
             notifyRejoinedChat();
-            if (parent.client.connected())
+            if (parent.client.onlineMode())
                 connect();
         }
     }
@@ -2851,16 +2848,6 @@ const char* Client::initStateToStr(unsigned char state)
         RETURN_ENUM_NAME(kInitErrSidInvalid);
     default:
         return "(unknown)";
-    }
-}
-const char* Client::connStateToStr(ConnState state)
-{
-    switch(state)
-    {
-        RETURN_ENUM_NAME(kDisconnected);
-        RETURN_ENUM_NAME(kConnecting);
-        RETURN_ENUM_NAME(kConnected);
-        default: return "(invalid)";
     }
 }
 #ifndef KARERE_DISABLE_WEBRTC
