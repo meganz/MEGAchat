@@ -941,12 +941,21 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
             {
+                API_LOG_ERROR("Failed to get the call handler associated to chat room");
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
+            rtcModule::ICall *call = handler->getCall();
+            if (!call)
+            {
+                API_LOG_ERROR("There is not any call associated to call handler");
+                errorCode = MegaChatError::ERROR_UNKNOWN;
+                break;
+            }
+
             karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
-            handler->getCall()->answer(avFlags);
+            call->answer(avFlags);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -960,10 +969,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatCallHandler *handler = findChatCallHandler(chatid);
                 if (!handler)
                 {
+                    API_LOG_ERROR("Failed to get the call handler associated to chat room");
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
-                handler->getCall()->hangup();
+
+                rtcModule::ICall *call = handler->getCall();
+                if (!call)
+                {
+                    API_LOG_ERROR("There is not any call associated to call handler");
+                    errorCode = MegaChatError::ERROR_UNKNOWN;
+                    break;
+                }
+
+                call->hangup();
             }
             else    // hang all calls (no specific chatid)
             {
@@ -983,6 +1002,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
             {
+                API_LOG_ERROR("Failed to get the call handler associated to chat room");
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
@@ -992,11 +1012,12 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!chatCall || !call)
             {
+                API_LOG_ERROR("There is not any call associated to call handler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
                 break;
             }
 
-            karere::AvFlags currentFlags = handler->getCall()->sentAv();
+            karere::AvFlags currentFlags = call->sentAv();
             karere::AvFlags newFlags;
             if (operationType == MegaChatRequest::AUDIO)
             {
@@ -5132,6 +5153,7 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 
 void MegaChatCallHandler::onStateChange(uint8_t newState)
 {
+    assert(chatCall != NULL);
     if (chatCall != NULL)
     {
         int state = 0;
@@ -5174,6 +5196,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
 
 void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, const string &msg)
 {
+    assert(chatCall != NULL);
     if (chatCall != NULL)
     {
         megaChatApi->removeChatCallHandler(chatCall->getChatid());
@@ -5190,6 +5213,7 @@ rtcModule::ISessionHandler *MegaChatCallHandler::onNewSession(rtcModule::ISessio
 
 void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rendererOut)
 {
+    assert(chatCall != NULL);
     if (chatCall != NULL)
     {
         if (localVideoReceiver != NULL)
@@ -5204,6 +5228,7 @@ void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rend
 
 void MegaChatCallHandler::onLocalMediaError(const string errors)
 {
+    assert(chatCall != NULL);
     if (chatCall != NULL)
     {
         chatCall->setError(errors);
@@ -5222,6 +5247,7 @@ void MegaChatCallHandler::onCallStarting()
 
 void MegaChatCallHandler::onCallStarted()
 {
+    assert(chatCall != NULL);
     if (chatCall != NULL)
     {
         chatCall->setInitialTimeStamp(time(NULL));
@@ -5268,13 +5294,13 @@ void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPe
 void MegaChatSessionHandler::onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererOut)
 {
     rtcModule::ICall *call = callHandler->getCall();
+    assert(call != NULL);
 
     if (remoteVideoRender != NULL)
     {
        delete remoteVideoRender;
     }
 
-    assert(call != NULL);
     rendererOut = new MegaChatVideoReceiver(megaChatApi, call, false);
     remoteVideoRender = rendererOut;
 }
