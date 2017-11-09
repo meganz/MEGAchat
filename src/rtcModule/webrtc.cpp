@@ -485,6 +485,24 @@ void RtcModule::setPcConstraint(const string& name, const string &value, bool op
 {
     rtcModule::setConstraint(mPcConstraints, name, value, optional);
 }
+
+bool RtcModule::isCallInProgress() const
+{
+    bool callInProgress = false;
+
+    for (auto& item: mCalls)
+    {
+        auto& call = item.second;
+        if (call->state() == Call::kStateInProgress)
+        {
+            callInProgress = true;
+            break;
+        }
+    }
+
+    return callInProgress;
+}
+
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional)
 {

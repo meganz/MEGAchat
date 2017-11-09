@@ -192,6 +192,12 @@ void Client::heartbeat()
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
     }
+
+    if (rtc->isCallInProgress())
+    {
+        presenced().signalActivity();
+    }
+
     mPresencedClient.heartbeat();
     //TODO: implement in chatd as well
 }
