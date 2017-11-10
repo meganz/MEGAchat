@@ -108,6 +108,16 @@ const char* MegaChatCall::getTemporaryError() const
     return NULL;
 }
 
+uint8_t MegaChatCall::getTermCode() const
+{
+    return TERM_CODE_INVALID;
+}
+
+bool MegaChatCall::isLocalTermCode() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

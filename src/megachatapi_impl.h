@@ -175,6 +175,8 @@ public:
     virtual int64_t getInitialTimeStamp() const;
     virtual int64_t getFinalTimeStamp() const;
     virtual const char *getTemporaryError() const;
+    virtual uint8_t getTermCode() const;
+    virtual bool isLocalTermCode() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -183,6 +185,7 @@ public:
     void setFinalTimeStamp(int64_t timeStamp);
     void removeChanges();
     void setError(const std::string &temporaryError);
+    void setTermCode(rtcModule::TermCode termCode);
 
 protected:
     MegaChatHandle chatid;
@@ -194,6 +197,9 @@ protected:
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
+    rtcModule::TermCode termCode;
+
+    uint8_t convertTermCode() const;
 };
 
 class MegaChatVideoFrame

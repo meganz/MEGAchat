@@ -94,6 +94,7 @@ enum TermCode: uint8_t
     kAppTerminating = 7,     // < The application is terminating
     kCallGone = 8,
     kBusy = 9,               // < Peer is in another call
+    kNotFinished = 10,       // < It is no finished value, it is TermCode value while call is in progress
     kNormalHangupLast = 20,  // < Last enum specifying a normal call termination
     kErrorFirst = 21,        // < First enum specifying call termination due to error
     kErrApiTimeout = 22,     // < Mega API timed out on some request (usually for RSA keys)
@@ -242,12 +243,13 @@ protected:
     ICallHandler* mHandler;
     karere::Id mCallerUser;
     uint32_t mCallerClient;
+    TermCode mTermCode;
     ICall(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
         karere::Id callerUser, uint32_t callerClient)
     : WeakReferenceable<ICall>(this), mManager(rtcModule),
       mChat(chat), mId(callid), mIsGroup(isGroup), mIsJoiner(isJoiner),
-      mHandler(handler), mCallerUser(callerUser), mCallerClient(callerClient)
+      mHandler(handler), mCallerUser(callerUser), mCallerClient(callerClient), mTermCode(kNotFinished)
     {}
 public:
     chatd::Chat& chat() const { return mChat; }
@@ -258,6 +260,7 @@ public:
     karere::Id caller() const { return mCallerUser; }
     uint32_t callerClient() const { return mCallerClient; }
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
+    TermCode termCode() const {return mTermCode; }
     virtual karere::AvFlags sentAv() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
     virtual bool answer(karere::AvFlags av) = 0;

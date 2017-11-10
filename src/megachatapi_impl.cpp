@@ -3375,6 +3375,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     initialTs = 0;
     finalTs = 0;
     temporaryError = std::string("");
+    termCode = rtcModule::TermCode::kNotFinished;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -3388,6 +3389,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
     this->temporaryError = call.temporaryError;
+    this->termCode = call.termCode;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3482,6 +3484,23 @@ const char *MegaChatCallPrivate::getTemporaryError() const
     return temporaryError.c_str();
 }
 
+uint8_t MegaChatCallPrivate::getTermCode() const
+{
+    return convertTermCode();
+}
+
+bool MegaChatCallPrivate::isLocalTermCode() const
+{
+    if (termCode & 0xF0)
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -3523,6 +3542,46 @@ void MegaChatCallPrivate::setError(const string &temporaryError)
 {
     this->temporaryError = temporaryError;
     changed |= MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR;
+}
+
+void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
+{
+    assert(this->termCode == rtcModule::TermCode::kNotFinished);
+    this->termCode = termCode;
+}
+
+uint8_t MegaChatCallPrivate::convertTermCode() const
+{
+    // Last four bits indicate the termination code and fifth bit indicate local or peer
+    switch (termCode & 0x0F)
+    {
+        case rtcModule::TermCode::kUserHangup:
+            return MegaChatCall::TERM_CODE_USER_HANGUP;
+        case rtcModule::TermCode::kCallReqCancel:
+            return MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
+        case rtcModule::TermCode::kCallRejected:
+            return MegaChatCall::TERM_CODE_CALL_REJECT;
+        case rtcModule::TermCode::kAnsElsewhere:
+            return MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
+        case rtcModule::TermCode::kAnswerTimeout:
+            return MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
+        case rtcModule::TermCode::kRingOutTimeout:
+            return MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
+        case rtcModule::TermCode::kAppTerminating:
+            return MegaChatCall::TERM_CODE_APP_TERMINATING;
+        case rtcModule::TermCode::kCallGone:
+            return MegaChatCall::TERM_CODE_CALL_GONE;
+        case rtcModule::TermCode::kBusy:
+            return MegaChatCall::TERM_CODE_BUSY;
+        case rtcModule::TermCode::kNotFinished:
+            return MegaChatCall::TERM_CODE_NOT_FINISHED;
+        case rtcModule::TermCode::kInvalid:
+            return MegaChatCall::TERM_CODE_INVALID;
+        default:
+            return MegaChatCall::TERM_CODE_ERROR;
+    }
+
+    return MegaChatCall::TERM_CODE_INVALID;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -5183,10 +5242,11 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
                 state = MegaChatCall::CALL_STATUS_TERMINATING;
+                chatCall->setTermCode(call->termCode());
+                chatCall->setFinalTimeStamp(time(NULL));
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 state = MegaChatCall::CALL_STATUS_DESTROYED;
-                chatCall->setFinalTimeStamp(time(NULL));
                 break;
             default:
                 state = newState;

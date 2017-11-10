@@ -864,6 +864,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
+    mTermCode = code;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
 
@@ -2007,6 +2008,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrSdp);
         RET_ENUM_NAME(kErrUserOffline);
         RET_ENUM_NAME(kInvalid);
+        RET_ENUM_NAME(kNotFinished);
         default: return "(invalid term code)";
     }
 }
