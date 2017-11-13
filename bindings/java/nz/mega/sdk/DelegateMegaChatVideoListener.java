@@ -57,6 +57,13 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
                     }
                 }
             });
+
+            // Uncomment this if it's needed to send the callback to the GUI thread
+            // Initially disabled for performance
+
+//            if (!removed) {
+//                listener.onChatVideoData(megaChatApi, chatid, width, height, byteBuffer);
+//            }
         }
     }
 }
