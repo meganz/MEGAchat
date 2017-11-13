@@ -70,7 +70,6 @@ public:
         CALL_STATUS_IN_PROGRESS,        /// Call is stablished and there is a full communication
         CALL_STATUS_TERMINATING,        ///
         CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
-        CALL_STATUS_DISCONNECTED        ///
     };
 
     enum
@@ -109,7 +108,6 @@ public:
      *  - CALL_STATUS_IN_PROGRESS = 5
      *  - CALL_STATUS_TERMINATING = 6
      *  - CALL_STATUS_DESTROYED = 7
-     *  - CALL_STATUS_DISCONNECTED = 8
      */
     virtual int getStatus() const;
 
