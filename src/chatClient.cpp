@@ -193,10 +193,12 @@ void Client::heartbeat()
         return;
     }
 
+#ifndef KARERE_DISABLE_WEBRTC
     if (rtc->isCallInProgress())
     {
         presenced().signalActivity();
     }
+#endif
 
     mPresencedClient.heartbeat();
     //TODO: implement in chatd as well
