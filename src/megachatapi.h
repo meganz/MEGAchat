@@ -233,7 +233,7 @@ public:
     virtual const char *getTemporaryError() const;
 
     /**
-     * @brief Returns the status of the at peer remote
+     * @brief Returns the status of the call remote
      *
      * @return the call status
      * Valid values are:
