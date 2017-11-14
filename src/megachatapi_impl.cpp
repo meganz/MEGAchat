@@ -3375,12 +3375,28 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     finalTs = 0;
     temporaryError = std::string("");
 
-    std::map<karere::Id, uint8_t> remoteStatusMap = call.remotePeersState();
+    std::map<karere::Id, uint8_t> remoteSessionsState = call.sessionState();
     remoteStatus = rtcModule::ICall::kStateInitial;
-    if (remoteStatusMap.size() > 0)
+    if (remoteSessionsState.size() > 0)
     {
         // With peer to peer call, there is only one session (one element at map)
-        remoteStatus = remoteStatusMap.begin()->second;
+        int sessionStatus = remoteSessionsState.begin()->second;
+
+        // Only use session state ICall::kStateInProgress, ICall::kStateTerminating, ICall::kStateDestroyed
+        switch (sessionStatus)
+        {
+        case rtcModule::ISession::kStateInProgress:
+            remoteStatus = rtcModule::ICall::kStateInProgress;
+            break;
+
+        case rtcModule::ISession::kStateTerminating:
+            remoteStatus = rtcModule::ICall::kStateTerminating;
+            break;
+
+        case rtcModule::ISession::kStateDestroyed:
+            remoteStatus = rtcModule::ICall::kStateDestroyed;
+            break;
+        }
     }
 
     changed = 0;

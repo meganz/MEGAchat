@@ -146,7 +146,7 @@ public:
     virtual bool changeLocalRenderer(IVideoRenderer* renderer);
     virtual karere::AvFlags muteUnmute(karere::AvFlags av);
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
-    virtual std::map<karere::Id, uint8_t> remotePeersState() const;
+    virtual std::map<karere::Id, uint8_t> sessionState() const;
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler

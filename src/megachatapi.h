@@ -240,6 +240,7 @@ public:
      *  - CALL_STATUS_INITIAL = 0
      *  - CALL_STATUS_RING_IN = 3
      *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_TERMINATING = 6
      *  - CALL_STATUS_DESTROYED = 7
      */
     virtual int getRemoteStatus() const;

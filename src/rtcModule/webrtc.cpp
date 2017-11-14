@@ -1205,36 +1205,16 @@ std::map<Id, AvFlags> Call::avFlagsRemotePeers() const
     return peerFlags;
 }
 
-std::map<Id, uint8_t> Call::remotePeersState() const
-{
-    std::map<Id, uint8_t> peerStates;
+std::map<Id, uint8_t> Call::sessionState() const
+{    
+    std::map<Id, uint8_t> sessionState;
 
     for (auto& item: mSessions)
     {
-        uint8_t state = item.second->getState();
-        switch (state)
-        {
-        case ISession::kStateWaitLocalSdpAnswer:
-        case ISession::kStateWaitSdpAnswer:
-        case ISession::kStateWaitSdpOffer:
-            peerStates[item.first] = ICall::kStateInitial;
-            break;
-
-        case ISession::kStateInProgress:
-            peerStates[item.first] = ICall::kStateInProgress;
-            break;
-
-        case ISession::kStateTerminating:
-            peerStates[item.first] = ICall::kStateTerminating;
-            break;
-
-        case ISession::kStateDestroyed:
-            peerStates[item.first] = ICall::kStateDestroyed;
-            break;
-        }
+        sessionState[item.first] = item.second->getState();
     }
 
-    return peerStates;
+    return sessionState;
 }
 
 AvFlags Call::sentAv() const
