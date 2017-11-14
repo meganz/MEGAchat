@@ -3011,7 +3011,8 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             break;
 
         case MegaChatCall::CALL_STATUS_TERMINATING:
-            std::cerr << "API: " << apiIndex << "    Termination  " << call->getDuration() << std::endl;
+            std::cerr << "API: " << apiIndex << "    Termination  " << call->getDuration()
+                      << " TermCode: " << call->getTermCode() << " Local/Remote: " << (bool)call->isLocalTermCode() << std::endl;
             break;
 
         case MegaChatCall::CALL_STATUS_DESTROYED:

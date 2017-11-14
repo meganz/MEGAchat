@@ -108,7 +108,7 @@ const char* MegaChatCall::getTemporaryError() const
     return NULL;
 }
 
-uint8_t MegaChatCall::getTermCode() const
+int MegaChatCall::getTermCode() const
 {
     return TERM_CODE_INVALID;
 }

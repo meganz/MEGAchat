@@ -175,7 +175,7 @@ public:
     virtual int64_t getInitialTimeStamp() const;
     virtual int64_t getFinalTimeStamp() const;
     virtual const char *getTemporaryError() const;
-    virtual uint8_t getTermCode() const;
+    virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
 
     void setStatus(int status);
@@ -197,9 +197,10 @@ protected:
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
-    rtcModule::TermCode termCode;
+    int termCode;
+    bool localTermCode;
 
-    uint8_t convertTermCode() const;
+    void convertTermCode(rtcModule::TermCode termCode);
 };
 
 class MegaChatVideoFrame
