@@ -3365,16 +3365,25 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     localAVFlags = call.sentAv();
     std::map<karere::Id, karere::AvFlags> remoteFlags = call.avFlagsRemotePeers();
     remoteAVFlags = karere::AvFlags(false, false);
-
     if (remoteFlags.size() > 0)
     {
+        // With peer to peer call, there is only one session (one element at map)
         remoteAVFlags = remoteFlags.begin()->second;
     }
 
-    changed = 0;
     initialTs = 0;
     finalTs = 0;
     temporaryError = std::string("");
+
+    std::map<karere::Id, uint8_t> remoteStatusMap = call.remotePeersState();
+    remoteStatus = rtcModule::ICall::kStateInitial;
+    if (remoteStatusMap.size() > 0)
+    {
+        // With peer to peer call, there is only one session (one element at map)
+        remoteStatus = remoteStatusMap.begin()->second;
+    }
+
+    changed = 0;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -3388,6 +3397,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
     this->temporaryError = call.temporaryError;
+    this->remoteStatus = call.remoteStatus;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3482,6 +3492,11 @@ const char *MegaChatCallPrivate::getTemporaryError() const
     return temporaryError.c_str();
 }
 
+int MegaChatCallPrivate::getRemoteStatus() const
+{
+    return remoteStatus;
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -3523,6 +3538,12 @@ void MegaChatCallPrivate::setError(const string &temporaryError)
 {
     this->temporaryError = temporaryError;
     changed |= MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR;
+}
+
+void MegaChatCallPrivate::setRemoteStatus(uint8_t remoteStatus)
+{
+    this->remoteStatus = remoteStatus;
+    changed |= MegaChatCall::CHANGE_TYPE_REMOTE_STATUS;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -5183,10 +5204,10 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
                 state = MegaChatCall::CALL_STATUS_TERMINATING;
+                chatCall->setFinalTimeStamp(time(NULL));
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 state = MegaChatCall::CALL_STATUS_DESTROYED;
-                chatCall->setFinalTimeStamp(time(NULL));
                 break;
             default:
                 state = newState;
@@ -5241,6 +5262,15 @@ void MegaChatCallHandler::onLocalMediaError(const string errors)
 
 void MegaChatCallHandler::onRingOut(Id peer)
 {
+    assert(chatCall != NULL);
+    if (chatCall != NULL)
+    {
+        if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateInitial)
+        {
+            chatCall->setRemoteStatus(rtcModule::ICall::kStateRingIn);
+            megaChatApi->fireOnChatCallUpdate(chatCall);
+        }
+    }
 }
 
 void MegaChatCallHandler::onCallStarting()
@@ -5282,10 +5312,29 @@ MegaChatSessionHandler::~MegaChatSessionHandler()
 
 void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 {
-    if (newState == rtcModule::ISession::kStateInProgress)
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+
+    assert(chatCall != NULL);
+    if (chatCall != NULL)
     {
-        MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-        chatCall->setRemoteAudioVideoFlags(session->receivedAv());
+        if (newState == rtcModule::ISession::kStateInProgress)
+        {
+            chatCall->setRemoteAudioVideoFlags(session->receivedAv());
+
+            if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateRingIn)
+            {
+                chatCall->setRemoteStatus(rtcModule::ICall::kStateInProgress);
+            }
+        }
+        else if (newState == rtcModule::ISession::kStateTerminating)
+        {
+            chatCall->setRemoteStatus(rtcModule::ICall::kStateTerminating);
+        }
+        else if (newState == rtcModule::ISession::kStateDestroyed)
+        {
+            chatCall->setRemoteStatus(rtcModule::ICall::kStateDestroyed);
+        }
+
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
 }

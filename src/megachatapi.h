@@ -77,7 +77,8 @@ public:
         CHANGE_TYPE_STATUS = 0x01,
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,
+        CHANGE_TYPE_REMOTE_STATUS = 0x10,
     };
 
     virtual ~MegaChatCall();
@@ -230,6 +231,19 @@ public:
      * @return Content of the error. If there isn't a error, it returns a empty string.
      */
     virtual const char *getTemporaryError() const;
+
+    /**
+     * @brief Returns the status of the at peer remote
+     *
+     * @return the call status
+     * Valid values are:
+     *  - CALL_STATUS_INITIAL = 0
+     *  - CALL_STATUS_RING_IN = 3
+     *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_DESTROYED = 7
+     */
+    virtual int getRemoteStatus() const;
+
 };
 
 /**
