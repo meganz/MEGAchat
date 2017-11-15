@@ -949,7 +949,7 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall *call = handler->getCall();
             if (!call)
             {
-                API_LOG_ERROR("There is not any call associated to call handler");
+                API_LOG_ERROR("There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
                 assert(false);
                 break;
@@ -978,7 +978,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 rtcModule::ICall *call = handler->getCall();
                 if (!call)
                 {
-                    API_LOG_ERROR("There is not any call associated to call handler");
+                    API_LOG_ERROR("There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
                     errorCode = MegaChatError::ERROR_UNKNOWN;
                     assert(false);
                     break;
@@ -1014,7 +1014,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!chatCall || !call)
             {
-                API_LOG_ERROR("There is not any call associated to call handler");
+                API_LOG_ERROR("There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
                 assert(false);
                 break;
@@ -5232,6 +5232,10 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
         chatCall->setStatus(state);
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
+    else
+    {
+        API_LOG_ERROR("MegaChatCallHandler::onStateChange - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+    }
 }
 
 void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, const string &msg)
@@ -5240,6 +5244,10 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, con
     if (chatCall != NULL)
     {
         megaChatApi->removeChatCallHandler(chatCall->getChatid());
+    }
+    else
+    {
+        API_LOG_ERROR("MegaChatCallHandler::onDestroy - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
     }
 
     delete this;
@@ -5264,6 +5272,10 @@ void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rend
         rendererOut = new MegaChatVideoReceiver(megaChatApi, call, true);
         localVideoReceiver = rendererOut;
     }
+    else
+    {
+        API_LOG_ERROR("MegaChatCallHandler::onLocalStreamObtained - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+    }
 }
 
 void MegaChatCallHandler::onLocalMediaError(const string errors)
@@ -5274,6 +5286,10 @@ void MegaChatCallHandler::onLocalMediaError(const string errors)
         chatCall->setError(errors);
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
+    else
+    {
+        API_LOG_ERROR("MegaChatCallHandler::onLocalMediaError - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+    }
 }
 
 void MegaChatCallHandler::onRingOut(Id peer)
@@ -5281,11 +5297,15 @@ void MegaChatCallHandler::onRingOut(Id peer)
     assert(chatCall != NULL);
     if (chatCall != NULL)
     {
-        if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateInitial)
+        if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateInitial);
         {
             chatCall->setRemoteStatus(rtcModule::ICall::kStateRingIn);
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
+    }
+    else
+    {
+        API_LOG_ERROR("MegaChatCallHandler::onRingOut - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
     }
 }
 
@@ -5300,6 +5320,10 @@ void MegaChatCallHandler::onCallStarted()
     if (chatCall != NULL)
     {
         chatCall->setInitialTimeStamp(time(NULL));
+    }
+    else
+    {
+        API_LOG_ERROR("MegaChatCallHandler::onCallStarted - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
     }
 }
 
@@ -5337,21 +5361,25 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         {
             chatCall->setRemoteAudioVideoFlags(session->receivedAv());
 
-            if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateRingIn)
-            {
-                chatCall->setRemoteStatus(rtcModule::ICall::kStateInProgress);
-            }
+            assert (chatCall->getRemoteStatus() == rtcModule::ICall::kStateRingIn);
+            chatCall->setRemoteStatus(rtcModule::ICall::kStateInProgress);
+
+            megaChatApi->fireOnChatCallUpdate(chatCall);
         }
         else if (newState == rtcModule::ISession::kStateTerminating)
         {
             chatCall->setRemoteStatus(rtcModule::ICall::kStateTerminating);
+            megaChatApi->fireOnChatCallUpdate(chatCall);
         }
         else if (newState == rtcModule::ISession::kStateDestroyed)
         {
             chatCall->setRemoteStatus(rtcModule::ICall::kStateDestroyed);
+            megaChatApi->fireOnChatCallUpdate(chatCall);
         }
-
-        megaChatApi->fireOnChatCallUpdate(chatCall);
+    }
+    else
+    {
+        API_LOG_ERROR("MegaChatSessionHandler::onSessStateChange - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
     }
 }
 
