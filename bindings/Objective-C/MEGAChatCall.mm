@@ -135,9 +135,6 @@ using namespace megachat;
         case MEGAChatCallStatusDestroyed:
             result = @"Destroyed";
             break;
-        case MEGAChatCallStatusDisconnected:
-            result = @"Disconnect";
-            break;
             
         default:
             result = @"Default";

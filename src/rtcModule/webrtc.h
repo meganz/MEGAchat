@@ -210,6 +210,7 @@ public:
     };
     static const char* stateToStr(uint8_t state);
     const char* stateStr() const { return stateToStr(mState); }
+    uint8_t getState() const { return mState; }
     bool isCaller() const { return !mIsJoiner; }
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
@@ -267,6 +268,7 @@ public:
     virtual bool changeLocalRenderer(IVideoRenderer* renderer) = 0;
     virtual karere::AvFlags muteUnmute(karere::AvFlags av) = 0;
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const = 0;
+    virtual std::map<karere::Id, uint8_t> sessionState() const = 0;
 };
 struct SdpKey
 {

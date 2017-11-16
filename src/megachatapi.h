@@ -70,7 +70,6 @@ public:
         CALL_STATUS_IN_PROGRESS,        /// Call is stablished and there is a full communication
         CALL_STATUS_TERMINATING,        ///
         CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
-        CALL_STATUS_DISCONNECTED        ///
     };
 
     enum
@@ -78,7 +77,8 @@ public:
         CHANGE_TYPE_STATUS = 0x01,
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,
+        CHANGE_TYPE_REMOTE_STATUS = 0x10,
     };
 
     enum
@@ -126,7 +126,6 @@ public:
      *  - CALL_STATUS_IN_PROGRESS = 5
      *  - CALL_STATUS_TERMINATING = 6
      *  - CALL_STATUS_DESTROYED = 7
-     *  - CALL_STATUS_DISCONNECTED = 8
      */
     virtual int getStatus() const;
 
@@ -267,6 +266,19 @@ public:
      * @return True if the call has finished by local reason. False if the call has finished by remote reason
      */
     virtual bool isLocalTermCode() const;
+
+    /**
+     * @brief Returns the status of the remote call
+     *
+     * @return the call status
+     * Valid values are:
+     *  - CALL_STATUS_INITIAL = 0
+     *  - CALL_STATUS_RING_IN = 3
+     *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_TERMINATING = 6
+     *  - CALL_STATUS_DESTROYED = 7
+     */
+    virtual int getRemoteStatus() const;
 };
 
 /**

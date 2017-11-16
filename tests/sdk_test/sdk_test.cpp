@@ -3031,7 +3031,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
     {
-        std::cerr << "API: " << apiIndex << "   MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS" << std::endl;
+       std::cerr << "API: " << apiIndex << "   MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS" << std::endl;
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_STATUS))
+    {
+        std::cerr << "API: " << apiIndex << "   MegaChatCall::CHANGE_TYPE_REMOTE_STATUS " << call->getRemoteStatus() << std::endl;
     }
 
     LOG_debug << "On chat call change state ";

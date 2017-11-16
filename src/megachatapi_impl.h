@@ -177,6 +177,7 @@ public:
     virtual const char *getTemporaryError() const;
     virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
+    virtual int getRemoteStatus() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -186,6 +187,7 @@ public:
     void removeChanges();
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
+    void setRemoteStatus(uint8_t remoteStatus);
 
 protected:
     MegaChatHandle chatid;
@@ -197,10 +199,12 @@ protected:
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
+
     int termCode;
     bool localTermCode;
-
     void convertTermCode(rtcModule::TermCode termCode);
+
+    int remoteStatus;
 };
 
 class MegaChatVideoFrame

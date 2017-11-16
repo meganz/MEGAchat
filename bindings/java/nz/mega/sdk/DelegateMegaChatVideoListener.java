@@ -15,10 +15,13 @@
  */
 package nz.mega.sdk;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 class DelegateMegaChatVideoListener extends MegaChatVideoListener{
 
     MegaChatApiJava megaChatApi;
     MegaChatVideoListenerInterface listener;
+    AtomicInteger pendingFrames;
     boolean remote;
     boolean removed;
 
@@ -27,6 +30,7 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
         this.listener = listener;
         this.remote = remote;
         this.removed = false;
+        this.pendingFrames = new AtomicInteger(0);
     }
 
     MegaChatVideoListenerInterface getUserListener() {
@@ -45,6 +49,13 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
     public void onChatVideoData(MegaChatApi api, long chatid, int width, int height, byte[] byteBuffer)
     {
         if (listener != null) {
+            int pending = pendingFrames.incrementAndGet();
+            if (pending > 2)
+            {
+                pendingFrames.decrementAndGet();
+                return;
+            }
+
             final byte[] megaByteBuffer = byteBuffer;
             final long megaChatid = chatid;
             final int megaWidth = width;
@@ -53,6 +64,7 @@ class DelegateMegaChatVideoListener extends MegaChatVideoListener{
             megaChatApi.runCallback(new Runnable() {
                 public void run() {
                     if (!delegate.removed) {
+                        delegate.pendingFrames.decrementAndGet();
                         listener.onChatVideoData(megaChatApi, megaChatid, megaWidth, megaHeigth, megaByteBuffer);
                     }
                 }

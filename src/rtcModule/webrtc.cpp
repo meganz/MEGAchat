@@ -1206,6 +1206,18 @@ std::map<Id, AvFlags> Call::avFlagsRemotePeers() const
     return peerFlags;
 }
 
+std::map<Id, uint8_t> Call::sessionState() const
+{    
+    std::map<Id, uint8_t> sessionState;
+
+    for (auto& item: mSessions)
+    {
+        sessionState[item.first] = item.second->getState();
+    }
+
+    return sessionState;
+}
+
 AvFlags Call::sentAv() const
 {
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);

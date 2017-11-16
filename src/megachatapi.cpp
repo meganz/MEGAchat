@@ -118,6 +118,11 @@ bool MegaChatCall::isLocalTermCode() const
     return false;
 }
 
+int MegaChatCall::getRemoteStatus() const
+{
+    return 0;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

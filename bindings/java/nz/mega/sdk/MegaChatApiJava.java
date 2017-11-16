@@ -1484,21 +1484,6 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Refuse a call received in a chat room
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    public void rejectChatCall(long chatid, MegaChatRequestListenerInterface listener)
-    {
-        megaChatApi.rejectChatCall(chatid, createDelegateRequestListener(listener));
-    }
-
-    /**
      * Hang a call in a chat room
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
