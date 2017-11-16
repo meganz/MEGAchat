@@ -108,6 +108,11 @@ const char* MegaChatCall::getTemporaryError() const
     return NULL;
 }
 
+int MegaChatCall::getRemoteStatus() const
+{
+    return 0;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

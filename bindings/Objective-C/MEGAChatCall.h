@@ -9,8 +9,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusJoining,
     MEGAChatCallStatusInProgress,
     MEGAChatCallStatusTerminating,
-    MEGAChatCallStatusDestroyed,
-    MEGAChatCallStatusDisconnected
+    MEGAChatCallStatusDestroyed
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
