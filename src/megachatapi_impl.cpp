@@ -5298,7 +5298,7 @@ void MegaChatCallHandler::onRingOut(Id peer)
     if (chatCall != NULL)
     {
         //Avoid notify several times Ring-In state when there are many clients
-        if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateInitial);
+        if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateInitial)
         {
             chatCall->setRemoteStatus(rtcModule::ICall::kStateRingIn);
             megaChatApi->fireOnChatCallUpdate(chatCall);
