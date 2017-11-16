@@ -110,7 +110,7 @@ const char* MegaChatCall::getTemporaryError() const
 
 int MegaChatCall::getTermCode() const
 {
-    return TERM_CODE_INVALID;
+    return TERM_CODE_NOT_FINISHED;
 }
 
 bool MegaChatCall::isLocalTermCode() const

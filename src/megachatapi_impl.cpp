@@ -3602,18 +3602,14 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     case rtcModule::TermCode::kAppTerminating:
         this->termCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
         break;
-    case rtcModule::TermCode::kCallGone:
-        this->termCode = MegaChatCall::TERM_CODE_INVALID;
-        break;
     case rtcModule::TermCode::kBusy:
         this->termCode = MegaChatCall::TERM_CODE_BUSY;
         break;
     case rtcModule::TermCode::kNotFinished:
         this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
         break;
+    case rtcModule::TermCode::kGone:
     case rtcModule::TermCode::kInvalid:
-        this->termCode = MegaChatCall::TERM_CODE_INVALID;
-        break;
     default:
         this->termCode = MegaChatCall::TERM_CODE_ERROR;
         break;
