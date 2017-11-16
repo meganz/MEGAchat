@@ -203,7 +203,6 @@ Client::~Client()
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
-    //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
 promise::Promise<void> Client::retryPendingConnections()
@@ -343,9 +342,12 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 
     mUserAttrCache.reset(new UserAttrCache(*this));
 
+    auto wptr = weakHandle();
     return loadOwnKeysFromApi()
-    .then([this, scsn, contactList, chatList]()
+    .then([this, scsn, contactList, chatList, wptr]()
     {
+        if (wptr.deleted())
+            return;
         loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(this, mMyHandle));
         assert(chats->empty());
@@ -2740,9 +2742,9 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    client.userAttrCache().removeCb(mUsernameAttrCbId);
     if (client.initState() != Client::kInitTerminated)
     {
+        client.userAttrCache().removeCb(mUsernameAttrCbId);
         client.presenced().removePeer(mUserid, true);
         if (mDisplay)
         {

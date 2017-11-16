@@ -1026,6 +1026,14 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
 
+    bool *flagChatdOnline = &mChatConnectionOnline[a1]; *flagChatdOnline = false;
+    while (megaChatApi[a1]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        postLog("Waiting for connection to chatd...");
+        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
+        *flagChatdOnline = false;
+    }
+
     // --> Remove from chat
     bool *flagRemoveFromChat = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChat = false;
     bool *chatItemLeft0 = &chatItemUpdated[a1]; *chatItemLeft0 = false;
@@ -1068,7 +1076,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
-    bool *flagChatdOnline = &mChatConnectionOnline[a2]; *flagChatdOnline = false;   // need to reconnect after rejoin
+    flagChatdOnline = &mChatConnectionOnline[a2]; *flagChatdOnline = false;   // need to reconnect after rejoin
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
@@ -1105,8 +1113,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
         *flagChatdOnline = false;
     }
 
-    // --> Set title
-    string title = "My groupchat with title";
+    // --> Set title -> Add aleatory substring. We don't use full timestamp because we exceed title length
+    string title = "My groupchat with title " + dateToString().substr(dateToString().length() - 5, 5);
     bool *flagChatRoomName = &requestFlagsChat[a1][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
     bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
     bool *titleItemChanged1 = &titleUpdated[a2]; *titleItemChanged1 = false;
@@ -1520,7 +1528,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     delete [] session;
     session = NULL;
 
-    // LOgin over same index account but with other user
+    // Login over same index account but with other user
     session = login(a1, NULL, mAccounts[a2].getEmail().c_str(), mAccounts[a2].getPassword().c_str());
 
     delete [] session;

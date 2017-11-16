@@ -696,7 +696,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     if ((msg->keyid == CHATD_KEYID_INVALID)
      || (msg->keyid == CHATD_KEYID_UNCONFIRMED)) //we have to use the current send key
     {
-        if (!mCurrentKey || mParticipantsChanged)
+        if (!mCurrentKey || mParticipantsChanged) // create a new key and prepare the KeyCommand
         {
             auto wptr = weakHandle();
             return updateSenderKey()
@@ -1023,7 +1023,7 @@ void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
     if (!mCurrentKey || (mCurrentKeyId != CHATD_KEYID_UNCONFIRMED))
         throw std::runtime_error("strongvelope: setCurrentKeyId: Current send key is not unconfirmed");
     if (keyxid != CHATD_KEYID_UNCONFIRMED)
-        throw std::runtime_error("strongvelope: setCurrentKeyId: Usage error: trying to set keyid to the UNOCNFIRMED value");
+        throw std::runtime_error("strongvelope: setCurrentKeyId: Usage error: trying to set keyid to the UNCONFIRMED value");
 
     mUnconfirmedKeyCmd.reset();
     mCurrentKeyId = keyid;

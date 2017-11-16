@@ -25,8 +25,6 @@
 #define STRONGVELOPE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 #define STRONGVELOPE_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_strongvelope, "%s: " fmtString, chatid.toString().c_str(), ##__VA_ARGS__)
 
-#define SVCRYPTO_ERRTYPE 0x3e9a5419 //should resemble megasvlp
-
 //NOTE: In C/C++ it should be avoided to have enum constant names with all capital
 //letters, because of possible conflicts with macros defined by other libs.
 //As enums can be naturally namespaced, their names are usually short
@@ -327,6 +325,7 @@ protected:
         legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
 public:
 //chatd::ICrypto interface
+        uint32_t currentKeyId() const { return mCurrentKeyId; }
         promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
             msgEncrypt(chatd::Message *message, chatd::MsgCommand* msgCmd);
         virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
