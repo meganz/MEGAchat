@@ -796,6 +796,8 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
+
+    bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call);

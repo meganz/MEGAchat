@@ -184,6 +184,7 @@ public:
     virtual bool isCaptureActive() const;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
+    virtual bool isCallInProgress() const;
 //==
     ~RtcModule();
 protected:
