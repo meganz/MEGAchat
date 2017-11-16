@@ -193,13 +193,6 @@ void Client::heartbeat()
         return;
     }
 
-#ifndef KARERE_DISABLE_WEBRTC
-    if (rtc->isCallInProgress())
-    {
-        presenced().signalActivity();
-    }
-#endif
-
     mPresencedClient.heartbeat();
     //TODO: implement in chatd as well
 }
@@ -2854,6 +2847,21 @@ const char* Client::connStateToStr(ConnState state)
         default: return "(invalid)";
     }
 }
+
+bool Client::isCallInProgress() const
+{
+    bool callInProgress = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        callInProgress = rtc->isCallInProgress();
+    }
+#endif
+
+    return callInProgress;
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
 {

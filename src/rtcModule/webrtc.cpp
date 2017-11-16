@@ -493,7 +493,7 @@ bool RtcModule::isCallInProgress() const
     for (auto& item: mCalls)
     {
         auto& call = item.second;
-        if (call->state() == Call::kStateInProgress)
+        if (call->state() == Call::kStateInProgress || call->state() == Call::kStateReqSent)
         {
             callInProgress = true;
             break;
