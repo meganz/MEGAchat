@@ -3376,7 +3376,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     temporaryError = std::string("");
     termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
     localTermCode = false;
-    isRinging = false;
+    ringing = false;
     changed = 0;
 }
 
@@ -3393,7 +3393,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->temporaryError = call.temporaryError;
     this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
-    this->isRinging = call.isRinging;
+    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3500,7 +3500,7 @@ bool MegaChatCallPrivate::isLocalTermCode() const
 
 bool MegaChatCallPrivate::isRinging() const
 {
-    return isRinging;
+    return ringing;
 }
 
 void MegaChatCallPrivate::setStatus(int status)
@@ -3584,7 +3584,7 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     case rtcModule::TermCode::kNotFinished:
         this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
         break;
-    case rtcModule::TermCode::kGone:
+    case rtcModule::TermCode::kCallGone:
     case rtcModule::TermCode::kInvalid:
     default:
         this->termCode = MegaChatCall::TERM_CODE_ERROR;
@@ -3601,9 +3601,9 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     }
 }
 
-void MegaChatCallPrivate::setIsRinging(bool status)
+void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
-    this->isRinging = status;
+    this->ringing = ringing;
     changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
 }
 

@@ -187,7 +187,7 @@ public:
     void removeChanges();
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
-    void setIsRinging(bool isRinging);
+    void setIsRinging(bool ringing);
 
 protected:
     MegaChatHandle chatid;
@@ -204,7 +204,7 @@ protected:
     bool localTermCode;
     void convertTermCode(rtcModule::TermCode termCode);
 
-    bool isRinging;
+    bool ringing;
 };
 
 class MegaChatVideoFrame
