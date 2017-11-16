@@ -118,9 +118,9 @@ bool MegaChatCall::isLocalTermCode() const
     return false;
 }
 
-int MegaChatCall::getRemoteStatus() const
+bool MegaChatCall::isRinging() const
 {
-    return 0;
+    return false;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)

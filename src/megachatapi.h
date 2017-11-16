@@ -78,7 +78,7 @@ public:
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08,
-        CHANGE_TYPE_REMOTE_STATUS = 0x10,
+        CHANGE_TYPE_RINGING_STATUS = 0x10,
     };
 
     enum
@@ -252,32 +252,29 @@ public:
      * @brief Returns the termination code for this call. If the call is not finished,
      * it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
      *
-     * It is necessary call to MegaChatCall::isLocalTermCode() to get if the call has finished by a local
-     * or remote reason
+     * To check if the call was terminated locally or remotely, see MegaChatCall::isLocalTermCode().
      *
      * @return termination code for the call
      */
     virtual int getTermCode() const;
 
     /**
-     * @brief Returns if the call has finished by a local or remote reason
+     * @brief Returns if the call finished locally or remotely
      *
-     * @return True if the call has finished by local reason. False if the call has finished by remote reason
+     * @return True if the call finished locally. False if the call finished remotely
      */
     virtual bool isLocalTermCode() const;
 
     /**
      * @brief Returns the status of the remote call
      *
-     * @return the call status
-     * Valid values are:
-     *  - CALL_STATUS_INITIAL = 0
-     *  - CALL_STATUS_RING_IN = 3
-     *  - CALL_STATUS_IN_PROGRESS = 5
-     *  - CALL_STATUS_TERMINATING = 6
-     *  - CALL_STATUS_DESTROYED = 7
+     * Only valid for outgoing calls. It becomes true when the receiver of the call
+     * has received the call request but have not answered yet. Once the user answers or
+     * rejects the call, this function returns false.
+     *
+     * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
      */
-    virtual int getRemoteStatus() const;
+    virtual bool isRinging() const;
 };
 
 /**
