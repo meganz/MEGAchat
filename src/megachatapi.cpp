@@ -108,9 +108,19 @@ const char* MegaChatCall::getTemporaryError() const
     return NULL;
 }
 
-int MegaChatCall::getRemoteStatus() const
+int MegaChatCall::getTermCode() const
 {
-    return 0;
+    return TERM_CODE_NOT_FINISHED;
+}
+
+bool MegaChatCall::isLocalTermCode() const
+{
+    return false;
+}
+
+bool MegaChatCall::isRinging() const
+{
+    return false;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)

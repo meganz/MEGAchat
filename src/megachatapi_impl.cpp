@@ -3374,31 +3374,9 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     initialTs = 0;
     finalTs = 0;
     temporaryError = std::string("");
-
-    std::map<karere::Id, uint8_t> remoteSessionsState = call.sessionState();
-    remoteStatus = rtcModule::ICall::kStateInitial;
-    if (remoteSessionsState.size() > 0)
-    {
-        // With peer to peer call, there is only one session (one element at map)
-        int sessionStatus = remoteSessionsState.begin()->second;
-
-        // Only use session state ICall::kStateInProgress, ICall::kStateTerminating, ICall::kStateDestroyed
-        switch (sessionStatus)
-        {
-        case rtcModule::ISession::kStateInProgress:
-            remoteStatus = rtcModule::ICall::kStateInProgress;
-            break;
-
-        case rtcModule::ISession::kStateTerminating:
-            remoteStatus = rtcModule::ICall::kStateTerminating;
-            break;
-
-        case rtcModule::ISession::kStateDestroyed:
-            remoteStatus = rtcModule::ICall::kStateDestroyed;
-            break;
-        }
-    }
-
+    termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
+    localTermCode = false;
+    ringing = false;
     changed = 0;
 }
 
@@ -3413,7 +3391,9 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->initialTs = call.initialTs;
     this->finalTs = call.finalTs;
     this->temporaryError = call.temporaryError;
-    this->remoteStatus = call.remoteStatus;
+    this->termCode = call.termCode;
+    this->localTermCode = call.localTermCode;
+    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3508,9 +3488,19 @@ const char *MegaChatCallPrivate::getTemporaryError() const
     return temporaryError.c_str();
 }
 
-int MegaChatCallPrivate::getRemoteStatus() const
+int MegaChatCallPrivate::getTermCode() const
 {
-    return remoteStatus;
+    return termCode;
+}
+
+bool MegaChatCallPrivate::isLocalTermCode() const
+{
+    return localTermCode;
+}
+
+bool MegaChatCallPrivate::isRinging() const
+{
+    return ringing;
 }
 
 void MegaChatCallPrivate::setStatus(int status)
@@ -3556,10 +3546,65 @@ void MegaChatCallPrivate::setError(const string &temporaryError)
     changed |= MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR;
 }
 
-void MegaChatCallPrivate::setRemoteStatus(uint8_t remoteStatus)
+void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
 {
-    this->remoteStatus = remoteStatus;
-    changed |= MegaChatCall::CHANGE_TYPE_REMOTE_STATUS;
+    assert(this->termCode == MegaChatCall::TERM_CODE_NOT_FINISHED);
+    convertTermCode(termCode);
+}
+
+void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
+{
+    // Last four bits indicate the termination code and fifth bit indicate local or peer
+    switch (termCode & (~rtcModule::TermCode::kPeer))
+    {
+    case rtcModule::TermCode::kUserHangup:
+        this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
+        break;
+    case rtcModule::TermCode::kCallReqCancel:
+        this->termCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
+        break;
+    case rtcModule::TermCode::kCallRejected:
+        this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
+        break;
+    case rtcModule::TermCode::kAnsElsewhere:
+        this->termCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
+        break;
+    case rtcModule::TermCode::kAnswerTimeout:
+        this->termCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
+        break;
+    case rtcModule::TermCode::kRingOutTimeout:
+        this->termCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
+        break;
+    case rtcModule::TermCode::kAppTerminating:
+        this->termCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
+        break;
+    case rtcModule::TermCode::kBusy:
+        this->termCode = MegaChatCall::TERM_CODE_BUSY;
+        break;
+    case rtcModule::TermCode::kNotFinished:
+        this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
+        break;
+    case rtcModule::TermCode::kCallGone:
+    case rtcModule::TermCode::kInvalid:
+    default:
+        this->termCode = MegaChatCall::TERM_CODE_ERROR;
+        break;
+    }
+
+    if (termCode & rtcModule::TermCode::kPeer)
+    {
+        localTermCode = false;
+    }
+    else
+    {
+        localTermCode = true;
+    }
+}
+
+void MegaChatCallPrivate::setIsRinging(bool ringing)
+{
+    this->ringing = ringing;
+    changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -5216,10 +5261,13 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 state = MegaChatCall::CALL_STATUS_JOINING;
                 break;
             case rtcModule::ICall::kStateInProgress:
+                chatCall->setIsRinging(false);
                 state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
                 break;
             case rtcModule::ICall::kStateTerminating:
                 state = MegaChatCall::CALL_STATUS_TERMINATING;
+                chatCall->setIsRinging(false);
+                chatCall->setTermCode(call->termCode());
                 chatCall->setFinalTimeStamp(time(NULL));
                 break;
             case rtcModule::ICall::kStateDestroyed:
@@ -5298,9 +5346,9 @@ void MegaChatCallHandler::onRingOut(Id peer)
     if (chatCall != NULL)
     {
         //Avoid notify several times Ring-In state when there are many clients
-        if (chatCall->getRemoteStatus() == rtcModule::ICall::kStateInitial)
+        if (!chatCall->isRinging())
         {
-            chatCall->setRemoteStatus(rtcModule::ICall::kStateRingIn);
+            chatCall->setIsRinging(true);
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
     }
@@ -5353,35 +5401,6 @@ MegaChatSessionHandler::~MegaChatSessionHandler()
 
 void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 {
-    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-
-    assert(chatCall != NULL);
-    if (chatCall != NULL)
-    {
-        if (newState == rtcModule::ISession::kStateInProgress)
-        {
-            chatCall->setRemoteAudioVideoFlags(session->receivedAv());
-
-            assert (chatCall->getRemoteStatus() == rtcModule::ICall::kStateRingIn);
-            chatCall->setRemoteStatus(rtcModule::ICall::kStateInProgress);
-
-            megaChatApi->fireOnChatCallUpdate(chatCall);
-        }
-        else if (newState == rtcModule::ISession::kStateTerminating)
-        {
-            chatCall->setRemoteStatus(rtcModule::ICall::kStateTerminating);
-            megaChatApi->fireOnChatCallUpdate(chatCall);
-        }
-        else if (newState == rtcModule::ISession::kStateDestroyed)
-        {
-            chatCall->setRemoteStatus(rtcModule::ICall::kStateDestroyed);
-            megaChatApi->fireOnChatCallUpdate(chatCall);
-        }
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatSessionHandler::onSessStateChange - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-    }
 }
 
 void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)

@@ -78,7 +78,23 @@ public:
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08,
-        CHANGE_TYPE_REMOTE_STATUS = 0x10,
+        CHANGE_TYPE_RINGING_STATUS = 0x10,
+    };
+
+    enum
+    {
+        TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
+        TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
+        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected by
+                                            /// another client of our user
+        TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
+        TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
+        TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
+                                            /// users are online
+        TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
+        TERM_CODE_BUSY              = 9,    /// Peer is in another call
+        TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
+        TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
     virtual ~MegaChatCall();
@@ -233,18 +249,32 @@ public:
     virtual const char *getTemporaryError() const;
 
     /**
+     * @brief Returns the termination code for this call. If the call is not finished,
+     * it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
+     *
+     * To check if the call was terminated locally or remotely, see MegaChatCall::isLocalTermCode().
+     *
+     * @return termination code for the call
+     */
+    virtual int getTermCode() const;
+
+    /**
+     * @brief Returns if the call finished locally or remotely
+     *
+     * @return True if the call finished locally. False if the call finished remotely
+     */
+    virtual bool isLocalTermCode() const;
+
+    /**
      * @brief Returns the status of the remote call
      *
-     * @return the call status
-     * Valid values are:
-     *  - CALL_STATUS_INITIAL = 0
-     *  - CALL_STATUS_RING_IN = 3
-     *  - CALL_STATUS_IN_PROGRESS = 5
-     *  - CALL_STATUS_TERMINATING = 6
-     *  - CALL_STATUS_DESTROYED = 7
+     * Only valid for outgoing calls. It becomes true when the receiver of the call
+     * has received the call request but have not answered yet. Once the user answers or
+     * rejects the call, this function returns false.
+     *
+     * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
      */
-    virtual int getRemoteStatus() const;
-
+    virtual bool isRinging() const;
 };
 
 /**
