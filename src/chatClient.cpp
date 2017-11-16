@@ -60,17 +60,17 @@ std::string encodeFirstName(const std::string& first);
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-    Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
-        : mAppDir(appDir),
-          websocketIO(websocketsIO),
-          appCtx(ctx),
-          api(sdk, ctx),
-          app(aApp),
-          contactList(new ContactList(*this)),
-          chats(new ChatRoomList(*this)),
-          mMyName("\0", 1),
-          mOwnPresence(Presence::kInvalid),
-          mPresencedClient(&api, this, *this, caps)
+Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+    : mAppDir(appDir),
+      websocketIO(websocketsIO),
+      appCtx(ctx),
+      api(sdk, ctx),
+      app(aApp),
+      contactList(new ContactList(*this)),
+      chats(new ChatRoomList(*this)),
+      mMyName("\0", 1),
+      mOwnPresence(Presence::kInvalid),
+      mPresencedClient(&api, this, *this, caps)
 {
 }
 
@@ -198,11 +198,7 @@ void Client::heartbeat()
 
 Client::~Client()
 {
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
+    disconnect();
 }
 
 void Client::retryPendingConnections()
@@ -958,48 +954,6 @@ void Client::loadOwnKeysFromDb()
 
 void Client::connectToPresenced(Presence forcedPres)
 {
-    if (mPresencedUrl.empty())
-    {
-        auto wptr = getDelTracker();
-        api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([wptr, this, forcedPres](ReqResult result)
-        {
-            if (wptr.deleted())
-            {
-                KR_LOG_ERROR("Presenced URL request completed, but client was deleted");
-                return;
-            }
-
-            auto url = result->getLink();
-            if (!url)
-            {
-                KR_LOG_ERROR("No presenced URL received from API");
-                return;
-            }
-            mPresencedUrl = url;
-            connectToPresencedWithUrl(mPresencedUrl, forcedPres);
-        })
-        .fail([wptr, this](const promise::Error& err)
-        {
-            if (wptr.deleted())
-            {
-                KR_LOG_ERROR("Presenced URL request failed, but karere client was deleted");
-                return;
-            }
-
-            KR_LOG_ERROR("Error connecting to server, cannot get presenced URL: %s", err.what());
-        });
-    }
-    else
-    {
-        connectToPresencedWithUrl(mPresencedUrl, forcedPres);
-    }
-}
-
-void Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
-{
-//we assume app.onOwnPresence(Presence::kOffline) has been called at application start
-
     // Prepare list of peers to subscribe to its presence
     // add contacts
     presenced::IdRefMap peers;
@@ -1025,14 +979,7 @@ void Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
         }
     }
 
-    // Notify presence, if any
-    if (pres.isValid())
-    {
-        mOwnPresence = pres;
-        app.onPresenceChanged(mMyHandle, pres, true);
-    }
-
-    mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+    mPresencedClient.connect(std::move(peers), forcedPres);
 }
 
 void Contact::updatePresence(Presence pres)

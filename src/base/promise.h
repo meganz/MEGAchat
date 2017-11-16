@@ -661,7 +661,7 @@ public:
     {
         assert(err);
         if (mSharedObj->mResolved)
-            throw std::runtime_error("Alrady resolved/rejected");
+            throw std::runtime_error("Already resolved/rejected");
 
         mSharedObj->mError = err;
         mSharedObj->mResolved = kFailed;

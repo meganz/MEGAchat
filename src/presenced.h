@@ -10,6 +10,8 @@
 #include "url.h"
 #include <base/trackDelete.h>
 #include "net/websocketsIO.h"
+#include <mega/backofftimer.h>
+#include "sdkApi.h"
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -235,12 +237,13 @@ class Client: public karere::DeleteTrackable, public WebsocketsClient
 public:
     enum ConnState
     {
-        kConnNew = 0,
-        kDisconnected,
-        kResolving,
-        kConnecting,
-        kConnected,
-        kLoggedIn
+        kConnNew = 0,   // Initial state
+        kFetchingURL,   // Request URL has been sent, waiting for response
+        kDisconnected,  // Presenced is not connected, but reconnecting or in offline mode
+        kResolvingDNS,  // Resolving DNS
+        kConnecting,    // Establishing connection through websocket
+        kConnected,     // Websocket connection is established
+        kLoggedIn       // Connection is logged-in in presenced
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
 
@@ -249,12 +252,10 @@ protected:
     Listener* mListener;
     karere::Client *karereClient;
     karere::Url mUrl;
+    std::string mIp;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
-    promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
-    karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
     time_t mTsLastUserActivity = 0;
@@ -266,25 +267,33 @@ protected:
     void initWebsocketCtx();
     void setConnState(ConnState newState);
 
+    megaHandle mRetryTimerHandle = 0;
+    ::mega::BackoffTimer bt;
+    void resetConnection();
+    void getPresenceURL();
+    void retryGetPresenceURL();
+    void resolveDNS();
+    ApiPromise mResolveDnsPromise;
+    void doConnect();
+    void login();
+    void retry();
+
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
-    void reconnect(const std::string& url=std::string());
     void enableInactivityTimer();
     void disableInactivityTimer();
     void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
-    void login();
     bool sendBuf(Buffer&& buf);
     void logSend(const Command& cmd);
     bool sendUserActive(bool active, bool force=false);
     bool sendPrefs();
     void setOnlineConfig(Config Config);
-    void pingWithPresence();
     void pushPeers();
     void configChanged();
     std::string prefsString() const;
@@ -303,8 +312,7 @@ public:
      *  set to away
      */
     bool setAutoaway(bool enable, time_t timeout);
-    void connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
-        const Config& Config);
+    void connect(IdRefMap&& peers, karere::Presence forcedPres);
     void disconnect();
     void retryPendingConnection();
     /** @brief Performs server ping and check for network inactivity.
@@ -346,11 +354,12 @@ static inline const char* connStateToStr(Client::ConnState state)
     switch (state)
     {
     case Client::kDisconnected: return "Disconnected";
-    case Client::kResolving: return "Resolving";
+    case Client::kResolvingDNS: return "Resolving DNS";
     case Client::kConnecting: return "Connecting";
     case Client::kConnected: return "Connected";
     case Client::kLoggedIn: return "Logged-in";
     case Client::kConnNew: return "New";
+    case Client::kFetchingURL: return "Fetching URL";
     default: return "(invalid)";
     }
 }

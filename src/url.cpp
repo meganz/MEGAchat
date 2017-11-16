@@ -4,10 +4,13 @@
 
 namespace karere
 {
-void Url::parse(const std::string& url)
+bool Url::parse(const std::string& url)
 {
     if (url.empty())
-        throw std::runtime_error("Url::Parse: Url is empty");
+    {
+        return false;
+    }
+
     protocol.clear();
     port = 0;
     host.clear();
@@ -63,7 +66,11 @@ void Url::parse(const std::string& url)
         port = getPortFromProtocol();
     }
     if (host.empty())
-        throw std::runtime_error("Url::parse: Invalid URL '"+url+"', host is empty");
+    {
+        return false;
+    }
+
+    return true;
 }
 
 uint16_t Url::getPortFromProtocol() const
