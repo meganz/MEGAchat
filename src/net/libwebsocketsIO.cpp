@@ -297,19 +297,21 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 WEBSOCKETS_LOG_DEBUG("Forced disconnect completed");
                 return -1;
             }
-            client->disconnecting = false;
-            if (client->wsIsConnected())
+            if (client->disconnecting)
+            {
+                WEBSOCKETS_LOG_DEBUG("Graceful disconnect completed");
+                client->disconnecting = false;
+            }
+            else
             {
                 WEBSOCKETS_LOG_DEBUG("Disconnect done by server");
+            }
+            if (client->wsIsConnected())
+            {
                 struct lws *dwsi = client->wsi;
                 client->wsi = NULL;
                 lws_set_wsi_user(dwsi, NULL);
             }
-            else
-            {
-                WEBSOCKETS_LOG_DEBUG("Graceful disconnect completed");
-            }
-
             client->wsCloseCb(0, 0, "", 0);
             break;
         }
