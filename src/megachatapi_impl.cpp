@@ -908,6 +908,13 @@ void MegaChatApiImpl::sendPendingRequests()
 #ifndef KARERE_DISABLE_WEBRTC
         case MegaChatRequest::TYPE_START_CHAT_CALL:
         {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle chatid = request->getChatHandle();
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
@@ -964,6 +971,13 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
         {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle chatid = request->getChatHandle();
             if (chatid != MEGACHAT_INVALID_HANDLE)
             {
@@ -1050,6 +1064,13 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
         {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             mClient->rtc->loadDeviceList();
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -2400,10 +2421,14 @@ bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
-    sdkMutex.lock();
     std::vector<std::string> devicesVector;
-    mClient->rtc->getAudioInDevices(devicesVector);
-    sdkMutex.unlock();
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        mClient->rtc->getAudioInDevices(devicesVector);
+        sdkMutex.unlock();
+    }
+
     MegaStringList *devices = getChatInDevices(devicesVector);
 
     return devices;
@@ -2412,10 +2437,14 @@ MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
-    sdkMutex.lock();
     std::vector<std::string> devicesVector;
-    mClient->rtc->getVideoInDevices(devicesVector);
-    sdkMutex.unlock();
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        mClient->rtc->getVideoInDevices(devicesVector);
+        sdkMutex.unlock();
+    }
+
     MegaStringList *devices = getChatInDevices(devicesVector);
 
     return devices;
@@ -2423,18 +2452,26 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 
 bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 {
-    sdkMutex.lock();
-    bool returnedValue = mClient->rtc->selectAudioInDevice(device);
-    sdkMutex.unlock();
+    bool returnedValue = false;
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        returnedValue = mClient->rtc->selectAudioInDevice(device);
+        sdkMutex.unlock();
+    }
 
     return returnedValue;
 }
 
 bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
 {
-    sdkMutex.lock();
-    bool returnedValue = mClient->rtc->selectVideoInDevice(device);
-    sdkMutex.unlock();
+    bool returnedValue = false;
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        returnedValue = mClient->rtc->selectVideoInDevice(device);
+        sdkMutex.unlock();
+    }
 
     return returnedValue;
 }
