@@ -474,7 +474,8 @@ void RtcModule::hangupAll(TermCode code)
         {
             assert(call->mSessions.empty());
         }
-        call->destroy(code, call->state() != Call::kStateRingIn);
+
+        call->hangup(code);
     }
 }
 void RtcModule::setMediaConstraint(const string& name, const string &value, bool optional)
