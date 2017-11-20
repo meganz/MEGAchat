@@ -2110,8 +2110,11 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     // Manual Test
     // Emit call
+    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagRequest = false;
     std::cerr << "Start Call" << std::endl;
     megaChatApi[a1]->startChatCall(chatid, true);
+    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
     bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
     ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
     sleep(5);

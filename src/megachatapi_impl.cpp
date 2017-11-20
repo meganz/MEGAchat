@@ -908,6 +908,13 @@ void MegaChatApiImpl::sendPendingRequests()
 #ifndef KARERE_DISABLE_WEBRTC
         case MegaChatRequest::TYPE_START_CHAT_CALL:
         {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("Start call - WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle chatid = request->getChatHandle();
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
@@ -918,7 +925,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (findChatCallHandler(chatid))
             {
-                API_LOG_ERROR("One call already exists for speficied chat id");
+                API_LOG_ERROR("Start call - One call already exists for speficied chat id");
                 errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
@@ -941,7 +948,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
             {
-                API_LOG_ERROR("Failed to get the call handler associated to chat room");
+                API_LOG_ERROR("Answer call - Failed to get the call handler associated to chat room");
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
@@ -949,7 +956,7 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall *call = handler->getCall();
             if (!call)
             {
-                API_LOG_ERROR("There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+                API_LOG_ERROR("Answer call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
                 assert(false);
                 break;
@@ -964,13 +971,20 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_HANG_CHAT_CALL:
         {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("Hang up call - WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             MegaChatHandle chatid = request->getChatHandle();
             if (chatid != MEGACHAT_INVALID_HANDLE)
             {
                 MegaChatCallHandler *handler = findChatCallHandler(chatid);
                 if (!handler)
                 {
-                    API_LOG_ERROR("Failed to get the call handler associated to chat room");
+                    API_LOG_ERROR("Hang up call - Failed to get the call handler associated to chat room");
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
@@ -978,7 +992,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 rtcModule::ICall *call = handler->getCall();
                 if (!call)
                 {
-                    API_LOG_ERROR("There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+                    API_LOG_ERROR("Hang up call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
                     errorCode = MegaChatError::ERROR_UNKNOWN;
                     assert(false);
                     break;
@@ -1004,7 +1018,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
             if (!handler)
             {
-                API_LOG_ERROR("Failed to get the call handler associated to chat room");
+                API_LOG_ERROR("Disable AV flags - Failed to get the call handler associated to chat room");
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
@@ -1014,7 +1028,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!chatCall || !call)
             {
-                API_LOG_ERROR("There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+                API_LOG_ERROR("Disable AV flags - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
                 errorCode = MegaChatError::ERROR_UNKNOWN;
                 assert(false);
                 break;
@@ -1050,6 +1064,13 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
         {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("Load AV devices - WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             mClient->rtc->loadDeviceList();
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -2400,10 +2421,18 @@ bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
-    sdkMutex.lock();
     std::vector<std::string> devicesVector;
-    mClient->rtc->getAudioInDevices(devicesVector);
-    sdkMutex.unlock();
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        mClient->rtc->getAudioInDevices(devicesVector);
+        sdkMutex.unlock();
+    }
+    else
+    {
+        API_LOG_ERROR("Failed to get audio-in devices");
+    }
+
     MegaStringList *devices = getChatInDevices(devicesVector);
 
     return devices;
@@ -2412,10 +2441,18 @@ MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
-    sdkMutex.lock();
     std::vector<std::string> devicesVector;
-    mClient->rtc->getVideoInDevices(devicesVector);
-    sdkMutex.unlock();
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        mClient->rtc->getVideoInDevices(devicesVector);
+        sdkMutex.unlock();
+    }
+    else
+    {
+        API_LOG_ERROR("Failed to get video-in devices");
+    }
+
     MegaStringList *devices = getChatInDevices(devicesVector);
 
     return devices;
@@ -2423,18 +2460,34 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 
 bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 {
-    sdkMutex.lock();
-    bool returnedValue = mClient->rtc->selectAudioInDevice(device);
-    sdkMutex.unlock();
+    bool returnedValue = false;
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        returnedValue = mClient->rtc->selectAudioInDevice(device);
+        sdkMutex.unlock();
+    }
+    else
+    {
+        API_LOG_ERROR("Failed to set audio-in devices");
+    }
 
     return returnedValue;
 }
 
 bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
 {
-    sdkMutex.lock();
-    bool returnedValue = mClient->rtc->selectVideoInDevice(device);
-    sdkMutex.unlock();
+    bool returnedValue = false;
+    if (mClient->rtc)
+    {
+        sdkMutex.lock();
+        returnedValue = mClient->rtc->selectVideoInDevice(device);
+        sdkMutex.unlock();
+    }
+    else
+    {
+        API_LOG_ERROR("Failed to set video-in devices");
+    }
 
     return returnedValue;
 }
