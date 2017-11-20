@@ -2569,7 +2569,7 @@ MegaChatCall *MegaChatApiImpl::getChatCallByChatId(MegaChatHandle chatId)
 
 }
 
-int MegaChatApiImpl::getCallsNumber()
+int MegaChatApiImpl::getNumCalls()
 {
     int callsNumber = 0;
     sdkMutex.lock();

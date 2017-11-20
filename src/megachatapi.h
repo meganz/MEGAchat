@@ -2845,7 +2845,7 @@ public:
      * @brief Returns number of calls that there are at the system
      * @return number of calls in the system
      */
-    int getCallsNumber();
+    int getNumCalls();
 
 #endif
 
