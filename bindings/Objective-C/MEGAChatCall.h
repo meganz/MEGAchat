@@ -12,6 +12,19 @@ typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusDestroyed
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
+    MEGAChatCallTermCodeUserHangup = 0,
+    MEGAChatCallTermCodeCallReqCancel = 1,
+    MEGAChatCallTermCodeCallReject = 2,
+    MEGAChatCallTermCodeAnswerElseWhere = 3,
+    MEGAChatCallTermCodeAnswerTimeout = 5,
+    MEGAChatCallTermCodeRingOutTimeout = 6,
+    MEGAChatCallTermCodeAppTerminating = 7,
+    MEGAChatCallTermCodeBusy = 9,
+    MEGAChatCallTermCodeNotFinished = 10,
+    MEGAChatCallTermCodeError = 21
+};
+
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeStatus = 0x01,
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
@@ -33,6 +46,9 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
 @property (nonatomic, readonly, getter=hasRemoteAudio) BOOL remoteAudio;
 @property (nonatomic, readonly, getter=hasRemoteVideo) BOOL remoteVideo;
+@property (nonatomic, readonly) MEGAChatCallTermCode termCode;
+@property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
+@property (nonatomic, readonly, getter=isRinging) BOOL ringing;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 

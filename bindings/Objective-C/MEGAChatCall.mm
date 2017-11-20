@@ -41,13 +41,16 @@ using namespace megachat;
 
 - (NSString *)description {
     NSString *status = [MEGAChatCall stringForStatus:self.status];
+    NSString *termCode = [MEGAChatCall stringForTermCode:self.termCode];
     NSString *base64ChatId = [MEGASdk base64HandleForUserHandle:self.chatId];
     NSString *base64CallId = [MEGASdk base64HandleForUserHandle:self.callId];
     NSString *localAudio = [self hasLocalAudio] ? @"ON" : @"OFF";
     NSString *localVideo = [self hasLocalVideo] ? @"ON" : @"OFF";
     NSString *remoteAudio = [self hasRemoteAudio] ? @"ON" : @"OFF";
     NSString *remoteVideo = [self hasRemoteVideo] ? @"ON" : @"OFF";
-    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo];
+    NSString *localTermCode = [self isLocalTermCode] ? @"YES" : @"NO";
+    NSString *ringing = [self isRinging] ? @"YES" : @"NO";
+    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing];
 }
 
 - (MEGAChatCallStatus)status {
@@ -108,6 +111,18 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->hasChanged((int)changeType) : NO;
 }
 
+- (MEGAChatCallTermCode)termCode {
+    return (MEGAChatCallTermCode) (self.megaChatCall ? self.megaChatCall->getTermCode() : 0);
+}
+
+- (BOOL)isLocalTermCode {
+    return self.megaChatCall ? self.megaChatCall->isLocalTermCode() : NO;
+}
+
+- (BOOL)isRinging {
+    return self.megaChatCall ? self.megaChatCall->isRinging() : NO;
+}
+
 + (NSString *)stringForStatus:(MEGAChatCallStatus)status {
     NSString *result;
     switch (status) {
@@ -134,6 +149,47 @@ using namespace megachat;
             break;
         case MEGAChatCallStatusDestroyed:
             result = @"Destroyed";
+            break;
+            
+        default:
+            result = @"Default";
+            break;
+    }
+    return result;
+}
+
++ (NSString *)stringForTermCode:(MEGAChatCallTermCode)termCode {
+    NSString *result;
+    switch (termCode) {
+        case MEGAChatCallTermCodeUserHangup:
+            result = @"User hangup";
+            break;
+        case MEGAChatCallTermCodeCallReqCancel:
+            result = @"Call req cancel";
+            break;
+        case MEGAChatCallTermCodeCallReject:
+            result = @"Call reject";
+            break;
+        case MEGAChatCallTermCodeAnswerElseWhere:
+            result = @"Answer else where";
+            break;
+        case MEGAChatCallTermCodeAnswerTimeout:
+            result = @"Answer timeout";
+            break;
+        case MEGAChatCallTermCodeRingOutTimeout:
+            result = @"Ring out timeout";
+            break;
+        case MEGAChatCallTermCodeAppTerminating:
+            result = @"App terminating";
+            break;
+        case MEGAChatCallTermCodeBusy:
+            result = @"Busy";
+            break;
+        case MEGAChatCallTermCodeNotFinished:
+            result = @"Not finished";
+            break;
+        case MEGAChatCallTermCodeError:
+            result = @"Error";
             break;
             
         default:
