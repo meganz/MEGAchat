@@ -3005,6 +3005,11 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             break;
 
         case MegaChatCall::CALL_STATUS_RING_IN:
+            if (api->getCallsNumber() > 1)
+            {
+                api->hangChatCall(call->getChatid());
+            }
+
             mCallReceived[apiIndex] = true;
             mIncomingCallId[apiIndex] = call->getId();
             mCallEmisorId[apiIndex] = call->getChatid();

@@ -2569,6 +2569,16 @@ MegaChatCall *MegaChatApiImpl::getChatCallByChatId(MegaChatHandle chatId)
 
 }
 
+int MegaChatApiImpl::getCallsNumber()
+{
+    int callsNumber = 0;
+    sdkMutex.lock();
+    callsNumber = callHandlers.size();
+    sdkMutex.unlock();
+
+    return callsNumber;
+}
+
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 {
     if (!listener)
