@@ -229,10 +229,45 @@ enum Opcode
       *
       * */
     OP_CLIENTID = 24,
+
+    /**
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
+      *
+      * C->S: send to specified recipient(s)
+      * S->C: delivery from specified sender
+      */
     OP_RTMSG_BROADCAST = 25,
+
+    /**
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
+      *
+      * C->S: send to specified recipient(s)
+      * S->C: delivery from specified sender
+      */
     OP_RTMSG_USER = 26,
+
+    /**
+      * @brief  <chatid> <userid> <clientid> <payload-len> <payload>
+      *
+      * C->S: send to specified recipient(s)
+      * S->C: delivery from specified sender
+      */
     OP_RTMSG_ENDPOINT = 27,
+
+    /**
+      * @brief  <chatid> <userid> <clientid>
+      *
+      * C->S: register / keepalive participation in channel's call (max interval: 5 s)
+      * S->C: notify all clients of someone having joined the call (sent immediately after a chatd connection is established)
+      */
     OP_INCALL = 28,
+
+    /**
+      * @brief  <chatid> <userid> <clientid>
+      *
+      * C->S: device has left call
+      * S->C: notify all clients of someone having left the call
+      */
     OP_ENDCALL = 29,
 
     /**
