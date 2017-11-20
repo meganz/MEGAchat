@@ -1569,7 +1569,7 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
     mCall.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
     mPeerAv = packet.payload.read<uint8_t>(80);
     uint16_t sdpLen = packet.payload.read<uint16_t>(81);
-    assert(packet.payload.dataSize() >= 83 + sdpLen);
+    assert((int) packet.payload.dataSize() >= 83 + sdpLen);
     packet.payload.read(83, sdpLen, mPeerSdp);
     SdpKey hash;
     packet.payload.read(48, hash); //have to read it to a buffer first, to avoid alignment issues if directly typecasting the buffer pointer
@@ -1645,7 +1645,7 @@ void Session::msgSdpAnswer(RtMessage& packet)
     // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
     mPeerAv.set(packet.payload.read<uint8_t>(40));
     auto sdpLen = packet.payload.read<uint16_t>(41);
-    assert(packet.payload.dataSize() >= sdpLen + 43);
+    assert((int)packet.payload.dataSize() >= sdpLen + 43);
     packet.payload.read(43, sdpLen, mPeerSdp);
     SdpKey encKey;
     packet.payload.read(8, encKey);
@@ -1845,7 +1845,7 @@ bool Session::verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHa
     SdpKey hash;
     mCall.mManager.crypto().mac(sdp, mOwnSdpKey, hash);
     bool match = true; // constant time compare
-    for (int i = 0; i < sizeof(SdpKey); i++)
+    for (unsigned int i = 0; i < sizeof(SdpKey); i++)
     {
         match &= (hash.data[i] == peerHash.data[i]);
     }
@@ -1867,7 +1867,7 @@ void Session::msgIceCandidate(RtMessage& packet)
         packet.payload.read(10, midLen, mid);
     }
     auto candLen = packet.payload.read<uint16_t>(10 + midLen);
-    assert(packet.payload.dataSize() >= 12 + midLen + candLen);
+    assert((int) packet.payload.dataSize() >= 12 + midLen + candLen);
     std::string strCand;
     packet.payload.read(midLen + 12, candLen, strCand);
 

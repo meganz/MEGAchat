@@ -73,8 +73,6 @@ using namespace karere;
 namespace chatd
 {
 
-bool gLogKeepalives = false;
-
 // message storage subsystem
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
@@ -900,13 +898,11 @@ void Connection::execCommand(const StaticBuffer& buf)
 #ifndef NDEBUG
         size_t base = pos;
 #endif
-//        CHATD_LOG_DEBUG("RECV %s", Command::opcodeToStr(opcode));
         switch (opcode)
         {
             case OP_KEEPALIVE:
             {
-                if (gLogKeepalives)
-                    CHATD_LOG_DEBUG("recv KEEPALIVE");
+                CHATD_LOG_DEBUG("recv KEEPALIVE");
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
@@ -967,12 +963,9 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_SEEN:
             {
-            //TODO: why do we test the whole buffer's len to determine the current command's len?
-            //buffer may contain other commands following it
                 READ_CHATID(0);
                 READ_ID(msgid, 8);
-                CHATD_LOG_DEBUG("%s: recv SEEN - msgid: '%s'",
-                                ID_CSTR(chatid), ID_CSTR(msgid));
+                CHATD_LOG_DEBUG("%s: recv SEEN - msgid: '%s'", ID_CSTR(chatid), ID_CSTR(msgid));
                 mClient.chats(chatid).onLastSeen(msgid);
                 break;
             }
@@ -2853,6 +2846,10 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
     {
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
+    }
+    else
+    {
+        CHATID_LOG_WARNING("recv BROADCAST <unknown_type>");
     }
 }
 

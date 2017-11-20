@@ -155,10 +155,6 @@ public:
      */
     bool isInitializing() const { return mIsInitializing; }
 
-    /**
-     * @brief Updates the chatd url of the chatroom, by asking the API
-     */
-    promise::Promise<void> updateUrl();
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
@@ -871,11 +867,6 @@ protected:
      */
     promise::Promise<void> doConnect(Presence pres);
     void setConnState(ConnState newState);
-#if 0 //ndef KARERE_DISABLE_WEBRTC
-    // rtcModule::IGlobalEventHandler interface
-    virtual rtcModule::IEventHandler* onIncomingCallRequest(
-            const std::shared_ptr<rtcModule::ICallAnswer> &call);
-#endif
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
