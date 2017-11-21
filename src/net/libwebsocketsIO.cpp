@@ -89,7 +89,6 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
 LibwebsocketsClient::LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
 {
     wsi = NULL;
-    disconnecting = false;
 }
 
 LibwebsocketsClient::~LibwebsocketsClient()
@@ -171,9 +170,16 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
     }
     else
     {
-        disconnecting = true;
-        lws_callback_on_writable(wsi);
-        WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
+        if (!disconnecting)
+        {
+            disconnecting = true;
+            lws_callback_on_writable(wsi);
+            WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
+        }
+        else
+        {
+            WEBSOCKETS_LOG_WARNING("Ignoring graceful disconnect. Already disconnecting gracefully");
+        }
     }
 }
 

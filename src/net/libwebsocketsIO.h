@@ -32,7 +32,6 @@ public:
 protected:
     std::string recbuffer;
     std::string sendbuffer;
-    bool disconnecting;
 
     void appendMessageFragment(char *data, size_t len, size_t remaining);
     bool hasFragments();

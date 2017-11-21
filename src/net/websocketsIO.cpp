@@ -15,6 +15,7 @@ WebsocketsClientImpl::WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClien
 {
     this->mutex = mutex;
     this->client = client;
+    this->disconnecting = false;
 }
 
 WebsocketsClientImpl::~WebsocketsClientImpl()
@@ -53,8 +54,17 @@ void WebsocketsClientImpl::wsConnectCb()
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
     ScopedLock lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("Connection closed");
-    client->wsCloseCb(errcode, errtype, preason, reason_len);
+
+    if (disconnecting)
+    {
+        WEBSOCKETS_LOG_DEBUG("Connection closed gracefully");
+    }
+    else
+    {
+        WEBSOCKETS_LOG_DEBUG("Connection closed by server");
+    }
+
+    client->wsCloseCbPrivate(errcode, errtype, preason, reason_len);
 }
 
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
@@ -81,7 +91,14 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     thread_id = pthread_self();
     
     WEBSOCKETS_LOG_DEBUG("Connecting to %s (%s)  port %d  path: %s   ssl: %d", host, ip, port, path, ssl);
+
     assert(!ctx);
+    if (ctx)
+    {
+        WEBSOCKETS_LOG_ERROR("Valid context at connect()");
+        delete ctx;
+    }
+
     ctx = websocketIO->wsConnect(ip, host, port, path, ssl, this);
     if (!ctx)
     {
@@ -118,18 +135,15 @@ void WebsocketsClient::wsDisconnect(bool immediate)
     {
         return;
     }
-    else if (ctx->wsIsConnected())
-    {
-        assert (thread_id == pthread_self());
-        ctx->wsDisconnect(immediate);
-    }
-    else
-    {
-        WEBSOCKETS_LOG_DEBUG("Socket is already closed by server, discarding existing context.");
-    }
 
-    delete ctx;
-    ctx = NULL;
+    assert (thread_id == pthread_self());
+    ctx->wsDisconnect(immediate);
+
+    if (immediate)
+    {
+        delete ctx;
+        ctx = NULL;
+    }
 }
 
 bool WebsocketsClient::wsIsConnected()
@@ -140,13 +154,20 @@ bool WebsocketsClient::wsIsConnected()
     }
     
     assert (thread_id == pthread_self());
-    bool ret = ctx->wsIsConnected();
-    if (!ret)
+    return ctx->wsIsConnected();
+}
+
+void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len)
+{
+    if (!ctx)   // immediate disconnect ocurred before the marshall is executed (only applies to libws)
     {
-         WEBSOCKETS_LOG_DEBUG("Socket was closed by server, discarding existing context.");
-         delete ctx;
-         ctx = NULL;
+        return;
     }
 
-    return ret;
+    delete ctx;
+    ctx = NULL;
+
+    WEBSOCKETS_LOG_DEBUG("Socket was closed gracefully or by server");
+
+    wsCloseCb(errcode, errtype, preason, reason_len);
 }
