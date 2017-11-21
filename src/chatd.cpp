@@ -1575,6 +1575,8 @@ bool Chat::setMessageSeen(Idx idx)
                 CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
             }
         }
+        mLastSeenId = id;
+        CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
     }, mClient.karereClient->appCtx);
     
