@@ -341,6 +341,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+
     mUserAttrCache.reset(new UserAttrCache(*this));
 
     auto wptr = weakHandle();
@@ -453,6 +456,8 @@ void Client::initWithDbSession(const char* sid)
         assert(mMyHandle);
 
         mMyEmail = getMyEmailFromDb();
+
+        mMyIdentity = getMyIdentityFromDb();
 
         mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
         [](Buffer* buf, void* userp)
@@ -898,6 +903,30 @@ karere::Id Client::getMyHandleFromDb()
 
     if (result == Id::null() || result.val == mega::UNDEF)
         throw std::runtime_error("loadOwnUserHandleFromDb: Own handle in db is invalid");
+    return result;
+}
+
+uint64_t Client::getMyIdentityFromDb()
+{
+    uint64_t result = 0;
+
+    SqliteStmt stmt(db, "select value from vars where name='clientid_seed'");
+    if (!stmt.step())
+    {
+        KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
+        result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+    }
+    else
+    {
+        result = stmt.uint64Col(0);
+        if (result == 0)
+        {
+            KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
+            result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        }
+    }
     return result;
 }
 

@@ -216,8 +216,7 @@ void Chat::login()
 }
 
 Connection::Connection(Client& client, int shardNo)
-: mClient(client), mShardNo(shardNo),
-  mIdentity((static_cast<uint64_t>(rand()) << 32) | time(NULL))
+: mClient(client), mShardNo(shardNo)
 {}
 
 void Connection::wsConnectCb()
@@ -380,7 +379,7 @@ Promise<void> Connection::reconnect()
 
                 assert(isConnected());
                 enableInactivityTimer();
-                sendCommand(Command(OP_CLIENTID)+mIdentity);
+                sendCommand(Command(OP_CLIENTID)+mClient.karereClient->myIdentity());
                 return rejoinExistingChats();
             });
         }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
