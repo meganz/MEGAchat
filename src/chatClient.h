@@ -545,6 +545,7 @@ protected:
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
+    uint64_t mMyIdentity = 0; // seed for CLIENTID
     ConnState mConnState = kDisconnected;
     promise::Promise<void> mConnectPromise;
 public:
@@ -645,6 +646,8 @@ public:
     const std::string& myName() const { return mMyName; }
 
     const std::string& myEmail() const { return mMyEmail; }
+
+    const uint64_t myIdentity() const { return mMyIdentity; }
 
     /** @brief Utulity function to convert a jid to a user handle */
     static uint64_t useridFromJid(const std::string& jid);
@@ -833,6 +836,7 @@ protected:
     karere::Id getMyHandleFromSdk();
     std::string getMyEmailFromDb();
     std::string getMyEmailFromSdk();
+    uint64_t getMyIdentityFromDb();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void loadContactListFromApi();

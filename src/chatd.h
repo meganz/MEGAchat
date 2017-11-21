@@ -325,7 +325,6 @@ protected:
     int mInactivityBeats = 0;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
-    uint64_t mIdentity; // seed for CLIENTID
     uint32_t mClientId = 0;
     Connection(Client& client, int shardNo);
     State state() { return mState; }
