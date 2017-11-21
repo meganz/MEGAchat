@@ -375,9 +375,7 @@ Promise<void> Connection::reconnect()
 
                 assert(isConnected());
                 enableInactivityTimer();
-
                 sendKeepalive(mClient.mKeepaliveType);
-
                 return rejoinExistingChats();
             });
         }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
@@ -530,7 +528,6 @@ promise::Promise<void> Connection::rejoinExistingChats()
             mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
         }
     }
-
     return mLoginPromise;
 }
 
