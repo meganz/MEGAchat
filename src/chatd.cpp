@@ -2398,7 +2398,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     }
     if (msg.type == Message::kMsgTruncate)
     {
-        handleTruncate(msg, idx);
+        if (isNew)
+        {
+            handleTruncate(msg, idx);
+        }
         onMsgTimestamp(msg.ts);
         return;
     }
