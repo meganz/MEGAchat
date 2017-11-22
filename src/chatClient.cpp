@@ -308,6 +308,11 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
 }
 
+void Client::commit()
+{
+    db.commit();
+}
+
 void Client::loadContactListFromApi()
 {
     std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
