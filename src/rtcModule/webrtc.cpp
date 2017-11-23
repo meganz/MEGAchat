@@ -276,43 +276,60 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         return;
     }
     packet.callid = packet.payload.read<uint64_t>(0);
+
     assert(packet.callid);
+
+    AvFlags avFlags(false, false);
+    bool answerAutomatic = false;
+
     if (!mCalls.empty())
     {
-        assert(mCalls.size() == 1);
-        auto& existingChatid = mCalls.begin()->first;
-        auto& existingCall = mCalls.begin()->second;
-        if (existingChatid == packet.chatid && existingCall->state() < Call::kStateTerminating)
+        // Two calls at same time in same chat
+        karere::Id chatId = packet.chatid;
+        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatId);
+        if (iteratorCall != mCalls.end())
         {
-            bool answer = mHandler.onAnotherCall(*existingCall, packet.userid);
-            if (answer)
+            if (mClient.myHandle() < packet.userid)
             {
+                Call *existingCall = iteratorCall->second.get();
+                avFlags = existingCall->sentAv();
+                answerAutomatic = true;
                 existingCall->hangup();
-                mCalls.erase(existingChatid);
+                mCalls.erase(chatId);
             }
             else
             {
-                cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
+                RTCM_LOG_DEBUG("msgCallRequest: Waiting for the other peer hangup its incoming call and answer our call");
                 return;
             }
         }
     }
+
     auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
         packet.chat, packet.callid, mHandler.isGroupChat(packet.chatid),
         true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     auto& call = ret.first->second;
+
     call->mHandler = mHandler.onCallIncoming(*call);
     assert(call->mHandler);
     assert(call->state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
-    auto wcall = call->weakHandle();
-    setTimeout([wcall]() mutable
+
+    if (!answerAutomatic)
     {
-        if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
-            return;
-        static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-    }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+        auto wcall = call->weakHandle();
+        setTimeout([wcall]() mutable
+        {
+            if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
+                return;
+            static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
+        }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+    }
+    else
+    {
+        call->answer(avFlags);
+    }
 }
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)

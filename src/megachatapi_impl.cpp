@@ -2768,12 +2768,6 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 
 rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
 {
-    if (findChatCallHandler(call.chat().chatId()))
-    {
-        assert(false);
-        API_LOG_ERROR("Incoming call for a chatid which already has a call");
-    }
-
     MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
     chatCallHandler->setCall(&call);
     MegaChatHandle chatid = call.chat().chatId();
@@ -5301,7 +5295,12 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, con
     assert(chatCall != NULL);
     if (chatCall != NULL)
     {
-        megaChatApi->removeChatCallHandler(chatCall->getChatid());
+        MegaChatHandle chatid = chatCall->getChatid();
+
+        if (megaChatApi->findChatCallHandler(chatid) == this)
+        {
+            megaChatApi->removeChatCallHandler(chatCall->getChatid());
+        }
     }
     else
     {
