@@ -541,6 +541,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->sendTypingNotification(chatId);
 }
 
+- (void)saveCurrentState {
+    self.megaChatApi->saveCurrentState();
+}
+
 #pragma mark - Debug log messages
 
 + (void)setLogLevel:(MEGAChatLogLevel)level {
