@@ -131,6 +131,8 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
     
     if (!wsi)
     {
+        WEBSOCKETS_LOG_ERROR("Trying to send a message without a valid socket (libwebsockets)");
+        assert(false);
         return false;
     }
     
@@ -140,7 +142,14 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
         sendbuffer.resize(LWS_PRE);
     }
     sendbuffer.append(msg, len);
-    return lws_callback_on_writable(wsi) > 0;
+
+    if (lws_callback_on_writable(wsi) <= 0)
+    {
+        WEBSOCKETS_LOG_ERROR("lws_callback_on_writable() failed");
+        assert(false);
+        return false;
+    }
+    return true;
 }
 
 void LibwebsocketsClient::wsDisconnect(bool immediate)
@@ -273,6 +282,8 @@ static bool check_public_key(X509_STORE_CTX* ctx)
 int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons reason,
                                     void *user, void *data, size_t len)
 {
+    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
+
     switch (reason)
     {
         case LWS_CALLBACK_OPENSSL_PERFORM_SERVER_CERT_VERIFICATION:
@@ -312,6 +323,13 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             {
                 WEBSOCKETS_LOG_DEBUG("Disconnect done by server");
             }
+
+            if (reason == LWS_CALLBACK_CLIENT_CONNECTION_ERROR && data && len)
+            {
+                std::string buf((const char*) data, len);
+                WEBSOCKETS_LOG_DEBUG("Diagnostic: %s", buf.c_str());
+            }
+
             if (client->wsIsConnected())
             {
                 struct lws *dwsi = client->wsi;

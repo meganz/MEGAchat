@@ -113,6 +113,7 @@ bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
     if (!ctx)
     {
         WEBSOCKETS_LOG_ERROR("Trying to send a message without a previous initialization");
+        assert(false);
         return false;
     }
 

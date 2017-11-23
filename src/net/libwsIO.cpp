@@ -175,10 +175,16 @@ bool LibwsClient::wsSendMessage(char *msg, size_t len)
     
     if (!mWebSocket)
     {
+        WEBSOCKETS_LOG_ERROR("Trying to send a message without a valid socket (libws)");
         return false;
     }
     
-    return !ws_send_msg_ex(mWebSocket, msg, len, 1);
+    if (ws_send_msg_ex(mWebSocket, msg, len, 1))
+    {
+        WEBSOCKETS_LOG_ERROR("ws_send_msg_ex() failed");
+        return false;
+    }
+    return true;
 }
 
 void LibwsClient::wsDisconnect(bool immediate)
