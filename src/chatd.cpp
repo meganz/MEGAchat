@@ -806,7 +806,7 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                //CHATD_LOG_DEBUG("Server heartbeat received");
+                CHATD_LOG_DEBUG("%s: recv KEEPALIVE - shard %d", ID_CSTR(chatid), mShardNo);
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
