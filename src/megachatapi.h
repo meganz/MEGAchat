@@ -2648,8 +2648,19 @@ public:
      */
     bool isMessageReceptionConfirmationActive() const;
 
-#ifndef KARERE_DISABLE_WEBRTC
+    /**
+     * @brief Saves the current state
+     *
+     * The DB cache works with transactions. In order to prevent losing recent changes when the app
+     * dies abruptly (usual case in mobile apps), it is recommended to call this method, so the
+     * transaction is committed.
+     *
+     * This method should be called ONLY when the app is prone to be killed, whether by the user or the
+     * operative system. Otherwise, transactions are committed regularly.
+     */
+    void saveCurrentState();
 
+#ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
     /**
      * @brief Returns the list with the names of the audio devices in the system

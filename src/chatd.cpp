@@ -380,6 +380,7 @@ Promise<void> Connection::reconnect()
                 assert(isConnected());
                 enableInactivityTimer();
                 sendCommand(Command(OP_CLIENTID)+mClient.karereClient->myIdentity());
+                sendKeepalive(mClient.mKeepaliveType);
                 return rejoinExistingChats();
             });
         }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
@@ -622,8 +623,6 @@ promise::Promise<void> Connection::rejoinExistingChats()
             mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
         }
     }
-    if (mClient.mKeepaliveType == OP_KEEPALIVEAWAY)
-        sendKeepalive(mClient.mKeepaliveType);
     return mLoginPromise;
 }
 
@@ -901,7 +900,7 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                CHATD_LOG_DEBUG("recv KEEPALIVE");
+                CHATD_LOG_DEBUG("%s: recv KEEPALIVE - shard %d", ID_CSTR(chatid), mShardNo);
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
@@ -1733,6 +1732,8 @@ bool Chat::setMessageSeen(Idx idx)
                 CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
             }
         }
+        mLastSeenId = id;
+        CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
     }, mClient.karereClient->appCtx);
     
@@ -2556,7 +2557,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     }
     if (msg.type == Message::kMsgTruncate)
     {
-        handleTruncate(msg, idx);
+        if (isNew)
+        {
+            handleTruncate(msg, idx);
+        }
         onMsgTimestamp(msg.ts);
         return;
     }

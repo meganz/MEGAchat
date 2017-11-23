@@ -498,6 +498,11 @@ bool MegaChatApi::isMessageReceptionConfirmationActive() const
     return pImpl->isMessageReceptionConfirmationActive();
 }
 
+void MegaChatApi::saveCurrentState()
+{
+    pImpl->saveCurrentState();
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()

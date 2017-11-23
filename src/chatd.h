@@ -1059,6 +1059,7 @@ protected:
     }
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
+    void sendKeepalive();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
     unsigned inactivityCheckIntervalSec = 20;
@@ -1091,7 +1092,6 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     void disconnect();
-    void sendKeepalive();
     promise::Promise<void> retryPendingConnections();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();

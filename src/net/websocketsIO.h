@@ -50,7 +50,8 @@ public:
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
-    
+    void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
+
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
@@ -62,6 +63,7 @@ class WebsocketsClientImpl
 protected:
     WebsocketsClient *client;
     ::mega::Mutex *mutex;
+    bool disconnecting;
     
 public:
     WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client);

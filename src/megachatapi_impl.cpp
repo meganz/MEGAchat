@@ -2417,6 +2417,15 @@ bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
     return mClient->chatd->isMessageReceivedConfirmationActive();
 }
 
+void MegaChatApiImpl::saveCurrentState()
+{
+    sdkMutex.lock();
+
+    mClient->commit();
+
+    sdkMutex.unlock();
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()

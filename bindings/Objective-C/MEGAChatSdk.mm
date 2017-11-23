@@ -636,6 +636,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->sendTypingNotification(chatId);
 }
 
+- (void)saveCurrentState {
+    self.megaChatApi->saveCurrentState();
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 - (MEGAStringList *)chatAudioInDevices {

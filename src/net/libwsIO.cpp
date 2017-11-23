@@ -104,6 +104,7 @@ WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int p
 LibwsClient::LibwsClient(::mega::Mutex *mutex, WebsocketsClient *client, void *ctx) : WebsocketsClientImpl(mutex, client)
 {
     this->appCtx = ctx;
+    mWebSocket = nullptr;
 }
 
 LibwsClient::~LibwsClient()
@@ -135,16 +136,16 @@ void LibwsClient::websockCloseCb(ws_t ws, int errcode, int errtype, const char *
     if (preason)
         reason.assign(preason, reason_len);
 
+    if (self->mWebSocket)
+    {
+        ws_destroy(&self->mWebSocket);
+    }
+
     auto wptr = self->getDelTracker();
     karere::marshallCall([self, wptr, reason, errcode, errtype]()
     {
         if (wptr.deleted())
-            return;
-        
-        if (self->mWebSocket)
-        {
-            ws_destroy(&self->mWebSocket);
-        }
+            return;        
         
         self->wsCloseCb(errcode, errtype, reason.data(), reason.size());
     }, self->appCtx);
@@ -174,10 +175,16 @@ bool LibwsClient::wsSendMessage(char *msg, size_t len)
     
     if (!mWebSocket)
     {
+        WEBSOCKETS_LOG_ERROR("Trying to send a message without a valid socket (libws)");
         return false;
     }
     
-    return !ws_send_msg_ex(mWebSocket, msg, len, 1);
+    if (ws_send_msg_ex(mWebSocket, msg, len, 1))
+    {
+        WEBSOCKETS_LOG_ERROR("ws_send_msg_ex() failed");
+        return false;
+    }
+    return true;
 }
 
 void LibwsClient::wsDisconnect(bool immediate)
@@ -195,7 +202,16 @@ void LibwsClient::wsDisconnect(bool immediate)
     }
     else
     {
-        ws_close(mWebSocket);
+        if (!disconnecting)
+        {
+            disconnecting = true;
+            ws_close(mWebSocket);
+            WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
+        }
+        else
+        {
+            WEBSOCKETS_LOG_WARNING("Ignoring graceful disconnect. Already disconnecting gracefully");
+        }
     }
 }
 

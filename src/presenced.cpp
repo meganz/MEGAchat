@@ -254,7 +254,7 @@ Client::reconnect(const std::string& url)
                     {
                         mConnectPromise.reject(err.msg(), err.code(), err.type());
                     }
-                    if(!mLoginPromise.done())
+                    if (!mLoginPromise.done())
                     {
                         mLoginPromise.reject(err.msg(), err.code(), err.type());
                     }

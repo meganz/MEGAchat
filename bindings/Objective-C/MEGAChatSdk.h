@@ -199,6 +199,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
+- (void)saveCurrentState;
 
 #ifndef KARERE_DISABLE_WEBRTC
 

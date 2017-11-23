@@ -918,6 +918,7 @@ public:
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool isMessageReceptionConfirmationActive() const;
+    void saveCurrentState();
 
 #ifndef KARERE_DISABLE_WEBRTC
 
