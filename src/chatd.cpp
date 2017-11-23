@@ -900,7 +900,7 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                CHATD_LOG_DEBUG("%s: recv KEEPALIVE - shard %d", ID_CSTR(chatid), mShardNo);
+                CHATD_LOG_DEBUG("shard %d: recv KEEPALIVE", mShardNo);
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
