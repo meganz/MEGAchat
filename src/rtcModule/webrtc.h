@@ -262,6 +262,7 @@ public:
     uint32_t callerClient() const { return mCallerClient; }
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
     TermCode termCode() const {return mTermCode; }
+    bool isJoiner() { return mIsJoiner; }
     virtual karere::AvFlags sentAv() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
     virtual bool answer(karere::AvFlags av) = 0;

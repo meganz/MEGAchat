@@ -289,9 +289,14 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatId);
         if (iteratorCall != mCalls.end())
         {
-            if (mClient.myHandle() < packet.userid)
+            Call *existingCall = iteratorCall->second.get();
+            if (existingCall->isJoiner())
             {
-                Call *existingCall = iteratorCall->second.get();
+                cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
+                return;
+            }
+            else if (mClient.myHandle() < packet.userid)
+            {
                 avFlags = existingCall->sentAv();
                 answerAutomatic = true;
                 existingCall->hangup();
@@ -685,6 +690,15 @@ void Call::msgCallReqCancel(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring unexpected CALL_REQ_CANCEL while in state %s", stateToStr(mState));
         return;
     }
+
+    assert(packet.payload.dataSize() >= 9);
+    auto callid = packet.payload.read<uint64_t>(0);
+    if (callid != mId)
+    {
+        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
+        return;
+    }
+
     assert(mCallerUser);
     assert(mCallerClient);
     // CALL_REQ_CANCEL callid.8 reason.1
@@ -693,13 +707,7 @@ void Call::msgCallReqCancel(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
         return;
     }
-    assert(packet.payload.dataSize() >= 9);
-    auto callid = packet.payload.read<uint64_t>(0);
-    if (callid != mId)
-    {
-        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
-        return;
-    }
+
     auto term = packet.payload.read<uint8_t>(8);
     destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
 }
@@ -918,7 +926,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     {
         pms = waitAllSessionsTerminated(code);
     }
-    
+
     mDestroyPromise = pms;
     auto wptr = weakHandle();
     auto retPms = pms.then([wptr, this, code, msg]()
@@ -1850,6 +1858,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.caid = mCall.mManager.mOwnAnonId;
         info.aaid = mPeerAnonId;
     }
+
       // Send stats is disable temporarily
 //    std::string stats = mStatRecorder->getStats(info);
 //    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
