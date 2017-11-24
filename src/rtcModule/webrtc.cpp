@@ -1850,9 +1850,11 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.caid = mCall.mManager.mOwnAnonId;
         info.aaid = mPeerAnonId;
     }
+      // Send stats is disable temporarily
+//    std::string stats = mStatRecorder->getStats(info);
+//    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+
     return;
-    std::string stats = mStatRecorder->getStats(info);
-    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 }
 
 // we actually verify the whole SDP, not just the fingerprints
