@@ -272,10 +272,16 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
 }
 
-bool Connection::sendKeepalive(uint8_t opcode)
+void Connection::sendKeepalive(uint8_t opcode)
 {
     CHATD_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
-    return sendBuf(Command(opcode));
+    if (!sendBuf(Command(opcode)))  // cannot send, socket is broken
+    {
+        CHATD_LOG_WARNING("Failed to send keepalive to shard %d. Reconnecting...", mShardNo);
+        mState = kStateDisconnected;
+        mHeartbeatEnabled = false;
+        reconnect();
+    }
 }
 
 Promise<void> Connection::reconnect()

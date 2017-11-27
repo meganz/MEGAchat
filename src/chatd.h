@@ -314,7 +314,7 @@ class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
-    enum { kIdleTimeout = 10 };
+    enum { kIdleTimeout = 64 }; // chatd closes connection after 48-64s of not receiving a response
 
 protected:
     Client& mClient;
@@ -354,7 +354,7 @@ protected:
     void hist(karere::Id chatid, long count);
     bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
-    bool sendKeepalive(uint8_t opcode);
+    void sendKeepalive(uint8_t opcode);
     friend class Client;
     friend class Chat;
 public:
