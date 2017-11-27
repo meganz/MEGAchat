@@ -2839,7 +2839,9 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
      *
      * After call this function, available devices can be obtained calling MegaChatApi::getChatAudioInDevices
-     * or MegaChatApi::getChatVideoInDevices
+     * or MegaChatApi::getChatVideoInDevices.
+     *
+     * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
      *
      * @param listener MegaChatRequestListener to track this request
      */
