@@ -238,10 +238,9 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
-    CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s",
-        mShardNo, reason.c_str());
-    
-    disableInactivityTimer();
+    CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s", mShardNo, reason.c_str());
+
+    mHeartbeatEnabled = false;
     auto oldState = mState;
     mState = kStateDisconnected;
 
@@ -273,14 +272,6 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
 }
 
-void Connection::disableInactivityTimer()
-{
-    if (mInactivityTimer)
-    {
-        cancelInterval(mInactivityTimer, mClient.karereClient->appCtx);
-        mInactivityTimer = 0;
-    }
-}
 bool Connection::sendKeepalive(uint8_t opcode)
 {
     CHATD_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
@@ -289,6 +280,7 @@ bool Connection::sendKeepalive(uint8_t opcode)
 
 Promise<void> Connection::reconnect()
 {
+    assert(!mHeartbeatEnabled);
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
@@ -378,7 +370,8 @@ Promise<void> Connection::reconnect()
                     return promise::_Void();
 
                 assert(isConnected());
-                enableInactivityTimer();
+                mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
+                mHeartbeatEnabled = true;
                 sendCommand(Command(OP_CLIENTID)+mClient.karereClient->myIdentity());
                 sendKeepalive(mClient.mKeepaliveType);
                 return rejoinExistingChats();
@@ -386,24 +379,6 @@ Promise<void> Connection::reconnect()
         }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
-}
-
-void Connection::enableInactivityTimer()
-{
-    if (mInactivityTimer)
-        return;
-
-    mInactivityTimer = setInterval([this]()
-    {
-        if (mInactivityBeats++ > 3)
-        {
-            mState = kStateDisconnected;
-            disableInactivityTimer();
-            CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting...",
-                mShardNo);
-            reconnect();
-        }
-    }, 10000, mClient.karereClient->appCtx);
 }
 
 void Connection::disconnect()
@@ -422,11 +397,26 @@ promise::Promise<void> Connection::retryPendingConnection()
     if (mUrl.isValid())
     {
         mState = kStateDisconnected;
-        disableInactivityTimer();
+        mHeartbeatEnabled = false;
         CHATD_LOG_WARNING("Retrying pending connenction...");
         return reconnect();
     }
     return promise::Error("No valid URL provided to retry pending connections");
+}
+
+void Connection::heartbeat()
+{
+    // if a heartbeat is received but we are already offline...
+    if (!mHeartbeatEnabled)
+        return;
+
+    if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
+    {
+        CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting...", mShardNo);
+        mState = kStateDisconnected;
+        mHeartbeatEnabled = false;
+        reconnect();
+    }
 }
 
 void Client::disconnect()
@@ -445,6 +435,14 @@ promise::Promise<void> Client::retryPendingConnections()
         promises.push_back(conn.second->retryPendingConnection());
     }
     return promise::when(promises);
+}
+
+void Client::heartbeat()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->heartbeat();
+    }
 }
 
 bool Connection::sendBuf(Buffer&& buf)
@@ -873,7 +871,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
 
 void Connection::wsHandleMsgCb(char *data, size_t len)
 {
-    mInactivityBeats = 0;
+    mTsLastRecv = time(NULL);
     execCommand(StaticBuffer(data, len));
 }
     

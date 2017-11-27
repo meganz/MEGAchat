@@ -283,7 +283,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
 int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons reason,
                                     void *user, void *data, size_t len)
 {
-    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
+//    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
 
     switch (reason)
     {

@@ -314,6 +314,7 @@ class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum { kIdleTimeout = 10 };
 
 protected:
     Client& mClient;
@@ -321,8 +322,8 @@ protected:
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
     karere::Url mUrl;
-    megaHandle mInactivityTimer = 0;
-    int mInactivityBeats = 0;
+    bool mHeartbeatEnabled = false;
+    time_t mTsLastRecv = 0;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint32_t mClientId = 0;
@@ -345,8 +346,6 @@ protected:
     promise::Promise<void> reconnect();
     void disconnect();
     void notifyLoggedIn();
-    void enableInactivityTimer();
-    void disableInactivityTimer();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
     promise::Promise<void> rejoinExistingChats();
@@ -371,6 +370,7 @@ public:
     {
         disconnect();
     }
+    void heartbeat();
 };
 
 enum ServerHistFetchState
@@ -1093,6 +1093,7 @@ public:
     void leave(karere::Id chatid);
     void disconnect();
     promise::Promise<void> retryPendingConnections();
+    void heartbeat();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
