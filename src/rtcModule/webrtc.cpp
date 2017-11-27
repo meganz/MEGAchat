@@ -995,12 +995,11 @@ void Call::startIncallPingTimer()
             ringing = false;
         }
 
-
-//        if (!mChat.sendCommand(Command(OP_CALLDATA) + mChat.chatId() + mManager.mClient.myHandle() +
-//                               mChat.connection().clientId() + 3 + mChat.isGroup() + ringing + sentAv().value()))
-//        {
-//            asyncDestroy(TermCode::kErrNetSignalling, true);
-//        }
+        if (!mChat.sendCommand(Command(OP_CALLDATA) + mChat.chatId() + mManager.mClient.myHandle() +
+                               mChat.connection().clientId() + 3 + mChat.isGroup() + ringing + sentAv().value()))
+        {
+            asyncDestroy(TermCode::kErrNetSignalling, true);
+        }
     }, RtcModule::kIncallPingInterval, mManager.mClient.appCtx);
 }
 
