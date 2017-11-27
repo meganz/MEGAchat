@@ -2908,9 +2908,9 @@ bool Client::isCallInProgress() const
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
 {
-    return app.onIncomingCall(call);
+    return app.onIncomingCall(call, av);
 }
 bool Client::onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid)
 {

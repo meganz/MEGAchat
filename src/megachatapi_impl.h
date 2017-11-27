@@ -956,7 +956,7 @@ public:
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
 #ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call);
+    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
     virtual void notifyInvited(const karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
