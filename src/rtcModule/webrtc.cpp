@@ -243,6 +243,13 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
     {
         RtMessage packet(chat, msg);
         // this is the only command that is not handled by an existing call
+        if (packet.opcode == OP_CALLDATA)
+        {
+            std::cerr << "RtcModule::handleMessage - OP_CALLDATA" << std::endl;
+            //msgCallRequest(packet);
+            return;
+        }
+
         if (packet.type == RTCMD_CALL_REQUEST)
         {
             assert(packet.opcode == OP_RTMSG_BROADCAST);
@@ -977,6 +984,23 @@ void Call::startIncallPingTimer()
         {
             asyncDestroy(TermCode::kErrNetSignalling, true);
         }
+
+        bool ringing = false;
+        if (mState < Call::kStateInProgress)
+        {
+            ringing = true;
+        }
+        else
+        {
+            ringing = false;
+        }
+
+
+//        if (!mChat.sendCommand(Command(OP_CALLDATA) + mChat.chatId() + mManager.mClient.myHandle() +
+//                               mChat.connection().clientId() + 3 + mChat.isGroup() + ringing + sentAv().value()))
+//        {
+//            asyncDestroy(TermCode::kErrNetSignalling, true);
+//        }
     }, RtcModule::kIncallPingInterval, mManager.mClient.appCtx);
 }
 

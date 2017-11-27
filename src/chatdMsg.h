@@ -272,11 +272,20 @@ enum Opcode
 
     /**
       * @brief
+      *
       * C->S: Must respond to a received KEEPALIVE within 30 seconds. If local user is away,
       * send KEEPALIVEAWAY
       */
     OP_KEEPALIVEAWAY = 30,
-    OP_LAST = OP_KEEPALIVEAWAY
+
+    /**
+      *@brief
+      *
+      *     C->S: set/update call data (gets broadcast to all people in the chat)
+      *     S->C: notify call data changes (sent immediately after a chatd connection is established)
+      */
+    OP_CALLDATA = 31,
+    OP_LAST = OP_CALLDATA
 };
 
 // privilege levels

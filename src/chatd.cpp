@@ -1090,6 +1090,28 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
                 break;
             }
+            case OP_CALLDATA:
+            {
+                READ_CHATID(0);
+                size_t cmdstart = pos - 9; //pos points after opcode
+                (void)cmdstart; //disable unused var warning if webrtc is disabled
+                READ_ID(userid, 8);
+                READ_32(clientid, 16);
+                READ_16(payloadLen, 20);
+                CHATD_LOG_DEBUG("%s: recv OP_CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+                pos += payloadLen;
+#ifndef KARERE_DISABLE_WEBRTC
+                auto& chat = mClient.chats(chatid);
+                StaticBuffer cmd(buf.buf() + cmdstart, 23 + payloadLen);
+                if (mClient.mRtcHandler)
+                {
+                    mClient.mRtcHandler->handleMessage(chat, cmd);
+                }
+#else
+                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
+#endif
+                break;
+            }
             case OP_RTMSG_ENDPOINT:
             case OP_RTMSG_USER:
             case OP_RTMSG_BROADCAST:
@@ -2914,6 +2936,7 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(RTMSG_BROADCAST);
         RET_ENUM_NAME(RTMSG_USER);
         RET_ENUM_NAME(RTMSG_ENDPOINT);
+        RET_ENUM_NAME(CALLDATA);
         default: return "(invalid opcode)";
     };
 }
