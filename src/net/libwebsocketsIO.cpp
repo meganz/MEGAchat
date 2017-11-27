@@ -29,16 +29,9 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
-    info.ka_time = 10;
-    info.ka_probes = 1;
-    info.ka_interval = 1;
-//    info.ws_ping_pong_interval = 5;
-
-    lws_set_log_level(LLL_ERR | LLL_INFO | LLL_USER | LLL_WARN | LLL_COUNT
-                      | LLL_CLIENT | LLL_HEADER | LLL_NOTICE
-                      | LLL_LATENCY, NULL);
     
-//    lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+    lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+
     wscontext = lws_create_context(&info);
 
     ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);

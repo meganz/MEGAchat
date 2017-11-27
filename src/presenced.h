@@ -70,7 +70,7 @@ inline const char* Presence::toString(Code pres)
 
 namespace presenced
 {
-enum { kKeepaliveSendInterval = 25, kKeepaliveReplyTimeout = 15 };
+enum { kIdleTimeout = 5, kKeepaliveSendInterval = 25, kKeepaliveReplyTimeout = 10 };
 enum: karere::Presence::Code
 {
     kPresFlagsMask = 0xf0,
@@ -262,9 +262,8 @@ protected:
     Config mConfig;
     bool mLastSentUserActive = false;
     time_t mTsLastUserActivity = 0;
-    time_t mTsLastPingSent = 0;
+    bool mKeepaliveSent = false;
     time_t mTsLastRecv = 0;
-    time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
     void initWebsocketCtx();
@@ -292,7 +291,7 @@ protected:
     void pushPeers();
     void configChanged();
     std::string prefsString() const;
-    bool sendKeepalive(time_t now=0);
+    bool sendKeepalive();
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
