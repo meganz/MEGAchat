@@ -132,6 +132,8 @@ protected:
     void stopIncallPingTimer();
     bool broadcastCallReq();
     bool join(karere::Id userid=0);
+    void sendInCallCommand();
+    bool sendCallData(bool ringing);
     friend class RtcModule;
     friend class Session;
 public:
@@ -170,9 +172,12 @@ public:
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
+    template <class... Args>
+    void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd
     void onDisconnect(chatd::Connection& conn);
     void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
+    void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
     void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
     void onShutdown();
 //Implementation of virtual methods of IRtcModule
@@ -259,6 +264,7 @@ public:
         write<uint8_t>(RtMessage::kHdrLen, type);
         updateLenField();
     }
+
     void updateLenField()
     {
         assert(dataSize()-RtMessage::kHdrLen >= 1);
@@ -284,7 +290,6 @@ public:
         updateLenField();
     }
 };
-
 }
 #define RTCM_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_rtc, fmtString, ##__VA_ARGS__)
 #define RTCM_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtc, fmtString, ##__VA_ARGS__)

@@ -1102,10 +1102,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
                 auto& chat = mClient.chats(chatid);
-                StaticBuffer cmd(buf.buf() + cmdstart, 23 + payloadLen);
+                StaticBuffer cmd(buf.buf() + cmdstart, 22 + payloadLen);
                 if (mClient.mRtcHandler)
                 {
-                    mClient.mRtcHandler->handleMessage(chat, cmd);
+                    mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
 #else
                 CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
@@ -1127,7 +1127,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen; //skip the payload
 #ifndef KARERE_DISABLE_WEBRTC
                 auto& chat = mClient.chats(chatid);
-                StaticBuffer cmd(buf.buf() + cmdstart, 23 + payloadLen);
+                StaticBuffer cmd(buf.buf() + cmdstart, 22 + payloadLen);
                 CHATD_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid), ::rtcModule::rtmsgCommandToString(cmd).c_str());
                 if (mClient.mRtcHandler)
                 {
