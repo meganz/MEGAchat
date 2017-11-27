@@ -277,7 +277,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
     //bool ringing = msg.read<bool>(20 + sizeof(uint16_t)+ sizeof(karere::Id)) & 0x04;
 
-    // If receive a OP_CALLDATA with ringing false doesn't do any thing.
+    // If receive a OP_CALLDATA with ringing false doesn't do anything.
     // It's possible that we have to look for call and delete it
     if (!ringing)
     {
