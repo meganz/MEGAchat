@@ -282,7 +282,10 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
 
-    if (!mCalls.empty())
+    ChatRoom *chatRoom = mClient.chats->at(packet.chatid);
+    assert(chatRoom);
+
+    if (!mCalls.empty() && chatRoom && !chatRoom->isGroup())
     {
         // Two calls at same time in same chat
         karere::Id chatId = packet.chatid;
