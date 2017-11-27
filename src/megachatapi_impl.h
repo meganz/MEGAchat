@@ -758,7 +758,6 @@ private:
     std::set<MegaChatVideoListener *> remoteVideoListeners;
 
     std::map<MegaChatHandle, MegaChatCallHandler*> callHandlers;
-    MegaChatVideoReceiver *localVideoReceiver;
 
     mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
     void cleanCallHandlerMap();
