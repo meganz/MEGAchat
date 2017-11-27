@@ -289,29 +289,37 @@ void Client::heartbeat()
     if (!mHeartbeatEnabled)
         return;
 
+    bool needReconnect = false;
+
     auto now = time(NULL);
     if (autoAwayInEffect())
     {
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
-            sendUserActive(false);
+            if (!sendUserActive(false))
+            {
+                PRESENCED_LOG_WARNING("Failed to send useractive, reconnecting...");
+                needReconnect = true;
+            }
         }
     }
 
-    bool needReconnect = false;
-    // if keepalive was sent and haven't received response
-    if (mKeepaliveSent)
+    if (!needReconnect)
     {
-        PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
-        needReconnect = true;
-    }
-    // if last communication happened long time ago, send a ping
-    else if (now - mTsLastRecv >= kIdleTimeout)
-    {
-        if (!sendKeepalive())
+        // if keepalive was sent and haven't received response
+        if (mKeepaliveSent)
         {
-            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+            PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
             needReconnect = true;
+        }
+        // if last communication happened long time ago, send a ping
+        else if (now - mTsLastRecv >= kIdleTimeout)
+        {
+            if (!sendKeepalive())
+            {
+                PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+                needReconnect = true;
+            }
         }
     }
 

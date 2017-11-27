@@ -70,7 +70,7 @@ inline const char* Presence::toString(Code pres)
 
 namespace presenced
 {
-enum { kIdleTimeout = 5, kKeepaliveSendInterval = 25, kKeepaliveReplyTimeout = 10 };
+enum { kIdleTimeout = 10 };
 enum: karere::Presence::Code
 {
     kPresFlagsMask = 0xf0,
