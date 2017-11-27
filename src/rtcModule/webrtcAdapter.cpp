@@ -23,13 +23,11 @@ namespace artc
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 
-/** Local DTLS Identity */
-Identity gLocalIdentity;
 static bool gIsInitialized = false;
 AsyncWaiter* gAsyncWaiter = nullptr;
 
 bool isInitialized() { return gIsInitialized; }
-bool init(const Identity* identity, void *appCtx)
+bool init(void *appCtx)
 {
     if (gIsInitialized)
         return false;
@@ -52,10 +50,6 @@ bool init(const Identity* identity, void *appCtx)
     threadMgr->SetCurrentThread(thread);
 
     rtc::InitializeSSL();
-    if (identity)
-        gLocalIdentity = *identity;
-    else
-        gLocalIdentity.clear();
     gWebrtcContext = webrtc::CreatePeerConnectionFactory();
     if (!gWebrtcContext)
         throw std::runtime_error("Error creating peerconnection factory");

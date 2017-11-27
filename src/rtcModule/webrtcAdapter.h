@@ -35,11 +35,9 @@ struct Identity
     }
     inline bool isValid() {return !derCert.empty();}
 };
-/** Local DTLS SRTP identity */
-extern Identity gLocalIdentity;
 
 /** Globally initializes the library */
-bool init(const Identity* identity, void *appCtx);
+bool init(void *appCtx);
 /** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
 bool isInitialized();
@@ -280,10 +278,6 @@ public:
      C& handler, webrtc::MediaConstraintsInterface* options)
         :mObserver(new Observer(handler))
     {
-        if (gLocalIdentity.isValid())
-        {
-//TODO: give dtls identity to webrtc
-        }
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.servers = servers;
         Base::operator=(gWebrtcContext->CreatePeerConnection(

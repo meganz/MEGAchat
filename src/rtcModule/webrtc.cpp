@@ -73,7 +73,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 {
     if (!artc::isInitialized())
     {
-        artc::init(nullptr, client.appCtx);
+        artc::init(client.appCtx);
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
     mPcConstraints.SetMandatoryReceiveAudio(true);
