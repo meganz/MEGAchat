@@ -5459,6 +5459,12 @@ MegaChatSessionHandler::~MegaChatSessionHandler()
 
 void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 {
+    if (rtcModule::ISession::kStateInProgress == newState)
+    {
+        MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+        chatCall->setRemoteAudioVideoFlags(session->receivedAv());
+        megaChatApi->fireOnChatCallUpdate(chatCall);
+    }
 }
 
 void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
