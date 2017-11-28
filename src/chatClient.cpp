@@ -310,7 +310,10 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 
 void Client::commit()
 {
-    db.commit();
+    if (db.isOpen())
+    {
+        db.commit();
+    }
 }
 
 void Client::loadContactListFromApi()
@@ -390,7 +393,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db)
+        if (db.isOpen())
         {
             auto pscsn = event->getText();
             if (!pscsn)
@@ -659,11 +662,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
 void Client::wipeDb(const std::string& sid)
 {
     assert(!sid.empty());
-    if (db)
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
+    db.close();
     std::string path = dbPath(sid);
     remove(path.c_str());
     struct stat info;
@@ -1125,7 +1124,7 @@ void Client::terminate(bool deleteDb)
     {
         wipeDb(mSid);
     }
-    else if (db)
+    else if (db.isOpen())
     {
         KR_LOG_INFO("Doing final COMMIT to database");
         db.commit();
