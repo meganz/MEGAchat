@@ -194,7 +194,10 @@ void Client::heartbeat()
     }
 
     mPresencedClient.heartbeat();
-    //TODO: implement in chatd as well
+    if (chatd)
+    {
+        chatd->heartbeat();
+    }
 }
 
 Client::~Client()

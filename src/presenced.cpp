@@ -267,8 +267,8 @@ Client::reconnect(const std::string& url)
                 if (wptr.deleted())
                     return;
 
-                mTsLastPingSent = 0;
-                mTsLastRecv = time(NULL);
+                mKeepaliveSent = false;     // no keepalive has been sent yet
+                mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
                 mHeartbeatEnabled = true;
                 login();
             });
@@ -277,9 +277,9 @@ Client::reconnect(const std::string& url)
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
-bool Client::sendKeepalive(time_t now)
+bool Client::sendKeepalive()
 {
-    mTsLastPingSent = now ? now : time(NULL);
+    mKeepaliveSent = true;
     return sendCommand(Command(OP_KEEPALIVE));
 }
 
@@ -289,40 +289,40 @@ void Client::heartbeat()
     if (!mHeartbeatEnabled)
         return;
 
+    bool needReconnect = false;
+
     auto now = time(NULL);
     if (autoAwayInEffect())
     {
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
-            sendUserActive(false);
+            if (!sendUserActive(false))
+            {
+                PRESENCED_LOG_WARNING("Failed to send useractive, reconnecting...");
+                needReconnect = true;
+            }
         }
     }
 
-    bool needReconnect = false;
-    if (now - mTsLastSend > kKeepaliveSendInterval)
+    if (!needReconnect)
     {
-        if (!sendKeepalive(now))
-        {
-            needReconnect = true;
-            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
-        }
-    }
-    else if (mTsLastPingSent)
-    {
-        if (now - mTsLastPingSent > kKeepaliveReplyTimeout)
+        // if keepalive was sent and haven't received response
+        if (mKeepaliveSent)
         {
             PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
             needReconnect = true;
         }
-    }
-    else if (now - mTsLastRecv >= kKeepaliveSendInterval)
-    {
-        if (!sendKeepalive(now))
+        // if last communication happened long time ago, send a ping
+        else if (now - mTsLastRecv >= kIdleTimeout)
         {
-            needReconnect = true;
-            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+            if (!sendKeepalive())
+            {
+                PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+                needReconnect = true;
+            }
         }
     }
+
     if (needReconnect)
     {
         setConnState(kDisconnected);
@@ -361,7 +361,6 @@ bool Client::sendBuf(Buffer&& buf)
     
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
     buf.free();  //just in case, as it's content is xor-ed with the websock datamask so it's unusable
-    mTsLastSend = time(NULL);
     return rc && isOnline();
 }
     
@@ -515,7 +514,7 @@ Client::~Client()
 void Client::wsHandleMsgCb(char *data, size_t len)
 {
     mTsLastRecv = time(NULL);
-    mTsLastPingSent = 0;
+    mKeepaliveSent = false;     // data received --> connection is alive
     handleMessage(StaticBuffer(data, len));
 }
 

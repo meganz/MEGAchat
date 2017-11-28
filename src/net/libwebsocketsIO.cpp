@@ -31,6 +31,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
     info.options |= LWS_SERVER_OPTION_LIBUV;
     
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+
     wscontext = lws_create_context(&info);
 
     ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
@@ -282,7 +283,7 @@ static bool check_public_key(X509_STORE_CTX* ctx)
 int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons reason,
                                     void *user, void *data, size_t len)
 {
-    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
+//    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
 
     switch (reason)
     {

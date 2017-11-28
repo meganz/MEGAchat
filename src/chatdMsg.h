@@ -276,7 +276,18 @@ enum Opcode
       * send KEEPALIVEAWAY
       */
     OP_KEEPALIVEAWAY = 30,
-    OP_LAST = OP_KEEPALIVEAWAY
+
+    /**
+      * @brief <randomToken>
+      *
+      * C->S: send an echo packet with 1byte payload. Server will respond with the
+      * same byte in return.
+      *
+      * This command helps to detect a broken socket when it silently dies.
+      */
+    OP_ECHO = 32,
+
+    OP_LAST = OP_ECHO
 };
 
 // privilege levels
