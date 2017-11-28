@@ -293,13 +293,19 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         if (iteratorCall != mCalls.end())
         {
             Call *existingCall = iteratorCall->second.get();
-            if (existingCall->isJoiner())
+            if (existingCall->state() >= Call::kStateJoining)
+            {
+                cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
+                return;
+            }
+            else if (existingCall->isJoiner())
             {
                 cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
                 return;
             }
             else if (mClient.myHandle() < packet.userid)
             {
+                // hang up existing call and answer automatically incoming call
                 avFlags = existingCall->sentAv();
                 answerAutomatic = true;
                 existingCall->hangup();
