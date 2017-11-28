@@ -70,7 +70,7 @@ public:
         if (!mDb)
             return;
         if (!mCommitEach)
-            commit();
+            commitTransaction();
         sqlite3_close(mDb);
         mDb = nullptr;
     }
