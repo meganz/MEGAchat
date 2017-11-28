@@ -393,7 +393,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db)
+        if (db.isOpen())
         {
             auto pscsn = event->getText();
             if (!pscsn)
