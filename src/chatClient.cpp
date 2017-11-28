@@ -310,7 +310,10 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 
 void Client::commit()
 {
-    db.commit();
+    if (db.isOpen())
+    {
+        db.commit();
+    }
 }
 
 void Client::loadContactListFromApi()
@@ -1125,7 +1128,7 @@ void Client::terminate(bool deleteDb)
     {
         wipeDb(mSid);
     }
-    else if (db)
+    else if (db.isOpen())
     {
         KR_LOG_INFO("Doing final COMMIT to database");
         db.commit();
