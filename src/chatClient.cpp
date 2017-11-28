@@ -662,11 +662,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
 void Client::wipeDb(const std::string& sid)
 {
     assert(!sid.empty());
-    if (db)
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
+    db.close();
     std::string path = dbPath(sid);
     remove(path.c_str());
     struct stat info;
