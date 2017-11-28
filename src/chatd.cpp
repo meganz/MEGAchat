@@ -77,6 +77,8 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 
+const unsigned int Connection::callDataPayLoadPosition = 22;
+
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client), mKeepaliveType(client->isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
 {
@@ -1102,7 +1104,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
                 auto& chat = mClient.chats(chatid);
-                StaticBuffer cmd(buf.buf() + cmdstart, 22 + payloadLen);
+                StaticBuffer cmd(buf.buf() + cmdstart, Connection::callDataPayLoadPosition + payloadLen);
                 if (mClient.mRtcHandler)
                 {
                     mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);

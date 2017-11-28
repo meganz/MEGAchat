@@ -272,8 +272,9 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    karere::Id callid = msg.read<karere::Id>(20 + sizeof(uint16_t));
-    bool ringing = msg.read<bool>(20 + sizeof(uint16_t)+ sizeof(karere::Id) + 1);
+    // PayLoad: <callid> <peerToPeer | group> <ringing> <AV flags> <key>
+    karere::Id callid = msg.read<karere::Id>(Connection::callDataPayLoadPosition);
+    bool ringing = msg.read<bool>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(bool));
 
     //bool ringing = msg.read<bool>(20 + sizeof(uint16_t)+ sizeof(karere::Id)) & 0x04;
 

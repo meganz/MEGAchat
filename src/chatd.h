@@ -372,6 +372,8 @@ public:
     {
         disconnect();
     }
+
+    static const unsigned int callDataPayLoadPosition;
 };
 
 enum ServerHistFetchState
