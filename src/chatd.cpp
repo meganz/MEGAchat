@@ -128,6 +128,14 @@ void Client::sendKeepalive()
     }
 }
 
+void Client::sendEcho()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->sendEcho();
+    }
+}
+
 void Client::notifyUserIdle()
 {
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
@@ -142,6 +150,7 @@ void Client::notifyUserActive()
         return;
     mKeepaliveType = OP_KEEPALIVE;
     sendKeepalive();
+    sendEcho();
 }
 
 bool Client::isMessageReceivedConfirmationActive() const
@@ -240,6 +249,13 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     auto oldState = mState;
     mState = kStateDisconnected;
 
+    if (mEchoTimer)
+    {
+        cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+        mEchoTimer = 0;
+        mEchoToken = 0;
+    }
+
     for (auto& chatid: mChatIds)
     {
         auto& chat = mClient.chats(chatid);
@@ -272,6 +288,34 @@ bool Connection::sendKeepalive(uint8_t opcode)
 {
     CHATD_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
     return sendBuf(Command(opcode));
+}
+
+bool Connection::sendEcho()
+{
+    if (mEchoTimer) // one is already sent
+        return true;
+
+    mEchoToken = rand();
+    CHATD_LOG_DEBUG("shard %d: send %s %hu", mShardNo, Command::opcodeToStr(OP_ECHO), mEchoToken);
+    if (sendBuf(Command(OP_ECHO) + mEchoToken))
+    {
+        mEchoTimer = setTimeout([this]()
+        {
+            mEchoTimer = 0;
+            mEchoToken = 0;
+
+            CHATD_LOG_DEBUG("Echo response not received in %d secs for shard %d. Reconnecting...", kEchoTimeout, mShardNo);
+
+            mState = kStateDisconnected;
+            mHeartbeatEnabled = false;
+            reconnect();
+
+        }, kEchoTimeout * 1000, mClient.karereClient->appCtx);
+
+        return true;
+    }
+
+    return false;
 }
 
 Promise<void> Connection::reconnect()
@@ -393,6 +437,12 @@ promise::Promise<void> Connection::retryPendingConnection()
     {
         mState = kStateDisconnected;
         mHeartbeatEnabled = false;
+        if (mEchoTimer)
+        {
+            cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+            mEchoTimer = 0;
+            mEchoToken = 0;
+        }
         CHATD_LOG_WARNING("Retrying pending connenction...");
         return reconnect();
     }
@@ -410,6 +460,12 @@ void Connection::heartbeat()
         CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting...", mShardNo);
         mState = kStateDisconnected;
         mHeartbeatEnabled = false;
+        if (mEchoTimer)
+        {
+            cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+            mEchoTimer = 0;
+            mEchoToken = 0;
+        }
         reconnect();
     }
 }
@@ -973,6 +1029,20 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos+=totalLen;
                 CHATD_LOG_DEBUG("%s: recv NEWKEY %u", ID_CSTR(chatid), keyid);
                 mClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
+                break;
+            }
+            case OP_ECHO:
+            {
+                // randomtoken.1
+    //                READ_8(token, 0);
+                CHATD_LOG_DEBUG("shard %d: recv ECHO", mShardNo);
+                if (mEchoTimer)//) && mEchoToken == token)
+                {
+                    CHATD_LOG_DEBUG("Socket is still alive");
+                    cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+                    mEchoToken = 0;
+                    mEchoTimer = 0;
+                }
                 break;
             }
             default:
@@ -2735,6 +2805,7 @@ const char* Command::opcodeToStr(uint8_t opcode)
         RET_ENUM_NAME(MSGUPDX);
         RET_ENUM_NAME(MSGID);
         RET_ENUM_NAME(KEEPALIVEAWAY);
+        RET_ENUM_NAME(ECHO);
         default: return "(invalid opcode)";
     }
 }

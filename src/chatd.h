@@ -287,7 +287,10 @@ class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
-    enum { kIdleTimeout = 64 }; // chatd closes connection after 48-64s of not receiving a response
+    enum {
+        kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 5    // echo to check connection is alive when back to foreground
+         };
 
 protected:
     Client& mClient;
@@ -297,6 +300,8 @@ protected:
     karere::Url mUrl;
     bool mHeartbeatEnabled = false;
     time_t mTsLastRecv = 0;
+    uint8_t mEchoToken = 0;
+    megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
@@ -326,6 +331,7 @@ protected:
     void hist(karere::Id chatid, long count);
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
+    bool sendEcho();
     friend class Client;
     friend class Chat;
 public:
@@ -1013,6 +1019,7 @@ protected:
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
     void sendKeepalive();
+    void sendEcho();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
     unsigned inactivityCheckIntervalSec = 20;
