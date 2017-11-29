@@ -1323,9 +1323,30 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
 
 void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
 {
+    // check if connected to all chats (and logged in)
+    bool allConnected = false;
+    if (newState == MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        allConnected = true;
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+        {
+            if (it->second->isActive() && it->second->chat().onlineState() != chatd::kChatStateOnline)
+            {
+                allConnected = false;
+                break;
+            }
+        }
+    }
+
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
         (*it)->onChatConnectionStateUpdate(chatApi, chatid, newState);
+
+        if (allConnected)
+        {
+            (*it)->onChatConnectionStateUpdate(chatApi, MEGACHAT_INVALID_HANDLE, newState);
+        }
     }
 }
 
