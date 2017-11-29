@@ -937,8 +937,7 @@ public:
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle callId);
     MegaChatCall *getChatCallByChatId(MegaChatHandle chatId);
-
-
+    int getNumCalls();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
