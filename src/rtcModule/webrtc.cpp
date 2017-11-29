@@ -1184,6 +1184,16 @@ void Call::hangup(TermCode reason)
 }
 Call::~Call()
 {
+    if (mState != Call::kStateDestroyed)
+    {
+        stopIncallPingTimer();
+        mLocalPlayer.reset();
+        setState(Call::kStateDestroyed);
+        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        mManager.removeCall(*this);
+        SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
+    }
+
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onUserOffline(Id userid, uint32_t clientid)
