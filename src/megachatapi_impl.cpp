@@ -2427,16 +2427,16 @@ void MegaChatApiImpl::saveCurrentState()
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     std::vector<std::string> devicesVector;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         mClient->rtc->getAudioInDevices(devicesVector);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to get audio-in devices");
     }
+    sdkMutex.unlock();
 
     MegaStringList *devices = getChatInDevices(devicesVector);
 
@@ -2447,16 +2447,16 @@ MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
     std::vector<std::string> devicesVector;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         mClient->rtc->getVideoInDevices(devicesVector);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to get video-in devices");
     }
+    sdkMutex.unlock();
 
     MegaStringList *devices = getChatInDevices(devicesVector);
 
@@ -2466,16 +2466,16 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 {
     bool returnedValue = false;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         returnedValue = mClient->rtc->selectAudioInDevice(device);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to set audio-in devices");
     }
+    sdkMutex.unlock();
 
     return returnedValue;
 }
@@ -2483,16 +2483,16 @@ bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
 {
     bool returnedValue = false;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         returnedValue = mClient->rtc->selectVideoInDevice(device);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to set video-in devices");
     }
+    sdkMutex.unlock();
 
     return returnedValue;
 }
