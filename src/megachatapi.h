@@ -74,11 +74,11 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS = 0x01,
-        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,
-        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,
-        CHANGE_TYPE_RINGING_STATUS = 0x10,
+        CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
+        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
+        CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
     };
 
     enum
@@ -174,13 +174,16 @@ public:
      * Check if the status of the call changed
      *
      * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
-     * Check if the content of the call changed
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check if the content of the call changed
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
-     * Check if the content of the call changed
+     * Check MegaChatCall::getTemporaryError() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
+     * Check MegaChatCall::isRinging() value
      */
     virtual int getChanges() const;
 
@@ -199,14 +202,17 @@ public:
      * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
      * Check if the status of the call changed
      *
-     * - MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS  = 0x02
-     * Check if the content of the call changed
+     * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check if the content of the call changed
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
-     * Check if the content of the call changed
+     * Check MegaChatCall::getTemporaryError() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
+     * Check MegaChatCall::isRinging() value
      *
      * @return true if this call has an specific change
      */
@@ -2871,6 +2877,12 @@ public:
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
      */
     MegaChatCall *getChatCallByChatId(MegaChatHandle chatid);
+
+    /**
+     * @brief Returns number of calls that there are at the system
+     * @return number of calls in the system
+     */
+    int getNumCalls();
 
 #endif
 

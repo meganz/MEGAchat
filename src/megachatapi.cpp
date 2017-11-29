@@ -580,6 +580,11 @@ MegaChatCall *MegaChatApi::getChatCallByChatId(MegaChatHandle chatid)
     return pImpl->getChatCallByChatId(chatid);
 }
 
+int MegaChatApi::getNumCalls()
+{
+    return pImpl->getNumCalls();
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

@@ -2909,11 +2909,13 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(JOINRANGEHIST);
         RET_ENUM_NAME(MSGUPDX);
         RET_ENUM_NAME(MSGID);
-        RET_ENUM_NAME(KEEPALIVEAWAY);
         RET_ENUM_NAME(CLIENTID);
         RET_ENUM_NAME(RTMSG_BROADCAST);
         RET_ENUM_NAME(RTMSG_USER);
         RET_ENUM_NAME(RTMSG_ENDPOINT);
+        RET_ENUM_NAME(INCALL);
+        RET_ENUM_NAME(ENDCALL);
+        RET_ENUM_NAME(KEEPALIVEAWAY);
         default: return "(invalid opcode)";
     };
 }

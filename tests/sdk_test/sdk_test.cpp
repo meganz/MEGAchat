@@ -2094,6 +2094,8 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
     loadHistory(a2, chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+    logout(a2);
 
     bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
     megaChatApi[a1]->loadAudioVideoDeviceList();
@@ -2119,18 +2121,18 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
-    megaChatApi[a1]->disableAudio(chatid);
+    megaChatApi[a1]->disableAudio(mChatIdInProgressCall[a1]);
     sleep(5);
     std::cerr << "Disable Video" << std::endl;
-    megaChatApi[a1]->disableVideo(chatid);
+    megaChatApi[a1]->disableVideo(mChatIdInProgressCall[a1]);
     sleep(5);
     std::cerr << "Unmute Call" << std::endl;
-    megaChatApi[a1]->enableAudio(chatid);
+    megaChatApi[a1]->enableAudio(mChatIdInProgressCall[a1]);
     sleep(5);
     std::cerr << "Enable Video" << std::endl;
-    megaChatApi[a1]->enableVideo(chatid);
+    megaChatApi[a1]->enableVideo(mChatIdInProgressCall[a1]);
 
-    MegaChatCall *chatCall = megaChatApi[a1]->getChatCallByChatId(chatid);
+    MegaChatCall *chatCall = megaChatApi[a1]->getChatCallByChatId(mChatIdInProgressCall[a1]);
     ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCallByChatId");
 
     MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCall(chatCall->getId());
@@ -2138,10 +2140,10 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
 
     bool *callDestroyed= &mCallDestroyed[a1]; *callDestroyed = false;
-    sleep(10);
+    sleep(5);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
-    megaChatApi[a1]->hangChatCall(chatid);
+    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
@@ -2156,21 +2158,21 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
-    megaChatApi[a1]->disableAudio(chatid);
+    megaChatApi[a1]->disableAudio(mChatIdInProgressCall[a1]);
     sleep(5);
     std::cerr << "Disable Video" << std::endl;
-    megaChatApi[a1]->disableVideo(chatid);
+    megaChatApi[a1]->disableVideo(mChatIdInProgressCall[a1]);
     sleep(5);
     std::cerr << "Unmute Call" << std::endl;
-    megaChatApi[a1]->enableAudio(chatid);
+    megaChatApi[a1]->enableAudio(mChatIdInProgressCall[a1]);
     sleep(5);
     std::cerr << "Enable Video" << std::endl;
-    megaChatApi[a1]->enableVideo(chatid);
+    megaChatApi[a1]->enableVideo(mChatIdInProgressCall[a1]);
 
     sleep(10);
     std::cerr << "Finish Call" << std::endl;
     sleep(2);
-    megaChatApi[a1]->hangChatCall(chatid);
+    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
     sleep(5);
 
@@ -2194,7 +2196,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 //    megaChatApi[a1]->hangChatCall(chatid);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
-    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+
 
     delete audioInDevices;
     audioInDevices = NULL;
@@ -3000,17 +3002,30 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         {
         case MegaChatCall::CALL_STATUS_IN_PROGRESS:
             mCallAnswered[apiIndex] = true;
+            mChatIdInProgressCall[apiIndex] = call->getChatid();
             break;
 
         case MegaChatCall::CALL_STATUS_REQUEST_SENT:
             mCallRequestSent[apiIndex] = true;
             mCallRequestSentId[apiIndex] = call->getId();
+            mCallId[apiIndex] = call->getChatid();
             break;
 
         case MegaChatCall::CALL_STATUS_RING_IN:
+            if (api->getNumCalls() > 1)
+            {
+                // Hangup in progress call and answer the new call
+//                api->hangChatCall(mCallId[apiIndex]);
+//                api->answerChatCall(call->getChatid());
+
+                // Hangup in coming call
+                api->hangChatCall(call->getChatid());
+            }
+
             mCallReceived[apiIndex] = true;
             mIncomingCallId[apiIndex] = call->getId();
             mCallEmisorId[apiIndex] = call->getChatid();
+            mCallId[apiIndex] = call->getChatid();
             break;
 
         case MegaChatCall::CALL_STATUS_TERMINATING:

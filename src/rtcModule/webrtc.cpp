@@ -276,43 +276,67 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         return;
     }
     packet.callid = packet.payload.read<uint64_t>(0);
+
     assert(packet.callid);
-    if (!mCalls.empty())
+
+    AvFlags avFlags(false, false);
+    bool answerAutomatic = false;
+
+    ChatRoom *chatRoom = mClient.chats->at(packet.chatid);
+    assert(chatRoom);
+
+    if (!mCalls.empty() && chatRoom && !chatRoom->isGroup())
     {
-        assert(mCalls.size() == 1);
-        auto& existingChatid = mCalls.begin()->first;
-        auto& existingCall = mCalls.begin()->second;
-        if (existingChatid == packet.chatid && existingCall->state() < Call::kStateTerminating)
+        // Two calls at same time in same chat
+        karere::Id chatId = packet.chatid;
+        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatId);
+        if (iteratorCall != mCalls.end())
         {
-            bool answer = mHandler.onAnotherCall(*existingCall, packet.userid);
-            if (answer)
-            {
-                existingCall->hangup();
-                mCalls.erase(existingChatid);
-            }
-            else
+            Call *existingCall = iteratorCall->second.get();
+            if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
             {
                 cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
                 return;
             }
+            else if (mClient.myHandle() > packet.userid)
+            {
+                RTCM_LOG_DEBUG("msgCallRequest: Waiting for the other peer hangup its incoming call and answer our call");
+                return;
+            }
+
+            // hang up existing call and answer automatically incoming call
+            avFlags = existingCall->sentAv();
+            answerAutomatic = true;
+            existingCall->hangup();
+            mCalls.erase(chatId);
         }
     }
+
     auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
         packet.chat, packet.callid, mHandler.isGroupChat(packet.chatid),
         true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     auto& call = ret.first->second;
+
     call->mHandler = mHandler.onCallIncoming(*call);
     assert(call->mHandler);
     assert(call->state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
-    auto wcall = call->weakHandle();
-    setTimeout([wcall]() mutable
+
+    if (!answerAutomatic)
     {
-        if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
-            return;
-        static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-    }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+        auto wcall = call->weakHandle();
+        setTimeout([wcall]() mutable
+        {
+            if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
+                return;
+            static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
+        }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+    }
+    else
+    {
+        call->answer(avFlags);
+    }
 }
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
@@ -669,6 +693,15 @@ void Call::msgCallReqCancel(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring unexpected CALL_REQ_CANCEL while in state %s", stateToStr(mState));
         return;
     }
+
+    assert(packet.payload.dataSize() >= 9);
+    auto callid = packet.payload.read<uint64_t>(0);
+    if (callid != mId)
+    {
+        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
+        return;
+    }
+
     assert(mCallerUser);
     assert(mCallerClient);
     // CALL_REQ_CANCEL callid.8 reason.1
@@ -677,13 +710,7 @@ void Call::msgCallReqCancel(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL from a client that did not send the call request");
         return;
     }
-    assert(packet.payload.dataSize() >= 9);
-    auto callid = packet.payload.read<uint64_t>(0);
-    if (callid != mId)
-    {
-        SUB_LOG_WARNING("Ignoring CALL_REQ_CANCEL for an unknown request id");
-        return;
-    }
+
     auto term = packet.payload.read<uint8_t>(8);
     destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
 }
@@ -902,7 +929,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     {
         pms = waitAllSessionsTerminated(code);
     }
-    
+
     mDestroyPromise = pms;
     auto wptr = weakHandle();
     auto retPms = pms.then([wptr, this, code, msg]()
@@ -1158,6 +1185,16 @@ void Call::hangup(TermCode reason)
 }
 Call::~Call()
 {
+    if (mState != Call::kStateDestroyed)
+    {
+        stopIncallPingTimer();
+        mLocalPlayer.reset();
+        setState(Call::kStateDestroyed);
+        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        mManager.removeCall(*this);
+        SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
+    }
+
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onUserOffline(Id userid, uint32_t clientid)
@@ -1834,9 +1871,12 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.caid = mCall.mManager.mOwnAnonId;
         info.aaid = mPeerAnonId;
     }
+
+      // Send stats is disable temporarily
+//    std::string stats = mStatRecorder->getStats(info);
+//    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+
     return;
-    std::string stats = mStatRecorder->getStats(info);
-    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 }
 
 // we actually verify the whole SDP, not just the fingerprints
