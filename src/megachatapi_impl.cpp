@@ -953,7 +953,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!call)
             {
                 API_LOG_ERROR("Answer call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
                 break;
             }
@@ -989,7 +989,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 if (!call)
                 {
                     API_LOG_ERROR("Hang up call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                    errorCode = MegaChatError::ERROR_UNKNOWN;
+                    errorCode = MegaChatError::ERROR_NOENT;
                     assert(false);
                     break;
                 }
@@ -1025,7 +1025,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatCall || !call)
             {
                 API_LOG_ERROR("Disable AV flags - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
                 break;
             }
