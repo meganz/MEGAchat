@@ -201,6 +201,8 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
 - (void)saveCurrentState;
 
+#pragma mark - Audio and video calls
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 - (MEGAStringList *)chatAudioInDevices;
@@ -227,6 +229,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)loadAudioVideoDeviceList;
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
+@property (nonatomic, readonly) NSInteger numCalls;
 
 #endif
 

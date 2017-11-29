@@ -640,6 +640,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->saveCurrentState();
 }
 
+#pragma mark - Audio and video calls
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 - (MEGAStringList *)chatAudioInDevices {
@@ -736,6 +738,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId {
     return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCall(chatId) cMemoryOwn:YES];
+}
+
+- (NSInteger)numCalls {
+    return self.megaChatApi->getNumCalls();
 }
 
 #endif
