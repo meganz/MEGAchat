@@ -2854,29 +2854,29 @@ public:
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Get the MegaChatCall that has a specific handle
-     *
-     * A copy of MegaChatCall is returned and you take the ownership of the returned value.
-     *
-     * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
-     *
-     * @param callId MegaChatHandle that identifies the call
-     * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
-     */
-    MegaChatCall *getChatCall(MegaChatHandle callId);
-
-    /**
      * @brief Get the MegaChatCall associated with a chatroom
      *
-     * You take the ownership of the returned value.
+     * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom,
+     * this function returns NULL.
      *
-     * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
-     * returned,
+     * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
      */
-    MegaChatCall *getChatCallByChatId(MegaChatHandle chatid);
+    MegaChatCall *getChatCall(MegaChatHandle chatid);
+
+    /**
+     * @brief Get the MegaChatCall that has a specific id
+     *
+     * You can get the id of a MegaChatCall using MegaChatCall::getId().
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param callId MegaChatHandle that identifies the call
+     * @return MegaChatCall object for the specified \c callId. NULL if call doesn't exist
+     */
+    MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
 
     /**
      * @brief Returns number of calls that there are at the system

@@ -935,8 +935,8 @@ public:
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
-    MegaChatCall *getChatCall(MegaChatHandle callId);
-    MegaChatCall *getChatCallByChatId(MegaChatHandle chatId);
+    MegaChatCall *getChatCall(MegaChatHandle chatId);
+    MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
 #endif
 

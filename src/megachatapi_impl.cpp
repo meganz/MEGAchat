@@ -2558,12 +2558,46 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     waiter->notify();
 }
 
-MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle callId)
+MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
 {
     MegaChatCall *chatCall = NULL;
-    sdkMutex.lock();
 
-    for (std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.begin(); it != callHandlers.end(); ++it)
+    sdkMutex.lock();
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatId);
+
+    if (it != callHandlers.end())
+    {
+        if (it->second != NULL)
+        {
+            chatCall = it->second->getMegaChatCall();
+            if (!chatCall)
+            {
+                API_LOG_ERROR("MegaChatApiImpl::getChatCall - Invalid MegaChatCall at MegaChatCallHandler");
+                assert(false);
+            }
+            else
+            {
+                chatCall = chatCall->copy();
+            }
+        }
+        else
+        {
+            API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCallHandler at callHandlers");
+            assert(false);
+        }
+    }
+
+    sdkMutex.unlock();
+    return chatCall;
+}
+
+MegaChatCall *MegaChatApiImpl::getChatCallByCallId(MegaChatHandle callId)
+{
+    MegaChatCall *chatCall = NULL;
+
+    sdkMutex.lock();
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it;
+    for (it = callHandlers.begin(); it != callHandlers.end(); ++it)
     {
         if (it->second != NULL)
         {
@@ -2591,40 +2625,6 @@ MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle callId)
 
     sdkMutex.unlock();
     return chatCall;
-}
-
-MegaChatCall *MegaChatApiImpl::getChatCallByChatId(MegaChatHandle chatId)
-{
-    MegaChatCall *chatCall = NULL;
-
-    sdkMutex.lock();
-    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatId);
-
-    if (it != callHandlers.end())
-    {
-        if(it->second != NULL)
-        {
-            chatCall = it->second->getMegaChatCall();
-            if (!chatCall)
-            {
-                API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCall at MegaChatCallHandler");
-                assert(false);
-            }
-            else
-            {
-                chatCall = chatCall->copy();
-            }
-        }
-        else
-        {
-            API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCallHandler at callHandlers");
-            assert(false);
-        }
-    }
-
-    sdkMutex.unlock();
-    return chatCall;
-
 }
 
 int MegaChatApiImpl::getNumCalls()
