@@ -289,7 +289,7 @@ public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
     enum {
         kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
-        kEchoTimeout = 5    // echo to check connection is alive when back to foreground
+        kEchoTimeout = 3    // echo to check connection is alive when back to foreground
          };
 
 protected:
@@ -300,7 +300,6 @@ protected:
     karere::Url mUrl;
     bool mHeartbeatEnabled = false;
     time_t mTsLastRecv = 0;
-    uint8_t mEchoToken = 0;
     megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;

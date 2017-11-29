@@ -253,7 +253,6 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     {
         cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
         mEchoTimer = 0;
-        mEchoToken = 0;
     }
 
     for (auto& chatid: mChatIds)
@@ -295,14 +294,16 @@ bool Connection::sendEcho()
     if (mEchoTimer) // one is already sent
         return true;
 
-    mEchoToken = rand();
-    CHATD_LOG_DEBUG("shard %d: send %s %hu", mShardNo, Command::opcodeToStr(OP_ECHO), mEchoToken);
-    if (sendBuf(Command(OP_ECHO) + mEchoToken))
+    CHATD_LOG_DEBUG("shard %d: send ECHO", mShardNo);
+    if (sendBuf(Command(OP_ECHO)))
     {
-        mEchoTimer = setTimeout([this]()
+        auto wptr = weakHandle();
+        mEchoTimer = setTimeout([this, wptr]()
         {
+            if (wptr.deleted())
+                return;
+
             mEchoTimer = 0;
-            mEchoToken = 0;
 
             CHATD_LOG_DEBUG("Echo response not received in %d secs for shard %d. Reconnecting...", kEchoTimeout, mShardNo);
 
@@ -441,7 +442,6 @@ promise::Promise<void> Connection::retryPendingConnection()
         {
             cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
             mEchoTimer = 0;
-            mEchoToken = 0;
         }
         CHATD_LOG_WARNING("Retrying pending connenction...");
         return reconnect();
@@ -464,7 +464,6 @@ void Connection::heartbeat()
         {
             cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
             mEchoTimer = 0;
-            mEchoToken = 0;
         }
         reconnect();
     }
@@ -1033,14 +1032,11 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_ECHO:
             {
-                // randomtoken.1
-    //                READ_8(token, 0);
                 CHATD_LOG_DEBUG("shard %d: recv ECHO", mShardNo);
-                if (mEchoTimer)//) && mEchoToken == token)
+                if (mEchoTimer)
                 {
                     CHATD_LOG_DEBUG("Socket is still alive");
                     cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
-                    mEchoToken = 0;
                     mEchoTimer = 0;
                 }
                 break;
