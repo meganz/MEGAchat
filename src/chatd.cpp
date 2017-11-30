@@ -78,7 +78,7 @@ namespace chatd
 // there is no guarantee as to ordering
 
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), mApi(&client->api), karereClient(client), mKeepaliveType(client->isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
+:mUserId(userId), mApi(&client->api), karereClient(client)
 {
 }
 
@@ -126,6 +126,11 @@ void Client::sendKeepalive()
     {
         conn.second->sendKeepalive(mKeepaliveType);
     }
+}
+
+void Client::setKeepaliveType(bool isInBackground)
+{
+    mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
 void Client::notifyUserIdle()
