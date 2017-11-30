@@ -733,7 +733,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId {
-    return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCall(callId) cMemoryOwn:YES];
+    return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCallByCallId(callId) cMemoryOwn:YES];
 }
 
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId {
