@@ -222,25 +222,17 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
-            if (mClient)
+            mClient->retryPendingConnections()
+                    .then([this, request]()
             {
-                mClient->retryPendingConnections()
-                .then([this, request]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([this, request](const promise::Error& e)
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-            }
-            else
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
-            }
+            })
+                    .fail([this, request](const promise::Error& e)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
             break;
         }
         case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
@@ -292,29 +284,20 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            if (mClient)
-            {
-                bool deleteDb = request->getFlag();
-                terminating = true;
-                mClient->terminate(deleteDb);
+            bool deleteDb = request->getFlag();
+            terminating = true;
+            mClient->terminate(deleteDb);
 
-                API_LOG_INFO("Chat engine is logged out!");
-                marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-
-                    delete mClient;
-                    mClient = NULL;
-                    terminating = false;
-                 }, this);
-            }
-            else
+            API_LOG_INFO("Chat engine is logged out!");
+            marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-                API_LOG_WARNING("Logout attempt without previous initialization");
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
-            }
+
+                delete mClient;
+                mClient = NULL;
+                terminating = false;
+            }, this);
             break;
         }
         case MegaChatRequest::TYPE_DELETE:
