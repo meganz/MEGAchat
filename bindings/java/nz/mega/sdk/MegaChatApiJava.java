@@ -600,6 +600,9 @@ public class MegaChatApiJava {
      * @param background True if the the app is in background, false if in foreground.
      */
     public void setBackgroundStatus(boolean background, MegaChatRequestListenerInterface listener){
+        if (background){
+            megaChatApi.saveCurrentState();
+        }
         megaChatApi.setBackgroundStatus(background, createDelegateRequestListener(listener));
     }
 
@@ -617,6 +620,9 @@ public class MegaChatApiJava {
      * @param background True if the the app is in background, false if in foreground.
      */
     public void setBackgroundStatus(boolean background){
+        if (background){
+            megaChatApi.saveCurrentState();
+        }
         megaChatApi.setBackgroundStatus(background);
     }
 
@@ -1384,6 +1390,20 @@ public class MegaChatApiJava {
      */
     public void sendTypingNotification(long chatid){
         megaChatApi.sendTypingNotification(chatid);
+    }
+
+    /**
+     * Saves the current state
+     *
+     * The DB cache works with transactions. In order to prevent losing recent changes when the app
+     * dies abruptly (usual case in mobile apps), it is recommended to call this method, so the
+     * transaction is committed.
+     *
+     * This method should be called ONLY when the app is prone to be killed, whether by the user or the
+     * operative system. Otherwise, transactions are committed regularly.
+     */
+    public void saveCurrentState(){
+        megaChatApi.saveCurrentState();
     }
 
     public static void setCatchException(boolean enable) {

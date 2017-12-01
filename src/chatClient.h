@@ -615,10 +615,8 @@ public:
     void *appCtx;
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
-    bool isInBackground = false;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
-    unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
@@ -794,6 +792,8 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
 
+    void commit();  // forces a commit
+
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
@@ -821,7 +821,7 @@ protected:
     void createDb();
     void wipeDb(const std::string& sid);
     void createDbSchema();
-    void connectToChatd();
+    void connectToChatd(bool isInBackground);
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
     std::string getMyEmailFromDb();
@@ -858,7 +858,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres);
+    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
     void setConnState(ConnState newState);
 #ifndef KARERE_DISABLE_WEBRTC
     // rtcModule::IGlobalEventHandler interface
