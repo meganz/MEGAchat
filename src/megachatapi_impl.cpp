@@ -2299,7 +2299,10 @@ void MegaChatApiImpl::saveCurrentState()
 {
     sdkMutex.lock();
 
-    mClient->commit();
+    if (mClient)
+    {
+        mClient->commit();
+    }
 
     sdkMutex.unlock();
 }
