@@ -3481,6 +3481,10 @@ public:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
      *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
      *
+     * @note If \c chatid is MEGACHAT_INVALID_HANDLE, it means that you are connected to all
+     * active chatrooms. It will only happens when \c newState is MegaChatApi::CHAT_CONNECTION_ONLINE.
+     * The offline status for all chats is not notified.
+     *
      * @param api MegaChatApi connected to the account
      * @param chatid MegaChatHandle that identifies the chat room
      * @param newState New state of the connection

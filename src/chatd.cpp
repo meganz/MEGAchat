@@ -78,7 +78,7 @@ namespace chatd
 // there is no guarantee as to ordering
 
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), mApi(&client->api), karereClient(client), mKeepaliveType(client->isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
+:mUserId(userId), mApi(&client->api), karereClient(client)
 {
 }
 
@@ -126,6 +126,11 @@ void Client::sendKeepalive()
     {
         conn.second->sendKeepalive(mKeepaliveType);
     }
+}
+
+void Client::setKeepaliveType(bool isInBackground)
+{
+    mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
 void Client::notifyUserIdle()
@@ -1776,6 +1781,8 @@ int Chat::unreadMsgCount() const
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
     {
+        // conditions to consider unread messages should match the
+        // ones in ChatdSqliteDb::getPeerMsgCountAfterIdx()
         auto& msg = at(i);
         if (msg.userid != mClient.userId()               // skip own messages
                 && !(msg.updated && !msg.size())         // skip deleted messages

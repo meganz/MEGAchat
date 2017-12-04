@@ -1069,6 +1069,7 @@ public:
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     IRtcHandler* mRtcHandler = nullptr;
     karere::Id userId() const { return mUserId; }
+    void setKeepaliveType(bool isInBackground);
     Client(karere::Client *client, karere::Id userId);
     ~Client(){}
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
