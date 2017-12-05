@@ -46,6 +46,9 @@ public:
     ApiPromise mPromise;
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
     {
+        if (wptr.deleted())
+            return;
+
         std::shared_ptr<::mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
         karere::marshallCall([this, req, errCode]()

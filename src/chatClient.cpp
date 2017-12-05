@@ -760,22 +760,20 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     else if (mConnState == kConnected)
         return promise::_Void();
 
-    this->isInBackground = isInBackground;
-
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
     case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres);
+        return doConnect(pres, isInBackground);
     case promise::kFailed:
         return mSessionReadyPromise.error();
     default:                    // if session is not ready yet
         assert(sessDone == promise::kNotResolved);
         mConnectPromise = mSessionReadyPromise
-            .then([this, pres]() mutable
+            .then([this, pres, isInBackground]() mutable
             {
-                return doConnect(pres);
+                return doConnect(pres, isInBackground);
             })
             .then([this]()
             {
@@ -790,7 +788,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres)
+promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     assert(mSessionReadyPromise.succeeded());
     setConnState(kConnecting);
@@ -808,7 +806,7 @@ promise::Promise<void> Client::doConnect(Presence pres)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-    connectToChatd();
+    connectToChatd(isInBackground);
     auto pms = connectToPresenced(mOwnPresence)
     .then([this]()
     {
@@ -2484,8 +2482,10 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd()
+void Client::connectToChatd(bool isInBackground)
 {
+    chatd->setKeepaliveType(isInBackground);
+
     for (auto& item: *chats)
     {
         auto& chat = *item.second;

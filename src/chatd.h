@@ -1027,6 +1027,7 @@ public:
     karere::Client *karereClient;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     karere::Id userId() const { return mUserId; }
+    void setKeepaliveType(bool isInBackground);
     Client(karere::Client *client, karere::Id userId);
     ~Client(){}
     Chat& chats(karere::Id chatid) const
