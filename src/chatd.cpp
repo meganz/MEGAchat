@@ -77,7 +77,7 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 
-const unsigned int Connection::callDataPayLoadPosition = 22;
+const unsigned int Connection::callDataPayLoadPosition = 23;
 
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)

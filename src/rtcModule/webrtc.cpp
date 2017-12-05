@@ -272,9 +272,12 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    // PayLoad: <callid> <peerToPeer | group> <ringing> <AV flags> <key>
+    // PayLoad: <callid> <peerToPeer | group> <ringing> <AV flags>
     karere::Id callid = msg.read<karere::Id>(Connection::callDataPayLoadPosition);
-    bool ringing = msg.read<bool>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(bool));
+    std::cerr << "RtcModule::handleCallData - callid: " << callid << std::endl;
+    bool group = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id));
+    bool ringing = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t));
+    AvFlags avFlagsRemote = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t)+ sizeof(uint8_t));
 
     //bool ringing = msg.read<bool>(20 + sizeof(uint16_t)+ sizeof(karere::Id)) & 0x04;
 
@@ -285,43 +288,58 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    std::cerr << "RtcModule::handleMessage - OP_CALLDATA: callid -> " << callid << std::endl;
-    assert(callid);
-    if (!mCalls.empty())
+    AvFlags avFlags(false, false);
+    bool answerAutomatic = false;
+
+    if (!mCalls.empty() && !group)
     {
-        assert(mCalls.size() == 1);
-        auto& existingChatid = mCalls.begin()->first;
-        auto& existingCall = mCalls.begin()->second;
-        if (existingChatid == chatid && existingCall->state() < Call::kStateTerminating)
+        // Two calls at same time in same chat
+        karere::Id chatId = chatid;
+        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatId);
+        if (iteratorCall != mCalls.end())
         {
-            bool answer = mHandler.onAnotherCall(*existingCall, userid);
-            if (answer)
+            Call *existingCall = iteratorCall->second.get();
+            if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
             {
-                existingCall->hangup();
-                mCalls.erase(existingChatid);
+                //cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, callid, TermCode::kBusy);
+                return;
             }
-            else
+            else if (mClient.myHandle() > userid)
             {
-                sendCommand(chat, OP_RTMSG_ENDPOINT, RTCMD_CALL_REQ_DECLINE, chatid, userid, clientid, callid, TermCode::kBusy);
+                RTCM_LOG_DEBUG("msgCallRequest: Waiting for the other peer hangup its incoming call and answer our call");
+                return;
             }
+
+            // hang up existing call and answer automatically incoming call
+            avFlags = existingCall->sentAv();
+            answerAutomatic = true;
+            existingCall->hangup();
+            mCalls.erase(chatId);
         }
     }
 
-    auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, mHandler.isGroupChat(chatid),
+    auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, group,
                                                              true, nullptr, userid, clientid));
     assert(ret.second);
     auto& call = ret.first->second;
-    call->mHandler = mHandler.onCallIncoming(*call);
+    call->mHandler = mHandler.onCallIncoming(*call, avFlagsRemote);
     assert(call->mHandler);
     assert(call->state() == Call::kStateRingIn);
     sendCommand(chat, OP_RTMSG_ENDPOINT, RTCMD_CALL_RINGING, chatid, userid, clientid, callid);
-    auto wcall = call->weakHandle();
-    setTimeout([wcall]() mutable
+    if (!answerAutomatic)
     {
-        if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
-            return;
-        static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-    }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+        auto wcall = call->weakHandle();
+        setTimeout([wcall]() mutable
+        {
+            if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
+                return;
+            static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
+        }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+    }
+    else
+    {
+        call->answer(avFlags);
+    }
 }
 
 void RtcModule::onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv)
@@ -336,6 +354,11 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         return;
     }
     packet.callid = packet.payload.read<uint64_t>(0);
+    AvFlags avFlagsRemote;
+    if ( packet.payload.size() > 8)
+    {
+        avFlagsRemote = packet.payload.read<uint8_t>(8);
+    }
 
     assert(packet.callid);
 
@@ -378,7 +401,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     assert(ret.second);
     auto& call = ret.first->second;
 
-    call->mHandler = mHandler.onCallIncoming(*call);
+    call->mHandler = mHandler.onCallIncoming(*call, avFlagsRemote);
     assert(call->mHandler);
     assert(call->state() == Call::kStateRingIn);
     cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
@@ -1205,29 +1228,38 @@ void Call::sendInCallCommand()
 
 bool Call::sendCallData(bool ringing)
 {
-//    uint8_t flags = (mChat.isGroup() << 3) + (ringing << 2) + sentAv().value();
-//    uint16_t payLoadLen = sizeof(mId) + sizeof(flags) + sizeof(mManager.mClient.mMyPrivCu25519);
-//    Command command = Command(chatd::OP_CALLDATA) + mChat.chatId() + 0 + 0 + payLoadLen + mId + flags
-//            + StaticBuffer(mManager.mClient.mMyPrivCu25519, sizeof(mManager.mClient.mMyPrivCu25519));
+    uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint8_t);
 
-    uint16_t payLoadLen = sizeof(mId) + sizeof(mChat.isGroup()) + sizeof(ringing) + sizeof(sentAv().value()) + sizeof(mManager.mClient.mMyPrivCu25519);
-    Command command = Command(chatd::OP_CALLDATA) + mChat.chatId() + 0 + 0 + payLoadLen + mId + !mChat.isGroup()+ ringing
-            + sentAv().value() + StaticBuffer(mManager.mClient.mMyPrivCu25519, sizeof(mManager.mClient.mMyPrivCu25519));
+    std::cerr << "Payload length: " << payLoadLen << std::endl;
 
-    if (mChat.sendCommand(std::move(command)))
+    karere::Id userid = mManager.mClient.myHandle();
+    uint32_t clientid = mChat.connection().clientId();
+    Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
+    command.write<uint64_t>(9, userid);
+    command.write<uint32_t>(17, clientid);
+    command.write<uint16_t>(21, payLoadLen);
+    command.write<uint64_t>(chatd::Connection::callDataPayLoadPosition, mId);
+    command.write<uint8_t>(31, mChat.isGroup());
+    command.write<uint8_t>(32, ringing);
+    command.write<uint8_t>(33, sentAv().value());
     {
         return true;
     }
 
-    auto wptr = weakHandle();
-    marshallCall([wptr, this]()
+    if (!mChat.sendCommand(std::move(command)))
     {
-        if (wptr.deleted())
-            return;
-        destroy(TermCode::kErrNetSignalling, true);
-    }, mManager.mClient.appCtx);
+        auto wptr = weakHandle();
+        marshallCall([wptr, this]()
+        {
+            if (wptr.deleted())
+                return;
+            destroy(TermCode::kErrNetSignalling, true);
+        }, mManager.mClient.appCtx);
 
-    return false;
+        return false;
+    }
+
+    return true;
 }
 
 bool Call::answer(AvFlags av)

@@ -352,7 +352,7 @@ public:
      * @param call The \c rtcModule::ICall instance that represents the call. To
      * answer, do `call.answer()`, to reject, do `call.hangup()`
      */
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call) = 0;
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
 #endif
     /**
      * @brief Called by karere when we become participants in a 1on1 or a group chat.
