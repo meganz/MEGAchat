@@ -460,6 +460,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return ret;
 }
 
+- (uint64_t)userHandleByEmail:(NSString *)email {
+    return self.megaChatApi->getUserHandleByEmail([email UTF8String]);
+}
+
 #pragma mark - Chat management
 
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers delegate:(id<MEGAChatRequestDelegate>)delegate {
