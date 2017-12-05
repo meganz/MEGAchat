@@ -49,6 +49,11 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
     MEGAChatInitNoCache           = 7
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatConnection) {
+    MEGAChatConnectionOffline   = 0,
+    MEGAChatConnectionOnline   = 1
+};
+
 @interface MEGAChatSdk : NSObject
 
 @property (nonatomic, assign) uint64_t myUserHandle;
