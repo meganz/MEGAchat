@@ -29,7 +29,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeStatus = 0x01,
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
     MEGAChatCallChangeTypeRemoteAVFlags = 0x04,
-    MEGAChatCallChangeTypeTemporaryError = 0x08
+    MEGAChatCallChangeTypeTemporaryError = 0x08,
+    MEGAChatCallChangeTypeRingingStatus = 0x10
 };
 
 @interface MEGAChatCall : NSObject

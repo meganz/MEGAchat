@@ -616,7 +616,6 @@ public:
     void *appCtx;
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
-    bool isInBackground = false;
     MyMegaApi api;
     unsigned mReconnectConnStateHandler = 0;
     IApp& app;
@@ -832,7 +831,7 @@ protected:
     void createDb();
     void wipeDb(const std::string& sid);
     void createDbSchema();
-    void connectToChatd();
+    void connectToChatd(bool isInBackground);
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
     std::string getMyEmailFromDb();
@@ -870,7 +869,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres);
+    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread

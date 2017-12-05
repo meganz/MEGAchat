@@ -70,9 +70,10 @@ public:
         if (!mDb)
             return;
         if (!mCommitEach)
-            commit();
+            commitTransaction();
         sqlite3_close(mDb);
         mDb = nullptr;
+        mLastCommitTs = 0;
     }
     bool isOpen() const { return mDb != nullptr; }
     void setCommitMode(bool commitEach)

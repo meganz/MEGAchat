@@ -94,10 +94,6 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->terminating = false;
     this->waiter = new MegaChatWaiter();
     this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, this);
-    
-#ifndef KARERE_DISABLE_WEBRTC
-    this->localVideoReceiver = NULL;
-#endif
 
     //Start blocking thread
     threadExit = 0;
@@ -230,25 +226,17 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
-            if (mClient)
+            mClient->retryPendingConnections()
+                    .then([this, request]()
             {
-                mClient->retryPendingConnections()
-                .then([this, request]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([this, request](const promise::Error& e)
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-            }
-            else
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
-            }
+            })
+                    .fail([this, request](const promise::Error& e)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
             break;
         }
         case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
@@ -300,33 +288,25 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            if (mClient)
+            bool deleteDb = request->getFlag();
+            terminating = true;
+            mClient->terminate(deleteDb);            
+
+            API_LOG_INFO("Chat engine is logged out!");
+            marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
             {
-                bool deleteDb = request->getFlag();
-                terminating = true;
-                mClient->terminate(deleteDb);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
 
-                API_LOG_INFO("Chat engine is logged out!");
-                marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-
-                    delete mClient;
-                    mClient = NULL;
-                    terminating = false;
+                delete mClient;
+                mClient = NULL;
+                terminating = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
-                    cleanCallHandlerMap();
+                cleanCallHandlerMap();
 #endif
-                     }, this);
-            }
-            else
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-                API_LOG_WARNING("Logout attempt without previous initialization");
-                fireOnChatRequestFinish(request, megaChatError);
-            }
+            }, this);
+
             break;
         }
         case MegaChatRequest::TYPE_DELETE:
@@ -957,7 +937,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!call)
             {
                 API_LOG_ERROR("Answer call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
                 break;
             }
@@ -993,7 +973,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 if (!call)
                 {
                     API_LOG_ERROR("Hang up call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                    errorCode = MegaChatError::ERROR_UNKNOWN;
+                    errorCode = MegaChatError::ERROR_NOENT;
                     assert(false);
                     break;
                 }
@@ -1029,7 +1009,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatCall || !call)
             {
                 API_LOG_ERROR("Disable AV flags - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_NOENT;
                 assert(false);
                 break;
             }
@@ -1466,9 +1446,30 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
 
 void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
 {
+    // check if connected to all chats (and logged in)
+    bool allConnected = false;
+    if (newState == MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        allConnected = true;
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+        {
+            if (it->second->isActive() && it->second->chat().onlineState() != chatd::kChatStateOnline)
+            {
+                allConnected = false;
+                break;
+            }
+        }
+    }
+
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
         (*it)->onChatConnectionStateUpdate(chatApi, chatid, newState);
+
+        if (allConnected)
+        {
+            (*it)->onChatConnectionStateUpdate(chatApi, MEGACHAT_INVALID_HANDLE, newState);
+        }
     }
 }
 
@@ -2421,7 +2422,10 @@ void MegaChatApiImpl::saveCurrentState()
 {
     sdkMutex.lock();
 
-    mClient->commit();
+    if (mClient)
+    {
+        mClient->commit();
+    }
 
     sdkMutex.unlock();
 }
@@ -2431,16 +2435,16 @@ void MegaChatApiImpl::saveCurrentState()
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     std::vector<std::string> devicesVector;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         mClient->rtc->getAudioInDevices(devicesVector);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to get audio-in devices");
     }
+    sdkMutex.unlock();
 
     MegaStringList *devices = getChatInDevices(devicesVector);
 
@@ -2451,16 +2455,16 @@ MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
     std::vector<std::string> devicesVector;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         mClient->rtc->getVideoInDevices(devicesVector);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to get video-in devices");
     }
+    sdkMutex.unlock();
 
     MegaStringList *devices = getChatInDevices(devicesVector);
 
@@ -2470,16 +2474,16 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 {
     bool returnedValue = false;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         returnedValue = mClient->rtc->selectAudioInDevice(device);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to set audio-in devices");
     }
+    sdkMutex.unlock();
 
     return returnedValue;
 }
@@ -2487,16 +2491,16 @@ bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
 {
     bool returnedValue = false;
+    sdkMutex.lock();
     if (mClient->rtc)
     {
-        sdkMutex.lock();
         returnedValue = mClient->rtc->selectVideoInDevice(device);
-        sdkMutex.unlock();
     }
     else
     {
         API_LOG_ERROR("Failed to set video-in devices");
     }
+    sdkMutex.unlock();
 
     return returnedValue;
 }
@@ -2562,12 +2566,46 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     waiter->notify();
 }
 
-MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle callId)
+MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
 {
     MegaChatCall *chatCall = NULL;
-    sdkMutex.lock();
 
-    for (std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.begin(); it != callHandlers.end(); ++it)
+    sdkMutex.lock();
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatId);
+
+    if (it != callHandlers.end())
+    {
+        if (it->second != NULL)
+        {
+            chatCall = it->second->getMegaChatCall();
+            if (!chatCall)
+            {
+                API_LOG_ERROR("MegaChatApiImpl::getChatCall - Invalid MegaChatCall at MegaChatCallHandler");
+                assert(false);
+            }
+            else
+            {
+                chatCall = chatCall->copy();
+            }
+        }
+        else
+        {
+            API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCallHandler at callHandlers");
+            assert(false);
+        }
+    }
+
+    sdkMutex.unlock();
+    return chatCall;
+}
+
+MegaChatCall *MegaChatApiImpl::getChatCallByCallId(MegaChatHandle callId)
+{
+    MegaChatCall *chatCall = NULL;
+
+    sdkMutex.lock();
+    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it;
+    for (it = callHandlers.begin(); it != callHandlers.end(); ++it)
     {
         if (it->second != NULL)
         {
@@ -2597,38 +2635,14 @@ MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle callId)
     return chatCall;
 }
 
-MegaChatCall *MegaChatApiImpl::getChatCallByChatId(MegaChatHandle chatId)
+int MegaChatApiImpl::getNumCalls()
 {
-    MegaChatCall *chatCall = NULL;
-
+    int callsNumber = 0;
     sdkMutex.lock();
-    std::map<MegaChatHandle, MegaChatCallHandler*>::iterator it = callHandlers.find(chatId);
-
-    if (it != callHandlers.end())
-    {
-        if(it->second != NULL)
-        {
-            chatCall = it->second->getMegaChatCall();
-            if (!chatCall)
-            {
-                API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCall at MegaChatCallHandler");
-                assert(false);
-            }
-            else
-            {
-                chatCall = chatCall->copy();
-            }
-        }
-        else
-        {
-            API_LOG_ERROR("MegaChatApiImpl::getChatCallByChatId - Invalid MegaChatCallHandler at callHandlers");
-            assert(false);
-        }
-    }
-
+    callsNumber = callHandlers.size();
     sdkMutex.unlock();
-    return chatCall;
 
+    return callsNumber;
 }
 
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
@@ -2820,12 +2834,6 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 
 rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
 {
-    if (findChatCallHandler(call.chat().chatId()))
-    {
-        assert(false);
-        API_LOG_ERROR("Incoming call for a chatid which already has a call");
-    }
-
     MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
     chatCallHandler->setCall(&call);
     MegaChatHandle chatid = call.chat().chatId();
@@ -5353,7 +5361,12 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, con
     assert(chatCall != NULL);
     if (chatCall != NULL)
     {
-        megaChatApi->removeChatCallHandler(chatCall->getChatid());
+        MegaChatHandle chatid = chatCall->getChatid();
+
+        if (megaChatApi->findChatCallHandler(chatid) == this)
+        {
+            megaChatApi->removeChatCallHandler(chatCall->getChatid());
+        }
     }
     else
     {
@@ -5463,6 +5476,12 @@ MegaChatSessionHandler::~MegaChatSessionHandler()
 
 void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 {
+    if (rtcModule::ISession::kStateInProgress == newState)
+    {
+        MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+        chatCall->setRemoteAudioVideoFlags(session->receivedAv());
+        megaChatApi->fireOnChatCallUpdate(chatCall);
+    }
 }
 
 void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)

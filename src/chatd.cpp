@@ -80,7 +80,7 @@ namespace chatd
 const unsigned int Connection::callDataPayLoadPosition = 22;
 
 Client::Client(karere::Client *client, Id userId)
-:mUserId(userId), mApi(&client->api), karereClient(client), mKeepaliveType(client->isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE)
+:mUserId(userId), mApi(&client->api), karereClient(client)
 {
 }
 
@@ -128,6 +128,11 @@ void Client::sendKeepalive()
     {
         conn.second->sendKeepalive(mKeepaliveType);
     }
+}
+
+void Client::setKeepaliveType(bool isInBackground)
+{
+    mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
 void Client::notifyUserIdle()
@@ -1800,6 +1805,8 @@ int Chat::unreadMsgCount() const
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
     {
+        // conditions to consider unread messages should match the
+        // ones in ChatdSqliteDb::getPeerMsgCountAfterIdx()
         auto& msg = at(i);
         if (msg.userid != mClient.userId()               // skip own messages
                 && !(msg.updated && !msg.size())         // skip deleted messages
@@ -2933,11 +2940,13 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(JOINRANGEHIST);
         RET_ENUM_NAME(MSGUPDX);
         RET_ENUM_NAME(MSGID);
-        RET_ENUM_NAME(KEEPALIVEAWAY);
         RET_ENUM_NAME(CLIENTID);
         RET_ENUM_NAME(RTMSG_BROADCAST);
         RET_ENUM_NAME(RTMSG_USER);
         RET_ENUM_NAME(RTMSG_ENDPOINT);
+        RET_ENUM_NAME(INCALL);
+        RET_ENUM_NAME(ENDCALL);
+        RET_ENUM_NAME(KEEPALIVEAWAY);
         RET_ENUM_NAME(CALLDATA);
         default: return "(invalid opcode)";
     };

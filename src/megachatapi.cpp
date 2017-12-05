@@ -570,14 +570,19 @@ void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
     pImpl->loadAudioVideoDeviceList(listener);
 }
 
-MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle callId)
+MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
 {
-    return pImpl->getChatCall(callId);
+    return pImpl->getChatCall(chatid);
 }
 
-MegaChatCall *MegaChatApi::getChatCallByChatId(MegaChatHandle chatId)
+MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)
 {
-    return pImpl->getChatCallByChatId(chatId);
+    return pImpl->getChatCallByCallId(callId);
+}
+
+int MegaChatApi::getNumCalls()
+{
+    return pImpl->getNumCalls();
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)

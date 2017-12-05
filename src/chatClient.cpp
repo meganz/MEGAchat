@@ -311,7 +311,10 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 
 void Client::commit()
 {
-    db.commit();
+    if (db.isOpen())
+    {
+        db.commit();
+    }
 }
 
 void Client::loadContactListFromApi()
@@ -394,7 +397,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db)
+        if (db.isOpen())
         {
             auto pscsn = event->getText();
             if (!pscsn)
@@ -665,11 +668,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
 void Client::wipeDb(const std::string& sid)
 {
     assert(!sid.empty());
-    if (db)
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
+    db.close();
     std::string path = dbPath(sid);
     remove(path.c_str());
     struct stat info;
@@ -764,22 +763,20 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     else if (mConnState == kConnected)
         return promise::_Void();
 
-    this->isInBackground = isInBackground;
-
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
     case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres);
+        return doConnect(pres, isInBackground);
     case promise::kFailed:
         return mSessionReadyPromise.error();
     default:                    // if session is not ready yet
         assert(sessDone == promise::kNotResolved);
         mConnectPromise = mSessionReadyPromise
-            .then([this, pres]() mutable
+            .then([this, pres, isInBackground]() mutable
             {
-                return doConnect(pres);
+                return doConnect(pres, isInBackground);
             })
             .then([this]()
             {
@@ -794,7 +791,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres)
+promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     assert(mSessionReadyPromise.succeeded());
     setConnState(kConnecting);
@@ -818,16 +815,16 @@ promise::Promise<void> Client::doConnect(Presence pres)
 // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init(10000)
-            .then([this, wptr]()
+    .then([this, isInBackground, wptr]()
     {
         if (wptr.deleted())
         {
             return;
         }
-        connectToChatd();
+        connectToChatd(isInBackground);
     });
 #else
-    connectToChatd();
+    connectToChatd(isInBackground);
 #endif
 
     auto pms = connectToPresenced(mOwnPresence)
@@ -1163,7 +1160,7 @@ void Client::terminate(bool deleteDb)
     {
         wipeDb(mSid);
     }
-    else if (db)
+    else if (db.isOpen())
     {
         KR_LOG_INFO("Doing final COMMIT to database");
         db.commit();
@@ -2515,8 +2512,10 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd()
+void Client::connectToChatd(bool isInBackground)
 {
+    chatd->setKeepaliveType(isInBackground);
+
     for (auto& item: *chats)
     {
         auto& chat = *item.second;
