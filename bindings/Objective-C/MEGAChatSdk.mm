@@ -89,6 +89,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disconnect();
 }
 
+- (MEGAChatConnection)chatConnectionState:(uint64_t)chatId {
+    return (MEGAChatConnection) self.megaChatApi->getChatConnectionState(chatId);
+}
+
 - (void)retryPendingConnections {
     self.megaChatApi->retryPendingConnections();
 }
