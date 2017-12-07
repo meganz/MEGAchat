@@ -157,7 +157,7 @@ public:
     enum {
         kApiTimeout = 20000,
         kCallAnswerTimeout = 40000,
-        kRingOutTimeout = 6000,
+        kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 20000
