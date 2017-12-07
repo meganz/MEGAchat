@@ -49,6 +49,11 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
     MEGAChatInitNoCache           = 7
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatConnection) {
+    MEGAChatConnectionOffline   = 0,
+    MEGAChatConnectionOnline   = 1
+};
+
 @interface MEGAChatSdk : NSObject
 
 @property (nonatomic, assign) uint64_t myUserHandle;
@@ -75,6 +80,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)disconnect;
+- (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
 - (void)retryPendingConnections;
 
 #pragma mark - Logout
@@ -142,8 +148,8 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)userLastnameByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)userLastnameByUserHandle:(uint64_t)userHandle;
 
-
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle;
+- (uint64_t)userHandleByEmail:(NSString *)email;
 
 #pragma mark - Chat management
 

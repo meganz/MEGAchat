@@ -89,6 +89,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->disconnect();
 }
 
+- (MEGAChatConnection)chatConnectionState:(uint64_t)chatId {
+    return (MEGAChatConnection) self.megaChatApi->getChatConnectionState(chatId);
+}
+
 - (void)retryPendingConnections {
     self.megaChatApi->retryPendingConnections();
 }
@@ -458,6 +462,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     
     delete [] val;
     return ret;
+}
+
+- (uint64_t)userHandleByEmail:(NSString *)email {
+    return self.megaChatApi->getUserHandleByEmail([email UTF8String]);
 }
 
 #pragma mark - Chat management
