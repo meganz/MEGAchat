@@ -278,7 +278,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     bool ringing = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t));
     AvFlags avFlagsRemote = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t)+ sizeof(uint8_t));
 
-    // If receive a OP_CALLDATA with ringing false doesn't do anything.
+    // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
     if (!ringing)
     {
         return;
@@ -889,9 +889,8 @@ void Call::msgSession(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring unexpected SESSION");
         return;
     }
+
     setState(Call::kStateInProgress);
-    // Send OP_CALLDATA with call inProgress
-    sendCallData(false);
 
     Id sid = packet.payload.read<uint64_t>(8);
     if (mSessions.find(sid) != mSessions.end())
@@ -928,6 +927,8 @@ void Call::msgJoin(RtMessage& packet)
         if (mState == Call::kStateReqSent)
         {
             setState(Call::kStateInProgress);
+            // Send OP_CALLDATA with call inProgress
+            sendCallData(false);
         }
         // create session to this peer
         auto sess = std::make_shared<Session>(*this, packet);
