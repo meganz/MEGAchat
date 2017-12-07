@@ -204,6 +204,8 @@ protected:
     IRtcCrypto& crypto() const { return *mCrypto; }
     void msgCallRequest(RtMessage& packet);
     template <class... Args>
+    void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
+    template <class... Args>
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
     std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);

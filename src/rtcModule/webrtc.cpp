@@ -274,15 +274,11 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
     // PayLoad: <callid> <peerToPeer | group> <ringing> <AV flags>
     karere::Id callid = msg.read<karere::Id>(Connection::callDataPayLoadPosition);
-    std::cerr << "RtcModule::handleCallData - callid: " << callid << std::endl;
     bool group = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id));
     bool ringing = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t));
     AvFlags avFlagsRemote = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t)+ sizeof(uint8_t));
 
-    //bool ringing = msg.read<bool>(20 + sizeof(uint16_t)+ sizeof(karere::Id)) & 0x04;
-
     // If receive a OP_CALLDATA with ringing false doesn't do anything.
-    // It's possible that we have to look for call and delete it
     if (!ringing)
     {
         return;
@@ -290,18 +286,20 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
-
     if (!mCalls.empty() && !group)
     {
         // Two calls at same time in same chat
-        karere::Id chatId = chatid;
-        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatId);
+        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatid);
         if (iteratorCall != mCalls.end())
         {
             Call *existingCall = iteratorCall->second.get();
             if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
             {
-                //cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, callid, TermCode::kBusy);
+                if (clientid != existingCall->callerClient())
+                {
+                    cmdEndpoint(chat, RTCMD_CALL_REQ_DECLINE, chatid, userid, clientid, callid, TermCode::kBusy);
+                }
+
                 return;
             }
             else if (mClient.myHandle() > userid)
@@ -314,7 +312,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             avFlags = existingCall->sentAv();
             answerAutomatic = true;
             existingCall->hangup();
-            mCalls.erase(chatId);
+            mCalls.erase(chatid);
         }
     }
 
@@ -425,14 +423,20 @@ void RtcModule::msgCallRequest(RtMessage& packet)
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {
-    assert(info.chatid);
-    assert(info.userid);
-    assert(info.clientid);
-    RtMessageComposer msg(OP_RTMSG_ENDPOINT, type, info.chatid, info.userid, info.clientid);
+    cmdEndpoint(info.chat, type, info.chatid, info.userid, info.clientid, args...);
+}
+
+template <class... Args>
+void RtcModule::cmdEndpoint(chatd::Chat &chat, uint8_t type, Id chatid, Id userid, uint32_t clientid, Args... args)
+{
+    assert(chatid);
+    assert(userid);
+    assert(clientid);
+    RtMessageComposer msg(OP_RTMSG_ENDPOINT, type, chatid, userid, clientid);
     msg.payloadAppend(args...);
-    if (!info.chat.sendCommand(std::move(msg)))
+    if (!chat.sendCommand(std::move(msg)))
     {
-        throw std::runtime_error(std::string("cmdEndpoint: Send error trying to send command ") + std::string(info.typeStr()));
+        throw std::runtime_error(std::string("cmdEndpoint: Send error trying to send command ") + std::to_string(type));
     }
 }
 
@@ -1230,8 +1234,6 @@ bool Call::sendCallData(bool ringing)
 {
     uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint8_t);
 
-    std::cerr << "Payload length: " << payLoadLen << std::endl;
-
     karere::Id userid = mManager.mClient.myHandle();
     uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
@@ -1242,9 +1244,6 @@ bool Call::sendCallData(bool ringing)
     command.write<uint8_t>(31, mChat.isGroup());
     command.write<uint8_t>(32, ringing);
     command.write<uint8_t>(33, sentAv().value());
-    {
-        return true;
-    }
 
     if (!mChat.sendCommand(std::move(command)))
     {

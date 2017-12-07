@@ -349,10 +349,13 @@ Promise<void> Connection::reconnect()
                 mState = kStateConnecting;
                 string ip = result->getText();
                 CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
+                // append /1 to url path to receive CALLDATA
+                std::string urlPath = mUrl.path;
+                urlPath.append("/1");
                 bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
-                          mUrl.path.c_str(),
+                          urlPath.c_str(),
                           mUrl.isSecure);
                 if (!rt)
                 {
@@ -500,7 +503,7 @@ bool Chat::sendCommand(const Command& cmd)
 void Chat::logSend(const Command& cmd) const
 {
     krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n",
-            ID_CSTR(mChatId), cmd.toString().c_str());
+                ID_CSTR(mChatId), cmd.toString().c_str());
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1106,11 +1109,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
                 CHATD_LOG_DEBUG("%s: recv OP_CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
                 auto& chat = mClient.chats(chatid);
                 StaticBuffer cmd(buf.buf() + cmdstart, Connection::callDataPayLoadPosition + payloadLen);
-                if (mClient.mRtcHandler)
+                if (mClient.mRtcHandler && userid != mClient.karereClient->myHandle())
                 {
                     mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
@@ -1892,6 +1896,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     mServerFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
+
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
 }
 
