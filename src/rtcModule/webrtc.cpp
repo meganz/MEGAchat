@@ -272,11 +272,10 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    // PayLoad: <callid> <peerToPeer | group> <ringing> <AV flags>
+    // PayLoad: <callid> <ringing> <AV flags>
     karere::Id callid = msg.read<karere::Id>(Connection::callDataPayLoadPosition);
-    bool group = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id));
-    bool ringing = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t));
-    AvFlags avFlagsRemote = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t)+ sizeof(uint8_t));
+    bool ringing = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id));
+    AvFlags avFlagsRemote = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t));
 
     // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
     if (!ringing)
@@ -286,7 +285,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
-    if (!mCalls.empty() && !group)
+    if (!mCalls.empty() && !chat.isGroup())
     {
         // Two calls at same time in same chat
         std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatid);
@@ -316,7 +315,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         }
     }
 
-    auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, group,
+    auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, chat.isGroup(),
                                                              true, nullptr, userid, clientid));
     assert(ret.second);
     auto& call = ret.first->second;
@@ -1233,18 +1232,17 @@ void Call::sendInCallCommand()
 
 bool Call::sendCallData(bool ringing)
 {
-    uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint8_t);
+    uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t);
 
     karere::Id userid = mManager.mClient.myHandle();
     uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
-    command.write<uint64_t>(9, userid);
-    command.write<uint32_t>(17, clientid);
+    command.write<uint64_t>(9, 0);
+    command.write<uint32_t>(17, 0);
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(chatd::Connection::callDataPayLoadPosition, mId);
-    command.write<uint8_t>(31, mChat.isGroup());
-    command.write<uint8_t>(32, ringing);
-    command.write<uint8_t>(33, sentAv().value());
+    command.write<uint8_t>(31, ringing);
+    command.write<uint8_t>(32, sentAv().value());
 
     if (!mChat.sendCommand(std::move(command)))
     {
