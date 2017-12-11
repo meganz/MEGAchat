@@ -1090,7 +1090,7 @@ bool Call::broadcastCallReq()
         if (wptr.deleted() || mState != Call::kStateReqSent)
             return;
 
-        destroy(TermCode::kRingOutTimeout, true);
+        hangup(TermCode::kRingOutTimeout);
     }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
     return true;
 }
@@ -1284,7 +1284,7 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            assert(reason == TermCode::kCallReqCancel || reason == TermCode::kAnswerTimeout);
+            assert(reason == TermCode::kCallReqCancel || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
         }
         cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
         destroy(reason, false);
