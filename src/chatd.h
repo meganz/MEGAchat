@@ -314,6 +314,10 @@ class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum {
+        kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 3    // echo to check connection is alive when back to foreground
+         };
 
 protected:
     Client& mClient;
@@ -321,8 +325,9 @@ protected:
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
     karere::Url mUrl;
-    megaHandle mInactivityTimer = 0;
-    int mInactivityBeats = 0;
+    bool mHeartbeatEnabled = false;
+    time_t mTsLastRecv = 0;
+    megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint32_t mClientId = 0;
@@ -345,8 +350,6 @@ protected:
     promise::Promise<void> reconnect();
     void disconnect();
     void notifyLoggedIn();
-    void enableInactivityTimer();
-    void disableInactivityTimer();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
     promise::Promise<void> rejoinExistingChats();
@@ -356,6 +359,7 @@ protected:
     bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
+    bool sendEcho();
     friend class Client;
     friend class Chat;
 public:
@@ -371,6 +375,7 @@ public:
     {
         disconnect();
     }
+    void heartbeat();
 };
 
 enum ServerHistFetchState
@@ -1060,6 +1065,7 @@ protected:
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
     void sendKeepalive();
+    void sendEcho();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
     unsigned inactivityCheckIntervalSec = 20;
@@ -1094,6 +1100,7 @@ public:
     void leave(karere::Id chatid);
     void disconnect();
     promise::Promise<void> retryPendingConnections();
+    void heartbeat();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
