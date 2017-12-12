@@ -285,7 +285,17 @@ enum Opcode
       *     S->C: notify call data changes (sent immediately after a chatd connection is established)
       */
     OP_CALLDATA = 31,
-    OP_LAST = OP_CALLDATA
+
+    /**
+      * @brief <randomToken>
+      *
+      * C->S: send an echo packet with 1byte payload. Server will respond with the
+      * same byte in return.
+      *
+      * This command helps to detect a broken socket when it silently dies.
+      */
+    OP_ECHO = 32,
+    OP_LAST = OP_ECHO
 };
 
 // privilege levels

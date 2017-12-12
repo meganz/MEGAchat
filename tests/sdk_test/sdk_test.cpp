@@ -543,6 +543,7 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
  * - Close session
  * - Login with chat enabled, transition to disabled and back to enabled
  * - Login with chat disabled, transition to enabled
+ * - Go into background, sleep and back to foreground
  * - Disconnect from chat server and reconnect
  *
  */
@@ -704,6 +705,25 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
     delete list;
     list = NULL;
+
+    // ___ Test going into background, sleep and back to foreground ___
+    for(int i = 0; i < 3; i++)
+    {
+        bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_BACKGROUND_STATUS]; *flag = false;
+        megaChatApi[accountIndex]->setBackgroundStatus(true);
+        ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
+
+        logger->postLog("========== Enter background status ================= ");
+        sleep(15);
+
+        flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_BACKGROUND_STATUS]; *flag = false;
+        megaChatApi[accountIndex]->setBackgroundStatus(false);
+        ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
+
+        logger->postLog("========== Enter foreground status ================= ");
+        sleep(5);
+    }
+
 
     // ___ Disconnect from chat server and reconnect ___
     for (int i = 0; i < 5; i++)
