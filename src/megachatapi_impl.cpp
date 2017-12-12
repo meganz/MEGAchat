@@ -2284,7 +2284,7 @@ void MegaChatApiImpl::saveCurrentState()
 
     if (mClient)
     {
-        mClient->commit();
+        mClient->saveDb();
     }
 
     sdkMutex.unlock();

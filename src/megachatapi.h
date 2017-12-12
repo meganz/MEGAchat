@@ -2403,6 +2403,9 @@ public:
      *
      * This method should be called ONLY when the app is prone to be killed, whether by the user or the
      * operative system. Otherwise, transactions are committed regularly.
+     *
+     * In case disk I/O error, this function could result in the init state changing to
+     * MegaChatApi::INIT_ERROR.
      */
     void saveCurrentState();
 

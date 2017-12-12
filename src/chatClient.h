@@ -792,7 +792,7 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
 
-    void commit();  // forces a commit
+    void saveDb();  // forces a commit
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
