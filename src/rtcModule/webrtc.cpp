@@ -1237,8 +1237,8 @@ bool Call::sendCallData(bool ringing)
     karere::Id userid = mManager.mClient.myHandle();
     uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
-    command.write<uint64_t>(9, 0);
-    command.write<uint32_t>(17, 0);
+    command.write<uint64_t>(9, userid);
+    command.write<uint32_t>(17, clientid);
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(chatd::Connection::callDataPayLoadPosition, mId);
     command.write<uint8_t>(31, ringing);
