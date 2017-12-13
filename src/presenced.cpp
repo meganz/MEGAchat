@@ -606,6 +606,16 @@ void Client::setConnState(ConnState newState)
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
     CALL_LISTENER(onConnStateChange, mConnState);
+
+    if (newState == kDisconnected)
+    {
+        // if disconnected, we don't really know the presence status anymore
+        for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
+        {
+            CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
+        }
+        CALL_LISTENER(onPresenceChange, mMyHandle, Presence::kInvalid);
+    }
 }
 void Client::addPeer(karere::Id peer)
 {
