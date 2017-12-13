@@ -1408,8 +1408,10 @@ public:
 
     enum
     {
-        CHAT_CONNECTION_OFFLINE = 0,    /// Connection with chatd is not ready
-        CHAT_CONNECTION_ONLINE  = 1     /// Connection with chatd is ready and logged in
+        CHAT_CONNECTION_OFFLINE     = 0,    /// No connection to chatd, offline mode
+        CHAT_CONNECTION_IN_PROGRESS = 1,    /// Establishing connection to chatd
+        CHAT_CONNECTION_LOGGING     = 2,    /// Connected to chatd, logging in (not ready to send/receive messages, etc)
+        CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
 
@@ -1588,7 +1590,9 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
-     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *  - MegaChatApi::CHAT_CONNECTION_IN_PROGRESS  = 1
+     *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return The state of connection
@@ -2678,6 +2682,9 @@ public:
      *
      * This method should be called ONLY when the app is prone to be killed, whether by the user or the
      * operative system. Otherwise, transactions are committed regularly.
+     *
+     * In case disk I/O error, this function could result in the init state changing to
+     * MegaChatApi::INIT_ERROR.
      */
     void saveCurrentState();
 
@@ -3479,11 +3486,13 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
-     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *  - MegaChatApi::CHAT_CONNECTION_IN_PROGRESS  = 1
+     *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
      * @note If \c chatid is MEGACHAT_INVALID_HANDLE, it means that you are connected to all
      * active chatrooms. It will only happens when \c newState is MegaChatApi::CHAT_CONNECTION_ONLINE.
-     * The offline status for all chats is not notified.
+     * The other connection states are not notified for all chats together, but only individually.
      *
      * @param api MegaChatApi connected to the account
      * @param chatid MegaChatHandle that identifies the chat room

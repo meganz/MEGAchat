@@ -369,8 +369,8 @@ public:
     virtual void onPresenceChanged(karere::Presence state)
     {
         ui.mOnlineIndicator->setStyleSheet(
-            QString("background-color: ")+gOnlineIndColors[state]+
-            ";border-radius: 4px");
+                    QString("background-color: ")+gOnlineIndColors[state.isValid() ? state.status() : 0]+
+                    ";border-radius: 4px");
     }
 
     virtual void mouseDoubleClickEvent(QMouseEvent* event)

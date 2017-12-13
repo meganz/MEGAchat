@@ -312,11 +312,19 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
 }
 
-void Client::commit()
+void Client::saveDb()
 {
-    if (db.isOpen())
+    try
     {
-        db.commit();
+        if (db.isOpen())
+        {
+            db.commit();
+        }
+    }
+    catch(std::runtime_error& e)
+    {
+        KR_LOG_ERROR("Error saving changes to local cache: %s", e.what());
+        setInitState(kInitErrCorruptCache);
     }
 }
 
@@ -1150,15 +1158,22 @@ void Client::terminate(bool deleteDb)
     disconnect();
     mUserAttrCache.reset();
 
-    if (deleteDb && !mSid.empty())
+    try
     {
-        wipeDb(mSid);
+        if (deleteDb && !mSid.empty())
+        {
+            wipeDb(mSid);
+        }
+        else if (db.isOpen())
+        {
+            KR_LOG_INFO("Doing final COMMIT to database");
+            db.commit();
+            db.close();
+        }
     }
-    else if (db.isOpen())
+    catch(std::runtime_error& e)
     {
-        KR_LOG_INFO("Doing final COMMIT to database");
-        db.commit();
-        db.close();
+        KR_LOG_ERROR("Error saving changes to local cache during termination: %s", e.what());
     }
 }
 

@@ -1193,6 +1193,28 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 break;
             }
+            case OP_ADDREACTION:
+            {
+                //TODO: to be implemented
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_ID(msgid, 16);
+                READ_32(reaction, 24);
+                CHATD_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %d",
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
+                break;
+            }
+            case OP_DELREACTION:
+            {
+                //TODO: to be implemented
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_ID(msgid, 16);
+                READ_32(reaction, 24);
+                CHATD_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %d",
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
+                break;
+            }
             default:
             {
                 CHATD_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -2988,6 +3010,8 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(ENDCALL);
         RET_ENUM_NAME(KEEPALIVEAWAY);
         RET_ENUM_NAME(ECHO);
+        RET_ENUM_NAME(ADDREACTION);
+        RET_ENUM_NAME(DELREACTION);
         default: return "(invalid opcode)";
     };
 }

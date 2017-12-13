@@ -189,7 +189,7 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
             :kOnlineSymbol_Set);
 
         ui.mOnlineStatusBtn->setStyleSheet(
-            kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+                    kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.isValid() ? pres.status() : 0]));
     }
     else
     {
