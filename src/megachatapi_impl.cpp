@@ -2424,7 +2424,7 @@ void MegaChatApiImpl::saveCurrentState()
 
     if (mClient)
     {
-        mClient->commit();
+        mClient->saveDb();
     }
 
     sdkMutex.unlock();
@@ -2962,16 +2962,20 @@ int MegaChatApiImpl::convertInitState(int state)
 
 int MegaChatApiImpl::convertChatConnectionState(ChatState state)
 {
-    int newState;
-    if (state == kChatStateOnline)
+    switch(state)
     {
-        newState = MegaChatApi::CHAT_CONNECTION_ONLINE;
+    case ChatState::kChatStateOffline:
+        return MegaChatApi::CHAT_CONNECTION_OFFLINE;
+    case ChatState::kChatStateConnecting:
+        return MegaChatApi::CHAT_CONNECTION_IN_PROGRESS;
+    case ChatState::kChatStateJoining:
+        return MegaChatApi::CHAT_CONNECTION_LOGGING;
+    case ChatState::kChatStateOnline:
+        return MegaChatApi::CHAT_CONNECTION_ONLINE;
     }
-    else    // includes kChatStateOffline, kChatStateConnecting and kChatStateJoining
-    {
-        newState = MegaChatApi::CHAT_CONNECTION_OFFLINE;
-    }
-    return newState;
+
+    assert(false);  // check compilation warnings, new ChatState not considered
+    return state;
 }
 
 void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)

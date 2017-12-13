@@ -373,7 +373,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         if (iteratorCall != mCalls.end())
         {
             Call *existingCall = iteratorCall->second.get();
-            if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
+            if (existingCall->state() == Call::kStateInProgress || existingCall->isJoiner())
             {
                 cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
                 return;
@@ -962,25 +962,31 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
 {
     // if the peer initiated the call termination, we must wait for
     // all sessions to go away and remove the call
+    if (mSessions.empty())
+    {
+        return promise::_Void();
+    }
+
     for (auto& item: mSessions)
     {
         item.second->setState(Session::kStateTerminating);
     }
     auto wptr = weakHandle();
+
     struct Ctx
     {
         int count = 0;
-        megaHandle timer;
         Promise<void> pms;
     };
     auto ctx = std::make_shared<Ctx>();
-    ctx->timer = setInterval([wptr, this, ctx, code, msg]()
+    mDestroySessionTimer = setInterval([wptr, this, ctx, code, msg]()
     {
         if (wptr.deleted())
             return;
         if (++ctx->count > 7)
         {
-            cancelInterval(ctx->timer, mManager.mClient.appCtx);
+            cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+            mDestroySessionTimer = 0;
             SUB_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
             for (auto& item: mSessions)
             {
@@ -991,7 +997,8 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         }
         if (!mSessions.empty())
             return;
-        cancelInterval(ctx->timer, mManager.mClient.appCtx);
+        cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+        mDestroySessionTimer = 0;
         ctx->pms.resolve();
     }, 200, mManager.mClient.appCtx);
     return ctx->pms;
@@ -1328,10 +1335,15 @@ Call::~Call()
     if (mState != Call::kStateDestroyed)
     {
         stopIncallPingTimer();
+        if (mDestroySessionTimer)
+        {
+            cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+            mDestroySessionTimer = 0;
+        }
+
         mLocalPlayer.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
-        mManager.removeCall(*this);
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
@@ -1909,6 +1921,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     {
         if (wptr.deleted() || mState != Session::kStateTerminating)
             return;
+
         if (!mTerminatePromise.done())
         {
             SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
