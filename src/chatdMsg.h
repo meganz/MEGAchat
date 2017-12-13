@@ -233,7 +233,21 @@ enum Opcode
       */
     OP_ECHO = 32,
 
-    OP_LAST = OP_ECHO
+    /**
+      * @brief <chatid> <userid> <msgid> <unicodechar32le>
+      *
+      * User add a reaction to message
+      */
+    OP_ADDREACTION = 33,
+
+    /**
+      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      *
+      * User delete a reaction to message
+      */
+    OP_DELREACTION = 34,
+
+    OP_LAST = OP_DELREACTION
 };
 
 // privilege levels
