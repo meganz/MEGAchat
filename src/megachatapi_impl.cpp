@@ -1033,9 +1033,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            call->muteUnmute(newFlags);
+            karere::AvFlags avFlags = call->muteUnmute(newFlags);
 
-            chatCall->setLocalAudioVideoFlags(newFlags);
+            chatCall->setLocalAudioVideoFlags(avFlags);
             fireOnChatCallUpdate(chatCall);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
