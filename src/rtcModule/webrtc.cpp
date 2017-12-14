@@ -1037,7 +1037,15 @@ void Call::stopIncallPingTimer()
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    mSessions.erase(sess.mSid);
+    auto it = mSessions.find(sess.mSid);
+    assert(it != mSessions.end());
+    auto sptr = it->second;
+    mSessions.erase(it);
+    marshallCall([sptr]() mutable
+    {
+        sptr.reset();
+    }, mManager.mClient.appCtx);
+
     if (mState == Call::kStateTerminating) // we already handle call termination
         return;
 
