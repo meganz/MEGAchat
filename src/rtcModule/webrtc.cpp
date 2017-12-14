@@ -1885,9 +1885,8 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
-      // Send stats is disable temporarily
-//    std::string stats = mStatRecorder->getStats(info);
-//    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+    std::string stats = mStatRecorder->getStats(info);
+    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 
     return;
 }
