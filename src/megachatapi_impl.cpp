@@ -3494,28 +3494,24 @@ MegaChatHandle MegaChatCallPrivate::getId() const
     return callid;
 }
 
-bool MegaChatCallPrivate::hasAudio(bool local)
+bool MegaChatCallPrivate::hasLocalAudio()
 {
-    if (local)
-    {
-        return localAVFlags.audio();
-    }
-    else
-    {
-        return remoteAVFlags.audio();
-    }
+    return localAVFlags.audio();
 }
 
-bool MegaChatCallPrivate::hasVideo(bool local)
+bool MegaChatCallPrivate::hasRemoteAudio()
 {
-    if (local)
-    {
-        return localAVFlags.video();
-    }
-    else
-    {
-        return remoteAVFlags.video();
-    }
+    return remoteAVFlags.audio();
+}
+
+bool MegaChatCallPrivate::hasLocalVideo()
+{
+    return localAVFlags.video();
+}
+
+bool MegaChatCallPrivate::hasRemoteVideo()
+{
+    return remoteAVFlags.video();
 }
 
 int MegaChatCallPrivate::getChanges() const

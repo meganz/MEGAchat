@@ -143,22 +143,32 @@ public:
     virtual MegaChatHandle getId() const;
 
     /**
-     * @brief Return audio state for local or remote in function of
-     * parameter value
+     * @brief Return audio state for local
      *
-     * @param local Indicate if we want to know local or remote audio state
      * @return true if audio is enable, false if audio is disable
      */
-    virtual bool hasAudio(bool local = true);
+    virtual bool hasLocalAudio();
 
     /**
-     * @brief Return video state for local or remote in function of
-     * parameter value
+     * @brief Return audio state for remote
      *
-     * @param local Indicate if we want to know local or remote video state
+     * @return true if audio is enable, false if audio is disable
+     */
+    virtual bool hasRemoteAudio();
+
+    /**
+     * @brief Return video state for local
+     *
      * @return true if video is enable, false if video is disable
      */
-    virtual bool hasVideo(bool local = true);
+    virtual bool hasLocalVideo();
+
+    /**
+     * @brief Return video state for remote
+     *
+     * @return true if video is enable, false if video is disable
+     */
+    virtual bool hasRemoteVideo();
 
     /**
      * @brief Returns a bit field with the changes of the call

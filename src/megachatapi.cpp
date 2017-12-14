@@ -68,12 +68,22 @@ MegaChatHandle MegaChatCall::getId() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatCall::hasAudio(bool local)
+bool MegaChatCall::hasLocalAudio()
 {
     return false;
 }
 
-bool MegaChatCall::hasVideo(bool local)
+bool MegaChatCall::hasRemoteAudio()
+{
+    return false;
+}
+
+bool MegaChatCall::hasLocalVideo()
+{
+    return false;
+}
+
+bool MegaChatCall::hasRemoteVideo()
 {
     return false;
 }
