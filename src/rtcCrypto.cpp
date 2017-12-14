@@ -79,7 +79,7 @@ promise::Promise<void> RtcCrypto::waitForPeerKeys(karere::Id peer)
 
 karere::Id RtcCrypto::anonymizeId(karere::Id userid)
 {
-    return userid; //TODO: Implement
+    return userid;
 }
 
 void RtcCrypto::random(char* buf, size_t size)
