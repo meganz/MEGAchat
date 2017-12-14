@@ -30,26 +30,28 @@ public:
      */
     virtual void mac(const std::string& data, const SdpKey& key, SdpKey& output) = 0;
 
-    /** @brief
-     * Decrypt a message encrypted with our own public key, using our private key
-    */
+    /** @brief Decrypt the SdpKey with the peer's public key and our own private key. */
     virtual void decryptKeyFrom(karere::Id peer, const SdpKey& data, SdpKey& output) = 0;
+
     /**
      * @brief
-     * Encrypt an SdpKey with the peer's public key. The key of that peer must have
-     * been pre-loaded.
+     * Encrypt an SdpKey with the peer's public key and our own private key.
+     * The key of that peer must have been pre-loaded.
      **/
     virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output) = 0;
-    /** @brief
-     * Fetches the specified peer's public CU25519 key
-    */
+
+    /** @brief Fetches the specified peer's public CU25519 key */
     virtual promise::Promise<void> waitForPeerKeys(karere::Id peer) = 0;
+
     /** @brief
-     * Used to anonymize the user in submitting call statistics
+     * Used to anonymize the user in submitting call statistics.
+     * @obsolete We stop using anonymized ids since chatd already knows the actual user is.
     */
     virtual karere::Id anonymizeId(karere::Id userid) = 0;
+
     /** @brief Generic random string function */
     virtual void random(char* buf, size_t len) = 0;
+
     virtual ~IRtcCrypto(){}
 };
 }

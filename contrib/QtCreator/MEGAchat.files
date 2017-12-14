@@ -145,3 +145,4 @@
 ../../src/rtcModule/webrtc.cpp
 ../../src/rtcCrypto.cpp
 ../../src/rtcCrypto.h
+../../src/rtcModule/IRtcCrypto.h
