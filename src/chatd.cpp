@@ -1145,7 +1145,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATD_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mClient.chats(chatid).onEndCall(userid, clientid);
-                mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
+                if (mClient.mRtcHandler)
+                {
+                    mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
+                }
+
                 break;
             }
             case OP_RTMSG_ENDPOINT:
