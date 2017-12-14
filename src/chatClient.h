@@ -800,8 +800,6 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call);
-    virtual bool onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid);
-    virtual bool isGroupChat(karere::Id chatid);
 #endif
 
 /** @cond PRIVATE */

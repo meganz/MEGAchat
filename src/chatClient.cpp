@@ -2929,17 +2929,6 @@ rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
 {
     return app.onIncomingCall(call);
 }
-bool Client::onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid)
-{
-    return true;
-}
-bool Client::isGroupChat(karere::Id chatid)
-{
-    auto it = chats->find(chatid);
-    if (it == chats->end())
-        throw std::runtime_error("Unknown chat "+chatid.toString());
-    return it->second->isGroup();
-}
 #endif
 
 std::string encodeFirstName(const std::string& first)
