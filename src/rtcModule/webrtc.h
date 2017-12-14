@@ -296,6 +296,10 @@ public:
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
     virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    /**
+     * @brief Clients exchange an anonymous id for statistics purposes
+     * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids
+     */
     karere::Id ownAnonId() const { return mOwnAnonId; }
 
     /** @brief Returns a list of all detected audio input devices on the system */
