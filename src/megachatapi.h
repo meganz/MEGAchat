@@ -57,6 +57,29 @@ class MegaChatVideoListener;
 class MegaChatListener;
 class MegaChatListItem;
 
+/**
+ * @brief Provide information about a call
+ *
+ * A call can be obtained with the callback MegaChatCallListener::onChatCallUpdate where MegaChatApi has
+ * the ownership of the object. Or by a getter where a copy is provided, MegaChatApi::getChatCall
+ * and MegaChatApi::getChatCallByCallId
+ *
+ * The states that a call has during its life time are:
+ * Outgoing call:
+ *  - CALL_STATUS_INITIAL
+ *  - CALL_STATUS_HAS_LOCAL_STREAM
+ *  - CALL_STATUS_REQUEST_SENT
+ *  - CALL_STATUS_IN_PROGRESS
+ *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_DESTROYED
+ *
+ * Incoming call:
+ *  - CALL_STATUS_RING_IN
+ *  - CALL_STATUS_JOINING
+ *  - CALL_STATUS_IN_PROGRESS
+ *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_DESTROYED
+ */
 class MegaChatCall
 {
 public:
