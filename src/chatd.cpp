@@ -849,6 +849,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
+    initChat();
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
@@ -1096,6 +1097,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 else if (op == OP_JOIN)
                 {
                     chat.onJoinRejected();
+                }
+                else if (op == OP_RANGE && reason == 1)
+                {
+                    chat.clearHistory();
+                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
                 else
                 {
@@ -1445,6 +1451,13 @@ bool Chat::isGroup() const
     return mIsGroup;
 }
 
+void Chat::clearHistory()
+{
+    initChat();
+    CALL_DB(clearHistory);
+    CALL_LISTENER(onHistoryReloaded);
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
@@ -1485,6 +1498,32 @@ void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
     EndpointId key(userid, clientid);
     mCallParticipants.erase(key);
+}
+
+void Chat::initChat()
+{
+    mBackwardList.clear();
+    mForwardList.clear();
+    mIdToIndexMap.clear();
+
+    mForwardStart = CHATD_IDX_RANGE_MIDDLE;
+
+    mOldestKnownMsgId = 0;
+    mLastSeenIdx = CHATD_IDX_INVALID;
+    mLastReceivedIdx = CHATD_IDX_INVALID;
+    mNextHistFetchIdx = CHATD_IDX_INVALID;
+    mLastIdReceivedFromServer = 0;
+    mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+    mLastServerHistFetchCount = 0;
+    mLastHistDecryptCount = 0;
+
+    mLastTextMsg.setState(LastTextMsgState::kNone);
+    mEncryptionHalted = CHATD_IDX_INVALID;
+    mDecryptNewHaltedAt = CHATD_IDX_INVALID;
+    mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+    mRefidToIdxMap.clear();
+
+    mHasMoreHistoryInDb = false;
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -2277,6 +2316,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = CHATD_IDX_INVALID;
             prevType = Message::kMsgInvalid;
+            CHATID_LOG_DEBUG("onMessageEdited() Updated from message not loaded - skipped");
+            delete msg;
+            return;
         }
 
         if (msg->type == Message::kMsgTruncate)

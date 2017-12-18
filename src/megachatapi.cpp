@@ -1066,6 +1066,11 @@ void MegaChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
 }
 
+void MegaChatRoomListener::onHistoryReloaded(MegaChatApi *api, MegaChatRoom *chat)
+{
+
+}
+
 MegaChatMessage *MegaChatMessage::copy() const
 {
     return NULL;

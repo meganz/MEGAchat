@@ -3590,6 +3590,18 @@ public:
      * @param msg MegaChatMessage representing the updated message
      */
     virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
+
+    /**
+     * @brief This function is called when the local history from a chatroom is going to be deleted and
+     * reloaded from server.
+     *
+     * Local history is going to be deleted from memory and data base. Any reference or index to a message
+     * have to be removed.
+     * After delete the history, new messages are going to requested to the server automatically
+     *
+     * @param api MegaChatApi connected to the account
+     */
+    virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
 };
 
 }

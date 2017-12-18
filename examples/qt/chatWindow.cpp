@@ -268,7 +268,6 @@ void ChatWindow::updateSeen()
 }
 void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
-    assert(msg.userp);
     mRoom.onMessageEdited(msg, idx);
     auto widget = widgetFromMessage(msg);
     if (!widget)
@@ -360,6 +359,12 @@ void ChatWindow::onUnsentEditLoaded(chatd::Message& editmsg, bool oriMsgIsSendin
     }
     widget->setBgColor(Qt::yellow);
     widget->setEdited();
+}
+
+void ChatWindow::onHistoryReloaded()
+{
+    mHistAddPos = 0;
+    ui.mMessageList->clear();
 }
 void ChatWindow::onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason)
 {

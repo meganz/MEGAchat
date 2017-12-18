@@ -122,7 +122,7 @@ enum Opcode
       * C->S: Request existing message range (<msgid0> is the oldest, <msgid1> the newest).
       * Responds with all messages newer than <msgid1> (if any), followed by a HISTDONE.
       *
-      * @obsolete This command is obsolete, replaced by JOINHISTRANGE.
+      * @obsolete This command is obsolete, replaced by JOINRANGEHIST.
       */
     OP_RANGE = 9,
 

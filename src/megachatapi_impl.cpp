@@ -1408,6 +1408,14 @@ void MegaChatApiImpl::fireOnMessageUpdate(MegaChatMessage *msg)
     delete msg;
 }
 
+void MegaChatApiImpl::fireOnHistoryReloaded(MegaChatRoom *chat)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onHistoryReloaded(chatApi, chat);
+    }
+}
+
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
@@ -3774,6 +3782,12 @@ void MegaChatRoomHandler::onLastMessageTsUpdated(uint32_t ts)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onLastMessageTsUpdated(ts);
     }
+}
+
+void MegaChatRoomHandler::onHistoryReloaded()
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chatApi->fireOnHistoryReloaded(chat);
 }
 
 bool MegaChatRoomHandler::isRevoked(MegaChatHandle h)
