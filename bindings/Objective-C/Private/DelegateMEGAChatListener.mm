@@ -56,3 +56,13 @@ void DelegateMEGAChatListener::onChatPresenceConfigUpdate(megachat::MegaChatApi 
         });
     }
 }
+
+void DelegateMEGAChatListener::onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatId, int newState) {
+    if (listener != nil && [listener respondsToSelector:@selector(onChatConnectionStateUpdate:chatId:newState:)]) {
+        MEGAChatSdk *tempMegaChatSDK = this->megaChatSDK;
+        id<MEGAChatDelegate> tempListener = this->listener;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [tempListener onChatConnectionStateUpdate:tempMegaChatSDK chatId:chatId newState:newState];
+        });
+    }
+}

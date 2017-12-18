@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/IRtcModule.h"
+#include "rtcModule/webrtc.h"
+#include "rtcCrypto.h"
 #include "dummyCrypto.h" //for makeRandomString
 #include "base/services.h"
 #include "sdkApi.h"
-#include "megaCryptoFunctions.h"
 #include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
@@ -192,6 +192,7 @@ void Client::heartbeat()
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
     }
+
     mPresencedClient.heartbeat();
     if (chatd)
     {
@@ -359,6 +360,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+
     mUserAttrCache.reset(new UserAttrCache(*this));
 
     auto wptr = weakHandle();
@@ -471,6 +475,8 @@ void Client::initWithDbSession(const char* sid)
         assert(mMyHandle);
 
         mMyEmail = getMyEmailFromDb();
+
+        mMyIdentity = getMyIdentityFromDb();
 
         mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
         [](Buffer* buf, void* userp)
@@ -913,6 +919,30 @@ karere::Id Client::getMyHandleFromDb()
     return result;
 }
 
+uint64_t Client::getMyIdentityFromDb()
+{
+    uint64_t result = 0;
+
+    SqliteStmt stmt(db, "select value from vars where name='clientid_seed'");
+    if (!stmt.step())
+    {
+        KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
+        result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+    }
+    else
+    {
+        result = stmt.uint64Col(0);
+        if (result == 0)
+        {
+            KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
+            result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        }
+    }
+    return result;
+}
+
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
@@ -1039,16 +1069,15 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
-
-// Create and register the rtcmodule plugin
-// the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
-// To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-//        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
-//        conn->registerPlugin("rtcmodule", rtc);
-
-//        KR_LOG_DEBUG("webrtc plugin initialized");
-//        return mXmppContactList.ready();
+    auto pmsPres = mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    auto pmsRtc = rtc->init(10000);
+    return promise::when(pmsPres, pmsRtc);
+#else
+    return pmsPres;
+#endif
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1123,7 +1152,7 @@ void Client::terminate(bool deleteDb)
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll();
+        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
     disconnect();
@@ -1297,12 +1326,12 @@ void PeerChatRoom::connect()
     mChat->connect();
 }
 
-promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
-    assert(mAppChatHandler);
-//    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
-    return promise::_Void();
+    return parent.client.rtc->startCall(chatid(), av, handler);
 }
+#endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
@@ -1371,11 +1400,6 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
     delete megaHandleList;
 
     return promise::when(promises);
-}
-
-promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
-{
-    return promise::Error("Group chat calls are not implemented yet");
 }
 
 IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
@@ -2885,11 +2909,25 @@ const char* Client::connStateToStr(ConnState state)
         default: return "(invalid)";
     }
 }
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::IEventHandler* Client::onIncomingCallRequest(
-        const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+
+bool Client::isCallInProgress() const
 {
-    return app.onIncomingCall(ans);
+    bool callInProgress = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        callInProgress = rtc->isCallInProgress();
+    }
+#endif
+
+    return callInProgress;
+}
+
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
+{
+    return app.onIncomingCall(call);
 }
 #endif
 

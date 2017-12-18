@@ -16,6 +16,10 @@
 #define PRESENCED_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 
+struct ws_s;
+struct ws_base_s;
+typedef struct ws_s *ws_t;
+
 class MyMegaApi;
 
 enum: uint32_t { kPromiseErrtype_presenced = 0x339a92e5 }; //should resemble 'megapres'
@@ -272,8 +276,6 @@ protected:
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void enableInactivityTimer();
-    void disableInactivityTimer();
     void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);

@@ -57,42 +57,328 @@ class MegaChatVideoListener;
 class MegaChatListener;
 class MegaChatListItem;
 
+/**
+ * @brief Provide information about a call
+ *
+ * A call can be obtained with the callback MegaChatCallListener::onChatCallUpdate where MegaChatApi has
+ * the ownership of the object. Or by a getter where a copy is provided, MegaChatApi::getChatCall
+ * and MegaChatApi::getChatCallByCallId
+ *
+ * The states that a call has during its life time are:
+ * Outgoing call:
+ *  - CALL_STATUS_INITIAL
+ *  - CALL_STATUS_HAS_LOCAL_STREAM
+ *  - CALL_STATUS_REQUEST_SENT
+ *  - CALL_STATUS_IN_PROGRESS
+ *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_DESTROYED
+ *
+ * Incoming call:
+ *  - CALL_STATUS_RING_IN
+ *  - CALL_STATUS_JOINING
+ *  - CALL_STATUS_IN_PROGRESS
+ *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_DESTROYED
+ */
 class MegaChatCall
 {
 public:
     enum
     {
-        CALL_STATUS_CONNECTING = 0,
-        CALL_STATUS_RINGING,
-        CALL_STATUS_CONNECTED,
-        CALL_STATUS_DISCONNECTED
+        CALL_STATUS_INITIAL = 0,        /// Initial state
+        CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
+        CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
+        CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
+        CALL_STATUS_JOINING,            /// Intermediate state, while connection is stablished
+        CALL_STATUS_IN_PROGRESS,        /// Call is stablished and there is a full communication
+        CALL_STATUS_TERMINATING,        ///
+        CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
+    };
+
+    enum
+    {
+        CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
+        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
+        CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
+    };
+
+    enum
+    {
+        TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
+        TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
+        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected by
+                                            /// another client of our user
+        TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
+        TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
+        TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
+                                            /// users are online
+        TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
+        TERM_CODE_BUSY              = 9,    /// Peer is in another call
+        TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
+        TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
     virtual ~MegaChatCall();
+
+    /**
+     * @brief Creates a copy of this MegaChatCall object
+     *
+     * The resulting object is fully independent of the source MegaChatCall,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatCall object
+     */
     virtual MegaChatCall *copy();
 
+    /**
+     * @brief Returns the status of the call
+     *
+     * @return the call status
+     * Valid values are:
+     *  - CALL_STATUS_INITIAL = 0
+     *  - CALL_STATUS_HAS_LOCAL_STREAM = 1
+     *  - CALL_STATUS_REQUEST_SENT = 2
+     *  - CALL_STATUS_RING_IN = 3
+     *  - CALL_STATUS_JOINING = 4
+     *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_TERMINATING = 6
+     *  - CALL_STATUS_DESTROYED = 7
+     */
     virtual int getStatus() const;
-    virtual int getTag() const;
-    virtual MegaChatHandle getContactHandle() const;
+
+    /**
+     * @brief Returns the MegaChatHandle of the chat. Every call is asociated to a chatroom
+     *
+     * @return MegaChatHandle of the chat.
+     */
+    virtual MegaChatHandle getChatid() const;
+
+    /**
+     * @brief Returns the call identifier
+     *
+     * @return MegaChatHandle of the call.
+     */
+    virtual MegaChatHandle getId() const;
+
+    /**
+     * @brief Return audio state for local
+     *
+     * @return true if audio is enable, false if audio is disable
+     */
+    virtual bool hasLocalAudio();
+
+    /**
+     * @brief Return audio state for remote
+     *
+     * @return true if audio is enable, false if audio is disable
+     */
+    virtual bool hasRemoteAudio();
+
+    /**
+     * @brief Return video state for local
+     *
+     * @return true if video is enable, false if video is disable
+     */
+    virtual bool hasLocalVideo();
+
+    /**
+     * @brief Return video state for remote
+     *
+     * @return true if video is enable, false if video is disable
+     */
+    virtual bool hasRemoteVideo();
+
+    /**
+     * @brief Returns a bit field with the changes of the call
+     *
+     * This value is only useful for calls notified by MegaChatCallListener::onChatCallUpdate
+     * that can notify about call modifications. The value only will be valid inside
+     * MegaChatCallListener::onChatCallUpdate. A copy of MegaChatCall will be necessary to use
+     * outside this callback.
+     *
+     * @return The returned value is an OR combination of these flags:
+     *
+     * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
+     * Check MegaChatCall::getTemporaryError() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
+     * Check MegaChatCall::isRinging() value
+     */
+    virtual int getChanges() const;
+
+    /**
+     * @brief Returns true if this call has an specific change
+     *
+     * This value is only useful for call notified by MegaChatCallListener::onChatCallUpdate
+     * that can notify about call modifications. The value only will be valid inside
+     * MegaChatCallListener::onChatCallUpdate. A copy of MegaChatCall will be necessary to use
+     * outside this callback
+     *
+     * In other cases, the return value of this function will be always false.
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     *
+     * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
+     * Check if the status of the call changed
+     *
+     * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
+     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
+     * Check MegaChatCall::getTemporaryError() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
+     * Check MegaChatCall::isRinging() value
+     *
+     * @return true if this call has an specific change
+     */
+    virtual bool hasChanged(int changeType) const;
+
+    /**
+     * @brief Return call duration
+     *
+     * @note If the call is not finished yet, the returned value representes the elapsed time
+     * since the beginning of the call until now.
+     *
+     * @return Call duration
+     */
+    virtual int64_t getDuration() const;
+
+    /**
+     * @brief Return the timestamp when call has started
+     *
+     * @return Initial timestamp
+     */
+    virtual int64_t getInitialTimeStamp() const;
+
+    /**
+     * @brief Return the timestamp when call has finished
+     *
+     * @note If call is not finished yet, it will return 0.
+     *
+     * @return Final timestamp or 0 if call is in progress
+     */
+    virtual int64_t getFinalTimeStamp() const;
+
+    /**
+     * @brief Returns the content of the temporary error
+     *
+     * This temporary error is cleared after notification through MegaChatCallListener::onChatCallUpdate
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatCall object is deleted.
+     *
+     * @return Content of the error. If there isn't a error, it returns a empty string.
+     */
+    virtual const char *getTemporaryError() const;
+
+    /**
+     * @brief Returns the termination code for this call
+     *
+     * @note If the call is not finished yet, it returns MegaChatCall::TERM_CODE_NOT_FINISHED.
+     *
+     * To check if the call was terminated locally or remotely, see MegaChatCall::isLocalTermCode().
+     *
+     * @return termination code for the call
+     */
+    virtual int getTermCode() const;
+
+    /**
+     * @brief Returns if the call finished locally or remotely
+     *
+     * @return True if the call finished locally. False if the call finished remotely
+     */
+    virtual bool isLocalTermCode() const;
+
+    /**
+     * @brief Returns the status of the remote call
+     *
+     * Only valid for outgoing calls. It becomes true when the receiver of the call
+     * has received the call request but have not answered yet. Once the user answers or
+     * rejects the call, this function returns false.
+     *
+     * For incoming calls, this function always returns false.
+     *
+     * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
+     */
+    virtual bool isRinging() const;
 };
 
+/**
+ * @brief Interface to get video frames from calls
+ *
+ * The same interface is used to receive local or remote video, but it has to be un/registered
+ * by differents functions:
+ *
+ *  - MegaChatApi::addChatLocalVideoListener / MegaChatApi::removeChatLocalVideoListener
+ *  - MegaChatApi::addChatRemoteVideoListener / MegaChatApi::removeChatRemoteVideoListener
+ */
 class MegaChatVideoListener
 {
 public:
     virtual ~MegaChatVideoListener() {}
 
-    virtual void onChatVideoData(MegaChatApi *api, MegaChatCall *chatCall, int width, int height, char*buffer);
+    /**
+     * @brief This function is called when a new image from a local or remote device is available
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that provides the video
+     * @param width Size in pixels
+     * @param height Size in pixels
+     * @param buffer Data buffer in format ARGB: 4 bytes per pixel (total size: width * height * 4)
+     * @param size Buffer size in bytes
+     *
+     *  The MegaChatVideoListener retains the ownership of the buffer.
+     */
+    virtual void onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
 };
 
+/**
+ * @brief Interface to get notifications about calls
+ *
+ * You can un/subscribe to changes related to a MegaChatCall by using:
+ *
+ *  - MegaChatApi::addChatCallListener / MegaChatApi::removeChatCallListener
+ *
+ */
 class MegaChatCallListener
 {
 public:
     virtual ~MegaChatCallListener() {}
 
-    virtual void onChatCallStart(MegaChatApi* api, MegaChatCall *call);
-    virtual void onChatCallStateChange(MegaChatApi *api, MegaChatCall *call);
-    virtual void onChatCallTemporaryError(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
-    virtual void onChatCallFinish(MegaChatApi* api, MegaChatCall *call, MegaChatError* error);
+    /**
+     * @brief This function is called when there are changes in the call
+     *
+     * The changes can be accessed by MegaChatCall::getChanges or MegaChatCall::hasChanged
+     *
+     * The SDK retains the ownership of the MegaChatCall.
+     * The call object that it contains will be valid until this function returns.
+     * If you want to save the object, use MegaChatCall::copy.
+     *
+     * The api object is the one created by the application, it will be valid until
+     * the application deletes it.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param call MegaChatCall that contains the call with its changes
+     */
+    virtual void onChatCallUpdate(MegaChatApi* api, MegaChatCall *call);
 };
 
 class MegaChatPeerList
@@ -108,6 +394,7 @@ public:
 
     /**
      * @brief Creates a new instance of MegaChatPeerList
+     *
      * @return A pointer to the superclass of the private object
      */
     static MegaChatPeerList * createInstance();
@@ -628,7 +915,7 @@ public:
         TYPE_LOGOUT,    // delete existing Client and creates a new one
         TYPE_SET_ONLINE_STATUS,
         TYPE_START_CHAT_CALL, TYPE_ANSWER_CHAT_CALL,
-        TYPE_MUTE_CHAT_CALL, TYPE_HANG_CHAT_CALL,
+        TYPE_DISABLE_AUDIO_VIDEO_CALL, TYPE_HANG_CHAT_CALL,
         TYPE_CREATE_CHATROOM, TYPE_REMOVE_FROM_CHATROOM,
         TYPE_INVITE_TO_CHATROOM, TYPE_UPDATE_PEER_PERMISSIONS,
         TYPE_EDIT_CHATROOM_NAME, TYPE_EDIT_CHATROOM_PIC,
@@ -640,7 +927,13 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES,
         TOTAL_OF_REQUEST_TYPES
+    };
+
+    enum {
+        AUDIO = 0,
+        VIDEO = 1
     };
 
     virtual ~MegaChatRequest();
@@ -778,6 +1071,21 @@ public:
      * @return List of nodes in this request
      */
     virtual mega::MegaNodeList *getMegaNodeList();
+
+    /**
+     * @brief Returns the type of parameter related to the request
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::enableAudio - Returns MegaChatRequest::AUDIO
+     * - MegaChatApi::disableAudio - Returns MegaChatRequest::AUDIO
+     * - MegaChatApi::enableVideo - Returns MegaChatRequest::VIDEO
+     * - MegaChatApi::disableVideo - Returns MegaChatRequest::VIDEO
+     * - MegaChatApi::answerChatCall - Returns one
+     * - MegaChatApi::rejectChatCall - Returns zero
+     *
+     * @return Type of parameter related to the request
+     */
+    virtual int getParamType();
 };
 
 /**
@@ -2413,16 +2721,210 @@ public:
      */
     void saveCurrentState();
 
+#ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
+    /**
+     * @brief Returns a list with the names of available audio devices
+     *
+     * If no device is found, it returns an empty list.
+     * You take the ownership of the returned value
+     *
+     * @return Names of the available audio devices
+     */
     mega::MegaStringList *getChatAudioInDevices();
+
+    /**
+     * @brief Returns a list with the names of available video devices available
+     *
+     * If no device is found, it returns an empty list.
+     * You take the ownership of the returned value
+     *
+     * @return Names of the available video devices
+     */
     mega::MegaStringList *getChatVideoInDevices();
+
+    /**
+     * @brief Select the audio device to be used in calls
+     *
+     * Audio device identifiers are obtained with function MegaChatApi::getChatAudioInDevices
+     *
+     * @note Audio device must be configured before starting a call. It cannot be changed
+     * once the call has started.
+     *
+     * @param device Identifier of device to be selected
+     * @return True if device has been selected. False in other case
+     */
     bool setChatAudioInDevice(const char *device);
+
+    /**
+     * @brief Select the video device to be used in calls
+     *
+     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
+     *
+     * @note Video device must be configured before starting a call. It cannot be changed
+     * once the call has started.
+     *
+     * @param device Identifier of device to be selected
+     * @return True if device has been selected. False in other case
+     */
     bool setChatVideoInDevice(const char *device);
 
     // Call management
-    void startChatCall(mega::MegaUser *peer, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
-    void answerChatCall(MegaChatCall *call, bool accept, MegaChatRequestListener *listener = NULL);
-    void hangAllChatCalls();
+    /**
+     * @brief Start a call in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Answer a call received in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Hang a call in a chat room
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void hangChatCall(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Hang all active calls
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void hangAllChatCalls(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Enable audio for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Disable audio for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Enable video for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Disable video for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Search all audio and video devices available at that moment.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES
+     *
+     * After call this function, available devices can be obtained calling MegaChatApi::getChatAudioInDevices
+     * or MegaChatApi::getChatVideoInDevices.
+     *
+     * Call this function to update the list of available devices, ie. after plug-in a webcam to your PC.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Get the MegaChatCall associated with a chatroom
+     *
+     * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom,
+     * this function returns NULL.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     */
+    MegaChatCall *getChatCall(MegaChatHandle chatid);
+
+    /**
+     * @brief Get the MegaChatCall that has a specific id
+     *
+     * You can get the id of a MegaChatCall using MegaChatCall::getId().
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param callId MegaChatHandle that identifies the call
+     * @return MegaChatCall object for the specified \c callId. NULL if call doesn't exist
+     */
+    MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
+
+    /**
+     * @brief Returns number of calls that there are at the system
+     * @return number of calls in the system
+     */
+    int getNumCalls();
+
+#endif
 
     // Listeners
     /**
@@ -2484,12 +2986,61 @@ public:
      */
     void removeChatRequestListener(MegaChatRequestListener* listener);
 
+#ifndef KARERE_DISABLE_WEBRTC
+    /**
+     * @brief Register a listener to receive all events about calls
+     *
+     * You can use MegaChatApi::removeChatCallListener to stop receiving events.
+     *
+     * @param listener MegaChatCallListener that will receive all call events
+     */
     void addChatCallListener(MegaChatCallListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatCallListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
     void removeChatCallListener(MegaChatCallListener *listener);
+
+    /**
+     * @brief Register a listener to receive video from local device
+     *
+     * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
+     *
+     * @param listener MegaChatVideoListener that will receive local video
+     */
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatVideoListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
     void removeChatLocalVideoListener(MegaChatVideoListener *listener);
+
+    /**
+     * @brief Register a listener to receive video from remote device
+     *
+     * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
+     *
+     * @param listener MegaChatVideoListener that will receive remote video
+     */
     void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatVideoListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
     void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+#endif
 
     static void setCatchException(bool enable);
 

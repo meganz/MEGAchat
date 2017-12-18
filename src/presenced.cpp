@@ -159,7 +159,8 @@ bool Client::autoAwayInEffect()
             && mConfig.mPresence != Presence::kOffline
             && mConfig.mPresence != Presence::kAway
             && mConfig.mAutoawayTimeout
-            && mConfig.mAutoawayActive;
+            && mConfig.mAutoawayActive
+            && !karereClient->isCallInProgress();
 }
 
 void Client::signalActivity(bool force)
