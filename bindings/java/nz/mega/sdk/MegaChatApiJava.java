@@ -1627,8 +1627,8 @@ public class MegaChatApiJava {
      * @param callId MegaChatHandle that identifies the call
      * @return MegaChatCall object for the specified \c chatid. NULL if call doesn't exist
      */
-    public MegaChatCall getChatCall(long callId){
-        return megaChatApi.getChatCall(callId);
+    public MegaChatCall getChatCallByCallId(long callId){
+        return megaChatApi.getChatCallByCallId(callId);
     }
 
     /**
@@ -1639,11 +1639,11 @@ public class MegaChatApiJava {
      *
      * You take the ownership of the returned value
      *
-     * @param chatid MegaChatHandle that identifies the chat room
+     * @param chatId MegaChatHandle that identifies the chat room
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
      */
-    public MegaChatCall getChatCallByChatId(long chatId){
-        return megaChatApi.getChatCallByChatId(chatId);
+    public MegaChatCall getChatCall(long chatId){
+        return megaChatApi.getChatCall(chatId);
     }
 
     public static void setCatchException(boolean enable) {
