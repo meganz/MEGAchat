@@ -365,6 +365,7 @@ void ChatWindow::onHistoryReloaded()
 {
     mHistAddPos = 0;
     ui.mMessageList->clear();
+    mChat->getHistory(kHistBatchSize);
 }
 void ChatWindow::onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason)
 {
