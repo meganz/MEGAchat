@@ -385,6 +385,7 @@ public:
     virtual void onUserTyping(karere::Id user);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
+    virtual void onHistoryReloaded();
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -835,6 +836,7 @@ public:
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
+    void fireOnHistoryReloaded(MegaChatRoom *chat);
 
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
