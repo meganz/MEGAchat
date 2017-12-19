@@ -1088,6 +1088,11 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
+    if (mInitState == kInitTerminated)
+    {
+        return;
+    }
+
     if (userid == mMyHandle)
     {
         mOwnPresence = pres;

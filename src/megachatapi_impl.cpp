@@ -290,7 +290,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             bool deleteDb = request->getFlag();
             terminating = true;
-            mClient->terminate(deleteDb);            
+            mClient->terminate(deleteDb);
 
             API_LOG_INFO("Chat engine is logged out!");
             marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
@@ -1187,10 +1187,13 @@ ChatRoom *MegaChatApiImpl::findChatRoom(MegaChatHandle chatid)
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it = mClient->chats->find(chatid);
-    if (it != mClient->chats->end())
+    if (mClient)
     {
-        chatroom = it->second;
+        ChatRoomList::iterator it = mClient->chats->find(chatid);
+        if (it != mClient->chats->end())
+        {
+            chatroom = it->second;
+        }
     }
 
     sdkMutex.unlock();
@@ -1204,10 +1207,13 @@ karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    ContactList::iterator it = mClient->contactList->find(userhandle);
-    if (it != mClient->contactList->end())
+    if (mClient)
     {
-        chatroom = it->second->chatRoom();
+        ContactList::iterator it = mClient->contactList->find(userhandle);
+        if (it != mClient->contactList->end())
+        {
+            chatroom = it->second->chatRoom();
+        }
     }
 
     sdkMutex.unlock();
@@ -1500,7 +1506,7 @@ int MegaChatApiImpl::getConnectionState()
     int ret = 0;
 
     sdkMutex.lock();
-    ret = mClient->connState();
+    ret = mClient ? (int) mClient->connState() : MegaChatApi::DISCONNECTED;
     sdkMutex.unlock();
 
     return ret;
@@ -1582,10 +1588,13 @@ MegaChatPresenceConfig *MegaChatApiImpl::getPresenceConfig()
 
     sdkMutex.lock();
 
-    const ::presenced::Config &cfg = mClient->presenced().config();
-    if (cfg.presence().isValid())
+    if (mClient)
     {
-        config = new MegaChatPresenceConfigPrivate(cfg, mClient->presenced().isConfigAcknowledged());
+        const ::presenced::Config &cfg = mClient->presenced().config();
+        if (cfg.presence().isValid())
+        {
+            config = new MegaChatPresenceConfigPrivate(cfg, mClient->presenced().isConfigAcknowledged());
+        }
     }
 
     sdkMutex.unlock();
@@ -1632,14 +1641,18 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    ContactList::iterator it = mClient->contactList->find(userhandle);
-    if (it != mClient->contactList->end())
+    if (mClient)
     {
-        status = it->second->presence().status();
-    }
-    else if (userhandle == mClient->myHandle())
-    {
-        status = getOnlineStatus();
+        ContactList::iterator it = mClient->contactList->find(userhandle);
+        if (it != mClient->contactList->end())
+        {
+            status = it->second->presence().status();
+        }
+        else if (userhandle == mClient->myHandle())
+        {
+            status = getOnlineStatus();
+        }
+
     }
 
     sdkMutex.unlock();
@@ -1685,7 +1698,7 @@ char *MegaChatApiImpl::getContactEmail(MegaChatHandle userhandle)
 
     sdkMutex.lock();
 
-    const std::string *email = mClient->contactList->getUserEmail(userhandle);
+    const std::string *email = mClient ? mClient->contactList->getUserEmail(userhandle) : NULL;
     if (email)
     {
         ret = MegaApi::strdup(email->c_str());
@@ -1704,7 +1717,7 @@ MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
     {
         sdkMutex.lock();
 
-        Contact *contact = mClient->contactList->contactFromEmail(email);
+        Contact *contact = mClient ? mClient->contactList->contactFromEmail(email) : NULL;
         if (contact)
         {
             uh = contact->userId();
@@ -1718,26 +1731,46 @@ MegaChatHandle MegaChatApiImpl::getUserHandleByEmail(const char *email)
 
 MegaChatHandle MegaChatApiImpl::getMyUserHandle()
 {
-    return mClient->myHandle();
+    return mClient ? (MegaChatHandle) mClient->myHandle() : MEGACHAT_INVALID_HANDLE;
 }
 
 char *MegaChatApiImpl::getMyFirstname()
 {
+    if (!mClient)
+    {
+        return NULL;
+    }
+
     return MegaChatRoomPrivate::firstnameFromBuffer(mClient->myName());
 }
 
 char *MegaChatApiImpl::getMyLastname()
 {
+    if (!mClient)
+    {
+        return NULL;
+    }
+
     return MegaChatRoomPrivate::lastnameFromBuffer(mClient->myName());
 }
 
 char *MegaChatApiImpl::getMyFullname()
 {
+    if (!mClient)
+    {
+        return NULL;
+    }
+
     return MegaApi::strdup(mClient->myName().substr(1).c_str());
 }
 
 char *MegaChatApiImpl::getMyEmail()
 {
+    if (!mClient)
+    {
+        return NULL;
+    }
+
     return MegaApi::strdup(mClient->myEmail().c_str());
 }
 
@@ -1747,10 +1780,13 @@ MegaChatRoomList *MegaChatApiImpl::getChatRooms()
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    if (mClient)
     {
-        chats->addChatRoom(new MegaChatRoomPrivate(*it->second));
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+        {
+            chats->addChatRoom(new MegaChatRoomPrivate(*it->second));
+        }
     }
 
     sdkMutex.unlock();
@@ -1798,10 +1834,13 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItems()
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    if (mClient)
     {
-        items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+        }
     }
 
     sdkMutex.unlock();
@@ -1832,13 +1871,16 @@ int MegaChatApiImpl::getUnreadChats()
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    if (mClient)
     {
-        ChatRoom *room = it->second;
-        if (room->isActive() && room->chat().unreadMsgCount())
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            count++;
+            ChatRoom *room = it->second;
+            if (room->isActive() && room->chat().unreadMsgCount())
+            {
+                count++;
+            }
         }
     }
 
@@ -1853,12 +1895,15 @@ MegaChatListItemList *MegaChatApiImpl::getActiveChatListItems()
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    if (mClient)
     {
-        if (it->second->isActive())
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            if (it->second->isActive())
+            {
+                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            }
         }
     }
 
@@ -1873,12 +1918,15 @@ MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    if (mClient)
     {
-        if (!it->second->isActive())
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            if (!it->second->isActive())
+            {
+                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            }
         }
     }
 
@@ -1893,13 +1941,16 @@ MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
 
     sdkMutex.lock();
 
-    ChatRoomList::iterator it;
-    for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+    if (mClient)
     {
-        ChatRoom *room = it->second;
-        if (room->isActive() && room->chat().unreadMsgCount())
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            ChatRoom *room = it->second;
+            if (room->isActive() && room->chat().unreadMsgCount())
+            {
+                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            }
         }
     }
 
@@ -2180,7 +2231,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
 
 MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
-    if (chatid == MEGACHAT_INVALID_HANDLE || handles == NULL || handles->size() == 0)
+    if (!mClient || chatid == MEGACHAT_INVALID_HANDLE || handles == NULL || handles->size() == 0)
     {
         return NULL;
     }
@@ -2415,7 +2466,7 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
 
 bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
 {
-    return mClient->chatd->isMessageReceivedConfirmationActive();
+    return mClient ? mClient->chatd->isMessageReceivedConfirmationActive() : false;
 }
 
 void MegaChatApiImpl::saveCurrentState()
@@ -2436,7 +2487,7 @@ MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
     std::vector<std::string> devicesVector;
     sdkMutex.lock();
-    if (mClient->rtc)
+    if (mClient && mClient->rtc)
     {
         mClient->rtc->getAudioInDevices(devicesVector);
     }
@@ -2456,7 +2507,7 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
     std::vector<std::string> devicesVector;
     sdkMutex.lock();
-    if (mClient->rtc)
+    if (mClient && mClient->rtc)
     {
         mClient->rtc->getVideoInDevices(devicesVector);
     }
@@ -2475,7 +2526,7 @@ bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
 {
     bool returnedValue = false;
     sdkMutex.lock();
-    if (mClient->rtc)
+    if (mClient && mClient->rtc)
     {
         returnedValue = mClient->rtc->selectAudioInDevice(device);
     }
@@ -2492,7 +2543,7 @@ bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
 {
     bool returnedValue = false;
     sdkMutex.lock();
-    if (mClient->rtc)
+    if (mClient && mClient->rtc)
     {
         returnedValue = mClient->rtc->selectVideoInDevice(device);
     }
