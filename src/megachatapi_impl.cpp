@@ -1414,6 +1414,8 @@ void MegaChatApiImpl::fireOnHistoryReloaded(MegaChatRoom *chat)
     {
         (*it)->onHistoryReloaded(chatApi, chat);
     }
+
+    delete chat;
 }
 
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)

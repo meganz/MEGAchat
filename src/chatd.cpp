@@ -1517,8 +1517,8 @@ void Chat::initChat()
     mLastServerHistFetchCount = 0;
     mLastHistDecryptCount = 0;
 
-    mLastTextMsg.setState(LastTextMsgState::kNone);
-    mEncryptionHalted = CHATD_IDX_INVALID;
+    mLastTextMsg.clear();
+    mEncryptionHalted = false;
     mDecryptNewHaltedAt = CHATD_IDX_INVALID;
     mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     mRefidToIdxMap.clear();

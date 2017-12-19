@@ -341,7 +341,7 @@ public:
     virtual void clearHistory()
     {
         mDb.query("delete from history where chatid = ?", mMessages.chatId());
-        mDb.query("delete from chat_vars where chatid = ?", mMessages.chatId());
+        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mMessages.chatId());
     }
 };
 
