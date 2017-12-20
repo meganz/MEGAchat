@@ -393,7 +393,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     }
 
     auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
-        packet.chat, packet.callid, mHandler.isGroupChat(packet.chatid),
+        packet.chat, packet.callid, packet.chat.isGroup(),
         true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     auto& call = ret.first->second;
@@ -529,7 +529,6 @@ void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     ICallHandler& handler, bool isJoin)
 {
-    bool isGroup = mHandler.isGroupChat(chatid);
     auto& chat = mClient.chatd->chats(chatid);
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
@@ -539,7 +538,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         mCalls.erase(chatid);
     }
     auto call = std::make_shared<Call>(*this, chat, random<uint64_t>(),
-        isGroup, isJoin, &handler, 0, 0);
+        chat.isGroup(), isJoin, &handler, 0, 0);
 
     mCalls[chatid] = call;
     handler.setCall(call.get());
@@ -1140,19 +1139,12 @@ void Call::stopIncallPingTimer()
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    mSessions.erase(sess.mSid);
-    if (mState == Call::kStateTerminating) // we already handle call termination
-        return;
-
-    // if no more sessions left, destroy call even if group
-    if (mSessions.empty())
-    {
-        destroy(reason, false);
-        return;
-    }
     // upon session failure, we swap the offerer and answerer and retry
-    if (mState != Call::kStateTerminating && mIsGroup && isTermError(reason)
-         && !sess.mIsJoiner)
+    if (mState != Call::kStateTerminating   // we already handle call termination
+            && mSessions.size() > 1         // more sessions with other peers in the call
+            && mIsGroup
+            && isTermError(reason)
+            && !sess.mIsJoiner)
     {
         EndpointId endpointId(sess.mPeer, sess.mPeerClient);
         auto it = mSessRetries.find(endpointId);
@@ -1172,6 +1164,12 @@ void Call::removeSession(Session& sess, TermCode reason)
                 return;
             join(peer);
         }, 500, mManager.mClient.appCtx);
+    }
+
+    mSessions.erase(sess.mSid);
+    if (mState != kStateTerminating && mSessions.empty())  // if no more sessions left, destroy call even if group
+    {
+        destroy(reason, false);
     }
 }
 bool Call::startOrJoin(AvFlags av)
@@ -2025,9 +2023,8 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
-      // Send stats is disable temporarily
-//    std::string stats = mStatRecorder->getStats(info);
-//    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+    std::string stats = mStatRecorder->getStats(info);
+    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 
     return;
 }

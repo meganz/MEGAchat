@@ -92,19 +92,19 @@ using namespace megachat;
 }
 
 - (BOOL)hasLocalAudio {
-    return self.megaChatCall ? self.megaChatCall->hasAudio(true) : NO;
+    return self.megaChatCall ? self.megaChatCall->hasLocalAudio() : NO;
 }
 
 - (BOOL)hasLocalVideo {
-    return self.megaChatCall ? self.megaChatCall->hasVideo(true) : NO;
+    return self.megaChatCall ? self.megaChatCall->hasLocalVideo() : NO;
 }
 
 - (BOOL)hasRemoteAudio {
-    return self.megaChatCall ? self.megaChatCall->hasAudio(false) : NO;
+    return self.megaChatCall ? self.megaChatCall->hasRemoteAudio() : NO;
 }
 
 - (BOOL)hasRemoteVideo {
-    return self.megaChatCall ? self.megaChatCall->hasVideo(false) : NO;
+    return self.megaChatCall ? self.megaChatCall->hasRemoteVideo() : NO;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType {

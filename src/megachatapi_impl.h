@@ -165,8 +165,10 @@ public:
     virtual MegaChatHandle getChatid() const;
     virtual MegaChatHandle getId() const;
 
-    virtual bool hasAudio(bool local = true);
-    virtual bool hasVideo(bool local = true);
+    virtual bool hasLocalAudio();
+    virtual bool hasRemoteAudio();
+    virtual bool hasLocalVideo();
+    virtual bool hasRemoteVideo();
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;

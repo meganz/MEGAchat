@@ -168,22 +168,6 @@ public:
      * @return The call handler that will receive events about this call
      */
     virtual ICallHandler* onCallIncoming(ICall& call, karere::AvFlags av) = 0;
-
-    /**
-     * @brief A call has been received while there is an existing call
-     * in the same chatroom. This allows convenient resolution of the situation
-     * where two users start calling each other simultaneously.
-     * @param existingCall The existing call object
-     * @param userid The caller's userid
-     * @return  If this callback returns \c true, the existing call
-     * will be hung up and the incoming call will be answered.
-     * If it returns \c false, the incoming call will be rejected.
-     */
-    virtual bool onAnotherCall(ICall& existingCall, karere::Id userid) = 0;
-
-    /** @brief Return whether the chat  with the specified chatid is a group or
-     * 1on chat */
-    virtual bool isGroupChat(karere::Id chatid) = 0;
 };
 
 class ISession: public karere::DeleteTrackable
@@ -312,6 +296,10 @@ public:
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
     virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    /**
+     * @brief Clients exchange an anonymous id for statistics purposes
+     * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids
+     */
     karere::Id ownAnonId() const { return mOwnAnonId; }
 
     /** @brief Returns a list of all detected audio input devices on the system */

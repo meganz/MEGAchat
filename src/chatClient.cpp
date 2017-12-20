@@ -1097,6 +1097,11 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
+    if (mInitState == kInitTerminated)
+    {
+        return;
+    }
+
     if (userid == mMyHandle)
     {
         mOwnPresence = pres;
@@ -2937,17 +2942,6 @@ bool Client::isCallInProgress() const
 rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
 {
     return app.onIncomingCall(call, av);
-}
-bool Client::onAnotherCall(rtcModule::ICall& existingCall, karere::Id userid)
-{
-    return true;
-}
-bool Client::isGroupChat(karere::Id chatid)
-{
-    auto it = chats->find(chatid);
-    if (it == chats->end())
-        throw std::runtime_error("Unknown chat "+chatid.toString());
-    return it->second->isGroup();
 }
 #endif
 
