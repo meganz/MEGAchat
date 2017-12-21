@@ -272,6 +272,47 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the current state of the connection
+     *
+     * It can be one of the following values:
+     *  - MegaChatApi::DISCONNECTED = 0
+     *  - MegaChatApi::CONNECTING   = 1
+     *  - MegaChatApi::CONNECTED    = 2
+     *
+     * @return The state of connection
+     */
+    public int getConnectionState(){
+        return megaChatApi.getConnectionState();
+    }
+
+    /**
+     * Returns the current state of the connection to chatd
+     *
+     * The possible values are:
+     *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
+     *  - MegaChatApi::CHAT_CONNECTION_IN_PROGRESS  = 1
+     *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return The state of connection
+     */
+    public int getChatConnectionState(long chatid){
+        return  megaChatApi.getChatConnectionState(chatid);
+    }
+
+    /**
+     * Refresh DNS servers and retry pending connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void retryPendingConnections(MegaChatRequestListenerInterface listener){
+        megaChatApi.retryPendingConnections(createDelegateRequestListener(listener));
+    }
+
+    /**
      * Logout of chat servers invalidating the session
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
