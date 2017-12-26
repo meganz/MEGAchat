@@ -84,6 +84,16 @@ Client::Client(karere::Client *client, Id userId)
 {
 }
 
+Chat *Client::findChat(Id chatid) const
+{
+    auto it = mChatForChatId.find(chatid);
+    if (it == mChatForChatId.end())
+    {
+        return NULL;
+    }
+    return it->second.get();
+}
+
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
@@ -122,6 +132,33 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
+
+Chat &Client::createVoidChat(Id chatid, int shardNo)
+{
+    // instantiate a Connection object for this shard if needed
+    Connection* conn;
+    auto it = mConnections.find(shardNo);
+    if (it != mConnections.end())
+    {
+        conn = it->second.get();
+    }
+    else
+    {
+        assert(false);
+        // This function is called when chat is not created and arrive a call for that chat.
+        // If receive an incoming call a connection must exit.
+    }
+
+    // map chatid to this shard
+    mConnectionForChatId[chatid] = conn;
+
+    Chat* chat = new Chat(*conn, chatid);
+    // add chatid to the connection's chatids
+    conn->mChatIds.insert(chatid);
+    mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
+    return *chat;
+}
+
 void Client::sendKeepalive()
 {
     for (auto& conn: mConnections)
@@ -882,6 +919,13 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
         getHistoryFromDb(1); //to know if we have the latest message on server, we must at least load the latest db message
     }
 }
+
+Chat::Chat(Connection &conn, Id chatid)
+    : mClient(conn.mClient), mConnection(conn), mChatId(chatid)
+{
+    assert(mChatId);
+}
+
 Chat::~Chat()
 {
     CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
@@ -1176,11 +1220,16 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
-                auto& chat = mClient.chats(chatid);
+                Chat* chat = mClient.findChat(chatid);
                 StaticBuffer cmd(buf.buf() + cmdstart, Connection::callDataPayLoadPosition + payloadLen);
                 if (mClient.mRtcHandler && userid != mClient.karereClient->myHandle())
                 {
-                    mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
+                    if (chat == NULL)
+                    {
+                        chat = &mClient.createVoidChat(chatid, mShardNo);
+                    }
+
+                    mClient.mRtcHandler->handleCallData(*chat, chatid, userid, clientid, cmd);
                 }
 #else
                 CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
@@ -1529,6 +1578,27 @@ void Chat::initChat()
     mRefidToIdxMap.clear();
 
     mHasMoreHistoryInDb = false;
+    mHaveAllHistory = false;
+}
+
+void Chat::setValues(const string &url, Listener *listener, const SetOfIds &initialUsers, ICrypto *crypto, uint32_t chatCreationTs, bool isGroup)
+{
+    mListener = listener;
+    mUsers = initialUsers;
+    mCrypto = crypto;
+    mLastMsgTs = chatCreationTs;
+    mIsGroup = isGroup;
+
+    assert(mListener);
+    assert(mCrypto);
+    assert(!mUsers.empty());
+    mNextUnsent = mSending.begin();
+    //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
+    mListener->init(*this, mDbInterface);
+    CALL_CRYPTO(setUsers, &mUsers);
+    assert(mDbInterface);
+    initChat();
+    // We don't load data from data base because it is a new chat from incoming call
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)

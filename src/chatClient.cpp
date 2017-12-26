@@ -1312,9 +1312,18 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 {
-    mChat = &parent.client.chatd->createChat(
-        mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
+    mChat = parent.client.chatd->findChat(mChatid);
+    if (!mChat)
+    {
+        mChat = &parent.client.chatd->createChat(
+            mChatid, mShardNo, mUrl, this, initialUsers,
+            parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
+    }
+    else // This chat has been created by an incoming call. Values are set when they are available
+    {
+        mChat->setValues(mUrl, this, initialUsers, parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
+    }
+
     if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         mChat->disable(true);
 }

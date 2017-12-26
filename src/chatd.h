@@ -617,6 +617,7 @@ protected:
     std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
+    Chat(Connection& conn, karere::Id chatid);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
     Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
@@ -673,6 +674,8 @@ public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
     /** @brief users The current set of users in the chatroom */
     const karere::SetOfIds& users() const { return mUsers; }
+    void setValues(const std::string& url,
+                   Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
     ~Chat();
     /** @brief The chatid of this chat */
     karere::Id chatId() const { return mChatId; }
@@ -1100,12 +1103,15 @@ public:
             throw std::runtime_error("chatidChat: Unknown chatid "+chatid.toString());
         return *it->second;
     }
+
+    Chat *findChat(karere::Id chatid) const;
     /** @brief Joins the specifed chatroom on the specified shard, using the specified
      * url, and assocuates the specified Listener and ICRypto instances
      * with the newly created Chat object.
      */
     Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
     Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
+    Chat& createVoidChat(karere::Id chatid, int shardNo);
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     void disconnect();
