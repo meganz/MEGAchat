@@ -774,37 +774,44 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     else if (mConnState == kConnected)
         return promise::_Void();
 
-    assert(mConnState == kDisconnected);
-    auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
-    switch (sessDone)
+    if (mInitState == kInitHasOfflineSession)
     {
-    case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres, isInBackground);
-    case promise::kFailed:
-        return mSessionReadyPromise.error();
-    default:                    // if session is not ready yet
-        assert(sessDone == promise::kNotResolved);
+        mConnectPromise = doConnect(pres, isInBackground)
+        .then([this]()
+        {
+            setConnState(kConnected);
+        })
+        .fail([this](const promise::Error& err)
+        {
+            setConnState(kDisconnected);
+            return err;
+        });
+    }
+    else
+    {
         mConnectPromise = mSessionReadyPromise
-            .then([this, pres, isInBackground]() mutable
-            {
-                return doConnect(pres, isInBackground);
-            })
-            .then([this]()
-            {
-                setConnState(kConnected);
-            })
-            .fail([this](const promise::Error& err)
-            {
-                setConnState(kDisconnected);
-                return err;
-            });
+                .then([this, pres, isInBackground]() mutable
+        {
+            return doConnect(pres, isInBackground);
+        })
+                .then([this]()
+        {
+            setConnState(kConnected);
+        })
+                .fail([this](const promise::Error& err)
+        {
+            setConnState(kDisconnected);
+            return err;
+        });
         return mConnectPromise;
     }
+
+
+    return mConnectPromise;
 }
 
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
-    assert(mSessionReadyPromise.succeeded());
     setConnState(kConnecting);
     mOwnPresence = pres;
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
