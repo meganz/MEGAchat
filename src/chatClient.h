@@ -627,9 +627,9 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     bool isInBackground = false;
+    const bool mInactiveChatsEnabled = false;
     MyMegaApi api;
     rtcModule::IRtcModule* rtc = nullptr;
-    unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};

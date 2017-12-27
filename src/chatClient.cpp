@@ -2385,7 +2385,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
             notifyRejoinedChat();
-            if (mChat && mChat->onlineState() != chatd::ChatState::kChatStateOffline)
+            if (mChat && (mChat->onlineState() != chatd::ChatState::kChatStateOffline || !parent.client.mInactiveChatsEnabled))
             {
                 mChat->connect();
             }
@@ -2479,7 +2479,7 @@ void Client::connectToChatd()
     for (auto& item: *chats)
     {
         auto& chat = *item.second;
-        if (!chat.chat().isDisabled())
+        if ((mInactiveChatsEnabled || chat.isActive()) && !chat.chat().isDisabled())
             chat.connect();
     }
 }
