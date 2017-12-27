@@ -1485,7 +1485,6 @@ void Chat::msgSubmit(Message* msg)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
-    postMsgToSending(OP_NEWMSG, msg);
 
     // last text msg stuff
     if (msg->isText())
@@ -1493,6 +1492,8 @@ void Chat::msgSubmit(Message* msg)
         onLastTextMsgUpdated(*msg);
     }
     onMsgTimestamp(msg->ts);
+
+    postMsgToSending(OP_NEWMSG, msg);
 }
 
 void Chat::createMsgBackRefs(Message& msg)
