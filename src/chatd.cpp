@@ -1545,12 +1545,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg)
     {
         mNextUnsent--;
     }
-//The mSending queue should not change, as we never delete items upon sending, only upon confirmation
-#ifndef NDEBUG
-    auto save = &mSending.back();
-#endif
     flushOutputQueue();
-    assert(&mSending.back() == save);
     return &mSending.back();
 }
 
@@ -1923,7 +1918,7 @@ void Chat::flushOutputQueue(bool fromStart)
         {
             auto start = mNextUnsent;
             mNextUnsent = mSending.end();
-            // Too old message or edit, or group composition has changed.
+            // Too old message or edit, or group composition has changed, or no write access.
             // Move it and all following items as well
             for (auto it = start; it != mSending.end();)
             {
