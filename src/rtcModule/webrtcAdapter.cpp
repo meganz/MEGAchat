@@ -1,6 +1,21 @@
 #include "webrtcAdapter.h"
-#include <webrtc/base/ssladapter.h>
+#include <rtc_base/ssladapter.h>
+#include <modules/video_capture/video_capture_factory.h>
+#include <modules/video_capture/video_capture.h>
+#include <media/engine/webrtcvideocapturerfactory.h>
 #include "webrtcAsyncWaiter.h"
+
+#ifdef __ANDROID__
+#include <jni.h>
+#include <webrtc/api/videosourceproxy.h>
+#include <webrtc/sdk/android/src/jni/androidvideotracksource.h>
+
+extern JavaVM *MEGAjvm;
+extern jclass applicationClass;
+extern jmethodID startVideoCaptureMID;
+extern jmethodID stopVideoCaptureMID;
+extern jobject surfaceTextureHelper;
+#endif
 
 namespace artc
 {
@@ -8,31 +23,33 @@ namespace artc
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
 
-/** Local DTLS Identity */
-Identity gLocalIdentity;
 static bool gIsInitialized = false;
 AsyncWaiter* gAsyncWaiter = nullptr;
 
-bool init(const Identity* identity)
+bool isInitialized() { return gIsInitialized; }
+bool init(void *appCtx)
 {
     if (gIsInitialized)
         return false;
 
     rtc::ThreadManager* threadMgr = rtc::ThreadManager::Instance(); //ensure the ThreadManager singleton is created
-    assert(!rtc::Thread::Current()); //NO_MAIN_THREAD_WRAPPING must be defined when building webrtc
+    auto t = threadMgr->CurrentThread();
+    if (t) //Main thread is not wrapper if NO_MAIN_THREAD_WRAPPING is defined when building webrtc
+    {
+        assert(t->IsOwned());
+        t->UnwrapCurrent();
+        delete t;
+        assert(!threadMgr->CurrentThread());
+    }
 // Put our custom Thread object in the main thread, so our main thread can process
 // webrtc messages, in a non-blocking way, integrated with the application's message loop
-    gAsyncWaiter = new AsyncWaiter;
+    gAsyncWaiter = new AsyncWaiter(appCtx);
     auto thread = new rtc::Thread(gAsyncWaiter);
     gAsyncWaiter->setThread(thread);
     thread->SetName("Main Thread", thread);
     threadMgr->SetCurrentThread(thread);
 
     rtc::InitializeSSL();
-    if (identity)
-        gLocalIdentity = *identity;
-    else
-        gLocalIdentity.clear();
     gWebrtcContext = webrtc::CreatePeerConnectionFactory();
     if (!gWebrtcContext)
         throw std::runtime_error("Error creating peerconnection factory");
@@ -44,6 +61,7 @@ void cleanup()
 {
     if (!gIsInitialized)
         return;
+    gWebrtcContext.release();
     gWebrtcContext = NULL;
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
@@ -85,41 +103,104 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface> cloneMediaStream(
 
 void DeviceManager::enumInputDevices()
 {
-     if (!get()->GetVideoCaptureDevices(&(mInputDevices.video)))
-         throw std::runtime_error("Can't enumerate video devices");
-     get()->GetAudioInputDevices(&(mInputDevices.audio)); //normal to fail on iOS and other platforms that don't use device manager for audio devices
-//         throw std::runtime_error("Can't enumerate audio devices");
+    mInputDevices.audio.clear();
+    mInputDevices.video.clear();
+
+    // TODO: Implement audio device enumeration, when webrtc has it again
+    // Maybe VoEHardware in src/voice_engine/main/interface/voe_hardware.h
+    mInputDevices.audio.push_back(cricket::Device("default", "0"));
+
+    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(
+        webrtc::VideoCaptureFactory::CreateDeviceInfo());
+    if (!info)
+    {
+        mInputDevices.video.push_back(cricket::Device("default", "0"));
+        return;
+    }
+
+    int numDevices = info->NumberOfDevices();
+    auto& devices = mInputDevices.video;
+    for (int i = 0; i < numDevices; ++i)
+    {
+        const uint32_t kSize = 256;
+        char name[kSize] = {0};
+        char id[kSize] = {0};
+        if (info->GetDeviceName(i, name, kSize, id, kSize) != -1)
+        {
+            std::string sName = name;
+            std::transform(sName.begin(), sName.end(), sName.begin(), ::tolower);
+            if (sName.find("front") == std::string::npos)
+            {
+                devices.push_back(cricket::Device(name, id));
+            }
+            else
+            {
+                devices.insert(devices.begin(), cricket::Device(name, id));
+            }
+        }
+    }
 }
 
 template<>
-void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::createSource()
+void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::createSource()
 {
     assert(!mSource.get());
 
+#ifndef __ANDROID__
+    cricket::WebRtcVideoDeviceCapturerFactory factory;
     std::unique_ptr<cricket::VideoCapturer> capturer(
-        mManager.get()->CreateVideoCapturer(mOptions->device));
-
+        factory.Create(cricket::Device(mOptions->device.name, 0)));
     if (!capturer)
-        throw std::runtime_error("Could not create video capturer");
+    {
+        RTCM_LOG_WARNING("Could not create video capturer for device '%s'", mOptions->device.name.c_str());
+        return;
+    }
 
+    mCapturer = capturer.get();
     mSource = gWebrtcContext->CreateVideoSource(capturer.release(),
         &(mOptions->constraints));
+#else
+    JNIEnv *env;
+    MEGAjvm->AttachCurrentThread(&env, NULL);
+    rtc::Thread *currentThread = rtc::ThreadManager::Instance()->CurrentThread();
+    mSource = new rtc::RefCountedObject<webrtc::AndroidVideoTrackSource>(currentThread, env, surfaceTextureHelper, false);
+    rtc::scoped_refptr<webrtc::VideoTrackSourceProxy> proxySource = webrtc::VideoTrackSourceProxy::Create(currentThread, currentThread, mSource);
+    env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jlong)proxySource.release(), surfaceTextureHelper);
+    MEGAjvm->DetachCurrentThread();
+#endif
 
     if (!mSource.get())
-        throw std::runtime_error("Could not create a video source");
+    {
+        RTCM_LOG_WARNING("Could not create a video source for device '%s'", mOptions->device.name.c_str());
+    }
 }
 template<> webrtc::VideoTrackInterface*
-InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::createTrack()
+InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::createTrack()
 {
     assert(mSource.get());
     return gWebrtcContext->CreateVideoTrack("v"+std::to_string(generateId()), mSource).release();
 }
 template<>
-void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface>::freeSource()
+void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface>::freeSource()
 {
     if (!mSource)
         return;
-//  mSource->GetVideoCapturer()->Stop(); //Seems this must not be called directly, but is called internally by the same webrtc worker thread that started the capture
+
+#ifdef __ANDROID__
+    JNIEnv *env;
+    MEGAjvm->AttachCurrentThread(&env, NULL);
+    env->CallStaticVoidMethod(applicationClass, stopVideoCaptureMID);
+    MEGAjvm->DetachCurrentThread();
+#else
+    if (mCapturer)
+    {
+        // This seems to be needed on iOS
+        // TODO: Check if this breaks desktop builds
+        mCapturer->Stop();
+        mCapturer = NULL;
+    }
+#endif
+
     mSource = nullptr;
 }
 

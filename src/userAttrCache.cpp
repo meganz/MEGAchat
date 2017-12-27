@@ -219,7 +219,7 @@ void UserAttrCacheItem::notify()
         ++it; //curr may be deleted in the callback
         if (curr->oneShot)
         {
-            auto wref = curr->getWeakHandle();
+            auto wref = curr->weakHandle();
             curr->cb(data.get(), curr->userp); //may erase curr
             parent.removeCb(wref); //checks if already deleted
         }
@@ -270,7 +270,7 @@ UserAttrCache::Handle UserAttrCacheItem::addCb(UserAttrReqCbFunc cb, void* userp
 {
     auto it = cbs.emplace(cbs.end(), *this, cb, userp, oneShot);
     it->listIt = it;
-    return it->getWeakHandle();
+    return it->weakHandle();
 }
 
 bool UserAttrCache::removeCb(Handle h)

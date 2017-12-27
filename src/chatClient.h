@@ -15,6 +15,7 @@
 #include "IGui.h"
 #include "net/websocketsIO.h"
 #include <base/trackDelete.h>
+#include "rtcModule/webrtc.h"
 
 namespace strophe { class Connection; }
 
@@ -154,10 +155,12 @@ public:
      */
     bool isInitializing() const { return mIsInitializing; }
 
+#ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
      */
-    virtual promise::Promise<void> mediaCall(AvFlags av) = 0;
+    virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+#endif
 
     //chatd::Listener implementation
     virtual void init(chatd::Chat& messages, chatd::DbInterface *&dbIntf);
@@ -229,6 +232,7 @@ public:
     void initContact(const uint64_t& peer);
 
     promise::Promise<void> mediaCall(AvFlags av);
+
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -319,7 +323,6 @@ public:
                   const std::string& title);
     ~GroupChatRoom();
 public:
-    virtual promise::Promise<void> mediaCall(AvFlags av);
 //chatd::Listener
     void onUserJoin(Id userid, chatd::Priv priv);
     void onUserLeave(Id userid);
@@ -540,7 +543,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalEventHandler,
+class Client: public rtcModule::IGlobalHandler,
               public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
@@ -556,6 +559,7 @@ protected:
     std::string mSid;
     std::unique_ptr<UserAttrCache> mUserAttrCache;
     std::string mMyEmail;
+    uint64_t mMyIdentity = 0; // seed for CLIENTID
     ConnState mConnState = kDisconnected;
     promise::Promise<void> mConnectPromise;
 public:
@@ -657,6 +661,8 @@ public:
     const std::string& myName() const { return mMyName; }
 
     const std::string& myEmail() const { return mMyEmail; }
+
+    const uint64_t myIdentity() const { return mMyIdentity; }
 
     /** @brief Utulity function to convert a jid to a user handle */
     static uint64_t useridFromJid(const std::string& jid);
@@ -805,6 +811,13 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
 
+    void saveDb();  // forces a commit
+    bool isCallInProgress() const;
+#ifndef KARERE_DISABLE_WEBRTC
+    std::unique_ptr<rtcModule::IRtcModule> rtc;
+    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call);
+#endif
+
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
@@ -832,11 +845,12 @@ protected:
     void createDb();
     void wipeDb(const std::string& sid);
     void createDbSchema();
-    void connectToChatd();
+    void connectToChatd(bool isInBackground);
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
     std::string getMyEmailFromDb();
     std::string getMyEmailFromSdk();
+    uint64_t getMyIdentityFromDb();
     promise::Promise<void> loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
@@ -869,13 +883,8 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres);
+    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
     void setConnState(ConnState newState);
-#ifndef KARERE_DISABLE_WEBRTC
-    // rtcModule::IGlobalEventHandler interface
-    virtual rtcModule::IEventHandler* onIncomingCallRequest(
-            const std::shared_ptr<rtcModule::ICallAnswer> &call);
-#endif
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);

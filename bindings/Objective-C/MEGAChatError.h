@@ -4,8 +4,8 @@ typedef NS_ENUM(NSInteger, MEGAChatErrorType) {
     MEGAChatErrorTypeOk      = 0,
     MEGAChatErrorTypeUnknown = -1,
     MEGAChatErrorTypeArgs    = -2,
-    MEGAChatErrorTypeAccess  = -9,
-    MEGAChatErrorTypeNoEnt   = -11,
+    MEGAChatErrorTypeNoEnt   = -9,
+    MEGAChatErrorTypeAccess  = -11,
     MegaChatErrorTypeExist   = -12
 };
 

@@ -70,9 +70,10 @@ public:
         if (!mDb)
             return;
         if (!mCommitEach)
-            commit();
+            commitTransaction();
         sqlite3_close(mDb);
         mDb = nullptr;
+        mLastCommitTs = 0;
     }
     bool isOpen() const { return mDb != nullptr; }
     void setCommitMode(bool commitEach)
@@ -144,7 +145,7 @@ protected:
     sqlite3_stmt* mStmt;
     SqliteDb& mDb;
     int mLastBindCol = 0;
-    void check(int code, const char* opname)
+    void retCheck(int code, const char* opname)
     {
         if (code != SQLITE_OK)
             throw std::runtime_error(getLastErrorMsg(opname));
@@ -189,20 +190,20 @@ public:
     }
     operator sqlite3_stmt*() { return mStmt; }
     operator const sqlite3_stmt*() const {return mStmt; }
-    SqliteStmt& bind(int col, int val) { check(sqlite3_bind_int(mStmt, col, val), "bind"); return *this; }
-    SqliteStmt& bind(int col, int64_t val) { check(sqlite3_bind_int64(mStmt, col, val), "bind"); return *this; }
-    SqliteStmt& bind(int col, const std::string& val) { check(sqlite3_bind_text(mStmt, col, val.c_str(), (int)val.size(), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const char* val, size_t size) { check(sqlite3_bind_text(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const void* val, size_t size) { check(sqlite3_bind_blob(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, const StaticBuffer& buf) { check(sqlite3_bind_blob(mStmt, col, buf.buf(), buf.dataSize(), SQLITE_STATIC), "bind"); return *this; }
-    SqliteStmt& bind(int col, uint64_t val) { check(sqlite3_bind_int64(mStmt, col, (int64_t)val), "bind"); return *this; }
-    SqliteStmt& bind(int col, unsigned int val) { check(sqlite3_bind_int(mStmt, col, (int)val), "bind"); return *this; }
-    SqliteStmt& bind(int col, const char* val) { check(sqlite3_bind_text(mStmt, col, val, -1, SQLITE_TRANSIENT), "bind"); return *this; }
+    SqliteStmt& bind(int col, int val) { retCheck(sqlite3_bind_int(mStmt, col, val), "bind"); return *this; }
+    SqliteStmt& bind(int col, int64_t val) { retCheck(sqlite3_bind_int64(mStmt, col, val), "bind"); return *this; }
+    SqliteStmt& bind(int col, const std::string& val) { retCheck(sqlite3_bind_text(mStmt, col, val.c_str(), (int)val.size(), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const char* val, size_t size) { retCheck(sqlite3_bind_text(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const void* val, size_t size) { retCheck(sqlite3_bind_blob(mStmt, col, val, size, SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, const StaticBuffer& buf) { retCheck(sqlite3_bind_blob(mStmt, col, buf.buf(), buf.dataSize(), SQLITE_STATIC), "bind"); return *this; }
+    SqliteStmt& bind(int col, uint64_t val) { retCheck(sqlite3_bind_int64(mStmt, col, (int64_t)val), "bind"); return *this; }
+    SqliteStmt& bind(int col, unsigned int val) { retCheck(sqlite3_bind_int(mStmt, col, (int)val), "bind"); return *this; }
+    SqliteStmt& bind(int col, const char* val) { retCheck(sqlite3_bind_text(mStmt, col, val, -1, SQLITE_TRANSIENT), "bind"); return *this; }
     template <class T, class... Args>
     SqliteStmt& bindV(T&& val, Args&&... args) { return bind(val).bindV(args...); }
     SqliteStmt& bindV() { return *this; }
-    SqliteStmt& clearBind() { mLastBindCol = 0; check(sqlite3_clear_bindings(mStmt), "clear bindings"); return *this; }
-    SqliteStmt& reset() { check(sqlite3_reset(mStmt), "reset"); return *this; }
+    SqliteStmt& clearBind() { mLastBindCol = 0; retCheck(sqlite3_clear_bindings(mStmt), "clear bindings"); return *this; }
+    SqliteStmt& reset() { retCheck(sqlite3_reset(mStmt), "reset"); return *this; }
     template <class T>
     SqliteStmt& bind(T&& val) { bind(++mLastBindCol, val); return *this; }
     template <class T>

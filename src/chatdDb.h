@@ -66,7 +66,7 @@ public:
         item.recipients.save(rcpts);
         mDb.query("insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
                          "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
-            (uint64_t)mMessages.chatId(), item.opcode(), (int)time(NULL), msg->id(),
+            (uint64_t)mMessages.chatId(), item.opcode(), msg->ts, msg->id(),
             *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
@@ -216,13 +216,14 @@ public:
     }
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
     {
+        // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
         std::string sql = "select count(*) from history where (chatid = ?)"
-                "and (userid != ?)";
+                "and (userid != ?) and (type != ?) and not (updated != 0 and length(data) = 0 )";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mMessages.chatId() << mMessages.client().userId();
+        stmt << mMessages.chatId() << mMessages.client().userId() << chatd::Message::kMsgRevokeAttachment;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");

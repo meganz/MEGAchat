@@ -1,24 +1,29 @@
 #pragma once
-#include <webrtc/base/common.h>
-#include <webrtc/base/scoped_ref_ptr.h>
-#include <webrtc/api/peerconnectioninterface.h>
-#include <webrtc/api/jsep.h>
-#include <webrtc/api/peerconnectionfactory.h>
-#include <webrtc/api/mediastream.h>
-#include <webrtc/api/audiotrack.h>
-#include <webrtc/api/videotrack.h>
-#include <webrtc/api/test/fakeconstraints.h>
-#include <webrtc/api/jsepsessiondescription.h>
+//#include <p2p/base/common.h>
+#include <rtc_base/scoped_ref_ptr.h>
+#include <api/peerconnectioninterface.h>
+#include <api/jsep.h>
+#include <media/base/device.h>
+#include <media/base/videosourceinterface.h>
+#include <pc/peerconnectionfactory.h>
+#include <api/mediastream.h>
+#include <api/mediastreaminterface.h>
+#include <pc/audiotrack.h>
+#include <pc/videotrack.h>
+#include <api/test/fakeconstraints.h>
+#include <api/jsepsessiondescription.h>
 #include "base/gcmpp.h"
 #include "karereCommon.h" //only for std::string on android
 #include "base/promise.h"
-
+#include "webrtcAsyncWaiter.h"
+#include "rtcmPrivate.h"
 namespace artc
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
 
-extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
- gWebrtcContext;
+extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
+extern AsyncWaiter* gAsyncWaiter;
+
 struct Identity
 {
     std::string derCert;
@@ -30,14 +35,12 @@ struct Identity
     }
     inline bool isValid() {return !derCert.empty();}
 };
-/** Local DTLS SRTP identity */
-extern Identity gLocalIdentity;
 
 /** Globally initializes the library */
-bool init(const Identity* identity);
+bool init(void *appCtx);
 /** De-initializes and cleans up the library and webrtc stack */
 void cleanup();
-
+bool isInitialized();
 unsigned long generateId();
 
 typedef rtc::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
@@ -45,7 +48,7 @@ typedef rtc::scoped_refptr<webrtc::SessionDescriptionInterface> tspSdp;
 typedef std::unique_ptr<webrtc::SessionDescriptionInterface> supSdp;
 
 /** The error type code that will be set when promises returned by this lib are rejected */
-enum {kRejectType = 0x17c};
+enum: uint32_t { ERRTYPE_RTC = 0x3e9a57c0 }; //promise error type
 /** The specific error codes of rejected promises */
 enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
@@ -63,7 +66,7 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
     })
 #else
 #define RTCM_DO_CALLBACK(code,...)                              \
-    assert(rtc::Thread::Current() == gAsyncWaiter.guiThread()); \
+    assert(rtc::Thread::Current() == gAsyncWaiter->guiThread()); \
     code
 #endif
 
@@ -82,38 +85,12 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-           mPromise.reject(promise::Error(error, kCreateSdpFailed, kRejectType));
+           mPromise.reject(promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
            Release();
         , this, error);
     }
 protected:
     PromiseType mPromise;
-};
-
-struct SdpText
-{
-    std::string sdp;
-    std::string type;
-    SdpText(webrtc::SessionDescriptionInterface* desc)
-    {
-        type = desc->type();
-        desc->ToString(&sdp);
-    }
-    SdpText(const std::string& aSdp, const std::string& aType)
-    :sdp(aSdp), type(aType)
-    {}
-    inline webrtc::JsepSessionDescription* createObject()
-    {
-        webrtc::JsepSessionDescription* jsepSdp =
-            new webrtc::JsepSessionDescription(type);
-        webrtc::SdpParseError error;
-        if (!jsepSdp->Initialize(sdp, &error))
-        {
-            delete jsepSdp;
-            throw std::runtime_error("Error parsing SDP: line "+error.line+"\nError: "+error.description);
-        }
-        return jsepSdp;
-    }
 };
 struct IceCandText
 {
@@ -155,15 +132,13 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, kRejectType));
+             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
              Release();
         , this, error);
     }
 protected:
     PromiseType mPromise;
 };
-
-typedef std::shared_ptr<SdpText> sspSdpText;
 
 struct MyStatsReport: public webrtc::StatsReport::Values
 {
@@ -206,6 +181,7 @@ struct MyStatsReport: public webrtc::StatsReport::Values
             return false;
         auto& val = *it->second;
         auto type = val.type();
+        printf("==============type = %d\n", type);
         if (type == Value::kInt)
             ret = val.int_val();
         else if (type == Value::kInt64)
@@ -249,12 +225,12 @@ protected:
       {
           RTCM_DO_CALLBACK(mHandler.onError(), this);
       }
-      virtual void OnAddStream(webrtc::MediaStreamInterface* stream)
+      virtual void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
       {
           tspMediaStream spStream(stream);
           RTCM_DO_CALLBACK(mHandler.onAddStream(spStream), this, spStream);
       }
-      virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream)
+      virtual void OnRemoveStream(scoped_refptr<webrtc::MediaStreamInterface> stream)
       {
           tspMediaStream spStream(stream);
           RTCM_DO_CALLBACK(mHandler.onRemoveStream(spStream), this, spStream);
@@ -280,7 +256,7 @@ protected:
       {
           RTCM_DO_CALLBACK(mHandler.onRenegotiationNeeded(), this);
       }
-      virtual void OnDataChannel(webrtc::DataChannelInterface* data_channel)
+      virtual void OnDataChannel(scoped_refptr<webrtc::DataChannelInterface> data_channel)
       {
           rtc::scoped_refptr<webrtc::DataChannelInterface> chan(data_channel);
           RTCM_DO_CALLBACK(mHandler.onDataChannel(chan), this, chan);
@@ -302,10 +278,6 @@ public:
      C& handler, webrtc::MediaConstraintsInterface* options)
         :mObserver(new Observer(handler))
     {
-        if (gLocalIdentity.isValid())
-        {
-//TODO: give dtls identity to webrtc
-        }
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.servers = servers;
         Base::operator=(gWebrtcContext->CreatePeerConnection(
@@ -383,6 +355,7 @@ class InputDeviceShared
 {
 private:
     rtc::scoped_refptr<S> mSource;
+    cricket::VideoCapturer *mCapturer;
     std::shared_ptr<MediaGetOptions> mOptions;
     int mRefCount = 0;
     void createSource();
@@ -392,7 +365,7 @@ private:
 protected:
     typedef InputDeviceShared<T,S> This;
     typedef T Track;
-    std::shared_ptr<cricket::DeviceManagerInterface> mManager;
+    DeviceManager& mManager;
     void refSource() { mRefCount++; }
     void unrefSource()
     {
@@ -405,9 +378,8 @@ protected:
     Track* createTrack();
     friend class TrackHandle<This>;
 public:
-    InputDeviceShared(const std::shared_ptr<cricket::DeviceManagerInterface>& manager,
-            const std::shared_ptr<MediaGetOptions>& options)
-    : mOptions(options), mManager(manager) { assert(mManager && mOptions); }
+    InputDeviceShared(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
+    : mCapturer(NULL), mOptions(options), mManager(manager) { assert(mOptions); }
     ~InputDeviceShared()
     {
         if (mRefCount)
@@ -429,20 +401,26 @@ protected:
 public:
     const MediaGetOptions& mediaOptions() const { return *Base::get()->mOptions; }
     InputDevice(): Base(nullptr){}
-    InputDevice(const std::shared_ptr<cricket::DeviceManagerInterface>& manager,
-        const std::shared_ptr<MediaGetOptions>& options)
+    InputDevice(DeviceManager& manager, const std::shared_ptr<MediaGetOptions>& options)
         : Base(std::make_shared<InputDeviceShared<T,S>>(manager, options)){}
 
     std::shared_ptr<Handle> getTrack()
     {
         auto shared = Base::get();
         if (!shared->mSource)
+        {
             shared->createSource();
+            if (!shared->mSource)
+            {
+                RTCM_LOG_WARNING("getTrack: Cannot create video source");
+                return nullptr;
+            }
+        }
         return std::make_shared<Handle>(*this, shared->createTrack());
     }
 };
 typedef InputDevice<webrtc::AudioTrackInterface, webrtc::AudioSourceInterface> InputAudioDevice;
-typedef InputDevice<webrtc::VideoTrackInterface, webrtc::VideoSourceInterface> InputVideoDevice;
+typedef InputDevice<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInterface> InputVideoDevice;
 
 template<class T>
 inline TrackHandle<T>::TrackHandle(const T& device, typename T::Shared::Track* track)
@@ -471,12 +449,14 @@ public:
     karere::AvFlags av() { return karere::AvFlags(mAudio.get(), mVideo.get()); }
     karere::AvFlags effectiveAv()
     { return karere::AvFlags(mAudio && mAudio->track()->enabled(), mVideo && mVideo->track()->enabled()); }
-    void setAvState(karere::AvFlags av)
+    void setAv(karere::AvFlags av)
     {
-        if (mAudio && mAudio->track()->enabled() != av.audio)
-            mAudio->track()->set_enabled(av.audio);
-        if (mVideo && mVideo->track()->enabled() != av.video)
-            mVideo->track()->set_enabled(av.video);
+        bool audio = av.audio();
+        bool video = av.video();
+        if (mAudio && mAudio->track()->enabled() != audio)
+            mAudio->track()->set_enabled(audio);
+        if (mVideo && mVideo->track()->enabled() != video)
+            mVideo->track()->set_enabled(video);
     }
     LocalStreamHandle(const std::shared_ptr<LocalAudioTrackHandle>& aAudio,
         const std::shared_ptr<LocalVideoTrackHandle>& aVideo, const char* name="localStream")
@@ -498,11 +478,12 @@ public:
     }
     webrtc::AudioTrackInterface* audio() { return mAudio?*mAudio:(webrtc::AudioTrackInterface*)nullptr; }
     webrtc::VideoTrackInterface* video() { return mVideo?*mVideo:(webrtc::VideoTrackInterface*)nullptr; }
+    tspMediaStream& stream() { return mStream; }
     operator webrtc::MediaStreamInterface*() { return mStream; }
     operator const webrtc::MediaStreamInterface*() const { return mStream; }
 };
 
-class DeviceManager: public std::shared_ptr<cricket::DeviceManagerInterface>
+class DeviceManager
 {
 public:
     struct InputDevices
@@ -511,21 +492,12 @@ public:
         DeviceList video;
     };
 protected:
-    typedef std::shared_ptr<cricket::DeviceManagerInterface> Base;
     InputDevices mInputDevices;
 public:
     DeviceManager()
-        :Base(cricket::DeviceManagerFactory::Create())
     {
-        if (!get()->Init())
-        {
-            reset();
-            throw std::runtime_error("Can't create device manager");
-        }
         enumInputDevices();
     }
-    DeviceManager(const DeviceManager& other)
-    :Base(other){}
     const InputDevices& inputDevices() const {return mInputDevices;}
     void enumInputDevices();
     InputAudioDevice getUserAudio(const std::shared_ptr<MediaGetOptions>& options)

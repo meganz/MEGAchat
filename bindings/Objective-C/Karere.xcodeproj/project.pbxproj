@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
-		941977371F163E5D00A76EE3 /* libwsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977351F163E5D00A76EE3 /* libwsIO.cpp */; };
 		947566561F3397AE00FE8664 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566551F3397AE00FE8664 /* cservices.cpp */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
 		A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BD1E9788A3007CD9E2 /* MEGAChatListItem.mm */; };
@@ -24,19 +23,27 @@
 		A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750DF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm */; };
 		A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */; };
 		A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */; };
+		A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8AA1F979CDC0075646F /* MEGAChatCall.mm */; };
+		A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */; };
+		A835A8B61F97AE240075646F /* DelegateMEGAChatVideoListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */; };
 		A838B20A1E9685A200875D96 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2051E9685A200875D96 /* logger.cpp */; };
-		A838B2171E9685DF00875D96 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B20E1E9685DF00875D96 /* base64.cpp */; };
-		A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B20F1E9685DF00875D96 /* chatClient.cpp */; };
-		A838B2191E9685DF00875D96 /* chatd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2101E9685DF00875D96 /* chatd.cpp */; };
-		A838B21A1E9685DF00875D96 /* karereCommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2111E9685DF00875D96 /* karereCommon.cpp */; };
-		A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2121E9685DF00875D96 /* megachatapi_impl.cpp */; };
-		A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2131E9685DF00875D96 /* megachatapi.cpp */; };
-		A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2141E9685DF00875D96 /* presenced.cpp */; };
-		A838B21E1E9685DF00875D96 /* url.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2151E9685DF00875D96 /* url.cpp */; };
-		A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2161E9685DF00875D96 /* userAttrCache.cpp */; };
 		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
-		A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2241E96879F00875D96 /* karereDbSchema.cpp */; };
-		A838E1481F825CA100DA8038 /* libeventWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838E1471F825CA100DA8038 /* libeventWaiter.cpp */; };
+		A83D5BF41F974AF900A038F7 /* rtcStats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF11F974AF900A038F7 /* rtcStats.cpp */; };
+		A83D5BF51F974AF900A038F7 /* webrtc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF21F974AF900A038F7 /* webrtc.cpp */; };
+		A83D5BF61F974AF900A038F7 /* webrtcAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */; };
+		A879F3B21F966682007C5394 /* libwebsocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */; };
+		A879F3B61F9667F5007C5394 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */; };
+		A879F3C01F96683A007C5394 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B71F966838007C5394 /* base64.cpp */; };
+		A879F3C11F96683A007C5394 /* karereCommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B81F966839007C5394 /* karereCommon.cpp */; };
+		A879F3C21F96683A007C5394 /* presenced.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B91F966839007C5394 /* presenced.cpp */; };
+		A879F3C31F96683A007C5394 /* url.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BA1F966839007C5394 /* url.cpp */; };
+		A879F3C41F96683A007C5394 /* userAttrCache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BB1F966839007C5394 /* userAttrCache.cpp */; };
+		A879F3C51F96683A007C5394 /* chatd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BC1F966839007C5394 /* chatd.cpp */; };
+		A879F3C61F96683A007C5394 /* chatClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BD1F966839007C5394 /* chatClient.cpp */; };
+		A879F3C71F96683A007C5394 /* megachatapi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BE1F96683A007C5394 /* megachatapi.cpp */; };
+		A879F3C81F96683A007C5394 /* megachatapi_impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */; };
+		A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3C91F96685D007C5394 /* libuvWaiter.cpp */; };
+		A879F3D91F966D8E007C5394 /* rtcCrypto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,7 +60,6 @@
 
 /* Begin PBXFileReference section */
 		941977321F163DDE00A76EE3 /* websocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = websocketsIO.cpp; path = ../../src/net/websocketsIO.cpp; sourceTree = "<group>"; };
-		941977351F163E5D00A76EE3 /* libwsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libwsIO.cpp; path = ../../src/net/libwsIO.cpp; sourceTree = "<group>"; };
 		947565EE1F168CB400FE8664 /* timers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = timers.hpp; path = ../../src/base/timers.hpp; sourceTree = "<group>"; };
 		947565F01F18D4E900FE8664 /* asyncTest-framework.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "asyncTest-framework.h"; path = "../../src/asyncTest-framework.h"; sourceTree = "<group>"; };
 		947565F11F18D4E900FE8664 /* asyncTest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asyncTest.h; path = ../../src/asyncTest.h; sourceTree = "<group>"; };
@@ -75,7 +81,6 @@
 		947566011F18D4E900FE8664 /* karereId.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = karereId.h; path = ../../src/karereId.h; sourceTree = "<group>"; };
 		947566021F18D4E900FE8664 /* megachatapi_impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = megachatapi_impl.h; path = ../../src/megachatapi_impl.h; sourceTree = "<group>"; };
 		947566031F18D4E900FE8664 /* megachatapi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = megachatapi.h; path = ../../src/megachatapi.h; sourceTree = "<group>"; };
-		947566041F18D4E900FE8664 /* megaCryptoFunctions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = megaCryptoFunctions.h; path = ../../src/megaCryptoFunctions.h; sourceTree = "<group>"; };
 		947566051F18D4E900FE8664 /* messageBus.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = messageBus.h; path = ../../src/messageBus.h; sourceTree = "<group>"; };
 		947566061F18D4E900FE8664 /* presenced.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = presenced.h; path = ../../src/presenced.h; sourceTree = "<group>"; };
 		947566071F18D4E900FE8664 /* sdkApi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sdkApi.h; path = ../../src/sdkApi.h; sourceTree = "<group>"; };
@@ -89,10 +94,8 @@
 		9475660F1F18D4E900FE8664 /* userAttrCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = userAttrCache.h; path = ../../src/userAttrCache.h; sourceTree = "<group>"; };
 		947566101F18D4E900FE8664 /* videoRenderer_objc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = videoRenderer_objc.h; path = ../../src/videoRenderer_objc.h; sourceTree = "<group>"; };
 		947566111F18D4E900FE8664 /* videoRenderer_Qt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = videoRenderer_Qt.h; path = ../../src/videoRenderer_Qt.h; sourceTree = "<group>"; };
-		947566161F18D53D00FE8664 /* ICryptoFunctions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ICryptoFunctions.h; path = ../../src/rtcModule/ICryptoFunctions.h; sourceTree = "<group>"; };
 		947566171F18D53D00FE8664 /* IDeviceListImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IDeviceListImpl.h; path = ../../src/rtcModule/IDeviceListImpl.h; sourceTree = "<group>"; };
 		947566181F18D53D00FE8664 /* IJingleSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IJingleSession.h; path = ../../src/rtcModule/IJingleSession.h; sourceTree = "<group>"; };
-		947566191F18D53D00FE8664 /* IRtcModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IRtcModule.h; path = ../../src/rtcModule/IRtcModule.h; sourceTree = "<group>"; };
 		9475661A1F18D53D00FE8664 /* IRtcStats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IRtcStats.h; path = ../../src/rtcModule/IRtcStats.h; sourceTree = "<group>"; };
 		9475661B1F18D53D00FE8664 /* ITypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypes.h; path = ../../src/rtcModule/ITypes.h; sourceTree = "<group>"; };
 		9475661C1F18D53D00FE8664 /* ITypesImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypesImpl.h; path = ../../src/rtcModule/ITypesImpl.h; sourceTree = "<group>"; };
@@ -128,7 +131,6 @@
 		9475663E1F18D60300FE8664 /* libwsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libwsIO.h; path = ../../src/net/libwsIO.h; sourceTree = "<group>"; };
 		9475663F1F18D60300FE8664 /* websocketsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = websocketsIO.h; path = ../../src/net/websocketsIO.h; sourceTree = "<group>"; };
 		947566401F18D61100FE8664 /* libeventWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libeventWaiter.h; path = ../../src/waiter/libeventWaiter.h; sourceTree = "<group>"; };
-		947566411F18D61100FE8664 /* libwebsocketsWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libwebsocketsWaiter.h; path = ../../src/waiter/libwebsocketsWaiter.h; sourceTree = "<group>"; };
 		947566441F197C0A00FE8664 /* libuvWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libuvWaiter.h; path = ../../src/waiter/libuvWaiter.h; sourceTree = "<group>"; };
 		947566551F3397AE00FE8664 /* cservices.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cservices.cpp; path = ../../src/base/cservices.cpp; sourceTree = "<group>"; };
 		A82750B91E9788A3007CD9E2 /* MEGAChatDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MEGAChatDelegate.h; sourceTree = "<group>"; };
@@ -173,20 +175,34 @@
 		A82750EB1E9788D8007CD9E2 /* MEGAChatRoom+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoom+init.h"; path = "Private/MEGAChatRoom+init.h"; sourceTree = "<group>"; };
 		A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatRoomList+init.h"; path = "Private/MEGAChatRoomList+init.h"; sourceTree = "<group>"; };
 		A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "MEGAChatSdk+init.h"; path = "Private/MEGAChatSdk+init.h"; sourceTree = "<group>"; };
+		A835A8A91F979CDC0075646F /* MEGAChatCall.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatCall.h; sourceTree = "<group>"; };
+		A835A8AA1F979CDC0075646F /* MEGAChatCall.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatCall.mm; sourceTree = "<group>"; };
+		A835A8AC1F979EE30075646F /* MEGAChatCall+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MEGAChatCall+init.h"; path = "Private/MEGAChatCall+init.h"; sourceTree = "<group>"; };
+		A835A8AF1F97A03B0075646F /* MEGAChatVideoDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatVideoDelegate.h; sourceTree = "<group>"; };
+		A835A8B01F97A13D0075646F /* MEGAChatCallDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatCallDelegate.h; sourceTree = "<group>"; };
+		A835A8B11F97A74B0075646F /* DelegateMEGAChatCallListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatCallListener.h; path = Private/DelegateMEGAChatCallListener.h; sourceTree = "<group>"; };
+		A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatCallListener.mm; path = Private/DelegateMEGAChatCallListener.mm; sourceTree = "<group>"; };
+		A835A8B41F97AE240075646F /* DelegateMEGAChatVideoListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatVideoListener.h; path = Private/DelegateMEGAChatVideoListener.h; sourceTree = "<group>"; };
+		A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatVideoListener.mm; path = Private/DelegateMEGAChatVideoListener.mm; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2051E9685A200875D96 /* logger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = logger.cpp; path = ../../src/base/logger.cpp; sourceTree = "<group>"; };
-		A838B20E1E9685DF00875D96 /* base64.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = base64.cpp; path = ../../src/base64.cpp; sourceTree = "<group>"; };
-		A838B20F1E9685DF00875D96 /* chatClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chatClient.cpp; path = ../../src/chatClient.cpp; sourceTree = "<group>"; };
-		A838B2101E9685DF00875D96 /* chatd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chatd.cpp; path = ../../src/chatd.cpp; sourceTree = "<group>"; };
-		A838B2111E9685DF00875D96 /* karereCommon.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = karereCommon.cpp; path = ../../src/karereCommon.cpp; sourceTree = "<group>"; };
-		A838B2121E9685DF00875D96 /* megachatapi_impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = megachatapi_impl.cpp; path = ../../src/megachatapi_impl.cpp; sourceTree = "<group>"; };
-		A838B2131E9685DF00875D96 /* megachatapi.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = megachatapi.cpp; path = ../../src/megachatapi.cpp; sourceTree = "<group>"; };
-		A838B2141E9685DF00875D96 /* presenced.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = presenced.cpp; path = ../../src/presenced.cpp; sourceTree = "<group>"; };
-		A838B2151E9685DF00875D96 /* url.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = url.cpp; path = ../../src/url.cpp; sourceTree = "<group>"; };
-		A838B2161E9685DF00875D96 /* userAttrCache.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = userAttrCache.cpp; path = ../../src/userAttrCache.cpp; sourceTree = "<group>"; };
 		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
-		A838B2241E96879F00875D96 /* karereDbSchema.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = karereDbSchema.cpp; path = ../../src/karereDbSchema.cpp; sourceTree = "<group>"; };
-		A838E1471F825CA100DA8038 /* libeventWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = libeventWaiter.cpp; path = ../../src/waiter/libeventWaiter.cpp; sourceTree = "<group>"; };
+		A83D5BF11F974AF900A038F7 /* rtcStats.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rtcStats.cpp; path = ../rtcModule/rtcStats.cpp; sourceTree = "<group>"; };
+		A83D5BF21F974AF900A038F7 /* webrtc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = webrtc.cpp; path = ../rtcModule/webrtc.cpp; sourceTree = "<group>"; };
+		A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = webrtcAdapter.cpp; path = ../rtcModule/webrtcAdapter.cpp; sourceTree = "<group>"; };
+		A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libwebsocketsIO.cpp; sourceTree = "<group>"; };
+		A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = karereDbSchema.cpp; sourceTree = "<group>"; };
+		A879F3B71F966838007C5394 /* base64.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = base64.cpp; sourceTree = "<group>"; };
+		A879F3B81F966839007C5394 /* karereCommon.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = karereCommon.cpp; sourceTree = "<group>"; };
+		A879F3B91F966839007C5394 /* presenced.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = presenced.cpp; sourceTree = "<group>"; };
+		A879F3BA1F966839007C5394 /* url.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = url.cpp; sourceTree = "<group>"; };
+		A879F3BB1F966839007C5394 /* userAttrCache.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = userAttrCache.cpp; sourceTree = "<group>"; };
+		A879F3BC1F966839007C5394 /* chatd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = chatd.cpp; sourceTree = "<group>"; };
+		A879F3BD1F966839007C5394 /* chatClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = chatClient.cpp; sourceTree = "<group>"; };
+		A879F3BE1F96683A007C5394 /* megachatapi.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = megachatapi.cpp; sourceTree = "<group>"; };
+		A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = megachatapi_impl.cpp; sourceTree = "<group>"; };
+		A879F3C91F96685D007C5394 /* libuvWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libuvWaiter.cpp; sourceTree = "<group>"; };
+		A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rtcCrypto.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,18 +219,18 @@
 		941977271F16377400A76EE3 /* net */ = {
 			isa = PBXGroup;
 			children = (
-				941977351F163E5D00A76EE3 /* libwsIO.cpp */,
+				A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */,
 				941977321F163DDE00A76EE3 /* websocketsIO.cpp */,
 			);
-			name = net;
+			path = net;
 			sourceTree = "<group>";
 		};
 		941977311F163CEB00A76EE3 /* waiter */ = {
 			isa = PBXGroup;
 			children = (
-				A838E1471F825CA100DA8038 /* libeventWaiter.cpp */,
+				A879F3C91F96685D007C5394 /* libuvWaiter.cpp */,
 			);
-			name = waiter;
+			path = waiter;
 			sourceTree = "<group>";
 		};
 		947565EF1F18D4BF00FE8664 /* include */ = {
@@ -245,7 +261,6 @@
 				947566011F18D4E900FE8664 /* karereId.h */,
 				947566021F18D4E900FE8664 /* megachatapi_impl.h */,
 				947566031F18D4E900FE8664 /* megachatapi.h */,
-				947566041F18D4E900FE8664 /* megaCryptoFunctions.h */,
 				947566051F18D4E900FE8664 /* messageBus.h */,
 				947566061F18D4E900FE8664 /* presenced.h */,
 				947566071F18D4E900FE8664 /* sdkApi.h */,
@@ -266,10 +281,8 @@
 		947566151F18D52700FE8664 /* rtcModule */ = {
 			isa = PBXGroup;
 			children = (
-				947566161F18D53D00FE8664 /* ICryptoFunctions.h */,
 				947566171F18D53D00FE8664 /* IDeviceListImpl.h */,
 				947566181F18D53D00FE8664 /* IJingleSession.h */,
-				947566191F18D53D00FE8664 /* IRtcModule.h */,
 				9475661A1F18D53D00FE8664 /* IRtcStats.h */,
 				9475661B1F18D53D00FE8664 /* ITypes.h */,
 				9475661C1F18D53D00FE8664 /* ITypesImpl.h */,
@@ -324,7 +337,6 @@
 			children = (
 				947566441F197C0A00FE8664 /* libuvWaiter.h */,
 				947566401F18D61100FE8664 /* libeventWaiter.h */,
-				947566411F18D61100FE8664 /* libwebsocketsWaiter.h */,
 			);
 			name = waiter;
 			sourceTree = "<group>";
@@ -350,6 +362,10 @@
 				A82750E11E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm */,
 				A82750E21E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.h */,
 				A82750E31E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm */,
+				A835A8B11F97A74B0075646F /* DelegateMEGAChatCallListener.h */,
+				A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */,
+				A835A8B41F97AE240075646F /* DelegateMEGAChatVideoListener.h */,
+				A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */,
 				A82750E41E9788D8007CD9E2 /* MEGAChatError+init.h */,
 				A82750E51E9788D8007CD9E2 /* MEGAChatListItem+init.h */,
 				A82750E61E9788D8007CD9E2 /* MEGAChatListItemList+init.h */,
@@ -360,6 +376,7 @@
 				A82750EB1E9788D8007CD9E2 /* MEGAChatRoom+init.h */,
 				A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */,
 				A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */,
+				A835A8AC1F979EE30075646F /* MEGAChatCall+init.h */,
 			);
 			name = private;
 			sourceTree = "<group>";
@@ -392,6 +409,10 @@
 				A82750CE1E9788A3007CD9E2 /* MEGAChatRoomList.mm */,
 				A82750CF1E9788A3007CD9E2 /* MEGAChatSdk.h */,
 				A82750D01E9788A3007CD9E2 /* MEGAChatSdk.mm */,
+				A835A8A91F979CDC0075646F /* MEGAChatCall.h */,
+				A835A8AA1F979CDC0075646F /* MEGAChatCall.mm */,
+				A835A8AF1F97A03B0075646F /* MEGAChatVideoDelegate.h */,
+				A835A8B01F97A13D0075646F /* MEGAChatCallDelegate.h */,
 			);
 			name = binding;
 			sourceTree = "<group>";
@@ -422,28 +443,31 @@
 				947565EE1F168CB400FE8664 /* timers.hpp */,
 				A838B2051E9685A200875D96 /* logger.cpp */,
 			);
-			name = base;
+			path = base;
 			sourceTree = "<group>";
 		};
 		A838B20D1E9685AD00875D96 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				A83D5BF01F974AC200A038F7 /* rtcModule */,
 				941977311F163CEB00A76EE3 /* waiter */,
 				941977271F16377400A76EE3 /* net */,
-				A838B2241E96879F00875D96 /* karereDbSchema.cpp */,
+				A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */,
 				A838B2221E9685F300875D96 /* strongvelope */,
-				A838B20E1E9685DF00875D96 /* base64.cpp */,
-				A838B20F1E9685DF00875D96 /* chatClient.cpp */,
-				A838B2101E9685DF00875D96 /* chatd.cpp */,
-				A838B2111E9685DF00875D96 /* karereCommon.cpp */,
-				A838B2121E9685DF00875D96 /* megachatapi_impl.cpp */,
-				A838B2131E9685DF00875D96 /* megachatapi.cpp */,
-				A838B2141E9685DF00875D96 /* presenced.cpp */,
-				A838B2151E9685DF00875D96 /* url.cpp */,
-				A838B2161E9685DF00875D96 /* userAttrCache.cpp */,
+				A879F3BD1F966839007C5394 /* chatClient.cpp */,
+				A879F3BC1F966839007C5394 /* chatd.cpp */,
+				A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */,
+				A879F3BE1F96683A007C5394 /* megachatapi.cpp */,
+				A879F3B71F966838007C5394 /* base64.cpp */,
+				A879F3B81F966839007C5394 /* karereCommon.cpp */,
+				A879F3B91F966839007C5394 /* presenced.cpp */,
+				A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */,
+				A879F3BA1F966839007C5394 /* url.cpp */,
+				A879F3BB1F966839007C5394 /* userAttrCache.cpp */,
 				A838B20C1E9685A600875D96 /* base */,
 			);
 			name = src;
+			path = ../../src;
 			sourceTree = "<group>";
 		};
 		A838B2221E9685F300875D96 /* strongvelope */ = {
@@ -451,7 +475,7 @@
 			children = (
 				A838B2201E9685F000875D96 /* strongvelope.cpp */,
 			);
-			name = strongvelope;
+			path = strongvelope;
 			sourceTree = "<group>";
 		};
 		A838B2261E96884A00875D96 /* Frameworks */ = {
@@ -459,6 +483,16 @@
 			children = (
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A83D5BF01F974AC200A038F7 /* rtcModule */ = {
+			isa = PBXGroup;
+			children = (
+				A83D5BF11F974AF900A038F7 /* rtcStats.cpp */,
+				A83D5BF21F974AF900A038F7 /* webrtc.cpp */,
+				A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */,
+			);
+			path = rtcModule;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -535,36 +569,43 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A838B21E1E9685DF00875D96 /* url.cpp in Sources */,
+				A879F3C01F96683A007C5394 /* base64.cpp in Sources */,
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
+				A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */,
+				A879F3C21F96683A007C5394 /* presenced.cpp in Sources */,
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
-				A838B2171E9685DF00875D96 /* base64.cpp in Sources */,
 				A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */,
-				A838B2251E96879F00875D96 /* karereDbSchema.cpp in Sources */,
 				A82750DB1E9788A3007CD9E2 /* MEGAChatSdk.mm in Sources */,
+				A83D5BF61F974AF900A038F7 /* webrtcAdapter.cpp in Sources */,
 				A82750D91E9788A3007CD9E2 /* MEGAChatRoom.mm in Sources */,
-				A838E1481F825CA100DA8038 /* libeventWaiter.cpp in Sources */,
 				A82750D51E9788A3007CD9E2 /* MEGAChatMessage.mm in Sources */,
 				941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */,
+				A879F3C71F96683A007C5394 /* megachatapi.cpp in Sources */,
 				A82750D41E9788A3007CD9E2 /* MEGAChatListItemList.mm in Sources */,
-				A838B21F1E9685DF00875D96 /* userAttrCache.cpp in Sources */,
 				A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */,
-				941977371F163E5D00A76EE3 /* libwsIO.cpp in Sources */,
+				A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */,
+				A879F3C31F96683A007C5394 /* url.cpp in Sources */,
+				A879F3C81F96683A007C5394 /* megachatapi_impl.cpp in Sources */,
 				A82750D71E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm in Sources */,
 				A82750D61E9788A3007CD9E2 /* MEGAChatPeerList.mm in Sources */,
-				A838B21D1E9685DF00875D96 /* presenced.cpp in Sources */,
+				A879F3C61F96683A007C5394 /* chatClient.cpp in Sources */,
+				A835A8B61F97AE240075646F /* DelegateMEGAChatVideoListener.mm in Sources */,
+				A879F3C41F96683A007C5394 /* userAttrCache.cpp in Sources */,
 				A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */,
-				A838B2181E9685DF00875D96 /* chatClient.cpp in Sources */,
+				A879F3B21F966682007C5394 /* libwebsocketsIO.cpp in Sources */,
+				A83D5BF41F974AF900A038F7 /* rtcStats.cpp in Sources */,
+				A879F3C11F96683A007C5394 /* karereCommon.cpp in Sources */,
+				A879F3B61F9667F5007C5394 /* karereDbSchema.cpp in Sources */,
 				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
 				A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */,
-				A838B2191E9685DF00875D96 /* chatd.cpp in Sources */,
-				A838B21C1E9685DF00875D96 /* megachatapi.cpp in Sources */,
+				A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */,
+				A879F3C51F96683A007C5394 /* chatd.cpp in Sources */,
 				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
+				A83D5BF51F974AF900A038F7 /* webrtc.cpp in Sources */,
 				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
+				A879F3D91F966D8E007C5394 /* rtcCrypto.cpp in Sources */,
 				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
-				A838B21B1E9685DF00875D96 /* megachatapi_impl.cpp in Sources */,
 				947566561F3397AE00FE8664 /* cservices.cpp in Sources */,
-				A838B21A1E9685DF00875D96 /* karereCommon.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -598,7 +639,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 			};
@@ -630,7 +671,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				SDKROOT = iphoneos;
 			};
 			name = Release;
@@ -686,6 +727,9 @@
 					../../../SDK/bindings/ios/3rdparty/include/libws,
 					../../../SDK/bindings/ios/3rdparty/include,
 					../../../SDK/bindings/ios/3rdparty/include/libevent,
+					../../../SDK/bindings/ios/3rdparty/webrtc,
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
@@ -695,15 +739,40 @@
 					"-DENABLE_CHAT",
 					"-DHAVE_CONFIG_H",
 					"-DHAVE_KARERE_LOGGER",
-					"-DKARERE_DISABLE_WEBRTC",
 					"-DSVC_DISABLE_STROPHE",
 					"-D_DARWIN_C_SOURCE",
+					"-DUSE_LIBWEBSOCKETS",
+					"-DENABLE_WEBRTC",
+					"-DWEBRTC_POSIX",
+					"-DWEBRTC_MAC",
+					"-DWEBRTC_IOS",
+					"-DV8_DEPRECATION_WARNINGS",
+					"-DNO_TCMALLOC",
+					"-DCHROMIUM_BUILD",
+					"-DFIELDTRIAL_TESTING_ENABLED",
+					"-DCR_XCODE_VERSION=0901",
+					"-DCR_CLANG_REVISION=\\\"313786-1\\\"",
+					"-D__STDC_CONSTANT_MACROS",
+					"-D__STDC_FORMAT_MACROS",
+					"-D_FORTIFY_SOURCE=2",
+					"-DNDEBUG",
+					"-DNVALGRIND",
+					"-DDYNAMIC_ANNOTATIONS_ENABLED=0",
+					"-DNS_BLOCK_ASSERTIONS=1",
+					"-DWEBRTC_ENABLE_PROTOBUF=1",
+					"-DWEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE",
+					"-DRTC_DISABLE_VP9",
+					"-DHAVE_SCTP",
+					"-DWEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1",
+					"-DWEBRTC_POSIX",
+					"-DWEBRTC_MAC",
+					"-DWEBRTC_IOS",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
 			};
 			name = Debug;
 		};
@@ -752,6 +821,9 @@
 					../../../SDK/bindings/ios/3rdparty/include/libws,
 					../../../SDK/bindings/ios/3rdparty/include,
 					../../../SDK/bindings/ios/3rdparty/include/libevent,
+					../../../SDK/bindings/ios/3rdparty/webrtc,
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
@@ -760,16 +832,41 @@
 					"-DENABLE_CHAT",
 					"-DHAVE_CONFIG_H",
 					"-DHAVE_KARERE_LOGGER",
-					"-DKARERE_DISABLE_WEBRTC",
 					"-DSVC_DISABLE_STROPHE",
 					"-D_DARWIN_C_SOURCE",
 					"-DNDEBUG",
+					"-DENABLE_WEBRTC",
+					"-DUSE_LIBWEBSOCKETS",
+					"-DWEBRTC_POSIX",
+					"-DWEBRTC_IOS",
+					"-DWEBRTC_MAC",
+					"-DV8_DEPRECATION_WARNINGS",
+					"-DNO_TCMALLOC",
+					"-DCHROMIUM_BUILD",
+					"-DFIELDTRIAL_TESTING_ENABLED",
+					"-DCR_XCODE_VERSION=0901",
+					"-DCR_CLANG_REVISION=\\\"313786-1\\\"",
+					"-D__STDC_CONSTANT_MACROS",
+					"-D__STDC_FORMAT_MACROS",
+					"-D_FORTIFY_SOURCE=2",
+					"-DNDEBUG",
+					"-DNVALGRIND",
+					"-DDYNAMIC_ANNOTATIONS_ENABLED=0",
+					"-DNS_BLOCK_ASSERTIONS=1",
+					"-DWEBRTC_ENABLE_PROTOBUF=1",
+					"-DWEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE",
+					"-DRTC_DISABLE_VP9",
+					"-DHAVE_SCTP",
+					"-DWEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1",
+					"-DWEBRTC_POSIX",
+					"-DWEBRTC_MAC",
+					"-DWEBRTC_IOS",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

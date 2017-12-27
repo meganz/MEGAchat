@@ -64,6 +64,7 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
+enum { kProtocolVersion = 0x01 };
 
 class DbInterface;
 struct LastTextMsg;
@@ -279,6 +280,32 @@ public:
      */
     virtual void onLastMessageTsUpdated(uint32_t ts) {}
 };
+class Connection;
+
+class IRtcHandler
+{
+public:
+    virtual void handleMessage(Chat& chat, const StaticBuffer& msg) {}
+    virtual void onShutdown() {}
+    virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
+    virtual void onDisconnect(chatd::Connection& conn) {}
+};
+/** @brief userid + clientid map key class */
+struct EndpointId
+{
+    karere::Id userid;
+    uint32_t clientid;
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    bool operator<(EndpointId other) const
+    {
+         if (userid.val < other.userid.val)
+             return true;
+         else if (userid.val > other.userid.val)
+             return false;
+         else
+             return (clientid < other.clientid);
+    }
+};
 
 class Client;
 
@@ -287,6 +314,10 @@ class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum {
+        kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 3    // echo to check connection is alive when back to foreground
+         };
 
 protected:
     Client& mClient;
@@ -294,11 +325,13 @@ protected:
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
     karere::Url mUrl;
-    megaHandle mInactivityTimer = 0;
-    int mInactivityBeats = 0;
+    bool mHeartbeatEnabled = false;
+    time_t mTsLastRecv = 0;
+    megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
-    Connection(Client& client, int shardNo): mClient(client), mShardNo(shardNo){}
+    uint32_t mClientId = 0;
+    Connection(Client& client, int shardNo);
     State state() { return mState; }
     bool isConnected() const
     {
@@ -317,24 +350,32 @@ protected:
     promise::Promise<void> reconnect();
     void disconnect();
     void notifyLoggedIn();
-    void enableInactivityTimer();
-    void disableInactivityTimer();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
     promise::Promise<void> rejoinExistingChats();
     void resendPending();
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
+    bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
+    bool sendEcho();
     friend class Client;
     friend class Chat;
 public:
+    State state() const { return mState; }
+    bool isOnline() const
+    {
+        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+    }
+    const std::set<karere::Id>& chatIds() const { return mChatIds; }
+    uint32_t clientId() const { return mClientId; }
     promise::Promise<void> retryPendingConnection();
     virtual ~Connection()
     {
         disconnect();
     }
+    void heartbeat();
 };
 
 enum ServerHistFetchState
@@ -372,10 +413,9 @@ struct LastTextMsg
      * This function returns the type of the message, as in Message::type.
      * @see \c Message::kMsgXXX enums.
      *
-     * If no text message exists in history, type is \c LastTextMsg::kNone.
-     * If the message is being fetched from server, type is \c LastTextMsg::kFetching.
-     * If an error has occurred when trying to determine the message, like
-     * server being offline, then LastTextMsg::kOffline will be returned.
+     * If no text message exists in history, type is \c LastTextMsgState::kNone.
+     * If the message is being fetched from server, type is \c LastTextMsgState::kFetching.
+     * Otherwise, the returned type will match the type of the message.
      */
     uint8_t type() const { return mType; }
     /**
@@ -403,7 +443,7 @@ protected:
 struct LastTextMsgState: public LastTextMsg
 {
     /** Enum for mState */
-    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kOffline = 0xfe, kHave = 0x1 };
+    enum: uint8_t { kNone = 0x0, kFetching = 0xff, kHave = 0x1 };
 
     bool mIsNotified = false;
     uint8_t state() const { return mState; }
@@ -485,9 +525,10 @@ public:
             :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
 
+    Client& mClient;
+
 protected:
     Connection& mConnection;
-    Client& mClient;
     karere::Id mChatId;
     Idx mForwardStart;
     std::vector<std::unique_ptr<Message>> mForwardList;
@@ -565,6 +606,7 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
+    std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -594,12 +636,6 @@ protected:
     void onLastReceived(karere::Id msgid);
     void onLastSeen(karere::Id msgid);
     void handleLastReceivedSeen(karere::Id msgid);
-    // As sending data over libws is destructive to the buffer, we have two versions
-    // of sendCommand - the one with the rvalue reference is picked by the compiler
-    // whenever the command object is a temporary, avoiding copying the buffer,
-    // and the const reference one is picked when the Command object has to be preserved
-    bool sendCommand(Command&& cmd);
-    bool sendCommand(const Command& cmd);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
     SendingItem* postMsgToSending(uint8_t opcode, Message* msg);
@@ -613,12 +649,14 @@ protected:
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
-    void logSend(const Command& cmd);
+    void logSend(const Command& cmd) const;
     void handleBroadcast(karere::Id userid, uint8_t type);
     void findAndNotifyLastTextMsg();
     void notifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
     bool manualResendWhenUserJoins() const;
+    void onInCall(karere::Id userid, uint32_t clientid);
+    void onEndCall(karere::Id userid, uint32_t clientid);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -631,6 +669,7 @@ public:
     karere::Id chatId() const { return mChatId; }
     /** @brief The chatd client */
     Client& client() const { return mClient; }
+    Connection& connection() const { return mConnection; }
     /** @brief The lowest index of a message in the RAM history buffer */
     Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
     /** @brief The highest index of a message in the RAM history buffer */
@@ -899,10 +938,7 @@ public:
      * be displayed as text in the chat list. If it is not found in RAM,
      * the database will be queried. If not found there as well, server is queried,
      * and 0xff is returned. When the message is received from server, the
-     * \c onLastTextMsgUpdated callback will be called. If the network connection
-     * is offline, then 0xfe will be returned, and upon reconnect and join, the
-     * client will fetch messages from the server until it finds a text message
-     * and will call the callback with it.
+     * \c onLastTextMsgUpdated callback will be called.
      * @param [out] msg Output pointer that will be set to the internal last-text-message
      * object. The object is owned by the client, and you should use this
      * pointer synchronously after the call to this function, and not in an
@@ -914,10 +950,6 @@ public:
      *   0xff - no text message is avaliable locally, the client is fetching
      * more history from server. The fetching will continue until a text
      * message is found, at which point the callback will be called.
-     *   0xfe - no text message is available locally, and there is no internet
-     * connection to fetch more history from server. When connection is
-     * restored, the client will fetch history until a text message is found,
-     * then it will call the callback.
      */
     uint8_t lastTextMessage(LastTextMsg*& msg);
 
@@ -965,7 +997,17 @@ public:
      */
     static uint64_t generateRefId(const ICrypto* aCrypto);
     Message *getManualSending(uint64_t rowid, chatd::ManualSendReason& reason);
-
+    /** @brief Sends a command in the chatroom. This method needs to be public
+     * only because webrtc needs to use it.
+     @note Sending data over libws is destructive to the buffer - the websocket
+     * protocol requires it to be xor-ed, and that is done in-place. So, we have
+     * two versions of \c sendCommand() - the one with the rvalue reference is
+     * picked by the compiler whenever the command object is a temporary, avoiding
+     * copying the buffer, and the const reference one is picked when the Command
+     * object is read-only and has to be preserved
+     */
+    bool sendCommand(Command&& cmd);
+    bool sendCommand(const Command& cmd);
     Idx lastIdxReceivedFromServer() const;
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
@@ -991,11 +1033,13 @@ protected:
      * listener state */
     void replayUnsentNotifications();
     void onLastTextMsgUpdated(const Message& msg, Idx idx=CHATD_IDX_INVALID);
-    void findLastTextMsg();
+    bool findLastTextMsg();
     /**
      * @brief Initiates loading of the queue with messages that require user
      * approval for re-sending */
     void loadManualSending();
+public:
+//realtime messaging
 
 //===
 };
@@ -1020,6 +1064,8 @@ protected:
     }
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
+    void sendKeepalive();
+    void sendEcho();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
     unsigned inactivityCheckIntervalSec = 20;
@@ -1027,9 +1073,16 @@ public:
     MyMegaApi *mApi;
     karere::Client *karereClient;
     uint8_t mKeepaliveType = OP_KEEPALIVE;
+    IRtcHandler* mRtcHandler = nullptr;
     karere::Id userId() const { return mUserId; }
+    void setKeepaliveType(bool isInBackground);
     Client(karere::Client *client, karere::Id userId);
     ~Client(){}
+    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
+    {
+        auto it = mChatForChatId.find(chatid);
+        return (it == mChatForChatId.end()) ? nullptr : it->second;
+    }
     Chat& chats(karere::Id chatid) const
     {
         auto it = mChatForChatId.find(chatid);
@@ -1046,11 +1099,13 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     void disconnect();
-    void sendKeepalive();
     promise::Promise<void> retryPendingConnections();
+    void heartbeat();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
     void notifyUserActive();
+    /** Changes the Rtc handler, returning the old one */
+    IRtcHandler* setRtcHandler(IRtcHandler* handler);
     bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;
@@ -1124,6 +1179,3 @@ public:
 }
 
 #endif
-
-
-

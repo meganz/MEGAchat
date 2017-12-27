@@ -20,4 +20,5 @@ public interface MegaChatListenerInterface {
     public void onChatInitStateUpdate(MegaChatApiJava api, int newState);
     public void onChatOnlineStatusUpdate(MegaChatApiJava api, long userhandle, int status, boolean inProgress);
     public void onChatPresenceConfigUpdate(MegaChatApiJava api, MegaChatPresenceConfig config);
+    public void onChatConnectionStateUpdate(MegaChatApiJava api, long chatid, int newState);
 }

@@ -61,6 +61,7 @@ void Client::wsConnectCb()
 {
     PRESENCED_LOG_DEBUG("Presenced connected");
     setConnState(kConnected);
+    assert(!mConnectPromise.done());
     mConnectPromise.resolve();
 }
     
@@ -158,7 +159,8 @@ bool Client::autoAwayInEffect()
             && mConfig.mPresence != Presence::kOffline
             && mConfig.mPresence != Presence::kAway
             && mConfig.mAutoawayTimeout
-            && mConfig.mAutoawayActive;
+            && mConfig.mAutoawayActive
+            && !karereClient->isCallInProgress();
 }
 
 void Client::signalActivity(bool force)
@@ -238,22 +240,37 @@ Client::reconnect(const std::string& url)
                     throw std::runtime_error("Websocket error on wsConnect (presenced)");
                 }
             })
-            .fail([this](const promise::Error& err)
+            .fail([wptr, this](const promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution failed, but presenced client was deleted. Error: %s", err.what());
+                    return;
+                }
+
                 if (err.type() == ERRTYPE_MEGASDK)
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), err.type());
-                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    if (!mConnectPromise.done())
+                    {
+                        mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    }
+                    if (!mLoginPromise.done())
+                    {
+                        mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    }
                 }
             });
             
             return mConnectPromise
-            .then([this]()
+            .then([wptr, this]()
             {
+                if (wptr.deleted())
+                    return;
+
                 mTsLastPingSent = 0;
                 mTsLastRecv = time(NULL);
                 mHeartbeatEnabled = true;
-                return login();
+                login();
             });
         }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
@@ -590,6 +607,16 @@ void Client::setConnState(ConnState newState)
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
     CALL_LISTENER(onConnStateChange, mConnState);
+
+    if (newState == kDisconnected)
+    {
+        // if disconnected, we don't really know the presence status anymore
+        for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
+        {
+            CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
+        }
+        CALL_LISTENER(onPresenceChange, mMyHandle, Presence::kInvalid);
+    }
 }
 void Client::addPeer(karere::Id peer)
 {

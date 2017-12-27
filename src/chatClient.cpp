@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/IRtcModule.h"
+#include "rtcModule/webrtc.h"
+#include "rtcCrypto.h"
 #include "dummyCrypto.h" //for makeRandomString
 #include "base/services.h"
 #include "sdkApi.h"
-#include "megaCryptoFunctions.h"
 #include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
@@ -192,8 +192,12 @@ void Client::heartbeat()
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
     }
+
     mPresencedClient.heartbeat();
-    //TODO: implement in chatd as well
+    if (chatd)
+    {
+        chatd->heartbeat();
+    }
 }
 
 Client::~Client()
@@ -203,7 +207,6 @@ Client::~Client()
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
-    //when the strophe::Connection is destroyed, its handlers are automatically destroyed
 }
 
 promise::Promise<void> Client::retryPendingConnections()
@@ -309,6 +312,22 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
 }
 
+void Client::saveDb()
+{
+    try
+    {
+        if (db.isOpen())
+        {
+            db.commit();
+        }
+    }
+    catch(std::runtime_error& e)
+    {
+        KR_LOG_ERROR("Error saving changes to local cache: %s", e.what());
+        setInitState(kInitErrCorruptCache);
+    }
+}
+
 void Client::loadContactListFromApi()
 {
     std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());
@@ -341,11 +360,17 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+
     mUserAttrCache.reset(new UserAttrCache(*this));
 
+    auto wptr = weakHandle();
     return loadOwnKeysFromApi()
-    .then([this, scsn, contactList, chatList]()
+    .then([this, scsn, contactList, chatList, wptr]()
     {
+        if (wptr.deleted())
+            return;
         loadContactListFromApi(*contactList);
         chatd.reset(new chatd::Client(this, mMyHandle));
         assert(chats->empty());
@@ -383,7 +408,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db)
+        if (db.isOpen())
         {
             auto pscsn = event->getText();
             if (!pscsn)
@@ -450,6 +475,8 @@ void Client::initWithDbSession(const char* sid)
         assert(mMyHandle);
 
         mMyEmail = getMyEmailFromDb();
+
+        mMyIdentity = getMyIdentityFromDb();
 
         mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
         [](Buffer* buf, void* userp)
@@ -652,11 +679,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
 void Client::wipeDb(const std::string& sid)
 {
     assert(!sid.empty());
-    if (db)
-    {
-        sqlite3_close(db);
-        db = nullptr;
-    }
+    db.close();
     std::string path = dbPath(sid);
     remove(path.c_str());
     struct stat info;
@@ -751,22 +774,20 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     else if (mConnState == kConnected)
         return promise::_Void();
 
-    this->isInBackground = isInBackground;
-
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
     case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres);
+        return doConnect(pres, isInBackground);
     case promise::kFailed:
         return mSessionReadyPromise.error();
     default:                    // if session is not ready yet
         assert(sessDone == promise::kNotResolved);
         mConnectPromise = mSessionReadyPromise
-            .then([this, pres]() mutable
+            .then([this, pres, isInBackground]() mutable
             {
-                return doConnect(pres);
+                return doConnect(pres, isInBackground);
             })
             .then([this]()
             {
@@ -781,7 +802,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres)
+promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     assert(mSessionReadyPromise.succeeded());
     setConnState(kConnecting);
@@ -799,7 +820,7 @@ promise::Promise<void> Client::doConnect(Presence pres)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-    connectToChatd();
+    connectToChatd(isInBackground);
     auto pms = connectToPresenced(mOwnPresence)
     .then([this]()
     {
@@ -814,12 +835,7 @@ promise::Promise<void> Client::doConnect(Presence pres)
     auto wptr = weakHandle();
     mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        if (!mHeartbeatTimer)
+        if (wptr.deleted() || !mHeartbeatTimer)
         {
             return;
         }
@@ -834,15 +850,20 @@ void Client::disconnect()
     if (mConnState == kDisconnected)
         return;
     setConnState(kDisconnected);
+    // stop sync of user attributes in cache
     assert(mOwnNameAttrHandle.isValid());
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
     mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
     mUserAttrCache->onLogOut();
+
+    // stop heartbeats
     if (mHeartbeatTimer)
     {
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
+
+    // disconnect from chatd shards and presenced
     chatd->disconnect();
     mPresencedClient.disconnect();
 }
@@ -895,6 +916,30 @@ karere::Id Client::getMyHandleFromDb()
 
     if (result == Id::null() || result.val == mega::UNDEF)
         throw std::runtime_error("loadOwnUserHandleFromDb: Own handle in db is invalid");
+    return result;
+}
+
+uint64_t Client::getMyIdentityFromDb()
+{
+    uint64_t result = 0;
+
+    SqliteStmt stmt(db, "select value from vars where name='clientid_seed'");
+    if (!stmt.step())
+    {
+        KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
+        result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+    }
+    else
+    {
+        result = stmt.uint64Col(0);
+        if (result == 0)
+        {
+            KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
+            result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        }
+    }
     return result;
 }
 
@@ -992,37 +1037,47 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
 promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
+
+    // Prepare list of peers to subscribe to its presence
+    // add contacts
     presenced::IdRefMap peers;
     for (auto& contact: *contactList)
     {
         if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
-            peers.insert(contact.first);
+        {
+            peers.insert(contact.first);   
+        }
     }
+    // add peers from groupchats
     for (auto& chat: *chats)
     {
         if (!chat.second->isGroup())
+        {
             continue;
+        }
+
         auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
         for (auto& peer: members)
         {
             peers.insert(peer.first);
         }
     }
+
+    // Notify presence, if any
     if (pres.isValid())
     {
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
-
-// Create and register the rtcmodule plugin
-// the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
-// To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-//        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
-//        conn->registerPlugin("rtcmodule", rtc);
-
-//        KR_LOG_DEBUG("webrtc plugin initialized");
-//        return mXmppContactList.ready();
+    auto pmsPres = mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    auto pmsRtc = rtc->init(10000);
+    return promise::when(pmsPres, pmsRtc);
+#else
+    return pmsPres;
+#endif
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1033,6 +1088,11 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
+    if (mInitState == kInitTerminated)
+    {
+        return;
+    }
+
     if (userid == mMyHandle)
     {
         mOwnPresence = pres;
@@ -1097,21 +1157,28 @@ void Client::terminate(bool deleteDb)
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll();
+        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
     disconnect();
     mUserAttrCache.reset();
 
-    if (deleteDb && !mSid.empty())
+    try
     {
-        wipeDb(mSid);
+        if (deleteDb && !mSid.empty())
+        {
+            wipeDb(mSid);
+        }
+        else if (db.isOpen())
+        {
+            KR_LOG_INFO("Doing final COMMIT to database");
+            db.commit();
+            db.close();
+        }
     }
-    else if (db)
+    catch(std::runtime_error& e)
     {
-        KR_LOG_INFO("Doing final COMMIT to database");
-        db.commit();
-        db.close();
+        KR_LOG_ERROR("Error saving changes to local cache during termination: %s", e.what());
     }
 }
 
@@ -1263,12 +1330,12 @@ void PeerChatRoom::connect()
     mChat->connect();
 }
 
-promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
-    assert(mAppChatHandler);
-//    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
-    return promise::_Void();
+    return parent.client.rtc->startCall(chatid(), av, handler);
 }
+#endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
@@ -1337,11 +1404,6 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
     delete megaHandleList;
 
     return promise::when(promises);
-}
-
-promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
-{
-    return promise::Error("Group chat calls are not implemented yet");
 }
 
 IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
@@ -2474,8 +2536,10 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd()
+void Client::connectToChatd(bool isInBackground)
 {
+    chatd->setKeepaliveType(isInBackground);
+
     for (auto& item: *chats)
     {
         auto& chat = *item.second;
@@ -2757,9 +2821,9 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    client.userAttrCache().removeCb(mUsernameAttrCbId);
     if (client.initState() != Client::kInitTerminated)
     {
+        client.userAttrCache().removeCb(mUsernameAttrCbId);
         client.presenced().removePeer(mUserid, true);
         if (mDisplay)
         {
@@ -2867,11 +2931,25 @@ const char* Client::connStateToStr(ConnState state)
         default: return "(invalid)";
     }
 }
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::IEventHandler* Client::onIncomingCallRequest(
-        const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+
+bool Client::isCallInProgress() const
 {
-    return app.onIncomingCall(ans);
+    bool callInProgress = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        callInProgress = rtc->isCallInProgress();
+    }
+#endif
+
+    return callInProgress;
+}
+
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
+{
+    return app.onIncomingCall(call);
 }
 #endif
 

@@ -68,7 +68,7 @@ void sigintHandler(int)
 {
     printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
-    marshallCall([]{appDelegate.onAppTerminate();}, NULL);
+    marshallCall([]{mainWin->close();}, NULL);
 }
 
 std::string gAppDir = karere::createAppDir();
@@ -91,11 +91,11 @@ void createWindowAndClient()
 int main(int argc, char **argv)
 {
     karere::globalInit(myMegaPostMessageToGui, 0, (gAppDir+"/log.txt").c_str(), 500);
-    const char* staging = getenv("KR_USE_STAGING");
-    if (staging && strcmp(staging, "1") == 0)
+    const char* customApiUrl = getenv("KR_API_URL");
+    if (customApiUrl)
     {
-        KR_LOG_WARNING("Using staging API server, due to KR_USE_STAGING env variable");
-        ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+        KR_LOG_WARNING("Using custom API server, due to KR_API_URL env variable");
+        ::mega::MegaClient::APIURL = customApiUrl;
     }
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
@@ -140,10 +140,13 @@ int main(int argc, char **argv)
         {
             KR_LOG_DEBUG("Client initialized");
         }
-        setVidencParams();
         signal(SIGINT, sigintHandler);
         QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-        gClient->connect(Presence::kInvalid);
+        return gClient->connect(Presence::kInvalid);
+    })
+    .then([]()
+    {
+        setVidencParams();
     })
     .fail([](const promise::Error& err)
     {
@@ -153,7 +156,7 @@ int main(int argc, char **argv)
         }
         marshallCall([]()
         {
-            appDelegate.onAppTerminate();
+            mainWin->close();
         }, NULL);
     });
     return a.exec();
@@ -194,7 +197,8 @@ void setVidencParams()
 void AppDelegate::onAppTerminate()
 {
     static bool called = false;
-    assert(!called);
+    if (called)
+        return;
     called = true;
     gClient->terminate();
 
@@ -202,9 +206,9 @@ void AppDelegate::onAppTerminate()
 
     marshallCall([]() //post destruction asynchronously so that all pending messages get processed before that
     {
-        qApp->quit(); //stop processing marshalled call messages
         gClient.reset();
         gSdk.reset();
+        qApp->quit(); //stop processing marshalled call messages
         gWebsocketsIO.reset();
         karere::globalCleanup();
     }, NULL);

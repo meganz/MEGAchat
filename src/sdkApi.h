@@ -8,6 +8,7 @@
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
+#include <base/trackDelete.h>
 #include <logger.h>
 #include <string.h>
 #include "karereCommon.h" //for KR_LOG_DEBUG
@@ -38,18 +39,26 @@ public:
 class MyListener: public mega::MegaRequestListener
 {
     void *appCtx;
+    karere::DeleteTrackable::Handle wptr;
     
 public:
-    MyListener(void *ctx) : appCtx(ctx) { }
+    MyListener(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
     ApiPromise mPromise;
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
     {
+        if (wptr.deleted())
+            return;
+
         std::shared_ptr<::mega::MegaRequest> req(request->copy());
         int errCode = e->getErrorCode();
         karere::marshallCall([this, req, errCode]()
         {
+            if (wptr.deleted())
+                return;
+
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
+
             if(errCode != mega::MegaError::API_OK)
             {
                 std::string errmsg = "Mega API error ";
@@ -69,9 +78,10 @@ public:
 class MyListenerNoResult: public ::mega::MegaRequestListener
 {
     void *appCtx;
+    karere::DeleteTrackable::Handle wptr;
 
 public:
-    MyListenerNoResult(void *ctx) : appCtx(ctx) { }
+    MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
 
     promise::Promise<void> mPromise;
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
@@ -79,8 +89,12 @@ public:
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
         {
+            if (wptr.deleted())
+                return;
+
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
+
             if(errCode != mega::MegaError::API_OK)
             {
                 std::string errmsg = "Mega API error ";
@@ -125,7 +139,7 @@ class MyMegaLogger: public ::mega::MegaLogger
     }
 };
 
-class MyMegaApi
+class MyMegaApi: public karere::DeleteTrackable
 {
 public:
     ::mega::MegaApi& sdk;
@@ -140,14 +154,14 @@ public:
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
     {
-        auto listener = new MyListener(appCtx);
+        auto listener = new MyListener(appCtx, getDelTracker());
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     promise::Promise<void> callIgnoreResult(MSig method, Args... args)
     {
-        auto listener = new MyListenerNoResult(appCtx);
+        auto listener = new MyListenerNoResult(appCtx, getDelTracker());
         (sdk.*method)(args..., listener);
         return listener->mPromise;
     }
