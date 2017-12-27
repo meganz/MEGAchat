@@ -502,6 +502,13 @@ void Chat::logSend(const Command& cmd)
                         ID_CSTR(mChatId));
             break;
         }
+        case OP_SEEN:
+        {
+            Id msgId = cmd.read<uint64_t>(9);
+            krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send SEEN %s\n",
+                    ID_CSTR(mChatId), ID_CSTR(msgId));
+            break;
+        }
         default:
         {
             krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n", ID_CSTR(mChatId), cmd.opcodeName());
