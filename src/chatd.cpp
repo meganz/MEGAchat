@@ -2025,7 +2025,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 
     if (!msgid)
     {
-        moveItemToManualSending(mSending.begin(), (mOwnPrivilege == PRIV_RDONLY)
+        moveItemToManualSending(mSending.begin(), (mOwnPrivilege < PRIV_FULL)
             ? kManualSendNoWriteAccess
             : kManualSendGeneralReject); //deletes item
         return nullptr;
