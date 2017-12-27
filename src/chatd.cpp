@@ -1654,12 +1654,20 @@ void Chat::flushOutputQueue(bool fromStart)
 
     while (mNextUnsent != mSending.end())
     {
-        ManualSendReason reason =
-             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
-            ? kManualSendUsersChanged : kManualSendInvalidReason;
+        ManualSendReason reason = kManualSendInvalidReason;
 
-        if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
+        if (mOwnPrivilege < PRIV_FULL)
+        {
+            reason = kManualSendNoWriteAccess;
+        }
+        else if (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
+        {
+            reason = kManualSendUsersChanged;
+        }
+        else if ((time(NULL) - mNextUnsent->msg->ts) > CHATD_MAX_EDIT_AGE)
+        {
             reason = kManualSendTooOld;
+        }
 
         if (reason != kManualSendInvalidReason)
         {
