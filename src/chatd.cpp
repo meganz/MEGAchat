@@ -2725,7 +2725,13 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         // old message
         // local messages are obtained on-demand, so if isLocal,
         // then always send to app
-        bool isChatRoomOpened = mClient.karereClient->chats.get()->at(mChatId)->hasChatHandler();
+        bool isChatRoomOpened = false;
+
+        if (mClient.karereClient->chats.get()->find(mChatId) != mClient.karereClient->chats.get()->end())
+        {
+            isChatRoomOpened = mClient.karereClient->chats.get()->at(mChatId)->hasChatHandler();
+        }
+
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
