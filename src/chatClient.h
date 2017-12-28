@@ -155,6 +155,8 @@ public:
      */
     bool isInitializing() const { return mIsInitializing; }
 
+    bool hasChatHandler() const;
+
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio

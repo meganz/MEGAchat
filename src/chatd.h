@@ -1021,6 +1021,7 @@ public:
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     void clearHistory();
+    void setServerOldHistCb(bool enable);
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);

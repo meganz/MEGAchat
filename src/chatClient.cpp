@@ -2219,6 +2219,18 @@ void ChatRoom::removeAppChatHandler()
     mChat->setListener(this);
 }
 
+bool ChatRoom::hasChatHandler() const
+{
+    bool hasChatHandler = false;
+
+    if (mAppChatHandler != NULL)
+    {
+        hasChatHandler = true;
+    }
+
+    return hasChatHandler;
+}
+
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
