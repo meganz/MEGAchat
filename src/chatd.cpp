@@ -1948,8 +1948,22 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason re
 
 void Chat::removeManualSend(uint64_t rowid)
 {
-    if (!mDbInterface->deleteManualSendItem(rowid))
-        throw std::runtime_error("Unknown manual send id");
+    try
+    {
+        ManualSendReason reason;
+        Message *msg = getManualSending(rowid, reason);
+        if (msg->id() == mLastTextMsg.id())
+        {
+            findAndNotifyLastTextMsg();
+        }
+        delete msg;
+
+        mDbInterface->deleteManualSendItem(rowid);
+    }
+    catch(std::runtime_error& e)
+    {
+        CHATID_LOG_ERROR("removeManualSend: Unknown manual send id: %s", e.what());
+    }
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
