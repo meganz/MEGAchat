@@ -2902,23 +2902,24 @@ bool Chat::findLastTextMsg()
     }
 
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally");
-    if (mOnlineState == kChatStateOnline)
-    {
-        CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
-        // prevent access to websockets from app's thread
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]()
+    // prevent access to websockets from app's thread
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        if (mOnlineState == kChatStateOnline)
         {
-            if (wptr.deleted())
-                return;
+            CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
             requestHistoryFromServer(-16);
             mLastTextMsg.setState(LastTextMsgState::kFetching);
+        }
 
-        }, mClient.karereClient->appCtx);
-    }
+    }, mClient.karereClient->appCtx);
 
     return false;
 }
