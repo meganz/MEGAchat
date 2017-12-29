@@ -433,7 +433,13 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
-        if (connState() == kConnecting || connState() == kConnected)
+        bool callInProgress = false;
+        if (rtc.get())
+        {
+            callInProgress = rtc->isCallInProgress();
+        }
+
+        if (!callInProgress && (connState() == kConnecting || connState() == kConnected))
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]()
