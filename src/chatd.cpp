@@ -1955,8 +1955,22 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason re
 
 void Chat::removeManualSend(uint64_t rowid)
 {
-    if (!mDbInterface->deleteManualSendItem(rowid))
-        throw std::runtime_error("Unknown manual send id");
+    try
+    {
+        ManualSendReason reason;
+        Message *msg = getManualSending(rowid, reason);
+        if (msg->id() == mLastTextMsg.id())
+        {
+            findAndNotifyLastTextMsg();
+        }
+        delete msg;
+
+        mDbInterface->deleteManualSendItem(rowid);
+    }
+    catch(std::runtime_error& e)
+    {
+        CHATID_LOG_ERROR("removeManualSend: Unknown manual send id: %s", e.what());
+    }
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
@@ -2924,23 +2938,24 @@ bool Chat::findLastTextMsg()
     }
 
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally");
-    if (mOnlineState == kChatStateOnline)
-    {
-        CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
-        // prevent access to websockets from app's thread
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]()
+    // prevent access to websockets from app's thread
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        if (mOnlineState == kChatStateOnline)
         {
-            if (wptr.deleted())
-                return;
+            CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
             requestHistoryFromServer(-16);
             mLastTextMsg.setState(LastTextMsgState::kFetching);
+        }
 
-        }, mClient.karereClient->appCtx);
-    }
+    }, mClient.karereClient->appCtx);
 
     return false;
 }
