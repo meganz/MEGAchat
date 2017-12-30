@@ -48,10 +48,10 @@ class ICrypto;
 enum ManualSendReason: uint8_t
 {
     kManualSendInvalidReason = 0,
-    kManualSendUsersChanged = 1, ///< Group chat participants have changed
-    kManualSendTooOld = 2, ///< Message is older than CHATD_MAX_EDIT_AGE seconds
-    kManualSendGeneralReject = 3, ///< chatd rejected the message, for unknown reason
-    kManualSendNoWriteAccess = 4,  ///< Read-only privilege or not belong to the chatroom
+    kManualSendUsersChanged = 1,    ///< Group chat participants have changed
+    kManualSendTooOld = 2,          ///< Message is older than CHATD_MAX_EDIT_AGE seconds
+    kManualSendGeneralReject = 3,   ///< chatd rejected the message, for unknown reason
+    kManualSendNoWriteAccess = 4,   ///< Read-only privilege or not belong to the chatroom
     kManualSendEditNoChange = 6     /// Edit message has same content than message in server
 };
 
