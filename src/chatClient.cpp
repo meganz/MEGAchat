@@ -454,6 +454,10 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
 
             }, appCtx);
         }
+        else
+        {
+            KR_LOG_WARNING("EVENT_DISCONNECT --> Skip");
+        }
         break;
     }
 
