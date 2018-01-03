@@ -122,7 +122,7 @@ enum Opcode
       * C->S: Request existing message range (<msgid0> is the oldest, <msgid1> the newest).
       * Responds with all messages newer than <msgid1> (if any), followed by a HISTDONE.
       *
-      * @obsolete This command is obsolete, replaced by JOINHISTRANGE.
+      * @obsolete This command is obsolete, replaced by JOINRANGEHIST.
       */
     OP_RANGE = 9,
 
@@ -272,10 +272,19 @@ enum Opcode
 
     /**
       * @brief
+      *
       * C->S: Must respond to a received KEEPALIVE within 30 seconds. If local user is away,
       * send KEEPALIVEAWAY
       */
     OP_KEEPALIVEAWAY = 30,
+
+    /**
+      *@brief
+      *
+      *     C->S: set/update call data (gets broadcast to all people in the chat)
+      *     S->C: notify call data changes (sent immediately after a chatd connection is established)
+      */
+    OP_CALLDATA = 31,
 
     /**
       * @brief <randomToken>
