@@ -32,6 +32,7 @@ using namespace karere;
 using namespace promise;
 using namespace mega;
 using namespace megachat;
+
 QChar kOnlineSymbol_InProgress(0x267a);
 QChar kOnlineSymbol_Set(0x25cf);
 QString kOnlineStatusBtnStyle = QStringLiteral(
@@ -195,7 +196,7 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
     }
     else
     {
-        // TODO: update the presence for contacts
+        // ALL: update the presence for contacts
     }
 }
 
@@ -208,8 +209,8 @@ void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pe
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[state.presence().status()]));
 }
 
-
-//IMPLEMENT
+//------------------------------------------------------------------------------------------------------>
+//implementation for MegaChatListener
 void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState){}
 void MainWindow::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
 void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress){}
@@ -222,6 +223,16 @@ void MainWindow::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat
     ui.mOnlineStatusBtn->setStyleSheet(
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
 }
+
+// implementation for MegachatRequestListener
+void MainWindow::onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request){}
+void MainWindow::onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e){}
+void MainWindow::onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request){}
+void MainWindow::onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error){}
+
+// implementation for MegachatCallListener
+void MainWindow::onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call){}
+//------------------------------------------------------------------------------------------------------>
 
 void MainWindow::setOnlineStatus()
 {

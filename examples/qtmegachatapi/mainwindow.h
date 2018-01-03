@@ -37,7 +37,15 @@ class MainWindow :
         public karere::IApp,
         public karere::IApp::IContactListHandler,
         public karere::IApp::IChatListHandler,
-        public megachat::MegaChatListener
+
+        //Implement all methods
+        public megachat::MegaChatListener,
+        public megachat::MegaChatRequestListener,
+        public megachat::MegaChatCallListener,
+        public mega::MegaListener,
+        public mega::MegaRequestListener,
+        public mega::MegaTransferListener,
+        public mega::MegaLogger
 {
     Q_OBJECT
     karere::Client* mClient;
@@ -48,12 +56,26 @@ public:
     ~MainWindow();
     Ui::MainWindow ui;
     void removeItem(IListItem& item);
-//Megachatlistener
+
+//--------------------------------------------------------------------------------------------------------------------->
+// implementation for Megachatlistener
     virtual void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
     virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
     virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
     virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
     virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
+
+// implementation for MegachatRequestListener
+    virtual void onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request);
+    virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
+    virtual void onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request);
+    virtual void onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error);
+
+// implementation for MegachatCallListener
+    virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+
+//--------------------------------------------------------------------------------------------------------------------->
+
 //IContactList
     virtual IContactListItem* addContactItem(karere::Contact& contact);
     virtual void removeContactItem(IContactListItem& item);
