@@ -19,13 +19,13 @@
 #include <fstream>
 #include <net/libwsIO.h>
 #include "megachatapi.h"
+//#include <asyncTools.h>
 
 using namespace std;
 using namespace promise;
 using namespace mega;
 using namespace megachat;
 using namespace karere;
-
 
 MainWindow* mainWin = NULL;
 
@@ -80,16 +80,76 @@ std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
 std::unique_ptr<::megachat::MegaChatApi> gMegaChatApi;
 
+
 void createWindowAndClient()
 {
     mainWin = new MainWindow();
-    gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));    
+    gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
+    gSdk->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+    gSdk->addListener(mainWin);
+    gSdk->addRequestListener(mainWin);
+
     gMegaChatApi.reset(new ::megachat::MegaChatApi(gSdk.get()));
+    gMegaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+    gMegaChatApi->addChatRequestListener(mainWin);
+    gMegaChatApi->addChatListener(mainWin);
+
+    #ifndef KARERE_DISABLE_WEBRTC
+        gMegaChatApi->addChatCallListener(mainWin);
+    #endif
+
+    //Read sid if exists
+    char buf[256];
+    const char* sid = nullptr;
+    std::ifstream sidf(gAppDir+"/sid");
+    if (!sidf.fail())
+    {
+        sidf.getline(buf, 256);
+        if (!sidf.fail())
+            sid = buf;
+    }
+    sidf.close();
+    int initializationState = gMegaChatApi->init(sid);
+
+    //Both definitions for login delegate
+    karere::IApp::ILoginDialog* mLoginDlg= NULL;
+    //IApp::ILoginDialog::Handle mLoginDlg= NULL;
+    if (!sid)
+    {
+        assert(initializationState == MegaChatApi::INIT_WAITING_NEW_SESSION);
+
+        //LOOP FOR LOGIN METHOD (PENDING)
+        //Two methods to create a login dialog, the first one doesn't have persistence
+        mLoginDlg=mainWin->createLoginDialog();
+        //mLoginDlg->assign(mainWin->createLoginDialog());
+
+        auto pms = mLoginDlg->requestCredentials();  //Crash in this line
+        pms
+            .then([&mLoginDlg](const std::pair<std::string, std::string>& cred)
+            {
+                if(mLoginDlg)
+                {
+                     mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
+                }
+
+                return gClient->api.callIgnoreResult(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+            })
+
+            .fail([](const promise::Error& err)
+            {
+            });
+    }
+    else
+    {
+        assert(initializationState == MegaChatApi::INIT_OFFLINE_SESSION);
+    }
+
     gWebsocketsIO.reset(new LibwsIO());
     gClient.reset(new karere::Client(*gSdk, gWebsocketsIO.get(), *mainWin, gAppDir, 0));
     mainWin->setClient(*gClient);
     QObject::connect(mainWin, SIGNAL(esidLogout()), &appDelegate, SLOT(onEsidLogout()));
 }
+
 
 int main(int argc, char **argv)
 {
@@ -120,48 +180,6 @@ int main(int argc, char **argv)
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
     createWindowAndClient();
-
-    char buf[256];
-    const char* sid = nullptr;
-    std::ifstream sidf(gAppDir+"/sid");
-    if (!sidf.fail())
-    {
-        sidf.getline(buf, 256);
-        if (!sidf.fail())
-            sid = buf;
-    }
-    sidf.close();
-    gClient->loginSdkAndInit(sid)
-    .then([sid]()
-    {
-        if (!sid)
-        {
-            KR_LOG_DEBUG("Client initialized with new session");
-            saveSid(gSdk->dumpSession());
-        }
-        else
-        {
-            KR_LOG_DEBUG("Client initialized");
-        }
-        signal(SIGINT, sigintHandler);
-        QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-        return gClient->connect(Presence::kInvalid);
-    })
-    .then([]()
-    {
-        setVidencParams();
-    })
-    .fail([](const promise::Error& err)
-    {
-        if (err.type() != 0 || err.code() != 0)
-        {
-            QMessageBox::critical(nullptr, "rtctestapp", QString::fromLatin1("Client startup failed with error:\n")+QString::fromStdString(err.msg()));
-        }
-        marshallCall([]()
-        {
-            mainWin->close();
-        }, NULL);
-    });
     return a.exec();
 }
 void setVidencParams()
