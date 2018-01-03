@@ -434,7 +434,13 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
         if (connState() == kConnecting || connState() == kConnected)
-        {
+        {            
+#ifndef KARERE_DISABLE_WEBRTC
+            if (rtc && rtc->isCallInProgress())
+            {
+                break;
+            }
+#endif
             auto wptr = weakHandle();
             marshallCall([wptr, this]()
             {
