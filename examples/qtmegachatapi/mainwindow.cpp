@@ -43,15 +43,9 @@ QString kOnlineStatusBtnStyle = QStringLiteral(
         "stop:0 rgba(100,100,100,255),"
         "stop:1 rgba(160,160,160,255));");
 
-class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
-{
-    Q_OBJECT
-    Ui::LoginDialog ui;
-    promise::Promise<std::pair<std::string, std::string>> mPromise;
-    static QString sLoginStageStrings[kLast+1];
-    ~LoginDialog(){}
-public:
-    LoginDialog(QWidget* parent): QDialog(parent)
+LoginDialog::~LoginDialog(){};
+
+LoginDialog::LoginDialog(QWidget* parent): QDialog(parent)
     {
         ui.setupUi(this);
         ui.mOkBtn->setEnabled(false);
@@ -67,16 +61,21 @@ public:
         if (pass)
             ui.mPasswordInput->setText(pass);
     }
-    void destroy() { close(); deleteLater(); }
 
-    void enableControls(bool enable)
+void LoginDialog::destroy() { close(); deleteLater(); }
+
+
+
+void LoginDialog::enableControls(bool enable)
     {
         ui.mOkBtn->setEnabled(enable);
         ui.mCancelBtn->setEnabled(enable);
         ui.mEmailInput->setEnabled(enable);
         ui.mPasswordInput->setEnabled(enable);
     }
-    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials()
+
+
+promise::Promise<std::pair<std::string, std::string>> LoginDialog::requestCredentials()
     {
         if (!isVisible())
             show();
@@ -86,14 +85,18 @@ public:
             mPromise = promise::Promise<std::pair<std::string, std::string>>();
         }
         return mPromise;
+        //return promise::Promise<std::pair<std::string, std::string>>();
     }
-    virtual void setState(LoginStage state)
+
+void LoginDialog::setState(LoginStage state)
     {
         ui.mLoginStateDisplay->setStyleSheet((state == kBadCredentials)?"color:red":"color:black");
         ui.mLoginStateDisplay->setText(sLoginStageStrings[state]);
     }
-public slots:
-    void onOkBtn(bool)
+
+
+
+    void LoginDialog::onOkBtn(bool)
     {
         if (mPromise.done())
             return;
@@ -101,13 +104,13 @@ public slots:
         mPromise.resolve(make_pair(
             ui.mEmailInput->text().toStdString(), ui.mPasswordInput->text().toStdString()));
     }
-    void onCancelBtn(bool)
+    void LoginDialog::onCancelBtn(bool)
     {
         if (mPromise.done())
             return;
         mPromise.reject("Login dialog canceled by user", 0, 0);
     }
-    void onType(const QString&)
+    void LoginDialog::onType(const QString&)
     {
         QString email = ui.mEmailInput->text();
         bool enable = !email.isEmpty() && !ui.mPasswordInput->text().isEmpty();
@@ -115,12 +118,14 @@ public slots:
         if (enable != ui.mOkBtn->isEnabled())
             ui.mOkBtn->setEnabled(enable);
     }
-    virtual void closeEvent(QCloseEvent *event)
+
+    void LoginDialog::closeEvent(QCloseEvent *event)
     {
         if (!mPromise.done())
             mPromise.reject("Login dialog closed by user", 0, 0);
     }
-};
+
+
 QString LoginDialog::sLoginStageStrings[] = {
     tr("Authenticating"), tr("Bad credentials"), tr("Logging in"),
     tr("Fetching filesystem"), tr("Login complete")
@@ -128,6 +133,8 @@ QString LoginDialog::sLoginStageStrings[] = {
 
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
+    mLoginDlg=NULL;
+    mchatApi=NULL;
     ui.setupUi(this);
     connect(ui.mSettingsBtn, SIGNAL(clicked(bool)), this, SLOT(onSettingsBtn(bool)));
     connect(ui.mOnlineStatusBtn, SIGNAL(clicked(bool)), this, SLOT(onOnlineStatusBtn(bool)));
@@ -190,7 +197,6 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
         ui.mOnlineStatusBtn->setText(inProgress
             ?kOnlineSymbol_InProgress
             :kOnlineSymbol_Set);
-
         ui.mOnlineStatusBtn->setStyleSheet(
                     kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.isValid() ? pres.status() : 0]));
     }
@@ -214,7 +220,6 @@ void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pe
 void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState){}
 void MainWindow::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
 void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress){}
-void MainWindow::onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state){}
 void MainWindow::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config)
 {
     ui.mOnlineStatusBtn->setText(config->isPending()
@@ -224,9 +229,57 @@ void MainWindow::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
 }
 
+
+// implementation for MegaRequestListener
+void MainWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, MegaError *e)
+{
+    switch (request->getType())
+    {
+        case mega::MegaRequest::TYPE_LOGIN:
+            if (e->getErrorCode() == mega::MegaError::API_OK)
+            {
+               this->mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
+               api->fetchNodes();
+            }
+            else
+            {
+               this->mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
+               //Request credentials again
+            }
+            break;
+
+        case mega::MegaRequest::TYPE_FETCH_NODES:
+            if (e->getErrorCode() == mega::MegaError::API_OK)
+            {
+                this->mLoginDlg->hide();
+                this->show();
+               // this->mchatApi->connect();
+            }
+            else
+            {
+                // go back to login dialog
+            }
+            break;
+    }
+}
+
 // implementation for MegachatRequestListener
+void MainWindow::onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e)
+{
+    switch (request->getType())
+    {
+        case megachat::MegaChatRequest::TYPE_CONNECT:
+            if (e->getErrorCode() == mega::MegaError::API_OK)
+            {
+            }
+            else
+            {
+            }
+            break;
+    }
+}
+
 void MainWindow::onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request){}
-void MainWindow::onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e){}
 void MainWindow::onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request){}
 void MainWindow::onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error){}
 
@@ -395,10 +448,13 @@ void MainWindow::removeContactItem(IContactListItem& item)
     removeItem(item);
 }
 
+
+
 karere::IApp::ILoginDialog* MainWindow::createLoginDialog()
 {
-    return new LoginDialog(nullptr);
+    return NULL;
 }
+
 
 void MainWindow::onIncomingContactRequest(const MegaContactRequest &req)
 {

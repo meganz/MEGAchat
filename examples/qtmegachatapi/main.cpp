@@ -81,6 +81,20 @@ std::unique_ptr<::mega::MegaApi> gSdk;
 std::unique_ptr<::megachat::MegaChatApi> gMegaChatApi;
 
 
+void readSid(const char * sid)
+{
+    //const char* sid = nullptr;
+    char buf[256];
+    std::ifstream sidf(gAppDir+"/sid");
+    if (!sidf.fail())
+    {
+        sidf.getline(buf, 256);
+        if (!sidf.fail())
+            sid = buf;
+    }
+    sidf.close();
+}
+
 void createWindowAndClient()
 {
     mainWin = new MainWindow();
@@ -98,43 +112,25 @@ void createWindowAndClient()
         gMegaChatApi->addChatCallListener(mainWin);
     #endif
 
-    //Read sid if exists
-    char buf[256];
     const char* sid = nullptr;
-    std::ifstream sidf(gAppDir+"/sid");
-    if (!sidf.fail())
-    {
-        sidf.getline(buf, 256);
-        if (!sidf.fail())
-            sid = buf;
-    }
-    sidf.close();
+    readSid(sid);
     int initializationState = gMegaChatApi->init(sid);
 
-    //Both definitions for login delegate
-    karere::IApp::ILoginDialog* mLoginDlg= NULL;
-    //IApp::ILoginDialog::Handle mLoginDlg= NULL;
+    ::LoginDialog* mLoginDlg = NULL;
     if (!sid)
     {
         assert(initializationState == MegaChatApi::INIT_WAITING_NEW_SESSION);
-
-        //LOOP FOR LOGIN METHOD (PENDING)
-        //Two methods to create a login dialog, the first one doesn't have persistence
-        mLoginDlg=mainWin->createLoginDialog();
-        //mLoginDlg->assign(mainWin->createLoginDialog());
-
-        auto pms = mLoginDlg->requestCredentials();  //Crash in this line
+        mLoginDlg = new LoginDialog(nullptr);
+        mainWin->mLoginDlg=mLoginDlg;
+        mainWin->mchatApi=gMegaChatApi.get();
+        auto pms = mLoginDlg->requestCredentials();
         pms
-            .then([&mLoginDlg](const std::pair<std::string, std::string>& cred)
+            .then([mLoginDlg](const std::pair<std::string, std::string>& cred)
             {
-                if(mLoginDlg)
-                {
-                     mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
-                }
-
-                return gClient->api.callIgnoreResult(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
+                assert(mLoginDlg);
+                mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
+                gSdk->login(cred.first.c_str(), cred.second.c_str());
             })
-
             .fail([](const promise::Error& err)
             {
             });

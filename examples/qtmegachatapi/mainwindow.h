@@ -32,6 +32,31 @@ class Client;
 QString prettyInterval(int64_t secs);
 class CListItem;
 
+class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
+{
+    Q_OBJECT
+    Ui::LoginDialog ui;
+    promise::Promise<std::pair<std::string, std::string>> mPromise;
+    static QString sLoginStageStrings[kLast+1];
+    ~LoginDialog();
+public:
+
+    LoginDialog(QWidget* parent);
+    void destroy();
+    void enableControls(bool enable);
+    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
+    virtual void setState(LoginStage state);
+
+public slots:
+    void onOkBtn(bool);
+    void onCancelBtn(bool);
+    void onType(const QString&);
+    virtual void closeEvent(QCloseEvent *event);
+};
+
+
+
+
 class MainWindow :
         public QMainWindow,
         public karere::IApp,
@@ -55,6 +80,10 @@ public:
     karere::Client& client() const { return *mClient; }
     ~MainWindow();
     Ui::MainWindow ui;
+
+    //Temp members
+    LoginDialog* mLoginDlg;
+    megachat::MegaChatApi * mchatApi;
     void removeItem(IListItem& item);
 
 //--------------------------------------------------------------------------------------------------------------------->
@@ -63,13 +92,19 @@ public:
     virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
     virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
     virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
-    virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
+  //  virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
 
 // implementation for MegachatRequestListener
     virtual void onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request);
     virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
     virtual void onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request);
     virtual void onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error);
+
+// implementation for MegaRequestListener
+    virtual void onRequestStart(mega::MegaApi *api, mega::MegaRequest *request) {}
+    virtual void onRequestUpdate(mega::MegaApi*api, mega::MegaRequest *request) {}
+    virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
+    virtual void onRequestTemporaryError(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError* error) {}
 
 // implementation for MegachatCallListener
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
