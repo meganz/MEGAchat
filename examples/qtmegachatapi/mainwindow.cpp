@@ -18,6 +18,7 @@
 #include "chatdICrypto.h"
 #include "megachatapi.h"
 
+
 #undef emit
 #define THROW_IF_FALSE(statement) \
     if (!(statement)) {\
@@ -131,6 +132,7 @@ QString LoginDialog::sLoginStageStrings[] = {
     tr("Fetching filesystem"), tr("Login complete")
 };
 
+/*=============================MAINWINDOW=============================*/
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
     mLoginDlg=NULL;
@@ -198,7 +200,7 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
             ?kOnlineSymbol_InProgress
             :kOnlineSymbol_Set);
         ui.mOnlineStatusBtn->setStyleSheet(
-                    kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.isValid() ? pres.status() : 0]));
+            kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.isValid() ? pres.status() : 0]));
     }
     else
     {
@@ -217,9 +219,53 @@ void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pe
 
 //------------------------------------------------------------------------------------------------------>
 //implementation for MegaChatListener
-void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState){}
+void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState)
+{
+    if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
+                      || newState == karere::Client::kInitHasOnlineSession))
+    {
+        show();
+    }
+    else if (newState == karere::Client::kInitErrSidInvalid)
+    {
+        hide();
+        marshallCall([this]()
+        {
+            Q_EMIT esidLogout();
+        }, NULL);
+    }
+
+    if (newState == karere::Client::kInitHasOfflineSession ||
+            newState == karere::Client::kInitHasOnlineSession)
+    {
+        setWindowTitle(mClient->myEmail().c_str());
+    }
+    else
+    {
+        setWindowTitle("");
+    }
+}
+
+
+
 void MainWindow::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
-void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress){}
+
+void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress)
+{
+    if (api->getMyUserHandle()== userhandle)
+    {
+        ui.mOnlineStatusBtn->setText(inProgress
+            ?kOnlineSymbol_InProgress
+            :kOnlineSymbol_Set);
+        ui.mOnlineStatusBtn->setStyleSheet(
+            kOnlineStatusBtnStyle.arg(gOnlineIndColors[api->getPresenceConfig() ? status : 0]));
+    }
+    else
+    {
+            // PENDING: update the presence for contacts
+    }
+}
+
 void MainWindow::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config)
 {
     ui.mOnlineStatusBtn->setText(config->isPending()
@@ -253,7 +299,7 @@ void MainWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request,
             {
                 this->mLoginDlg->hide();
                 this->show();
-               // this->mchatApi->connect();
+                //this->mchatApi->connect();
             }
             else
             {
