@@ -2744,8 +2744,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         // then always send to app
         bool isChatRoomOpened = false;
 
-        auto it = mClient.karereClient->chats.get()->find(mChatId);
-        if (it != mClient.karereClient->chats.get()->end())
+        auto it = mClient.karereClient->chats->find(mChatId);
+        if (it != mClient.karereClient->chats->end())
         {
             isChatRoomOpened = it->second->hasChatHandler();
         }
