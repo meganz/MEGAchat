@@ -296,7 +296,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             {
                 if (clientid != existingCall->callerClient())
                 {
-                    cmdEndpoint(chat, RTCMD_CALL_REQ_DECLINE, chatid, userid, clientid, callid, TermCode::kBusy);
+                    existingCall->sendBusy();
                 }
 
                 return;
@@ -375,7 +375,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
             Call *existingCall = iteratorCall->second.get();
             if (existingCall->state() == Call::kStateInProgress || existingCall->isJoiner())
             {
-                cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
+                existingCall->sendBusy();
                 return;
             }
             else if (mClient.myHandle() > packet.userid)
@@ -815,16 +815,29 @@ void Call::msgCallReqCancel(RtMessage& packet)
 
 void Call::handleReject(RtMessage& packet)
 {
-    if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
+    if (packet.userid != mChat.client().userId())
     {
-        SUB_LOG_WARNING("Ingoring unexpected CALL_REJECT while in state %s", stateToStr(mState));
-        return;
+        if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
+        {
+            SUB_LOG_WARNING("Ingoring unexpected CALL_REQ_DECLINE while in state %s", stateToStr(mState));
+            return;
+        }
+        if (mIsGroup || !mSessions.empty())
+        {
+            return;
+        }
+        destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false);
     }
-    if (mIsGroup || !mSessions.empty())
+    else // Call has been rejected by other client from same user
     {
-        return;
+        if (mState != Call::kStateRingIn)
+        {
+            SUB_LOG_WARNING("Ingoring unexpected CALL_REQ_DECLINE while in state %s", stateToStr(mState));
+            return;
+        }
+
+        destroy(static_cast<TermCode>(TermCode::kCallRejected), false);
     }
-    destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false);
 }
 
 void Call::msgRinging(RtMessage& packet)
@@ -1307,7 +1320,7 @@ void Call::hangup(TermCode reason)
             assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
         }
         assert(mSessions.empty());
-        cmd(RTCMD_CALL_REQ_DECLINE, mCallerUser, mCallerClient, mId, reason);
+        cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, reason);
         destroy(reason, false);
         return;
     case kStateJoining:
@@ -1424,6 +1437,11 @@ std::map<Id, uint8_t> Call::sessionState() const
     return sessionState;
 }
 
+void Call::sendBusy()
+{
+    cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, TermCode::kBusy);
+}
+
 AvFlags Call::sentAv() const
 {
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
@@ -1435,7 +1453,8 @@ AvFlags Call::sentAv() const
        => state: CallState.kRingIn
     C: may send RTCMD.CALL_REQ_CANCEL callid.8 reason.1 if caller aborts the call request.
        The reason is normally Term.kCallReqCancel or Term.kAnswerTimeout
-    A: may send RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call
+    A: may broadcast RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call
+    When other clients of the same user receive the CALL_REQ_DECLINE, they should stop ringing.
     == (from here on we can join an already ongoing group call) ==
     A: broadcast JOIN callid.8 anonId.8
         => state: CallState.kJoining
