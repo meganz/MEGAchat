@@ -273,9 +273,9 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 
     // PayLoad: <callid> <ringing> <AV flags>
-    karere::Id callid = msg.read<karere::Id>(Connection::callDataPayLoadPosition);
-    bool ringing = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id));
-    AvFlags avFlagsRemote = msg.read<uint8_t>(Connection::callDataPayLoadPosition + sizeof(karere::Id) + sizeof(uint8_t));
+    karere::Id callid = msg.read<karere::Id>(0);
+    bool ringing = msg.read<uint8_t>(sizeof(karere::Id));
+    AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
     // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
     if (!ringing)
@@ -352,7 +352,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     }
     packet.callid = packet.payload.read<uint64_t>(0);
     AvFlags avFlagsRemote;
-    if ( packet.payload.size() > 8)
+    if (packet.payload.size() > 8)
     {
         avFlagsRemote = packet.payload.read<uint8_t>(8);
     }
@@ -1245,7 +1245,7 @@ bool Call::sendCallData(bool ringing)
     command.write<uint64_t>(9, userid);
     command.write<uint32_t>(17, clientid);
     command.write<uint16_t>(21, payLoadLen);
-    command.write<uint64_t>(chatd::Connection::callDataPayLoadPosition, mId);
+    command.write<uint64_t>(23, mId);
     command.write<uint8_t>(31, ringing);
     command.write<uint8_t>(32, sentAv().value());
 

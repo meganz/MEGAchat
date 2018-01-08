@@ -77,7 +77,7 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 
-const unsigned int Connection::callDataPayLoadPosition = 23;
+const unsigned Client::chatdVersion = 2;
 
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
@@ -386,9 +386,13 @@ Promise<void> Connection::reconnect()
                 mState = kStateConnecting;
                 string ip = result->getText();
                 CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
-                // append /1 to url path to receive CALLDATA
+
                 std::string urlPath = mUrl.path;
-                urlPath.append("/1");
+                if (Client::chatdVersion >= 2)
+                {
+                    urlPath.append("/1");
+                }
+
                 bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
@@ -1176,10 +1180,10 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
-                auto& chat = mClient.chats(chatid);
-                StaticBuffer cmd(buf.buf() + cmdstart, Connection::callDataPayLoadPosition + payloadLen);
                 if (mClient.mRtcHandler && userid != mClient.karereClient->myHandle())
                 {
+                    StaticBuffer cmd(buf.buf() + 23, payloadLen);
+                    auto& chat = mClient.chats(chatid);
                     mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
 #else
@@ -1460,13 +1464,8 @@ void Chat::clearHistory()
 {
     initChat();
     CALL_DB(clearHistory);
-    setServerOldHistCb(true);
+    mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
-}
-
-void Chat::setServerOldHistCb(bool enable)
-{
-    mServerOldHistCbEnabled = enable;
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -2745,9 +2744,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         // then always send to app
         bool isChatRoomOpened = false;
 
-        if (mClient.karereClient->chats.get()->find(mChatId) != mClient.karereClient->chats.get()->end())
+        auto it = mClient.karereClient->chats.get()->find(mChatId);
+        if (it != mClient.karereClient->chats.get()->end())
         {
-            isChatRoomOpened = mClient.karereClient->chats.get()->at(mChatId)->hasChatHandler();
+            isChatRoomOpened = it->second->hasChatHandler();
         }
 
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))

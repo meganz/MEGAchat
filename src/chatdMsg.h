@@ -279,10 +279,12 @@ enum Opcode
     OP_KEEPALIVEAWAY = 30,
 
     /**
-      *@brief
+      * @brief <chatid> <userid> <clientid> <payload-Len> <payload>
       *
-      *     C->S: set/update call data (gets broadcast to all people in the chat)
-      *     S->C: notify call data changes (sent immediately after a chatd connection is established)
+      * C->S: set/update call data (gets broadcast to all people in the chat)
+      * S->C: notify call data changes (sent immediately after a chatd connection is established
+      *     and additionally after JOIN, for those unknown chatrooms at the moment the chatd connection is established
+      *
       */
     OP_CALLDATA = 31,
 

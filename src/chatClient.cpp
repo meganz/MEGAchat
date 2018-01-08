@@ -2226,14 +2226,7 @@ void ChatRoom::removeAppChatHandler()
 
 bool ChatRoom::hasChatHandler() const
 {
-    bool hasChatHandler = false;
-
-    if (mAppChatHandler != NULL)
-    {
-        hasChatHandler = true;
-    }
-
-    return hasChatHandler;
+    return mAppChatHandler != NULL;
 }
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)

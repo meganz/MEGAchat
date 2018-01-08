@@ -383,7 +383,6 @@ public:
     }
 
     void heartbeat();
-    static const unsigned int callDataPayLoadPosition;
 };
 
 enum ServerHistFetchState
@@ -1021,7 +1020,7 @@ public:
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     void clearHistory();
-    void setServerOldHistCb(bool enable);
+
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1120,6 +1119,12 @@ public:
     bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;
+
+    // Chatd Version:
+    // - Version 1:
+    // - Version 2:
+    //  * Add commands CALL_DATA and REJECT
+    static const unsigned chatdVersion;
 };
 
 static inline const char* connStateToStr(Connection::State state)
