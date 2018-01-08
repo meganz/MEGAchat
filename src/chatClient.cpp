@@ -31,7 +31,7 @@
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
 #include "strongvelope/strongvelope.h"
-#include "base64.h"
+#include "base64url.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 

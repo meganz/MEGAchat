@@ -1,7 +1,7 @@
 #include "chatd.h"
 #include "chatClient.h"
 #include "chatdICrypto.h"
-#include "base64.h"
+#include "base64url.h"
 #include <algorithm>
 #include <random>
 
