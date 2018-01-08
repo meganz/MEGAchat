@@ -50,8 +50,10 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatConnection) {
-    MEGAChatConnectionOffline   = 0,
-    MEGAChatConnectionOnline   = 1
+    MEGAChatConnectionOffline    = 0,
+    MEGAChatConnectionInProgress = 1,
+    MEGAChatConnectionLogging    = 2,
+    MEGAChatConnectionOnline     = 3
 };
 
 @interface MEGAChatSdk : NSObject

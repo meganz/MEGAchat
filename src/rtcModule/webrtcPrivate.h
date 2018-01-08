@@ -96,6 +96,7 @@ protected:
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
+    megaHandle mDestroySessionTimer = 0;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);

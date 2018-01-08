@@ -276,8 +276,6 @@ protected:
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void enableInactivityTimer();
-    void disableInactivityTimer();
     void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);

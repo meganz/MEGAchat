@@ -128,6 +128,14 @@ void Client::sendKeepalive()
     }
 }
 
+void Client::sendEcho()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->sendEcho();
+    }
+}
+  
 void Client::setKeepaliveType(bool isInBackground)
 {
     mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
@@ -147,6 +155,7 @@ void Client::notifyUserActive()
         return;
     mKeepaliveType = OP_KEEPALIVE;
     sendKeepalive();
+    sendEcho();
 }
 
 bool Client::isMessageReceivedConfirmationActive() const
@@ -243,12 +252,17 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
-    CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s",
-        mShardNo, reason.c_str());
-    
-    disableInactivityTimer();
+    CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s", mShardNo, reason.c_str());
+
+    mHeartbeatEnabled = false;
     auto oldState = mState;
     mState = kStateDisconnected;
+
+    if (mEchoTimer)
+    {
+        cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+        mEchoTimer = 0;
+    }
 
     for (auto& chatid: mChatIds)
     {
@@ -278,22 +292,45 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
 }
 
-void Connection::disableInactivityTimer()
-{
-    if (mInactivityTimer)
-    {
-        cancelInterval(mInactivityTimer, mClient.karereClient->appCtx);
-        mInactivityTimer = 0;
-    }
-}
 bool Connection::sendKeepalive(uint8_t opcode)
 {
     CHATD_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
     return sendBuf(Command(opcode));
 }
 
+bool Connection::sendEcho()
+{
+    if (mEchoTimer) // one is already sent
+        return true;
+
+    CHATD_LOG_DEBUG("shard %d: send ECHO", mShardNo);
+    if (sendBuf(Command(OP_ECHO)))
+    {
+        auto wptr = weakHandle();
+        mEchoTimer = setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            mEchoTimer = 0;
+
+            CHATD_LOG_DEBUG("Echo response not received in %d secs for shard %d. Reconnecting...", kEchoTimeout, mShardNo);
+
+            mState = kStateDisconnected;
+            mHeartbeatEnabled = false;
+            reconnect();
+
+        }, kEchoTimeout * 1000, mClient.karereClient->appCtx);
+
+        return true;
+    }
+
+    return false;
+}
+
 Promise<void> Connection::reconnect()
 {
+    assert(!mHeartbeatEnabled);
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
@@ -383,32 +420,15 @@ Promise<void> Connection::reconnect()
                     return promise::_Void();
 
                 assert(isConnected());
-                enableInactivityTimer();
                 sendCommand(Command(OP_CLIENTID)+mClient.karereClient->myIdentity());
+                mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
+                mHeartbeatEnabled = true;
                 sendKeepalive(mClient.mKeepaliveType);
                 return rejoinExistingChats();
             });
         }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
-}
-
-void Connection::enableInactivityTimer()
-{
-    if (mInactivityTimer)
-        return;
-
-    mInactivityTimer = setInterval([this]()
-    {
-        if (mInactivityBeats++ > 3)
-        {
-            mState = kStateDisconnected;
-            disableInactivityTimer();
-            CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting...",
-                mShardNo);
-            reconnect();
-        }
-    }, 10000, mClient.karereClient->appCtx);
 }
 
 void Connection::disconnect()
@@ -427,11 +447,36 @@ promise::Promise<void> Connection::retryPendingConnection()
     if (mUrl.isValid())
     {
         mState = kStateDisconnected;
-        disableInactivityTimer();
+        mHeartbeatEnabled = false;
+        if (mEchoTimer)
+        {
+            cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+            mEchoTimer = 0;
+        }
         CHATD_LOG_WARNING("Retrying pending connenction...");
         return reconnect();
     }
     return promise::Error("No valid URL provided to retry pending connections");
+}
+
+void Connection::heartbeat()
+{
+    // if a heartbeat is received but we are already offline...
+    if (!mHeartbeatEnabled)
+        return;
+
+    if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
+    {
+        CHATD_LOG_WARNING("Connection to shard %d inactive for too long, reconnecting...", mShardNo);
+        mState = kStateDisconnected;
+        mHeartbeatEnabled = false;
+        if (mEchoTimer)
+        {
+            cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+            mEchoTimer = 0;
+        }
+        reconnect();
+    }
 }
 
 void Client::disconnect()
@@ -450,6 +495,14 @@ promise::Promise<void> Client::retryPendingConnections()
         promises.push_back(conn.second->retryPendingConnection());
     }
     return promise::when(promises);
+}
+
+void Client::heartbeat()
+{
+    for (auto& conn: mConnections)
+    {
+        conn.second->heartbeat();
+    }
 }
 
 bool Connection::sendBuf(Buffer&& buf)
@@ -878,7 +931,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
 
 void Connection::wsHandleMsgCb(char *data, size_t len)
 {
-    mInactivityBeats = 0;
+    mTsLastRecv = time(NULL);
     execCommand(StaticBuffer(data, len));
 }
     
@@ -905,7 +958,7 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                CHATD_LOG_DEBUG("%s: recv KEEPALIVE - shard %d", ID_CSTR(chatid), mShardNo);
+                CHATD_LOG_DEBUG("shard %d: recv KEEPALIVE", mShardNo);
                 sendKeepalive(mClient.mKeepaliveType);
                 break;
             }
@@ -1092,7 +1145,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATD_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mClient.chats(chatid).onEndCall(userid, clientid);
-                mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
+                assert(mClient.mRtcHandler);
+                if (mClient.mRtcHandler)    // in case chatd broadcast this opcode, instead of send it to the endpoint
+                {
+                    mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
+                }
+
                 break;
             }
             case OP_RTMSG_ENDPOINT:
@@ -1117,7 +1175,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     mClient.mRtcHandler->handleMessage(chat, cmd);
                 }
 #else
-                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
+                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: %x", ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(userid), clientid);
 #endif
                 break;
             }
@@ -1127,6 +1185,39 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATD_LOG_DEBUG("recv CLIENTID - 0x%04x", clientid);
+            }
+            case OP_ECHO:
+            {
+                CHATD_LOG_DEBUG("shard %d: recv ECHO", mShardNo);
+                if (mEchoTimer)
+                {
+                    CHATD_LOG_DEBUG("Socket is still alive");
+                    cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
+                    mEchoTimer = 0;
+                }
+
+                break;
+            }
+            case OP_ADDREACTION:
+            {
+                //TODO: to be implemented
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_ID(msgid, 16);
+                READ_32(reaction, 24);
+                CHATD_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %d",
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
+                break;
+            }
+            case OP_DELREACTION:
+            {
+                //TODO: to be implemented
+                READ_CHATID(0);
+                READ_ID(userid, 8);
+                READ_ID(msgid, 16);
+                READ_32(reaction, 24);
+                CHATD_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %d",
+                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
                 break;
             }
             default:
@@ -1394,7 +1485,6 @@ void Chat::msgSubmit(Message* msg)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
-    postMsgToSending(OP_NEWMSG, msg);
 
     // last text msg stuff
     if (msg->isText())
@@ -1402,6 +1492,8 @@ void Chat::msgSubmit(Message* msg)
         onLastTextMsgUpdated(*msg);
     }
     onMsgTimestamp(msg->ts);
+
+    postMsgToSending(OP_NEWMSG, msg);
 }
 
 void Chat::createMsgBackRefs(Message& msg)
@@ -1453,12 +1545,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg)
     {
         mNextUnsent--;
     }
-//The mSending queue should not change, as we never delete items upon sending, only upon confirmation
-#ifndef NDEBUG
-    auto save = &mSending.back();
-#endif
     flushOutputQueue();
-    assert(&mSending.back() == save);
     return &mSending.back();
 }
 
@@ -1812,18 +1899,26 @@ void Chat::flushOutputQueue(bool fromStart)
 
     while (mNextUnsent != mSending.end())
     {
-        ManualSendReason reason =
-             (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
-            ? kManualSendUsersChanged : kManualSendInvalidReason;
+        ManualSendReason reason = kManualSendInvalidReason;
 
-        if ((reason == kManualSendInvalidReason) && (time(NULL) - mNextUnsent->msg->ts > CHATD_MAX_EDIT_AGE))
+        if (mOwnPrivilege < PRIV_FULL)
+        {
+            reason = kManualSendNoWriteAccess;
+        }
+        else if (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
+        {
+            reason = kManualSendUsersChanged;
+        }
+        else if ((time(NULL) - mNextUnsent->msg->ts) > CHATD_MAX_EDIT_AGE)
+        {
             reason = kManualSendTooOld;
+        }
 
         if (reason != kManualSendInvalidReason)
         {
             auto start = mNextUnsent;
             mNextUnsent = mSending.end();
-            // Too old message or edit, or group composition has changed.
+            // Too old message or edit, or group composition has changed, or no write access.
             // Move it and all following items as well
             for (auto it = start; it != mSending.end();)
             {
@@ -1853,8 +1948,22 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason re
 
 void Chat::removeManualSend(uint64_t rowid)
 {
-    if (!mDbInterface->deleteManualSendItem(rowid))
-        throw std::runtime_error("Unknown manual send id");
+    try
+    {
+        ManualSendReason reason;
+        Message *msg = getManualSending(rowid, reason);
+        if (msg->id() == mLastTextMsg.id())
+        {
+            findAndNotifyLastTextMsg();
+        }
+        delete msg;
+
+        mDbInterface->deleteManualSendItem(rowid);
+    }
+    catch(std::runtime_error& e)
+    {
+        CHATID_LOG_ERROR("removeManualSend: Unknown manual send id: %s", e.what());
+    }
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
@@ -1930,7 +2039,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 
     if (!msgid)
     {
-        moveItemToManualSending(mSending.begin(), (mOwnPrivilege == PRIV_RDONLY)
+        moveItemToManualSending(mSending.begin(), (mOwnPrivilege < PRIV_FULL)
             ? kManualSendNoWriteAccess
             : kManualSendGeneralReject); //deletes item
         return nullptr;
@@ -2811,23 +2920,24 @@ bool Chat::findLastTextMsg()
     }
 
     CHATID_LOG_DEBUG("lastTextMessage: No text message found locally");
-    if (mOnlineState == kChatStateOnline)
-    {
-        CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
-        // prevent access to websockets from app's thread
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]()
+    // prevent access to websockets from app's thread
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        if (mOnlineState == kChatStateOnline)
         {
-            if (wptr.deleted())
-                return;
+            CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
             requestHistoryFromServer(-16);
             mLastTextMsg.setState(LastTextMsgState::kFetching);
+        }
 
-        }, mClient.karereClient->appCtx);
-    }
+    }, mClient.karereClient->appCtx);
 
     return false;
 }
@@ -2923,6 +3033,9 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(INCALL);
         RET_ENUM_NAME(ENDCALL);
         RET_ENUM_NAME(KEEPALIVEAWAY);
+        RET_ENUM_NAME(ECHO);
+        RET_ENUM_NAME(ADDREACTION);
+        RET_ENUM_NAME(DELREACTION);
         default: return "(invalid opcode)";
     };
 }

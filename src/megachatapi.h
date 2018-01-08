@@ -57,6 +57,29 @@ class MegaChatVideoListener;
 class MegaChatListener;
 class MegaChatListItem;
 
+/**
+ * @brief Provide information about a call
+ *
+ * A call can be obtained with the callback MegaChatCallListener::onChatCallUpdate where MegaChatApi has
+ * the ownership of the object. Or by a getter where a copy is provided, MegaChatApi::getChatCall
+ * and MegaChatApi::getChatCallByCallId
+ *
+ * The states that a call has during its life time are:
+ * Outgoing call:
+ *  - CALL_STATUS_INITIAL
+ *  - CALL_STATUS_HAS_LOCAL_STREAM
+ *  - CALL_STATUS_REQUEST_SENT
+ *  - CALL_STATUS_IN_PROGRESS
+ *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_DESTROYED
+ *
+ * Incoming call:
+ *  - CALL_STATUS_RING_IN
+ *  - CALL_STATUS_JOINING
+ *  - CALL_STATUS_IN_PROGRESS
+ *  - CALL_STATUS_TERMINATING
+ *  - CALL_STATUS_DESTROYED
+ */
 class MegaChatCall
 {
 public:
@@ -143,22 +166,32 @@ public:
     virtual MegaChatHandle getId() const;
 
     /**
-     * @brief Return audio state for local or remote in function of
-     * parameter value
+     * @brief Return audio state for local
      *
-     * @param local Indicate if we want to know local or remote audio state
      * @return true if audio is enable, false if audio is disable
      */
-    virtual bool hasAudio(bool local = true);
+    virtual bool hasLocalAudio();
 
     /**
-     * @brief Return video state for local or remote in function of
-     * parameter value
+     * @brief Return audio state for remote
      *
-     * @param local Indicate if we want to know local or remote video state
+     * @return true if audio is enable, false if audio is disable
+     */
+    virtual bool hasRemoteAudio();
+
+    /**
+     * @brief Return video state for local
+     *
      * @return true if video is enable, false if video is disable
      */
-    virtual bool hasVideo(bool local = true);
+    virtual bool hasLocalVideo();
+
+    /**
+     * @brief Return video state for remote
+     *
+     * @return true if video is enable, false if video is disable
+     */
+    virtual bool hasRemoteVideo();
 
     /**
      * @brief Returns a bit field with the changes of the call
@@ -1408,8 +1441,10 @@ public:
 
     enum
     {
-        CHAT_CONNECTION_OFFLINE = 0,    /// Connection with chatd is not ready
-        CHAT_CONNECTION_ONLINE  = 1     /// Connection with chatd is ready and logged in
+        CHAT_CONNECTION_OFFLINE     = 0,    /// No connection to chatd, offline mode
+        CHAT_CONNECTION_IN_PROGRESS = 1,    /// Establishing connection to chatd
+        CHAT_CONNECTION_LOGGING     = 2,    /// Connected to chatd, logging in (not ready to send/receive messages, etc)
+        CHAT_CONNECTION_ONLINE      = 3     /// Connection with chatd is ready and logged in
     };
 
 
@@ -1588,7 +1623,9 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
-     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *  - MegaChatApi::CHAT_CONNECTION_IN_PROGRESS  = 1
+     *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return The state of connection
@@ -2678,6 +2715,9 @@ public:
      *
      * This method should be called ONLY when the app is prone to be killed, whether by the user or the
      * operative system. Otherwise, transactions are committed regularly.
+     *
+     * In case disk I/O error, this function could result in the init state changing to
+     * MegaChatApi::INIT_ERROR.
      */
     void saveCurrentState();
 
@@ -3479,11 +3519,13 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
-     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 1
+     *  - MegaChatApi::CHAT_CONNECTION_IN_PROGRESS  = 1
+     *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
      * @note If \c chatid is MEGACHAT_INVALID_HANDLE, it means that you are connected to all
      * active chatrooms. It will only happens when \c newState is MegaChatApi::CHAT_CONNECTION_ONLINE.
-     * The offline status for all chats is not notified.
+     * The other connection states are not notified for all chats together, but only individually.
      *
      * @param api MegaChatApi connected to the account
      * @param chatid MegaChatHandle that identifies the chat room

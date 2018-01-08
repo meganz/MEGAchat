@@ -293,7 +293,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
         if (iteratorCall != mCalls.end())
         {
             Call *existingCall = iteratorCall->second.get();
-            if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
+            if (existingCall->state() == Call::kStateInProgress || existingCall->isJoiner())
             {
                 cmdEndpoint(RTCMD_CALL_REQ_DECLINE, packet, packet.callid, TermCode::kBusy);
                 return;
@@ -313,7 +313,7 @@ void RtcModule::msgCallRequest(RtMessage& packet)
     }
 
     auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
-        packet.chat, packet.callid, mHandler.isGroupChat(packet.chatid),
+        packet.chat, packet.callid, packet.chat.isGroup(),
         true, nullptr, packet.userid, packet.clientid));
     assert(ret.second);
     auto& call = ret.first->second;
@@ -442,7 +442,6 @@ void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     ICallHandler& handler, bool isJoin)
 {
-    bool isGroup = mHandler.isGroupChat(chatid);
     auto& chat = mClient.chatd->chats(chatid);
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
@@ -452,7 +451,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         mCalls.erase(chatid);
     }
     auto call = std::make_shared<Call>(*this, chat, random<uint64_t>(),
-        isGroup, isJoin, &handler, 0, 0);
+        chat.isGroup(), isJoin, &handler, 0, 0);
 
     mCalls[chatid] = call;
     handler.setCall(call.get());
@@ -859,25 +858,31 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
 {
     // if the peer initiated the call termination, we must wait for
     // all sessions to go away and remove the call
+    if (mSessions.empty())
+    {
+        return promise::_Void();
+    }
+
     for (auto& item: mSessions)
     {
         item.second->setState(Session::kStateTerminating);
     }
     auto wptr = weakHandle();
+
     struct Ctx
     {
         int count = 0;
-        megaHandle timer;
         Promise<void> pms;
     };
     auto ctx = std::make_shared<Ctx>();
-    ctx->timer = setInterval([wptr, this, ctx, code, msg]()
+    mDestroySessionTimer = setInterval([wptr, this, ctx, code, msg]()
     {
         if (wptr.deleted())
             return;
         if (++ctx->count > 7)
         {
-            cancelInterval(ctx->timer, mManager.mClient.appCtx);
+            cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+            mDestroySessionTimer = 0;
             SUB_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
             for (auto& item: mSessions)
             {
@@ -888,7 +893,8 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         }
         if (!mSessions.empty())
             return;
-        cancelInterval(ctx->timer, mManager.mClient.appCtx);
+        cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+        mDestroySessionTimer = 0;
         ctx->pms.resolve();
     }, 200, mManager.mClient.appCtx);
     return ctx->pms;
@@ -1031,19 +1037,12 @@ void Call::stopIncallPingTimer()
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    mSessions.erase(sess.mSid);
-    if (mState == Call::kStateTerminating) // we already handle call termination
-        return;
-
-    // if no more sessions left, destroy call even if group
-    if (mSessions.empty())
-    {
-        destroy(reason, false);
-        return;
-    }
     // upon session failure, we swap the offerer and answerer and retry
-    if (mState != Call::kStateTerminating && mIsGroup && isTermError(reason)
-         && !sess.mIsJoiner)
+    if (mState != Call::kStateTerminating   // we already handle call termination
+            && mSessions.size() > 1         // more sessions with other peers in the call
+            && mIsGroup
+            && isTermError(reason)
+            && !sess.mIsJoiner)
     {
         EndpointId endpointId(sess.mPeer, sess.mPeerClient);
         auto it = mSessRetries.find(endpointId);
@@ -1063,6 +1062,12 @@ void Call::removeSession(Session& sess, TermCode reason)
                 return;
             join(peer);
         }, 500, mManager.mClient.appCtx);
+    }
+
+    mSessions.erase(sess.mSid);
+    if (mState != kStateTerminating && mSessions.empty())  // if no more sessions left, destroy call even if group
+    {
+        destroy(reason, false);
     }
 }
 bool Call::startOrJoin(AvFlags av)
@@ -1188,10 +1193,15 @@ Call::~Call()
     if (mState != Call::kStateDestroyed)
     {
         stopIncallPingTimer();
+        if (mDestroySessionTimer)
+        {
+            cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+            mDestroySessionTimer = 0;
+        }
+
         mLocalPlayer.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
-        mManager.removeCall(*this);
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
@@ -1769,6 +1779,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     {
         if (wptr.deleted() || mState != Session::kStateTerminating)
             return;
+
         if (!mTerminatePromise.done())
         {
             SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
@@ -1872,9 +1883,8 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
-      // Send stats is disable temporarily
-//    std::string stats = mStatRecorder->getStats(info);
-//    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+    std::string stats = mStatRecorder->getStats(info);
+    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
 
     return;
 }
