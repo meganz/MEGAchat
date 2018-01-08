@@ -249,6 +249,7 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState)
 
 
 void MainWindow::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
+void MainWindow::onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int newState) {}
 
 void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress)
 {
@@ -257,8 +258,8 @@ void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::
         ui.mOnlineStatusBtn->setText(inProgress
             ?kOnlineSymbol_InProgress
             :kOnlineSymbol_Set);
-        ui.mOnlineStatusBtn->setStyleSheet(
-            kOnlineStatusBtnStyle.arg(gOnlineIndColors[api->getPresenceConfig() ? status : 0]));
+        //ui.mOnlineStatusBtn->setStyleSheet(
+        //    kOnlineStatusBtnStyle.arg(gOnlineIndColors[api->getPresenceConfig() ? status : 0]));
     }
     else
     {
@@ -271,9 +272,11 @@ void MainWindow::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat
     ui.mOnlineStatusBtn->setText(config->isPending()
         ?kOnlineSymbol_InProgress
         :kOnlineSymbol_Set);
-    ui.mOnlineStatusBtn->setStyleSheet(
-        kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
+  //  ui.mOnlineStatusBtn->setStyleSheet(
+   //     kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
 }
+
+
 
 
 // implementation for MegaRequestListener
@@ -298,8 +301,8 @@ void MainWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request,
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
                 this->mLoginDlg->hide();
+                this->mchatApi->connect();
                 this->show();
-                //this->mchatApi->connect();
             }
             else
             {
@@ -317,6 +320,7 @@ void MainWindow::onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatR
         case megachat::MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
+                KR_LOG_DEBUG("CONNECT OK");
             }
             else
             {

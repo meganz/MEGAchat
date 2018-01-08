@@ -101,7 +101,6 @@ void createWindowAndClient()
     gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
     gSdk->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
     gSdk->addListener(mainWin);
-    gSdk->addRequestListener(mainWin);
 
     gMegaChatApi.reset(new ::megachat::MegaChatApi(gSdk.get()));
     gMegaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
