@@ -47,7 +47,7 @@ HEADERS  += asyncTest-framework.h \
             rtcCrypto.h \
             stringUtils.h \
             url.h \
-            base64.h \
+            base64url.h \
             chatdDb.h \
             chatRoom.h \
             IGui.h \
