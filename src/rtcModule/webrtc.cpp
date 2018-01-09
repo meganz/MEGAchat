@@ -819,6 +819,7 @@ void Call::handleReject(RtMessage& packet)
     if (packet.callid != mId)
     {
         SUB_LOG_WARNING("Ingoring unexpected call id");
+        return;
     }
 
     if (packet.userid != mChat.client().userId())
