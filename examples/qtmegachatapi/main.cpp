@@ -19,7 +19,6 @@
 #include <fstream>
 #include <net/libwsIO.h>
 #include "megachatapi.h"
-//#include <asyncTools.h>
 
 using namespace std;
 using namespace promise;

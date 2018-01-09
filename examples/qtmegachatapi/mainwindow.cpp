@@ -17,6 +17,10 @@
 #include <math.h>
 #include "chatdICrypto.h"
 #include "megachatapi.h"
+#include "QTMegaChatListener.h"
+#include "QTMegaChatRequestListener.h"
+#include "QTMegaChatRoomListener.h"
+#include "QTMegaChatEvent.h"
 
 
 #undef emit

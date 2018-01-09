@@ -17,6 +17,10 @@
 #include <chatClient.h>
 #include "chatWindow.h"
 #include "megachatapi.h"
+#include "QTMegaChatListener.h"
+#include "QTMegaChatRequestListener.h"
+#include "QTMegaChatRoomListener.h"
+#include "QTMegaChatEvent.h"
 
 
 using namespace mega;
