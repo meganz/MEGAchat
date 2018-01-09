@@ -600,6 +600,11 @@ MegaHandleList *MegaChatApi::getChatCalls()
     return pImpl->getChatCalls();
 }
 
+mega::MegaHandleList *MegaChatApi::getChatCallsIds()
+{
+    return pImpl->getChatCallsIds();
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

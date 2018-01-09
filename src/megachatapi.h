@@ -2933,6 +2933,14 @@ public:
      */
     mega::MegaHandleList *getChatCalls();
 
+    /**
+     * @brief Get a list with the ids of active calls
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of ids of active calls
+     */
+    mega::MegaHandleList *getChatCallsIds();
 
 #endif
 

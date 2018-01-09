@@ -2720,6 +2720,20 @@ MegaHandleList *MegaChatApiImpl::getChatCalls()
     return callList;
 }
 
+mega::MegaHandleList *MegaChatApiImpl::getChatCallsIds()
+{
+    MegaHandleListPrivate *callList = new MegaHandleListPrivate();
+
+    sdkMutex.lock();
+    for (auto it = callHandlers.begin(); it != callHandlers.end(); it++)
+    {
+        callList->addMegaHandle(it->second->getCall()->id());
+    }
+
+    sdkMutex.unlock();
+    return callList;
+}
+
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 {
     if (!listener)
