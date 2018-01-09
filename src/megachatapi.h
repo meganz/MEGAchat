@@ -2924,6 +2924,16 @@ public:
      */
     int getNumCalls();
 
+    /**
+     * @brief Get MegaChatHandle list that contains chatrooms identifier where there is an active call
+     *
+     * You take the ownership of the returned value
+     *
+     * @return A list of handles with chatroom identifier where there is an active call
+     */
+    mega::MegaHandleList *getChatCalls();
+
+
 #endif
 
     // Listeners

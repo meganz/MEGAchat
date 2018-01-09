@@ -942,6 +942,7 @@ public:
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
+    mega::MegaHandleList *getChatCalls();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
