@@ -769,6 +769,7 @@ void Call::msgCallReqDecline(RtMessage& packet)
 {
     // callid.8 termcode.1
     assert(packet.payload.dataSize() >= 9);
+    packet.callid = packet.payload.read<uint64_t>(0);
     TermCode code = static_cast<TermCode>(packet.payload.read<uint8_t>(8));
     if (code == TermCode::kCallRejected)
     {
@@ -815,6 +816,11 @@ void Call::msgCallReqCancel(RtMessage& packet)
 
 void Call::handleReject(RtMessage& packet)
 {
+    if (packet.callid != mId)
+    {
+        SUB_LOG_WARNING("Ingoring unexpected call id");
+    }
+
     if (packet.userid != mChat.client().userId())
     {
         if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
