@@ -240,6 +240,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
 - (MEGAHandleList *)chatCalls;
+- (MEGAHandleList *)chatCallsIds;
 
 #endif
 

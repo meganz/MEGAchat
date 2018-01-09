@@ -2720,7 +2720,7 @@ MegaHandleList *MegaChatApiImpl::getChatCalls()
     return callList;
 }
 
-mega::MegaHandleList *MegaChatApiImpl::getChatCallsIds()
+MegaHandleList *MegaChatApiImpl::getChatCallsIds()
 {
     MegaHandleListPrivate *callList = new MegaHandleListPrivate();
 

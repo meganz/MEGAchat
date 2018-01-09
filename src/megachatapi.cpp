@@ -600,7 +600,7 @@ MegaHandleList *MegaChatApi::getChatCalls()
     return pImpl->getChatCalls();
 }
 
-mega::MegaHandleList *MegaChatApi::getChatCallsIds()
+MegaHandleList *MegaChatApi::getChatCallsIds()
 {
     return pImpl->getChatCallsIds();
 }
