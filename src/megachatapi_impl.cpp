@@ -2717,7 +2717,6 @@ MegaHandleList *MegaChatApiImpl::getChatCalls()
     }
 
     sdkMutex.unlock();
-
     return callList;
 }
 
