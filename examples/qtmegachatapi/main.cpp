@@ -80,21 +80,6 @@ std::unique_ptr<karere::Client> gClient;
 std::unique_ptr<::mega::MegaApi> gSdk;
 std::unique_ptr<::megachat::MegaChatApi> gMegaChatApi;
 
-
-void readSid(const char * sid)
-{
-    //const char* sid = nullptr;
-    char buf[256];
-    std::ifstream sidf(gAppDir+"/sid");
-    if (!sidf.fail())
-    {
-        sidf.getline(buf, 256);
-        if (!sidf.fail())
-            sid = buf;
-    }
-    sidf.close();
-}
-
 void createWindowAndClient()
 {
     mainWin = new MainWindow();
@@ -111,9 +96,21 @@ void createWindowAndClient()
         gMegaChatApi->addChatCallListener(mainWin);
     #endif
 
-    const char* sid = nullptr;
-    readSid(sid);
+        char buf[256];
+        const char* sid = nullptr;
+        std::ifstream sidf(gAppDir+"/sid");
+        if (!sidf.fail())
+        {
+            sidf.getline(buf, 256);
+            if (!sidf.fail())
+                sid = buf;
+        }
+        sidf.close();
+
+        KR_LOG_DEBUG("New client initialized with new session");
     int initializationState = gMegaChatApi->init(sid);
+
+
 
     ::LoginDialog* mLoginDlg = NULL;
     if (!sid)

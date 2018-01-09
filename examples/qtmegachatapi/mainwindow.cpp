@@ -237,8 +237,9 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState)
 
     if (newState == karere::Client::kInitHasOfflineSession ||
             newState == karere::Client::kInitHasOnlineSession)
-    {
-        setWindowTitle(mClient->myEmail().c_str());
+    {        
+        //setWindowTitle(mClient->myEmail().c_str());
+        setWindowTitle("");
     }
     else
     {

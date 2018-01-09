@@ -31,7 +31,7 @@
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
 #include "strongvelope/strongvelope.h"
-#include "base64.h"
+#include "base64url.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -434,7 +434,13 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
         if (connState() == kConnecting || connState() == kConnected)
-        {
+        {            
+#ifndef KARERE_DISABLE_WEBRTC
+            if (rtc && rtc->isCallInProgress())
+            {
+                break;
+            }
+#endif
             auto wptr = weakHandle();
             marshallCall([wptr, this]()
             {
@@ -542,7 +548,7 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (e->getErrorCode() == mega::MegaError::API_ESID)
+    if (e->getErrorCode() == ::mega::MegaError::API_ESID)
     {
         auto wptr = weakHandle();
         marshallCall([wptr, this]() // update state in the karere thread
@@ -557,14 +563,19 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         }, appCtx);
         return;
     }
+    else if (e->getErrorCode() != ::mega::MegaError::API_OK)
+    {
+        KR_LOG_ERROR("Request %s finished with error %d", request->getRequestString(), e->getErrorString());
+        return;
+    }
 
     auto reqType = request->getType();
     switch (reqType)
     {
-    case mega::MegaRequest::TYPE_LOGOUT:
+    case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         if (request->getFlag() ||   // SDK has been logged out normally closing session
-                request->getParamType() == mega::MegaError::API_ESID)   // SDK received ESID during login
+                request->getParamType() == ::mega::MegaError::API_ESID)   // SDK received ESID during login
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]() // update state in the karere thread
@@ -582,7 +593,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         break;
     }
 
-    case mega::MegaRequest::TYPE_FETCH_NODES:
+    case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
         auto state = mInitState;
@@ -639,17 +650,17 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         break;
     }
 
-    case mega::MegaRequest::TYPE_SET_ATTR_USER:
+    case ::mega::MegaRequest::TYPE_SET_ATTR_USER:
     {
         int attrType = request->getParamType();
         int changeType;
-        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME)
+        if (attrType == ::mega::MegaApi::USER_ATTR_FIRSTNAME)
         {
-            changeType = mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
+            changeType = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
         }
-        else if (attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        else if (attrType == ::mega::MegaApi::USER_ATTR_LASTNAME)
         {
-            changeType = mega::MegaUser::CHANGE_TYPE_LASTNAME;
+            changeType = ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
         }
         else
         {
