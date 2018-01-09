@@ -65,21 +65,21 @@ class ISessionHandler;
 class IRtcCrypto;
 enum: uint8_t
 {
-    RTCMD_CALL_REQUEST = 0, // initiate new call, receivers start ringing
-    RTCMD_CALL_RINGING = 1, // notifies caller that there is a receiver and it is ringing
+    RTCMD_CALL_REQUEST = 0, // initiate new call, receivers start ringing - Obsolete
+    RTCMD_CALL_RINGING = 1, // notifies caller that there is a receiver and it is ringing | <callid>
     RTCMD_CALL_REQ_DECLINE = 2, // decline incoming call request, with specified Term code
-    // (can be only kBusy and kCallRejected)
-    RTCMD_CALL_REQ_CANCEL = 3,  // caller cancels the call requests, specifies the request id
-    RTCMD_CALL_TERMINATE = 4, // hangup existing call, cancel call request. Works on an existing call
-    RTCMD_JOIN = 5, // join an existing/just initiated call. There is no call yet, so the command identifies a call request
-    RTCMD_SESSION = 6, // join was accepter and the receiver created a session to joiner
-    RTCMD_SDP_OFFER = 7, // joiner sends an SDP offer
-    RTCMD_SDP_ANSWER = 8, // joinee answers with SDP answer
-    RTCMD_ICE_CANDIDATE = 9, // both parties exchange ICE candidates
-    RTCMD_SESS_TERMINATE = 10, // initiate termination of a session
+    // (can be only kBusy and kCallRejected) | <callid> <termCode>
+    RTCMD_CALL_REQ_CANCEL = 3,  // caller cancels the call requests, specifies the request id | <callid> <termCode>
+    RTCMD_CALL_TERMINATE = 4, // hangup existing call, cancel call request. Works on an existing call | <termCode>
+    RTCMD_JOIN = 5, // join an existing/just initiated call. There is no call yet, so the command identifies a call request | <callid><anonId>
+    RTCMD_SESSION = 6, // join was accepter and the receiver created a session to joiner | <callid><sessionId><anonId><encHashKey>
+    RTCMD_SDP_OFFER = 7, // joiner sends an SDP offer | <sessionId><anonId><encHashKey><fprHash><av><SdpOffer.len><sdpOffer>
+    RTCMD_SDP_ANSWER = 8, // joinee answers with SDP answer | <sessionId><fprHash><av><sdpAnswer.len><sdpAnswer>
+    RTCMD_ICE_CANDIDATE = 9, // both parties exchange ICE candidates | <sessionId><LineIdx><mid.len><mid><cand.len><cand>
+    RTCMD_SESS_TERMINATE = 10, // initiate termination of a session | <sessionId><termCode>
     RTCMD_SESS_TERMINATE_ACK = 11, // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
     // it will not be detected as an error by the receiver
-    RTCMD_MUTE = 12
+    RTCMD_MUTE = 12 // Change audio-video call  <av>
 };
 enum TermCode: uint8_t
 {
