@@ -1706,6 +1706,17 @@ public class MegaChatApiJava {
         return megaChatApi.getChatCalls();
     }
 
+    /**
+     * Get a list with the ids of active calls
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of ids of active calls
+     */
+    public MegaHandleList getChatCallsIds(){
+        return megaChatApi.getChatCallsIds();
+    }
+
     public static void setCatchException(boolean enable) {
         MegaChatApi.setCatchException(enable);
     }
