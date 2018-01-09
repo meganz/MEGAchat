@@ -7,6 +7,7 @@
 #import "MEGAChatPeerList.h"
 #import "MEGAChatListItemList.h"
 #import "MEGAChatPresenceConfig.h"
+#import "MEGAHandleList.h"
 #import "MEGAChatRequestDelegate.h"
 #import "MEGAChatLoggerDelegate.h"
 #import "MEGAChatRoomDelegate.h"
@@ -238,6 +239,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
+- (MEGAHandleList *)chatCalls;
 
 #endif
 
