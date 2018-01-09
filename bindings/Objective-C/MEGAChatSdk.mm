@@ -752,6 +752,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->getNumCalls();
 }
 
+- (MEGAHandleList *)chatCalls {
+    return self.megaChatApi ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatApi->getChatCalls() cMemoryOwn:YES] : nil;
+}
+
 #endif
 
 #pragma mark - Debug log messages
