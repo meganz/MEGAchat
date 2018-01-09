@@ -33,7 +33,7 @@
 		A83D5BF61F974AF900A038F7 /* webrtcAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */; };
 		A879F3B21F966682007C5394 /* libwebsocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */; };
 		A879F3B61F9667F5007C5394 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */; };
-		A879F3C01F96683A007C5394 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B71F966838007C5394 /* base64.cpp */; };
+		A879F3C01F96683A007C5394 /* base64url.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B71F966838007C5394 /* base64url.cpp */; };
 		A879F3C11F96683A007C5394 /* karereCommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B81F966839007C5394 /* karereCommon.cpp */; };
 		A879F3C21F96683A007C5394 /* presenced.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B91F966839007C5394 /* presenced.cpp */; };
 		A879F3C31F96683A007C5394 /* url.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BA1F966839007C5394 /* url.cpp */; };
@@ -64,7 +64,7 @@
 		947565F01F18D4E900FE8664 /* asyncTest-framework.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "asyncTest-framework.h"; path = "../../src/asyncTest-framework.h"; sourceTree = "<group>"; };
 		947565F11F18D4E900FE8664 /* asyncTest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asyncTest.h; path = ../../src/asyncTest.h; sourceTree = "<group>"; };
 		947565F21F18D4E900FE8664 /* autoHandle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = autoHandle.h; path = ../../src/autoHandle.h; sourceTree = "<group>"; };
-		947565F31F18D4E900FE8664 /* base64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = base64.h; path = ../../src/base64.h; sourceTree = "<group>"; };
+		947565F31F18D4E900FE8664 /* base64url.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = base64url.h; path = ../../src/base64url.h; sourceTree = "<group>"; };
 		947565F41F18D4E900FE8664 /* buffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = buffer.h; path = ../../src/buffer.h; sourceTree = "<group>"; };
 		947565F51F18D4E900FE8664 /* chatClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chatClient.h; path = ../../src/chatClient.h; sourceTree = "<group>"; };
 		947565F61F18D4E900FE8664 /* chatCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chatCommon.h; path = ../../src/chatCommon.h; sourceTree = "<group>"; };
@@ -192,7 +192,7 @@
 		A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = webrtcAdapter.cpp; path = ../rtcModule/webrtcAdapter.cpp; sourceTree = "<group>"; };
 		A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libwebsocketsIO.cpp; sourceTree = "<group>"; };
 		A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = karereDbSchema.cpp; sourceTree = "<group>"; };
-		A879F3B71F966838007C5394 /* base64.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = base64.cpp; sourceTree = "<group>"; };
+		A879F3B71F966838007C5394 /* base64url.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = base64url.cpp; sourceTree = "<group>"; };
 		A879F3B81F966839007C5394 /* karereCommon.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = karereCommon.cpp; sourceTree = "<group>"; };
 		A879F3B91F966839007C5394 /* presenced.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = presenced.cpp; sourceTree = "<group>"; };
 		A879F3BA1F966839007C5394 /* url.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = url.cpp; sourceTree = "<group>"; };
@@ -244,7 +244,7 @@
 				947565F01F18D4E900FE8664 /* asyncTest-framework.h */,
 				947565F11F18D4E900FE8664 /* asyncTest.h */,
 				947565F21F18D4E900FE8664 /* autoHandle.h */,
-				947565F31F18D4E900FE8664 /* base64.h */,
+				947565F31F18D4E900FE8664 /* base64url.h */,
 				947565F41F18D4E900FE8664 /* buffer.h */,
 				947565F51F18D4E900FE8664 /* chatClient.h */,
 				947565F61F18D4E900FE8664 /* chatCommon.h */,
@@ -458,7 +458,7 @@
 				A879F3BC1F966839007C5394 /* chatd.cpp */,
 				A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */,
 				A879F3BE1F96683A007C5394 /* megachatapi.cpp */,
-				A879F3B71F966838007C5394 /* base64.cpp */,
+				A879F3B71F966838007C5394 /* base64url.cpp */,
 				A879F3B81F966839007C5394 /* karereCommon.cpp */,
 				A879F3B91F966839007C5394 /* presenced.cpp */,
 				A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */,
@@ -569,7 +569,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A879F3C01F96683A007C5394 /* base64.cpp in Sources */,
+				A879F3C01F96683A007C5394 /* base64url.cpp in Sources */,
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
 				A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */,
 				A879F3C21F96683A007C5394 /* presenced.cpp in Sources */,
