@@ -29,7 +29,7 @@ set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
 
 set (SRCS
     karereCommon.cpp
-    base64.cpp
+    base64url.cpp
     chatClient.cpp
     userAttrCache.cpp
     url.cpp

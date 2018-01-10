@@ -1,7 +1,7 @@
 #include "chatd.h"
 #include "chatClient.h"
 #include "chatdICrypto.h"
-#include "base64.h"
+#include "base64url.h"
 #include <algorithm>
 #include <random>
 
@@ -1213,7 +1213,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     mClient.mRtcHandler->handleMessage(chat, cmd);
                 }
 #else
-                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
+                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: %x", ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(userid), clientid);
 #endif
                 break;
             }
