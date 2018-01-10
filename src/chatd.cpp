@@ -1646,7 +1646,6 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-        onMsgTimestamp(upd->ts);
     }, mClient.karereClient->appCtx);
     
     return upd;
