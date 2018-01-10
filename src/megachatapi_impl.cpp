@@ -2706,6 +2706,34 @@ int MegaChatApiImpl::getNumCalls()
     return callsNumber;
 }
 
+MegaHandleList *MegaChatApiImpl::getChatCalls()
+{
+    MegaHandleListPrivate *callList = new MegaHandleListPrivate();
+
+    sdkMutex.lock();
+    for (auto it = callHandlers.begin(); it != callHandlers.end(); it++)
+    {
+        callList->addMegaHandle(it->first);
+    }
+
+    sdkMutex.unlock();
+    return callList;
+}
+
+MegaHandleList *MegaChatApiImpl::getChatCallsIds()
+{
+    MegaHandleListPrivate *callList = new MegaHandleListPrivate();
+
+    sdkMutex.lock();
+    for (auto it = callHandlers.begin(); it != callHandlers.end(); it++)
+    {
+        callList->addMegaHandle(it->second->getCall()->id());
+    }
+
+    sdkMutex.unlock();
+    return callList;
+}
+
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
 {
     if (!listener)
