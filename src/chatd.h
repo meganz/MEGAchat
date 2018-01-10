@@ -252,7 +252,7 @@ public:
      */
     virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg)
     {
-        CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
+        CHATD_LOG_ERROR("msgOrderFail[msgid %s, idx %d]: %s", msg.id().toString().c_str(), idx, errmsg.c_str());
     }
 
     /**
