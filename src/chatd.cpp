@@ -1646,7 +1646,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-        onMsgTimestamp(upd->timestamp());
+        onMsgTimestamp(upd->ts);
     }, mClient.karereClient->appCtx);
     
     return upd;
@@ -2676,7 +2676,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             handleTruncate(msg, idx);
         }
-        onMsgTimestamp(msg.timestamp());
+        onMsgTimestamp(msg.ts + msg.updated);
         return;
     }
 
@@ -2699,7 +2699,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             notifyLastTextMsg();
         }
     }
-    onMsgTimestamp(msg.timestamp());
+    onMsgTimestamp(msg.ts);
 }
 
 void Chat::onMsgTimestamp(uint32_t ts)
