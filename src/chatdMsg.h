@@ -51,9 +51,7 @@ enum Opcode
       *    integer ("msgxid"). No two such msgxids must be generated in the same chat
       *    in the same server-time second, or only the first NEWMSG will be written.
       *
-      * S->C: A different connection has added a message to the chat. The `ts_send` is
-      * zero for all updates, except when the type of message is a truncate. In that
-      * case, the `ts_send` overwrites the former ts and the `ts_update` is zero.
+      * S->C: A different connection has added a message to the chat.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_NEWMSG = 3,
@@ -64,7 +62,9 @@ enum Opcode
       *    arrival time. updatedelta must be larger than the previous updatedelta, or
       *    the MSGUPD will fail. The keyid must not change.
       *
-      * S->C: A message was updated (always sent as MSGUPD).
+      * S->C: A message was updated (always sent as MSGUPD). The `ts_send` is
+      * zero for all updates, except when the type of message is a truncate. In that
+      * case, the `ts_send` overwrites the former ts and the `ts_update` is zero.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_MSGUPD = 4,
