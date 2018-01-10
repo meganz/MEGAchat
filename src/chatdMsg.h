@@ -475,6 +475,9 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
+    /** @brief The timestamp when the message was sent or, if edited, the timestamp when the last edition occurred. */
+    uint32_t timestamp() { return ts + updated; }
 protected:
     static const char* statusNames[];
     friend class Chat;
