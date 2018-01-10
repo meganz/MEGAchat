@@ -1024,7 +1024,7 @@ protected:
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
-    void createMsgBackRefs(Message& msg);
+    void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
