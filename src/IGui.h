@@ -199,8 +199,8 @@ public:
         virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg) {}
 
         /** @brief Called when the timestamp of the most-recent message has changed.
-         * This happens when a new message is received, an edition is received, or when
-         * there were no locally known messages and the first old message is received.
+         * This happens when a new message is received, or when there were no locally
+         * known messages and the first old message is received
          */
         virtual void onLastTsUpdated(uint32_t ts) {}
 
