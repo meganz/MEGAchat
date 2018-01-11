@@ -1010,7 +1010,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
 
-                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %uh",
+                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %u",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid, ts, updated);
 
@@ -1568,7 +1568,7 @@ void Chat::msgSubmit(Message* msg)
     postMsgToSending(OP_NEWMSG, msg);
 }
 
-void Chat::createMsgBackRefs(Message& msg)
+void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 {
 #ifndef _MSC_VER
     static std::uniform_int_distribution<uint8_t>distrib(0, 0xff);
@@ -1578,34 +1578,71 @@ void Chat::createMsgBackRefs(Message& msg)
 #endif
 
     static std::random_device rd;
+
+    // mSending is a list, so we don't have random access by index there.
+    // Therefore, we copy the relevant part of it to a vector
     std::vector<SendingItem*> sendingIdx;
     sendingIdx.reserve(mSending.size());
-    for (auto& item: mSending)
+    auto next = msgit;
+    next++;
+    for (auto it = mSending.begin(); it != next; next++)
     {
-        sendingIdx.push_back(&item);
+        sendingIdx.push_back(&(*it));
     }
-    Idx maxEnd = mSending.size()+size();
+
+    Idx maxEnd = size() - sendingIdx.size();
     if (maxEnd <= 0)
-        return;
-    Idx start = 0;
-    for (size_t i=0; i<7; i++)
     {
-        Idx end = 1 << i;
-        if (end > maxEnd)
-            end = maxEnd;
+        return;
+    }
+
+    // We include 7 backreferences, each in a different range of preceding messages
+    // The exact message in these ranges is picked randomly
+    // The ranges (as backward offsets from the current message's position) are:
+    // 1<<0 - 1<<1, 1<<1 - 1<<2, 1<<2 - 1<<3, etc
+    Idx rangeStart = 0;
+    for (uint8_t i = 0; i < 7; i++)
+    {
+        Idx rangeEnd = 1 << i;
+        if (rangeEnd > maxEnd)
+        {
+            rangeEnd = maxEnd;
+        }
+
         //backward offset range is [start - end)
-        Idx range = (end - start);
-        assert(range >= 0);
-        Idx back =  (range > 1)
-            ? (start + (distrib(rd) % range))
-            : (start);
-        uint64_t backref = (back < (Idx)mSending.size()) //reference a not-yet confirmed message
-            ? (sendingIdx[mSending.size()-1-back]->msg->backRefId)
-            : (at(highnum()-(back-mSending.size())).backRefId);
-        msg.backRefs.push_back(backref);
-        if (end == maxEnd)
+        Idx span = (rangeEnd - rangeStart);
+        assert(span >= 0);
+
+        // The actual offset of the picked target backreferenced message
+        // It is zero-based: idx of 0 means the message preceding the one for which we are creating backrefs.
+        Idx idx;
+        if (span > 1)
+        {
+            idx = rangeStart + (distrib(rd) % span);
+        }
+        else
+        {
+            idx = rangeStart;
+        }
+
+        uint64_t backref;
+        if (idx < (Idx)sendingIdx.size())
+        {
+            backref = sendingIdx[sendingIdx.size()-1-idx]->msg->backRefId; // reference a not-yet confirmed message
+        }
+        else
+        {
+            backref = at(highnum()-(idx-sendingIdx.size())).backRefId; // reference a regular history message
+        }
+
+        msgit->msg->backRefs.push_back(backref);
+
+        if (rangeEnd == maxEnd)
+        {
             return;
-        start = end;
+        }
+
+        rangeStart = rangeEnd;
     }
 }
 
@@ -1639,7 +1676,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
     assert(msg->id());
     if (it->opcode() == OP_NEWMSG && msg->backRefs.empty())
-        createMsgBackRefs(*msg);
+    {
+        createMsgBackRefs(it);
+    }
 
     if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
         return false;
@@ -1712,14 +1751,12 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.isSending(), msg.keyid, msg.type, userp);
 
     auto wptr = weakHandle();
-    uint32_t newage = msg.ts + age;
-    marshallCall([wptr, this, newage, upd]()
+    marshallCall([wptr, this, upd]()
     {
         if (wptr.deleted())
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-        onMsgTimestamp(newage);
     }, mClient.karereClient->appCtx);
     
     return upd;
@@ -2309,6 +2346,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
+            if (msg->type == Message::kMsgTruncate)
+            {
+                histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+            }
 
             if (idx > mNextHistFetchIdx)
             {

@@ -62,7 +62,9 @@ enum Opcode
       *    arrival time. updatedelta must be larger than the previous updatedelta, or
       *    the MSGUPD will fail. The keyid must not change.
       *
-      * S->C: A message was updated (always sent as MSGUPD).
+      * S->C: A message was updated (always sent as MSGUPD). The `ts_send` is
+      * zero for all updates, except when the type of message is a truncate. In that
+      * case, the `ts_send` overwrites the former ts and the `ts_update` is zero.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_MSGUPD = 4,
@@ -486,6 +488,7 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
 protected:
     static const char* statusNames[];
     friend class Chat;

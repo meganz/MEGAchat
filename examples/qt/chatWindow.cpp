@@ -279,6 +279,10 @@ void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     {
         widget->setText(msg.managementInfoToString());
         widget->setAuthor(msg.userid);
+        if (msg.type == chatd::Message::kMsgTruncate)
+        {
+            widget->setTimestamp(msg.ts);
+        }
     }
     else
     {
