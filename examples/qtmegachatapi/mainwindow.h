@@ -59,61 +59,31 @@ public slots:
 };
 
 
-
-
 class MainWindow :
         public QMainWindow,
         public karere::IApp,
         public karere::IApp::IContactListHandler,
-        public karere::IApp::IChatListHandler,
-
-        //Implement all methods
-        public megachat::MegaChatListener,
-        public megachat::MegaChatRequestListener,
-        public megachat::MegaChatCallListener,
-        public mega::MegaListener,
-        public mega::MegaRequestListener,
-        public mega::MegaTransferListener,
-        public mega::MegaLogger
+        public karere::IApp::IChatListHandler
 {
     Q_OBJECT
     karere::Client* mClient;
 public:
     explicit MainWindow(karere::Client* aClient=nullptr);
-    void setClient(karere::Client& client) { mClient = &client; }
+    void setClient(karere::Client& client) { mClient = &client;}
+
+    //Assign a pointer to MegachatApi Object
+    void setMegaChatApi(MegaChatApi * mchatApi) {this->megaChatApi=mchatApi;}
+
     karere::Client& client() const { return *mClient; }
     ~MainWindow();
     Ui::MainWindow ui;
 
-    //Temp members
+    //MOVE LOGIN DIALOG TO MEGACHATAPPLICATION
     LoginDialog* mLoginDlg;
-    megachat::MegaChatApi * mchatApi;
+
+
+    megachat::MegaChatApi * megaChatApi;
     void removeItem(IListItem& item);
-
-//--------------------------------------------------------------------------------------------------------------------->
-// implementation for Megachatlistener
-    virtual void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
-    virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
-    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
-    virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
-    virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
-
-// implementation for MegachatRequestListener
-    virtual void onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request);
-    virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
-    virtual void onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request);
-    virtual void onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error);
-
-// implementation for MegaRequestListener
-    virtual void onRequestStart(mega::MegaApi *api, mega::MegaRequest *request) {}
-    virtual void onRequestUpdate(mega::MegaApi*api, mega::MegaRequest *request) {}
-    virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
-    virtual void onRequestTemporaryError(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError* error) {}
-
-// implementation for MegachatCallListener
-    virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
-
-//--------------------------------------------------------------------------------------------------------------------->
 
 //IContactList
     virtual IContactListItem* addContactItem(karere::Contact& contact);

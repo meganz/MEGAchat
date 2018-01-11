@@ -17,12 +17,6 @@
 #include <math.h>
 #include "chatdICrypto.h"
 #include "megachatapi.h"
-#include "QTMegaChatListener.h"
-#include "QTMegaChatRequestListener.h"
-#include "QTMegaChatRoomListener.h"
-#include "QTMegaChatEvent.h"
-
-
 #undef emit
 #define THROW_IF_FALSE(statement) \
     if (!(statement)) {\
@@ -89,8 +83,7 @@ promise::Promise<std::pair<std::string, std::string>> LoginDialog::requestCreden
             enableControls(true);
             mPromise = promise::Promise<std::pair<std::string, std::string>>();
         }
-        return mPromise;
-        //return promise::Promise<std::pair<std::string, std::string>>();
+        return mPromise;        
     }
 
 void LoginDialog::setState(LoginStage state)
@@ -140,7 +133,7 @@ QString LoginDialog::sLoginStageStrings[] = {
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
     mLoginDlg=NULL;
-    mchatApi=NULL;
+    megaChatApi=NULL;
     ui.setupUi(this);
     connect(ui.mSettingsBtn, SIGNAL(clicked(bool)), this, SLOT(onSettingsBtn(bool)));
     connect(ui.mOnlineStatusBtn, SIGNAL(clicked(bool)), this, SLOT(onOnlineStatusBtn(bool)));
@@ -153,7 +146,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
   if (event->type() == QEvent::MouseMove)
   {
-      mClient->presenced().signalActivity();
+      this->megaChatApi->signalPresenceActivity();
   }
   return false;
 }
@@ -220,127 +213,6 @@ void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pe
     ui.mOnlineStatusBtn->setStyleSheet(
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[state.presence().status()]));
 }
-
-//------------------------------------------------------------------------------------------------------>
-//implementation for MegaChatListener
-void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *api, int newState)
-{
-    if (!isVisible() && (newState == karere::Client::kInitHasOfflineSession
-                      || newState == karere::Client::kInitHasOnlineSession))
-    {
-        show();
-    }
-    else if (newState == karere::Client::kInitErrSidInvalid)
-    {
-        hide();
-        marshallCall([this]()
-        {
-            Q_EMIT esidLogout();
-        }, NULL);
-    }
-
-    if (newState == karere::Client::kInitHasOfflineSession ||
-            newState == karere::Client::kInitHasOnlineSession)
-    {        
-        //setWindowTitle(mClient->myEmail().c_str());
-        setWindowTitle("");
-    }
-    else
-    {
-        setWindowTitle("");
-    }
-}
-
-
-
-void MainWindow::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
-void MainWindow::onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int newState) {}
-
-void MainWindow::onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress)
-{
-    if (api->getMyUserHandle()== userhandle)
-    {
-        ui.mOnlineStatusBtn->setText(inProgress
-            ?kOnlineSymbol_InProgress
-            :kOnlineSymbol_Set);
-        //ui.mOnlineStatusBtn->setStyleSheet(
-        //    kOnlineStatusBtnStyle.arg(gOnlineIndColors[api->getPresenceConfig() ? status : 0]));
-    }
-    else
-    {
-            // PENDING: update the presence for contacts
-    }
-}
-
-void MainWindow::onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config)
-{
-    ui.mOnlineStatusBtn->setText(config->isPending()
-        ?kOnlineSymbol_InProgress
-        :kOnlineSymbol_Set);
-  //  ui.mOnlineStatusBtn->setStyleSheet(
-   //     kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
-}
-
-
-
-
-// implementation for MegaRequestListener
-void MainWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, MegaError *e)
-{
-    switch (request->getType())
-    {
-        case mega::MegaRequest::TYPE_LOGIN:
-            if (e->getErrorCode() == mega::MegaError::API_OK)
-            {
-               this->mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
-               api->fetchNodes();
-            }
-            else
-            {
-               this->mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
-               //Request credentials again
-            }
-            break;
-
-        case mega::MegaRequest::TYPE_FETCH_NODES:
-            if (e->getErrorCode() == mega::MegaError::API_OK)
-            {
-                this->mLoginDlg->hide();
-                this->mchatApi->connect();
-                this->show();
-            }
-            else
-            {
-                // go back to login dialog
-            }
-            break;
-    }
-}
-
-// implementation for MegachatRequestListener
-void MainWindow::onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e)
-{
-    switch (request->getType())
-    {
-        case megachat::MegaChatRequest::TYPE_CONNECT:
-            if (e->getErrorCode() == mega::MegaError::API_OK)
-            {
-                KR_LOG_DEBUG("CONNECT OK");
-            }
-            else
-            {
-            }
-            break;
-    }
-}
-
-void MainWindow::onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request){}
-void MainWindow::onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request){}
-void MainWindow::onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error){}
-
-// implementation for MegachatCallListener
-void MainWindow::onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call){}
-//------------------------------------------------------------------------------------------------------>
 
 void MainWindow::setOnlineStatus()
 {

@@ -2,7 +2,6 @@ karere/
 res/
 rtctestapp_autogen/
 CMakeFiles/
-CMakeCache.txt
 CMakeDoxyfile.in
 CMakeDoxygenDefaults.cmake
 CPackConfig.cmake
