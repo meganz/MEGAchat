@@ -122,6 +122,25 @@ class AppDelegate: public QObject
         virtual bool event(QEvent* event);
         void myMegaPostMessageToGui(void* msg, void* appCtx, AppDelegate *appDelegate);
 };
+
+
+class MegaLoggerApplication : public mega::MegaLogger,
+        public megachat::MegaChatLogger {
+
+public:
+    MegaLoggerApplication(const char *filename);
+    ~MegaLoggerApplication();
+
+    std::ofstream *getOutputStream() { return &testlog; }
+    void postLog(const char *message);
+
+private:
+    std::ofstream testlog;
+
+protected:
+    void log(const char *time, int loglevel, const char *source, const char *message);
+    void log(int loglevel, const char *message);
+};
 #endif // MEGACHATAPPLICATION_H
 
 

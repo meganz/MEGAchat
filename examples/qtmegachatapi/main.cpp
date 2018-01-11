@@ -26,9 +26,17 @@ using namespace mega;
 using namespace megachat;
 using namespace karere;
 
-std::string appDir = karere::createAppDir();
+void configureLogs(std::string &logPath)
+{
+    MegaLoggerApplication *logger = new MegaLoggerApplication(logPath.c_str());
+    MegaApi::addLoggerObject(logger);
+    MegaApi::setLogToConsole(false);
+    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLogToConsole(false);
+    MegaChatApi::setCatchException(false);
+}
 
-void createWindowAndClient()
+void createWindowAndClient(std::string &appDir)
 {
     MegaChatApplication *mChatApplication = new MegaChatApplication(appDir);
     mChatApplication->readSid();
@@ -47,7 +55,10 @@ void createWindowAndClient()
 
 int main(int argc, char **argv)
 {
-    //karere::globalInit(myMegaPostMessageToGui, 0, (appDir+"/log.txt").c_str(), 500);
+    std::string appDir = karere::createAppDir();
+    std::string logPath=appDir+"/log.txt";
+    configureLogs(logPath);
+
     const char* customApiUrl = getenv("KR_API_URL");
     if (customApiUrl)
     {
@@ -74,7 +85,7 @@ int main(int argc, char **argv)
 
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
-    createWindowAndClient();
+    createWindowAndClient(appDir);
     return a.exec();
 }
 #include <main.moc>

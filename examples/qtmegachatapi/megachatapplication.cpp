@@ -385,3 +385,40 @@ void setVidencParams()
 #endif
 }
 */
+
+MegaLoggerApplication::MegaLoggerApplication(const char *filename)
+{
+    testlog.open(filename, ios::out | ios::app);
+}
+
+MegaLoggerApplication::~MegaLoggerApplication()
+{
+    testlog.close();
+}
+
+void MegaLoggerApplication::log(const char *time, int loglevel, const char *source, const char *message)
+{
+    testlog << "[" << time << "] " << SimpleLogger::toStr((LogLevel)loglevel) << ": ";
+    testlog << message << " (" << source << ")" << endl;
+}
+
+void MegaLoggerApplication::postLog(const char *message)
+{
+    testlog << message << endl;
+}
+
+void MegaLoggerApplication::log(int loglevel, const char *message)
+{
+    string levelStr;
+    switch (loglevel)
+    {
+        case MegaChatApi::LOG_LEVEL_ERROR: levelStr = "err"; break;
+        case MegaChatApi::LOG_LEVEL_WARNING: levelStr = "warn"; break;
+        case MegaChatApi::LOG_LEVEL_INFO: levelStr = "info"; break;
+        case MegaChatApi::LOG_LEVEL_VERBOSE: levelStr = "verb"; break;
+        case MegaChatApi::LOG_LEVEL_DEBUG: levelStr = "debug"; break;
+        case MegaChatApi::LOG_LEVEL_MAX: levelStr = "debug-verbose"; break;
+        default: levelStr = ""; break;
+    }
+    testlog  << message;
+}
