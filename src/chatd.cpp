@@ -1000,7 +1000,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
 
-                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %uh",
+                CHATD_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %u",
                     ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
                     ID_CSTR(userid), keyid, ts, updated);
 
@@ -1679,14 +1679,12 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.isSending(), msg.keyid, msg.type, userp);
 
     auto wptr = weakHandle();
-    uint32_t newage = msg.ts + age;
-    marshallCall([wptr, this, newage, upd]()
+    marshallCall([wptr, this, upd]()
     {
         if (wptr.deleted())
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-        onMsgTimestamp(newage);
     }, mClient.karereClient->appCtx);
     
     return upd;
@@ -2275,6 +2273,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
+            if (msg->type == Message::kMsgTruncate)
+            {
+                histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+            }
 
             if (idx > mNextHistFetchIdx)
             {

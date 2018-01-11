@@ -144,8 +144,16 @@ public:
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
-        mDb.query("update history set type = ?, data = ?, updated = ?, userid=? where chatid = ? and msgid = ?",
-            msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
+        if (msg.type == chatd::Message::kMsgTruncate)
+        {
+            mDb.query("update history set type = ?, data = ?, ts = ?, userid = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.ts, msg.userid, mMessages.chatId(), msgid);
+        }
+        else    // "updated" instead of "ts"
+        {
+            mDb.query("update history set type = ?, data = ?, updated = ?, userid = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
+        }
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)

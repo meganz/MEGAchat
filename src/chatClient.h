@@ -170,9 +170,9 @@ public:
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
-        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
+        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
             karere::Id(mChatid).toString().c_str(),
-            msg.id().toString().c_str(), msg.userid.toString().c_str(),
+            msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
             errmsg.c_str());
     }
 
