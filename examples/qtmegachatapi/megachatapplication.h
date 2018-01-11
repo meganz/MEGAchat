@@ -58,6 +58,26 @@ struct GcmEvent: public QEvent
     GcmEvent(void* aPtr): QEvent(type), ptr(aPtr){}
 };
 
+
+class MegaLoggerApplication : public mega::MegaLogger,
+        public megachat::MegaChatLogger
+{
+        public:
+            MegaLoggerApplication(const char *filename);
+            ~MegaLoggerApplication();
+
+            std::ofstream *getOutputStream() { return &testlog; }
+            void postLog(const char *message);
+
+        private:
+            std::ofstream testlog;
+
+        protected:
+            void log(const char *time, int loglevel, const char *source, const char *message);
+            void log(int loglevel, const char *message);
+};
+
+
 class MegaChatApplication:
         public mega::MegaListener,
         public megachat::MegaChatListener,
@@ -71,6 +91,7 @@ class MegaChatApplication:
          const char *getSid() const;
          void sigintHandler(int);
          void saveSid(const char* sdkSid);
+         void configureLogs();
          std::string getAppDir() const;
          ~MegaChatApplication();
 
@@ -109,6 +130,7 @@ class MegaChatApplication:
          megachat::MegaChatApi *megaChatApi;
          WebsocketsIO *websocketsIO;
          LoginDialog *loginDlg;
+         MegaLoggerApplication *logger;
 };
 
 
@@ -121,25 +143,6 @@ class AppDelegate: public QObject
     public:
         virtual bool event(QEvent* event);
         void myMegaPostMessageToGui(void* msg, void* appCtx, AppDelegate *appDelegate);
-};
-
-
-class MegaLoggerApplication : public mega::MegaLogger,
-        public megachat::MegaChatLogger {
-
-public:
-    MegaLoggerApplication(const char *filename);
-    ~MegaLoggerApplication();
-
-    std::ofstream *getOutputStream() { return &testlog; }
-    void postLog(const char *message);
-
-private:
-    std::ofstream testlog;
-
-protected:
-    void log(const char *time, int loglevel, const char *source, const char *message);
-    void log(int loglevel, const char *message);
 };
 #endif // MEGACHATAPPLICATION_H
 

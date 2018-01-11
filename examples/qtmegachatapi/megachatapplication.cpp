@@ -116,10 +116,8 @@ extern "C" void AppDelegate::myMegaPostMessageToGui(void* msg, void* appCtx, App
 
 MegaChatApplication::MegaChatApplication(std::string &dir)
 {
-         //Create Dir
-         //appDir = karere::createAppDir();
-
          appDir=dir;
+         configureLogs();
 
          //Create Main Window
          mainWin = new MainWindow();
@@ -161,6 +159,7 @@ MegaChatApplication::~MegaChatApplication()
     delete websocketsIO;
     delete mainWin;
     loginDlg->destroy();
+    delete logger;
     }, NULL);
 }
 
@@ -218,8 +217,16 @@ void MegaChatApplication::saveSid(const char* sdkSid)
     osidf.close();
 }
 
-
-
+void MegaChatApplication::configureLogs()
+{
+    std::string logPath=appDir+"/log.txt";
+    logger = new MegaLoggerApplication(logPath.c_str());
+    MegaApi::addLoggerObject(logger);
+    MegaApi::setLogToConsole(false);
+    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLogToConsole(false);
+    MegaChatApi::setCatchException(false);
+}
 
 
 //------------------------------------------------------------------------------------------------------>

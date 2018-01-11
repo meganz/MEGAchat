@@ -26,16 +26,6 @@ using namespace mega;
 using namespace megachat;
 using namespace karere;
 
-void configureLogs(std::string &logPath)
-{
-    MegaLoggerApplication *logger = new MegaLoggerApplication(logPath.c_str());
-    MegaApi::addLoggerObject(logger);
-    MegaApi::setLogToConsole(false);
-    MegaChatApi::setLoggerObject(logger);
-    MegaChatApi::setLogToConsole(false);
-    MegaChatApi::setCatchException(false);
-}
-
 void createWindowAndClient(std::string &appDir)
 {
     MegaChatApplication *mChatApplication = new MegaChatApplication(appDir);
@@ -56,9 +46,6 @@ void createWindowAndClient(std::string &appDir)
 int main(int argc, char **argv)
 {
     std::string appDir = karere::createAppDir();
-    std::string logPath=appDir+"/log.txt";
-    configureLogs(logPath);
-
     const char* customApiUrl = getenv("KR_API_URL");
     if (customApiUrl)
     {
