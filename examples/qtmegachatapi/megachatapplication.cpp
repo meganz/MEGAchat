@@ -150,13 +150,13 @@ MegaChatApplication::MegaChatApplication(std::string &dir)
 
 MegaChatApplication::~MegaChatApplication()
 {
-    megaChatApi->logout(nullptr);
     megaApi->logout(nullptr);
+    megaChatApi->logout(nullptr);
 
-    marshallCall([this]() //post destruction asynchronously so that all pending messages get processed before that
+    marshallCall([this]()
     {
-    delete megaApi;
     delete megaChatApi;
+    delete megaApi;
     qApp->quit();
     delete websocketsIO;
     delete mainWin;
