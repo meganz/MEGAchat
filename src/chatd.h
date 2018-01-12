@@ -252,7 +252,7 @@ public:
      */
     virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg)
     {
-        CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
+        CHATD_LOG_ERROR("msgOrderFail[msgid %s, idx %d]: %s", msg.id().toString().c_str(), idx, errmsg.c_str());
     }
 
     /**
@@ -1024,7 +1024,7 @@ protected:
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
-    void createMsgBackRefs(Message& msg);
+    void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent

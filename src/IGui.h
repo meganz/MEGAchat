@@ -200,7 +200,7 @@ public:
 
         /** @brief Called when the timestamp of the most-recent message has changed.
          * This happens when a new message is received, or when there were no locally
-         * kown messages and the first old message is received
+         * known messages and the first old message is received
          */
         virtual void onLastTsUpdated(uint32_t ts) {}
 
