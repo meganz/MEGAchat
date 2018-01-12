@@ -1760,11 +1760,11 @@ void Chat::onLastSeen(Id msgid)
     Idx idx = CHATD_IDX_INVALID;
 
     auto it = mIdToIndexMap.find(msgid);
-    if (it == mIdToIndexMap.end())
+    if (it == mIdToIndexMap.end())  // msgid not loaded in RAM
     {
-        idx = mDbInterface->getIdxOfMsgid(msgid);
+        idx = mDbInterface->getIdxOfMsgid(msgid);   // return CHATD_IDX_INVALID if not found in DB
     }
-    else
+    else    // msgid is in RAM
     {
         idx = it->second;
 
@@ -1774,30 +1774,38 @@ void Chat::onLastSeen(Id msgid)
         }
     }
 
-    if (idx == mLastSeenIdx)
+    if (idx == CHATD_IDX_INVALID)   // msgid is unknown locally (during initialization, or very old msg)
     {
-        if (idx == CHATD_IDX_INVALID) // We have received SEEN index before the message
+        if (mLastSeenIdx == CHATD_IDX_INVALID)  // don't have a previous idx yet --> initialization
         {
             CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(mLastSeenId));
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
-        }
 
-        return;
+            return;
+        }
+    }
+    // else --> msgid was found locally
+    assert(mLastSeenId.isValid());
+
+    if (idx == mLastSeenIdx)
+    {
+        return; // we are up to date
     }
 
-    if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) //Our last Seen is newer than last seen received. Resend our last seen msgid
+    if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) // msgid is older than the locally seen pointer --> update chatd
     {
-        CHATID_LOG_WARNING("onLastSeen: Setting last seen index to an older message - Skip last seen message");
+        // it means the SEEN sent to chatd was not applied remotely (network issue), but it was locally
+        CHATID_LOG_WARNING("onLastSeen: chatd last seen message is older than local last seen message. Updating chatd...");
         sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
         return;
     }
 
-    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(mLastSeenId));
+    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
     mLastSeenId = msgid;
     CALL_DB(setLastSeen, msgid);
 
-    if (idx != CHATD_IDX_INVALID)
+    if (idx != CHATD_IDX_INVALID)   // if msgid is known locally, notify the unread count
     {
         Idx oldLastSeenIdx = mLastSeenIdx;
         mLastSeenIdx = idx;
@@ -1805,12 +1813,12 @@ void Chat::onLastSeen(Id msgid)
         //notify about messages that have become 'seen'
         Idx  notifyOldest = oldLastSeenIdx + 1;
         Idx low = lownum();
-        if (notifyOldest < low)
+        if (notifyOldest < low) // consider only messages in RAM
         {
             notifyOldest = low;
         }
 
-        for (Idx i=notifyOldest; i<=mLastSeenIdx; i++)
+        for (Idx i = notifyOldest; i <= mLastSeenIdx; i++)
         {
             auto& msg = at(i);
             if (msg.userid != mClient.mUserId)
