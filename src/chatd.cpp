@@ -1720,53 +1720,59 @@ void Chat::onLastReceived(Id msgid)
 
 void Chat::onLastSeen(Id msgid)
 {
-    mLastSeenId = msgid;
-    CALL_DB(setLastSeen, msgid);
+    Idx idx = CHATD_IDX_INVALID;
+
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     {
-        Idx idx = mDbInterface->getIdxOfMsgid(msgid);
-        //last seen is older than our history, so all history in memory is 'unseen', even if there was a previous, older last-seen
-        if (idx != CHATD_IDX_INVALID)
-        {
-            if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx < mLastSeenIdx))
-            {
-                CHATD_LOG_WARNING("onLastSeen: Setting last seen index to an older message");
-            }
-            mLastSeenIdx = idx;
-        }
+        idx = mDbInterface->getIdxOfMsgid(msgid);
     }
     else
     {
-        auto idx = it->second;
-        if (idx == mLastSeenIdx)
-            return; //we may have set it from db already
-        if(at(idx).userid == mClient.mUserId)
+        idx = it->second;
+
+        if (at(idx).userid == mClient.mUserId)
         {
             CHATD_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
         }
+    }
+
+    if (idx == mLastSeenIdx)
+    {
+        if (idx == CHATD_IDX_INVALID) // We have received SEEN index before the message
+        {
+            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(mLastSeenId));
+            mLastSeenId = msgid;
+            CALL_DB(setLastSeen, msgid);
+        }
+
+        return;
+    }
+
+    if (mLastSeenIdx != CHATD_IDX_INVALID && idx < mLastSeenIdx) //Our last Seen is newer than last seen received. Resend our last seen msgid
+    {
+        CHATID_LOG_WARNING("onLastSeen: Setting last seen index to an older message - Skip last seen message");
+        sendCommand(Command(OP_SEEN) + mChatId + mLastSeenId);
+        return;
+    }
+
+    CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(mLastSeenId));
+    mLastSeenId = msgid;
+    CALL_DB(setLastSeen, msgid);
+
+    if (idx != CHATD_IDX_INVALID)
+    {
+        Idx oldLastSeenIdx = mLastSeenIdx;
+        mLastSeenIdx = idx;
+
         //notify about messages that have become 'seen'
-        Idx notifyOldest;
-        if (mLastSeenIdx != CHATD_IDX_INVALID)
+        Idx  notifyOldest = oldLastSeenIdx + 1;
+        Idx low = lownum();
+        if (notifyOldest < low)
         {
-            if (idx < mLastSeenIdx)
-            {
-                CHATID_LOG_WARNING("onLastSeen: Setting last seen index to an older "
-                    "message: current idx: %d, new: %d", mLastSeenIdx, idx);
-            }
-            notifyOldest = mLastSeenIdx + 1;
-            auto low = lownum();
-            if (notifyOldest < low)
-            {
-                notifyOldest = low;
-            }
-            mLastSeenIdx = idx;
+            notifyOldest = low;
         }
-        else
-        {
-            mLastSeenIdx = idx;
-            notifyOldest = lownum();
-        }
+
         for (Idx i=notifyOldest; i<=mLastSeenIdx; i++)
         {
             auto& msg = at(i);
@@ -1776,6 +1782,7 @@ void Chat::onLastSeen(Id msgid)
             }
         }
     }
+
     CALL_LISTENER(onUnreadChanged);
 }
 
