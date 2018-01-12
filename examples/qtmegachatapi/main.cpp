@@ -26,9 +26,9 @@ using namespace mega;
 using namespace megachat;
 using namespace karere;
 
-void createWindowAndClient(std::string &appDir)
+void createWindowAndClient()
 {
-    MegaChatApplication *mChatApplication = new MegaChatApplication(appDir);
+    MegaChatApplication *mChatApplication = new MegaChatApplication();
     mChatApplication->readSid();
     int initializationState = mChatApplication->init();
 
@@ -45,7 +45,6 @@ void createWindowAndClient(std::string &appDir)
 
 int main(int argc, char **argv)
 {
-    std::string appDir = karere::createAppDir();
     const char* customApiUrl = getenv("KR_API_URL");
     if (customApiUrl)
     {
@@ -72,7 +71,7 @@ int main(int argc, char **argv)
 
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
-    createWindowAndClient(appDir);
+    createWindowAndClient();
     return a.exec();
 }
 #include <main.moc>

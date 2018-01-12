@@ -84,7 +84,7 @@ class MegaChatApplication:
         public megachat::MegaChatRequestListener
 {
     public:
-         MegaChatApplication(std::string &dir);
+         MegaChatApplication();
          int init();
          void login();
          void readSid();

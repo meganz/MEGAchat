@@ -114,9 +114,9 @@ extern "C" void AppDelegate::myMegaPostMessageToGui(void* msg, void* appCtx, App
 }
 
 
-MegaChatApplication::MegaChatApplication(std::string &dir)
+MegaChatApplication::MegaChatApplication()
 {
-         appDir=dir;
+         appDir = karere::createAppDir();
          configureLogs();
 
          //Create Main Window
