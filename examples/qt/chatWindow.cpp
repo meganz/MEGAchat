@@ -268,6 +268,7 @@ void ChatWindow::updateSeen()
 }
 void ChatWindow::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
 {
+    assert(msg.userp);
     mRoom.onMessageEdited(msg, idx);
     auto widget = widgetFromMessage(msg);
     if (!widget)

@@ -831,12 +831,16 @@ void Call::handleReject(RtMessage& packet)
         }
         if (mIsGroup || !mSessions.empty())
         {
+            SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE. It is Group call or there are active sessions");
             return;
         }
+
         destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false);
     }
     else // Call has been rejected by other client from same user
     {
+        assert(packet.clientid != mChat.connection().clientId());
+
         if (mState != Call::kStateRingIn)
         {
             SUB_LOG_WARNING("Ingoring unexpected CALL_REQ_DECLINE while in state %s", stateToStr(mState));
