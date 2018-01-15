@@ -833,7 +833,24 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
+        auto wptr = weakHandle();
+
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc->init(10000)
+    .then([this, isInBackground, wptr]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+        connectToChatd(isInBackground);
+    });
+#else
     connectToChatd(isInBackground);
+#endif
+
     auto pms = connectToPresenced(mOwnPresence)
     .then([this]()
     {
@@ -845,7 +862,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         return err;
     });
     assert(!mHeartbeatTimer);
-    auto wptr = weakHandle();
     mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
         if (wptr.deleted() || !mHeartbeatTimer)
@@ -1082,15 +1098,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    auto pmsPres = mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    auto pmsRtc = rtc->init(10000);
-    return promise::when(pmsPres, pmsRtc);
-#else
-    return pmsPres;
-#endif
+
+    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
@@ -2223,6 +2232,11 @@ void ChatRoom::removeAppChatHandler()
     mChat->setListener(this);
 }
 
+bool ChatRoom::hasChatHandler() const
+{
+    return mAppChatHandler != NULL;
+}
+
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
@@ -2943,9 +2957,9 @@ bool Client::isCallInProgress() const
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
 {
-    return app.onIncomingCall(call);
+    return app.onIncomingCall(call, av);
 }
 #endif
 
