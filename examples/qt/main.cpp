@@ -197,7 +197,8 @@ void setVidencParams()
 void AppDelegate::onAppTerminate()
 {
     static bool called = false;
-    assert(!called);
+    if (called)
+        return;
     called = true;
     gClient->terminate();
 

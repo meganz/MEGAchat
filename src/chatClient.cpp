@@ -14,11 +14,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rtcModule/IRtcModule.h"
-#include "dummyCrypto.h" //for makeRandomString
+#include "rtcModule/webrtc.h"
+#ifndef KARERE_DISABLE_WEBRTC
+    #include "rtcCrypto.h"
+    #include "dummyCrypto.h" //for makeRandomString
+#endif
 #include "base/services.h"
 #include "sdkApi.h"
-#include "megaCryptoFunctions.h"
 #include <serverListProvider.h>
 #include <memory>
 #include <chatd.h>
@@ -192,8 +194,12 @@ void Client::heartbeat()
         KR_LOG_WARNING("Heartbeat timer tick without being connected");
         return;
     }
+
     mPresencedClient.heartbeat();
-    //TODO: implement in chatd as well
+    if (chatd)
+    {
+        chatd->heartbeat();
+    }
 }
 
 Client::~Client()
@@ -308,11 +314,19 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
 }
 
-void Client::commit()
+void Client::saveDb()
 {
-    if (db.isOpen())
+    try
     {
-        db.commit();
+        if (db.isOpen())
+        {
+            db.commit();
+        }
+    }
+    catch(std::runtime_error& e)
+    {
+        KR_LOG_ERROR("Error saving changes to local cache: %s", e.what());
+        setInitState(kInitErrCorruptCache);
     }
 }
 
@@ -347,6 +361,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
+
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
 
     mUserAttrCache.reset(new UserAttrCache(*this));
 
@@ -419,7 +436,13 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
         if (connState() == kConnecting || connState() == kConnected)
-        {
+        {            
+#ifndef KARERE_DISABLE_WEBRTC
+            if (rtc && rtc->isCallInProgress())
+            {
+                break;
+            }
+#endif
             auto wptr = weakHandle();
             marshallCall([wptr, this]()
             {
@@ -460,6 +483,8 @@ void Client::initWithDbSession(const char* sid)
         assert(mMyHandle);
 
         mMyEmail = getMyEmailFromDb();
+
+        mMyIdentity = getMyIdentityFromDb();
 
         mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
         [](Buffer* buf, void* userp)
@@ -525,7 +550,7 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (e->getErrorCode() == mega::MegaError::API_ESID)
+    if (e->getErrorCode() == ::mega::MegaError::API_ESID)
     {
         auto wptr = weakHandle();
         marshallCall([wptr, this]() // update state in the karere thread
@@ -540,14 +565,19 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         }, appCtx);
         return;
     }
+    else if (e->getErrorCode() != ::mega::MegaError::API_OK)
+    {
+        KR_LOG_ERROR("Request %s finished with error %d", request->getRequestString(), e->getErrorString());
+        return;
+    }
 
     auto reqType = request->getType();
     switch (reqType)
     {
-    case mega::MegaRequest::TYPE_LOGOUT:
+    case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         if (request->getFlag() ||   // SDK has been logged out normally closing session
-                request->getParamType() == mega::MegaError::API_ESID)   // SDK received ESID during login
+                request->getParamType() == ::mega::MegaError::API_ESID)   // SDK received ESID during login
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]() // update state in the karere thread
@@ -565,7 +595,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         break;
     }
 
-    case mega::MegaRequest::TYPE_FETCH_NODES:
+    case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
         auto state = mInitState;
@@ -622,17 +652,17 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
         break;
     }
 
-    case mega::MegaRequest::TYPE_SET_ATTR_USER:
+    case ::mega::MegaRequest::TYPE_SET_ATTR_USER:
     {
         int attrType = request->getParamType();
         int changeType;
-        if (attrType == mega::MegaApi::USER_ATTR_FIRSTNAME)
+        if (attrType == ::mega::MegaApi::USER_ATTR_FIRSTNAME)
         {
-            changeType = mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
+            changeType = ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME;
         }
-        else if (attrType == mega::MegaApi::USER_ATTR_LASTNAME)
+        else if (attrType == ::mega::MegaApi::USER_ATTR_LASTNAME)
         {
-            changeType = mega::MegaUser::CHANGE_TYPE_LASTNAME;
+            changeType = ::mega::MegaUser::CHANGE_TYPE_LASTNAME;
         }
         else
         {
@@ -902,6 +932,30 @@ karere::Id Client::getMyHandleFromDb()
     return result;
 }
 
+uint64_t Client::getMyIdentityFromDb()
+{
+    uint64_t result = 0;
+
+    SqliteStmt stmt(db, "select value from vars where name='clientid_seed'");
+    if (!stmt.step())
+    {
+        KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
+        result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+    }
+    else
+    {
+        result = stmt.uint64Col(0);
+        if (result == 0)
+        {
+            KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
+            result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        }
+    }
+    return result;
+}
+
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
@@ -1028,16 +1082,15 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
-
-// Create and register the rtcmodule plugin
-// the MegaCryptoFuncs object needs api.userData (to initialize the private key etc)
-// To use DummyCrypto: new rtcModule::DummyCrypto(jid.c_str());
-//        rtc = rtcModule::create(*conn, this, new rtcModule::MegaCryptoFuncs(*this), KARERE_DEFAULT_TURN_SERVERS);
-//        conn->registerPlugin("rtcmodule", rtc);
-
-//        KR_LOG_DEBUG("webrtc plugin initialized");
-//        return mXmppContactList.ready();
+    auto pmsPres = mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    auto pmsRtc = rtc->init(10000);
+    return promise::when(pmsPres, pmsRtc);
+#else
+    return pmsPres;
+#endif
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1048,6 +1101,11 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
+    if (mInitState == kInitTerminated)
+    {
+        return;
+    }
+
     if (userid == mMyHandle)
     {
         mOwnPresence = pres;
@@ -1112,21 +1170,28 @@ void Client::terminate(bool deleteDb)
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
-        rtc->hangupAll();
+        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
     disconnect();
     mUserAttrCache.reset();
 
-    if (deleteDb && !mSid.empty())
+    try
     {
-        wipeDb(mSid);
+        if (deleteDb && !mSid.empty())
+        {
+            wipeDb(mSid);
+        }
+        else if (db.isOpen())
+        {
+            KR_LOG_INFO("Doing final COMMIT to database");
+            db.commit();
+            db.close();
+        }
     }
-    else if (db.isOpen())
+    catch(std::runtime_error& e)
     {
-        KR_LOG_INFO("Doing final COMMIT to database");
-        db.commit();
-        db.close();
+        KR_LOG_ERROR("Error saving changes to local cache during termination: %s", e.what());
     }
 }
 
@@ -1279,12 +1344,12 @@ void PeerChatRoom::connect()
     mChat->connect();
 }
 
-promise::Promise<void> PeerChatRoom::mediaCall(AvFlags av)
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
-    assert(mAppChatHandler);
-//    parent.client.rtc->startMediaCall(mAppChatHandler->callHandler(), jid, av);
-    return promise::_Void();
+    return parent.client.rtc->startCall(chatid(), av, handler);
 }
+#endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
@@ -1353,11 +1418,6 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
     delete megaHandleList;
 
     return promise::when(promises);
-}
-
-promise::Promise<void> GroupChatRoom::mediaCall(AvFlags av)
-{
-    return promise::Error("Group chat calls are not implemented yet");
 }
 
 IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
@@ -2867,11 +2927,25 @@ const char* Client::connStateToStr(ConnState state)
         default: return "(invalid)";
     }
 }
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::IEventHandler* Client::onIncomingCallRequest(
-        const std::shared_ptr<rtcModule::ICallAnswer> &ans)
+
+bool Client::isCallInProgress() const
 {
-    return app.onIncomingCall(ans);
+    bool callInProgress = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        callInProgress = rtc->isCallInProgress();
+    }
+#endif
+
+    return callInProgress;
+}
+
+#ifndef KARERE_DISABLE_WEBRTC
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
+{
+    return app.onIncomingCall(call);
 }
 #endif
 

@@ -6,7 +6,7 @@
 #include <string>
 #include <videoRenderer_Qt.h>
 #include <gcm.h>
-#include "rtcModule/IRtcModule.h"
+#include "rtcModule/webrtc.h"
 #include <iostream>
 //#include <rapidjson/document.h>
 #include <sdkApi.h>
@@ -189,7 +189,7 @@ void MainWindow::onPresenceChanged(Id userid, Presence pres, bool inProgress)
             :kOnlineSymbol_Set);
 
         ui.mOnlineStatusBtn->setStyleSheet(
-            kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.status()]));
+                    kOnlineStatusBtnStyle.arg(gOnlineIndColors[pres.isValid() ? pres.status() : 0]));
     }
     else
     {

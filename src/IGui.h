@@ -1,6 +1,8 @@
 #ifndef IAPP_H
 #define IAPP_H
-#include <rtcModule/IRtcModule.h>
+#ifndef KARERE_DISABLE_WEBRTC
+    #include <webrtc.h>
+#endif
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -53,19 +55,6 @@ public:
         virtual void onUnreadCountChanged(int count) {}
     };
 
-    /**
-     * @brief This is the interface that receives events about an ongoing call.
-     *
-     * As currently there are no additional methods besides the inherited from
-     * \c  IEventHandler, the class is empty.
-     */
-
-    class ICallHandler: public rtcModule::IEventHandler
-    {
-    public:
-        virtual ~ICallHandler() {}
-    };
-
     /** @brief This interface must be implemented to receive events related to a chat.
      * It inherits chatd::Listener in order to receive chatd events,
      * and ITitleHandler, in order to receive chat title and online status change events
@@ -76,12 +65,14 @@ public:
 
         virtual ~IChatHandler() {}
 
+#ifndef KARERE_DISABLE_WEBRTC
         /**
          * @brief Returns the ICallHandler instance associated with that chat, in
          * case there is an ongoing call. If there is no call,
          * NULL should be returned
          */
-        virtual ICallHandler* callHandler() = 0;
+        virtual rtcModule::ICallHandler* callHandler() = 0;
+#endif
 
         /** @brief Called when the name of a member changes
          * @param userid The member user handle
@@ -358,16 +349,12 @@ public:
     /**
      * @brief Called by karere when there is an incoming call.
      *
-     * The app must create a rtcModule::IEventHandler to handle events related to
-     * that incoming call request (such as cancel or timeout of the call request).
-     * Normally this rtcModule::IEventHandler instance is a class that displays
-     * an incoming call GUI, that has a shared pointer to the rtcModule::ICallAnswer
-     * object that is used to answer or reject the call.
-     * @param ans The \c rtcModule::ICallAnswer object that is used to answer or
-     * reject the call
+     * The app must create a rtcModule::ICallHandler to handle events related to
+     * that call.
+     * @param call The \c rtcModule::ICall instance that represents the call. To
+     * answer, do `call.answer()`, to reject, do `call.hangup()`
      */
-    virtual rtcModule::IEventHandler*
-        onIncomingCall(const std::shared_ptr<rtcModule::ICallAnswer>& ans) = 0;
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call) = 0;
 #endif
     /**
      * @brief Called by karere when we become participants in a 1on1 or a group chat.
