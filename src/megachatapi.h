@@ -1426,6 +1426,7 @@ public:
     enum
     {
         INIT_ERROR                  = -1,   /// Initialization failed --> disable chat
+        INIT_NOT_DONE               = 0,    /// Initialization not done yet
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
@@ -1543,12 +1544,13 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
+     *  - MegaChatApi::INIT_NOT_DONE = 0
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
      *  - MegaChatApi::INIT_NO_CACHE = 7
      *
-     * The returned value will be undefined if \c init(sid) has not been called yet.
+     * If \c MegaChatApi::init() has not been called yet, this function returns INIT_NOT_DONE
      *
      * @return The current initialization state
      */
@@ -3485,9 +3487,9 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
-     *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 0
-     *  - MegaChatApi::INIT_OFFLINE_SESSION = 1
-     *  - MegaChatApi::INIT_ONLINE_SESSION = 2
+     *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
+     *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
+     *  - MegaChatApi::INIT_ONLINE_SESSION = 3
      *
      * @param api MegaChatApi connected to the account
      * @param newState New state of initialization

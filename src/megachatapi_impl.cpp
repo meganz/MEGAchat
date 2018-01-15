@@ -1158,7 +1158,7 @@ int MegaChatApiImpl::getInitState()
     }
     else
     {
-        initState = MegaChatApi::INIT_ERROR;
+        initState = MegaChatApi::INIT_NOT_DONE;
     }
     sdkMutex.unlock();
 
@@ -2990,6 +2990,9 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrAlready:
         return MegaChatApi::INIT_ERROR;
 
+    case karere::Client::kInitCreated:
+        return MegaChatApi::INIT_NOT_DONE;
+
     case karere::Client::kInitErrNoCache:
         return MegaChatApi::INIT_NO_CACHE;
 
@@ -3002,7 +3005,6 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitHasOnlineSession:
         return MegaChatApi::INIT_ONLINE_SESSION;
 
-    case karere::Client::kInitCreated:
     case karere::Client::kInitTerminated:
     case karere::Client::kInitErrSidInvalid:
     default:
