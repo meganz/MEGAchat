@@ -666,6 +666,7 @@ public:
     {
         ui.mMessageEdit->setEnabled(true);
     }
+    virtual void onHistoryReloaded();
 
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //IChatWindow interface
