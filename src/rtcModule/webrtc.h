@@ -167,7 +167,7 @@ public:
      * @param call The incoming call
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onCallIncoming(ICall& call) = 0;
+    virtual ICallHandler* onCallIncoming(ICall& call, karere::AvFlags av) = 0;
 };
 
 class ISession: public karere::DeleteTrackable

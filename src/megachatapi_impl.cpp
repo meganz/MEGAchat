@@ -1414,6 +1414,16 @@ void MegaChatApiImpl::fireOnMessageUpdate(MegaChatMessage *msg)
     delete msg;
 }
 
+void MegaChatApiImpl::fireOnHistoryReloaded(MegaChatRoom *chat)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onHistoryReloaded(chatApi, chat);
+    }
+
+    delete chat;
+}
+
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
@@ -2883,12 +2893,13 @@ void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call)
+rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)
 {
     MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
     chatCallHandler->setCall(&call);
     MegaChatHandle chatid = call.chat().chatId();
     callHandlers[chatid] = chatCallHandler;
+    chatCallHandler->getMegaChatCall()->setRemoteAudioVideoFlags(av);
 
     // Notify onIncomingCall like state change becouse rtcModule::ICall::kStateRingIn status
     // it is not notify
@@ -3822,6 +3833,12 @@ void MegaChatRoomHandler::onLastMessageTsUpdated(uint32_t ts)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onLastMessageTsUpdated(ts);
     }
+}
+
+void MegaChatRoomHandler::onHistoryReloaded()
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    chatApi->fireOnHistoryReloaded(chat);
 }
 
 bool MegaChatRoomHandler::isRevoked(MegaChatHandle h)
