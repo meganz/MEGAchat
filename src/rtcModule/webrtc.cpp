@@ -435,7 +435,7 @@ void RtcModule::cmdEndpoint(chatd::Chat &chat, uint8_t type, Id chatid, Id useri
     msg.payloadAppend(args...);
     if (!chat.sendCommand(std::move(msg)))
     {
-        throw std::runtime_error(std::string("cmdEndpoint: Send error trying to send command ") + std::to_string(type));
+        RTCM_LOG_ERROR("cmdEndpoint: Send error trying to send command OP_RTMSG_ENDPOINT");
     }
 }
 
@@ -444,8 +444,11 @@ void RtcModule::removeCall(Call& call)
     auto chatid = call.mChat.chatId();
     auto it = mCalls.find(chatid);
     if (it == mCalls.end())
-        throw std::runtime_error("Call with chatid "+chatid.toString()+" not found");
-
+    {
+        RTCM_LOG_WARNING("Call with chatid %s not found", chatid.toString().c_str());
+        return;
+    }
+    
     if (&call != it->second.get() || it->second->id() != call.id()) {
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
@@ -577,9 +580,11 @@ void RtcModule::onShutdown()
 
 void RtcModule::hangupAll(TermCode code)
 {
-    for (auto& item: mCalls)
+    for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
     {
-        auto& call = item.second;
+        auto& call = callIt->second;
+        callIt++;
+        
         if (call->state() == Call::kStateRingIn)
         {
             assert(call->mSessions.empty());
@@ -596,7 +601,7 @@ void RtcModule::sendCommand(Chat &chat, uint8_t opcode, uint8_t command, Id chat
     message.payloadAppend(args...);
     if (!chat.sendCommand(std::move(message)))
     {
-        throw std::runtime_error(std::string("cmdEndpoint: Send error trying to send command: RTCMD_CALL_REQ_DECLINE"));
+        RTCM_LOG_ERROR("cmdEndpoint: Send error trying to send command: RTCMD_CALL_REQ_DECLINE");
     }
     return;
 }
@@ -1620,7 +1625,9 @@ void Session::createRtcConn()
     if (mCall.mLocalStream)
     {
         if (!mRtcConn->AddStream(*mCall.mLocalStream))
-            throw std::runtime_error("mRtcConn->AddStream() returned false");
+        {
+            RTCM_LOG_ERROR("mRtcConn->AddStream() returned false");
+        }
     }
     mStatRecorder.reset(new stats::Recorder(*this, 1, 5));
     mStatRecorder->start();
