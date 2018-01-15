@@ -79,13 +79,15 @@ class MegaLoggerApplication : public mega::MegaLogger,
 
 
 class MegaChatApplication:
+        public QApplication,
         public mega::MegaListener,
         public megachat::MegaChatListener,
         public megachat::MegaChatRequestListener
 {
+    Q_OBJECT
     public:
-         MegaChatApplication();
-         int init();
+         MegaChatApplication(int &argc ,char** argv);
+         void init();
          void login();
          void readSid();
          const char *getSid() const;
@@ -114,7 +116,6 @@ class MegaChatApplication:
          // implementation for MegaRequestListener
          virtual void onRequestStart(mega::MegaApi *api, mega::MegaRequest *request) {}
          virtual void onRequestUpdate(mega::MegaApi*api, mega::MegaRequest *request) {}
-         //virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
          virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, MegaError *e);
          virtual void onRequestTemporaryError(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError* error) {}
 
@@ -128,21 +129,12 @@ class MegaChatApplication:
          mega::MegaApi *megaApi;
          std::string appDir;
          megachat::MegaChatApi *megaChatApi;
-         WebsocketsIO *websocketsIO;
          LoginDialog *loginDlg;
          MegaLoggerApplication *logger;
-};
 
 
-class AppDelegate: public QObject
-{
-    Q_OBJECT
     public slots:
-        void onAppTerminate(MegaChatApplication *megaChatApp);
-        void onEsidLogout();
-    public:
-        virtual bool event(QEvent* event);
-        void myMegaPostMessageToGui(void* msg, void* appCtx, AppDelegate *appDelegate);
+        void onAppTerminate();
 };
 #endif // MEGACHATAPPLICATION_H
 

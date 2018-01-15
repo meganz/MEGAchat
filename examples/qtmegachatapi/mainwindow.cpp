@@ -88,7 +88,7 @@ promise::Promise<std::pair<std::string, std::string>> LoginDialog::requestCreden
 
 void LoginDialog::setState(LoginStage state)
     {
-        ui.mLoginStateDisplay->setStyleSheet((state == kBadCredentials)?"color:red":"color:black");
+        ui.mLoginStateDisplay->setStyleSheet((state == badCredentials)?"color:red":"color:black");
         ui.mLoginStateDisplay->setText(sLoginStageStrings[state]);
     }
 
@@ -134,6 +134,7 @@ MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
     mLoginDlg=NULL;
     megaChatApi=NULL;
+    megaApi=NULL;
     ui.setupUi(this);
     connect(ui.mSettingsBtn, SIGNAL(clicked(bool)), this, SLOT(onSettingsBtn(bool)));
     connect(ui.mOnlineStatusBtn, SIGNAL(clicked(bool)), this, SLOT(onOnlineStatusBtn(bool)));

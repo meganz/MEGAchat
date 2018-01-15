@@ -6,9 +6,7 @@
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-//#include <mstrophepp.h>
 #include <webrtc.h>
-//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
@@ -36,26 +34,37 @@ class Client;
 QString prettyInterval(int64_t secs);
 class CListItem;
 
-class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
+
+class LoginDialog: public QDialog //, public karere::IApp::ILoginDialog
 {
     Q_OBJECT
-    Ui::LoginDialog ui;
-    promise::Promise<std::pair<std::string, std::string>> mPromise;
-    static QString sLoginStageStrings[kLast+1];
-    ~LoginDialog();
-public:
+    public:
+        enum LoginStage {
+            authenticating,
+            badCredentials,
+            loggingIn,
+            fetchingNodes,
+            loginComplete,
+            last=loginComplete
+        };
 
-    LoginDialog(QWidget* parent);
-    void destroy();
-    void enableControls(bool enable);
-    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
-    virtual void setState(LoginStage state);
+        LoginDialog(QWidget* parent);
+        void destroy();
+        void enableControls(bool enable);
+        virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
+        virtual void setState(LoginStage state);
 
-public slots:
-    void onOkBtn(bool);
-    void onCancelBtn(bool);
-    void onType(const QString&);
-    virtual void closeEvent(QCloseEvent *event);
+    public slots:
+        void onOkBtn(bool);
+        void onCancelBtn(bool);
+        void onType(const QString&);
+        virtual void closeEvent(QCloseEvent *event);
+
+    private:
+        Ui::LoginDialog ui;
+        promise::Promise<std::pair<std::string, std::string>> mPromise;
+        static QString sLoginStageStrings[last+1];
+        ~LoginDialog();
 };
 
 
@@ -73,6 +82,7 @@ public:
 
     //Assign a pointer to MegachatApi Object
     void setMegaChatApi(MegaChatApi * mchatApi) {this->megaChatApi=mchatApi;}
+    void setMegaApi(MegaApi * mApi) {this->megaApi=mApi;}
 
     karere::Client& client() const { return *mClient; }
     ~MainWindow();
@@ -83,6 +93,8 @@ public:
 
 
     megachat::MegaChatApi * megaChatApi;
+    mega::MegaApi * megaApi;
+
     void removeItem(IListItem& item);
 
 //IContactList
