@@ -89,6 +89,7 @@ class MegaChatApplication:
          MegaChatApplication(int &argc ,char** argv);
          void init();
          void login();
+         void logout();
          void readSid();
          const char *getSid() const;
          void sigintHandler(int);

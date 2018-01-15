@@ -56,7 +56,6 @@ QString kOnlineStatusBtnStyle = QStringLiteral(
 }
 
 
-
 void MegaChatApplication::onAppTerminate()
 {
     static bool called = false;
@@ -66,43 +65,28 @@ void MegaChatApplication::onAppTerminate()
     //delete this;
 }
 
-
-
 MegaChatApplication::MegaChatApplication(int &argc ,char** argv) : QApplication(argc,argv)
 {
-         this->setQuitOnLastWindowClosed(false);
-         appDir = karere::createAppDir();
-         configureLogs();
-
-         //Create Main Window
-         mainWin = new MainWindow();
-
-         //Create MegaAPI
-         megaApi=new ::mega::MegaApi("karere-native", appDir.c_str(), "Karere Native");
-         megaApi->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
-         megaApi->addListener(this);
-
-         //Create MegaChatAPI
-         megaChatApi=new ::megachat::MegaChatApi(megaApi);
-         megaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
-         megaChatApi->addChatRequestListener(this);
-         megaChatApi->addChatListener(this);
-
-
-
-         mainWin->setMegaChatApi(megaChatApi);
-         mainWin->setMegaApi(megaApi);
-         loginDlg = nullptr;
-
+     this->setQuitOnLastWindowClosed(false);
+     appDir = karere::createAppDir();
+     configureLogs();
+     mainWin = new MainWindow();
+     loginDlg = nullptr;
+     megaApi=new ::mega::MegaApi("karere-native", appDir.c_str(), "Karere Native");
+     megaApi->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+     megaApi->addListener(this);
+     megaChatApi=new ::megachat::MegaChatApi(megaApi);
+     megaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+     megaChatApi->addChatRequestListener(this);
+     megaChatApi->addChatListener(this);
+     mainWin->setMegaChatApi(megaChatApi);
+     mainWin->setMegaApi(megaApi);
 }
 
 MegaChatApplication::~MegaChatApplication()
 {
-    megaApi->logout(nullptr);
-    megaChatApi->logout(nullptr);
     delete megaChatApi;
     delete megaApi;
-    qApp->quit();
     delete mainWin;
     loginDlg->destroy();
     delete logger;
@@ -133,12 +117,19 @@ void MegaChatApplication::login()
            assert(loginDlg);
            loginDlg->setState(LoginDialog::loggingIn);
            megaApi->login(cred.first.c_str(), cred.second.c_str());           
+           QObject::connect(mainWin, SIGNAL(esidLogout()), this, SLOT(onAppTerminate()));
        })
-       .fail([](const promise::Error& err)
+       .fail([this](const promise::Error& err)
        {
-            //Check if this condition is necessary
+            this->quit();
        });
-    QObject::connect(mainWin, SIGNAL(esidLogout()), this, SLOT(onAppTerminate()));
+}
+
+void MegaChatApplication::logout()
+{
+    megaApi->logout();
+    megaChatApi->logout();
+    delete this;
 }
 
 void MegaChatApplication::readSid()
@@ -213,7 +204,7 @@ void MegaChatApplication::onChatInitStateUpdate(megachat::MegaChatApi *api, int 
         mainWin->setWindowTitle("");
     }
 }
-
+//------------------------------------------------------------------------------------------------------>
 
 
 void MegaChatApplication::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
