@@ -829,12 +829,20 @@ void Call::handleReject(RtMessage& packet)
             SUB_LOG_WARNING("Ingoring unexpected CALL_REQ_DECLINE while in state %s", stateToStr(mState));
             return;
         }
-        if (mIsGroup || !mSessions.empty())
+        if (mIsGroup)
         {
-            SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE. It is Group call or there are active sessions");
+            // in groupcalls, a peer declining a call should not finish the call
+            SUB_LOG_WARNING("Ignoring CALL_REQ_DECLINE. A peer of the group call has declined the request");
             return;
         }
-
+        if (!mSessions.empty())
+        {
+            // in both 1on1 calls and groupcalls, receiving a request-decline should not destroy the call
+            // if there's already a session (in 1on1, it may happen when the answerer declined from a 3rd client, but
+            // already answered)
+            SUB_LOG_WARNING("Ignoring CALL_REQ_DECLINE. There are active sessions already, so the call is in progress.");
+            return;
+        }
         destroy(static_cast<TermCode>(TermCode::kCallRejected | TermCode::kPeer), false);
     }
     else // Call has been rejected by other client from same user
