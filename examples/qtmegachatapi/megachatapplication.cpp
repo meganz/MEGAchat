@@ -72,10 +72,10 @@ MegaChatApplication::MegaChatApplication(int &argc ,char** argv) : QApplication(
      configureLogs();
      mainWin = new MainWindow();
      loginDlg = nullptr;
-     megaApi=new ::mega::MegaApi("karere-native", appDir.c_str(), "Karere Native");
+     megaApi = new ::mega::MegaApi("karere-native", appDir.c_str(), "Karere Native");
      megaApi->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
      megaApi->addListener(this);
-     megaChatApi=new ::megachat::MegaChatApi(megaApi);
+     megaChatApi = new ::megachat::MegaChatApi(megaApi);
      megaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
      megaChatApi->addChatRequestListener(this);
      megaChatApi->addChatListener(this);
@@ -116,7 +116,7 @@ void MegaChatApplication::login()
        {
            assert(loginDlg);
            loginDlg->setState(LoginDialog::loggingIn);
-           megaApi->login(cred.first.c_str(), cred.second.c_str());           
+           megaApi->login(cred.first.c_str(), cred.second.c_str());
            QObject::connect(mainWin, SIGNAL(esidLogout()), this, SLOT(onAppTerminate()));
        })
        .fail([this](const promise::Error& err)
@@ -129,7 +129,7 @@ void MegaChatApplication::logout()
 {
     megaApi->logout();
     megaChatApi->logout();
-    delete this;
+    //Implements differents options depending on the status
 }
 
 void MegaChatApplication::readSid()
@@ -140,7 +140,7 @@ void MegaChatApplication::readSid()
     {
        sidf.getline(buf, 256);
        if (!sidf.fail())
-           sid=strdup(buf);
+           sid = strdup(buf);
            //strcpy (sid,buf);
     }
 }
@@ -167,7 +167,7 @@ void MegaChatApplication::saveSid(const char* sdkSid)
 
 void MegaChatApplication::configureLogs()
 {
-    std::string logPath=appDir+"/log.txt";
+    std::string logPath = appDir+"/log.txt";
     logger = new MegaLoggerApplication(logPath.c_str());
 
     //MegaApi::addLoggerObject(logger);
@@ -267,6 +267,25 @@ void MegaChatApplication::onRequestFinish(mega::MegaApi *api, mega::MegaRequest 
     }
 }
 
+void MegaChatApplication::addChats()
+{
+    MegaChatHandle hand;
+
+
+    MegaChatListItemList * chatList = megaChatApi->getChatListItems();
+    for(int i=0; i<chatList->size();i++)
+    {
+        if (!chatList->get(i)->isGroup())
+        {
+
+             hand=chatList->get(i)->getChatId();
+            mainWin->addPeerChat(chatList->get(i)->getChatId(),this->megaChatApi);
+        }
+    }
+}
+
+
+
 // implementation for MegachatRequestListener
 void MegaChatApplication::onRequestFinish(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError* e)
 {
@@ -275,7 +294,9 @@ void MegaChatApplication::onRequestFinish(megachat::MegaChatApi* megaChatApi, me
         case megachat::MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
-                this->logger->postLog("CONNECT OK");
+               addChats();
+
+               int a=0;
             }
             else
             {
@@ -283,6 +304,7 @@ void MegaChatApplication::onRequestFinish(megachat::MegaChatApi* megaChatApi, me
             break;
     }
 }
+
 
 
 
@@ -336,6 +358,8 @@ void setVidencParams()
 #endif
 }
 */
+//------------------------------------------------------------------------------------------------------>
+
 
 MegaLoggerApplication::MegaLoggerApplication(const char *filename)
 {

@@ -132,9 +132,8 @@ QString LoginDialog::sLoginStageStrings[] = {
 /*=============================MAINWINDOW=============================*/
 MainWindow::MainWindow(Client* aClient): mClient(aClient)
 {
-    mLoginDlg=NULL;
-    megaChatApi=NULL;
-    megaApi=NULL;
+    megaChatApi = NULL;
+    megaApi = NULL;
     ui.setupUi(this);
     connect(ui.mSettingsBtn, SIGNAL(clicked(bool)), this, SLOT(onSettingsBtn(bool)));
     connect(ui.mOnlineStatusBtn, SIGNAL(clicked(bool)), this, SLOT(onOnlineStatusBtn(bool)));
@@ -541,4 +540,16 @@ void CListChatItem::truncateChat()
         thisroom.chat().at(thisroom.chat().highnum()).id().val);
 }
 
+
+//-------------------------------------------------------------------------------------------------------------------->
+void MainWindow::addPeerChat(MegaChatHandle chatId,MegaChatApi *mChatApi)
+{
+
+    auto clist = ui.contactList;
+    auto chatGui = new CListPeerChatItemThree(clist, chatId, mChatApi);
+    auto item = new QListWidgetItem;
+    item->setSizeHint(chatGui->size());
+    clist->insertItem(0, item);
+    clist->setItemWidget(item, chatGui);
+}
 #include <mainwindow.moc>

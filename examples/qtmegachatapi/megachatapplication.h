@@ -95,6 +95,7 @@ class MegaChatApplication:
          void sigintHandler(int);
          void saveSid(const char* sdkSid);
          void configureLogs();
+         void addChats();
          std::string getAppDir() const;
          ~MegaChatApplication();
 

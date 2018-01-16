@@ -26,7 +26,7 @@ using namespace mega;
 using namespace megachat;
 using namespace karere;
 
-MegaChatApplication *mChatApplication=nullptr;
+MegaChatApplication *mChatApplication = nullptr;
 
 void createWindowAndClient(int &argc, char **argv)
 {

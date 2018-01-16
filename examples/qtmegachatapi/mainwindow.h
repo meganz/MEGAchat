@@ -1,6 +1,5 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QInputDialog>
@@ -77,23 +76,21 @@ class MainWindow :
     Q_OBJECT
     karere::Client* mClient;
 public:
-    explicit MainWindow(karere::Client* aClient=nullptr);
-    void setClient(karere::Client& client) { mClient = &client;}
-
-    //Assign a pointer to MegachatApi Object
-    void setMegaChatApi(MegaChatApi * mchatApi) {this->megaChatApi=mchatApi;}
-    void setMegaApi(MegaApi * mApi) {this->megaApi=mApi;}
-
-    karere::Client& client() const { return *mClient; }
+    explicit MainWindow(karere::Client* aClient = nullptr);
     ~MainWindow();
+    void setClient(karere::Client& client) {mClient = &client;}
+    void setMegaChatApi(MegaChatApi * mchatApi) {this->megaChatApi = mchatApi;}
+    void setMegaApi(MegaApi * mApi) {this->megaApi = mApi;}
     Ui::MainWindow ui;
-
-    //MOVE LOGIN DIALOG TO MEGACHATAPPLICATION
-    LoginDialog* mLoginDlg;
-
-
     megachat::MegaChatApi * megaChatApi;
     mega::MegaApi * megaApi;
+
+    //New peer chat add
+    void addPeerChat(MegaChatHandle chatId,MegaChatApi *mChatApi);
+
+
+    //Remove this object
+    karere::Client& client() const { return *mClient; }
 
     void removeItem(IListItem& item);
 
@@ -170,7 +167,7 @@ protected:
     Ui::CListItemGui ui;
     int mLastOverlayCount = 0;
 public:
-//karere::ITitleDisplay interface
+    //karere::ITitleDisplay interface
     virtual void onUnreadCountChanged(int count)
     {
         if (count < 0)
@@ -197,7 +194,7 @@ public:
         ui.setupUi(this);
         ui.mUnreadIndicator->hide();
     }
-    virtual promise::Promise<ChatWindow*> showChatWindow() = 0;
+    //virtual promise::Promise<ChatWindow*> showChatWindow() = 0;
     void showAsHidden()
     {
         ui.mName->setStyleSheet("color: rgba(0,0,0,128)\n");
@@ -603,5 +600,82 @@ public:
         ui.mName->setText(text);
     }
 };
+
+
+//----------------------------------------------------------------------------------->
+class CListChatItemTwo: public CListItem
+{
+    Q_OBJECT
+public:
+
+    CListChatItemTwo(QWidget* parent): CListItem(parent)
+    {}
+
+    virtual void onVisibilityChanged(int newVisibility) {}
+
+protected:
+    virtual void updateToolTip() = 0;
+
+};
+
+
+//The commented lines modify Widget "settings"
+class CListPeerChatItemThree: public CListChatItemTwo
+{
+protected:
+      MegaChatRoom *chatRoom;
+      MegaChatListItem *chatListItem;
+public:
+    CListPeerChatItemThree(QWidget* parent,megachat::MegaChatHandle chatId,MegaChatApi *mChatApi)
+        : CListChatItemTwo(parent)
+    {
+        chatRoom=mChatApi->getChatRoom(chatId);
+        chatListItem=mChatApi->getChatListItem(chatId);
+
+        /*
+          @brief The visibility of this contact, as returned by
+                 * mega::MegaUser::getVisibility(). If it is \c MegaUser::VISIBILITY_HIDDEN,
+                 * then this contact is not a contact anymore, but kept in the contactlist
+                 * to be able to access archived chat history etc.
+                 *
+          if(mRoom.contact().visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+              showAsHidden();
+        */
+        ui.mAvatar->setText("1");
+        updateToolTip();
+    }
+    void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
+    {
+        QString text(tr("1on1 Chat room: "));
+        text.append(QString::fromStdString(karere::Id(chatRoom->getChatId()).toString()));
+        text.append(tr("\nEmail: "));
+        text.append(QString::fromStdString(chatRoom->getPeerEmail(0)));
+        // text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
+        // text.append(tr("\nLast message:\n")).append(QString::fromStdString(mLastTextMsg));
+        setToolTip(text);
+        ui.mName->setText(text);
+    }
+
+
+    void contextMenuEvent(QContextMenuEvent* event)
+    {
+        QMenu menu(this);
+        auto actTruncate = menu.addAction(tr("Truncate chat"));
+        connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
+        menu.setStyleSheet("background-color: lightgray");
+        menu.exec(event->globalPos());
+    }
+
+    //Remove from parent, this object it's not necessary
+        //virtual karere::ChatRoom& room() const { return mRoom; }
+
+    //ITitleHandler interface
+    virtual void onTitleChanged(const std::string& title)
+    {
+        QString text = QString::fromStdString(title);
+        ui.mName->setText(text);
+    }
+};
+//----------------------------------------------------------------------------------->
 
 #endif // MAINWINDOW_H
