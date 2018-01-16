@@ -126,11 +126,10 @@ public:
         return !mStats->mConnInfo.mRlySvr.empty();
     }
     void start();
-    void terminate(const std::string& termRsn);
+    std::string terminate(const StatSessInfo &info);
     virtual void OnComplete(const webrtc::StatsReports& data);
-    void onStats(const std::shared_ptr<artc::MyStatsReports>& data);
+    void onStats(const webrtc::StatsReports &data);
     std::function<void(void*, int)> onSample;
-    std::string getStats(const StatSessInfo& info);
 };
 }
 }

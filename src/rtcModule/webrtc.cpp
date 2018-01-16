@@ -2053,9 +2053,8 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
-    std::string stats = mStatRecorder->getStats(info);
+    std::string stats = mStatRecorder->terminate(info);
     mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
-
     return;
 }
 

@@ -70,114 +70,97 @@ void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
 
 void Recorder::OnComplete(const webrtc::StatsReports& data)
 {
-    auto myData = std::make_shared<artc::MyStatsReports>(data);
-    marshallCall([this, myData]()
-    {
-        try
-        {
-            onStats(myData);
-        }
-        catch(std::exception& e)
-        {
-            KR_LOG_ERROR("Stats: %s", e.what());
-        }
-    }, mSession.mManager.mClient.appCtx);
+    onStats(data);
 }
 
-void dumpStats(const artc::MyStatsReports& data)
-{
-    printf("====================== Stats report received\n");
-    for (auto& item: data)
-    {
-        printf("%s:\n", item.typeStr.c_str());
-        for (auto& val: item)
-            printf("\t'%s' = '%s'\n", val.second->display_name(), val.second->ToString().c_str());
-    }
-}
+#define AVG(name, var) var = round((float)var + item->FindValue(VALNAME(name))->int64_val()) / 2
 
-#define AVG(name, var) var = round((float)var + item.longVal(VALNAME(name))) / 2
-
-void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
+void Recorder::onStats(const webrtc::StatsReports &data)
 {
-//  dumpStats(*data);
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
-    for (auto& item: *data)
+    for (const webrtc::StatsReport* item: data)
     {
-        if (item.type == RPTYPE(Ssrc))
+        if (item->id()->type() == RPTYPE(Ssrc))
         {
             long width;
-            if (item.longVal(VALNAME(FrameWidthReceived), width)) //video rx
+            if (item->FindValue(VALNAME(FrameWidthReceived))) //video rx
             {
+                width = item->FindValue(VALNAME(FrameWidthReceived))->int64_val();
                 auto& sample = mCurrSample->vstats.r;
-                mVideoRxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+                mVideoRxBwCalc.calculate(period, item->FindValue(VALNAME(BytesReceived))->int64_val());
                 AVG(FrameRateReceived, sample.fps);
                 AVG(CurrentDelayMs, sample.dly);
                 AVG(JitterBufferMs, sample.jtr);
-                sample.pl = item.longVal(VALNAME(PacketsLost));
+                sample.pl = item->FindValue(VALNAME(PacketsLost))->int64_val();
 //              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
                 sample.width = width;
-                sample.height = item.longVal(VALNAME(FrameHeightReceived));
+                sample.height = item->FindValue(VALNAME(FrameHeightReceived))->int64_val();
             }
-            else if (item.longVal(VALNAME(FrameWidthSent), width)) //video tx
+            else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
             {
+                width = item->FindValue(VALNAME(FrameWidthSent))->int64_val();
                 auto& sample = mCurrSample->vstats.s;
                 AVG(Rtt, sample.rtt);
                 AVG(FrameRateSent, sample.fps);
                 AVG(FrameRateInput, sample.cfps);
 //              AVG(CaptureJitterMs, sample.cjtr); //no capture jitter stats anymore?
                 sample.width = width;
-                sample.height = item.longVal(VALNAME(FrameHeightSent));
+                sample.height = item->FindValue(VALNAME(FrameHeightSent))->int64_val();
                 if (mStats->mConnInfo.mVcodec.empty())
-                    mStats->mConnInfo.mVcodec = item.strVal(VALNAME(CodecName));
+                    mStats->mConnInfo.mVcodec = item->FindValue(VALNAME(CodecName))->string_val();
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.lcpu = (item.strVal(VALNAME(CpuLimitedResolution)) == "true");
-                sample.lbw = (item.strVal(VALNAME(BandwidthLimitedResolution)) == "true");
-                mVideoTxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
+                sample.lcpu = (*item->FindValue(VALNAME(CpuLimitedResolution)) == "true");
+                sample.lbw = (*item->FindValue(VALNAME(BandwidthLimitedResolution)) == "true");
+                mVideoTxBwCalc.calculate(period, item->FindValue(VALNAME(BytesSent))->int64_val());
             }
-            else if (item.hasVal(VALNAME(AudioInputLevel))) //audio rx
+            else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
             {
-                mAudioRxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
-                AVG(Rtt, mCurrSample->astats.rtt);
+                mAudioRxBwCalc.calculate(period, item->FindValue(VALNAME(BytesSent))->int64_val());
+                if (item->FindValue(VALNAME(Rtt)))
+                {
+                    AVG(Rtt, mCurrSample->astats.rtt);
+                }
             }
-            else if (item.hasVal(VALNAME(AudioOutputLevel))) //audio tx
+            else if (item->FindValue(VALNAME(AudioOutputLevel))) //audio tx
             {
-                mAudioTxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+                mAudioTxBwCalc.calculate(period, item->FindValue(VALNAME(BytesReceived))->int64_val());
                 AVG(JitterReceived, mCurrSample->astats.jtr);
-                mCurrSample->astats.pl = item.longVal(VALNAME(PacketsLost));
+                mCurrSample->astats.pl = item->FindValue(VALNAME(PacketsLost))->int64_val();
             }
         }
-        else if ((item.type == RPTYPE(CandidatePair)) && (item.strVal(VALNAME(ActiveConnection)) == "true"))
+        else if ((item->id()->type() == RPTYPE(CandidatePair)) && *item->FindValue(VALNAME(ActiveConnection)) == std::string("true"))
         {
             if (!mHasConnInfo) //happens if peer is Firefox
             {
                 mHasConnInfo = true;
-                bool isRelay = (item.strVal(VALNAME(LocalCandidateType)) == "relay");
+                bool isRelay = (item->FindValue(VALNAME(LocalCandidateType))->string_val() == "relay");
                 if (isRelay)
                 {
                     auto& rlySvr = mStats->mConnInfo.mRlySvr;
-                    rlySvr = item.strVal(VALNAME(LocalAddress));
+                    rlySvr = item->FindValue(VALNAME(LocalAddress))->string_val();
                     if (rlySvr.empty())
                         rlySvr = "<error getting relay server>";
                 }
-                mStats->mConnInfo.mCtype = item.strVal(VALNAME(RemoteCandidateType));
-                mStats->mConnInfo.mProto = item.strVal(VALNAME(TransportType));
+                mStats->mConnInfo.mCtype = item->FindValue(VALNAME(RemoteCandidateType))->string_val();
+                mStats->mConnInfo.mProto = item->FindValue(VALNAME(TransportType))->string_val();
             }
             auto& cstat = mCurrSample->cstats;
             AVG(Rtt, cstat.rtt);
-            mConnRxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
-            mConnTxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
+            mConnRxBwCalc.calculate(period, item->FindValue(VALNAME(BytesReceived))->int64_val());
+            mConnTxBwCalc.calculate(period, item->FindValue(VALNAME(BytesSent))->int64_val());
+
         }
-        else if (item.type == RPTYPE(Bwe))
+        else if (item->id()->type() == RPTYPE(Bwe))
         {
-            mCurrSample->vstats.r.bwav = round((float)item.longVal(VALNAME(AvailableReceiveBandwidth))/1024);
+            mCurrSample->vstats.r.bwav = round((float)item->FindValue(VALNAME(AvailableReceiveBandwidth))->int64_val()/1024);
             auto& sample = mCurrSample->vstats.s;
-            sample.bwav = round((float)item.longVal(VALNAME(AvailableSendBandwidth))/1024);
-            sample.gbps = round((float)item.longVal(VALNAME(TransmitBitrate))/1024); //chrome returns it in bits/s, should be near our calculated bps
+            sample.bwav = round((float)item->FindValue(VALNAME(AvailableSendBandwidth))->int64_val()/1024);
+            sample.gbps = round((float)item->FindValue(VALNAME(TransmitBitrate))->int64_val()/1024); //chrome returns it in bits/s, should be near our calculated bps
             sample.gabps = (sample.gabps*4+sample.gbps)/5;
-            sample.targetEncBitrate = round((float)item.longVal(VALNAME(TargetEncBitrate))/1024);
+            sample.targetEncBitrate = round((float)item->FindValue(VALNAME(TargetEncBitrate))->int64_val()/1024);
         }
     } //end item loop
     bool shouldAddSample = false;
@@ -238,23 +221,16 @@ void Recorder::start()
     mStats->mStartTs = karere::timestampMs();
     mTimer = setInterval([this]()
     {
-        //mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-    }, mScanPeriod, mSession.mManager.mClient.appCtx);
+        mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
+    }, mScanPeriod * 100, mSession.mManager.mClient.appCtx);
 }
 
-void Recorder::terminate(const std::string& termRsn)
+std::string Recorder::terminate(const StatSessInfo& info)
 {
     cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
-    mStats->mTermRsn = termRsn;
-    std::string json;
-    mStats->toJson(json);
-    printf("============== %s\n", json.c_str());
-}
-
-std::string Recorder::getStats(const StatSessInfo& info)
-{
+    mStats->mTermRsn = info.mTermReason;
     std::string json;
     mStats->toJson(json);
     return json;
