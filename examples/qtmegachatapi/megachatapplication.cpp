@@ -269,16 +269,11 @@ void MegaChatApplication::onRequestFinish(mega::MegaApi *api, mega::MegaRequest 
 
 void MegaChatApplication::addChats()
 {
-    MegaChatHandle hand;
-
-
     MegaChatListItemList * chatList = megaChatApi->getChatListItems();
     for(int i=0; i<chatList->size();i++)
     {
         if (!chatList->get(i)->isGroup())
         {
-
-             hand=chatList->get(i)->getChatId();
             mainWin->addPeerChat(chatList->get(i)->getChatId(),this->megaChatApi);
         }
     }

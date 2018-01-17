@@ -161,13 +161,13 @@ public:
 extern bool inCall;
 extern QColor gAvatarColors[];
 extern QString gOnlineIndColors[karere::Presence::kLast+1];
-class CListItem: public QWidget, public virtual karere::IApp::IListItem
+
+class CListItem: public QWidget
 {
 protected:
     Ui::CListItemGui ui;
     int mLastOverlayCount = 0;
 public:
-    //karere::ITitleDisplay interface
     virtual void onUnreadCountChanged(int count)
     {
         if (count < 0)
@@ -606,20 +606,83 @@ public:
 class CListChatItemTwo: public CListItem
 {
     Q_OBJECT
+protected:
+      MegaChatRoom *chatRoom;
+      MegaChatListItem *chatListItem;
 public:
+     promise::Promise<ChatWindow*> showChatWindow()
+     {
+         ChatWindow* window=nullptr;
+         /*auto& thisRoom = room();
+         if (!thisRoom.appChatHandler())
+         {
+             window = new ChatWindow(this, thisRoom);
+             thisRoom.setAppChatHandler(window);
+         }
+         else
+         {
+             //window = static_cast<ChatWindow*>(thisRoom.appChatHandler()->userp);
+         }
+         window->show();*/
+         return window;
+    }
 
-    CListChatItemTwo(QWidget* parent): CListItem(parent)
-    {}
+    CListChatItemTwo(QWidget* parent, MegaChatHandle chatId, MegaChatApi *mChatApi): CListItem(parent)
+    {
+        chatRoom=mChatApi->getChatRoom(chatId);
+        chatListItem=mChatApi->getChatListItem(chatId);
+    }
+
+    virtual void onLastMessageUpdated()
+    {
+        /*updateToolTip();
+        GUI_LOG_DEBUG("%s: onLastMessageUpdated: type 0x%x, data: %s",
+            karere::Id(chatRoom->getChatId()).toString(),
+            (chatListItem->getLastMessageType(),chatListItem->getLastMessageType()?chatListItem->getLastMessage(): "<none>")
+            );
+        */
+    }
+
+    virtual void onLastTsUpdated(uint32_t ts)
+    {
+        /*GUI_LOG_DEBUG("%s: onLastTsUpdated: %u",
+            karere::Id(chatRoom->getChatId()).toString(),
+            ts);*/
+    }
+
+    virtual void onChatOnlineState(const MegaChatHandle state)
+    {
+        /*MegaChatHandle virtPresence = (state == MegaChatApi::CHAT_CONNECTION_ONLINE)
+            ?MegaChatApi::STATUS_ONLINE
+            :MegaChatApi::STATUS_OFFLINE;
+
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[virtPresence]
+            +";border-radius: 4px");*/
+    }
 
     virtual void onVisibilityChanged(int newVisibility) {}
 
+    virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        showChatWindow();
+    }
 protected:
     virtual void updateToolTip() = 0;
-
+protected slots:
+    void truncateChat()
+    {/*
+        auto& thisroom = room();
+        if (thisroom.chat().empty())
+            return;
+        thisroom.parent.client.api.call(
+            &::mega::MegaApi::truncateChat,
+            thisroom.chatid(),
+            thisroom.chat().at(thisroom.chat().highnum()).id().val);*/
+    }
 };
 
 
-//The commented lines modify Widget "settings"
 class CListPeerChatItemThree: public CListChatItemTwo
 {
 protected:
@@ -627,35 +690,29 @@ protected:
       MegaChatListItem *chatListItem;
 public:
     CListPeerChatItemThree(QWidget* parent,megachat::MegaChatHandle chatId,MegaChatApi *mChatApi)
-        : CListChatItemTwo(parent)
+        : CListChatItemTwo(parent,chatId,mChatApi)
     {
         chatRoom=mChatApi->getChatRoom(chatId);
         chatListItem=mChatApi->getChatListItem(chatId);
 
-        /*
-          @brief The visibility of this contact, as returned by
-                 * mega::MegaUser::getVisibility(). If it is \c MegaUser::VISIBILITY_HIDDEN,
-                 * then this contact is not a contact anymore, but kept in the contactlist
-                 * to be able to access archived chat history etc.
-                 *
-          if(mRoom.contact().visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
-              showAsHidden();
-        */
+        if(!chatListItem->isActive())
+            showAsHidden();
+
         ui.mAvatar->setText("1");
         updateToolTip();
     }
+
     void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
     {
-        QString text(tr("1on1 Chat room: "));
+        QString text(tr("1on1 Chat room:"));
         text.append(QString::fromStdString(karere::Id(chatRoom->getChatId()).toString()));
         text.append(tr("\nEmail: "));
         text.append(QString::fromStdString(chatRoom->getPeerEmail(0)));
-        // text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
-        // text.append(tr("\nLast message:\n")).append(QString::fromStdString(mLastTextMsg));
+        text.append(tr("\nUser handle: ")).append(QString::fromStdString(std::to_string(chatListItem->getPeerHandle())));        
+        text.append(tr("\nLast message:\n")).append(QString::fromStdString(chatListItem->getLastMessage()));
         setToolTip(text);
         ui.mName->setText(text);
     }
-
 
     void contextMenuEvent(QContextMenuEvent* event)
     {
@@ -666,10 +723,6 @@ public:
         menu.exec(event->globalPos());
     }
 
-    //Remove from parent, this object it's not necessary
-        //virtual karere::ChatRoom& room() const { return mRoom; }
-
-    //ITitleHandler interface
     virtual void onTitleChanged(const std::string& title)
     {
         QString text = QString::fromStdString(title);
