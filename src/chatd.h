@@ -724,9 +724,6 @@ public:
       * to display the edited text in the unsent message.*/
     const std::map<karere::Id, Message*>& pendingEdits() const { return mPendingEdits; }
 
-    /** @brief The chatd::Listener currently attached to this chat */
-    Listener* listener() const { return mListener; }
-
     /** @brief Whether the listener will be notified upon receiving
      * old history messages from the server.
      */
