@@ -2232,7 +2232,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else
     {
         auto wptr = weakHandle();
-        addMember(userid, privilege, false)
+        addMember(userid, privilege, true)
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();
