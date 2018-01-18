@@ -567,7 +567,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     }
     else if (e->getErrorCode() != ::mega::MegaError::API_OK)
     {
-        KR_LOG_ERROR("Request %s finished with error %d", request->getRequestString(), e->getErrorString());
+        KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
         return;
     }
 
