@@ -60,7 +60,7 @@ using namespace chatd;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
-: sdkMutex(true)
+: sdkMutex(true), videoMutex(true)
 {
     init(chatApi, megaApi);
 }
@@ -2754,9 +2754,9 @@ void MegaChatApiImpl::addChatLocalVideoListener(MegaChatVideoListener *listener)
         return;
     }
 
-    sdkMutex.lock();
+    videoMutex.lock();
     localVideoListeners.insert(listener);
-    sdkMutex.unlock();
+    videoMutex.unlock();
 }
 
 void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener)
@@ -2766,9 +2766,9 @@ void MegaChatApiImpl::addChatRemoteVideoListener(MegaChatVideoListener *listener
         return;
     }
 
-    sdkMutex.lock();
+    videoMutex.lock();
     remoteVideoListeners.insert(listener);
-    sdkMutex.unlock();
+    videoMutex.unlock();
 }
 
 #endif
@@ -2856,9 +2856,9 @@ void MegaChatApiImpl::removeChatLocalVideoListener(MegaChatVideoListener *listen
         return;
     }
 
-    sdkMutex.lock();
+    videoMutex.lock();
     localVideoListeners.erase(listener);
-    sdkMutex.unlock();
+    videoMutex.unlock();
 }
 
 void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
@@ -2868,9 +2868,9 @@ void MegaChatApiImpl::removeChatRemoteVideoListener(MegaChatVideoListener *liste
         return;
     }
 
-    sdkMutex.lock();
+    videoMutex.lock();
     remoteVideoListeners.erase(listener);
-    sdkMutex.unlock();
+    videoMutex.unlock();
 }
 
 #endif  // webrtc
@@ -3792,6 +3792,7 @@ void* MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short
 
 void MegaChatVideoReceiver::frameComplete(void *userData)
 {
+    chatApi->videoMutex.lock();
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
     if(local)
     {
@@ -3801,6 +3802,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
     {
         chatApi->fireOnChatRemoteVideoData(chatid, frame->width, frame->height, (char *)frame->buffer);
     }
+    chatApi->videoMutex.unlock();
     delete frame->buffer;
     delete frame;
 }
