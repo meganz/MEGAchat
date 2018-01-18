@@ -724,6 +724,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     mega::MegaMutex sdkMutex;
+    mega::MegaMutex videoMutex;
     mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
