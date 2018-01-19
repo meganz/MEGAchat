@@ -1,0 +1,12 @@
+karere/
+res/
+rtctestapp_autogen/
+CMakeFiles/
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+Makefile
+cmake_install.cmake
+rtctestapp
+
