@@ -8,7 +8,7 @@ set(CMAKE_MACOSX_RPATH 1)
 #set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-set(BINDING_QT_INCLUDE_DIR "/home/mega/workspace/dev/MEGAchat/bindings/qt/")
+set(BINDING_QT_INCLUDE_DIR "../../bindings/qt/")
 set(BINDING_INCLUDE_DIRS ${BINDING_QT_INCLUDE_DIR})
 set_property(GLOBAL PROPERTY BINDING_INCLUDE_DIRS ${BINDING_INCLUDE_DIRS})
 
@@ -21,6 +21,12 @@ set (SRCS
      chatWindow.cpp
      main.cpp
      megachatapplication.cpp
+     ../../bindings/qt/QTMegaChatEvent.cpp
+     ../../bindings/qt/QTMegaChatListener.cpp
+     ../../bindings/qt/QTMegaChatRequestListener.cpp
+     ../../bindings/qt/QTMegaChatRoomListener.cpp
+
+
 #need to include also headers with Q_OBJECTs so that automoc knows to parse them
      widgetSubclass.h
 #==
@@ -49,7 +55,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KA
 get_property(KARERE_DEFINES GLOBAL PROPERTY KARERE_DEFINES)
 add_definitions(${KARERE_DEFINES})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DKARERE_DISABLE_WEBRTC")
 set(SYSLIBS)
 if (CLANG_STDLIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
