@@ -1552,6 +1552,9 @@ public:
      *
      * If \c MegaChatApi::init() has not been called yet, this function returns INIT_NOT_DONE
      *
+     * If the chat-engine is being terminated because the session is expired, it returns 10.
+     * If the chat-engine is being logged out, it returns 4.
+     *
      * @return The current initialization state
      */
     int getInitState();
