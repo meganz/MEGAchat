@@ -1036,7 +1036,7 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags avFlags = call->muteUnmute(newFlags);
 
             chatCall->setLocalAudioVideoFlags(avFlags);
-            API_LOG_INFO("Initial local audio/video flags. ChatId: %s, callid: %s, AV: %d",
+            API_LOG_INFO("Change local audio/video flags. ChatId: %s, callid: %s, AV: %d",
                          call->chat().chatId().toString().c_str(), call->id().toString().c_str(), avFlags);
 
             fireOnChatCallUpdate(chatCall);
@@ -5593,7 +5593,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
     {
         MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
         chatCall->setRemoteAudioVideoFlags(session->receivedAv());
-        API_LOG_INFO("Change remote audio/video flags. ChatId: %s, callid: %s, AV: %d",
+        API_LOG_INFO("Initial remote audio/video flags. ChatId: %s, callid: %s, AV: %d",
                      Id(chatCall->getChatid()).toString().c_str(), Id(chatCall->getId()).toString().c_str(), session->receivedAv());
 
         megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -5628,7 +5628,7 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 {
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     chatCall->setRemoteAudioVideoFlags(av);
-    API_LOG_INFO("Change local audio/video flags. ChatId: %s, callid: %s, AV: %d",
+    API_LOG_INFO("Change remote audio/video flags. ChatId: %s, callid: %s, AV: %d",
                  Id(chatCall->getChatid()).toString().c_str(), Id(chatCall->getId()).toString().c_str(), av);
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
