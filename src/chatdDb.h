@@ -345,6 +345,12 @@ public:
         stmt.blobCol(2, buf);
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
+
+    virtual void clearHistory()
+    {
+        mDb.query("delete from history where chatid = ?", mMessages.chatId());
+        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mMessages.chatId());
+    }
 };
 
 #endif

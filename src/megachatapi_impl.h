@@ -390,6 +390,7 @@ public:
     virtual void onUserTyping(karere::Id user);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
+    virtual void onHistoryReloaded();
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -726,6 +727,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     mega::MegaMutex sdkMutex;
+    mega::MegaMutex videoMutex;
     mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
@@ -840,6 +842,7 @@ public:
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
+    void fireOnHistoryReloaded(MegaChatRoom *chat);
 
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
@@ -943,6 +946,8 @@ public:
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
+    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCallsIds();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
@@ -959,7 +964,7 @@ public:
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
 #ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call);
+    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
     virtual void notifyInvited(const karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
