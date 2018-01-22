@@ -1,8 +1,6 @@
 #ifndef IAPP_H
 #define IAPP_H
-#ifndef KARERE_DISABLE_WEBRTC
-    #include <webrtc.h>
-#endif
+#include <webrtc.h>
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>

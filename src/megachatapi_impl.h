@@ -31,11 +31,8 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
-#ifndef KARERE_DISABLE_WEBRTC
 #include <rtcModule/webrtc.h>
 #include <IVideoRenderer.h>
-#endif
-
 #include <chatClient.h>
 #include <chatd.h>
 #include <sdkApi.h>

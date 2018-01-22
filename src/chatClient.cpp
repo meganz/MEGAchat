@@ -15,10 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "rtcModule/webrtc.h"
-#ifndef KARERE_DISABLE_WEBRTC
-    #include "rtcCrypto.h"
-    #include "dummyCrypto.h" //for makeRandomString
-#endif
+#include "rtcCrypto.h"
+#include "dummyCrypto.h" //for makeRandomString
 #include "base/services.h"
 #include "sdkApi.h"
 #include <serverListProvider.h>
