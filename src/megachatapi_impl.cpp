@@ -1040,7 +1040,7 @@ void MegaChatApiImpl::sendPendingRequests()
                          call->chat().chatId().toString().c_str(),
                          call->id().toString().c_str(),
                          currentFlags.toString().c_str(),
-                         avFlags.toString().c_str()));
+                         avFlags.toString().c_str());
 
             fireOnChatCallUpdate(chatCall);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -5417,7 +5417,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
                      call->chat().chatId().toString().c_str(),
                      call->id().toString().c_str(),
-                     rtcModule::ICall::stateToStr(chatCall->getStatus()->state()),      // assume states are mapped 1 to 1
+                     rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1
                      rtcModule::ICall::stateToStr(newState));
 
         int state = 0;
@@ -5450,7 +5450,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 chatCall->setFinalTimeStamp(time(NULL));
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              call->chat().chatId().toString().c_str(), call->id().toString().c_str(),
-                             termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
+                              rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
                 break;
             case rtcModule::ICall::kStateDestroyed:
