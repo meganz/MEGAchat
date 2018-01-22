@@ -252,7 +252,7 @@ public:
      */
     virtual void onMsgOrderVerificationFail(const Message& msg, Idx idx, const std::string& errmsg)
     {
-        CHATD_LOG_ERROR("msgOrderFail[msgid %s]: %s", msg.id().toString().c_str(), errmsg.c_str());
+        CHATD_LOG_ERROR("msgOrderFail[msgid %s, idx %d]: %s", msg.id().toString().c_str(), idx, errmsg.c_str());
     }
 
     /**
@@ -279,6 +279,11 @@ public:
      * ts is the sum of the original message timestamp and the update delta.
      */
     virtual void onLastMessageTsUpdated(uint32_t ts) {}
+
+    /**
+     * @brief Called when a chat is going to reload its history after the server rejects JOINRANGEHIST
+     */
+    virtual void onHistoryReloaded(){}
 };
 class Connection;
 
@@ -286,6 +291,7 @@ class IRtcHandler
 {
 public:
     virtual void handleMessage(Chat& chat, const StaticBuffer& msg) {}
+    virtual void handleCallData(Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg) {}
     virtual void onShutdown() {}
     virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
     virtual void onDisconnect(chatd::Connection& conn) {}
@@ -375,6 +381,7 @@ public:
     {
         disconnect();
     }
+
     void heartbeat();
 };
 
@@ -657,6 +664,7 @@ protected:
     bool manualResendWhenUserJoins() const;
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
+    void initChat();
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -1011,6 +1019,8 @@ public:
     Idx lastIdxReceivedFromServer() const;
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
+    void clearHistory();
+
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1024,7 +1034,7 @@ protected:
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
-    void createMsgBackRefs(Message& msg);
+    void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
@@ -1109,6 +1119,12 @@ public:
     bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;
+
+    // Chatd Version:
+    // - Version 1:
+    // - Version 2:
+    //  * Add commands CALL_DATA and REJECT
+    static const unsigned chatdVersion;
 };
 
 static inline const char* connStateToStr(Connection::State state)
@@ -1173,6 +1189,7 @@ public:
     virtual void setHaveAllHistory() = 0;
     virtual bool haveAllHistory() = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
+    virtual void clearHistory() = 0;
     virtual ~DbInterface(){}
 };
 

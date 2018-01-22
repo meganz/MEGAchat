@@ -155,6 +155,8 @@ public:
      */
     bool isInitializing() const { return mIsInitializing; }
 
+    bool hasChatHandler() const;
+
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
@@ -170,9 +172,9 @@ public:
     virtual void onOnlineStateChange(chatd::ChatState state);
     virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
     {
-        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
+        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
             karere::Id(mChatid).toString().c_str(),
-            msg.id().toString().c_str(), msg.userid.toString().c_str(),
+            msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
             errmsg.c_str());
     }
 
@@ -799,7 +801,7 @@ public:
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call);
+    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
 
 /** @cond PRIVATE */
