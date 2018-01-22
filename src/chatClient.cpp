@@ -15,8 +15,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "rtcModule/webrtc.h"
-#include "rtcCrypto.h"
-#include "dummyCrypto.h" //for makeRandomString
+#ifndef KARERE_DISABLE_WEBRTC
+    #include "rtcCrypto.h"
+    #include "dummyCrypto.h" //for makeRandomString
+#endif
 #include "base/services.h"
 #include "sdkApi.h"
 #include <serverListProvider.h>
@@ -565,7 +567,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     }
     else if (e->getErrorCode() != ::mega::MegaError::API_OK)
     {
-        KR_LOG_ERROR("Request %s finished with error %d", request->getRequestString(), e->getErrorString());
+        KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
         return;
     }
 
@@ -2244,7 +2246,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else
     {
         auto wptr = weakHandle();
-        addMember(userid, privilege, false)
+        addMember(userid, privilege, true)
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();

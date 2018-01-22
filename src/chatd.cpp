@@ -2803,7 +2803,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         auto it = mClient.karereClient->chats->find(mChatId);
         if (it != mClient.karereClient->chats->end())
         {
-            isChatRoomOpened = it->second->hasChatHandler();
+            isChatRoomOpened = !it->second->appChatHandler();
         }
 
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
