@@ -75,6 +75,7 @@ class DelegateMegaChatRoomListener extends MegaChatRoomListener {
             });
         }
     }
+
     @Override
     public void onMessageUpdate(MegaChatApi api, MegaChatMessage msg){
         if (listener != null) {
@@ -82,6 +83,18 @@ class DelegateMegaChatRoomListener extends MegaChatRoomListener {
             megaChatApi.runCallback(new Runnable() {
                 public void run() {
                     listener.onMessageUpdate(megaChatApi, megaChatMessage);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onHistoryReloaded(MegaChatApi api, MegaChatRoom chat) {
+        if (listener != null) {
+            final MegaChatRoom megaChatRoom = chat.copy();
+            megaChatApi.runCallback(new Runnable() {
+                public void run() {
+                    listener.onHistoryReloaded(megaChatApi, megaChatRoom);
                 }
             });
         }

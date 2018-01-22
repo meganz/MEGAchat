@@ -77,6 +77,8 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 
+const unsigned Client::chatdVersion = 2;
+
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
 {
@@ -384,10 +386,17 @@ Promise<void> Connection::reconnect()
                 mState = kStateConnecting;
                 string ip = result->getText();
                 CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
+
+                std::string urlPath = mUrl.path;
+                if (Client::chatdVersion >= 2)
+                {
+                    urlPath.append("/1");
+                }
+
                 bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
-                          mUrl.path.c_str(),
+                          urlPath.c_str(),
                           mUrl.isSecure);
                 if (!rt)
                 {
@@ -551,7 +560,7 @@ bool Chat::sendCommand(const Command& cmd)
 void Chat::logSend(const Command& cmd) const
 {
     krLoggerLog(krLogChannel_chatd, krLogLevelDebug, "%s: send %s\n",
-            ID_CSTR(mChatId), cmd.toString().c_str());
+                ID_CSTR(mChatId), cmd.toString().c_str());
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -844,6 +853,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
+    initChat();
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
@@ -1092,6 +1102,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 {
                     chat.onJoinRejected();
                 }
+                else if (op == OP_RANGE && reason == 1)
+                {
+                    chat.clearHistory();
+                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
+                }
                 else
                 {
                     chat.rejectGeneric(op);
@@ -1151,6 +1166,29 @@ void Connection::execCommand(const StaticBuffer& buf)
                     mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
                 }
 
+                break;
+            }
+            case OP_CALLDATA:
+            {
+                READ_CHATID(0);
+                size_t cmdstart = pos - 9; //pos points after opcode
+                (void)cmdstart; //disable unused var warning if webrtc is disabled
+                READ_ID(userid, 8);
+                READ_32(clientid, 16);
+                READ_16(payloadLen, 20);
+                CHATD_LOG_DEBUG("%s: recv OP_CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+
+                pos += payloadLen;
+#ifndef KARERE_DISABLE_WEBRTC
+                if (mClient.mRtcHandler && userid != mClient.karereClient->myHandle())
+                {
+                    StaticBuffer cmd(buf.buf() + 23, payloadLen);
+                    auto& chat = mClient.chats(chatid);
+                    mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
+                }
+#else
+                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
+#endif
                 break;
             }
             case OP_RTMSG_ENDPOINT:
@@ -1422,6 +1460,14 @@ bool Chat::isGroup() const
     return mIsGroup;
 }
 
+void Chat::clearHistory()
+{
+    initChat();
+    CALL_DB(clearHistory);
+    mServerOldHistCbEnabled = true;
+    CALL_LISTENER(onHistoryReloaded);
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
@@ -1462,6 +1508,32 @@ void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
     EndpointId key(userid, clientid);
     mCallParticipants.erase(key);
+}
+
+void Chat::initChat()
+{
+    mBackwardList.clear();
+    mForwardList.clear();
+    mIdToIndexMap.clear();
+
+    mForwardStart = CHATD_IDX_RANGE_MIDDLE;
+
+    mOldestKnownMsgId = 0;
+    mLastSeenIdx = CHATD_IDX_INVALID;
+    mLastReceivedIdx = CHATD_IDX_INVALID;
+    mNextHistFetchIdx = CHATD_IDX_INVALID;
+    mLastIdReceivedFromServer = 0;
+    mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+    mLastServerHistFetchCount = 0;
+    mLastHistDecryptCount = 0;
+
+    mLastTextMsg.clear();
+    mEncryptionHalted = false;
+    mDecryptNewHaltedAt = CHATD_IDX_INVALID;
+    mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+    mRefidToIdxMap.clear();
+
+    mHasMoreHistoryInDb = false;
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -2029,6 +2101,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     mServerFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
+
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
 }
 
@@ -2327,6 +2400,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = CHATD_IDX_INVALID;
             prevType = Message::kMsgInvalid;
+            CHATID_LOG_DEBUG("onMessageEdited() Updated from message not loaded - skipped");
+            delete msg;
+            return;
         }
 
         if (msg->type == Message::kMsgTruncate)
@@ -2727,7 +2803,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         auto it = mClient.karereClient->chats->find(mChatId);
         if (it != mClient.karereClient->chats->end())
         {
-            isChatRoomOpened = !it->second->appChatHandler();
+            isChatRoomOpened = it->second->hasChatHandler();
         }
 
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
@@ -3097,6 +3173,7 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(INCALL);
         RET_ENUM_NAME(ENDCALL);
         RET_ENUM_NAME(KEEPALIVEAWAY);
+        RET_ENUM_NAME(CALLDATA);
         RET_ENUM_NAME(ECHO);
         RET_ENUM_NAME(ADDREACTION);
         RET_ENUM_NAME(DELREACTION);
