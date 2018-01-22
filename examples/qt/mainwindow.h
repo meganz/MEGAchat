@@ -6,14 +6,11 @@
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-//#include <mstrophepp.h>
 #include <webrtc.h>
-//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
 #include <ui_settings.h>
-#include <IJingleSession.h>
 #include <chatClient.h>
 #include "chatWindow.h"
 
