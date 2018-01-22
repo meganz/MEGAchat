@@ -141,6 +141,12 @@ void DeviceManager::enumInputDevices()
             RTCM_LOG_WARNING("Video input device %d: '%s'", i+1, name);
         }
     }
+
+    if (devices.size() == 0)
+    {
+        RTCM_LOG_WARNING("Not suitable input video devices were found. Default device added.");
+        devices.push_back(cricket::Device("default", "0"));
+    }
 }
 
 template<>
