@@ -101,13 +101,9 @@
 		9475661C1F18D53D00FE8664 /* ITypesImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypesImpl.h; path = ../../src/rtcModule/ITypesImpl.h; sourceTree = "<group>"; };
 		9475661D1F18D53D00FE8664 /* IVideoRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IVideoRenderer.h; path = ../../src/rtcModule/IVideoRenderer.h; sourceTree = "<group>"; };
 		9475661E1F18D53D00FE8664 /* lib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lib.h; path = ../../src/rtcModule/lib.h; sourceTree = "<group>"; };
-		9475661F1F18D53D00FE8664 /* rtcModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcModule.h; path = ../../src/rtcModule/rtcModule.h; sourceTree = "<group>"; };
 		947566201F18D53D00FE8664 /* rtcmPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcmPrivate.h; path = ../../src/rtcModule/rtcmPrivate.h; sourceTree = "<group>"; };
 		947566211F18D53D00FE8664 /* rtcStats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcStats.h; path = ../../src/rtcModule/rtcStats.h; sourceTree = "<group>"; };
 		947566221F18D53D00FE8664 /* streamPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = streamPlayer.h; path = ../../src/rtcModule/streamPlayer.h; sourceTree = "<group>"; };
-		947566231F18D53D00FE8664 /* strophe.jingle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.jingle.h; path = ../../src/rtcModule/strophe.jingle.h; sourceTree = "<group>"; };
-		947566241F18D53D00FE8664 /* strophe.jingle.sdp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.jingle.sdp.h; path = ../../src/rtcModule/strophe.jingle.sdp.h; sourceTree = "<group>"; };
-		947566251F18D53D00FE8664 /* strophe.jingle.session.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.jingle.session.h; path = ../../src/rtcModule/strophe.jingle.session.h; sourceTree = "<group>"; };
 		947566261F18D53D00FE8664 /* webrtcAdapter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = webrtcAdapter.h; path = ../../src/rtcModule/webrtcAdapter.h; sourceTree = "<group>"; };
 		947566271F18D53D00FE8664 /* webrtcAsyncWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = webrtcAsyncWaiter.h; path = ../../src/rtcModule/webrtcAsyncWaiter.h; sourceTree = "<group>"; };
 		947566291F18D57F00FE8664 /* asyncTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asyncTools.h; path = ../../src/base/asyncTools.h; sourceTree = "<group>"; };
@@ -288,13 +284,9 @@
 				9475661C1F18D53D00FE8664 /* ITypesImpl.h */,
 				9475661D1F18D53D00FE8664 /* IVideoRenderer.h */,
 				9475661E1F18D53D00FE8664 /* lib.h */,
-				9475661F1F18D53D00FE8664 /* rtcModule.h */,
 				947566201F18D53D00FE8664 /* rtcmPrivate.h */,
 				947566211F18D53D00FE8664 /* rtcStats.h */,
 				947566221F18D53D00FE8664 /* streamPlayer.h */,
-				947566231F18D53D00FE8664 /* strophe.jingle.h */,
-				947566241F18D53D00FE8664 /* strophe.jingle.sdp.h */,
-				947566251F18D53D00FE8664 /* strophe.jingle.session.h */,
 				947566261F18D53D00FE8664 /* webrtcAdapter.h */,
 				947566271F18D53D00FE8664 /* webrtcAsyncWaiter.h */,
 			);
@@ -724,14 +716,12 @@
 					"../../third-party",
 					../../src,
 					../../../SDK/include,
-					../../../SDK/bindings/ios/3rdparty/include/libws,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/include/libevent,
 					../../../SDK/bindings/ios/3rdparty/webrtc,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -764,15 +754,12 @@
 					"-DRTC_DISABLE_VP9",
 					"-DHAVE_SCTP",
 					"-DWEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1",
-					"-DWEBRTC_POSIX",
-					"-DWEBRTC_MAC",
-					"-DWEBRTC_IOS",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
 			};
 			name = Debug;
 		};
@@ -818,14 +805,12 @@
 					"../../third-party",
 					../../src,
 					../../../SDK/include,
-					../../../SDK/bindings/ios/3rdparty/include/libws,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/include/libevent,
 					../../../SDK/bindings/ios/3rdparty/webrtc,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_CFLAGS = (
@@ -858,13 +843,12 @@
 					"-DRTC_DISABLE_VP9",
 					"-DHAVE_SCTP",
 					"-DWEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1",
-					"-DKARERE_DISABLE_WEBRTC",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
