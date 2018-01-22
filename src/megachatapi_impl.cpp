@@ -1130,7 +1130,7 @@ int MegaChatApiImpl::init(const char *sid)
     if (!mClient)
     {
 #ifndef KARERE_DISABLE_WEBRTC
-        uint8_t caps = karere::kClientIsMobile && karere::kClientCanWebrtc;
+        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc;
 #else
         uint8_t caps = karere::kClientIsMobile;
 #endif
