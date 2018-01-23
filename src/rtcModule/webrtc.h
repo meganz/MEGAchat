@@ -84,7 +84,7 @@ enum: uint8_t
 enum TermCode: uint8_t
 {
     kUserHangup = 0,         // < Normal user hangup
-    kCallReqCancel = 1,      // < Call request was canceled before call was answered
+//    kCallReqCancel = 1,    // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
     kCallRejected = 2,       // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
     // <another client of our user
     kAnsElsewhere = 3,       // < Call was answered on another device of ours

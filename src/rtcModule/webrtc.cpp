@@ -1320,11 +1320,11 @@ void Call::hangup(TermCode reason)
     case kStateReqSent:
         if (reason == TermCode::kInvalid)
         {
-            reason = TermCode::kCallReqCancel;
+            reason = TermCode::kUserHangup;
         }
         else
         {
-            assert(reason == TermCode::kCallReqCancel || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
+            assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
         }
         cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
         destroy(reason, false);
@@ -1388,7 +1388,7 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
 {
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient)
     {
-        destroy(TermCode::kCallReqCancel, false);
+        destroy(TermCode::kUserHangup, false);
         return;
     }
     for (auto& item: mSessions)
@@ -2252,7 +2252,6 @@ const char* termCodeToStr(uint8_t code)
     switch(code)
     {
         RET_ENUM_NAME(kUserHangup);
-        RET_ENUM_NAME(kCallReqCancel);
         RET_ENUM_NAME(kCallRejected);
         RET_ENUM_NAME(kAnsElsewhere);
         RET_ENUM_NAME(kAnswerTimeout);
