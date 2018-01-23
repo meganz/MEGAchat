@@ -1471,13 +1471,13 @@ AvFlags Call::sentAv() const
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
 }
 /** Protocol flow:
-    C(aller): broadcast RTCMD.CALL_REQUEST callid.8 avflags.1
+    C(aller): broadcast RTCMD.CALLDATA payloadLen.2 callid.8 callState.1 avflags.1
        => state: CallState.kReqSent
     A(nswerer): send RINGING
        => state: CallState.kRingIn
     C: may send RTCMD.CALL_REQ_CANCEL callid.8 reason.1 if caller aborts the call request.
-       The reason is normally Term.kCallReqCancel or Term.kAnswerTimeout
-    A: may broadcast RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call
+       The reason is normally Term.kUserHangup or Term.kAnswerTimeout
+    A: may broadcast RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call.
     When other clients of the same user receive the CALL_REQ_DECLINE, they should stop ringing.
     == (from here on we can join an already ongoing group call) ==
     A: broadcast JOIN callid.8 anonId.8
