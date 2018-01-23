@@ -222,7 +222,7 @@ void Recorder::start()
     mTimer = setInterval([this]()
     {
         mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-    }, mScanPeriod * 100, mSession.mManager.mClient.appCtx);
+    }, mScanPeriod * 1000, mSession.mManager.mClient.appCtx);
 }
 
 std::string Recorder::terminate(const StatSessInfo& info)
