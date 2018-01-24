@@ -242,12 +242,6 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
     try
     {
         RtMessage packet(chat, msg);
-        if (packet.type == RTCMD_CALL_REQUEST)
-        {
-            assert(packet.opcode == OP_RTMSG_BROADCAST);
-            msgCallRequest(packet);
-            return;
-        }
         auto it = mCalls.find(packet.chatid);
         if (it == mCalls.end())
         {
@@ -298,12 +292,11 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
                 {
                     existingCall->sendBusy();
                 }
-
                 return;
             }
             else if (mClient.myHandle() > userid)
             {
-                RTCM_LOG_DEBUG("msgCallRequest: Waiting for the other peer hangup its incoming call and answer our call");
+                RTCM_LOG_DEBUG("handleCallData: Waiting for the other peer hangup its incoming call and answer our call");
                 return;
             }
 
@@ -341,82 +334,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
 void RtcModule::onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv)
 {
-}
-
-void RtcModule::msgCallRequest(RtMessage& packet)
-{
-    if (packet.userid == mClient.myHandle())
-    {
-        RTCM_LOG_DEBUG("Ignoring call request from another client of our user");
-        return;
-    }
-    packet.callid = packet.payload.read<uint64_t>(0);
-    AvFlags avFlagsRemote;
-    if (packet.payload.size() > 8)
-    {
-        avFlagsRemote = packet.payload.read<uint8_t>(8);
-    }
-
-    assert(packet.callid);
-
-    AvFlags avFlags(false, false);
-    bool answerAutomatic = false;
-
-    ChatRoom *chatRoom = mClient.chats->at(packet.chatid);
-    assert(chatRoom);
-
-    if (!mCalls.empty() && chatRoom && !chatRoom->isGroup())
-    {
-        // Two calls at same time in same chat
-        karere::Id chatId = packet.chatid;
-        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatId);
-        if (iteratorCall != mCalls.end())
-        {
-            Call *existingCall = iteratorCall->second.get();
-            if (existingCall->state() == Call::kStateInProgress || existingCall->isJoiner())
-            {
-                existingCall->sendBusy();
-                return;
-            }
-            else if (mClient.myHandle() > packet.userid)
-            {
-                RTCM_LOG_DEBUG("msgCallRequest: Waiting for the other peer hangup its incoming call and answer our call");
-                return;
-            }
-
-            // hang up existing call and answer automatically incoming call
-            avFlags = existingCall->sentAv();
-            answerAutomatic = true;
-            existingCall->hangup();
-            mCalls.erase(chatId);
-        }
-    }
-
-    auto ret = mCalls.emplace(packet.chatid, std::make_shared<Call>(*this,
-        packet.chat, packet.callid, packet.chat.isGroup(),
-        true, nullptr, packet.userid, packet.clientid));
-    assert(ret.second);
-    auto& call = ret.first->second;
-
-    call->mHandler = mHandler.onCallIncoming(*call, avFlagsRemote);
-    assert(call->mHandler);
-    assert(call->state() == Call::kStateRingIn);
-    cmdEndpoint(RTCMD_CALL_RINGING, packet, packet.callid);
-
-    if (!answerAutomatic)
-    {
-        auto wcall = call->weakHandle();
-        setTimeout([wcall]() mutable
-        {
-            if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
-                return;
-            static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-        }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
-    }
-    else
-    {
-        call->answer(avFlags);
-    }
 }
 
 template <class... Args>
@@ -1320,11 +1237,11 @@ void Call::hangup(TermCode reason)
     case kStateReqSent:
         if (reason == TermCode::kInvalid)
         {
-            reason = TermCode::kCallReqCancel;
+            reason = TermCode::kUserHangup;
         }
         else
         {
-            assert(reason == TermCode::kCallReqCancel || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
+            assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
         }
         cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
         destroy(reason, false);
@@ -1388,7 +1305,7 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
 {
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient)
     {
-        destroy(TermCode::kCallReqCancel, false);
+        destroy(TermCode::kUserHangup, false);
         return;
     }
     for (auto& item: mSessions)
@@ -1471,13 +1388,13 @@ AvFlags Call::sentAv() const
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
 }
 /** Protocol flow:
-    C(aller): broadcast RTCMD.CALL_REQUEST callid.8 avflags.1
+    C(aller): broadcast RTCMD.CALLDATA payloadLen.2 callid.8 callState.1 avflags.1
        => state: CallState.kReqSent
     A(nswerer): send RINGING
        => state: CallState.kRingIn
     C: may send RTCMD.CALL_REQ_CANCEL callid.8 reason.1 if caller aborts the call request.
-       The reason is normally Term.kCallReqCancel or Term.kAnswerTimeout
-    A: may broadcast RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call
+       The reason is normally Term.kUserHangup or Term.kAnswerTimeout
+    A: may broadcast RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call.
     When other clients of the same user receive the CALL_REQ_DECLINE, they should stop ringing.
     == (from here on we can join an already ongoing group call) ==
     A: broadcast JOIN callid.8 anonId.8
@@ -2230,7 +2147,6 @@ const char* rtcmdTypeToStr(uint8_t type)
 {
     switch(type)
     {
-        RET_ENUM_NAME(RTCMD_CALL_REQUEST);
         RET_ENUM_NAME(RTCMD_CALL_RINGING);
         RET_ENUM_NAME(RTCMD_CALL_REQ_DECLINE);
         RET_ENUM_NAME(RTCMD_CALL_REQ_CANCEL);
@@ -2252,7 +2168,6 @@ const char* termCodeToStr(uint8_t code)
     switch(code)
     {
         RET_ENUM_NAME(kUserHangup);
-        RET_ENUM_NAME(kCallReqCancel);
         RET_ENUM_NAME(kCallRejected);
         RET_ENUM_NAME(kAnsElsewhere);
         RET_ENUM_NAME(kAnswerTimeout);
@@ -2315,7 +2230,6 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
         case RTCMD_CALL_REQ_DECLINE:
         case RTCMD_CALL_REQ_CANCEL:
             result.append(" reason: ").append(termCodeToStr(data.read<uint8_t>(8)));
-        case RTCMD_CALL_REQUEST:
         case RTCMD_CALL_RINGING:
             result.append(" callid: ").append(Id(data.read<uint64_t>(0)).toString());
             break;

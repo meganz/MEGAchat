@@ -3730,9 +3730,6 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     case rtcModule::TermCode::kUserHangup:
         this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
         break;
-    case rtcModule::TermCode::kCallReqCancel:
-        this->termCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
-        break;
     case rtcModule::TermCode::kCallRejected:
         this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
         break;
