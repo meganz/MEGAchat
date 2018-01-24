@@ -29,7 +29,7 @@ EmptyStats::EmptyStats(const Session& sess, const std::string& aTermRsn)
 :mIsCaller(sess.isCaller()), mTermRsn(aTermRsn), mCallId(sess.call().id()){}
 
 Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
-    :mScanPeriod(scanPeriod), mMaxSamplePeriod(maxSamplePeriod),
+    :mScanPeriod(scanPeriod * 1000), mMaxSamplePeriod(maxSamplePeriod * 1000),
     mCurrSample(new Sample), mSession(sess), mStats(new RtcStats)
 {
     memset(mCurrSample.get(), 0, sizeof(Sample));
@@ -62,10 +62,10 @@ void Recorder::resetBwCalculators()
 void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
 {
     long deltaBytes = newTotalBytes - mTotalBytes;
-    auto bps = mBwInfo->bps = ((float)(deltaBytes)*1000/128) / periodMs; //from bytes/s to kbits/s
+    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128) / (periodMs / 1000); //from bytes/s to kbits/s
     mTotalBytes = newTotalBytes;
     mBwInfo->bs += deltaBytes;
-    mBwInfo->abps = (mBwInfo->abps*4+bps)/5;
+    mBwInfo->abps = (mBwInfo->abps * 4+bps) / 5;
 }
 
 void Recorder::OnComplete(const webrtc::StatsReports& data)
@@ -105,11 +105,12 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 AVG(Rtt, sample.rtt);
                 AVG(FrameRateSent, sample.fps);
                 AVG(FrameRateInput, sample.cfps);
-//              AVG(CaptureJitterMs, sample.cjtr); //no capture jitter stats anymore?
                 sample.width = width;
                 sample.height = item->FindValue(VALNAME(FrameHeightSent))->int64_val();
                 if (mStats->mConnInfo.mVcodec.empty())
+                {
                     mStats->mConnInfo.mVcodec = item->FindValue(VALNAME(CodecName))->string_val();
+                }
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
                 sample.lcpu = (*item->FindValue(VALNAME(CpuLimitedResolution)) == "true");
@@ -184,7 +185,7 @@ void Recorder::onStats(const webrtc::StatsReports &data)
         auto d_auJtr = mCurrSample->astats.jtr - last.astats.jtr;
         if (d_auJtr < 0)
             d_auJtr = -d_auJtr;
-        auto d_ts = mCurrSample->ts-last.ts;
+        auto d_ts = mCurrSample->ts - last.ts;
         auto d_apl = mCurrSample->astats.pl - last.astats.pl;
         shouldAddSample =
             (mCurrSample->vstats.r.width != last.vstats.r.width)
@@ -215,6 +216,7 @@ void Recorder::start()
     assert(mSession.mRtcConn);
     mStats->mIsCaller = mSession.isCaller();
     mStats->mCallId = mSession.call().id();
+    mStats->mSessionId = mSession.sessionId();
     mStats->mOwnAnonId = mSession.call().manager().ownAnonId();
     mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
@@ -222,7 +224,7 @@ void Recorder::start()
     mTimer = setInterval([this]()
     {
         mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-    }, mScanPeriod * 1000, mSession.mManager.mClient.appCtx);
+    }, mScanPeriod, mSession.mManager.mClient.appCtx);
 }
 
 std::string Recorder::terminate(const StatSessInfo& info)
@@ -280,7 +282,8 @@ void RtcStats::toJson(std::string& json) const
 {
     json.reserve(10240);
     json ="{";
-    JSON_ADD_STR(cid, mCallId.toString());
+    JSON_ADD_STR(cid, mSessionId.toString());
+    JSON_ADD_STR(sid, mSessionId.toString());
     JSON_ADD_STR(caid, mIsCaller?mOwnAnonId.toString():mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId.toString():mOwnAnonId.toString());
     JSON_ADD_INT(isCaller, mIsCaller);

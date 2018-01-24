@@ -48,6 +48,7 @@ public:
     int64_t mStartTs;
     int64_t mDur;
     karere::Id mCallId;
+    karere::Id mSessionId;
     karere::Id mOwnAnonId;
     karere::Id mPeerAnonId;
     std::vector<Sample*> mSamples;

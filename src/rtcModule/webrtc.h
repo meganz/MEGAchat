@@ -200,6 +200,7 @@ public:
     karere::Id peerAnonId() const { return mPeerAnonId; }
     virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
+    karere::Id sessionId() const {return mSid;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>
