@@ -65,7 +65,7 @@ class ISessionHandler;
 class IRtcCrypto;
 enum: uint8_t
 {
-//    RTCMD_CALL_REQUEST = 0, // initiate new call, receivers start ringing - Obsolete
+//    RTCMD_CALL_REQUEST = 0, // obsolete, now we have CALLDATA chatd command for call requests
     RTCMD_CALL_RINGING = 1, // notifies caller that there is a receiver and it is ringing | <callid>
     RTCMD_CALL_REQ_DECLINE = 2, // decline incoming call request, with specified Term code
     // (can be only kBusy and kCallRejected) | <callid> <termCode>

@@ -204,7 +204,6 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     IRtcCrypto& crypto() const { return *mCrypto; }
-    void msgCallRequest(RtMessage& packet);
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
     template <class... Args>
