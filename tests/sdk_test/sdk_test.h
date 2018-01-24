@@ -187,6 +187,7 @@ public:
     void TEST_ChangeMyOwnName(unsigned int a1);    
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
+    void TEST_ManualCalls(unsigned int a1, unsigned int a2);
 #endif
 
     unsigned mOKTests;
@@ -283,13 +284,20 @@ private:
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallAnswered[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallEmisorId[NUM_ACCOUNTS];
+    int mTerminationCode[NUM_ACCOUNTS];
+    bool mTerminationLocal[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     bool mCallRequestSent[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallRequestSentId[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
     megachat::MegaChatHandle mIncomingCallId[NUM_ACCOUNTS];
 
-    megachat::MegaChatHandle mCallId[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdCallUpdate[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
+
+    const int mInvalidTermCode = 0x7f;
+    const int mHangupTermCode = 0;
+    const int mRejectCallTermCode = 2;
+    const int mAnswerTimeout = 5;
 #endif
 
     static const std::string DEFAULT_PATH;
