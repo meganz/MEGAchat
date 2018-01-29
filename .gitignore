@@ -5,4 +5,5 @@ build/
 .DS_Store
 deps/
 build/
+/sdk
 
