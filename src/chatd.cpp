@@ -2759,7 +2759,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (!isLocal)
     {
         assert(msg.isEncrypted() != 1); //either decrypted or error
-        if (!msg.empty() && (*msg.buf() == 0)) //'special' message - attachment etc
+        if (!msg.empty() && msg.type == Message::kMsgNormal && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
