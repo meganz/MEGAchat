@@ -28,9 +28,6 @@
 		A835A8B61F97AE240075646F /* DelegateMEGAChatVideoListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */; };
 		A838B20A1E9685A200875D96 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2051E9685A200875D96 /* logger.cpp */; };
 		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
-		A83D5BF41F974AF900A038F7 /* rtcStats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF11F974AF900A038F7 /* rtcStats.cpp */; };
-		A83D5BF51F974AF900A038F7 /* webrtc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF21F974AF900A038F7 /* webrtc.cpp */; };
-		A83D5BF61F974AF900A038F7 /* webrtcAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */; };
 		A879F3B21F966682007C5394 /* libwebsocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */; };
 		A879F3B61F9667F5007C5394 /* karereDbSchema.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */; };
 		A879F3C01F96683A007C5394 /* base64url.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3B71F966838007C5394 /* base64url.cpp */; };
@@ -43,7 +40,6 @@
 		A879F3C71F96683A007C5394 /* megachatapi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BE1F96683A007C5394 /* megachatapi.cpp */; };
 		A879F3C81F96683A007C5394 /* megachatapi_impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */; };
 		A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3C91F96685D007C5394 /* libuvWaiter.cpp */; };
-		A879F3D91F966D8E007C5394 /* rtcCrypto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -95,12 +91,10 @@
 		947566101F18D4E900FE8664 /* videoRenderer_objc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = videoRenderer_objc.h; path = ../../src/videoRenderer_objc.h; sourceTree = "<group>"; };
 		947566111F18D4E900FE8664 /* videoRenderer_Qt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = videoRenderer_Qt.h; path = ../../src/videoRenderer_Qt.h; sourceTree = "<group>"; };
 		947566171F18D53D00FE8664 /* IDeviceListImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IDeviceListImpl.h; path = ../../src/rtcModule/IDeviceListImpl.h; sourceTree = "<group>"; };
-		947566181F18D53D00FE8664 /* IJingleSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IJingleSession.h; path = ../../src/rtcModule/IJingleSession.h; sourceTree = "<group>"; };
 		9475661A1F18D53D00FE8664 /* IRtcStats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IRtcStats.h; path = ../../src/rtcModule/IRtcStats.h; sourceTree = "<group>"; };
 		9475661B1F18D53D00FE8664 /* ITypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypes.h; path = ../../src/rtcModule/ITypes.h; sourceTree = "<group>"; };
 		9475661C1F18D53D00FE8664 /* ITypesImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypesImpl.h; path = ../../src/rtcModule/ITypesImpl.h; sourceTree = "<group>"; };
 		9475661D1F18D53D00FE8664 /* IVideoRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IVideoRenderer.h; path = ../../src/rtcModule/IVideoRenderer.h; sourceTree = "<group>"; };
-		9475661E1F18D53D00FE8664 /* lib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lib.h; path = ../../src/rtcModule/lib.h; sourceTree = "<group>"; };
 		947566201F18D53D00FE8664 /* rtcmPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcmPrivate.h; path = ../../src/rtcModule/rtcmPrivate.h; sourceTree = "<group>"; };
 		947566211F18D53D00FE8664 /* rtcStats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcStats.h; path = ../../src/rtcModule/rtcStats.h; sourceTree = "<group>"; };
 		947566221F18D53D00FE8664 /* streamPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = streamPlayer.h; path = ../../src/rtcModule/streamPlayer.h; sourceTree = "<group>"; };
@@ -183,9 +177,6 @@
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2051E9685A200875D96 /* logger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = logger.cpp; path = ../../src/base/logger.cpp; sourceTree = "<group>"; };
 		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
-		A83D5BF11F974AF900A038F7 /* rtcStats.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rtcStats.cpp; path = ../rtcModule/rtcStats.cpp; sourceTree = "<group>"; };
-		A83D5BF21F974AF900A038F7 /* webrtc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = webrtc.cpp; path = ../rtcModule/webrtc.cpp; sourceTree = "<group>"; };
-		A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = webrtcAdapter.cpp; path = ../rtcModule/webrtcAdapter.cpp; sourceTree = "<group>"; };
 		A879F3B11F966681007C5394 /* libwebsocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libwebsocketsIO.cpp; sourceTree = "<group>"; };
 		A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = karereDbSchema.cpp; sourceTree = "<group>"; };
 		A879F3B71F966838007C5394 /* base64url.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = base64url.cpp; sourceTree = "<group>"; };
@@ -198,7 +189,6 @@
 		A879F3BE1F96683A007C5394 /* megachatapi.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = megachatapi.cpp; sourceTree = "<group>"; };
 		A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = megachatapi_impl.cpp; sourceTree = "<group>"; };
 		A879F3C91F96685D007C5394 /* libuvWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libuvWaiter.cpp; sourceTree = "<group>"; };
-		A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rtcCrypto.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -236,7 +226,6 @@
 				947566381F18D58F00FE8664 /* waiter */,
 				947566371F18D58500FE8664 /* strongvelope */,
 				947566281F18D56B00FE8664 /* base */,
-				947566151F18D52700FE8664 /* rtcModule */,
 				947565F01F18D4E900FE8664 /* asyncTest-framework.h */,
 				947565F11F18D4E900FE8664 /* asyncTest.h */,
 				947565F21F18D4E900FE8664 /* autoHandle.h */,
@@ -278,12 +267,10 @@
 			isa = PBXGroup;
 			children = (
 				947566171F18D53D00FE8664 /* IDeviceListImpl.h */,
-				947566181F18D53D00FE8664 /* IJingleSession.h */,
 				9475661A1F18D53D00FE8664 /* IRtcStats.h */,
 				9475661B1F18D53D00FE8664 /* ITypes.h */,
 				9475661C1F18D53D00FE8664 /* ITypesImpl.h */,
 				9475661D1F18D53D00FE8664 /* IVideoRenderer.h */,
-				9475661E1F18D53D00FE8664 /* lib.h */,
 				947566201F18D53D00FE8664 /* rtcmPrivate.h */,
 				947566211F18D53D00FE8664 /* rtcStats.h */,
 				947566221F18D53D00FE8664 /* streamPlayer.h */,
@@ -441,7 +428,6 @@
 		A838B20D1E9685AD00875D96 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				A83D5BF01F974AC200A038F7 /* rtcModule */,
 				941977311F163CEB00A76EE3 /* waiter */,
 				941977271F16377400A76EE3 /* net */,
 				A879F3B51F9667F5007C5394 /* karereDbSchema.cpp */,
@@ -453,7 +439,6 @@
 				A879F3B71F966838007C5394 /* base64url.cpp */,
 				A879F3B81F966839007C5394 /* karereCommon.cpp */,
 				A879F3B91F966839007C5394 /* presenced.cpp */,
-				A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */,
 				A879F3BA1F966839007C5394 /* url.cpp */,
 				A879F3BB1F966839007C5394 /* userAttrCache.cpp */,
 				A838B20C1E9685A600875D96 /* base */,
@@ -475,16 +460,6 @@
 			children = (
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		A83D5BF01F974AC200A038F7 /* rtcModule */ = {
-			isa = PBXGroup;
-			children = (
-				A83D5BF11F974AF900A038F7 /* rtcStats.cpp */,
-				A83D5BF21F974AF900A038F7 /* webrtc.cpp */,
-				A83D5BF31F974AF900A038F7 /* webrtcAdapter.cpp */,
-			);
-			path = rtcModule;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -568,7 +543,6 @@
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
 				A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */,
 				A82750DB1E9788A3007CD9E2 /* MEGAChatSdk.mm in Sources */,
-				A83D5BF61F974AF900A038F7 /* webrtcAdapter.cpp in Sources */,
 				A82750D91E9788A3007CD9E2 /* MEGAChatRoom.mm in Sources */,
 				A82750D51E9788A3007CD9E2 /* MEGAChatMessage.mm in Sources */,
 				941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */,
@@ -585,7 +559,6 @@
 				A879F3C41F96683A007C5394 /* userAttrCache.cpp in Sources */,
 				A82750EF1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.mm in Sources */,
 				A879F3B21F966682007C5394 /* libwebsocketsIO.cpp in Sources */,
-				A83D5BF41F974AF900A038F7 /* rtcStats.cpp in Sources */,
 				A879F3C11F96683A007C5394 /* karereCommon.cpp in Sources */,
 				A879F3B61F9667F5007C5394 /* karereDbSchema.cpp in Sources */,
 				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
@@ -593,9 +566,7 @@
 				A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */,
 				A879F3C51F96683A007C5394 /* chatd.cpp in Sources */,
 				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
-				A83D5BF51F974AF900A038F7 /* webrtc.cpp in Sources */,
 				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
-				A879F3D91F966D8E007C5394 /* rtcCrypto.cpp in Sources */,
 				A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */,
 				947566561F3397AE00FE8664 /* cservices.cpp in Sources */,
 			);
