@@ -1,5 +1,5 @@
 CONFIG += USE_LIBWEBSOCKETS
-include(../../sdk/bindings/qt/sdk.pri)
+include(../../third-party/mega/bindings/qt/sdk.pri)
 
 CONFIG += c++11
 
