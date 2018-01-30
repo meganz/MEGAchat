@@ -1,6 +1,8 @@
 CONFIG += USE_LIBWEBSOCKETS
 include(../../sdk/bindings/qt/sdk.pri)
 
+CONFIG += c++11
+
 MEGACHAT_BASE_PATH = $$PWD/../..
 
 VPATH += $$MEGACHAT_BASE_PATH/src
