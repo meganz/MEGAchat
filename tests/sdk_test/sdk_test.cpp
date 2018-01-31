@@ -2237,7 +2237,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
     termCode0 = &mTerminationCode[a1]; *termCode0 = MegaChatCall::TERM_CODE_NOT_FINISHED;
     termCode1 = &mTerminationCode[a2]; *termCode1 = MegaChatCall::TERM_CODE_NOT_FINISHED;
-    flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
+    flagHangUpCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdRequestSent[a1] = MEGACHAT_INVALID_HANDLE;
     flagPeerRinging = &mPeerIsRinging[a1]; *flagPeerRinging = false;
