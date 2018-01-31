@@ -101,9 +101,6 @@ private:
     } \
     while(false) \
 
-
-class TestChatRoomListener;
-
 class MegaLoggerTest : public mega::MegaLogger,
         public megachat::MegaChatLogger {
 
@@ -136,6 +133,20 @@ private:
 };
 
 class TestChatRoomListener;
+
+#ifndef KARERE_DISABLE_WEBRTC
+class TestChatVideoListener : public megachat::MegaChatVideoListener
+{
+public:
+    TestChatVideoListener(const std::string& type);
+    virtual ~TestChatVideoListener();
+
+    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
+
+private:
+    std::string mType;
+};
+#endif
 
 class MegaChatApiTest :
         public mega::MegaListener,
@@ -287,17 +298,15 @@ private:
     int mTerminationCode[NUM_ACCOUNTS];
     bool mTerminationLocal[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
-    bool mCallRequestSent[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mIncomingCallId[NUM_ACCOUNTS];
-
-    megachat::MegaChatHandle mChatIdCallUpdate[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
+    bool mPeerIsRinging[NUM_ACCOUNTS];
+    bool mVideoLocal[NUM_ACCOUNTS];
+    bool mVideoRemote[NUM_ACCOUNTS];
+    TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
+    TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
 
-    const int mInvalidTermCode = 0x7f;
-    const int mHangupTermCode = 0;
-    const int mRejectCallTermCode = 2;
-    const int mAnswerTimeout = 5;
 #endif
 
     static const std::string DEFAULT_PATH;
@@ -387,21 +396,6 @@ public:
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
-
-
-#ifndef KARERE_DISABLE_WEBRTC
-class TestChatVideoListener : public megachat::MegaChatVideoListener
-{
-public:
-    TestChatVideoListener(const std::string& type);
-    virtual ~TestChatVideoListener();
-
-    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
-
-private:
-    std::string mType;
-};
-#endif
 
 #endif // CHATTEST_H
 
