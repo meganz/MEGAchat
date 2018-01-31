@@ -1414,7 +1414,7 @@ AvFlags Call::sentAv() const
     C: send SESSION callid.8 sid.8 anonId.8 encHashKey.32 actualCallId.8
         => call state: CallState.kInProgress
         => sess state: SessState.kWaitSdpOffer
-    A: send SDP_OFFER sid.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
+    A: send SDP_OFFER sid.8 encHashKey.32 fprHash.32 avflags.1 sdpLen.2 sdpOffer.sdpLen
         => call state: CallState.kInProress
         => sess state: SessState.kWaitSdpAnswer
     C: send SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
@@ -1432,7 +1432,7 @@ AvFlags Call::sentAv() const
         the peer from thinking that the webrtc connection was closed
         due to error
         => state: Sess.kDestroyed
-@note avflags of caller are duplicated in RTCMD.CALL_REQUEST and RTCMD.SDP_OFFER
+@note avflags of caller are duplicated in RTCMD.CALLDATA and RTCMD.SDP_OFFER
 The first is purely informative, to make the callee aware what type of
 call the caller is requesting - audio or video.
 This is not available when joining an existing call.

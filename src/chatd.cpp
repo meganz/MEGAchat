@@ -289,7 +289,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
     else
     {
-        CHATD_LOG_DEBUG("Socket close and state is not kLoggedIn (but %d), start retry controller", mState);
+        CHATD_LOG_DEBUG("Socket close and state is not kStateLoggedIn (but %d), start retry controller", connStateToStr(oldState));
         reconnect(); //start retry controller
     }
 }
