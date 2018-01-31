@@ -1401,7 +1401,7 @@ public:
         STATUS_AWAY       = 2,      /// User is not available
         STATUS_ONLINE     = 3,      /// User is available
         STATUS_BUSY       = 4,      /// User don't expect notifications nor call requests
-        STATUS_INVALID    = 0xFF    /// Invalid value. Presence not received yet
+        STATUS_INVALID    = 15      /// Invalid value. Presence not received yet
     };
 
     enum
@@ -1426,6 +1426,7 @@ public:
     enum
     {
         INIT_ERROR                  = -1,   /// Initialization failed --> disable chat
+        INIT_NOT_DONE               = 0,    /// Initialization not done yet
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
@@ -1543,12 +1544,16 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
+     *  - MegaChatApi::INIT_NOT_DONE = 0
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
      *  - MegaChatApi::INIT_NO_CACHE = 7
      *
-     * The returned value will be undefined if \c init(sid) has not been called yet.
+     * If \c MegaChatApi::init() has not been called yet, this function returns INIT_NOT_DONE
+     *
+     * If the chat-engine is being terminated because the session is expired, it returns 10.
+     * If the chat-engine is being logged out, it returns 4.
      *
      * @return The current initialization state
      */
@@ -2924,6 +2929,24 @@ public:
      */
     int getNumCalls();
 
+    /**
+     * @brief Get a list with the ids of chatrooms where there are active calls
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of chatrooms where there are active calls
+     */
+    mega::MegaHandleList *getChatCalls();
+
+    /**
+     * @brief Get a list with the ids of active calls
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of ids of active calls
+     */
+    mega::MegaHandleList *getChatCallsIds();
+
 #endif
 
     // Listeners
@@ -3485,9 +3508,9 @@ public:
      *
      * The possible values are:
      *  - MegaChatApi::INIT_ERROR = -1
-     *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 0
-     *  - MegaChatApi::INIT_OFFLINE_SESSION = 1
-     *  - MegaChatApi::INIT_ONLINE_SESSION = 2
+     *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
+     *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
+     *  - MegaChatApi::INIT_ONLINE_SESSION = 3
      *
      * @param api MegaChatApi connected to the account
      * @param newState New state of initialization
@@ -3623,6 +3646,22 @@ public:
      * @param msg MegaChatMessage representing the updated message
      */
     virtual void onMessageUpdate(MegaChatApi* api, MegaChatMessage *msg);
+
+    /**
+     * @brief This function is called when the local history of a chatroom is about to be discarded and
+     * reloaded from server.
+     *
+     * Server can reject to provide all new messages if there are too many since last connection. In that case,
+     * all the locally-known history will be discarded (both from memory and cache) and the server will provide
+     * the most recent messages in this chatroom.
+     *
+     * @note When this callback is received, any reference to messages should be discarded. New messages will be
+     * loaded from server and notified as in the case where there's no cached messages at all.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chat MegaChatRoom whose local history is about to be discarded
+     */
+    virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
 };
 
 }

@@ -15,8 +15,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "rtcModule/webrtc.h"
-#include "rtcCrypto.h"
-#include "dummyCrypto.h" //for makeRandomString
+#ifndef KARERE_DISABLE_WEBRTC
+    #include "rtcCrypto.h"
+    #include "dummyCrypto.h" //for makeRandomString
+#endif
 #include "base/services.h"
 #include "sdkApi.h"
 #include <serverListProvider.h>
@@ -31,7 +33,7 @@
 #include <codecvt> //for nonWhitespaceStr()
 #include <locale>
 #include "strongvelope/strongvelope.h"
-#include "base64.h"
+#include "base64url.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -434,7 +436,13 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
         if (connState() == kConnecting || connState() == kConnected)
-        {
+        {            
+#ifndef KARERE_DISABLE_WEBRTC
+            if (rtc && rtc->isCallInProgress())
+            {
+                break;
+            }
+#endif
             auto wptr = weakHandle();
             marshallCall([wptr, this]()
             {
@@ -559,7 +567,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     }
     else if (e->getErrorCode() != ::mega::MegaError::API_OK)
     {
-        KR_LOG_ERROR("Request %s finished with error %d", request->getRequestString(), e->getErrorString());
+        KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
         return;
     }
 
@@ -825,7 +833,24 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
+        auto wptr = weakHandle();
+
+#ifndef KARERE_DISABLE_WEBRTC
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc->init(10000)
+    .then([this, isInBackground, wptr]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+        connectToChatd(isInBackground);
+    });
+#else
     connectToChatd(isInBackground);
+#endif
+
     auto pms = connectToPresenced(mOwnPresence)
     .then([this]()
     {
@@ -837,7 +862,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         return err;
     });
     assert(!mHeartbeatTimer);
-    auto wptr = weakHandle();
     mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
         if (wptr.deleted() || !mHeartbeatTimer)
@@ -1074,15 +1098,8 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         mOwnPresence = pres;
         app.onPresenceChanged(mMyHandle, pres, true);
     }
-    auto pmsPres = mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
-#ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    auto pmsRtc = rtc->init(10000);
-    return promise::when(pmsPres, pmsRtc);
-#else
-    return pmsPres;
-#endif
+
+    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
@@ -2217,6 +2234,11 @@ void ChatRoom::removeAppChatHandler()
     mChat->setListener(this);
 }
 
+bool ChatRoom::hasChatHandler() const
+{
+    return mAppChatHandler != NULL;
+}
+
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
     if (userid == parent.client.myHandle())
@@ -2226,7 +2248,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else
     {
         auto wptr = weakHandle();
-        addMember(userid, privilege, false)
+        addMember(userid, privilege, true)
         .then([wptr, this]()
         {
             wptr.throwIfDeleted();
@@ -2952,9 +2974,9 @@ bool Client::isCallInProgress() const
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call)
+rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
 {
-    return app.onIncomingCall(call);
+    return app.onIncomingCall(call, av);
 }
 #endif
 

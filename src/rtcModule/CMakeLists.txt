@@ -22,7 +22,7 @@ if (NOT WIN32 AND NOT WINPHONE)
 endif()
 
 include_directories(. .. ../base ../../third-party ${CMAKE_CURRENT_BINARY_DIR}
-    ${SERVICES_INCLUDE_DIRS} ${WEBRTC_INCLUDES})
+    ${SERVICES_INCLUDE_DIRS} ${WEBRTC_INCLUDES} ${LIBMEGA_PUBLIC_INCLUDE_DIR})
 
 set(RTCMODULE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "rtcModule include dirs for dependent projects")
 

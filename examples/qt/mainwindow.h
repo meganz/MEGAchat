@@ -6,14 +6,11 @@
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-//#include <mstrophepp.h>
 #include <webrtc.h>
-//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
 #include <ui_settings.h>
-#include <IJingleSession.h>
 #include <chatClient.h>
 #include "chatWindow.h"
 
@@ -53,7 +50,7 @@ public:
     virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
     IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call)
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)
     {
 #ifndef KARERE_DISABLE_WEBRTC
         return new CallAnswerGui(*this, call);

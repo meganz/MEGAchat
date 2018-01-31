@@ -62,7 +62,9 @@ enum Opcode
       *    arrival time. updatedelta must be larger than the previous updatedelta, or
       *    the MSGUPD will fail. The keyid must not change.
       *
-      * S->C: A message was updated (always sent as MSGUPD).
+      * S->C: A message was updated (always sent as MSGUPD). The `ts_send` is
+      * zero for all updates, except when the type of message is a truncate. In that
+      * case, the `ts_send` overwrites the former ts and the `ts_update` is zero.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_MSGUPD = 4,
@@ -122,7 +124,7 @@ enum Opcode
       * C->S: Request existing message range (<msgid0> is the oldest, <msgid1> the newest).
       * Responds with all messages newer than <msgid1> (if any), followed by a HISTDONE.
       *
-      * @obsolete This command is obsolete, replaced by JOINHISTRANGE.
+      * @obsolete This command is obsolete, replaced by JOINRANGEHIST.
       */
     OP_RANGE = 9,
 
@@ -272,10 +274,21 @@ enum Opcode
 
     /**
       * @brief
+      *
       * C->S: Must respond to a received KEEPALIVE within 30 seconds. If local user is away,
       * send KEEPALIVEAWAY
       */
     OP_KEEPALIVEAWAY = 30,
+
+    /**
+      * @brief <chatid> <userid> <clientid> <payload-Len> <payload>
+      *
+      * C->S: set/update call data (gets broadcast to all people in the chat)
+      * S->C: notify call data changes (sent immediately after a chatd connection is established
+      *     and additionally after JOIN, for those unknown chatrooms at the moment the chatd connection is established
+      *
+      */
+    OP_CALLDATA = 31,
 
     /**
       * @brief <randomToken>
@@ -475,6 +488,7 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
 protected:
     static const char* statusNames[];
     friend class Chat;

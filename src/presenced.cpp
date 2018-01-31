@@ -421,12 +421,36 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_ADDPEERS:
         {
-            snprintf(buf, bufsize, "ADDPEERS - %u peers", read<uint32_t>(1));
+            uint32_t numPeers = read<uint32_t>(1);
+            string tmpString;
+            tmpString.append("ADDPEERS - ");
+            tmpString.append(to_string(numPeers));
+            tmpString.append(" peer/s: ");
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(5+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
         case OP_DELPEERS:
         {
-            snprintf(buf, bufsize, "DELPEERS - %u peers", read<uint32_t>(1));
+            uint32_t numPeers = read<uint32_t>(1);
+            string tmpString;
+            tmpString.append("DELPEERS - ");
+            tmpString.append(to_string(numPeers));
+            tmpString.append(" peer/s: ");
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(5+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
         default:
@@ -546,7 +570,6 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_8(pres, 0);
                 READ_ID(userid, 1);
-                // READ_8(webrtc_capability, 7);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
                 CALL_LISTENER(onPresenceChange, userid, pres);
