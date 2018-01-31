@@ -2487,6 +2487,10 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         setRemoved(); // may delete 'this'
         return true;
     }
+    else
+    {
+        onUserJoin(parent.client.myHandle(), mOwnPriv);
+    }
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
     return true;
 }
