@@ -59,8 +59,6 @@ extern "C" void myMegaPostMessageToGui(void* msg, void* appCtx)
     QApplication::postEvent(&appDelegate, event);
 }
 
-using namespace strophe;
-
 void setVidencParams();
 void saveSid(const char* sdkSid);
 

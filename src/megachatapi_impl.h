@@ -31,12 +31,14 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
+#ifndef KARERE_DISABLE_WEBRTC
 #include <rtcModule/webrtc.h>
 #include <IVideoRenderer.h>
+#endif
+
 #include <chatClient.h>
 #include <chatd.h>
 #include <sdkApi.h>
-//#include <mstrophepp.h>
 #include <karereCommon.h>
 #include <logger.h>
 
@@ -724,6 +726,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     mega::MegaMutex sdkMutex;
+    mega::MegaMutex videoMutex;
     mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;

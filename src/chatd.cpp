@@ -289,7 +289,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
     else
     {
-        CHATD_LOG_DEBUG("Socket close and state is not kLoggedIn (but %d), start retry controller", mState);
+        CHATD_LOG_DEBUG("Socket close and state is not kStateLoggedIn (but %d), start retry controller", connStateToStr(oldState));
         reconnect(); //start retry controller
     }
 }
@@ -2759,7 +2759,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (!isLocal)
     {
         assert(msg.isEncrypted() != 1); //either decrypted or error
-        if (!msg.empty() && (*msg.buf() == 0)) //'special' message - attachment etc
+        if (!msg.empty() && msg.type == Message::kMsgNormal && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
@@ -2803,7 +2803,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         auto it = mClient.karereClient->chats->find(mChatId);
         if (it != mClient.karereClient->chats->end())
         {
-            isChatRoomOpened = it->second->hasChatHandler();
+            isChatRoomOpened = !it->second->appChatHandler();
         }
 
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
