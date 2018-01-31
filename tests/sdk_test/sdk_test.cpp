@@ -13,7 +13,7 @@
 using namespace mega;
 using namespace megachat;
 
-const std::string MegaChatApiTest::DEFAULT_PATH = "../tests/sdk_test/";
+const std::string MegaChatApiTest::DEFAULT_PATH = "../../tests/sdk_test/";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
