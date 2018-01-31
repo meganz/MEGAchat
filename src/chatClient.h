@@ -633,7 +633,6 @@ public:
     bool isInBackground = false;
     const bool mInactiveChatsEnabled = false;
     MyMegaApi api;
-    rtcModule::IRtcModule* rtc = nullptr;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
