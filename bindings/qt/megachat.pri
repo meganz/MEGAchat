@@ -89,3 +89,9 @@ INCLUDEPATH += $$MEGACHAT_BASE_PATH/bindings/qt
 else {
     DEFINES += NDEBUG
 }
+
+karereDbSchemaTarget.target = karereDbSchema.cpp
+karereDbSchemaTarget.depends = FORCE
+karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
+PRE_TARGETDEPS += karereDbSchema.cpp
+QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
