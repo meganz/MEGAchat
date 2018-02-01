@@ -631,7 +631,6 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     bool isInBackground = false;
-    const bool mInactiveChatsEnabled = false;
     MyMegaApi api;
     IApp& app;
     char mMyPrivCu25519[32] = {0};

@@ -1014,7 +1014,7 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
  * (if not accomplished, the test automatically solves the above)
  *
  * This test does the following:
- * - Create a group chat room
+ * - Create a group chat room or select an existing one
  * - Remove memeber
  * - Invite a new member
  * - Invite same account (error)

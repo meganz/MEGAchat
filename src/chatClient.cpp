@@ -1646,8 +1646,7 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
 
-        if ((mOwnPriv != chatd::PRIV_NOTPRESENT) &&
-           (parent.client.initState() >= Client::kInitHasOnlineSession))
+        if (parent.client.initState() >= Client::kInitHasOnlineSession)
             parent.client.presenced().addPeer(userid);
     }
     if (saveToDb)
@@ -1759,9 +1758,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         chatids.insert(chatid);
 
-        bool isInactive = (apiRoom.isGroup() && (apiRoom.getOwnPrivilege()  == ::mega::MegaTextChatPeerList::PRIV_RM) );
-        KR_LOG_DEBUG("Adding %sroom %s from API", isInactive ? "(inactive) " : "", Id(apiRoom.getHandle()).toString().c_str());
-
         auto room = addRoom(apiRoom);   // returns false if 1on1 is inconsistent
         if (!room)
         {
@@ -1857,7 +1853,7 @@ void ChatRoomList::removeRoom(GroupChatRoom& room)
 void GroupChatRoom::setRemoved()
 {
     mOwnPriv = chatd::PRIV_NOTPRESENT;
-    parent.client.db.query("update chats set own_priv=-1 where chatid=?", mChatid);
+    parent.client.db.query("update chats set own_priv=? where chatid=?", mOwnPriv, mChatid);
     notifyExcludedFromChat();
 }
 
@@ -1986,8 +1982,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     }
 
     initWithChatd();
-    if (mOwnPriv != chatd::PRIV_NOTPRESENT)
-        mRoomGui = addAppItem();
+    mRoomGui = addAppItem();
     mIsInitializing = false;
 }
 
@@ -2474,10 +2469,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
             notifyRejoinedChat();
-            if (parent.client.connected() && !parent.client.mInactiveChatsEnabled)
-            {
-                connect();
-            }
         }
     }
     else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
@@ -2573,9 +2564,10 @@ void Client::connectToChatd(bool isInBackground)
 
     for (auto& item: *chats)
     {
-        auto& chat = *item.second;
-        if ((mInactiveChatsEnabled || chat.isActive()) && !chat.chat().isDisabled())
-            chat.connect();
+        if (!chat.chat().isDisabled())
+        {
+            item.second->connect();
+        }
     }
 }
 
