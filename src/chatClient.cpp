@@ -2564,9 +2564,10 @@ void Client::connectToChatd(bool isInBackground)
 
     for (auto& item: *chats)
     {
+        auto& chat = *item.second;
         if (!chat.chat().isDisabled())
         {
-            item.second->connect();
+            chat.connect();
         }
     }
 }
