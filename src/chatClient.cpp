@@ -1717,6 +1717,17 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
+promise::Promise<void> ChatRoom::archiveChat(bool archive)
+{
+    auto wptr = getDelTracker();
+    return parent.client.api.callIgnoreResult(&::mega::MegaApi::archiveChat, chatid(), archive)
+    .then([this, wptr, archive]()
+    {
+        wptr.throwIfDeleted();
+        parent.client.db.query("update chats set archived=? where chatid=?", archive, mChatid);
+    });
+}
+
 void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending
