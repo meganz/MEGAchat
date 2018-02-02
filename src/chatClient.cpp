@@ -2494,8 +2494,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool archiveChanged = syncArchive(chat.isArchived());
     if (archiveChanged)
     {
-        // TODO: create the new callback at IGui and notification in MegaChatApi
-//        onArchived(mIsArchived);
+        auto listItem = roomGui();
+        if (listItem)
+            listItem->onChatArchived(mIsArchived);
     }
 
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());

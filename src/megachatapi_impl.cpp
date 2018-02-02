@@ -4918,6 +4918,11 @@ bool MegaChatListItemPrivate::isActive() const
     return active;
 }
 
+bool MegaChatListItemPrivate::isArchived() const
+{
+    return archived;
+}
+
 MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
 {
     return peerHandle;
@@ -4955,6 +4960,12 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
 {
     this->lastTs = ts;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
+}
+
+void MegaChatListItemPrivate::setArchived(bool archived)
+{
+    this->archived = archived;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
 }
 
 void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
@@ -5041,6 +5052,13 @@ void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 {
     int newState = MegaChatApiImpl::convertChatConnectionState(state);
     chatApi.fireOnChatConnectionStateUpdate(this->mRoom.chatid(), newState);
+}
+
+void MegaChatListItemHandler::onChatArchived(bool archived)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setOwnPriv(item->getOwnPrivilege());
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)

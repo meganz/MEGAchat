@@ -3107,12 +3107,13 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01, /// obsolete
         CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
-        CHANGE_TYPE_UNREAD_COUNT    = 0x04,
+        CHANGE_TYPE_UNREAD_COUNT    = 0x04, /// Unread count updated
         CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
-        CHANGE_TYPE_TITLE           = 0x10,
+        CHANGE_TYPE_TITLE           = 0x10, /// Title updated
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80  /// Timestamp of the last activity
+        CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
+        CHANGE_TYPE_ARCHIVE         = 0X100 /// Archived or unarchived
     };
 
     virtual ~MegaChatListItem() {}
@@ -3241,6 +3242,12 @@ public:
      * @return True if the chat is active, false otherwise.
      */
     virtual bool isActive() const;
+
+    /**
+     * @brief Returns whether the chat is currently archived or not.
+     * @return True if the chat is archived, false otherwise.
+     */
+    virtual bool isArchived() const;
 
     /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms

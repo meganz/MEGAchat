@@ -266,6 +266,7 @@ private:
     int64_t lastTs;
     bool group;
     bool active;
+    bool archived;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
 
@@ -284,6 +285,7 @@ public:
     virtual int64_t getLastTimestamp() const;
     virtual bool isGroup() const;
     virtual bool isActive() const;
+    virtual bool isArchived() const;
     virtual MegaChatHandle getPeerHandle() const;
 
     void setOwnPriv(int ownPriv);
@@ -292,6 +294,7 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
+    void setArchived(bool);
 
     /**
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
@@ -319,6 +322,7 @@ public:
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
     virtual void onChatOnlineState(const chatd::ChatState state);
+    virtual void onChatArchived(bool archived);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 

@@ -1066,6 +1066,11 @@ bool MegaChatListItem::isActive() const
     return false;
 }
 
+bool MegaChatListItem::isArchived() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatListItem::getPeerHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
