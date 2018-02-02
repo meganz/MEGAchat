@@ -1719,7 +1719,20 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
 {
-    return parent.client.api.callIgnoreResult(&::mega::MegaApi::archiveChat, chatid(), archive);
+    auto wptr = getDelTracker();
+    return parent.client.api.callIgnoreResult(&::mega::MegaApi::archiveChat, chatid(), archive)
+    .then([this, wptr, archive]()
+    {
+        wptr.throwIfDeleted();
+
+        bool archiveChanged = syncArchive(archive);
+        if (archiveChanged)
+        {
+            auto listItem = roomGui();
+            if (listItem)
+                listItem->onChatArchived(archive);
+        }
+    });
 }
 
 void GroupChatRoom::deleteSelf()
@@ -2375,7 +2388,7 @@ void GroupChatRoom::onUnreadChanged()
         mRoomGui->onUnreadCountChanged(count);
 }
 
-// return true if new peer, peer removed or peer's privilege updated
+// return true if new peer or peer removed. Updates peer privileges as well
 bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
     UserPrivMap users;

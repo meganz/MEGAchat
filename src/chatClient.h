@@ -300,7 +300,7 @@ public:
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    bool syncMembers(const mega::MegaTextChat& chat);
+    bool syncMembers(const mega::MegaTextChat& chat);   
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
