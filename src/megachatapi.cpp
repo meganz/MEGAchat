@@ -353,6 +353,11 @@ MegaChatListItemList *MegaChatApi::getInactiveChatListItems()
     return pImpl->getInactiveChatListItems();
 }
 
+MegaChatListItemList *MegaChatApi::getArchivedChatListItems()
+{
+    return pImpl->getArchivedChatListItems();
+}
+
 MegaChatListItemList *MegaChatApi::getUnreadChatListItems()
 {
     return pImpl->getUnreadChatListItems();

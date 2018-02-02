@@ -2032,6 +2032,9 @@ public:
      * MegaChatRoom objects, but a limited set of data that is usually displayed
      * at the list of chatrooms, like the title of the chat or the unread count.
      *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
      * You take the ownership of the returned value
      *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
@@ -2062,7 +2065,7 @@ public:
     /**
      * @brief Return the number of chatrooms with unread messages
      *
-     * Inactive chatrooms with unread messages are not considered.
+     * Archived chatrooms with unread messages are not considered.
      *
      * @return The number of chatrooms with unread messages
      */
@@ -2080,9 +2083,8 @@ public:
     /**
      * @brief Return the chatrooms that are currently inactive
      *
-     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
-     * when the contact-relationship is broken (you remove the contact or you are
-     * removed by the other contact).
+     * Chatrooms became inactive when you left a groupchat or you are removed by
+     * a moderator. 1on1 chats do not become inactive, just read-only.
      *
      * You take the onwership of the returned value.
      *
@@ -2091,7 +2093,18 @@ public:
     MegaChatListItemList *getInactiveChatListItems();
 
     /**
+     * @brief Return the archived chatrooms
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the archived chatrooms
+     */
+    MegaChatListItemList *getArchivedChatListItems();
+
+    /**
      * @brief Return the chatrooms that have unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
      *
      * You take the onwership of the returned value.
      *
