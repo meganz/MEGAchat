@@ -1622,14 +1622,14 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
         return false;
 
     mPeerPriv = priv;
-    parent.client.db.query("update chats set peer_priv = ? where chatid = ?", priv, mChatid);
+    parent.client.db.query("update chats set peer_priv = ? where chatid = ?", mPeerPriv, mChatid);
 
     return true;
 }
 
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
-    bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);   // returns true if own privilege has changed
+    bool changed = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());   // returns true if own privilege has changed
     changed |= syncArchive(chat.isArchived());
     changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
     return changed;
@@ -1674,19 +1674,20 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
 
 bool GroupChatRoom::removeMember(uint64_t userid)
 {
+    KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", Id(mChatid).toString().c_str(), Id(userid).toString().c_str());
+
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
     {
         KR_LOG_WARNING("GroupChatRoom::removeMember for a member that we don't have, ignoring");
         return false;
     }
+
     delete it->second;
-    mPeers.erase(it);
+    mPeers.erase(it);    
     parent.client.presenced().removePeer(userid);
-    parent.client.db.query("delete from chat_peers where chatid=? and userid=?",
-                mChatid, userid);
-    if (!mHasTitle)
-        makeTitleFromMemberNames();
+    parent.client.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
+
     return true;
 }
 
@@ -2200,16 +2201,6 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     });
 }
 
-bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
-{
-    if (chat.getShard() != mShardNo)
-        throw std::runtime_error("syncWithApi: Shard number of chat can't change");
-    if (chat.isGroup() != mIsGroup)
-        throw std::runtime_error("syncWithApi: isGroup flag can't change");
-
-    return syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
-}
-
 //chatd::Listener::init
 void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
@@ -2281,7 +2272,10 @@ void GroupChatRoom::onUserLeave(Id userid)
     }
     else
     {
-        removeMember(userid);
+        if (removeMember(userid) && !mHasTitle)
+        {
+            makeTitleFromMemberNames();
+        }
 
         if (mRoomGui)
             mRoomGui->onUserLeave(userid);
@@ -2371,36 +2365,42 @@ void GroupChatRoom::onUnreadChanged()
 }
 
 // return true if new peer, peer removed or peer's privilege updated
-bool GroupChatRoom::syncMembers(const UserPrivMap& users)
+bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
-    bool changed = false;
-    auto db = parent.client.db;
+    UserPrivMap users;
+    auto members = chat.getPeerList();
+    if (members)
+    {
+        auto size = members->size();
+        for (int i = 0; i < size; i++)
+        {
+            users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+        }
+    }
+
+    bool peersChanged = false;
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
+        auto chat = ourIt->second;
+
         auto it = users.find(userid);
         if (it == users.end()) //we have a user that is not in the chatroom anymore
         {
-            changed = true;
-            auto erased = ourIt;
-            ourIt++;
-            auto member = erased->second;
-            mPeers.erase(erased);
-            delete member;
-            db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
-            KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Removed member %s",
-                 Id(mChatid).toString().c_str(),  Id(userid).toString().c_str());
+            peersChanged = true;
+            ourIt++;    // prevent iterator becoming invalid due to removal
+            removeMember(userid);
         }
-        else
+        else    // existing peer changed privilege
         {
-            if (ourIt->second->mPriv != it->second)
+            if (chat->mPriv != it->second)
             {
-                changed = true;
-                db.query("update chat_peers set priv=? where chatid=? and userid=?", it->second, mChatid, userid);
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
-                     ourIt->second->mPriv, it->second);
-                ourIt->second->mPriv = it->second;
+                     chat->mPriv, it->second);
+
+                chat->mPriv = it->second;
+                parent.client.db.query("update chat_peers set priv=? where chatid=? and userid=?", chat->mPriv, mChatid, userid);
             }
             ourIt++;
         }
@@ -2411,12 +2411,12 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
     {
         if (mPeers.find(user.first) == mPeers.end())
         {
-            changed = true;
+            peersChanged = true;
             promises.push_back(addMember(user.first, user.second, true));
         }
     }
 
-    if (promises.size() > 0)
+    if (peersChanged)
     {
         auto wptr = weakHandle();
         promise::when(promises)
@@ -2430,7 +2430,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
         });
     }
 
-    return changed;
+    return peersChanged;
 }
 void GroupChatRoom::clearTitle()
 {
@@ -2440,43 +2440,9 @@ void GroupChatRoom::clearTitle()
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
+    // Own privilege changed
     auto oldPriv = mOwnPriv;
-    bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
-    UserPrivMap membs;
-    changed |= syncMembers(apiMembersToMap(chat, membs));
-
-    auto title = chat.getTitle();
-    if (title && title[0])
-    {
-        mEncryptedTitle = title;
-        mHasTitle = true;
-        if (parent.client.connected())
-        {
-            decryptTitle()
-            .fail([](const promise::Error& err)
-            {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
-            });
-        }
-    }
-    else
-    {
-        // By checking if 'changed', we avoid some unnecessary notifications about title-updates
-        // TODO: we still notify title-updates for all privilege changes, when only group
-        // composition changes represent a title-update and should be notified
-        if (changed)
-        {
-            clearTitle();
-            KR_LOG_DEBUG("Empty title received for group chat %s", Id(mChatid).toString().c_str());
-        }
-    }
-
-    if (!changed)
-    {
-        KR_LOG_DEBUG("Sync group chatroom %s with API: no changes", Id(mChatid).toString().c_str());
-        return false;
-    }
-
+    syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
     if (oldPriv == chatd::PRIV_NOTPRESENT)
     {
         if (mOwnPriv != chatd::PRIV_NOTPRESENT)
@@ -2494,24 +2460,46 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     }
     else
     {
+        KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  Id(mChatid).toString().c_str());
         onUserJoin(parent.client.myHandle(), mOwnPriv);
     }
-    KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
-    return true;
-}
 
-UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs)
-{
-    auto members = chat.getPeerList();
-    if (members)
+    // Peer list changes
+    bool membersChanged = syncMembers(chat);
+
+    // Title changes
+    auto title = chat.getTitle();
+    if (title && title[0])
     {
-        auto size = members->size();
-        for (int i = 0; i < size; i++)
+        if (mEncryptedTitle != title)   // title has changed
         {
-            membs.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+            mEncryptedTitle = title;
+            mHasTitle = true;
+            if (parent.client.connected())
+            {
+                decryptTitle()
+                .fail([](const promise::Error& err)
+                {
+                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
+                });
+            }
         }
     }
-    return membs;
+    else if (membersChanged && !mHasTitle)
+    {
+        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", Id(mChatid).toString().c_str());
+        clearTitle();
+    }
+
+    bool archiveChanged = syncArchive(chat.isArchived());
+    if (archiveChanged)
+    {
+        // TODO: create the new callback at IGui and notification in MegaChatApi
+//        onArchived(mIsArchived);
+    }
+
+    KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
+    return true;
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)

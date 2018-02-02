@@ -68,7 +68,6 @@ protected:
     bool mIsArchived;
     std::string mTitleString;
     void notifyTitleChanged();
-    bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
@@ -300,9 +299,7 @@ public:
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
-    bool syncMembers(const UserPrivMap& users);
-    static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
+    bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
