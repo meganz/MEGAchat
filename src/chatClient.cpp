@@ -2406,7 +2406,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
-        auto chat = ourIt->second;
+        auto member = ourIt->second;
 
         auto it = users.find(userid);
         if (it == users.end()) //we have a user that is not in the chatroom anymore
@@ -2417,14 +2417,14 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
         }
         else    // existing peer changed privilege
         {
-            if (chat->mPriv != it->second)
+            if (member->mPriv != it->second)
             {
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
-                     chat->mPriv, it->second);
+                     member->mPriv, it->second);
 
-                chat->mPriv = it->second;
-                parent.client.db.query("update chat_peers set priv=? where chatid=? and userid=?", chat->mPriv, mChatid, userid);
+                member->mPriv = it->second;
+                parent.client.db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
             }
             ourIt++;
         }
