@@ -1719,13 +1719,7 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
 {
-    auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(&::mega::MegaApi::archiveChat, chatid(), archive)
-    .then([this, wptr, archive]()
-    {
-        wptr.throwIfDeleted();
-        parent.client.db.query("update chats set archived=? where chatid=?", archive, mChatid);
-    });
+    return parent.client.api.callIgnoreResult(&::mega::MegaApi::archiveChat, chatid(), archive);
 }
 
 void GroupChatRoom::deleteSelf()

@@ -5107,7 +5107,7 @@ void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 void MegaChatListItemHandler::onChatArchived(bool archived)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setOwnPriv(item->getOwnPrivilege());
+    item->setArchived(archived);
     chatApi.fireOnChatListItemUpdate(item);
 }
 
