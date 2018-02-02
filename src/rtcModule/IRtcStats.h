@@ -43,8 +43,8 @@ struct Sample
             short width = 0;
             short height = 0;
             float el = 0.0;
-            unsigned char lcpu = 0;
-            unsigned char lbw = 0;
+            short lcpu = 0;
+            short lbw = 0;
             long bwav = 0;
             long targetEncBitrate = 0;
         } s;
