@@ -4403,6 +4403,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();
+    this->archived = chat->isArchived();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
 }
@@ -4416,6 +4417,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->title = chat.titleString();
     this->unreadCount = chat.chat().unreadMsgCount();
     this->active = chat.isActive();
+    this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
 
     if (group)
@@ -4632,6 +4634,11 @@ const char *MegaChatRoomPrivate::getTitle() const
 bool MegaChatRoomPrivate::isActive() const
 {
     return active;
+}
+
+bool MegaChatRoomPrivate::isArchived() const
+{
+    return archived;
 }
 
 int MegaChatRoomPrivate::getChanges() const

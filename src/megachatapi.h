@@ -3509,6 +3509,12 @@ public:
      */
     virtual bool isActive() const;
 
+    /**
+     * @brief Returns whether the chat is currently archived or not.
+     * @return True if the chat is archived, false otherwise.
+     */
+    virtual bool isArchived() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };
