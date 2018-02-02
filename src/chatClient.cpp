@@ -1271,14 +1271,17 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
     });
 }
 
-promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
+promise::Promise<void> GroupChatRoom::excludeMember(uint64_t userid)
 {
     auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), user)
-    .then([this, wptr, user]()
+    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), userid)
+    .then([this, wptr, userid]()
     {
         wptr.throwIfDeleted();
-        removeMember(user);
+        if (removeMember(userid) && !mHasTitle)
+        {
+            makeTitleFromMemberNames();
+        }
     });
 }
 
