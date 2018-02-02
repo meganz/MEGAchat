@@ -2453,26 +2453,29 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
     // Own privilege changed
     auto oldPriv = mOwnPriv;
-    syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
-    if (oldPriv == chatd::PRIV_NOTPRESENT)
+    bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
+    if (ownPrivChanged)
     {
-        if (mOwnPriv != chatd::PRIV_NOTPRESENT)
+        if (oldPriv == chatd::PRIV_NOTPRESENT)
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
-            notifyRejoinedChat();
+            if (mOwnPriv != chatd::PRIV_NOTPRESENT)
+            {
+                KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
+                notifyRejoinedChat();
+            }
         }
-    }
-    else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
-    {
-        //we were excluded
-        KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(mChatid).toString().c_str());
-        setRemoved(); // may delete 'this'
-        return true;
-    }
-    else
-    {
-        KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  Id(mChatid).toString().c_str());
-        onUserJoin(parent.client.myHandle(), mOwnPriv);
+        else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
+        {
+            //we were excluded
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(mChatid).toString().c_str());
+            setRemoved(); // may delete 'this'
+            return true;
+        }
+        else
+        {
+            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  Id(mChatid).toString().c_str());
+            onUserJoin(parent.client.myHandle(), mOwnPriv);
+        }
     }
 
     // Peer list changes
