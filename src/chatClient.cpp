@@ -1283,10 +1283,10 @@ promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
 }
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
-  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& aTitle)
+  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& aTitle)
    :parent(aParent), mChatid(chatid),
     mShardNo(aShard), mIsGroup(aIsGroup),
-    mOwnPriv(aOwnPriv), mTitleString(aTitle), mCreationTs(ts)
+    mOwnPriv(aOwnPriv), mCreationTs(ts), mIsArchived(aIsArchived), mTitleString(aTitle)
 {}
 
 //chatd::Listener
@@ -1435,8 +1435,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
-:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title)
+:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
@@ -1503,8 +1503,8 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts)
-:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts), mPeer(peer),
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts, bool aIsArchived)
+:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived), mPeer(peer),
   mPeerPriv(peerPriv),
   mRoomGui(nullptr)
 {
@@ -1516,12 +1516,11 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
-     (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime()),
-    mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)),
-    mRoomGui(nullptr)
+     (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
+      mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
-    parent.client.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
-        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime());
+    parent.client.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
 //just in case
     parent.client.db.query("delete from chat_peers where chatid = ?", mChatid);
 
@@ -1568,7 +1567,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 }
             });
 
-        if (mTitleString.empty()) // user attrib fetch was not synchornous
+        if (mTitleString.empty()) // user attrib fetch was not synchronous
         {
             updateTitle(mEmail);
             assert(!mTitleString.empty());
@@ -1598,7 +1597,18 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         return false;
 
     mOwnPriv = priv;
-    parent.client.db.query("update chats set own_priv = ? where chatid = ?", priv, mChatid);
+    parent.client.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
+
+    return true;
+}
+
+bool ChatRoom::syncArchive(bool aIsArchived)
+{
+    if (mIsArchived == aIsArchived)
+        return false;
+
+    mIsArchived = aIsArchived;
+    parent.client.db.query("update chats set archived = ? where chatid = ?", mIsArchived, mChatid);
 
     return true;
 }
@@ -1617,6 +1627,7 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);   // returns true if own privilege has changed
+    changed |= syncArchive(chat.isArchived());
     changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
     return changed;
 }
@@ -1727,7 +1738,7 @@ ChatRoomList::ChatRoomList(Client& aClient)
 
 void ChatRoomList::loadFromDb()
 {
-    SqliteStmt stmt(client.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
+    SqliteStmt stmt(client.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -1739,9 +1750,9 @@ void ChatRoomList::loadFromDb()
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
+            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1919,7 +1930,7 @@ ChatRoomList::~ChatRoomList()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)
+  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()), mRoomGui(nullptr)
 {
     auto title = aChat.getTitle();
     if (title && title[0])
@@ -1970,8 +1981,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     db.query("delete from chat_peers where chatid=?", mChatid);
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created) values(?,?,-1,0,?,?)",
-        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime());
+        "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
+        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
 
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
