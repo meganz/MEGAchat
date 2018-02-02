@@ -17,8 +17,6 @@
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
 
-namespace strophe { class Connection; }
-
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
 namespace strongvelope { class ProtocolHandler; }

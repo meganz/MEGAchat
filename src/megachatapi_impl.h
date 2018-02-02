@@ -39,7 +39,6 @@
 #include <chatClient.h>
 #include <chatd.h>
 #include <sdkApi.h>
-//#include <mstrophepp.h>
 #include <karereCommon.h>
 #include <logger.h>
 
