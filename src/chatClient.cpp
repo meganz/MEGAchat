@@ -2330,6 +2330,9 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
 
 void PeerChatRoom::onUnreadChanged()
 {
+    if (mIsArchived)
+        return;
+
     auto count = mChat->unreadMsgCount();
     if (mRoomGui)
         mRoomGui->onUnreadCountChanged(count);
@@ -2359,6 +2362,9 @@ void ChatRoom::notifyTitleChanged()
 
 void GroupChatRoom::onUnreadChanged()
 {
+    if (mIsArchived)
+        return;
+
     auto count = mChat->unreadMsgCount();
     if (mRoomGui)
         mRoomGui->onUnreadCountChanged(count);
