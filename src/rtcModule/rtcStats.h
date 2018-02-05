@@ -48,6 +48,7 @@ public:
     int64_t mStartTs;
     int64_t mDur;
     karere::Id mCallId;
+    karere::Id mSessionId;
     karere::Id mOwnAnonId;
     karere::Id mPeerAnonId;
     std::vector<Sample*> mSamples;
@@ -114,6 +115,8 @@ protected:
     BwCalculator mConnTxBwCalc;
     void addSample();
     void resetBwCalculators();
+    long long getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
+    std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
 public:
     Session& mSession;
     std::unique_ptr<RtcStats> mStats;
@@ -126,11 +129,10 @@ public:
         return !mStats->mConnInfo.mRlySvr.empty();
     }
     void start();
-    void terminate(const std::string& termRsn);
+    std::string terminate(const StatSessInfo &info);
     virtual void OnComplete(const webrtc::StatsReports& data);
-    void onStats(const std::shared_ptr<artc::MyStatsReports>& data);
+    void onStats(const webrtc::StatsReports &data);
     std::function<void(void*, int)> onSample;
-    std::string getStats(const StatSessInfo& info);
 };
 }
 }
