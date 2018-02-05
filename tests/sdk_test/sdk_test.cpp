@@ -2131,15 +2131,15 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
  *
  * This test does the following:
  * - A calls B
- * - B hangs up
+ * - B rejects the call
  *
  * - A calls B
- * - A hangs up before B answers
+ * - A cancels the call before B answers
  *
  * - B logouts
  * - A calls B
  * - B logins
- * - B hangs up
+ * - B rejects the call
  *
  * - A calls B
  * - B doesn't answer the call
@@ -2516,16 +2516,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     primarySession = NULL;
     delete [] secondarySession;
     secondarySession = NULL;
-
-    delete mLocalVideoListener[a1];
-    mLocalVideoListener[a1] = NULL;
-    delete mRemoteVideoListener[a1];
-    mRemoteVideoListener[a1] = NULL;
-
-    delete mLocalVideoListener[a2];
-    mLocalVideoListener[a2] = NULL;
-    delete mRemoteVideoListener[a2];
-    mRemoteVideoListener[a2] = NULL;
 }
 
 #endif
