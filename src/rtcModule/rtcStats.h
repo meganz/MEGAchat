@@ -115,6 +115,8 @@ protected:
     BwCalculator mConnTxBwCalc;
     void addSample();
     void resetBwCalculators();
+    long long getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
+    std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
 public:
     Session& mSession;
     std::unique_ptr<RtcStats> mStats;

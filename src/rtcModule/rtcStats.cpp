@@ -59,6 +59,42 @@ void Recorder::resetBwCalculators()
     mConnTxBwCalc.reset(&(mCurrSample->cstats.s));
 }
 
+long long Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
+{
+    long long numericalValue = 0;
+    const webrtc::StatsReport::Value *value = item->FindValue(name);
+    if (value)
+    {
+        if (value->type() == webrtc::StatsReport::Value::kInt)
+        {
+            numericalValue = value->int_val();
+        }
+        else if (value->type() == webrtc::StatsReport::Value::kInt64)
+        {
+            numericalValue = value->int64_val();
+        }
+        else
+        {
+            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString(), value->type());
+            assert(false);
+        }
+    }
+
+    return numericalValue;
+}
+
+std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
+{
+    std::string stringValue;
+    const webrtc::StatsReport::Value *value = item->FindValue(name);
+    if (value)
+    {
+        stringValue = value->ToString();
+    }
+
+    return stringValue;
+}
+
 void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
 {
     long deltaBytes = newTotalBytes - mTotalBytes;
@@ -73,7 +109,7 @@ void Recorder::OnComplete(const webrtc::StatsReports& data)
     onStats(data);
 }
 
-#define AVG(name, var) var = round((float)var + item->FindValue(VALNAME(name))->int64_val()) / 2
+#define AVG(name, var) var = round((float)var + getLongValue(VALNAME(name), item)) / 2
 
 void Recorder::onStats(const webrtc::StatsReports &data)
 {
@@ -87,39 +123,39 @@ void Recorder::onStats(const webrtc::StatsReports &data)
             long width;
             if (item->FindValue(VALNAME(FrameWidthReceived))) //video rx
             {
-                width = item->FindValue(VALNAME(FrameWidthReceived))->int64_val();
+                width = getLongValue(VALNAME(FrameWidthReceived), item);
                 auto& sample = mCurrSample->vstats.r;
-                mVideoRxBwCalc.calculate(period, item->FindValue(VALNAME(BytesReceived))->int64_val());
+                mVideoRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
                 AVG(FrameRateReceived, sample.fps);
                 AVG(CurrentDelayMs, sample.dly);
                 AVG(JitterBufferMs, sample.jtr);
-                sample.pl = item->FindValue(VALNAME(PacketsLost))->int64_val();
+                sample.pl = getLongValue(VALNAME(PacketsLost), item);
 //              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
                 sample.width = width;
-                sample.height = item->FindValue(VALNAME(FrameHeightReceived))->int64_val();
+                sample.height = getLongValue(VALNAME(FrameHeightReceived), item);
             }
             else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
             {
-                width = item->FindValue(VALNAME(FrameWidthSent))->int64_val();
+                width = getLongValue(VALNAME(FrameWidthSent), item);
                 auto& sample = mCurrSample->vstats.s;
                 AVG(Rtt, sample.rtt);
                 AVG(FrameRateSent, sample.fps);
                 AVG(FrameRateInput, sample.cfps);
                 sample.width = width;
-                sample.height = item->FindValue(VALNAME(FrameHeightSent))->int64_val();
+                sample.height = getLongValue(VALNAME(FrameHeightSent), item);
                 if (mStats->mConnInfo.mVcodec.empty())
                 {
-                    mStats->mConnInfo.mVcodec = item->FindValue(VALNAME(CodecName))->string_val();
+                    mStats->mConnInfo.mVcodec = getStringValue(VALNAME(CodecName), item);
                 }
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.lcpu = (*item->FindValue(VALNAME(CpuLimitedResolution)) == "true");
-                sample.lbw = (*item->FindValue(VALNAME(BandwidthLimitedResolution)) == "true");
-                mVideoTxBwCalc.calculate(period, item->FindValue(VALNAME(BytesSent))->int64_val());
+                sample.lcpu = getStringValue(VALNAME(CpuLimitedResolution), item) == "true";
+                sample.lbw = getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true";
+                mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
             }
             else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
             {
-                mAudioRxBwCalc.calculate(period, item->FindValue(VALNAME(BytesSent))->int64_val());
+                mAudioRxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
                 if (item->FindValue(VALNAME(Rtt)))
                 {
                     AVG(Rtt, mCurrSample->astats.rtt);
@@ -127,41 +163,41 @@ void Recorder::onStats(const webrtc::StatsReports &data)
             }
             else if (item->FindValue(VALNAME(AudioOutputLevel))) //audio tx
             {
-                mAudioTxBwCalc.calculate(period, item->FindValue(VALNAME(BytesReceived))->int64_val());
+                mAudioTxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
                 AVG(JitterReceived, mCurrSample->astats.jtr);
-                mCurrSample->astats.pl = item->FindValue(VALNAME(PacketsLost))->int64_val();
+                mCurrSample->astats.pl = getLongValue(VALNAME(PacketsLost), item);
             }
         }
-        else if ((item->id()->type() == RPTYPE(CandidatePair)) && *item->FindValue(VALNAME(ActiveConnection)) == std::string("true"))
+        else if ((item->id()->type() == RPTYPE(CandidatePair)) && getStringValue(VALNAME(ActiveConnection), item) == "true")
         {
             if (!mHasConnInfo) //happens if peer is Firefox
             {
                 mHasConnInfo = true;
-                bool isRelay = (item->FindValue(VALNAME(LocalCandidateType))->string_val() == "relay");
+                bool isRelay = getStringValue(VALNAME(LocalCandidateType), item) == "relay";
                 if (isRelay)
                 {
                     auto& rlySvr = mStats->mConnInfo.mRlySvr;
-                    rlySvr = item->FindValue(VALNAME(LocalAddress))->string_val();
+                    rlySvr = getStringValue(VALNAME(LocalAddress), item);
                     if (rlySvr.empty())
                         rlySvr = "<error getting relay server>";
                 }
-                mStats->mConnInfo.mCtype = item->FindValue(VALNAME(RemoteCandidateType))->string_val();
-                mStats->mConnInfo.mProto = item->FindValue(VALNAME(TransportType))->string_val();
+                mStats->mConnInfo.mCtype = getStringValue(VALNAME(RemoteCandidateType), item);
+                mStats->mConnInfo.mProto = getStringValue(VALNAME(TransportType), item);
             }
             auto& cstat = mCurrSample->cstats;
             AVG(Rtt, cstat.rtt);
-            mConnRxBwCalc.calculate(period, item->FindValue(VALNAME(BytesReceived))->int64_val());
-            mConnTxBwCalc.calculate(period, item->FindValue(VALNAME(BytesSent))->int64_val());
+            mConnRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
+            mConnTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
 
         }
         else if (item->id()->type() == RPTYPE(Bwe))
         {
-            mCurrSample->vstats.r.bwav = round((float)item->FindValue(VALNAME(AvailableReceiveBandwidth))->int64_val()/1024);
+            mCurrSample->vstats.r.bwav = round((float)getLongValue(VALNAME(AvailableReceiveBandwidth), item)/1024);
             auto& sample = mCurrSample->vstats.s;
-            sample.bwav = round((float)item->FindValue(VALNAME(AvailableSendBandwidth))->int64_val()/1024);
-            sample.gbps = round((float)item->FindValue(VALNAME(TransmitBitrate))->int64_val()/1024); //chrome returns it in bits/s, should be near our calculated bps
+            sample.bwav = round((float)getLongValue(VALNAME(AvailableSendBandwidth), item)/1024);
+            sample.gbps = round((float)getLongValue(VALNAME(TransmitBitrate), item)/1024); //chrome returns it in bits/s, should be near our calculated bps
             sample.gabps = (sample.gabps*4+sample.gbps)/5;
-            sample.targetEncBitrate = round((float)item->FindValue(VALNAME(TargetEncBitrate))->int64_val()/1024);
+            sample.targetEncBitrate = round((float)getLongValue(VALNAME(TargetEncBitrate), item)/1024);
         }
     } //end item loop
     bool shouldAddSample = false;
