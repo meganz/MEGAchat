@@ -306,10 +306,6 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
     else
     {
-        if (mInitState == kInitErrNoCache) //local karere cache not present or currupt, force sdk to do full fetchnodes
-        {
-            api.sdk.invalidateCache();
-        }
         return sdkLoginExistingSession(sid);
     }
 }
@@ -1798,7 +1794,6 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
         auto peers = apiRoom.getPeerList();
         assert(peers);
         assert(peers->size() == 1);
-        delete peers;
 
         room = new PeerChatRoom(*this, apiRoom);
     }
