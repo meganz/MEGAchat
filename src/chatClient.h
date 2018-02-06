@@ -118,7 +118,7 @@ public:
     /** @brief Whether we are currently member of the chatroom (for group
       * chats), or we are contacts with the peer (for 1on1 chats)
       */
-    bool isActive() const { return mOwnPriv != chatd::PRIV_NOTPRESENT; }
+    bool isActive() const { return mIsGroup ? (mOwnPriv != chatd::PRIV_NOTPRESENT) : true; }
 
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
@@ -184,11 +184,11 @@ public:
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
 {
-//  @cond PRIVATE
 protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
-    Contact& mContact;
+    std::string mEmail;
+    Contact *mContact;
     // mRoomGui must be the last member, since when we initialize it,
     // we call into the app and pass our this pointer, so all other members
     // must be initialized
@@ -198,27 +198,39 @@ protected:
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
+    static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
     virtual void connect();
+    UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
             chatd::Priv peerPriv, uint32_t ts);
-    PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room, Contact& contact);
+    PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
-    //@endcond
+
 public:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
     chatd::Priv peerPrivilege() const { return mPeerPriv; }
-    /** @brief The contact object representing the peer of the 1on1 chat */
-    Contact& contact() const { return mContact; }
+
+    /**
+     * @brief The contact object representing the peer of the 1on1 chat.
+     * @note Returns nullptr when the 1on1 chat is with a user who canceled the account
+     */
+    Contact *contact() const { return mContact; }
 
     /** @brief The screen name of the peer */
     virtual const std::string& titleString() const;
+
+    /** @brief The screen email address of the peer */
+    virtual const std::string& email() const { return mEmail; }
+
+    void initContact(const uint64_t& peer);
+
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -617,7 +629,6 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
-    unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};

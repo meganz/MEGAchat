@@ -4171,7 +4171,6 @@ void MegaChatRoomHandler::onRejoinedChat()
 
 void MegaChatRoomHandler::onExcludedFromChat()
 {
-
     if (mRoom)
     {
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
@@ -4322,7 +4321,7 @@ void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {
     this->chatid = chat->getChatId();
-    this->priv = chat->getOwnPrivilege();
+    this->priv = (privilege_t) chat->getOwnPrivilege();
     for (unsigned int i = 0; i < chat->getPeerCount(); i++)
     {
         MegaChatHandle uh = chat->getPeerHandle(i);
@@ -4343,7 +4342,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
 {
     this->changed = 0;
     this->chatid = chat.chatid();
-    this->priv = chat.ownPriv();
+    this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->title = chat.titleString();
     this->unreadCount = chat.chat().unreadMsgCount();
@@ -4376,7 +4375,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.contact().titleString();
+        string name = peerchat.titleString();
 
         this->peers.push_back(userpriv_pair(uh, priv));
 
@@ -4388,7 +4387,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         this->peerLastnames.push_back(buffer ? buffer : "");
         delete [] buffer;
 
-        this->peerEmails.push_back(peerchat.contact().email());
+        this->peerEmails.push_back(peerchat.email());
     }
 }
 
@@ -4588,7 +4587,7 @@ MegaChatHandle MegaChatRoomPrivate::getUserTyping() const
 
 void MegaChatRoomPrivate::setOwnPriv(int ownPriv)
 {
-    this->priv = ownPriv;
+    this->priv = (privilege_t) ownPriv;
     this->changed |= MegaChatRoom::CHANGE_TYPE_OWN_PRIV;
 }
 
@@ -4981,6 +4980,7 @@ void MegaChatListItemHandler::onExcludedFromChat()
 void MegaChatListItemHandler::onRejoinedChat()
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setOwnPriv(item->getOwnPrivilege());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
