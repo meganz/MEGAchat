@@ -1430,7 +1430,7 @@ public:
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
-        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
+        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> it requires login+fetchnodes
     };
 
     enum
@@ -1526,8 +1526,9 @@ public:
      * return MegaChatApi::INIT_OFFLINE_SESSION.
      *
      * If a session id is provided but the correspoding cache is not available, it will return
-     * MegaChatApi::INIT_NO_CACHE and the app should go through a new fetchnodes in order to
-     * re-create a new cache from scratch.
+     * MegaChatApi::INIT_NO_CACHE and the app should go through a login + fetchnodes in order to
+     * re-create a new cache from scratch. No need to invalidate the SDK's cache, MEGAchat's cache
+     * will be regenerated based on data from SDK's cache upong fetchnodes completion.
      *
      * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
      * the documentation of the callback for possible values.
