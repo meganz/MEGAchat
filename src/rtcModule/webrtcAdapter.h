@@ -17,6 +17,7 @@
 #include "base/promise.h"
 #include "webrtcAsyncWaiter.h"
 #include "rtcmPrivate.h"
+
 namespace artc
 {
 /** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
@@ -138,77 +139,6 @@ public:
     }
 protected:
     PromiseType mPromise;
-};
-
-struct MyStatsReport: public webrtc::StatsReport::Values
-{
-    typedef webrtc::StatsReport::Values Base;
-    typedef webrtc::StatsReport::Value Value;
-    typedef webrtc::StatsReport::StatsType Type;
-    typedef webrtc::StatsReport::StatsValueName ValName;
-    Type type;
-    double timestamp;
-    std::string typeStr;
-    MyStatsReport(const webrtc::StatsReport& src)
-    :type(src.type()), timestamp(src.timestamp()), typeStr(src.TypeToString())
-    { copyValues(src.values()); }
-    void copyValues(const Base& values)
-    {
-        for (auto& v: values)
-            emplace(v.first, v.second);
-    }
-    bool hasVal(ValName name)
-    {
-        return (find(name) != end());
-    }
-    std::string valName(const Value& val)
-    {
-        const char* name = val.display_name();
-        return name?name:"(unknown)";
-    }
-    std::string strVal(ValName name)
-    {
-        static const std::string empty;
-        auto it = find(name);
-        if (it == end())
-            return empty;
-        return it->second->ToString();
-    }
-    bool longVal(ValName name, long& ret)
-    {
-        auto it = find(name);
-        if (it == end())
-            return false;
-        auto& val = *it->second;
-        auto type = val.type();
-        printf("==============type = %d\n", type);
-        if (type == Value::kInt)
-            ret = val.int_val();
-        else if (type == Value::kInt64)
-            ret = val.int64_val();
-        else
-            throw std::runtime_error("longVal: Value with id "+valName(val)+ " is not an int, but has type "+std::to_string(type));
-        return true;
-    }
-    long longVal(ValName name)
-    {
-        long ret;
-        if (!longVal(name, ret))
-            return 0;
-        return ret;
-    }
-};
-
-class MyStatsReports: public std::vector<MyStatsReport>
-{
-public:
-    MyStatsReports(const webrtc::StatsReports& data)
-    {
-        for (const auto& item: data)
-        {
-            emplace_back(*item);
-        }
-    }
 };
 
 template <class C>

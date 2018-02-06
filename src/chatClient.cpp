@@ -306,10 +306,6 @@ promise::Promise<void> Client::loginSdkAndInit(const char* sid)
     }
     else
     {
-        if (mInitState == kInitErrNoCache) //local karere cache not present or currupt, force sdk to do full fetchnodes
-        {
-            api.sdk.invalidateCache();
-        }
         return sdkLoginExistingSession(sid);
     }
 }
@@ -1789,15 +1785,8 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
         if (it != end())
             continue;   // chatroom already known
 
+        ChatRoom* room = addRoom(apiRoom);
         chatids.insert(chatid);
-
-        auto room = addRoom(apiRoom);   // returns false if 1on1 is inconsistent
-        if (!room)
-        {
-            KR_LOG_DEBUG("Failed to add room %s from API", Id(apiRoom.getHandle()).toString().c_str());
-            continue;
-        }
-
         client.app.notifyInvited(*room);
 
         if (client.connected())
@@ -1836,18 +1825,12 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     else    // 1on1
     {
         auto peers = apiRoom.getPeerList();
-        if (!peers)
-        {
-            KR_LOG_WARNING("addRoom: Ignoring 1on1 room %s with no peers", Id(apiRoom.getHandle()).toString().c_str());
-            return nullptr;
-        }
-        if (peers->size() != 1)
-        {
-            KR_LOG_ERROR("addRoom: Trying to load a 1on1 room %s with more than one peer, ignoring room", Id(apiRoom.getHandle()).toString().c_str());
-            return nullptr;
-        }
+        assert(peers);
+        assert(peers->size() == 1);
+
         room = new PeerChatRoom(*this, apiRoom);
     }
+
 #ifndef NDEBUG
     auto ret =
 #endif

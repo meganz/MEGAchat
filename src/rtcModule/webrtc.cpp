@@ -1417,7 +1417,7 @@ AvFlags Call::sentAv() const
     A: send SDP_OFFER sid.8 encHashKey.32 fprHash.32 avflags.1 sdpLen.2 sdpOffer.sdpLen
         => call state: CallState.kInProress
         => sess state: SessState.kWaitSdpAnswer
-    C: send SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
+    C: send SDP_ANSWER sid.8 fprHash.32 avflags.1 sdpLen.2 sdpAnswer.sdpLen
         => state: SessState.kWaitMedia
     A and C: exchange ICE_CANDIDATE sid.8 midLen.1 mid.midLen mLineIdx.1 candLen.2 iceCand.candLen
     A or C: may send MUTE sid.8 avState.1 (if user mutes/unmutes audio/video).
@@ -1432,7 +1432,7 @@ AvFlags Call::sentAv() const
         the peer from thinking that the webrtc connection was closed
         due to error
         => state: Sess.kDestroyed
-@note avflags of caller are duplicated in RTCMD.CALLDATA and RTCMD.SDP_OFFER
+@note avflags of caller are duplicated in CALLDATA and RTCMD.SDP_ANSWER
 The first is purely informative, to make the callee aware what type of
 call the caller is requesting - audio or video.
 This is not available when joining an existing call.
@@ -1985,9 +1985,8 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
-    std::string stats = mStatRecorder->getStats(info);
+    std::string stats = mStatRecorder->terminate(info);
     mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
-
     return;
 }
 
