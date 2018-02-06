@@ -285,6 +285,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
 {
 //    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
 
+    std::string reasonStr;
     switch (reason)
     {
         case LWS_CALLBACK_OPENSSL_PERFORM_SERVER_CERT_VERIFICATION:
@@ -307,6 +308,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
         }
         case LWS_CALLBACK_CLOSED:
+            reasonStr = "closed";
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
@@ -327,8 +329,8 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
 
             if (reason == LWS_CALLBACK_CLIENT_CONNECTION_ERROR && data && len)
             {
-                std::string buf((const char*) data, len);
-                WEBSOCKETS_LOG_DEBUG("Diagnostic: %s", buf.c_str());
+                reasonStr.assign((const char*) data, len);
+                WEBSOCKETS_LOG_DEBUG("Diagnostic: %s", reasonStr.c_str());
             }
 
             if (client->wsIsConnected())
@@ -337,7 +339,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 client->wsi = NULL;
                 lws_set_wsi_user(dwsi, NULL);
             }
-            client->wsCloseCb(reason, 0, "closed", 7);
+            client->wsCloseCb(reason, 0, reasonStr.c_str(), reasonStr.length());
             break;
         }
             

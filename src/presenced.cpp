@@ -91,9 +91,9 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
     onSocketClose(errcode, errtype, std::string(preason, reason_len));
 }
     
-void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
+void Client::onSocketClose(int errcode, int /*errtype*/, const std::string& reason)
 {
-    PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
+    PRESENCED_LOG_WARNING("Socket close (%d), reason: %s", errcode, reason.c_str());
 
     switch (mConnState)
     {
@@ -483,6 +483,8 @@ void Client::handleMessage(const StaticBuffer& buf)
             }
             case OP_PREFS:
             {
+                assert(mConnState == kConnected || mConnState == kLoggedIn);
+
                 if (mConnState < kLoggedIn)
                     notifyLoggedIn();   // at connection-state level
 
@@ -532,6 +534,7 @@ void Client::setConnState(ConnState newState)
 {
     if (newState == mConnState)
         return;
+
     mConnState = newState;
 #ifndef LOG_LISTENER_CALLS
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
@@ -579,9 +582,9 @@ void Client::getPresenceURL()
             {
                 bt.reset();
 
-                if (!karereClient->onlineMode())
+                if (!karereClient->onlineMode())    // if we've been disconnected, do nothing
                 {
-                    PRESENCED_LOG_ERROR("Received presenced URL,  but we've been disconnected");
+                    PRESENCED_LOG_ERROR("Received presenced URL, but we've been disconnected");
                     assert(mConnState == kFetchingURL);
                     setConnState(kDisconnected);
                     return;
