@@ -24,7 +24,14 @@ void QTMegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *ch
 void QTMegaChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
 {
     QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnMessageLoaded);
-    event->setChatMessage(msg->copy());
+    if (msg)
+    {
+        event->setChatMessage(msg->copy());
+    }
+    else
+    {
+        event->setChatMessage(NULL);
+    }
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 

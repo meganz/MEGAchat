@@ -1,0 +1,12 @@
+karere/
+res/
+qtchat_autogen/
+CMakeFiles/
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+Makefile
+cmake_install.cmake
+qtchat
+
