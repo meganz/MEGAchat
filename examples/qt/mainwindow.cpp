@@ -459,7 +459,7 @@ void MainWindow::onInitStateChange(int newState)
     {
         show();
     }
-    else if (newState == karere::Client::kInitErrSidInvalid)
+    else if (newState == karere::Client::kInitErrSidInvalid || karere::Client::kInitErrNewSession)
     {
         hide();
         marshallCall([this]()

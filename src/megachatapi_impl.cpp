@@ -3023,6 +3023,7 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
     case karere::Client::kInitErrAlready:
+    case karere::Client::kInitErrNewSession:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitCreated:

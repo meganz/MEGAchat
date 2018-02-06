@@ -620,7 +620,10 @@ public:
         kInitErrAlready,
 
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid
+        kInitErrSidInvalid,
+
+        /** Failed to create new session */
+        kInitErrNewSession
     };
 
     WebsocketsIO *websocketIO;

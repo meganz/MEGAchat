@@ -780,6 +780,7 @@ void Client::connect(Presence pres, bool isInBackground)
     case promise::kFailed:
         KR_LOG_ERROR("Initialization failed. Client cannot connect. Error: %s", mSessionReadyPromise.error().toString().c_str());
         this->mOnlineMode = false;
+        setInitState(kInitErrNewSession);
         break;
 
     default:                    // if session is not ready yet
@@ -799,7 +800,8 @@ void Client::connect(Presence pres, bool isInBackground)
         .fail([this](const promise::Error& err)
         {
             KR_LOG_ERROR("Initialization failed. Client cannot connect. Error: %s", err.toString().c_str());
-            mOnlineMode = false;
+            this->mOnlineMode = false;
+            setInitState(kInitErrNewSession);
         });
         break;
     }
@@ -2884,7 +2886,9 @@ const char* Client::initStateToStr(unsigned char state)
         RETURN_ENUM_NAME(kInitErrNoCache);
         RETURN_ENUM_NAME(kInitErrCorruptCache);
         RETURN_ENUM_NAME(kInitErrSidMismatch);
+        RETURN_ENUM_NAME(kInitErrAlready);
         RETURN_ENUM_NAME(kInitErrSidInvalid);
+        RETURN_ENUM_NAME(kInitErrNewSession);
     default:
         return "(unknown)";
     }
