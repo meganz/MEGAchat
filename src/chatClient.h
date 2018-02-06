@@ -231,8 +231,6 @@ public:
 
     void initContact(const uint64_t& peer);
 
-    promise::Promise<void> mediaCall(AvFlags av);
-
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -630,7 +628,6 @@ public:
     void *appCtx;
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
-    bool isInBackground = false;
     MyMegaApi api;
     IApp& app;
     char mMyPrivCu25519[32] = {0};

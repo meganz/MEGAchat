@@ -1895,7 +1895,7 @@ int MegaChatApiImpl::getUnreadChats()
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
             ChatRoom *room = it->second;
-            if (room->chat().unreadMsgCount())
+            if (room->isActive() && room->chat().unreadMsgCount())
             {
                 count++;
             }
@@ -1965,7 +1965,7 @@ MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
             ChatRoom *room = it->second;
-            if (room->chat().unreadMsgCount())
+            if (room->isActive() && room->chat().unreadMsgCount())
             {
                 items->addChatListItem(new MegaChatListItemPrivate(*it->second));
             }
