@@ -75,7 +75,7 @@ long long Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const
         }
         else
         {
-            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString(), value->type());
+            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
             assert(false);
         }
     }
