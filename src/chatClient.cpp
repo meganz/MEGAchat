@@ -1058,7 +1058,7 @@ void Client::connectToPresenced(Presence pres)
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
-    return mPresencedClient.connect(mMyHandle, std::move(peers), presenced::Config(pres));
+    return mPresencedClient.connect(std::move(peers), presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)

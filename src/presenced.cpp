@@ -33,12 +33,11 @@ namespace presenced
 {
 }
 
-void Client::connect(Id myHandle, IdRefMap&& currentPeers, const Config& config)
+void Client::connect(IdRefMap&& currentPeers, const Config& config)
 {
     assert(!mRetryTimerHandle);
     bt.reset();
 
-    mMyHandle = myHandle;
     mConfig = config;
     mCurrentPeers = std::move(currentPeers);
 
@@ -546,7 +545,7 @@ void Client::setConnState(ConnState newState)
         {
             CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
         }
-        CALL_LISTENER(onPresenceChange, mMyHandle, Presence::kInvalid);
+        CALL_LISTENER(onPresenceChange, karereClient->myHandle(), Presence::kInvalid);
     }
 }
 

@@ -262,7 +262,6 @@ protected:
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
     uint8_t mCapabilities;
-    karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
     time_t mTsLastUserActivity = 0;
@@ -319,7 +318,7 @@ public:
      *  set to away
      */
     bool setAutoaway(bool enable, time_t timeout);
-    void connect(karere::Id myHandle, IdRefMap&& peers, const Config& config);
+    void connect(IdRefMap&& peers, const Config& config);
     void disconnect();
     void retryPendingConnection();
     /** @brief Performs server ping and check for network inactivity.
