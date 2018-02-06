@@ -770,7 +770,6 @@ void Client::connect(Presence pres, bool isInBackground)
 
     this->mOnlineMode = true;
 
-    assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
