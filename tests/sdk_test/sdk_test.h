@@ -101,9 +101,6 @@ private:
     } \
     while(false) \
 
-
-class TestChatRoomListener;
-
 class MegaLoggerTest : public mega::MegaLogger,
         public megachat::MegaChatLogger {
 
@@ -137,13 +134,28 @@ private:
 
 class TestChatRoomListener;
 
+#ifndef KARERE_DISABLE_WEBRTC
+class TestChatVideoListener : public megachat::MegaChatVideoListener
+{
+public:
+    TestChatVideoListener(const std::string& type);
+    virtual ~TestChatVideoListener();
+
+    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
+
+private:
+    std::string mType;
+};
+#endif
+
 class MegaChatApiTest :
         public mega::MegaListener,
         public mega::MegaRequestListener,
         public mega::MegaTransferListener,
         public mega::MegaLogger,
         public megachat::MegaChatRequestListener,
-        public megachat::MegaChatListener
+        public megachat::MegaChatListener,
+        public megachat::MegaChatCallListener
 {
 public:
     MegaChatApiTest();
@@ -183,7 +195,11 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
-    void TEST_ChangeMyOwnName(unsigned int a1);
+    void TEST_ChangeMyOwnName(unsigned int a1);    
+#ifndef KARERE_DISABLE_WEBRTC
+    void TEST_Calls(unsigned int a1, unsigned int a2);
+    void TEST_ManualCalls(unsigned int a1, unsigned int a2);
+#endif
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -275,6 +291,24 @@ private:
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
 
+#ifndef KARERE_DISABLE_WEBRTC
+    bool mCallReceived[NUM_ACCOUNTS];
+    bool mCallAnswered[NUM_ACCOUNTS];
+    bool mCallDestroyed[NUM_ACCOUNTS];
+    int mTerminationCode[NUM_ACCOUNTS];
+    bool mTerminationLocal[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
+    bool mPeerIsRinging[NUM_ACCOUNTS];
+    bool mVideoLocal[NUM_ACCOUNTS];
+    bool mVideoRemote[NUM_ACCOUNTS];
+    TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
+    TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+
+#endif
+
     static const std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
@@ -311,6 +345,10 @@ public:
     virtual void onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer);
     virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error);
     virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+
+#ifndef KARERE_DISABLE_WEBRTC
+    virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+#endif
 };
 
 class TestChatRoomListener : public megachat::MegaChatRoomListener
@@ -358,7 +396,6 @@ public:
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
-
 
 #endif // CHATTEST_H
 

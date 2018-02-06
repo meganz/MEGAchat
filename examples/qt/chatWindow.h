@@ -25,9 +25,9 @@
 #else
     namespace rtcmodule
     {
-        class ICall{};
+        class ICallHandler{};
     }
-    class CallGui: public karere::IApp::ICallHandler {};
+    class CallGui: public rtcModule::ICallHandler {};
 #endif
 
 namespace Ui
@@ -389,7 +389,7 @@ public:
     chatd::Chat& chat() const { return *mChat; }
 protected:
 #ifndef KARERE_DISABLE_WEBRTC
-    void createCallGui(const std::shared_ptr<rtcModule::ICall>& call=nullptr);
+    void createCallGui(rtcModule::ICall* call);
     virtual void closeEvent(QCloseEvent* event);
     void deleteCallGui()
     {
@@ -666,6 +666,7 @@ public:
     {
         ui.mMessageEdit->setEnabled(true);
     }
+    virtual void onHistoryReloaded();
 
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //IChatWindow interface
@@ -676,7 +677,7 @@ public:
         text += QString::fromStdString(title);
         ui.mTitleLabel->setText(text);
     }
-    virtual karere::IApp::ICallHandler* callHandler() { return mCallGui; }
+    virtual rtcModule::ICallHandler* callHandler() { return mCallGui; }
     //===
     void show() { QDialog::show(); raise(); }
     void hide() { QDialog::hide(); }

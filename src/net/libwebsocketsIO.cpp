@@ -29,6 +29,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
+    info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
     
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
@@ -89,7 +90,6 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
 LibwebsocketsClient::LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
 {
     wsi = NULL;
-    disconnecting = false;
 }
 
 LibwebsocketsClient::~LibwebsocketsClient()
@@ -132,6 +132,8 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
     
     if (!wsi)
     {
+        WEBSOCKETS_LOG_ERROR("Trying to send a message without a valid socket (libwebsockets)");
+        assert(false);
         return false;
     }
     
@@ -141,7 +143,14 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
         sendbuffer.resize(LWS_PRE);
     }
     sendbuffer.append(msg, len);
-    return lws_callback_on_writable(wsi) > 0;
+
+    if (lws_callback_on_writable(wsi) <= 0)
+    {
+        WEBSOCKETS_LOG_ERROR("lws_callback_on_writable() failed");
+        assert(false);
+        return false;
+    }
+    return true;
 }
 
 void LibwebsocketsClient::wsDisconnect(bool immediate)
@@ -171,9 +180,16 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
     }
     else
     {
-        disconnecting = true;
-        lws_callback_on_writable(wsi);
-        WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
+        if (!disconnecting)
+        {
+            disconnecting = true;
+            lws_callback_on_writable(wsi);
+            WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
+        }
+        else
+        {
+            WEBSOCKETS_LOG_WARNING("Ignoring graceful disconnect. Already disconnecting gracefully");
+        }
     }
 }
 
@@ -197,7 +213,7 @@ void LibwebsocketsClient::resetOutputBuffer()
     sendbuffer.clear();
 }
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER) || defined (OPENSSL_IS_BORINGSSL)
 #define X509_STORE_CTX_get0_cert(ctx) (ctx->cert)
 #define X509_STORE_CTX_get0_untrusted(ctx) (ctx->untrusted)
 #define EVP_PKEY_get0_DSA(_pkey_) ((_pkey_)->pkey.dsa)
@@ -267,6 +283,8 @@ static bool check_public_key(X509_STORE_CTX* ctx)
 int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons reason,
                                     void *user, void *data, size_t len)
 {
+//    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
+
     switch (reason)
     {
         case LWS_CALLBACK_OPENSSL_PERFORM_SERVER_CERT_VERIFICATION:
@@ -297,20 +315,29 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 WEBSOCKETS_LOG_DEBUG("Forced disconnect completed");
                 return -1;
             }
-            client->disconnecting = false;
-            if (client->wsIsConnected())
+            if (client->disconnecting)
+            {
+                WEBSOCKETS_LOG_DEBUG("Graceful disconnect completed");
+                client->disconnecting = false;
+            }
+            else
             {
                 WEBSOCKETS_LOG_DEBUG("Disconnect done by server");
+            }
+
+            if (reason == LWS_CALLBACK_CLIENT_CONNECTION_ERROR && data && len)
+            {
+                std::string buf((const char*) data, len);
+                WEBSOCKETS_LOG_DEBUG("Diagnostic: %s", buf.c_str());
+            }
+
+            if (client->wsIsConnected())
+            {
                 struct lws *dwsi = client->wsi;
                 client->wsi = NULL;
                 lws_set_wsi_user(dwsi, NULL);
             }
-            else
-            {
-                WEBSOCKETS_LOG_DEBUG("Graceful disconnect completed");
-            }
-
-            client->wsCloseCb(0, 0, "", 0);
+            client->wsCloseCb(reason, 0, "closed", 7);
             break;
         }
             

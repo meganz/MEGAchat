@@ -144,8 +144,16 @@ public:
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
-        mDb.query("update history set type = ?, data = ?, updated = ?, userid=? where chatid = ? and msgid = ?",
-            msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
+        if (msg.type == chatd::Message::kMsgTruncate)
+        {
+            mDb.query("update history set type = ?, data = ?, ts = ?, userid = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.ts, msg.userid, mMessages.chatId(), msgid);
+        }
+        else    // "updated" instead of "ts"
+        {
+            mDb.query("update history set type = ?, data = ?, updated = ?, userid = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
+        }
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
@@ -216,13 +224,14 @@ public:
     }
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
     {
+        // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
         std::string sql = "select count(*) from history where (chatid = ?)"
-                "and (userid != ?)";
+                "and (userid != ?) and (type != ?) and not (updated != 0 and length(data) = 0 )";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mMessages.chatId() << mMessages.client().userId();
+        stmt << mMessages.chatId() << mMessages.client().userId() << chatd::Message::kMsgRevokeAttachment;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -335,6 +344,12 @@ public:
         Buffer buf(128);
         stmt.blobCol(2, buf);
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
+    }
+
+    virtual void clearHistory()
+    {
+        mDb.query("delete from history where chatid = ?", mMessages.chatId());
+        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mMessages.chatId());
     }
 };
 

@@ -1,12 +1,12 @@
 #ifndef DUMMYCRYPTO_H
 #define DUMMYCRYPTO_H
-#include "ICryptoFunctions.h"
+#include "IRtcCrypto.h"
 #include <string>
 #include <set>
 
 namespace rtcModule {
 
-class DummyCrypto: public rtcModule::ICryptoFunctions
+class DummyCrypto: public rtcModule::IRtcCrypto
 {
 protected:
     std::string mOwnJid;

@@ -12,5 +12,6 @@
 - (void)onMessageLoaded:(MEGAChatSdk *)api message:(MEGAChatMessage *)message;
 - (void)onMessageReceived:(MEGAChatSdk *)api message:(MEGAChatMessage *)message;
 - (void)onMessageUpdate:(MEGAChatSdk *)api message:(MEGAChatMessage *)message;
+- (void)onHistoryReloaded:(MEGAChatSdk *)api chat:(MEGAChatRoom *)chat;
 
 @end

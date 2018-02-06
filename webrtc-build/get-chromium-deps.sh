@@ -81,7 +81,7 @@ python $karere/remove-from-DEPS.py ./DEPS $karere/chromium-deps-del.txt
 #cd from chromium/src to chromium
 cd ".."
 rm -f ./.gclient
-gclient config --name src --unmanaged "https://test"
+gclient config --name src --unmanaged "https://github.com/meganz/mingw-std-threads.git"
 if [ ! -z "$gclientConfigOpts" ]; then
     echo "$gclientConfigOpts" >> ./.gclient
 fi

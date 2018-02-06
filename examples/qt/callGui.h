@@ -4,57 +4,53 @@
 #include <QMessageBox>
 #include <QWidget>
 #include <ui_callGui.h>
-#include <mstrophepp.h>
-#include <IRtcModule.h>
-#include <mstrophepp.h>
-#include <../strophe.disco.h>
+#include <webrtc.h>
 #include <chatClient.h>
-
+#include <trackDelete.h>
 class ChatWindow;
 class MainWindow;
 
-class CallAnswerGui: public QObject, public rtcModule::IEventHandler
+class CallAnswerGui: public QObject, public rtcModule::ICallHandler, public karere::DeleteTrackable
 {
     Q_OBJECT
 public:
     MainWindow& mParent;
     QAbstractButton* answerBtn;
     QAbstractButton* rejectBtn;
-    std::shared_ptr<rtcModule::ICallAnswer> mAns;
+    rtcModule::ICall& mCall;
     karere::Contact* mContact;
     std::unique_ptr<QMessageBox> msg;
-    CallAnswerGui(MainWindow& parent, const std::shared_ptr<rtcModule::ICallAnswer>& ans);
-    //IEventHandler
-    void onCallEnded(rtcModule::TermCode termcode, const std::string& text,
-                     const std::shared_ptr<rtcModule::stats::IRtcStats> &stats)
+    CallAnswerGui(MainWindow& parent, rtcModule::ICall& call);
+    //ICallHandler minimal implementation
+    virtual void onDestroy(rtcModule::TermCode termcode, bool byPeer, const std::string& text)
     {
-        KR_LOG_DEBUG("Call ended: %s, %s\n", rtcModule::ICall::termcodeToMsg(termcode), text.c_str());
+        KR_LOG_DEBUG("Call destroyed: %s, %s\n", rtcModule::termCodeToStr(termcode), text.c_str());
         delete this;
     }
-    void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer);
-    void onSession();
+    virtual void setCall(rtcModule::ICall* call) { assert(false); /*called only for outgoing calls*/ }
+    virtual void onCallStarting();
 public slots:
     void onBtnClick(QAbstractButton* btn)
     {
         msg->close();
         if (btn == answerBtn)
         {
-            bool ret = mAns->answer(true, karere::AvFlags(true, true));
-            if (!ret)
-                return;
+            mCall.answer(karere::AvFlags(true, true));
+            //Call handler will be switched upon receipt of onCallStarting
         }
         else //decline button
         {
-            mAns->answer(false, rtcModule::AvFlags());
+            mCall.hangup();
         }
     }
 };
-class CallGui: public QWidget, public karere::IApp::ICallHandler
+class CallGui: public QWidget, public rtcModule::ICallHandler, public rtcModule::ISessionHandler
 {
 Q_OBJECT
 protected:
     ChatWindow& mChatWindow;
-    std::shared_ptr<rtcModule::ICall> mCall;
+    rtcModule::ICall* mCall;
+    rtcModule::ISession* mSess = nullptr;
     void setAvatarOnRemote();
     void setAvatarOnLocal();
     static void drawAvatar(QImage& image, QChar letter, uint64_t userid);
@@ -67,27 +63,37 @@ public slots:
     void onMuteMic(bool);
 public:
     Ui::CallGui ui;
-    CallGui(ChatWindow& parent, const std::shared_ptr<rtcModule::ICall>& call=nullptr);
-    void hangup(const std::string& msg="") { mCall->hangup(msg); }
-    virtual void onOutgoingCallCreated(const std::shared_ptr<rtcModule::ICall> &aCall)
-    {mCall = aCall;}
+    CallGui(ChatWindow& parent, rtcModule::ICall* call);
+    void hangup() { mCall->hangup(); }
+    virtual void setCall(rtcModule::ICall* call) { mCall = call; }
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer*& renderer)
     {
         renderer = ui.localRenderer;
     }
-    virtual void onRemoteSdpRecv(rtcModule::IVideoRenderer*& rendererRet)
+    virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererRet)
     {
         rendererRet = ui.remoteRenderer;
     }
-    virtual void onMediaRecv(rtcModule::stats::Options& statOptions);
-    virtual void onCallEnded(rtcModule::TermCode code, const std::string& text,
-        const std::shared_ptr<rtcModule::stats::IRtcStats>& statsObj);
-    virtual void onLocalMediaFail(const std::string& err, bool* cont)
+    virtual void onRemoteStreamRemoved() {}
+    virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
+    virtual void onStateChange(uint8_t newState) {}
+    virtual rtcModule::ISessionHandler* onNewSession(rtcModule::ISession& sess)
+    {
+        mSess = &sess;
+        return this;
+    }
+    virtual void onLocalMediaError(const std::string err)
     {
         KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
     }
-    virtual void onPeerMute(karere::AvFlags what);
-    virtual void onPeerUnmute(karere::AvFlags what);
+    virtual void onRingOut(karere::Id peer) {}
+    virtual void onCallStarting() {}
+    virtual void onCallStarted() {}
+    virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
+    //ISession
+    virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
+    virtual void onSessStateChange(uint8_t newState) {}
+    virtual void onVideoRecv();
 };
 
 #endif // MAINWINDOW_H

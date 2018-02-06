@@ -7,10 +7,13 @@
 #import "MEGAChatPeerList.h"
 #import "MEGAChatListItemList.h"
 #import "MEGAChatPresenceConfig.h"
+#import "MEGAHandleList.h"
 #import "MEGAChatRequestDelegate.h"
 #import "MEGAChatLoggerDelegate.h"
 #import "MEGAChatRoomDelegate.h"
 #import "MEGAChatDelegate.h"
+#import "MEGAChatCallDelegate.h"
+#import "MEGAChatVideoDelegate.h"
 
 #import "MEGASdk.h"
 
@@ -47,6 +50,13 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
     MEGAChatInitNoCache           = 7
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatConnection) {
+    MEGAChatConnectionOffline    = 0,
+    MEGAChatConnectionInProgress = 1,
+    MEGAChatConnectionLogging    = 2,
+    MEGAChatConnectionOnline     = 3
+};
+
 @interface MEGAChatSdk : NSObject
 
 @property (nonatomic, assign) uint64_t myUserHandle;
@@ -73,6 +83,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)disconnect;
+- (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
 - (void)retryPendingConnections;
 
 #pragma mark - Logout
@@ -109,6 +120,19 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate;
 
+#ifndef KARERE_DISABLE_WEBRTC
+
+- (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate;
+- (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate;
+
+- (void)addChatLocalVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)removeChatLocalVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
+
+- (void)addChatRemoteVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)removeChatRemoteVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
+
+#endif
+
 #pragma mark - Chat rooms and chat list items
 
 - (MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId;
@@ -127,8 +151,8 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)userLastnameByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)userLastnameByUserHandle:(uint64_t)userHandle;
 
-
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle;
+- (uint64_t)userHandleByEmail:(NSString *)email;
 
 #pragma mark - Chat management
 
@@ -184,6 +208,41 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
+- (void)saveCurrentState;
+
+#pragma mark - Audio and video calls
+
+#ifndef KARERE_DISABLE_WEBRTC
+
+- (MEGAStringList *)chatAudioInDevices;
+- (MEGAStringList *)chatVideoInDevices;
+- (BOOL)setChatAudioInDevices:(NSString *)devices;
+- (BOOL)setChatVideoInDevices:(NSString *)devices;
+- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
+- (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)hangChatCall:(uint64_t)chatId;
+- (void)hangAllChatCallsWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)hangAllChatCalls;
+- (void)enableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)enableAudioForChat:(uint64_t)chatId;
+- (void)disableAudioForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)disableAudioForChat:(uint64_t)chatId;
+- (void)enableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)enableVideoForChat:(uint64_t)chatId;
+- (void)disableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)disableVideoForChat:(uint64_t)chatId;
+- (void)loadAudioVideoDeviceListWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)loadAudioVideoDeviceList;
+- (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
+- (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
+@property (nonatomic, readonly) NSInteger numCalls;
+- (MEGAHandleList *)chatCalls;
+- (MEGAHandleList *)chatCallsIds;
+
+#endif
 
 #pragma mark - Debug log messages
 

@@ -18,6 +18,10 @@
 #define PRESENCED_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 
+struct ws_s;
+struct ws_base_s;
+typedef struct ws_s *ws_t;
+
 class MyMegaApi;
 
 enum: uint32_t { kPromiseErrtype_presenced = 0x339a92e5 }; //should resemble 'megapres'
@@ -47,6 +51,8 @@ public:
     bool isValid() const { return mPres != kInvalid; }
     inline static const char* toString(Code pres);
     const char* toString() const { return toString(mPres); }
+    bool canWebRtc() { return mPres & kClientCanWebrtc; }
+    bool isMobile() { return mPres & kClientIsMobile; }
 protected:
     Code mPres;
 };
@@ -256,6 +262,7 @@ protected:
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
     uint8_t mCapabilities;
+    karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
     time_t mTsLastUserActivity = 0;
@@ -312,7 +319,7 @@ public:
      *  set to away
      */
     bool setAutoaway(bool enable, time_t timeout);
-    void connect(IdRefMap&& peers, karere::Presence forcedPres);
+    void connect(karere::Id myHandle, IdRefMap&& peers, const Config& config);
     void disconnect();
     void retryPendingConnection();
     /** @brief Performs server ping and check for network inactivity.

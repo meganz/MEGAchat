@@ -3,9 +3,10 @@
 #include <QMutexLocker>
 #include "videoRenderer_Qt.h"
 #include <stdexcept>
+#include <assert.h>
 
 VideoRendererQt::VideoRendererQt(QWidget *parent)
-    :QWidget(parent), mFrame(new QImage(size(), QImage::Format_ARGB32))
+    :QWidget(parent), mFrame(new QImage(size(), QImage::Format_RGBA8888))
 {
     clearViewport();
 }
@@ -104,18 +105,22 @@ void VideoRendererQt::paintEvent(QPaintEvent* event)
 }
 
 //IVideoRenderer interface implementation
-unsigned char* VideoRendererQt::getImageBuffer(unsigned short width, unsigned short height, void** userData)
+void* VideoRendererQt::getImageBuffer(unsigned short width, unsigned short height, void*& userData)
 {
     if (mFrozen)
+    {
         return nullptr; //don't overwrite if there is a static image, don't bother if invisible
+    }
     QImage* bmp = new QImage(width, height, QImage::Format_ARGB32);
-    *userData = static_cast<void*>(bmp);
+    assert(bmp);
+    userData = static_cast<void*>(bmp);
     return bmp->bits();
 }
 
 void VideoRendererQt::frameComplete(void* userData)
 {
     QImage* bmp = static_cast<QImage*>(userData);
+    assert(bmp);
     {
         QMutexLocker lock(&mMutex);
         mFrame.reset(bmp);
@@ -126,6 +131,7 @@ void VideoRendererQt::frameComplete(void* userData)
 
 void VideoRendererQt::clearViewport()
 {
+    assert(mFrame);
     if ((mFrozen & kFrozenForStaticImage) == 0)
         mFrame->fill(0xff000000);
     repaint();

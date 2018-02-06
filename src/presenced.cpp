@@ -33,12 +33,13 @@ namespace presenced
 {
 }
 
-void Client::connect(IdRefMap&& currentPeers, Presence forcedPres)
+void Client::connect(Id myHandle, IdRefMap&& currentPeers, const Config& config)
 {
     assert(!mRetryTimerHandle);
     bt.reset();
 
-    mConfig = presenced::Config(forcedPres);
+    mMyHandle = myHandle;
+    mConfig = config;
     mCurrentPeers = std::move(currentPeers);
 
     // only trigger the connect-steps if haven't started yet or we've been disconnected
@@ -88,7 +89,7 @@ void Client::notifyLoggedIn()
 
 void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    onSocketClose(errcode, errtype, preason);
+    onSocketClose(errcode, errtype, std::string(preason, reason_len));
 }
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
@@ -131,7 +132,7 @@ bool Client::setPresence(Presence pres)
     if (pres == mConfig.mPresence)
         return true;
     mConfig.mPresence = pres;
-    auto ret = sendPrefs();
+    bool ret = sendPrefs();
     signalActivity(true);
     PRESENCED_LOG_DEBUG("setPresence-> %s", pres.toString());
     return ret;
@@ -165,7 +166,8 @@ bool Client::autoAwayInEffect()
             && mConfig.mPresence != Presence::kOffline
             && mConfig.mPresence != Presence::kAway
             && mConfig.mAutoawayTimeout
-            && mConfig.mAutoawayActive;
+            && mConfig.mAutoawayActive
+            && !karereClient->isCallInProgress();
 }
 
 void Client::signalActivity(bool force)
@@ -334,12 +336,36 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_ADDPEERS:
         {
-            snprintf(buf, bufsize, "ADDPEERS - %u peers", read<uint32_t>(1));
+            uint32_t numPeers = read<uint32_t>(1);
+            string tmpString;
+            tmpString.append("ADDPEERS - ");
+            tmpString.append(to_string(numPeers));
+            tmpString.append(" peer/s: ");
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(5+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
         case OP_DELPEERS:
         {
-            snprintf(buf, bufsize, "DELPEERS - %u peers", read<uint32_t>(1));
+            uint32_t numPeers = read<uint32_t>(1);
+            string tmpString;
+            tmpString.append("DELPEERS - ");
+            tmpString.append(to_string(numPeers));
+            tmpString.append(" peer/s: ");
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(5+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
         default:
@@ -451,7 +477,6 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_8(pres, 0);
                 READ_ID(userid, 1);
-                // READ_8(webrtc_capability, 7);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
                 CALL_LISTENER(onPresenceChange, userid, pres);
@@ -513,6 +538,16 @@ void Client::setConnState(ConnState newState)
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
 #endif
     CALL_LISTENER(onConnStateChange, mConnState);
+
+    if (newState == kDisconnected)
+    {
+        // if disconnected, we don't really know the presence status anymore
+        for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
+        {
+            CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
+        }
+        CALL_LISTENER(onPresenceChange, mMyHandle, Presence::kInvalid);
+    }
 }
 
 void Client::getPresenceURL()

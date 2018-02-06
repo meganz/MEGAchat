@@ -115,21 +115,28 @@ void globalCleanup();
 
 struct AvFlags
 {
-    bool audio;
-    bool video;
-    AvFlags(bool a, bool v): audio(a), video(v){}
-    AvFlags(){}
-    AvFlags(const char* str)
-        :audio(strchr(str, 'a') != nullptr), video(strchr(str,'v') != nullptr){}
-    bool operator==(AvFlags other) { return (audio == other.audio) && (video == other.video); }
-    bool operator!=(AvFlags other) { return (audio != other.audio) || (video != other.video); }
-    bool any() const { return audio || video; }
+protected:
+    uint8_t mFlags;
+public:
+    enum: uint8_t { kAudio = 1, kVideo = 2 };
+    AvFlags(uint8_t flags): mFlags(flags){}
+    AvFlags(bool audio, bool video)
+    : mFlags((audio ? kAudio : 0) | (video ? kVideo : 0)){}
+    AvFlags(): mFlags(0){}
+    uint8_t value() const { return mFlags; }
+    void set(uint8_t val) { mFlags = val; }
+    bool audio() const { return mFlags & kAudio; }
+    bool video() const { return mFlags & kVideo; }
+    bool operator==(AvFlags other) { return (mFlags == other.mFlags); }
+    bool operator!=(AvFlags other) { return (mFlags != other.mFlags); }
+    bool any() const { return mFlags != 0; }
+    operator bool() const { return mFlags != 0; }
     std::string toString() const
     {
         std::string result;
-        if (audio)
+        if (mFlags & kAudio)
             result+='a';
-        if (video)
+        if (mFlags & kVideo)
             result+='v';
         if (result.empty())
             result='-';
@@ -177,8 +184,6 @@ static inline int64_t timestampMs() { return services_get_time_ms(); }
 #define GUI_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 #define GUI_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 #define GUI_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_gui, fmtString, ##__VA_ARGS__)
-
-#define JINGLE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_jingle, fmtString, ##__VA_ARGS__)
 
 #define API_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
 #define API_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)

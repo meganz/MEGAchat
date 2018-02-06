@@ -59,8 +59,6 @@ extern "C" void myMegaPostMessageToGui(void* msg, void* appCtx)
     QApplication::postEvent(&appDelegate, event);
 }
 
-using namespace strophe;
-
 void setVidencParams();
 void saveSid(const char* sdkSid);
 
@@ -91,11 +89,11 @@ void createWindowAndClient()
 int main(int argc, char **argv)
 {
     karere::globalInit(myMegaPostMessageToGui, 0, (gAppDir+"/log.txt").c_str(), 500);
-    const char* staging = getenv("KR_USE_STAGING");
-    if (staging && strcmp(staging, "1") == 0)
+    const char* customApiUrl = getenv("KR_API_URL");
+    if (customApiUrl)
     {
-        KR_LOG_WARNING("Using staging API server, due to KR_USE_STAGING env variable");
-        ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
+        KR_LOG_WARNING("Using custom API server, due to KR_API_URL env variable");
+        ::mega::MegaClient::APIURL = customApiUrl;
     }
 //    gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
@@ -197,7 +195,8 @@ void setVidencParams()
 void AppDelegate::onAppTerminate()
 {
     static bool called = false;
-    assert(!called);
+    if (called)
+        return;
     called = true;
     gClient->terminate();
 

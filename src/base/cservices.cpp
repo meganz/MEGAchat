@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <assert.h>
 #include "cservices-thread.h"
+#include <sys/time.h>
 
 extern "C"
 {
@@ -71,8 +72,8 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);
 #endif
     
-    hasLibeventThread = svc_thread_start(NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
-    
+    hasLibeventThread = svc_thread_start(
+                NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
     return 0;
 }
 
@@ -160,10 +161,14 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     return 1;
 }
 
-/*int64_t services_get_time_ms()
+int64_t services_get_time_ms()
 {
     struct timeval tv;
+#ifndef USE_LIBWEBSOCKETS
     evutil_gettimeofday(&tv, nullptr);
+#else
+    gettimeofday(&tv, nullptr);
+#endif
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
-}*/
+}
 }

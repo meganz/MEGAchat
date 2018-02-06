@@ -1,6 +1,8 @@
 #ifndef STREAMPLAYER_H
 #define STREAMPLAYER_H
-#include <webrtc/api/mediastreaminterface.h>
+#include <api/mediastreaminterface.h>
+#include <api/video/i420_buffer.h>
+#include <libyuv/convert.h>
 #include <IVideoRenderer.h>
 #include "base/gcm.h"
 #include "webrtcAdapter.h"
@@ -10,94 +12,59 @@ namespace artc
 {
 typedef rtcModule::IVideoRenderer IVideoRenderer;
 
-class StreamPlayer: public webrtc::VideoRendererInterface
+class StreamPlayer: public rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 protected:
+    void *appCtx;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideo;
     IVideoRenderer* mRenderer;
-    bool mPlaying = false;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
-    std::mutex mMutex; //guards onMediaStart and other stuff that is accessed from webrtc threads
+    std::mutex mMutex; //guards onMediaStart and mRenderer (stuff that is accessed by public API and by webrtc threads)
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
-    StreamPlayer(IVideoRenderer* renderer, webrtc::AudioTrackInterface* audio=nullptr,
+    StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
     webrtc::VideoTrackInterface* video=nullptr)
      :mAudio(audio), mVideo(video), mRenderer(renderer)
     {
-        assert(mRenderer);
+        appCtx = ctx;
     }
-    StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream)
-        :mRenderer(renderer)
+    StreamPlayer(IVideoRenderer *renderer, tspMediaStream stream, void *ctx)
+     :mRenderer(renderer)
     {
-        connectToStream(stream);
+        appCtx = ctx;
+        attachToStream(stream);
     }
     ~StreamPlayer()
     {
         preDestroy();
     }
-
-    void connectToStream(tspMediaStream stream)
-    {
-        if (!stream)
-            return;
-
-        detachAudio();
-        detachVideo();
-        auto ats = stream->GetAudioTracks();
-        auto vts = stream->GetVideoTracks();
-        if (ats.size() > 0)
-            mAudio = ats[0];
-        if (vts.size() > 0)
-            mVideo = vts[0];
-    }
-
     template <class F>
     void setOnMediaStart(F&& callback)
     {
         std::unique_lock<std::mutex> locker(mMutex);
         mOnMediaStart = callback;
     }
-    void start()
-    {
-        if (mPlaying)
-            return;
-        mMediaStartSignalled = false;
-        if (mVideo.get())
-            mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
-        if (mAudio.get())
-        {}//TODO: start audio playback
-        mPlaying = true;
-    }
 
-    void stop()
+    void detachFromStream()
     {
-        if(!mPlaying)
-            return;
-        if (mVideo.get())
-            mVideo->RemoveRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
-        if (mAudio.get())
-        {}//TODO: Stop audio playback
-        mPlaying = false;
-        mRenderer->clearViewport();
+        detachAudio();
+        detachVideo();
     }
-
     void attachAudio(webrtc::AudioTrackInterface* audio)
     {
         assert(audio);
         detachAudio();
         mAudio = audio;
-        if (mPlaying)
-            {}//TODO: start audio playback
+        //TODO: start audio playback
     }
 
     void detachAudio()
     {
         if (!mAudio.get())
             return;
-        if (mPlaying)
-        {} //TODO: stop audio playback
+        //TODO: stop audio playback
         mAudio = NULL;
     }
 
@@ -106,9 +73,12 @@ public:
         assert(video);
         detachVideo();
         mVideo = video;
-        mRenderer->onVideoAttach();
-        if (mPlaying)
-            mVideo->AddRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
+        if (mRenderer)
+        {
+            mRenderer->onVideoAttach();
+        }
+        rtc::VideoSinkWants opts;
+        mVideo->AddOrUpdateSink(this, opts);
     }
     bool isVideoAttached() const { return mVideo.get() != nullptr; }
     bool isAudioAttached() const { return mAudio.get() != nullptr; }
@@ -116,74 +86,85 @@ public:
     {
         if (!mVideo.get())
             return;
-        if (mPlaying)
-            mVideo->RemoveRenderer(static_cast<webrtc::VideoRendererInterface*>(this));
-        mRenderer->onVideoDetach();
-        mRenderer->clearViewport();
+        mVideo->RemoveSink(this);
         mVideo = NULL;
+        if (mRenderer)
+        {
+            mRenderer->onVideoDetach();
+            mRenderer->clearViewport();
+        }
     }
     void attachToStream(artc::tspMediaStream& stream)
     {
         detachAudio();
         auto ats = stream->GetAudioTracks();
         if (!ats.empty())
+        {
             attachAudio(ats[0]);
+        }
         detachVideo();
         auto vts = stream->GetVideoTracks();
         if (!vts.empty())
+        {
             attachVideo(vts[0]);
+        }
     }
 
     void changeRenderer(IVideoRenderer* newRenderer)
     {
-        assert(newRenderer);
+        std::unique_lock<std::mutex> locker(mMutex);
         mRenderer = newRenderer;
-        mRenderer->clearViewport();
+        if (mRenderer)
+        {
+            mRenderer->clearViewport();
+        }
     }
 
     void preDestroy()
     {
-        stop();
-        detachAudio();
-        detachVideo();
-        auto renderer = mRenderer;
-        karere::marshallCall([renderer]()
+        detachFromStream();
+        std::unique_lock<std::mutex> locker(mMutex);
+        if (mRenderer)
         {
-            renderer->released();
-        });
-        mRenderer = nullptr;
+            mRenderer->released();
+            mRenderer = nullptr;
+        }
     }
-//VideoRendererInterface implementation
-    virtual void SetSize(int width, int height)
+//rtc::VideoSinkInterface<webrtc::VideoFrame> implementation
+    virtual void OnFrame(const webrtc::VideoFrame& frame)
     {
-        //IRenderer must check size every time getImageBuffer() is called
-    }
-
-    void RenderFrame(const cricket::VideoFrame* frame)
-    {
-        if (!mRenderer)
-            return; //maybe about to be destroyed
+        std::unique_lock<std::mutex> locker(mMutex);
         if (!mMediaStartSignalled)
         {
             mMediaStartSignalled = true;
-            std::unique_lock<std::mutex> locker(mMutex);
             if (mOnMediaStart)
             {
                 auto callback = mOnMediaStart;
                 karere::marshallCall([callback]()
                 {
                     callback();
-                });
+                }, appCtx);
             }
         }
-        unsigned short width = frame->GetWidth();
-        unsigned short height = frame->GetHeight();
-        int bufSize = width*height*4;
+        if (!mRenderer)
+            return; //no renderer
+
         void* userData = NULL;
-        unsigned char* frameBuf = mRenderer->getImageBuffer(width, height, &userData);
-        if (!frameBuf)
-            return; //used by null renderer
-        frame->ConvertToRgbBuffer(cricket::FOURCC_ARGB, frameBuf, bufSize, width*4);
+        rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
+            frame.video_frame_buffer()->ToI420());
+        if (frame.rotation() != webrtc::kVideoRotation_0)
+        {
+            buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+        }
+        unsigned short width = buffer->width();
+        unsigned short height = buffer->height();
+        void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+        if (!frameBuf) //image is frozen or app is minimized/covered
+            return;
+        libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                           buffer->DataU(), buffer->StrideU(),
+                           buffer->DataV(), buffer->StrideV(),
+                           (uint8_t*)frameBuf, width * 4, width, height);
         mRenderer->frameComplete(userData);
     }
 };

@@ -25,7 +25,7 @@ protected:
 class LibwsClient : public WebsocketsClientImpl, public karere::DeleteTrackable
 {
 public:
-    ws_t mWebSocket = nullptr;
+    ws_t mWebSocket;
     void *appCtx;
 
     static void websockConnectCb(ws_t ws, void* arg);

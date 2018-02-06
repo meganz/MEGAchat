@@ -40,18 +40,14 @@ console and application abort.
 //TODO: Implement weak import for windows
 
 KR_LOGGER_CONFIG_START(
-        krLogChannel_xmpp, krLogChannel_strophe,
-        krLogChannel_rtc, krLogChannel_rtcevent, krLogChannel_jingle,
+        krLogChannel_rtc, krLogChannel_rtcevent,
         krLogChannel_megasdk, krLogChannel_services,
         krLogChannel_strongvelope,
         krLogChannel_websockets, krLogChannel_chatd, krLogChannel_gui,
         krLogChannel_uacache, krLogChannel_megachatapi, krLogChannel_presenced)
     KR_LOGCHANNEL(default, NULL, Debug, 0)
-    KR_LOGCHANNEL(xmpp, "xmpp", Warn, krLogNoLevel | 7)
-    KR_LOGCHANNEL(strophe, "strophe", Warn, krLogNoLeadingSpace)
     KR_LOGCHANNEL(rtc, "rtc", Debug, krLogNoLevel | 8)
     KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
-    KR_LOGCHANNEL(jingle, NULL, Warn, krLogNoLevel | 14)
     KR_LOGCHANNEL(strongvelope, "sv", Debug, 4)
     KR_LOGCHANNEL(chatd, "chatd", Debug, 4)
     KR_LOGCHANNEL(megasdk, "sdk", Warn, 12)
