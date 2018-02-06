@@ -9,4 +9,4 @@ CPackSourceConfig.cmake
 Makefile
 cmake_install.cmake
 qtchat
-
+build-qtmegachatapi-webrtc/
