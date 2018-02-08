@@ -834,15 +834,8 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init(10000)
-    .then([this, isInBackground, wptr]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-        connectToChatd(isInBackground);
-    });
+    rtc->init();
+    connectToChatd(isInBackground);
 #else
     connectToChatd(isInBackground);
 #endif

@@ -28,7 +28,6 @@ HEADERS  += asyncTest-framework.h \
             chatd.h \
             karereCommon.h \
             messageBus.h \
-            serverListProviderForwards.h \
             videoRenderer_objc.h \
             asyncTest.h \
             chatClient.h \

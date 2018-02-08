@@ -39,7 +39,6 @@ typedef uint8_t TermCode;
 #include "karereCommon.h" //for AvFlags
 #include <karereId.h>
 #include <trackDelete.h>
-#include <serverListProviderForwards.h>
 #include <IRtcCrypto.h>
 
 namespace chatd
@@ -296,7 +295,7 @@ public:
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
-    virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    virtual void init() = 0;
     /**
      * @brief Clients exchange an anonymous id for statistics purposes
      * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids

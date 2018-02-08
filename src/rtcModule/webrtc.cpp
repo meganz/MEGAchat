@@ -69,7 +69,8 @@ void sdpSetVideoBw(std::string& sdp, int maxbr);
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mTurnServerProvider(client.api, "turn", iceServers, 3600)
+  mIceServerProvider(client.api, "turn", 3600),
+  mStaticIceSever(iceServers)
 {
     if (!artc::isInitialized())
     {
@@ -84,37 +85,29 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
     initInputDevices();
 }
 
-promise::Promise<void> RtcModule::init(unsigned gelbTimeout)
+void RtcModule::init()
 {
+    StaticProvider iceServerStatic(mStaticIceSever);
+    setIceServers(iceServerStatic);
     auto wptr = weakHandle();
-    return updateIceServers(gelbTimeout)
-    .fail([](const promise::Error& err)
-    {
-        RTCM_LOG_ERROR("updateIceServers failed, and it shouldn't. Error: %s", err.what());
-        assert(false);
-    })
-    .then([this, wptr]()
+    mIceServerProvider.fetchServers()
+    .then([wptr, this]()
     {
         if (wptr.deleted())
             return;
-        mClient.chatd->setRtcHandler(this);
+        setIceServers(mIceServerProvider);
+    })
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Gelb failed with error '%s', using static server list", err.what());
     });
+
+    mClient.chatd->setRtcHandler(this);
 }
 
 IRtcModule* create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto* crypto, const char* iceServers)
 {
     return new RtcModule(client, handler, crypto, iceServers);
-}
-promise::Promise<void> RtcModule::updateIceServers(unsigned timeout)
-{
-    auto wptr = weakHandle();
-    return mTurnServerProvider.getServers(timeout)
-    .then([wptr, this](ServerList<TurnServerInfo>* servers)
-    {
-        if (wptr.deleted())
-            return;
-        setIceServers(*servers);
-    });
 }
 
 template <class T>
