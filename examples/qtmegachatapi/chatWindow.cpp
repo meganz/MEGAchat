@@ -76,7 +76,6 @@ ChatWindow::~ChatWindow()
     delete ui;
 }
 
-
 void ChatWindow::onMsgSendBtn()
 {
     QString qtext = ui->mMessageEdit->toPlainText();
@@ -245,22 +244,20 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     }
     else
     {
-
-    int pendingLoad;
-    pendingLoad=NMESSAGES_LOAD-loadedMessages+nSending+nManualSending;
-    if (pendingLoad>0)
-    {
-        int source = megaChatApi->loadMessages(chatRoomHandle->getChatId(),pendingLoad);
-        if (source == megachat::MegaChatApi::SOURCE_NONE)
+        int pendingLoad;
+        pendingLoad=NMESSAGES_LOAD-loadedMessages+nSending+nManualSending;
+        if (pendingLoad>0)
         {
-            pendingLoad = 0;
+            int source = megaChatApi->loadMessages(chatRoomHandle->getChatId(),pendingLoad);
+            if (source == megachat::MegaChatApi::SOURCE_NONE)
+            {
+                pendingLoad = 0;
+            }
+            else if (source == megachat::MegaChatApi::SOURCE_ERROR)
+            {
+                //Show error
+            }
         }
-        else if (source == megachat::MegaChatApi::SOURCE_ERROR)
-        {
-            //Show error
-        }
-    }
-
     }
 }
 
@@ -373,3 +370,8 @@ void ChatWindow::onMemberSetPriv()
 }
 
 
+
+void ChatWindow::onMsgListRequestHistory()
+{
+    megaChatApi->loadMessages(chatRoomHandle->getChatId(),NMESSAGES_LOAD);
+}

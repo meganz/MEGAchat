@@ -7,7 +7,7 @@
 #include "chatMessage.h"
 class ChatMessage;
 
-#define NMESSAGES_LOAD 3
+#define NMESSAGES_LOAD 16
 namespace Ui {
 class ChatWindowUi;
 }
@@ -46,6 +46,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         int nManualSending;
 
     public slots:
+        void onMsgListRequestHistory();
         void onMembersBtn(bool);
         void onMsgSendBtn();
         void onMemberSetPriv();
