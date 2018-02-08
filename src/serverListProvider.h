@@ -79,11 +79,11 @@ class ListProvider: public ServerList<karere::TurnServerInfo>
 public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
 
 protected:
-    void parseServerList(const rapidjson::Value& arr)
+    bool parseServerList(const rapidjson::Value& arr)
     {
         if (!arr.IsArray())
         {
-            throw std::runtime_error("Server list JSON is not an array");
+            KR_LOG_ERROR("Ice server list JSON is not an array");
         }
 
         std::vector<std::shared_ptr<karere::TurnServerInfo> > parsed;
@@ -91,13 +91,15 @@ protected:
         {
             if (!it->IsObject())
             {
-                throw std::runtime_error("Server info entry is not an object");
+                KR_LOG_ERROR("Ice server info entry is not an object");
             }
 
             parsed.emplace_back(new karere::TurnServerInfo(*it));
         }
 
         this->swap(parsed);
+
+        return true;
     }
 };
 
@@ -114,18 +116,14 @@ public:
         doc.Parse(serversJson);
         if (doc.HasParseError())
         {
-            KR_LOG_WARNING("Error parse static ice-server: %d parsing json, at position %d",
+            KR_LOG_ERROR("Error parse static ice-server: %d parsing json, at position %d",
                            doc.GetParseError(),
                            doc.GetErrorOffset());
         }
 
-        try
+        if (!parseServerList(doc))
         {
-            parseServerList(doc);
-        }
-        catch (std::exception& e)
-        {
-            KR_LOG_WARNING("Eror to extract server form static ice-server list");
+            KR_LOG_ERROR("Error to extract server form static ice-server list");
         }
 
     }
@@ -153,16 +151,7 @@ protected:
             return false;
         }
 
-        try
-        {
-            parseServerList(arr->value);
-        }
-        catch (std::exception& e)
-        {
-           return false;
-        }
-
-        return true;
+        return parseServerList(arr->value);
     }
 
 public:
