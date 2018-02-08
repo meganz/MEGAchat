@@ -1,36 +1,70 @@
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
+#include "qmenu.h"
+
 
 const char* messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
 
-ChatMessage::ChatMessage(QWidget *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
-  : QWidget(parent),
-  ui(new Ui::ChatMessageWidget)
-  //mChatWindow(parent)
-{    
+
+
+ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
+    : QWidget((QWidget *)parent),
+      ui(new Ui::ChatMessageWidget)
+{
+    chatWin=parent;
     this->chatId=chatId;
     megaChatApi = mChatApi;
     ui->setupUi(this);
-    message=msg;    
+    message = msg;
     setAuthor();
     setTimestamp(message->getTimestamp());
-    setStatus(message->getStatus());
 
-    /*
-    if (msg.updated)
-        setEdited();
-    */
-    /*
-    if (!msg->isManagementMessage())
-        ui->mMsgDisplay->setText(msg->getContent());
+    if(this->megaChatApi->getChatRoom(chatId)->isGroup() && message->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
+        setStatus(megachat::MegaChatMessage::STATUS_SERVER_RECEIVED);
     else
-        ui->mMsgDisplay->setText(managementInfoToString().c_str());*/
+        setStatus(message->getStatus());
+
+    if (message->isEdited())
+        markAsEdited();
+
+    if (!msg->isManagementMessage())
+        setMessageContent(msg->getContent());
+    else
+        ui->mMsgDisplay->setText(managementInfoToString().c_str());
+
+    connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
     //updateToolTip();
     show();
 }
+
+QListWidgetItem *ChatMessage::getWidgetItem() const
+{
+    return widgetItem;
+}
+
+void ChatMessage::setWidgetItem(QListWidgetItem *item)
+{
+    widgetItem = item;
+}
+
+megachat::MegaChatMessage *ChatMessage::getMessage() const
+{
+    return message;
+}
+
+void ChatMessage::setMessage(megachat::MegaChatMessage *message)
+{
+    message = message;
+}
+
+void ChatMessage::setMessageContent(const char * content)
+{
+    ui->mMsgDisplay->setText(content);
+}
+
 
 std::string ChatMessage::managementInfoToString() const
 {
@@ -75,7 +109,6 @@ void ChatMessage::setTimestamp(int64_t ts)
     QDateTime t;
     t.setTime_t(ts);
     ui->mTimestampDisplay->setText(t.toString("hh:mm:ss"));
-    //return *this;
 }
 
 void ChatMessage::setStatus(int status)
@@ -83,41 +116,56 @@ void ChatMessage::setStatus(int status)
     if (status==megachat::MegaChatMessage::STATUS_UNKNOWN)
         ui->mStatusDisplay->setText("Invalid");
     else
+    {
         ui->mStatusDisplay->setText(messageStatus[status]);
+    }
 }
 
 void ChatMessage::setAuthor()
 {
-    //Only one
-    //megachat::MegaChatHandle userHandle = message->getUserHandle();
-
-   // const char * firstName=megaChatApi->getChatRoom(chatId)->getPeerFirstnameByHandle(userHandle);
-/*
-const char * firstName;
-
-    int peerCount=megaChatApi->getChatRoom(chatId)->getPeerCount();
-
-
-
-
-
-    for (int i=0; i<peerCount; i++)
-    {
-       firstName = megaChatApi->getChatRoom(chatId)->getPeerFirstname(i);
-    }
-
-
-
-
-
+    megachat::MegaChatHandle userHandle = message->getUserHandle();
+    const char * chatTitle = megaChatApi->getChatRoom(chatId)->getPeerFullnameByHandle(userHandle);
     if(userHandle==this->megaChatApi->getMyUserHandle())
        {ui->mAuthorDisplay->setText(tr("me"));}
     else
-       {ui->mAuthorDisplay->setText(tr(firstName));}*/
+       {ui->mAuthorDisplay->setText(tr(chatTitle));}
 }
 
+bool ChatMessage::isMine() const
+{
+    return this->message->getUserHandle()  == this->megaChatApi->getMyUserHandle();
+}
+
+void ChatMessage::markAsEdited()
+{
+    ui->mStatusDisplay->setText(ui->mStatusDisplay->text()+" (Edited)");
+}
 
 ChatMessage::~ChatMessage()
 {
     delete ui;
 }
+
+void ChatMessage::onMessageCtxMenu(const QPoint& point)
+{
+   if (isMine())
+   {
+        QMenu * menu = ui->mMsgDisplay->createStandardContextMenu(point);
+        auto action = menu->addAction(tr("&Edit message"));
+        action->setData(QVariant::fromValue(this));
+        connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
+        auto delAction = menu->addAction(tr("Delete message"));
+        delAction->setData(QVariant::fromValue(this));
+        connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
+        menu->popup(this->mapToGlobal(point));
+   }
+}
+
+
+void ChatMessage::onMessageDelAction()
+{
+    chatWin->deleteChatMessage(this->message);
+}
+
+
+

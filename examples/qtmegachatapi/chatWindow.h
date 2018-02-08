@@ -4,7 +4,10 @@
 #include "QTMegaChatRoomListener.h"
 #include "megachatapi.h"
 #include "chatItemWidget.h"
+#include "chatMessage.h"
+class ChatMessage;
 
+#define NMESSAGES_LOAD 3
 namespace Ui {
 class ChatWindowUi;
 }
@@ -14,7 +17,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 {
     Q_OBJECT
     public:
-        ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *room);
+        ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *room, const char * title);
         virtual ~ChatWindow();
 
         //MegachatRoomListener callbacks
@@ -23,16 +26,29 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void openChatRoom();
-        QListWidgetItem* addMsgWidget (megachat::MegaChatHandle msgId, bool first);
+        QListWidgetItem* addMsgWidget (megachat::MegaChatMessage * msg, int index);
+        ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
+        bool eraseChatMessage(megachat::MegaChatMessage *msg);
+        void deleteChatMessage(megachat::MegaChatMessage *msg);
+        void createMembersMenu(QMenu& menu);
+
     private:
-        int histPos;
+        int loadedMessages;
         Ui::ChatWindowUi *ui;
         megachat::MegaChatApi* megaChatApi;
         megachat::MegaChatRoom * chatRoomHandle;
         ChatItemWidget * chatItemWidget;
         megachat::QTMegaChatRoomListener * megaChatRoomListenerDelegate;
-     protected:
-        int miPropiedad;
+        std::map<megachat::MegaChatHandle, ChatMessage *> messagesWidgets;
+        int newestMessage;
+        int oldestMessage;
+        int nSending;
+        int nManualSending;
 
+    public slots:
+        void onMembersBtn(bool);
+        void onMsgSendBtn();
+        void onMemberSetPriv();
+        void onMemberRemove();
 };
 #endif // CHATWINDOW_H

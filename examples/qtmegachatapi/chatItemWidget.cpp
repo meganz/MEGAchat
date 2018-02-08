@@ -145,11 +145,12 @@ void ChatItemWidget::unshowAsHidden()
 ChatWindow* ChatItemWidget::showChatWindow()
 {
     ChatWindow* window;
+    const char * chatWindowTitle=ui->mName->text().toStdString().c_str();
     megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(chatHandle);
 
     if (!chatWindowHandle)
     {
-        window = new ChatWindow(this, megaChatApi, chatRoom);
+        window = new ChatWindow(this, megaChatApi, chatRoom, chatWindowTitle);
         chatWindowHandle=window;
     }
     else
@@ -182,6 +183,16 @@ void ChatItemWidget::onlineIndicatorUpdate(int newState)
 ChatItemWidget::~ChatItemWidget()
 {
     delete ui;
+}
+
+megachat::MegaChatHandle ChatItemWidget::getChatHandle() const
+{
+    return chatHandle;
+}
+
+void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
+{
+    chatHandle = chatId;
 }
 
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)

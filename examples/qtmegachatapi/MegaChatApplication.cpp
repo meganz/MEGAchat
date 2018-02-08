@@ -158,14 +158,10 @@ void MegaChatApplication::addContacts()
         contact=contactList->get(i);
         const char *contactEmail=contact->getEmail();
 
-        //If we don't wait to fetchnodes finish the mclient contacts won't be still loaded
-
+        //If we don't wait to fetchnodes finish the mclient contacts maybe won't be still loaded
         megachat::MegaChatHandle userHandle = megaChatApi->getUserHandleByEmail(contactEmail);
-
         if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
             mainWin->addContact(userHandle);
-
-
     }
     delete contactList;
 }

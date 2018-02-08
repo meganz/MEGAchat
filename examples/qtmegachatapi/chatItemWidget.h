@@ -26,6 +26,9 @@ class ChatItemWidget : public QWidget
         void showAsHidden();
         void contextMenuEvent(QContextMenuEvent* event);
         virtual ~ChatItemWidget();
+        megachat::MegaChatHandle getChatHandle() const;
+        void setChatHandle(const megachat::MegaChatHandle &chatId);
+
     protected:
         Ui::ChatItem *ui;
         int mLastOverlayCount = 0;
