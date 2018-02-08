@@ -69,7 +69,7 @@ void sdpSetVideoBw(std::string& sdp, int maxbr);
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mIceServerProvider(client.api, "turn", 3600),
+  mIceServerProvider(client.api, "turn"),
   mStaticIceSever(iceServers)
 {
     if (!artc::isInitialized())

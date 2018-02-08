@@ -74,21 +74,26 @@ using ServerList = std::vector<std::shared_ptr<S> >;
 /** An abstract class that provides a list of servers (i.e. more than one). A single server info is
  * contained in the class S
  */
-template <class S>
-class ListProvider: public ServerList<S>
+class ListProvider: public ServerList<karere::TurnServerInfo>
 {
 public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
-    typedef ServerList<S> Base;
+
 protected:
     void parseServerList(const rapidjson::Value& arr)
     {
         if (!arr.IsArray())
+        {
             throw std::runtime_error("Server list JSON is not an array");
+        }
+
         std::vector<std::shared_ptr<karere::TurnServerInfo> > parsed;
         for (auto it=arr.Begin(); it!=arr.End(); ++it)
         {
             if (!it->IsObject())
+            {
                 throw std::runtime_error("Server info entry is not an object");
+            }
+
             parsed.emplace_back(new karere::TurnServerInfo(*it));
         }
 
@@ -99,7 +104,7 @@ protected:
 /** An implementation of a server data provider that gets the servers from a local, static list,
  *  possibly hardcoded
  */
-class StaticProvider: public ListProvider<TurnServerInfo>
+class StaticProvider: public ListProvider
 {
 protected:
 public:
@@ -109,45 +114,55 @@ public:
         doc.Parse(serversJson);
         if (doc.HasParseError())
         {
-            throw std::runtime_error("Error "+std::to_string(doc.GetParseError())+
-                "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
+            KR_LOG_WARNING("Error parse static ice-server: %d parsing json, at position %d",
+                           doc.GetParseError(),
+                           doc.GetErrorOffset());
         }
 
-        parseServerList(doc);
+        try
+        {
+            parseServerList(doc);
+        }
+        catch (std::exception& e)
+        {
+            KR_LOG_WARNING("Eror to extract server form static ice-server list");
+        }
+
     }
 };
 
 /** An implementation of a server data provider that gets the servers from the GeLB server */
-class GelbProvider: public ListProvider<karere::TurnServerInfo>, public DeleteTrackable
+class GelbProvider: public ListProvider, public DeleteTrackable
 {
 protected:
     MyMegaApi& mApi;
     std::string mService;
-    int64_t mMaxReuseOldServersAge;
-    int64_t mLastUpdateTs = 0;
     bool mBusy = false;
     promise::Promise<void> mOutputPromise;
-    void parseServersJson(const std::string& json)
+    bool parseServersJson(const std::string& json)
     {
         rapidjson::Document doc;
         doc.Parse<0>(json.c_str());
         if (doc.HasParseError())
         {
-            throw std::runtime_error(std::string("Error ")+std::to_string(doc.GetParseError())+
-                "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
+            return false;
         }
         auto arr = doc.FindMember(mService.c_str());
         if (arr == doc.MemberEnd())
-            throw std::runtime_error("JSON received does not have a '"+mService+"' member");
+        {
+            return false;
+        }
+
         try
         {
             parseServerList(arr->value);
         }
         catch (std::exception& e)
         {
-            KR_LOG_ERROR("Error parsing GeLB response: JSON dump:\n %s", json.c_str());
-            throw;
+           return false;
         }
+
+        return true;
     }
 
 public:
@@ -160,7 +175,7 @@ public:
 
         mBusy = true;
 
-        return mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 10000, 2)
+        mOutputPromise = mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 30000, 0)
         .then([this](ReqResult result)
             -> promise::Promise<void>
         {
@@ -176,8 +191,10 @@ public:
 
             mBusy = false;
             std::string json((const char*)result->getText(), result->getTotalBytes());
-            parseServersJson(json);
-            this->mLastUpdateTs = services_get_time_ms();
+            if (!parseServersJson(json))
+            {
+                return promise::Error("Data from GeLB server incorrect: " + json, 0x3e9a9e1b, 1);
+            }
             return promise::_Void();
         })
         .fail([this](const promise::Error& err)
@@ -185,10 +202,12 @@ public:
             mBusy = false;
             return err;
         });
+
+        return mOutputPromise;
     }
 
-    GelbProvider(MyMegaApi& api, const char* service, int64_t maxReuseOldServersAge = 0)
-        : mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
+    GelbProvider(MyMegaApi& api, const char* service)
+        : mApi(api), mService(service)
     {
     }
 };
