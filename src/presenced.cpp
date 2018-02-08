@@ -596,6 +596,9 @@ void Client::getPresenceURL()
         })
         .fail([wptr, this](const promise::Error& err)
         {
+            // the MegaApi.getChatPresenceURL() is not expected to fail due to connectivity issues, but
+            // to be retried by the SDK automatically until it success. It can fail depending on response
+            // received from API (failed to parse JSON or error from API)
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("URL request failed, but client was deleted. Error: %s", err.what());
@@ -666,6 +669,8 @@ void Client::resolveDNS()
     })
     .fail([wptr, this](const promise::Error& err)
     {
+        // the MegaApi.queryDNS() is not expected to fail due to connectivity issues, but to be retried by the
+        // SDK automatically until it success.
         if (wptr.deleted())
         {
             PRESENCED_LOG_DEBUG("DNS resolution failed, but presenced client was deleted. Error: %s", err.what());
