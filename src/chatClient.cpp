@@ -807,7 +807,7 @@ void Client::connect(Presence pres, bool isInBackground)
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
+void Client::doConnect(Presence pres, bool isInBackground)
 {
     assert(mSessionReadyPromise.succeeded());   // ensure fetchnodes has finished
     mOwnPresence = pres;

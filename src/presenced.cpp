@@ -713,7 +713,7 @@ void Client::retry()
     resetConnection();
 
     bt.backoff();
-    PRESENCED_LOG_INFO("Retrying in %.1 seconds", (float) bt.backoffdelta() / 10);
+    PRESENCED_LOG_INFO("Retrying in %.1f seconds", (float) bt.backoffdelta() / 10);
 
     assert(!mRetryTimerHandle);
     auto wptr = getDelTracker();

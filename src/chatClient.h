@@ -874,10 +874,10 @@ protected:
     void commit(const std::string& scsn);
 
     /** @brief Does the actual connect, once the SDK is online.
-     * connect() waits for the mCanConnect promise to be resolved and then calls
+     * connect() waits for the mSessionReadyPromise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
+    void doConnect(Presence pres, bool isInBackground);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
