@@ -148,7 +148,7 @@ ChatMessage::~ChatMessage()
 
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
-   if (isMine())
+   if (isMine() && !message->isManagementMessage())
    {
         QMenu * menu = ui->mMsgDisplay->createStandardContextMenu(point);
         auto action = menu->addAction(tr("&Edit message"));
