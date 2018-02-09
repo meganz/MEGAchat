@@ -32,7 +32,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
 
-    private:
+    protected:
         int loadedMessages;
         Ui::ChatWindowUi *ui;
         megachat::MegaChatApi* megaChatApi;
@@ -44,6 +44,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         int oldestMessage;
         int nSending;
         int nManualSending;
+        friend class ChatMessage;
 
     public slots:
         void onMsgListRequestHistory();

@@ -23,6 +23,7 @@ class ChatMessage: public QWidget
         QListWidgetItem * widgetItem;
         void updateToolTip();
         ChatWindow *chatWin;
+        bool edited;
         friend class ChatWindow;
     public:
         ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg);
@@ -38,9 +39,14 @@ class ChatMessage: public QWidget
         bool isMine() const;
         megachat::MegaChatMessage *getMessage() const;
         void setMessage(megachat::MegaChatMessage *message);
+        void startEditingMsgWidget();
+        ChatMessage* clearEdit();
 
     public slots:
+        void cancelMsgEdit(bool clicked);
+        void saveMsgEdit(bool clicked);
         void onMessageCtxMenu(const QPoint& point);
         void onMessageDelAction();
+        void onMessageEditAction();
 };
 #endif // CHATMESSAGE_H

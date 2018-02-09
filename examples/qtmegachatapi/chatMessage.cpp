@@ -19,6 +19,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
     megaChatApi = mChatApi;
     ui->setupUi(this);
     message = msg;
+    edited = false;
     setAuthor();
     setTimestamp(message->getTimestamp());
 
@@ -167,5 +168,74 @@ void ChatMessage::onMessageDelAction()
     chatWin->deleteChatMessage(this->message);
 }
 
+
+void ChatMessage::onMessageEditAction()
+{
+        auto action = qobject_cast<QAction*>(QObject::sender());
+        startEditingMsgWidget();
+}
+
+
+void ChatMessage::cancelMsgEdit(bool clicked)
+{
+    clearEdit();
+    chatWin->ui->mMessageEdit->setText(QString());
+}
+
+
+void ChatMessage::saveMsgEdit(bool clicked)
+{
+    const char * editedMsg =chatWin->ui->mMessageEdit->toPlainText().toStdString().c_str();
+
+    if(this->message->getContent() != editedMsg)
+                this->megaChatApi->editMessage(chatId,message->getMsgId() ,editedMsg);
+
+    clearEdit();
+}
+
+
+
+void ChatMessage::startEditingMsgWidget()
+{
+    edited = true;
+    chatWin->ui->mMsgSendBtn->setEnabled(false);
+    ui->mEditDisplay->hide();
+    ui->mStatusDisplay->hide();
+
+    QPushButton * cancelBtn = new QPushButton(this);
+    connect(cancelBtn, SIGNAL(clicked(bool)), this, SLOT(cancelMsgEdit(bool)));
+    cancelBtn->setText("Cancel edit");
+    auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
+    layout->insertWidget(2, cancelBtn);
+
+    QPushButton * saveBtn = new QPushButton(this);
+    connect(saveBtn, SIGNAL(clicked(bool)), this, SLOT(saveMsgEdit(bool)));
+    saveBtn->setText("Save");
+    layout->insertWidget(3, saveBtn);
+
+    setLayout(layout);
+    chatWin->ui->mMessageEdit->setText(ui->mMsgDisplay->toPlainText());
+    chatWin->ui->mMessageEdit->moveCursor(QTextCursor::End);
+}
+
+
+
+ChatMessage* ChatMessage::clearEdit()
+{
+    edited = false;
+    chatWin->ui->mMessageEdit->setText("");
+    chatWin->ui->mMessageEdit->moveCursor(QTextCursor::Start);
+    auto header = ui->mHeader->layout();
+    auto cancelBtn = header->itemAt(2)->widget();
+    auto saveBtn = header->itemAt(3)->widget();
+    header->removeWidget(cancelBtn);
+    header->removeWidget(saveBtn);
+    ui->mEditDisplay->show();
+    ui->mStatusDisplay->show();
+    delete cancelBtn;
+    delete saveBtn;
+    chatWin->ui->mMsgSendBtn->setEnabled(true);
+    return this;
+}
 
 
