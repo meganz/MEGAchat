@@ -302,7 +302,8 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
     if (this->megaChatApi->getMyUserHandle() == userhandle && !inProgress)
     {
         ui->bOnlineStatus->setText(kOnlineSymbol_Set);
-        ui->bOnlineStatus->setStyleSheet(kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
+        if (status >0 && status<NINDCOLORS)
+            ui->bOnlineStatus->setStyleSheet(kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
     }
     else
     {
