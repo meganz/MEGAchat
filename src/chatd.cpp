@@ -1167,11 +1167,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATD_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mClient.chats(chatid).onEndCall(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
                 assert(mClient.mRtcHandler);
                 if (mClient.mRtcHandler)    // in case chatd broadcast this opcode, instead of send it to the endpoint
                 {
                     mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
                 }
+#endif
 
                 break;
             }
@@ -1183,7 +1185,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
-                CHATD_LOG_DEBUG("%s: recv OP_CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+                CHATD_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1193,8 +1195,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                     auto& chat = mClient.chats(chatid);
                     mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
-#else
-                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
 #endif
                 break;
             }
