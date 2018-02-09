@@ -150,8 +150,16 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
         }
         else
         {
-            if(chatMessage)
-                chatMessage->setStatus(msg->getStatus());
+
+            if(msg->getStatus()==megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
+            {
+                //Complete case
+            }
+            else
+            {
+                if(chatMessage)
+                    chatMessage->setStatus(msg->getStatus());
+            }
         }
      }
 }

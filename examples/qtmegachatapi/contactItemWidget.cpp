@@ -124,9 +124,13 @@ ChatWindow* ContactItemWidget::showChatWindow()
 
 void ContactItemWidget::updateOnlineIndicator(int newState)
 {
-    ui->mOnlineIndicator->setStyleSheet(
-                    QString("background-color: ")+gOnlineIndColors[newState]+
-                    ";border-radius: 4px");
+    if (newState>0 && newState <NINDCOLORS)
+    {
+        //COmment
+        ui->mOnlineIndicator->setStyleSheet(
+                        QString("background-color: ")+gOnlineIndColors[newState]+
+                        ";border-radius: 4px");
+    }
 }
 
 
