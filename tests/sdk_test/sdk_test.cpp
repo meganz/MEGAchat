@@ -930,23 +930,30 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
             }
         }
 
-        // Load history
-        buffer << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
-        loadHistory(accountIndex, chatid, chatroomListener);
+        if (chatroom->getOwnPrivilege() >= PRIV_RO)
+        {
+            // Load history
+            buffer << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
+            loadHistory(accountIndex, chatid, chatroomListener);
 
-        // Close the chatroom
-        megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
-        delete chatroomListener;
+            // Close the chatroom
+            megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
+            delete chatroomListener;
 
-        // Now, load history locally (it should be cached by now)
-        chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-        ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
-        buffer << "Loading messages locally for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
-        loadHistory(accountIndex, chatid, chatroomListener);
+            // Now, load history locally (it should be cached by now)
+            chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+            ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
+            buffer << "Loading messages locally for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
+            loadHistory(accountIndex, chatid, chatroomListener);
 
-        // Close the chatroom
-        megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
-        delete chatroomListener;
+            // Close the chatroom
+            megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
+            delete chatroomListener;
+        }
+        else
+        {
+            buffer << "Without access to chatroom with id: " << chatroom->getChatId() << endl;
+        }
 
         delete chatroom;
         chatroom = NULL;
