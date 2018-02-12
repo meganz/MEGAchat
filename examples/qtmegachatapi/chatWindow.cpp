@@ -4,31 +4,29 @@
 #include <QMenu>
 #include "MainWindow.h"
 
-ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *room, const char * title)
+ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *cRoom, const char * title)
     : QDialog(parent),
       ui(new Ui::ChatWindowUi)
 {
-    loadedMessages=0;
-    oldestMessage=0;
-    newestMessage=0;
     nSending=0;
+    loadedMessages=0;
     nManualSending=0;
-    this->chatItemWidget = (ChatItemWidget *) parent;
-    chatRoomHandle=room;
+    chatRoom=cRoom;
     megaChatApi=mChatApi;
+    this->chatItemWidget = (ChatItemWidget *) parent;
+
     ui->setupUi(this);
     ui->mSplitter->setStretchFactor(0,1);
     ui->mSplitter->setStretchFactor(1,0);
     ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
-
+    ui->mTitleLabel->setText(title);
+    ui->mChatdStatusDisplay->hide();
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
     connect(ui->mMessageList, SIGNAL(requestHistory()), this, SLOT(onMsgListRequestHistory()));
     connect(ui->mMembersBtn,  SIGNAL(clicked(bool)), this, SLOT(onMembersBtn(bool)));
     connect(ui->mMessageList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
-
-    ui->mTitleLabel->setText(title);
 
     #ifndef KARERE_DISABLE_WEBRTC
         connect(ui->mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
@@ -38,9 +36,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
         ui->mVideoCallBtn->hide();
     #endif
 
-    ui->mChatdStatusDisplay->hide();
-
-    if (!chatRoomHandle->isGroup())
+    if (!chatRoom->isGroup())
         ui->mMembersBtn->hide();
     else
         setAcceptDrops(true);
@@ -48,84 +44,67 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
 
-    if (!chatRoomHandle->isActive())
+    if (!chatRoom->isActive())
         ui->mMessageEdit->setEnabled(false);
 
     QDialog::show();
-
-    //We add ChatRoomListener
     this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
 }
 
 void ChatWindow::openChatRoom()
 {
     int source=0;
-    bool result = this->megaChatApi->openChatRoom(chatRoomHandle->getChatId(),megaChatRoomListenerDelegate);
+    bool result = this->megaChatApi->openChatRoom(chatRoom->getChatId(),megaChatRoomListenerDelegate);
     if(result)
     {
-            source = megaChatApi->loadMessages(chatRoomHandle->getChatId(),NMESSAGES_LOAD);
-
+        source = megaChatApi->loadMessages(chatRoom->getChatId(),NMESSAGES_LOAD);
     }
 }
 
 ChatWindow::~ChatWindow()
 {
     chatItemWidget->invalidChatWindowHandle();
-    this->megaChatApi->closeChatRoom(chatRoomHandle->getChatId(),megaChatRoomListenerDelegate);
+    this->megaChatApi->closeChatRoom(chatRoom->getChatId(),megaChatRoomListenerDelegate);
     delete megaChatRoomListenerDelegate;
+    delete chatRoom;
     delete ui;
 }
 
 void ChatWindow::onMsgSendBtn()
 {
     QString qtext = ui->mMessageEdit->toPlainText();
-
+    ui->mMessageEdit->setText(QString());
     if (qtext.isEmpty())
         return;
-    ui->mMessageEdit->setText(QString());
-    //temporary only use this method to send message without edition
-   megachat::MegaChatMessage * tempMessage= this->megaChatApi->sendMessage(chatRoomHandle->getChatId(), qtext.toUtf8().toStdString().c_str());
-   nSending+=1;
-   int auxIndex=loadedMessages+this->nSending;
-   addMsgWidget(tempMessage, (loadedMessages+this->nSending));
-    /*
-    if (mEditedWidget)
-    {
-        submitEdit(text.data(), text.size());
-        assert(!mEditedWidget);
-    }
-    else
-    {
-        postNewMessage(text.data(), text.size());
-    }*/
+
+    nSending+=1;
+    megachat::MegaChatMessage * tempMessage= this->megaChatApi->sendMessage(chatRoom->getChatId(), qtext.toUtf8().toStdString().c_str());
+    addMsgWidget(tempMessage, (loadedMessages+this->nSending));
 }
 
-
-/*
-void postNewMessage(const char* data, size_t size, unsigned char type=chatd::Message::kMsgNormal)
+void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat)
 {
-    if (!data)
-        throw std::runtime_error("postNewMessage: Can't post message with NULL data");
-
-    auto msg = mChat->msgSubmit(data, size, type, nullptr);
-    msg->userp = addMsgWidget(*msg, CHATD_IDX_INVALID, chatd::Message::kSending, false);
-    ui.mMessageList->scrollToBottom();
-}*/
-
-
-
-void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat){}
+    megachat::MegaChatRoom *auxRoom = this->megaChatApi->getChatRoom(chatRoom->getChatId());
+    delete chatRoom;
+    chatRoom = auxRoom;
+}
 
 
 void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
 {
+    megachat::MegaChatHandle msgId;
     if(msg->isDeleted())
-     {
-        eraseChatMessage(msg);
+    {
+        eraseChatMessage(msg, false);
         return;
-     }
+    }
 
-    ChatMessage * chatMessage = findChatMessage(msg->getMsgId());
+    if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
+        msgId=msg->getMsgId();
+    else
+        msgId=msg->getTempId();
+
+    ChatMessage * chatMessage = findChatMessage(msgId);
 
     if (msg->hasChanged(megachat::MegaChatMessage::CHANGE_TYPE_CONTENT))
     {
@@ -141,16 +120,17 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         if(msg->getStatus()==megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
         {
-            if(eraseChatMessage(msg))
+            if(eraseChatMessage(msg, true))
             {
-                addMsgWidget(msg->copy(), loadedMessages);
                 loadedMessages+=1;
                 nSending-=1;
+                megachat::MegaChatMessage * auxMSG = msg->copy();
+                megachat::MegaChatHandle msgId=auxMSG->getMsgId();
+                addMsgWidget(auxMSG, loadedMessages);
             }
         }
         else
         {
-
             if(msg->getStatus()==megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
                 //Complete case
@@ -172,33 +152,31 @@ void ChatWindow::deleteChatMessage(megachat::MegaChatMessage *msg)
 
         if (itMessages != messagesWidgets.end())
         {
-            ChatMessage * auxMessage = itMessages->second;
-            ui->mMessageList->removeItemWidget(auxMessage->getWidgetItem());
-            messagesWidgets.erase(itMessages);
-
-            this->megaChatApi->deleteMessage(chatRoomHandle->getChatId(), msg->getMsgId());
-            //delete auxMessage;
-
-            //Remove from api;
-            //In return call chatmessage destructor
+            this->megaChatApi->deleteMessage(chatRoom->getChatId(), msg->getMsgId());
         }
 }
 
 
-bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg)
+bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal)
 {
-    megachat::MegaChatHandle msgId=msg->getTempId();
+   megachat::MegaChatHandle msgId;
+
+   if (temporal)
+      msgId=msg->getTempId();
+   else
+      msgId=msg->getMsgId();
+
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
     itMessages = messagesWidgets.find(msgId);
 
     if (itMessages != messagesWidgets.end())
     {
         ChatMessage * auxMessage = itMessages->second;
-
-        ui->mMessageList->removeItemWidget(auxMessage->getWidgetItem());
-
+        QListWidgetItem * item = auxMessage->getWidgetItem();
+        int row = ui->mMessageList->row(auxMessage->getWidgetItem());
+        QListWidgetItem * auxItem = ui->mMessageList->takeItem(row);
         messagesWidgets.erase(itMessages);
-        delete auxMessage;
+        delete auxItem;
         return true;
     }
     return false;
@@ -237,7 +215,6 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
         if(msg->isDeleted())
             return;
 
-        std::cout << "[Mensaje cargado] " << msg->getMsgId();
         if (msg->getStatus() == megachat::MegaChatMessage::STATUS_SENDING) //we need to add it to the actual end of the list
         {
             //GUI_LOG_DEBUG("Adding unsent message widget of msgxid %s", msg.id().toString().c_str());
@@ -256,7 +233,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
         pendingLoad=NMESSAGES_LOAD-loadedMessages+nSending+nManualSending;
         if (pendingLoad>0)
         {
-            int source = megaChatApi->loadMessages(chatRoomHandle->getChatId(),pendingLoad);
+            int source = megaChatApi->loadMessages(chatRoom->getChatId(),pendingLoad);
             if (source == megachat::MegaChatApi::SOURCE_NONE)
             {
                 pendingLoad = 0;
@@ -272,12 +249,12 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
 
 QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int index)
 {
-    megachat::MegaChatHandle chatId = chatRoomHandle->getChatId();
+    megachat::MegaChatHandle chatId = chatRoom->getChatId();
     ChatMessage * widget = new ChatMessage(this, megaChatApi, chatId, msg);
     QListWidgetItem* item = new QListWidgetItem;
     widget->setWidgetItem(item);
 
-    if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
+    if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED || msg->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
         messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getMsgId(),widget));
     else
         messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getTempId(),widget));
@@ -288,14 +265,15 @@ QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int 
     ui->mMessageList->scrollToBottom();
 
     if (!widget->isMine() && msg->getStatus()==megachat::MegaChatMessage::STATUS_NOT_SEEN)
-        megaChatApi->setMessageSeen(chatRoomHandle->getChatId(), msg->getMsgId());
+        megaChatApi->setMessageSeen(chatRoom->getChatId(), msg->getMsgId());
+
     return item;
 }
 
 
 void ChatWindow::onMembersBtn(bool)
 {
-    if(chatRoomHandle->isGroup())
+    if(chatRoom->isGroup())
     {
         QMenu menu(this);
         createMembersMenu(menu);
@@ -308,33 +286,33 @@ void ChatWindow::onMembersBtn(bool)
 
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
-    if (chatRoomHandle->getPeerCount()==0)
+    if (chatRoom->getPeerCount()==0)
     {
         menu.addAction(tr("You are alone in this chatroom"))->setEnabled(false);
         return;
     }
 
-    for (int i=0; i<chatRoomHandle->getPeerCount(); i++)
+    for (int i=0; i<chatRoom->getPeerCount(); i++)
     {
-        if(chatRoomHandle->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
+        if(chatRoom->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
         {
-            auto entry = menu.addMenu(chatRoomHandle->getPeerFirstname(i));
+            auto entry = menu.addMenu(chatRoom->getPeerFirstname(i));
 
             auto actRemove = entry->addAction(tr("Remove from chat"));
-            actRemove->setProperty("userHandle", QVariant((qulonglong)chatRoomHandle->getPeerHandle(i)));
+            actRemove->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
 
             auto menuSetPriv = entry->addMenu(tr("Set privilege"));
             auto actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-            actSetPrivFullAccess->setProperty("userHandle", QVariant((qulonglong)chatRoomHandle->getPeerHandle(i)));
+            actSetPrivFullAccess->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
             connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
 
             auto actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-            actSetPrivReadOnly->setProperty("userHandle", QVariant((qulonglong)chatRoomHandle->getPeerHandle(i)));
+            actSetPrivReadOnly->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
             connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
 
             auto actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-            actSetPrivStandard->setProperty("userHandle", QVariant((qulonglong)chatRoomHandle->getPeerHandle(i)));
+            actSetPrivStandard->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
             connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
     }
@@ -348,7 +326,7 @@ void ChatWindow::onMemberRemove()
 
     QVariant v = action->property("userHandle");
     megachat::MegaChatHandle userhand = v.toLongLong();
-    megaChatApi->removeFromChat(chatRoomHandle->getChatId(), userhand);
+    megaChatApi->removeFromChat(chatRoom->getChatId(), userhand);
     //We need to update the participants list when onRequestFinish is received
 }
 
@@ -381,5 +359,5 @@ void ChatWindow::onMemberSetPriv()
 
 void ChatWindow::onMsgListRequestHistory()
 {
-    megaChatApi->loadMessages(chatRoomHandle->getChatId(),NMESSAGES_LOAD);
+    megaChatApi->loadMessages(chatRoom->getChatId(),NMESSAGES_LOAD);
 }

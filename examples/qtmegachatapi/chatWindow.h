@@ -17,40 +17,37 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 {
     Q_OBJECT
     public:
-        ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *room, const char * title);
+        ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *cRoom, const char * title);
         virtual ~ChatWindow();
-
-        //MegachatRoomListener callbacks
+        void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
         void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void openChatRoom();
-        QListWidgetItem* addMsgWidget (megachat::MegaChatMessage * msg, int index);
-        ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
-        bool eraseChatMessage(megachat::MegaChatMessage *msg);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
+        bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
+        QListWidgetItem* addMsgWidget (megachat::MegaChatMessage * msg, int index);
+        ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
 
     protected:
         int loadedMessages;
         Ui::ChatWindowUi *ui;
         megachat::MegaChatApi* megaChatApi;
-        megachat::MegaChatRoom * chatRoomHandle;
+        megachat::MegaChatRoom * chatRoom;
         ChatItemWidget * chatItemWidget;
         megachat::QTMegaChatRoomListener * megaChatRoomListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> messagesWidgets;
-        int newestMessage;
-        int oldestMessage;
         int nSending;
         int nManualSending;
-        friend class ChatMessage;
 
-    public slots:
+    private slots:
         void onMsgListRequestHistory();
         void onMembersBtn(bool);
         void onMsgSendBtn();
         void onMemberSetPriv();
         void onMemberRemove();
+
+    friend class ChatMessage;
 };
 #endif // CHATWINDOW_H
