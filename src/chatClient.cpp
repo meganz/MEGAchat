@@ -835,10 +835,9 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
-    connectToChatd(isInBackground);
-#else
-    connectToChatd(isInBackground);
 #endif
+
+    connectToChatd(isInBackground);
 
     auto pms = connectToPresenced(mOwnPresence)
     .then([this]()

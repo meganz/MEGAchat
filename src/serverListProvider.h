@@ -103,7 +103,7 @@ protected:
     }
 };
 
-/** An implementation of a server data provider that gets the servers from a local, static list,
+/** An implementation of a list provider that gets the servers from a local, static list,
  *  possibly hardcoded
  */
 class StaticProvider: public ListProvider
@@ -129,7 +129,7 @@ public:
     }
 };
 
-/** An implementation of a server data provider that gets the servers from the GeLB server */
+/** An implementation of a list provider that gets the servers from the GeLB server */
 class GelbProvider: public ListProvider, public DeleteTrackable
 {
 protected:
