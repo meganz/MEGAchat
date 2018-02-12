@@ -199,6 +199,7 @@ void ChatMessage::startEditingMsgWidget()
 {
     edited = true;
     chatWin->ui->mMsgSendBtn->setEnabled(false);
+    chatWin->ui->mMessageEdit->blockSignals(true);
     ui->mEditDisplay->hide();
     ui->mStatusDisplay->hide();
 
@@ -235,6 +236,7 @@ ChatMessage* ChatMessage::clearEdit()
     delete cancelBtn;
     delete saveBtn;
     chatWin->ui->mMsgSendBtn->setEnabled(true);
+    chatWin->ui->mMessageEdit->blockSignals(false);
     return this;
 }
 
