@@ -164,7 +164,7 @@ public:
 
         mBusy = true;
 
-        mOutputPromise = mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 30000, 0)
+        mOutputPromise = mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 0, 0)
         .then([this](ReqResult result)
             -> promise::Promise<void>
         {
