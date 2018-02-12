@@ -7,7 +7,7 @@
 #include "chatMessage.h"
 class ChatMessage;
 
-#define NMESSAGES_LOAD 16
+#define NMESSAGES_LOAD 4
 namespace Ui {
 class ChatWindowUi;
 }

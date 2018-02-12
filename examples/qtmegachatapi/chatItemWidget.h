@@ -22,6 +22,8 @@ class ChatItemWidget : public QWidget
         void contextMenuEvent(QContextMenuEvent* event);
         void setChatHandle(const megachat::MegaChatHandle &chatId);
         megachat::MegaChatHandle getChatHandle() const;
+        void setOlderMessageLoaded(const megachat::MegaChatHandle &msgId);
+        megachat::MegaChatHandle getOlderMessageLoaded() const;
         virtual void onUnreadCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(megachat::MegaChatApi* api, const megachat::MegaChatListItem *item);
@@ -31,6 +33,7 @@ class ChatItemWidget : public QWidget
     private:
         Ui::ChatItem *ui;
         int mLastOverlayCount = 0;
+        megachat::MegaChatHandle olderMessageLoaded;
         megachat::MegaChatHandle chatHandle;
         megachat::MegaChatApi * megaChatApi;
         ChatWindow * chatWindowHandle;
@@ -38,5 +41,6 @@ class ChatItemWidget : public QWidget
     private slots:
         void leaveGroupChat();
         void setTitle();
+        void truncateChat();
 };
 #endif // CHATITEM_H

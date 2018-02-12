@@ -8,6 +8,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* mChatApi,
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
+    olderMessageLoaded = 0;
     chatWindowHandle = NULL;
     ui->setupUi(this);
     ui->mUnreadIndicator->hide();
@@ -165,12 +166,22 @@ void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
     showChatWindow();
 }
 
+megachat::MegaChatHandle ChatItemWidget::getOlderMessageLoaded() const
+{
+    return olderMessageLoaded;
+}
+
+void ChatItemWidget::setOlderMessageLoaded(const megachat::MegaChatHandle &msgId)
+{
+    olderMessageLoaded = msgId;
+}
+
 
 void ChatItemWidget::onlineIndicatorUpdate(int newState)
 {
     int virtPresence = (newState == megachat::MegaChatApi::CHAT_CONNECTION_ONLINE)
-        ? megachat::MegaChatApi::CHAT_CONNECTION_ONLINE
-        : megachat::MegaChatApi::CHAT_CONNECTION_IN_PROGRESS;
+            ? megachat::MegaChatApi::CHAT_CONNECTION_ONLINE
+            : megachat::MegaChatApi::CHAT_CONNECTION_IN_PROGRESS;
 
     ui->mOnlineIndicator->setStyleSheet(
         QString("background-color: ")+gOnlineIndColors[virtPresence]+
@@ -210,14 +221,21 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
     menu.deleteLater();
 }
 
+void ChatItemWidget::truncateChat()
+{
+    const char * content = this->megaChatApi->getMessage(chatHandle,olderMessageLoaded)->getContent();
+    this->megaChatApi->truncateChat(chatHandle, olderMessageLoaded);
+}
+
 void ChatItemWidget::setTitle()
 {
     const char * title;
     QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
     if (! qTitle.isNull())
+    {
         title = qTitle.toStdString().c_str();
-
-    this->megaChatApi->setChatTitle(chatHandle,title);
+        this->megaChatApi->setChatTitle(chatHandle,title);
+    }
 }
 
 void ChatItemWidget::leaveGroupChat()

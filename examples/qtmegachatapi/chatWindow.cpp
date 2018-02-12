@@ -13,7 +13,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
     nManualSending=0;
     chatRoom=cRoom;
     megaChatApi=mChatApi;
-    this->chatItemWidget = (ChatItemWidget *) parent;
+    chatItemWidget = (ChatItemWidget *) parent;
 
     ui->setupUi(this);
     ui->mSplitter->setStretchFactor(0,1);
@@ -127,6 +127,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
                 megachat::MegaChatMessage * auxMSG = msg->copy();
                 megachat::MegaChatHandle msgId=auxMSG->getMsgId();
                 addMsgWidget(auxMSG, loadedMessages);
+                chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
             }
         }
         else
@@ -203,6 +204,7 @@ void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaCha
 {
     if(msg)
     {
+        chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
         addMsgWidget(msg->copy(), (loadedMessages));
         loadedMessages+=1;
     }
@@ -212,6 +214,9 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
 {
     if(msg)
     {
+        if (loadedMessages==0)
+            {chatItemWidget->setOlderMessageLoaded(msg->getMsgId());}
+
         if(msg->isDeleted())
             return;
 
@@ -243,6 +248,10 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
                 //Show error
             }
         }
+        else
+        {
+
+        }
     }
 }
 
@@ -255,9 +264,13 @@ QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int 
     widget->setWidgetItem(item);
 
     if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED || msg->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
-        messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getMsgId(),widget));
+    {
+        messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getMsgId(),widget));        
+    }
     else
+    {
         messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getTempId(),widget));
+    }
 
     item->setSizeHint(widget->size());
     ui->mMessageList->insertItem(index, item);
