@@ -9,33 +9,33 @@ class ChatItem;
 }
 class ChatWindow;
 
-
 class ChatItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ChatItemWidget(QWidget *parent , megachat::MegaChatApi* api, const megachat::MegaChatListItem *item);
+        ChatItemWidget(QWidget *parent , megachat::MegaChatApi* mChatApi, const megachat::MegaChatListItem *item);
+        virtual ~ChatItemWidget();
+        ChatWindow* showChatWindow();
+        void invalidChatWindowHandle();
+        void unshowAsHidden();
+        void showAsHidden();
+        void contextMenuEvent(QContextMenuEvent* event);
+        void setChatHandle(const megachat::MegaChatHandle &chatId);
+        megachat::MegaChatHandle getChatHandle() const;
         virtual void onUnreadCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(megachat::MegaChatApi* api, const megachat::MegaChatListItem *item);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
-        virtual ChatWindow* showChatWindow();
-        void invalidChatWindowHandle();
-        void unshowAsHidden();
-        void showAsHidden();
-        void contextMenuEvent(QContextMenuEvent* event);
-        virtual ~ChatItemWidget();
-        megachat::MegaChatHandle getChatHandle() const;
-        void setChatHandle(const megachat::MegaChatHandle &chatId);
 
-    protected:
+    private:
         Ui::ChatItem *ui;
         int mLastOverlayCount = 0;
         megachat::MegaChatHandle chatHandle;
         megachat::MegaChatApi * megaChatApi;
         ChatWindow * chatWindowHandle;
-    protected slots:
+
+    private slots:
         void leaveGroupChat();
         void setTitle();
 };

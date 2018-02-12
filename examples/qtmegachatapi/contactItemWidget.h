@@ -14,18 +14,19 @@ class ContactItemWidget : public QWidget
     public:
         ContactItemWidget(QWidget *parent , megachat::MegaChatApi * mChatApi, mega::MegaApi * mApi, megachat::MegaChatHandle mUserHandle);
         virtual ~ContactItemWidget();
-        virtual void mouseDoubleClickEvent(QMouseEvent* event);
-        ChatWindow* showChatWindow();
         void contextMenuEvent(QContextMenuEvent* event);
+        void setAvatarStyle();
         void updateOnlineIndicator(int newState);
         void updateToolTip(megachat::MegaChatHandle contactHandle);
         void updateTitle(const char * firstname);
-    protected:
+
+    private:
         Ui::ChatItem *ui;
         megachat::MegaChatHandle userHandle;
         megachat::MegaChatApi * megaChatApi;
         mega::MegaApi * megaApi;
-    public slots:
+
+    private slots:
         void onCreateGroupChat();
         void onContactRemove();
 };

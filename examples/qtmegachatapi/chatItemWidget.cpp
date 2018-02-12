@@ -1,6 +1,4 @@
 #include "chatItemWidget.h"
-
-
 #include "ui_listItemWidget.h"
 #include "uiSettings.h"
 #include <QMenu>
@@ -10,19 +8,17 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* mChatApi,
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
-    chatHandle = item->getChatId();
-    megaChatApi=mChatApi;
-
+    chatWindowHandle = NULL;
     ui->setupUi(this);
     ui->mUnreadIndicator->hide();
+    chatHandle = item->getChatId();
+    megaChatApi= mChatApi;
+    ui->mName->setText(item->getTitle());
 
     if (!item->isGroup())
         ui->mAvatar->setText("1");
     else
         ui->mAvatar->setText("G");
-
-    ui->mName->setText(item->getTitle());
-    chatWindowHandle=NULL;
 }
 
 void ChatItemWidget::invalidChatWindowHandle()
@@ -44,13 +40,13 @@ void ChatItemWidget::updateToolTip(megachat::MegaChatApi* mChatApi, const megach
     }
     else
     {
-        lastMessage=item->getLastMessage();
+        lastMessage = item->getLastMessage();
     }
 
     if(!item->isGroup())
     {
-        std::string peerEmail= chatRoom->getPeerEmail(0);
-        std::string peerHandle=std::to_string(item->getPeerHandle());
+        std::string peerEmail = chatRoom->getPeerEmail(0);
+        std::string peerHandle = std::to_string(item->getPeerHandle());
         text.append(tr("1on1 Chat room:"))
             .append(QString::fromStdString(chatId))
             .append(tr("\nEmail: "))
@@ -73,7 +69,7 @@ void ChatItemWidget::updateToolTip(megachat::MegaChatApi* mChatApi, const megach
             .append(QString(chatRoom->privToString(ownPrivilege)))
             .append(tr("\nOther participants:")));
 
-        if (participantsCount==0)
+        if (participantsCount == 0)
         {
             text.append(" (none)");
         }
@@ -145,13 +141,13 @@ void ChatItemWidget::unshowAsHidden()
 ChatWindow* ChatItemWidget::showChatWindow()
 {
     ChatWindow* window;
-    const char * chatWindowTitle=ui->mName->text().toStdString().c_str();
+    const char * chatWindowTitle = ui->mName->text().toStdString().c_str();
     megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(chatHandle);
 
     if (!chatWindowHandle)
     {
-        window = new ChatWindow(this, megaChatApi, chatRoom, chatWindowTitle);
-        chatWindowHandle=window;
+        window = new ChatWindow(this, megaChatApi, chatRoom->copy(), chatWindowTitle);
+        chatWindowHandle = window;
     }
     else
     {
@@ -160,6 +156,7 @@ ChatWindow* ChatItemWidget::showChatWindow()
 
     window->show();
     window->openChatRoom();
+    delete chatRoom;
     return window;
 }
 
@@ -171,13 +168,13 @@ void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
 
 void ChatItemWidget::onlineIndicatorUpdate(int newState)
 {
-    int virtPresence = (newState==megachat::MegaChatApi::CHAT_CONNECTION_ONLINE)
+    int virtPresence = (newState == megachat::MegaChatApi::CHAT_CONNECTION_ONLINE)
         ? megachat::MegaChatApi::CHAT_CONNECTION_ONLINE
         : megachat::MegaChatApi::CHAT_CONNECTION_IN_PROGRESS;
 
     ui->mOnlineIndicator->setStyleSheet(
-                    QString("background-color: ")+gOnlineIndColors[virtPresence]+
-                    ";border-radius: 4px");
+        QString("background-color: ")+gOnlineIndColors[virtPresence]+
+        ";border-radius: 4px");
 }
 
 ChatItemWidget::~ChatItemWidget()
@@ -210,6 +207,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
     menu.setStyleSheet("background-color: lightgray");
     menu.exec(event->globalPos());
+    menu.deleteLater();
 }
 
 void ChatItemWidget::setTitle()

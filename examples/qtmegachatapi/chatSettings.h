@@ -2,7 +2,7 @@
 #define SETTINGSDIALOG_H
 #include <QDialog>
 #include "MainWindow.h"
-#include <ui_settingsDialog.h>
+#include "ui_settingsDialog.h"
 
 namespace Ui
 {
@@ -20,14 +20,5 @@ class ChatSettings : public QDialog
 
     protected:
        Ui::SettingsDialog *ui;
-       //MainWindow & mMainWindow;
-       /*
-       #ifndef KARERE_DISABLE_WEBRTC
-            void selectVideoInput();
-            void selectAudioInput();
-            int mAudioInIdx;
-            int mVideoInIdx;
-       #endif
-       */
 };
 #endif // SETTINGSDIALOG_H

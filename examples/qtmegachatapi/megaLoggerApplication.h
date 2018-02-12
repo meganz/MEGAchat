@@ -3,8 +3,6 @@
 #include <fstream>
 #include "megachatapi.h"
 
-
-
 class MegaLoggerApplication : public mega::MegaLogger, public megachat::MegaChatLogger
 {
     public:
@@ -15,7 +13,7 @@ class MegaLoggerApplication : public mega::MegaLogger, public megachat::MegaChat
         bool getLogConsole() const;
         void setLogConsole(bool logConsole);
 
-private:
+    private:
         std::ofstream testlog;
         bool logConsole;
 

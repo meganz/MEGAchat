@@ -16,7 +16,6 @@ LoginDialog::LoginDialog(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->bOK->setEnabled(false);
-
     enableControls(true);
 }
 

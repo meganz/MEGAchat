@@ -17,14 +17,19 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     megaChatApi = NULL;
     megaApi = NULL;
-    megaChatListenerDelegate=NULL;
-    chatsVisibility=true;
+    megaChatListenerDelegate = NULL;
+    chatsVisibility = true;
+    onlineStatus = NULL;
     ui->contactList->setSortingEnabled(true);
     qApp->installEventFilter(this);
 }
 
 MainWindow::~MainWindow()
 {
+    if (megaChatListenerDelegate)
+        delete megaChatListenerDelegate;
+    chatWidgets.clear();
+    contactWidgets.clear();
     delete ui;
 }
 
@@ -41,6 +46,7 @@ void MainWindow::setMegaApi(MegaApi *megaApi)
 void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
+    menu.setAttribute(Qt::WA_DeleteOnClose);
     auto addAction = menu.addAction(tr("Add user to contacts"));
     connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
@@ -53,46 +59,43 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-  if (event->type() == QEvent::MouseMove && this->megaChatApi->isSignalActivityRequired())
-  {
-      this->megaChatApi->signalPresenceActivity();
-  }
-  return false;
+    if (event->type() == QEvent::MouseMove && this->megaChatApi->isSignalActivityRequired())
+    {
+        this->megaChatApi->signalPresenceActivity();
+    }
+    return false;
 }
 
 void MainWindow::on_bSettings_clicked()
 {
     ChatSettings *chatSettings = new ChatSettings(this);
     chatSettings->exec();
-    /*
-    Ui::ChatSettings *dialog(new Ui::ChatSettings);
-    if (dialog->exec() == QDialog::Accepted)
-        dialog->applySettings();*/
+    chatSettings->deleteLater();
 }
 
 void MainWindow::on_bOnlineStatus_clicked()
 {
-    auto list = new QMenu(this);
-    auto actOnline = list->addAction("Online");
+    onlineStatus = new QMenu(this);
+    auto actOnline = onlineStatus->addAction("Online");
     actOnline->setData(QVariant(MegaChatApi::STATUS_ONLINE));
     connect(actOnline, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
 
-    auto actAway = list->addAction("Away");
+    auto actAway = onlineStatus->addAction("Away");
     actAway->setData(QVariant(MegaChatApi::STATUS_AWAY));
     connect(actAway, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
 
-    auto actDnd = list->addAction("Busy");
+    auto actDnd = onlineStatus->addAction("Busy");
     actDnd->setData(QVariant(MegaChatApi::STATUS_BUSY));
     connect(actDnd, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
 
-    auto actOffline = list->addAction("Offline");
+    auto actOffline = onlineStatus->addAction("Offline");
     actOffline->setData(QVariant(MegaChatApi::STATUS_OFFLINE));
     connect(actOffline, SIGNAL(triggered()), this, SLOT(setOnlineStatus()));
 
     auto rect = ui->bOnlineStatus->rect();
-    list->move(mapToGlobal(QPoint(1,rect.bottom())));
-    list->resize(rect.width(), 100);
-    list->setStyleSheet("QMenu {"
+    onlineStatus->move(mapToGlobal(QPoint(1,rect.bottom())));
+    onlineStatus->resize(rect.width(), 100);
+    onlineStatus->setStyleSheet("QMenu {"
         "background-color: qlineargradient("
         "spread:pad, x1:0, y1:0, x2:0, y2:1,"
             "stop:0 rgba(120,120,120,200),"
@@ -107,7 +110,8 @@ void MainWindow::on_bOnlineStatus_clicked()
             "stop:0 rgba(120,120,120,200),"
             "stop:1 rgba(180,180,180,200));"
         "}");
-    list->exec();
+    onlineStatus->exec();
+    onlineStatus->deleteLater();
 }
 
 
@@ -131,13 +135,15 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
     QListWidgetItem *item = new QListWidgetItem();
     ui->contactList->insertItem(0, item);
     ui->contactList->setItemWidget(item, chatItemWidget);
-    chatWidgets.insert(std::pair<megachat::MegaChatHandle, ChatItemWidget *>(chathandle,chatItemWidget));        
+    chatWidgets.insert(std::pair<megachat::MegaChatHandle, ChatItemWidget *>(chathandle,chatItemWidget));
 }
+
+
 
 void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
 {
-    int change=item->getChanges();
-    megachat::MegaChatHandle chatHandle=item->getChatId();
+    int change = item->getChanges();
+    megachat::MegaChatHandle chatHandle = item->getChatId();
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
     itChats = chatWidgets.find(chatHandle);
 
@@ -195,10 +201,10 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
 
 void MainWindow::onChangeChatVisibility()
 {
-    chatsVisibility=!chatsVisibility;
+    chatsVisibility = !chatsVisibility;
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
     bool active;
-    for (itChats=chatWidgets.begin(); itChats!=chatWidgets.end(); ++itChats)
+    for (itChats = chatWidgets.begin(); itChats != chatWidgets.end(); ++itChats)
     {
         active = megaChatApi->getChatListItem(itChats->first)->isActive();
         if(!active)
@@ -246,10 +252,8 @@ void MainWindow::setOnlineStatus()
     auto pres = action->data().toUInt(&ok);
     if (!ok || (pres ==MegaChatApi::STATUS_INVALID))
     {
-        //GUI_LOG_WARNING("setOnlineStatus: action data is not a valid presence code");
         return;
     }
-    //if (pres == MegaChatApi::STATUS_ONLINE)
     this->megaChatApi->setOnlineStatus(pres);
 }
 
@@ -260,7 +264,6 @@ void MainWindow::addChatListener()
 }
 
 
-//When User changes
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
 {
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
@@ -289,11 +292,11 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
     if (newState == MegaChatApi::INIT_OFFLINE_SESSION ||
         newState == MegaChatApi::INIT_ONLINE_SESSION)
     {
-         setWindowTitle(api->getMyEmail());
+        setWindowTitle(api->getMyEmail());
     }
     else
     {
-         setWindowTitle("");
+        setWindowTitle("");
     }
 }
 
@@ -323,12 +326,12 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
 
 void MainWindow::onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config)
 {
-        ui->bOnlineStatus->setText(config->isPending()
-            ?kOnlineSymbol_InProgress
-            :kOnlineSymbol_Set);
+    ui->bOnlineStatus->setText(config->isPending()
+        ?kOnlineSymbol_InProgress
+        :kOnlineSymbol_Set);
 
-        ui->bOnlineStatus->setStyleSheet(
-            kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
+    ui->bOnlineStatus->setStyleSheet(
+        kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
 }
 
 
