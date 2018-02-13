@@ -4376,6 +4376,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
         this->peers.push_back(userpriv_pair(uh, priv));
+        this->peerEmails.push_back(peerchat.email());
 
         if (peerchat.contact() != NULL)
         {
@@ -4391,11 +4392,35 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         }
         else
         {
-            this->peerFirstnames.push_back(title);
-            this->peerLastnames.push_back("");
-        }
+            chat.parent.client.userAttrCache().getAttr(uh, USER_ATTR_FULLNAME, this, [](Buffer* data, void* userp)
+            {
+                //even if both first and last name are null, the data is at least
+                //one byte - the firstname-size-prefix, which will be zero
+                MegaChatRoomPrivate* self = static_cast<MegaChatRoomPrivate*>(userp);
+                if (!data || data->empty() || (*data->buf() == 0))
+                {
+                    self->peerFirstnames.push_back(self->peerEmails[0]);
+                    self->peerLastnames.push_back("");
+                }
+                else
+                {
+                    std::string title = std::string(data->buf(), data->dataSize());
+                    const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(title);
+                    self->peerFirstnames.push_back(buffer ? buffer : "");
+                    delete [] buffer;
 
-        this->peerEmails.push_back(peerchat.email());
+                    buffer = MegaChatRoomPrivate::lastnameFromBuffer(title);
+                    self->peerLastnames.push_back(buffer ? buffer : "");
+                    delete [] buffer;
+                }
+            });
+
+            if (peerFirstnames.size() < 0)
+            {
+                peerFirstnames.push_back(peerEmails[0]);
+                peerLastnames.push_back("");
+            }
+        }
     }
 }
 
