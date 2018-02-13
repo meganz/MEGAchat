@@ -60,8 +60,6 @@ using ServerList = std::vector<std::shared_ptr<TurnServerInfo> >;
  */
 class ListProvider: public ServerList
 {
-public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
-
 protected:
     bool parseServerList(const rapidjson::Value& arr)
     {
