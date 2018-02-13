@@ -207,22 +207,29 @@ void RtcModule::onDisconnect(chatd::Connection& conn)
 
 int RtcModule::setIceServers(const ServerList &servers)
 {
+    if (!servers.empty())
+        return 0;
+
     webrtc::PeerConnectionInterface::IceServers rtcServers;
-    webrtc::PeerConnectionInterface::IceServer rtcServer;
     for (auto& server: servers)
     {
-        rtcServer.uri = server->url;
+        webrtc::PeerConnectionInterface::IceServer rtcServer;
+        rtcServer.uri = server->url;        
+
         if (!server->user.empty())
             rtcServer.username = server->user;
         else
             rtcServer.username = KARERE_TURN_USERNAME;
+
         if (!server->pass.empty())
             rtcServer.password = server->pass;
         else
             rtcServer.password = KARERE_TURN_PASSWORD;
+
         KR_LOG_DEBUG("Adding ICE server: '%s'", rtcServer.uri.c_str());
         rtcServers.push_back(rtcServer);
     }
+
     mIceServers.swap(rtcServers);
     return (int)(mIceServers.size());
 }
