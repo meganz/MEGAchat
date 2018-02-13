@@ -829,8 +829,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-        auto wptr = weakHandle();
-
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
@@ -839,9 +837,15 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
     connectToChatd(isInBackground);
 
+    auto wptr = weakHandle();
     auto pms = connectToPresenced(mOwnPresence)
-    .then([this]()
+    .then([this, wptr]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         setConnState(kConnected);
     })
     .fail([this](const promise::Error& err)
@@ -849,6 +853,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         setConnState(kDisconnected);
         return err;
     });
+
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
