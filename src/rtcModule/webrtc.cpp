@@ -653,6 +653,8 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     {
         mLocalPlayer->attachVideo(mLocalStream->video());
     }
+
+    mLocalPlayer->enableVideo(av.video());
 }
 
 void Call::msgCallTerminate(RtMessage& packet)
@@ -1337,6 +1339,7 @@ AvFlags Call::muteUnmute(AvFlags av)
     auto oldAv = mLocalStream->effectiveAv();
     mLocalStream->setAv(av);
     av = mLocalStream->effectiveAv();
+    mLocalPlayer->enableVideo(av.video());
     if (oldAv != av)
     {
         for (auto& item: mSessions)
@@ -1562,6 +1565,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
         FIRE_EVENT(SESS, onVideoRecv);
     });
     mRemotePlayer->attachToStream(stream);
+    mRemotePlayer->enableVideo(mPeerAv.video());
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -2036,6 +2040,8 @@ void Session::msgMute(RtMessage& packet)
 {
     auto oldAv = mPeerAv;
     mPeerAv.set(packet.payload.read<uint8_t>(8));
+    mRemotePlayer->enableVideo(mPeerAv.video());
+
     FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 
