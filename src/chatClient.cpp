@@ -1275,6 +1275,11 @@ promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
     });
 }
 
+const std::string &ChatRoom::titleString() const
+{
+    return mTitleString;
+}
+
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& aTitle)
    :parent(aParent), mChatid(chatid),
@@ -1612,11 +1617,6 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);   // returns true if own privilege has changed
     changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
     return changed;
-}
-
-const std::string& PeerChatRoom::titleString() const
-{
-    return mTitleString;
 }
 
 promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
