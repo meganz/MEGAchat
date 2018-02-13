@@ -5,10 +5,12 @@
 #include "megachatapi.h"
 #include "chatItemWidget.h"
 #include "chatMessage.h"
-class ChatMessage;
+#include "megaLoggerApplication.h"
 
 #define NMESSAGES_LOAD 4
-namespace Ui {
+class ChatMessage;
+
+namespace Ui{
 class ChatWindowUi;
 }
 class ChatItemWidget;
@@ -31,22 +33,23 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
 
     protected:
-        int loadedMessages;
         Ui::ChatWindowUi *ui;
         megachat::MegaChatApi* megaChatApi;
         megachat::MegaChatRoom * chatRoom;
         ChatItemWidget * chatItemWidget;
+        MegaLoggerApplication * logger;
         megachat::QTMegaChatRoomListener * megaChatRoomListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> messagesWidgets;
         int nSending;
+        int loadedMessages;
         int nManualSending;
 
     private slots:
         void onMsgListRequestHistory();
-        void onMembersBtn(bool);
-        void onMsgSendBtn();
         void onMemberSetPriv();
         void onMemberRemove();
+        void onMsgSendBtn();
+        void onMembersBtn(bool);
 
     friend class ChatMessage;
 };

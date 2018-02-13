@@ -7,10 +7,11 @@
 #include <QTMegaChatEvent.h>
 #include "uiSettings.h"
 #include "chatSettings.h"
+
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *mLogger) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -18,8 +19,9 @@ MainWindow::MainWindow(QWidget *parent) :
     megaChatApi = NULL;
     megaApi = NULL;
     megaChatListenerDelegate = NULL;
-    chatsVisibility = true;
     onlineStatus = NULL;
+    chatsVisibility = true;
+    logger=mLogger;
     ui->contactList->setSortingEnabled(true);
     qApp->installEventFilter(this);
 }

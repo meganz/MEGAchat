@@ -8,6 +8,7 @@
 #include "chatItemWidget.h"
 #include "contactItemWidget.h"
 #include "QTMegaChatListener.h"
+#include "megaLoggerApplication.h"
 
 namespace Ui
 {
@@ -20,7 +21,7 @@ class MainWindow :
 {
     Q_OBJECT
     public:
-        explicit MainWindow(QWidget *parent = 0);
+        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *mLogger=NULL);
         virtual ~MainWindow();
         void setMegaChatApi(megachat::MegaChatApi *megaChatApi);
         void setMegaApi(mega::MegaApi *megaApi);
@@ -35,6 +36,9 @@ class MainWindow :
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
+
+    public:
+        MegaLoggerApplication *logger;
 
     private:
         Ui::MainWindow *ui;

@@ -50,8 +50,9 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     megaApi->addListener(megaListenerDelegate);
     megaChatApi->addChatRequestListener(megaChatRequestListenerDelegate);
 
+
     // Start GUI
-    mainWin = new MainWindow();
+    mainWin = new MainWindow(0, logger);
     mainWin->setMegaChatApi(megaChatApi);
     mainWin->setMegaApi(megaApi);
 }
