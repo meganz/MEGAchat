@@ -10,6 +10,8 @@
 #include "QTMegaChatListener.h"
 #include "megaLoggerApplication.h"
 
+class ChatItemWidget;
+class ContactItemWidget;
 namespace Ui
 {
     class MainWindow;
@@ -29,6 +31,7 @@ class MainWindow :
         void addContact(megachat::MegaChatHandle contactHandle);
         void addChatListener();
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
+        mega::MegaUserList * getUserContactList();
         bool eventFilter(QObject *obj, QEvent *event);
         void contextMenuEvent(QContextMenuEvent* event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
@@ -37,10 +40,11 @@ class MainWindow :
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
 
+
     public:
         MegaLoggerApplication *logger;
 
-    private:
+    protected:
         Ui::MainWindow *ui;
         bool chatsVisibility;
         QMenu * onlineStatus;
@@ -57,8 +61,11 @@ class MainWindow :
         void setOnlineStatus();
         void onChangeChatVisibility();
 
+
     signals:
         void esidLogout();
+
+     friend class ChatItemWidget;
 };
 
 #endif // MAINWINDOW_H

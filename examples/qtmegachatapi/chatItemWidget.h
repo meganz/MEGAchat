@@ -3,6 +3,8 @@
 #include <QWidget>
 #include "chatWindow.h"
 #include "megachatapi.h"
+#include "MainWindow.h"
+class MainWindow;
 
 namespace Ui {
 class ChatItem;
@@ -32,15 +34,21 @@ class ChatItemWidget : public QWidget
 
     private:
         Ui::ChatItem *ui;
-        int mLastOverlayCount = 0;
+        int mLastOverlayCount;
         megachat::MegaChatHandle olderMessageLoaded;
         megachat::MegaChatHandle chatHandle;
         megachat::MegaChatApi * megaChatApi;
         ChatWindow * chatWindowHandle;
 
+    protected:
+        MainWindow * mainWin;
+
     private slots:
         void leaveGroupChat();
         void setTitle();
         void truncateChat();
+
+    friend class ChatWindow;
+
 };
 #endif // CHATITEM_H

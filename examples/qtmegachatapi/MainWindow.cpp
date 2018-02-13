@@ -35,6 +35,11 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+mega::MegaUserList * MainWindow::getUserContactList()
+{
+    return megaApi->getContacts();
+}
+
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
 {
     this->megaChatApi = megaChatApi;
@@ -132,7 +137,7 @@ void MainWindow::addContact(MegaChatHandle contactHandle)
 void MainWindow::addChat(const MegaChatListItem* chatListItem)
 {
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
-    ChatItemWidget *chatItemWidget = new ChatItemWidget(ui->contactList, megaChatApi, chatListItem);
+    ChatItemWidget *chatItemWidget = new ChatItemWidget(this, megaChatApi, chatListItem);
     chatItemWidget->updateToolTip(megaChatApi, chatListItem);
     QListWidgetItem *item = new QListWidgetItem();
     ui->contactList->insertItem(0, item);

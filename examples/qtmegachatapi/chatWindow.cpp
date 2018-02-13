@@ -293,11 +293,22 @@ void ChatWindow::onMembersBtn(bool)
 
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
+    MainWindow * mainWin = chatItemWidget->mainWin;
+    mega::MegaUserList *userList = mainWin->getUserContactList();
     if (chatRoom->getPeerCount()==0)
     {
         menu.addAction(tr("You are alone in this chatroom"))->setEnabled(false);
         return;
     }
+
+    auto addEntry = menu.addMenu("Add contact to chat");
+    for (int i=0 ; i< userList->size(); i++)
+    {
+         auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
+         actAdd->setProperty("userHandle", QVariant((qulonglong)userList->get(i)->getHandle()));
+         connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
+    }
+    delete userList;
 
     for (int i=0; i<chatRoom->getPeerCount(); i++)
     {
@@ -319,6 +330,17 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
     }
+}
+
+void ChatWindow::onMemberAdd()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (!action)
+       return;
+
+    QVariant uHandle = action->property("userHandle");
+    megachat::MegaChatHandle userhand = uHandle.toLongLong();
+    megaChatApi->inviteToChat(chatRoom->getChatId(),userhand,megachat::MegaChatPeerList::PRIV_STANDARD);
 }
 
 void ChatWindow::onMemberRemove()

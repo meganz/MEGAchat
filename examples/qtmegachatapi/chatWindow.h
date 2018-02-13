@@ -49,6 +49,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberSetPriv();
         void onMemberRemove();
         void onMsgSendBtn();
+        void onMemberAdd();
         void onMembersBtn(bool);
 
     friend class ChatMessage;

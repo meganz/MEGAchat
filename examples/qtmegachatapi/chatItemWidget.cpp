@@ -8,6 +8,8 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* mChatApi,
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
+    mLastOverlayCount = 0;
+    mainWin = (MainWindow *) parent;
     olderMessageLoaded = 0;
     chatWindowHandle = NULL;
     ui->setupUi(this);
