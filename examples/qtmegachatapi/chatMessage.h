@@ -27,19 +27,19 @@ class ChatMessage: public QWidget
         friend class ChatWindow;
     public:
         ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg);
+        virtual ~ChatMessage();
         std::string managementInfoToString() const;
         void setMessageContent(const char * content);
         void setTimestamp(int64_t ts);
         void setStatus(int status);
         void setAuthor();
+        bool isMine() const;
         void markAsEdited();
-        virtual ~ChatMessage();
+        void startEditingMsgWidget();
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
-        bool isMine() const;
         megachat::MegaChatMessage *getMessage() const;
         void setMessage(megachat::MegaChatMessage *message);
-        void startEditingMsgWidget();
         ChatMessage* clearEdit();
 
     public slots:

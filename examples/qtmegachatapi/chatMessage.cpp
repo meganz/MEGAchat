@@ -1,14 +1,12 @@
+#include "qmenu.h"
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
-#include "qmenu.h"
 
 
 const char* messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
-
-
 
 ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
     : QWidget((QWidget *)parent),
@@ -37,8 +35,35 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
         ui->mMsgDisplay->setText(managementInfoToString().c_str());
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
-    //updateToolTip();
+    updateToolTip();
     show();
+}
+
+ChatMessage::~ChatMessage()
+{
+    delete message;
+    delete ui;
+}
+
+void ChatMessage::updateToolTip()
+{
+    megachat::MegaChatHandle msgId;
+    megachat::MegaChatHandle chatId = chatWin->chatRoom->getChatId();
+    if (message->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED || message->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
+        msgId = message->getMsgId();
+    else
+        msgId = message->getTempId();
+
+    QString tooltip = NULL;
+        tooltip.append(tr("msgid: "))
+        .append(QString::fromStdString(std::to_string(msgId)))
+        .append(tr("\ntype: "))
+        .append(QString::fromStdString(std::to_string(message->getType())))
+        .append(tr("\nuserid: "))
+        .append(QString::fromStdString(std::to_string(message->getUserHandle())))
+        .append(tr("\nchatid: "))
+        .append(QString::fromStdString(std::to_string(chatId)));
+    ui->mHeader->setToolTip(tooltip);
 }
 
 QListWidgetItem *ChatMessage::getWidgetItem() const
@@ -142,10 +167,6 @@ void ChatMessage::markAsEdited()
     ui->mStatusDisplay->setText(ui->mStatusDisplay->text()+" (Edited)");
 }
 
-ChatMessage::~ChatMessage()
-{
-    delete ui;
-}
 
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
@@ -186,14 +207,10 @@ void ChatMessage::cancelMsgEdit(bool clicked)
 void ChatMessage::saveMsgEdit(bool clicked)
 {
     const char * editedMsg =chatWin->ui->mMessageEdit->toPlainText().toStdString().c_str();
-
     if(this->message->getContent() != editedMsg)
                 this->megaChatApi->editMessage(chatId,message->getMsgId() ,editedMsg);
-
     clearEdit();
 }
-
-
 
 void ChatMessage::startEditingMsgWidget()
 {
