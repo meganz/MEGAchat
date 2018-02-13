@@ -227,11 +227,10 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
         {
             if(msg->getStatus() == megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
-
                 ChatMessage * auxMessage = this->findChatMessage(msg->getTempId());
                 if(auxMessage)
                 {
-                    auxMessage->setMessage(msg);
+                    auxMessage->setMessage(msg->copy());
                     auxMessage->setManualMode(true);
                 }
             }
@@ -314,14 +313,21 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         return;
     }
 
-    auto addEntry = menu.addMenu("Add contact to chat");
-    for (int i=0 ; i< userList->size(); i++)
+    if(chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR)
     {
-         auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
-         actAdd->setProperty("userHandle", QVariant((qulonglong)userList->get(i)->getHandle()));
-         connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
+        auto addEntry = menu.addMenu("Add contact to chat");
+        for (int i=0 ; i< userList->size(); i++)
+        {
+             auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
+             actAdd->setProperty("userHandle", QVariant((qulonglong)userList->get(i)->getHandle()));
+             connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
+        }
+        delete userList;
     }
-    delete userList;
+    else
+    {
+        auto addEntry = menu.addMenu("Invalid permissions to add participants");
+    }
 
     for (int i=0; i<chatRoom->getPeerCount(); i++)
     {
