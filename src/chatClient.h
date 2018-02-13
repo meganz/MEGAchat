@@ -228,7 +228,7 @@ public:
     /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
       * First byte indicate first name length
       */
-    virtual const std::string& completeTitleString() const;
+    virtual std::string completeTitleString() const;
 
 
     /** @brief The screen email address of the peer */
