@@ -4375,19 +4375,52 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.titleString();
-
         this->peers.push_back(userpriv_pair(uh, priv));
-
-        const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
-        this->peerFirstnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
-
-        buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
-        this->peerLastnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
-
         this->peerEmails.push_back(peerchat.email());
+
+        if (peerchat.contact() != NULL)
+        {
+            string name = peerchat.contact()->titleString();
+
+            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
+            this->peerFirstnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+
+            buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
+            this->peerLastnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+        }
+        else
+        {
+            chat.parent.client.userAttrCache().getAttr(uh, USER_ATTR_FULLNAME, this, [](Buffer* data, void* userp)
+            {
+                //even if both first and last name are null, the data is at least
+                //one byte - the firstname-size-prefix, which will be zero
+                MegaChatRoomPrivate* self = static_cast<MegaChatRoomPrivate*>(userp);
+                if (!data || data->empty() || (*data->buf() == 0))
+                {
+                    self->peerFirstnames.push_back(self->peerEmails[0]);
+                    self->peerLastnames.push_back("");
+                }
+                else
+                {
+                    std::string title = std::string(data->buf(), data->dataSize());
+                    const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(title);
+                    self->peerFirstnames.push_back(buffer ? buffer : "");
+                    delete [] buffer;
+
+                    buffer = MegaChatRoomPrivate::lastnameFromBuffer(title);
+                    self->peerLastnames.push_back(buffer ? buffer : "");
+                    delete [] buffer;
+                }
+            });
+
+            if (peerFirstnames.size() < 0)
+            {
+                peerFirstnames.push_back(peerEmails[0]);
+                peerLastnames.push_back("");
+            }
+        }
     }
 }
 
