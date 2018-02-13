@@ -26,21 +26,6 @@ namespace karere
         varname = it_##name->value.Get##type();                                                     \
     }
 
-struct HostPortServerInfo
-{
-    std::string host;
-    unsigned short port;
-    HostPortServerInfo(const rapidjson::Value& json)
-    {
-        SRVJSON_CHECK_GET_PROP(host, host, String);
-        int vPort;
-        SRVJSON_CHECK_GET_PROP(vPort, port, Int);
-        if (vPort < 0 || vPort > 65535)
-            throw std::runtime_error("HostPortServerInfo: Port "+std::to_string(vPort)+" is out of range");
-        port = vPort;
-    }
-};
-
 struct TurnServerInfo
 {
     std::string url;
@@ -67,14 +52,13 @@ struct TurnServerInfo
     }
 };
 
-/** A list of server info structures, defined by the class S */
-template <class S>
-using ServerList = std::vector<std::shared_ptr<S> >;
+// A list of TurnServerInfo structures
+using ServerList = std::vector<std::shared_ptr<TurnServerInfo> >;
 
 /** An abstract class that provides a list of servers (i.e. more than one). A single server info is
  * contained in the class S
  */
-class ListProvider: public ServerList<karere::TurnServerInfo>
+class ListProvider: public ServerList
 {
 public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
 

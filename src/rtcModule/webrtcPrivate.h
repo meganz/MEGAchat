@@ -168,7 +168,7 @@ public:
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     virtual void init();
-    int setIceServers(const karere::ServerList<karere::TurnServerInfo>& servers);
+    int setIceServers(const karere::ServerList& servers);
     void onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv);
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);

@@ -205,7 +205,7 @@ void RtcModule::onDisconnect(chatd::Connection& conn)
     }
 }
 
-int RtcModule::setIceServers(const ServerList<TurnServerInfo>& servers)
+int RtcModule::setIceServers(const ServerList &servers)
 {
     webrtc::PeerConnectionInterface::IceServers rtcServers;
     webrtc::PeerConnectionInterface::IceServer rtcServer;
