@@ -159,11 +159,12 @@ void ChatMessage::setAuthor()
 
 bool ChatMessage::isMine() const
 {
-    return this->message->getUserHandle()  == this->megaChatApi->getMyUserHandle();
+    return this->message->getUserHandle() == this->megaChatApi->getMyUserHandle();
 }
 
 void ChatMessage::markAsEdited()
 {
+    setStatus(message->getStatus());
     ui->mStatusDisplay->setText(ui->mStatusDisplay->text()+" (Edited)");
 }
 
