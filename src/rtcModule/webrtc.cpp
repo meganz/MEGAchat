@@ -207,7 +207,7 @@ void RtcModule::onDisconnect(chatd::Connection& conn)
 
 int RtcModule::setIceServers(const ServerList &servers)
 {
-    if (!servers.empty())
+    if (servers.empty())
         return 0;
 
     webrtc::PeerConnectionInterface::IceServers rtcServers;
