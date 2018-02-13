@@ -258,4 +258,34 @@ ChatMessage* ChatMessage::clearEdit()
     return this;
 }
 
+void ChatMessage::setManualMode(bool manualMode)
+{
+    if(manualMode)
+    {
+        ui->mEditDisplay->hide();
+        ui->mStatusDisplay->hide();
+        QPushButton * cancelBtn = new QPushButton(this);
+        connect(cancelBtn, SIGNAL(clicked(bool)), this, SLOT(onManualSending()));
+        cancelBtn->setText("Send (Manual mode)");
+        auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
+        layout->insertWidget(2, cancelBtn);
+        setLayout(layout);
+    }
+    else
+    {
+        ui->mEditDisplay->show();
+        ui->mStatusDisplay->show();
+        auto header = ui->mHeader->layout();
+        auto manualSending = header->itemAt(2)->widget();
+        delete manualSending;
+    }
+}
+
+
+void ChatMessage::onManualSending()
+{
+   this->megaChatApi->removeUnsentMessage(chatWin->chatRoom->getChatId(), message->getRowId());
+   this->megaChatApi->sendMessage(chatWin->chatRoom->getChatId(), message->getContent());
+   setManualMode(false);
+}
 

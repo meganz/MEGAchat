@@ -8,11 +8,11 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
     : QDialog(parent),
       ui(new Ui::ChatWindowUi)
 {
-    nSending=0;
-    loadedMessages=0;
-    nManualSending=0;
-    chatRoom=cRoom;
-    megaChatApi=mChatApi;
+    nSending = 0;
+    loadedMessages = 0;
+    nManualSending = 0;
+    chatRoom = cRoom;
+    megaChatApi = mChatApi;
     chatItemWidget = (ChatItemWidget *) parent;
     logger = ((MainWindow *)chatItemWidget->parent())->logger;
 
@@ -132,7 +132,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
         }
         else
         {
-            if(msg->getStatus()==megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
+            if(msg->getStatus() == megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
                 //Complete case
             }
@@ -147,14 +147,14 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
 
 void ChatWindow::deleteChatMessage(megachat::MegaChatMessage *msg)
 {
-        std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
-        megachat::MegaChatHandle msgId=msg->getMsgId();
-        itMessages = messagesWidgets.find(msgId);
+   std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
+   megachat::MegaChatHandle msgId=msg->getMsgId();
+   itMessages = messagesWidgets.find(msgId);
 
-        if (itMessages != messagesWidgets.end())
-        {
-            this->megaChatApi->deleteMessage(chatRoom->getChatId(), msg->getMsgId());
-        }
+   if (itMessages != messagesWidgets.end())
+   {
+      this->megaChatApi->deleteMessage(chatRoom->getChatId(), msg->getMsgId());
+   }
 }
 
 
@@ -225,8 +225,21 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
         }
         else
         {
-            addMsgWidget(msg->copy(), -loadedMessages);
-            loadedMessages+=1;
+            if(msg->getStatus() == megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
+            {
+
+                ChatMessage * auxMessage = this->findChatMessage(msg->getTempId());
+                if(auxMessage)
+                {
+                    auxMessage->setMessage(msg);
+                    auxMessage->setManualMode(true);
+                }
+            }
+            else
+            {
+                addMsgWidget(msg->copy(), -loadedMessages);
+                loadedMessages+=1;
+            }
         }
     }
     else

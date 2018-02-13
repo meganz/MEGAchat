@@ -41,8 +41,11 @@ class ChatMessage: public QWidget
         megachat::MegaChatMessage *getMessage() const;
         void setMessage(megachat::MegaChatMessage *message);
         ChatMessage* clearEdit();
+        void setManualMode(bool manualMode);
+
 
     public slots:
+        void onManualSending();
         void cancelMsgEdit(bool clicked);
         void saveMsgEdit(bool clicked);
         void onMessageCtxMenu(const QPoint& point);
