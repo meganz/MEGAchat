@@ -7,7 +7,6 @@
 #include <map>
 #include <type_traits>
 #include <retryHandler.h>
-#include <serverListProviderForwards.h>
 #include "userAttrCache.h"
 #include <db.h>
 #include "chatd.h"

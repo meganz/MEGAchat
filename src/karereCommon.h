@@ -44,8 +44,6 @@
     #endif
 #endif
 
-#define KARERE_GELB_HOST "gelb.karere.mega.nz"
-#define KARERE_PRESENCED_URL "mcd270n310.userstorage.mega.co.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
