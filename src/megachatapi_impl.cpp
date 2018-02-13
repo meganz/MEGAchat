@@ -4375,17 +4375,25 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.titleString();
-
         this->peers.push_back(userpriv_pair(uh, priv));
 
-        const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
-        this->peerFirstnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
+        if (peerchat.contact() != NULL)
+        {
+            string name = peerchat.contact()->titleString();
 
-        buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
-        this->peerLastnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
+            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
+            this->peerFirstnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+
+            buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
+            this->peerLastnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+        }
+        else
+        {
+            this->peerFirstnames.push_back(title);
+            this->peerLastnames.push_back("");
+        }
 
         this->peerEmails.push_back(peerchat.email());
     }
