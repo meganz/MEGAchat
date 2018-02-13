@@ -150,10 +150,14 @@ public:
 
         mBusy = true;
 
+        auto wptr = weakHandle();
         mOutputPromise = mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 0, 0)
-        .then([this](ReqResult result)
+        .then([wptr, this](ReqResult result)
             -> promise::Promise<void>
         {
+            if (wptr.deleted())
+                return promise::_Void();
+
             if (result->getNumber() != 200)
             {
                 return promise::Error("Non-200 http response from GeLB server: "
