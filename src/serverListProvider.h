@@ -68,6 +68,7 @@ protected:
         if (!arr.IsArray())
         {
             KR_LOG_ERROR("Ice server list JSON is not an array");
+            return false;
         }
 
         std::vector<std::shared_ptr<karere::TurnServerInfo> > parsed;
@@ -76,6 +77,7 @@ protected:
             if (!it->IsObject())
             {
                 KR_LOG_ERROR("Ice server info entry is not an object");
+                return false;
             }
 
             parsed.emplace_back(new karere::TurnServerInfo(*it));
