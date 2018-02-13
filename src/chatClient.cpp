@@ -1619,7 +1619,7 @@ std::string PeerChatRoom::titleString() const
     return mTitleString.substr(1);
 }
 
-const std::string &PeerChatRoom::completeTitleString() const
+std::string PeerChatRoom::completeTitleString() const
 {
     return mTitleString;
 }
