@@ -942,7 +942,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         {
             cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
             mDestroySessionTimer = 0;
-            SUB_LOG_ERROR("Timed out waiting for all sessions to terminate, force closing them");
+            SUB_LOG_WARNING("Timed out waiting for all sessions to terminate, force closing them");
             for (auto& item: mSessions)
             {
                 item.second->destroy(code, msg);
@@ -1025,7 +1025,7 @@ bool Call::cmdBroadcast(uint8_t type, Args... args)
     {
         if (wptr.deleted())
             return;
-        destroy(TermCode::kErrNetSignalling, true);
+        destroy(TermCode::kErrNetSignalling, false);
     }, mManager.mClient.appCtx);
     return false;
 }
@@ -1095,38 +1095,73 @@ void Call::stopIncallPingTimer()
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    // upon session failure, we swap the offerer and answerer and retry
-    if (mState != Call::kStateTerminating   // we already handle call termination
-            && mSessions.size() > 1         // more sessions with other peers in the call
-            && mIsGroup
-            && isTermError(reason)
-            && !sess.mIsJoiner)
+    if (mState == kStateTerminating)
     {
-        EndpointId endpointId(sess.mPeer, sess.mPeerClient);
-        auto it = mSessRetries.find(endpointId);
-        if (it == mSessRetries.end())
-        {
-            mSessRetries[endpointId] = 1;
-        }
-        else
-        {
-            it->second++;
-        }
+        mSessions.erase(sess.mSid);
+        return;
+    }
+
+    // If we want to terminate the call (no matter if initiated by us or peer), we first
+    // set the call's state to kTerminating. If that is not set, then it's only the session
+    // that terminates for a reason that is not fatal to the call,
+    // and can try re-establishing the session
+
+    EndpointId endpointId(sess.mPeer, sess.mPeerClient);
+    auto it = mSessRetries.find(endpointId);
+    if (it == mSessRetries.end())
+    {
+        mSessRetries[endpointId] = 1;
+    }
+    else
+    {
+        mSessRetries[endpointId]++;
+    }
+
+    int retryId = mSessRetries[endpointId];
+    mTotalSessionRetry ++;
+    int retryNumber = mTotalSessionRetry;
+
+    if (!sess.isCaller())
+    {
+        SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sess.sessionId().toString().c_str());
+        // es Necesario la marshallCall??
         auto wptr = weakHandle();
         auto peer = sess.mPeer;
-        setTimeout([this, wptr, peer]()
+        marshallCall([wptr, this, peer]()
         {
             if (wptr.deleted())
                 return;
-            join(peer);
-        }, 500, mManager.mClient.appCtx);
+
+            rejoin(peer);
+
+        }, mManager.mClient.appCtx);
+    }
+    else
+    {
+        if (!mIsGroup)
+        {
+            auto wptr = weakHandle();
+            mRejoinTimer = setTimeout([this, wptr, endpointId, retryId, retryNumber]()
+            {
+                if (wptr.deleted())
+                    return;
+
+                if (mState >= kStateTerminating || mSessRetries[endpointId] > retryId)
+                {
+                    return; // there was another retry meanwhile, this timer is not relevant anymore
+                }
+
+                if (mSessions.empty() && mTotalSessionRetry == retryNumber)
+                { // There was no newer retry that we would have to wait for
+                    SUB_LOG_DEBUG("Timed out waiting for peer to rejoin, terminating call");
+
+                    hangup(kErrSessRetryTimeout);
+                }
+            }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
+        }
     }
 
     mSessions.erase(sess.mSid);
-    if (mState != kStateTerminating && mSessions.empty())  // if no more sessions left, destroy call even if group
-    {
-        destroy(reason, false);
-    }
 }
 bool Call::startOrJoin(AvFlags av)
 {
@@ -1177,9 +1212,26 @@ bool Call::join(Id userid)
             return;
         if (mState <= Call::kStateJoining)
         {
-            destroy(TermCode::kErrProtoTimeout, true);
+            destroy(TermCode::kErrSessSetupTimeout, true);
         }
     }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
+    return true;
+}
+
+bool Call::rejoin(karere::Id userid)
+{
+    assert(mState == Call::kStateInProgress);
+    // JOIN:
+    // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
+    // if userid is not specified, join all clients in the chat, otherwise
+    // join a specific user (used when a session gets broken)
+    bool sent = cmd(RTCMD_JOIN, userid, 0, mId, mManager.mOwnAnonId);
+    if (!sent)
+    {
+        asyncDestroy(TermCode::kErrNetSignalling, true);
+        return false;
+    }
+
     return true;
 }
 
@@ -1269,8 +1321,16 @@ void Call::hangup(TermCode reason)
     case kStateJoining:
     case kStateInProgress:
     case kStateHasLocalStream:
-        // TODO: Check if the sender is the call host and only then destroy the call
-        reason = TermCode::kUserHangup;
+         // TODO: For group calls, check if the sender is the call host and only then destroy the call
+        if (reason == TermCode::kInvalid)
+        {
+            reason = TermCode::kUserHangup;
+        }
+        else
+        {
+            assert(reason == TermCode::kErrProtoTimeout || reason == TermCode::kErrSessSetupTimeout);
+        }
+
         break;
     case kStateTerminating:
     case kStateDestroyed:
@@ -1474,7 +1534,7 @@ Session::Session(Call& call, RtMessage& packet)
         if (wptr.deleted())
             return;
         if (mState < kStateInProgress) {
-            terminateAndDestroy(TermCode::kErrProtoTimeout);
+            terminateAndDestroy(TermCode::kErrSessSetupTimeout);
         }
     }, RtcModule::kSessSetupTimeout, call.mManager.mClient.appCtx);
 }
@@ -1631,10 +1691,26 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     {
         terminateAndDestroy(TermCode::kErrIceFail);
     }
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
+    {
+        terminateAndDestroy(TermCode::kErrIceDisconn);
+    }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
         mTsIceConn = time(NULL);
         mCall.notifySessionConnected(*this);
+
+        if (!isCaller())
+        {
+            auto wptr = weakHandle();
+            mSetupTimer = setTimeout([wptr, this] {
+                if (wptr.deleted())
+                    return;
+                if (mState < kStateInProgress) {
+                    terminateAndDestroy(TermCode::kErrIceDisconn);
+                }
+            }, 4000, mManager.mClient.appCtx);
+        }
     }
 }
 
@@ -1840,7 +1916,7 @@ bool Session::cmd(uint8_t type, Args... args)
     {
         if (mState < kStateTerminating)
         {
-            asyncDestroy(TermCode::kErrNetSignalling);
+            mCall.destroy(TermCode::kErrNetSignalling, false);
         }
         return false;
     }
@@ -1936,6 +2012,12 @@ void Session::msgSessTerminate(RtMessage& packet)
         // handle terminate as if it were an ack - in both cases the peer is terminating
         msgSessTerminateAck(packet);
     }
+    else if (mState == kStateDestroyed)
+    {
+        SUB_LOG_WARNING("Ignoring SESS_TERMINATE for a dead session");
+        return;
+    }
+
     setState(kStateTerminating);
     destroy(static_cast<TermCode>(packet.payload.read<uint8_t>(8) | TermCode::kPeer));
 }
@@ -1966,7 +2048,9 @@ void Session::destroy(TermCode code, const std::string& msg)
         }
         mRtcConn.release();
     }
+
     mRemotePlayer.reset();
+    FIRE_EVENT(SESS, onRemoteStreamRemoved);
     setState(kStateDestroyed);
     FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);

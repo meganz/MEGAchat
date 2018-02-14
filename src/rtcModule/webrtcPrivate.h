@@ -93,10 +93,12 @@ protected:
     bool mCallStartingSignalled = false;
     bool mCallStartedSignalled = false;
     megaHandle mInCallPingTimer = 0;
+    megaHandle mRejoinTimer = 0;
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     megaHandle mDestroySessionTimer = 0;
+    unsigned int mTotalSessionRetry = 0;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -133,6 +135,7 @@ protected:
     void stopIncallPingTimer();
     bool broadcastCallReq();
     bool join(karere::Id userid=0);
+    bool rejoin(karere::Id userid);
     void sendInCallCommand();
     bool sendCallData(bool ringing);
     friend class RtcModule;
