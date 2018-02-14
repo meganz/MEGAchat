@@ -8,6 +8,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* mChatApi,
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
+    widgetItem = NULL;
     mLastOverlayCount = 0;
     mainWin = (MainWindow *) parent;
     olderMessageLoaded = 0;
@@ -166,6 +167,16 @@ ChatWindow* ChatItemWidget::showChatWindow()
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
 {
     showChatWindow();
+}
+
+QListWidgetItem *ChatItemWidget::getWidgetItem() const
+{
+    return widgetItem;
+}
+
+void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
+{
+    widgetItem = item;
 }
 
 megachat::MegaChatHandle ChatItemWidget::getOlderMessageLoaded() const

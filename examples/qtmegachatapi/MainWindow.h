@@ -43,6 +43,8 @@ class MainWindow :
 
     public:
         MegaLoggerApplication *logger;
+        int getNContacts() const;
+        void setNContacts(int nContacts);
 
     protected:
         Ui::MainWindow *ui;
@@ -53,6 +55,9 @@ class MainWindow :
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
+        int activeChats;
+        int inactiveChats;
+        int nContacts;
 
     private slots:
         void on_bSettings_clicked();

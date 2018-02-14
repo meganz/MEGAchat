@@ -5,7 +5,7 @@
 #include "MainWindow.h"
 
 ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *cRoom, const char * title)
-    : QDialog(parent),
+    : QDialog(0),
       ui(new Ui::ChatWindowUi)
 {
     nSending = 0;

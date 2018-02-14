@@ -15,6 +15,9 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *mLogger) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    nContacts = 0;
+    activeChats = 0;
+    inactiveChats = 0;
     ui->setupUi(this);
     megaChatApi = NULL;
     megaApi = NULL;
@@ -22,7 +25,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *mLogger) :
     onlineStatus = NULL;
     chatsVisibility = true;
     logger=mLogger;
-    ui->contactList->setSortingEnabled(true);
     qApp->installEventFilter(this);
 }
 
@@ -136,16 +138,28 @@ void MainWindow::addContact(MegaChatHandle contactHandle)
 
 void MainWindow::addChat(const MegaChatListItem* chatListItem)
 {
+    int index = 0;
+    if(chatListItem->isActive())
+    {
+        index = -activeChats;
+        activeChats +=1;
+    }
+    else
+    {
+        index = (activeChats+inactiveChats+nContacts);
+        inactiveChats +=1;
+    }
+
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
     ChatItemWidget *chatItemWidget = new ChatItemWidget(this, megaChatApi, chatListItem);
     chatItemWidget->updateToolTip(megaChatApi, chatListItem);
     QListWidgetItem *item = new QListWidgetItem();
-    ui->contactList->insertItem(0, item);
+    chatItemWidget->setWidgetItem(item);
+    item->setSizeHint(QSize(item->sizeHint().height(), 28));
+    ui->contactList->insertItem(index, item);
     ui->contactList->setItemWidget(item, chatItemWidget);
     chatWidgets.insert(std::pair<megachat::MegaChatHandle, ChatItemWidget *>(chathandle,chatItemWidget));
 }
-
-
 
 void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
 {
@@ -184,7 +198,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
                     break;
                 }
             //Participants update
-            //The chatroom has been left by own user with 2 participants
             case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
                 {
                     chatItemWidget->updateToolTip(api, item);
@@ -199,7 +212,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
-                    //Reorder the chat list
                     break;
                 }
         }
@@ -339,6 +351,16 @@ void MainWindow::onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceCo
 
     ui->bOnlineStatus->setStyleSheet(
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
+}
+
+int MainWindow::getNContacts() const
+{
+    return nContacts;
+}
+
+void MainWindow::setNContacts(int nContacts)
+{
+    this->nContacts = nContacts;
 }
 
 
