@@ -243,8 +243,6 @@ void MainWindow::onChangeChatVisibility()
             }
             else
             {
-                ChatItemWidget * chatItemWidget = itChats->second;
-                chatItemWidget->getWidgetItem()->setSizeHint(QSize(chatItemWidget->getWidgetItem()->sizeHint().height(), 0));
                 itChats->second->hide();
                 itChats->second->setEnabled(false);
             }
