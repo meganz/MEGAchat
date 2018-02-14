@@ -82,7 +82,7 @@ public:
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual std::string titleString() const = 0;
+    virtual const char *titleString() const = 0;
 
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
@@ -223,12 +223,12 @@ public:
     Contact *contact() const { return mContact; }
 
     /** @brief The screen name of the peer */
-    virtual std::string titleString() const;
+    virtual const char *titleString() const;
 
     /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
       * First byte indicate first name length
       */
-    virtual std::string completeTitleString() const;
+    const std::string& completeTitleString() const;
 
 
     /** @brief The screen email address of the peer */
@@ -342,7 +342,7 @@ public:
     bool hasTitle() const { return mHasTitle; }
 
     /** @brief The title of the chatroom */
-    virtual std::string titleString() const { return mTitleString; }
+    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief The 'presence' of the chatroom - it's actually the online state,
      * and can be only online or offline, depending on whether we are connected

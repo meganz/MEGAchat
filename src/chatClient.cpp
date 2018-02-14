@@ -1614,12 +1614,12 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-std::string PeerChatRoom::titleString() const
+const char *PeerChatRoom::titleString() const
 {
-    return mTitleString.substr(1);
+    return mTitleString.c_str() + 1;
 }
 
-std::string PeerChatRoom::completeTitleString() const
+const std::string &PeerChatRoom::completeTitleString() const
 {
     return mTitleString;
 }
