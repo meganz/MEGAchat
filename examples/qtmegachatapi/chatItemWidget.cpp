@@ -238,8 +238,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
 
 void ChatItemWidget::truncateChat()
 {
-    const char * content = this->megaChatApi->getMessage(chatHandle,olderMessageLoaded)->getContent();
-    this->megaChatApi->truncateChat(chatHandle, olderMessageLoaded);
+    this->megaChatApi->clearChatHistory(chatHandle);
 }
 
 void ChatItemWidget::setTitle()
