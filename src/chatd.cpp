@@ -2083,7 +2083,10 @@ void Chat::removeManualSend(uint64_t rowid)
     {
         ManualSendReason reason;
         Message *msg = getManualSending(rowid, reason);
-        if (msg->id() == mLastTextMsg.id())
+        bool updateLastMsg = (mLastTextMsg.idx() == CHATD_IDX_INVALID) // if not confirmed yet...
+                ? (msg->id() == mLastTextMsg.xid()) // ...and it's the msgxid about to be removed
+                : (msg->id() == mLastTextMsg.id()); // or was confirmed and the msgid is about to be removed (a pending edit)
+        if (updateLastMsg)
         {
             findAndNotifyLastTextMsg();
         }
