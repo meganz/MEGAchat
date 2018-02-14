@@ -152,16 +152,18 @@ ChatWindow* ChatItemWidget::showChatWindow()
     {
         window = new ChatWindow(this, megaChatApi, chatRoom->copy(), chatWindowTitle);
         chatWindowHandle = window;
+        window->show();
+        window->openChatRoom();
+        delete chatRoom;
+        return window;
     }
     else
     {
         window = static_cast<ChatWindow*>(chatWindowHandle);
+        window->show();
+        window->setWindowState(Qt::WindowActive);
+        return window;
     }
-
-    window->show();
-    window->openChatRoom();
-    delete chatRoom;
-    return window;
 }
 
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
