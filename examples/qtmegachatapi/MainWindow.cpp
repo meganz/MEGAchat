@@ -19,6 +19,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *mLogger) :
     activeChats = 0;
     inactiveChats = 0;
     ui->setupUi(this);
+    ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
     megaChatApi = NULL;
     megaApi = NULL;
     megaChatListenerDelegate = NULL;
@@ -139,7 +140,7 @@ void MainWindow::addContact(MegaChatHandle contactHandle)
 void MainWindow::addChat(const MegaChatListItem* chatListItem)
 {
     int index = 0;
-    if(chatListItem->isActive())
+    if(!chatListItem->isActive())
     {
         index = -activeChats;
         activeChats +=1;
@@ -212,6 +213,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
+                    int row = ui->contactList->row(chatItemWidget->getWidgetItem());
+                    QListWidgetItem *item = new QListWidgetItem();
+                    chatItemWidget->setWidgetItem(item);
+                    item->setSizeHint(QSize(item->sizeHint().height(), 28));
+                    ui->contactList->addItem(item);
+                    ui->contactList->setItemWidget(item, chatItemWidget);
+                    delete(ui->contactList->takeItem(row));
                     break;
                 }
         }
@@ -235,6 +243,8 @@ void MainWindow::onChangeChatVisibility()
             }
             else
             {
+                ChatItemWidget * chatItemWidget = itChats->second;
+                chatItemWidget->getWidgetItem()->setSizeHint(QSize(chatItemWidget->getWidgetItem()->sizeHint().height(), 0));
                 itChats->second->hide();
                 itChats->second->setEnabled(false);
             }
