@@ -45,6 +45,7 @@ class ChatMessage: public QWidget
 
 
     public slots:
+        void onDiscardManualSending();
         void onManualSending();
         void cancelMsgEdit(bool clicked);
         void saveMsgEdit(bool clicked);

@@ -78,9 +78,19 @@ void ChatWindow::onMsgSendBtn()
     if (qtext.isEmpty())
         return;
 
-    nSending+=1;
     megachat::MegaChatMessage * tempMessage= this->megaChatApi->sendMessage(chatRoom->getChatId(), qtext.toUtf8().toStdString().c_str());
-    addMsgWidget(tempMessage, (loadedMessages+this->nSending));
+    nSending+=1;
+    addMsgWidget(tempMessage, (loadedMessages)+nSending);
+
+}
+
+void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
+{
+    nSending+=1;
+    nManualSending-=1;
+    addMsgWidget(msg, (loadedMessages+nSending));
+
+
 }
 
 void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat)
@@ -120,15 +130,13 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         if(msg->getStatus()==megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
         {
-            if(eraseChatMessage(msg, true))
-            {
-                loadedMessages+=1;
-                nSending-=1;
-                megachat::MegaChatMessage * auxMSG = msg->copy();
-                megachat::MegaChatHandle msgId=auxMSG->getMsgId();
-                addMsgWidget(auxMSG, loadedMessages);
-                chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
-            }
+            eraseChatMessage(msg, true);
+            nSending-=1;
+            megachat::MegaChatMessage * auxMSG = msg->copy();
+            megachat::MegaChatHandle msgId=auxMSG->getMsgId();
+            addMsgWidget(auxMSG, loadedMessages);
+            chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
+            loadedMessages+=1;
         }
         else
         {
@@ -222,12 +230,23 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
         {
             nSending+=1;
             addMsgWidget(msg->copy(), loadedMessages+nSending);
+
         }
         else
         {
             if(msg->getStatus() == megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
+                nManualSending+=1;
                 ChatMessage * auxMessage = this->findChatMessage(msg->getTempId());
+                if (auxMessage)
+                {
+                    this->eraseChatMessage(msg, true);
+                    nSending-=1;
+                }
+
+                addMsgWidget(msg,loadedMessages+nSending+nManualSending);
+                auxMessage = this->findChatMessage(msg->getTempId());
+
                 if(auxMessage)
                 {
                     auxMessage->setMessage(msg->copy());

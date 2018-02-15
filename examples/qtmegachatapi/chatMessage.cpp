@@ -1,7 +1,7 @@
 #include "qmenu.h"
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
-
+#include <QMessageBox>
 
 const char* messageStatus[] =
 {
@@ -83,7 +83,7 @@ megachat::MegaChatMessage *ChatMessage::getMessage() const
 
 void ChatMessage::setMessage(megachat::MegaChatMessage *message)
 {
-    message = message;
+    this->message = message;
 }
 
 void ChatMessage::setMessageContent(const char * content)
@@ -264,11 +264,17 @@ void ChatMessage::setManualMode(bool manualMode)
     {
         ui->mEditDisplay->hide();
         ui->mStatusDisplay->hide();
-        QPushButton * cancelBtn = new QPushButton(this);
-        connect(cancelBtn, SIGNAL(clicked(bool)), this, SLOT(onManualSending()));
-        cancelBtn->setText("Send (Manual mode)");
+        QPushButton * manualSendBtn = new QPushButton(this);
+        connect(manualSendBtn, SIGNAL(clicked(bool)), this, SLOT(onManualSending()));
+        manualSendBtn->setText("Send (Manual mode)");
         auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
-        layout->insertWidget(2, cancelBtn);
+        layout->insertWidget(2, manualSendBtn);
+
+
+        QPushButton * discardBtn = new QPushButton(this);
+        connect(discardBtn, SIGNAL(clicked(bool)), this, SLOT(onDiscardManualSending()));
+        discardBtn->setText("Discard");
+        layout->insertWidget(3, discardBtn);
         setLayout(layout);
     }
     else
@@ -277,15 +283,32 @@ void ChatMessage::setManualMode(bool manualMode)
         ui->mStatusDisplay->show();
         auto header = ui->mHeader->layout();
         auto manualSending = header->itemAt(2)->widget();
+        auto discardManualSending = header->itemAt(3)->widget();
         delete manualSending;
+        delete discardManualSending;
     }
 }
 
 
 void ChatMessage::onManualSending()
 {
-   this->megaChatApi->removeUnsentMessage(chatWin->chatRoom->getChatId(), message->getRowId());
-   this->megaChatApi->sendMessage(chatWin->chatRoom->getChatId(), message->getContent());
-   setManualMode(false);
+   if(chatWin->chatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
+   {
+       this->megaChatApi->removeUnsentMessage(chatWin->chatRoom->getChatId(), message->getRowId());
+       megachat::MegaChatMessage * tempMessage = this->megaChatApi->sendMessage(chatWin->chatRoom->getChatId(), message->getContent());
+       setManualMode(false);
+       chatWin->eraseChatMessage(message, true);
+       chatWin->moveManualSendingToSending(tempMessage);
+   }
+   else
+   {QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));}
 }
+
+void ChatMessage::onDiscardManualSending()
+{
+   this->megaChatApi->removeUnsentMessage(chatWin->chatRoom->getChatId(), message->getRowId());
+   chatWin->eraseChatMessage(message, true);
+}
+
+
 
