@@ -30,7 +30,50 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
         markAsEdited();
 
     if (!msg->isManagementMessage())
-        setMessageContent(msg->getContent());
+    {
+        switch (msg->getType())
+        {
+            case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
+            {
+                QString text;
+                text.append(tr("[Attached Msg]\n"));
+                mega::MegaNodeList *nodeList=message->getMegaNodeList();
+                for(int i=0; i<nodeList->size(); i++)
+                {
+                    text.append(tr("\n[Node]\n"))
+                    .append("\nName: ")
+                    .append(nodeList->get(i)->getName())
+                    .append("\nHandle: ")
+                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getHandle())))
+                    .append("\nSize: ")
+                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())));
+                }
+                ui->mMsgDisplay->setText(text);
+                text.clear();
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+            {
+                QString text;
+                text.append(tr("[Attached Contacts]\n"));
+                for(int i=0; i<message->getUsersCount(); i++)
+                {
+                  text.append(tr("\n[User]\n"))
+                  .append("\nName: ")
+                  .append(message->getUserName(i))
+                  .append("\nEmail: ")
+                  .append(message->getUserEmail(i));
+                }
+                ui->mMsgDisplay->setText(text);
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_NORMAL:
+            {
+                setMessageContent(msg->getContent());
+                break;
+            }
+        }
+    }
     else
         ui->mMsgDisplay->setText(managementInfoToString().c_str());
 
