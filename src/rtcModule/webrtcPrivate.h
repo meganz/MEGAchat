@@ -167,9 +167,8 @@ public:
     int maxbr = 0;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
-    virtual promise::Promise<void> init(unsigned gelbTimeout);
-    promise::Promise<void> updateIceServers(unsigned timeoutMs);
-    int setIceServers(const karere::ServerList<karere::TurnServerInfo>& servers);
+    virtual void init();
+    int setIceServers(const karere::ServerList& servers);
     void onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv);
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
@@ -195,7 +194,8 @@ public:
 //==
     ~RtcModule();
 protected:
-    karere::FallbackServerProvider<karere::TurnServerInfo> mTurnServerProvider;
+    const char* mStaticIceSever;
+    karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     artc::DeviceManager mDeviceManager;
     artc::InputAudioDevice mAudioInput;

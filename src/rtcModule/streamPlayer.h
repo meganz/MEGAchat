@@ -22,6 +22,7 @@ protected:
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;
     std::mutex mMutex; //guards onMediaStart and mRenderer (stuff that is accessed by public API and by webrtc threads)
+    bool mVideoEnable = true;
 public:
     IVideoRenderer* videoRenderer() const {return mRenderer;}
     StreamPlayer(IVideoRenderer* renderer, void *ctx, webrtc::AudioTrackInterface* audio=nullptr,
@@ -110,6 +111,11 @@ public:
         }
     }
 
+    void enableVideo(bool enable)
+    {
+        mVideoEnable = enable;
+    }
+
     void changeRenderer(IVideoRenderer* newRenderer)
     {
         std::unique_lock<std::mutex> locker(mMutex);
@@ -149,23 +155,27 @@ public:
         if (!mRenderer)
             return; //no renderer
 
-        void* userData = NULL;
-        rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
-            frame.video_frame_buffer()->ToI420());
-        if (frame.rotation() != webrtc::kVideoRotation_0)
+
+        if (mVideoEnable)
         {
-            buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+            void* userData = NULL;
+            rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
+                frame.video_frame_buffer()->ToI420());
+            if (frame.rotation() != webrtc::kVideoRotation_0)
+            {
+                buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+            }
+            unsigned short width = buffer->width();
+            unsigned short height = buffer->height();
+            void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+            if (!frameBuf) //image is frozen or app is minimized/covered
+                return;
+            libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                               buffer->DataU(), buffer->StrideU(),
+                               buffer->DataV(), buffer->StrideV(),
+                               (uint8_t*)frameBuf, width * 4, width, height);
+            mRenderer->frameComplete(userData);
         }
-        unsigned short width = buffer->width();
-        unsigned short height = buffer->height();
-        void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
-        if (!frameBuf) //image is frozen or app is minimized/covered
-            return;
-        libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-                           buffer->DataU(), buffer->StrideU(),
-                           buffer->DataV(), buffer->StrideV(),
-                           (uint8_t*)frameBuf, width * 4, width, height);
-        mRenderer->frameComplete(userData);
     }
 };
 }

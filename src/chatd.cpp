@@ -216,7 +216,6 @@ void Chat::connect()
 
 void Chat::disconnect()
 {
-    disable(true);
     setOnlineState(kChatStateOffline);
 }
 
@@ -610,6 +609,14 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(to_string(msgcmd.ts()));
             tmpString.append(", tsdelta: ");
             tmpString.append(to_string(msgcmd.updated()));
+            return tmpString;
+        }
+        case OP_SEEN:
+        {
+            Id msgId = data.read<uint64_t>(9);
+            string tmpString;
+            tmpString.append("SEEN - msgid: ");
+            tmpString.append(ID_CSTR(msgId));
             return tmpString;
         }
         case OP_NEWKEY:
@@ -1160,11 +1167,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATD_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mClient.chats(chatid).onEndCall(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
                 assert(mClient.mRtcHandler);
                 if (mClient.mRtcHandler)    // in case chatd broadcast this opcode, instead of send it to the endpoint
                 {
                     mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
                 }
+#endif
 
                 break;
             }
@@ -1176,7 +1185,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
-                CHATD_LOG_DEBUG("%s: recv OP_CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+                CHATD_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1186,8 +1195,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                     auto& chat = mClient.chats(chatid);
                     mClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
-#else
-                CHATD_LOG_DEBUG("%s: recv %s userid: %s, clientid: 0x%04x", ID_CSTR(chatid), ID_CSTR(userid), clientid, Command::opcodeToStr(opcode));
 #endif
                 break;
             }
@@ -2023,37 +2030,6 @@ void Chat::flushOutputQueue(bool fromStart)
 
     while (mNextUnsent != mSending.end())
     {
-        ManualSendReason reason = kManualSendInvalidReason;
-
-        if (mOwnPrivilege < PRIV_FULL)
-        {
-            reason = kManualSendNoWriteAccess;
-        }
-        else if (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
-        {
-            reason = kManualSendUsersChanged;
-        }
-        else if ((time(NULL) - mNextUnsent->msg->ts) > CHATD_MAX_EDIT_AGE)
-        {
-            reason = kManualSendTooOld;
-        }
-
-        if (reason != kManualSendInvalidReason)
-        {
-            auto start = mNextUnsent;
-            mNextUnsent = mSending.end();
-            // Too old message or edit, or group composition has changed, or no write access.
-            // Move it and all following items as well
-            for (auto it = start; it != mSending.end();)
-            {
-                auto erased = it;
-                it++;
-                moveItemToManualSending(erased, reason);
-            }
-            CALL_CRYPTO(resetSendKey);
-            return;
-        }
-
         //kickstart encryption
         //return true if we encrypted and sent at least one message
         if (!msgEncryptAndSend(mNextUnsent++))
@@ -2076,7 +2052,10 @@ void Chat::removeManualSend(uint64_t rowid)
     {
         ManualSendReason reason;
         Message *msg = getManualSending(rowid, reason);
-        if (msg->id() == mLastTextMsg.id())
+        bool updateLastMsg = (mLastTextMsg.idx() == CHATD_IDX_INVALID) // if not confirmed yet...
+                ? (msg->id() == mLastTextMsg.xid()) // ...and it's the msgxid about to be removed
+                : (msg->id() == mLastTextMsg.id()); // or was confirmed and the msgid is about to be removed (a pending edit)
+        if (updateLastMsg)
         {
             findAndNotifyLastTextMsg();
         }
@@ -2889,32 +2868,43 @@ void Chat::handleLastReceivedSeen(Id msgid)
 
 void Chat::onUserJoin(Id userid, Priv priv)
 {
+    if (mOnlineState < kChatStateJoining)
+        throw std::runtime_error("onUserJoin received while not joining and not online");
+
     if (userid == client().userId())
+    {
         mOwnPrivilege = priv;
+    }
+
     if (mOnlineState == kChatStateJoining)
     {
         mUserDump.insert(userid);
     }
-    else if (mOnlineState == kChatStateOnline)
+
+    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
     {
         mUsers.insert(userid);
         CALL_CRYPTO(onUserJoin, userid);
         CALL_LISTENER(onUserJoin, userid, priv);
     }
-    else
-    {
-        throw std::runtime_error("onUserJoin received while not joining and not online");
-    }
 }
 
 void Chat::onUserLeave(Id userid)
 {
-    if (mOnlineState != kChatStateOnline)
-        throw std::runtime_error("onUserLeave received while not online");
+    if (mOnlineState < kChatStateJoining)
+        throw std::runtime_error("onUserLeave received while not joining and not online");
 
-    mUsers.erase(userid);
-    CALL_CRYPTO(onUserLeave, userid);
-    CALL_LISTENER(onUserLeave, userid);
+    if (userid == client().userId())
+    {
+        mOwnPrivilege = PRIV_NOTPRESENT;
+    }
+
+    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
+    {
+        mUsers.erase(userid);
+        CALL_CRYPTO(onUserLeave, userid);
+        CALL_LISTENER(onUserLeave, userid);
+    }
 }
 
 void Connection::notifyLoggedIn()

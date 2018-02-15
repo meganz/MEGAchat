@@ -930,13 +930,6 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
             }
         }
 
-        // TODO: remove the block below (currently cannot load history from inactive chats.
-        // Redmine ticket: #5721
-        if (!chatroom->isActive())
-        {
-            continue;
-        }
-
         // Load history
         buffer << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
         loadHistory(accountIndex, chatid, chatroomListener);
@@ -1036,7 +1029,7 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
  * (if not accomplished, the test automatically solves the above)
  *
  * This test does the following:
- * - Create a group chat room
+ * - Create a group chat room or select an existing one
  * - Remove memeber
  * - Invite a new member
  * - Invite same account (error)
@@ -1312,16 +1305,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int accountIndex)
     std::stringstream buffer;
     buffer << chats->size() << " chat/s received: " << endl;
 
-    // Redmine ticket: #5721 (history from inactive chats is not retrievable)
-    const MegaChatRoom *chatroom = NULL;
-    for (int i = 0; i < chats->size(); i++)
-    {
-        if (chats->get(i)->isActive())
-        {
-            chatroom = chats->get(i);
-            break;
-        }
-    }
+    const MegaChatRoom *chatroom = chats->get(0);
 
     if (chatroom)
     {
@@ -1548,10 +1532,6 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     for (int i = 0; i < items->size(); i++)
     {
         const MegaChatListItem *item = items->get(i);
-        if (!item->isActive())
-        {
-            continue;
-        }
         const char *info = MegaChatApiTest::printChatListItemInfo(item);
         postLog(info);
         delete [] info; info = NULL;
@@ -1567,8 +1547,6 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
 
         delete itemUpdated;
         itemUpdated = NULL;
-
-        continue;
     }
 
     delete items;
@@ -2866,7 +2844,10 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to leave chatroom. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
     TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
-    TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+    if (chatroom->isGroup())
+    {
+        TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+    }
     delete chatroom;    chatroom = NULL;
 }
 
