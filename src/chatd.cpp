@@ -1541,6 +1541,7 @@ void Chat::initChat()
     mRefidToIdxMap.clear();
 
     mHasMoreHistoryInDb = false;
+    mHaveAllHistory = false;
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
