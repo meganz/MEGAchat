@@ -325,7 +325,8 @@ public:
     {
         SqliteStmt stmt(mDb,
             "select value from chat_vars where chatid=? and name='have_all_history' and value='1'");
-        return !stmt.step();
+        stmt << mChat.chatId();
+        return stmt.step();
     }
     virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
     {
