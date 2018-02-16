@@ -116,7 +116,7 @@ public:
     {
         *rendererRet = mMainWindow.remoteRenderer.videoRenderer;
     }
-    virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl)
+    virtual void onCallIncomingRequest(rtcModule::IAnswerCall* ctrl, karere::AvFlags av)
     {
         //ctrl->setUserData(new CallAnswerGui(ctrl, mMainWindow));
     }

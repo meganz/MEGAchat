@@ -49,6 +49,8 @@ public:
     bool isValid() const { return mPres != kInvalid; }
     inline static const char* toString(Code pres);
     const char* toString() const { return toString(mPres); }
+    bool canWebRtc() { return mPres & kClientCanWebrtc; }
+    bool isMobile() { return mPres & kClientIsMobile; }
 protected:
     Code mPres;
 };

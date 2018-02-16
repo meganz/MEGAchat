@@ -31,9 +31,6 @@
 ../../src/chatdDb.h
 ../../src/chatdICrypto.h
 ../../src/chatdMsg.h
-../../src/chatRoom.h
-../../src/contactList.cpp
-../../src/contactList.h
 ../../src/db.h
 ../../src/dummyCrypto.cpp
 ../../src/dummyCrypto.h
@@ -50,11 +47,6 @@
 ../../src/serverListProvider.h
 ../../src/serverListProviderForwards.h
 ../../src/stringUtils.h
-../../src/strophe.disco.cpp
-../../src/strophe.disco.h
-../../src/textModule.cpp
-../../src/textModule.h
-../../src/textModuleTypeConfig.h
 ../../src/userAttrCache.h
 ../../src/userAttrCache.cpp
 ../../src/videoRenderer_objc.h
@@ -64,8 +56,6 @@
 ../../src/base/asyncTools.h
 ../../src/base/cservices.cpp
 ../../src/base/cservices.h
-../../src/base/cservices-strophe.cpp
-../../src/base/cservices-strophe.h
 ../../src/base/cservices-thread.h
 ../../src/base/gcm.h
 ../../src/base/gcmpp.h
@@ -82,14 +72,12 @@
 ../../src/base/timers.hpp
 ../../src/rtcModule/ICryptoFunctions.h
 ../../src/rtcModule/IDeviceListImpl.h
-../../src/rtcModule/IJingleSession.h
 ../../src/rtcModule/IRtcModule.h
 ../../src/rtcModule/IRtcStats.h
 ../../src/rtcModule/ITypes.h
 ../../src/rtcModule/ITypesImpl.h
 ../../src/rtcModule/IVideoRenderer.h
 ../../src/rtcModule/lib.cpp
-../../src/rtcModule/lib.h
 ../../src/rtcModule/rtcModule.cpp
 ../../src/rtcModule/rtcModule.h
 ../../src/rtcModule/rtcmPrivate.h

@@ -21,4 +21,5 @@ public interface MegaChatRoomListenerInterface {
     public void onMessageLoaded(MegaChatApiJava api, MegaChatMessage msg);
     public void onMessageReceived(MegaChatApiJava api, MegaChatMessage msg);
     public void onMessageUpdate(MegaChatApiJava api, MegaChatMessage msg);
+    public void onHistoryReloaded(MegaChatApiJava api, MegaChatRoom chat);
 }

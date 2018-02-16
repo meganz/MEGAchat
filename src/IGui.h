@@ -1,6 +1,8 @@
 #ifndef IAPP_H
 #define IAPP_H
-#include <webrtc.h>
+#ifndef KARERE_DISABLE_WEBRTC
+    #include <webrtc.h>
+#endif
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -200,7 +202,7 @@ public:
 
         /** @brief Called when the timestamp of the most-recent message has changed.
          * This happens when a new message is received, or when there were no locally
-         * kown messages and the first old message is received
+         * known messages and the first old message is received
          */
         virtual void onLastTsUpdated(uint32_t ts) {}
 
@@ -352,7 +354,7 @@ public:
      * @param call The \c rtcModule::ICall instance that represents the call. To
      * answer, do `call.answer()`, to reject, do `call.hangup()`
      */
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call) = 0;
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
 #endif
     /**
      * @brief Called by karere when we become participants in a 1on1 or a group chat.

@@ -1,6 +1,11 @@
-MEGASDK_BASE_PATH = $$PWD/../../src
+CONFIG += USE_LIBWEBSOCKETS
+include(../../third-party/mega/bindings/qt/sdk.pri)
 
-VPATH += $$MEGASDK_BASE_PATH
+CONFIG += c++11
+
+MEGACHAT_BASE_PATH = $$PWD/../..
+
+VPATH += $$MEGACHAT_BASE_PATH/src
 SOURCES += megachatapi.cpp \
             megachatapi_impl.cpp \
             strongvelope/strongvelope.cpp \
@@ -16,20 +21,13 @@ SOURCES += megachatapi.cpp \
             net/websocketsIO.cpp \
             karereDbSchema.cpp \
             net/libwebsocketsIO.cpp \
-            waiter/libuvWaiter.cpp \
-            ../bindings/qt/QTMegaChatEvent.cpp \
-            ../bindings/qt/QTMegaChatListener.cpp \
-            ../bindings/qt/QTMegaChatRoomListener.cpp \
-            ../bindings/qt/QTMegaChatRequestListener.cpp
+            waiter/libuvWaiter.cpp
 
 HEADERS  += asyncTest-framework.h \
             buffer.h \
             chatd.h \
-            contactList.h \
             karereCommon.h \
             messageBus.h \
-            serverListProviderForwards.h \
-            textModule.h \
             videoRenderer_objc.h \
             asyncTest.h \
             chatClient.h \
@@ -38,7 +36,6 @@ HEADERS  += asyncTest-framework.h \
             karereId.h \
             presenced.h \
             serverListProvider.h \
-            textModuleTypeConfig.h \
             autoHandle.h \
             chatCommon.h  \
             chatdMsg.h \
@@ -49,28 +46,41 @@ HEADERS  += asyncTest-framework.h \
             url.h \
             base64url.h \
             chatdDb.h \
-            chatRoom.h \
             IGui.h \
             megachatapi_impl.h \
             sdkApi.h \
-            strophe.disco.h \
             userAttrCache.h \
             ../bindings/qt/QTMegaChatEvent.h \
             ../bindings/qt/QTMegaChatListener.h \
             ../bindings/qt/QTMegaChatRoomListener.h \
             ../bindings/qt/QTMegaChatRequestListener.h
 
-DEFINES += USE_LIBWEBSOCKETS=1 KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE
+DEFINES += USE_LIBWEBSOCKETS=1
 
-INCLUDEPATH += $$MEGASDK_BASE_PATH
-INCLUDEPATH += $$MEGASDK_BASE_PATH/base
-INCLUDEPATH += $$MEGASDK_BASE_PATH/rtcModule
-INCLUDEPATH += $$MEGASDK_BASE_PATH/strongvelope
-INCLUDEPATH += $$MEGASDK_BASE_PATH/../third-party
-INCLUDEPATH += $$MEGASDK_BASE_PATH/../bindings/qt
-INCLUDEPATH += $$MEGASDK_BASE_PATH/../bindings/qt/3rdparty/include
+CONFIG(qt) {
+  SOURCES += ../bindings/qt/QTMegaChatEvent.cpp \
+            ../bindings/qt/QTMegaChatListener.cpp \
+            ../bindings/qt/QTMegaChatRoomListener.cpp \
+            ../bindings/qt/QTMegaChatRequestListener.cpp
+}
 
-LIBS += -L$$MEGASDK_BASE_PATH/../bindings/qt/3rdparty/lib -lwebsockets -luv
+CONFIG(USE_WEBRTC) {
+    SOURCES += rtcCrypto.cpp \
+             rtcModule/webrtc.cpp \
+             rtcModule/webrtcAdapter.cpp \
+             rtcModule/rtcStats.cpp
+}
+else {
+    DEFINES += KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE
+}
+
+
+INCLUDEPATH += $$MEGACHAT_BASE_PATH/src
+INCLUDEPATH += $$MEGACHAT_BASE_PATH/src/base
+INCLUDEPATH += $$MEGACHAT_BASE_PATH/src/rtcModule
+INCLUDEPATH += $$MEGACHAT_BASE_PATH/src/strongvelope
+INCLUDEPATH += $$MEGACHAT_BASE_PATH/third-party
+INCLUDEPATH += $$MEGACHAT_BASE_PATH/bindings/qt
 
 !release {
     DEFINES += DEBUG
@@ -78,3 +88,9 @@ LIBS += -L$$MEGASDK_BASE_PATH/../bindings/qt/3rdparty/lib -lwebsockets -luv
 else {
     DEFINES += NDEBUG
 }
+
+karereDbSchemaTarget.target = karereDbSchema.cpp
+karereDbSchemaTarget.depends = FORCE
+karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
+PRE_TARGETDEPS += karereDbSchema.cpp
+QMAKE_EXTRA_TARGETS += karereDbSchemaTarget

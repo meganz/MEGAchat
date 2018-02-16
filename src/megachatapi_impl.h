@@ -31,12 +31,14 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
+#ifndef KARERE_DISABLE_WEBRTC
 #include <rtcModule/webrtc.h>
 #include <IVideoRenderer.h>
+#endif
+
 #include <chatClient.h>
 #include <chatd.h>
 #include <sdkApi.h>
-//#include <mstrophepp.h>
 #include <karereCommon.h>
 #include <logger.h>
 
@@ -387,6 +389,7 @@ public:
     virtual void onUserTyping(karere::Id user);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
+    virtual void onHistoryReloaded();
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -579,7 +582,7 @@ private:
     int changed;
 
     MegaChatHandle chatid;
-    int priv;
+    mega::privilege_t priv;
     mega::userpriv_vector peers;
     std::vector<std::string> peerFirstnames;
     std::vector<std::string> peerLastnames;
@@ -723,6 +726,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     mega::MegaMutex sdkMutex;
+    mega::MegaMutex videoMutex;
     mega::Waiter *waiter;
 private:
     MegaChatApi *chatApi;
@@ -837,6 +841,7 @@ public:
     void fireOnMessageLoaded(MegaChatMessage *msg);
     void fireOnMessageReceived(MegaChatMessage *msg);
     void fireOnMessageUpdate(MegaChatMessage *msg);
+    void fireOnHistoryReloaded(MegaChatRoom *chat);
 
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);
@@ -940,6 +945,8 @@ public:
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
+    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCallsIds();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
@@ -956,7 +963,7 @@ public:
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
 #ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call);
+    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
     virtual void notifyInvited(const karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);

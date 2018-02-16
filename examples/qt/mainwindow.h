@@ -6,14 +6,11 @@
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-//#include <mstrophepp.h>
 #include <webrtc.h>
-//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
 #include <ui_settings.h>
-#include <IJingleSession.h>
 #include <chatClient.h>
 #include "chatWindow.h"
 
@@ -53,7 +50,7 @@ public:
     virtual karere::IApp::IChatListHandler* chatListHandler() { return this; }
     IChatHandler* createChatHandler(karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call)
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)
     {
 #ifndef KARERE_DISABLE_WEBRTC
         return new CallAnswerGui(*this, call);
@@ -348,21 +345,20 @@ public:
     {
         GUI_LOG_DEBUG("onVisibilityChanged for contact %s: new visibility is %d",
                karere::Id(mContact.userId()).toString().c_str(), newVisibility);
-        auto chat = mContact.chatRoom()
-            ? static_cast<CListChatItem*>(mContact.chatRoom()->roomGui()->userp)
-            : nullptr;
 
         if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
         {
             showAsHidden();
-            if (chat)
-                chat->showAsHidden();
+            show();
+        }
+        else if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+        {
+            hide();
         }
         else
         {
             unshowAsHidden();
-            if (chat)
-                chat->unshowAsHidden();
+            show();
         }
         updateToolTip();
     }
@@ -513,10 +509,8 @@ protected:
 public:
     CListPeerChatItem(QWidget* parent, karere::PeerChatRoom& room)
         : CListChatItem(parent), mRoom(room),
-          mContactItem(dynamic_cast<CListContactItem*>(room.contact().appItem()))
+          mContactItem(room.contact() ? dynamic_cast<CListContactItem*>(room.contact()->appItem()) : nullptr)
     {
-        if(mRoom.contact().visibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
-            showAsHidden();
         ui.mAvatar->setText("1");
         updateToolTip();
     }
@@ -525,8 +519,8 @@ public:
         QString text(tr("1on1 Chat room: "));
         text.append(QString::fromStdString(karere::Id(mRoom.chatid()).toString()));
         text.append(tr("\nEmail: "));
-        text.append(QString::fromStdString(mRoom.contact().email()));
-        text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.contact().userId()).toString()));
+        text.append(QString::fromStdString(mRoom.email()));
+        text.append(tr("\nUser handle: ")).append(QString::fromStdString(karere::Id(mRoom.peer()).toString()));
         text.append(tr("\nLast message:\n")).append(QString::fromStdString(mLastTextMsg));
         setToolTip(text);
     }

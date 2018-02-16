@@ -1659,6 +1659,21 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Get the MegaChatCall associated with a chatRoom
+     *
+     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
+     * returned
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     */
+    public MegaChatCall getChatCall(long chatId){
+        return megaChatApi.getChatCall(chatId);
+    }
+
+    /**
      * Get the MegaChatCall that has a specific handle
      *
      * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
@@ -1673,18 +1688,33 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Get the MegaChatCall associated with a chatRoom
-     *
-     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
-     * returned
+     * Returns number of calls that there are at the system
+     * @return number of calls in the system
+     */
+    public int getNumCalls(){
+        return megaChatApi.getNumCalls();
+    }
+
+    /**
+     * Get MegaChatHandle list that contains chatrooms identifier where there is an active call
      *
      * You take the ownership of the returned value
      *
-     * @param chatId MegaChatHandle that identifies the chat room
-     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     * @return A list of handles with chatroom identifier where there is an active call
      */
-    public MegaChatCall getChatCall(long chatId){
-        return megaChatApi.getChatCall(chatId);
+    public MegaHandleList getChatCalls(){
+        return megaChatApi.getChatCalls();
+    }
+
+    /**
+     * Get a list with the ids of active calls
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of ids of active calls
+     */
+    public MegaHandleList getChatCallsIds(){
+        return megaChatApi.getChatCallsIds();
     }
 
     public static void setCatchException(boolean enable) {

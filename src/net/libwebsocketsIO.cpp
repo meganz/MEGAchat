@@ -29,6 +29,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
+    info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
     
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
@@ -336,7 +337,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 client->wsi = NULL;
                 lws_set_wsi_user(dwsi, NULL);
             }
-            client->wsCloseCb(0, 0, "", 0);
+            client->wsCloseCb(reason, 0, "closed", 7);
             break;
         }
             

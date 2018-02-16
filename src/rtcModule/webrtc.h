@@ -39,7 +39,6 @@ typedef uint8_t TermCode;
 #include "karereCommon.h" //for AvFlags
 #include <karereId.h>
 #include <trackDelete.h>
-#include <serverListProviderForwards.h>
 #include <IRtcCrypto.h>
 
 namespace chatd
@@ -65,26 +64,26 @@ class ISessionHandler;
 class IRtcCrypto;
 enum: uint8_t
 {
-    RTCMD_CALL_REQUEST = 0, // initiate new call, receivers start ringing
-    RTCMD_CALL_RINGING = 1, // notifies caller that there is a receiver and it is ringing
+//    RTCMD_CALL_REQUEST = 0, // obsolete, now we have CALLDATA chatd command for call requests
+    RTCMD_CALL_RINGING = 1, // notifies caller that there is a receiver and it is ringing | <callid>
     RTCMD_CALL_REQ_DECLINE = 2, // decline incoming call request, with specified Term code
-    // (can be only kBusy and kCallRejected)
-    RTCMD_CALL_REQ_CANCEL = 3,  // caller cancels the call requests, specifies the request id
-    RTCMD_CALL_TERMINATE = 4, // hangup existing call, cancel call request. Works on an existing call
-    RTCMD_JOIN = 5, // join an existing/just initiated call. There is no call yet, so the command identifies a call request
-    RTCMD_SESSION = 6, // join was accepter and the receiver created a session to joiner
-    RTCMD_SDP_OFFER = 7, // joiner sends an SDP offer
-    RTCMD_SDP_ANSWER = 8, // joinee answers with SDP answer
-    RTCMD_ICE_CANDIDATE = 9, // both parties exchange ICE candidates
-    RTCMD_SESS_TERMINATE = 10, // initiate termination of a session
+    // (can be only kBusy and kCallRejected) | <callid> <termCode>
+    RTCMD_CALL_REQ_CANCEL = 3,  // caller cancels the call requests, specifies the request id | <callid> <termCode>
+    RTCMD_CALL_TERMINATE = 4, // hangup existing call, cancel call request. Works on an existing call | <termCode>
+    RTCMD_JOIN = 5, // join an existing/just initiated call. There is no call yet, so the command identifies a call request | <callid><anonId>
+    RTCMD_SESSION = 6, // join was accepter and the receiver created a session to joiner | <callid><sessionId><anonId><encHashKey>
+    RTCMD_SDP_OFFER = 7, // joiner sends an SDP offer | <sessionId><anonId><encHashKey><fprHash><av><SdpOffer.len><sdpOffer>
+    RTCMD_SDP_ANSWER = 8, // joinee answers with SDP answer | <sessionId><fprHash><av><sdpAnswer.len><sdpAnswer>
+    RTCMD_ICE_CANDIDATE = 9, // both parties exchange ICE candidates | <sessionId><LineIdx><mid.len><mid><cand.len><cand>
+    RTCMD_SESS_TERMINATE = 10, // initiate termination of a session | <sessionId><termCode>
     RTCMD_SESS_TERMINATE_ACK = 11, // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
     // it will not be detected as an error by the receiver
-    RTCMD_MUTE = 12
+    RTCMD_MUTE = 12 // Change audio-video call  <av>
 };
 enum TermCode: uint8_t
 {
     kUserHangup = 0,         // < Normal user hangup
-    kCallReqCancel = 1,      // < Call request was canceled before call was answered
+//    kCallReqCancel = 1,    // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
     kCallRejected = 2,       // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
     // <another client of our user
     kAnsElsewhere = 3,       // < Call was answered on another device of ours
@@ -106,8 +105,9 @@ enum TermCode: uint8_t
     kErrLocalMedia = 27,     // < Error getting media from mic/camera
     kErrNoMedia = 28,        // < There is no media to be exchanged - both sides don't have audio/video to send
     kErrNetSignalling = 29,  // < chatd shard was disconnected
-    kErrIceDisconn = 30,     // < ice-disconnect condition on webrtc connection
-    kErrIceFail = 31,        // <ice-fail condition on webrtc connection
+    kErrIceDisconn = 30,     // < The media connection got broken, due to network error
+    kErrIceFail = 31,        // < Media connection could not be established, because webrtc was unable to traverse NAT.
+    // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
     kErrSdp = 32,            // < error generating or setting SDP description
     kErrUserOffline = 33,    // < we received a notification that that user went offline
     kErrorLast = 33,         // < Last enum indicating call termination due to error
@@ -167,7 +167,7 @@ public:
      * @param call The incoming call
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onCallIncoming(ICall& call) = 0;
+    virtual ICallHandler* onCallIncoming(ICall& call, karere::AvFlags av) = 0;
 };
 
 class ISession: public karere::DeleteTrackable
@@ -200,6 +200,7 @@ public:
     karere::Id peerAnonId() const { return mPeerAnonId; }
     virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
+    karere::Id sessionId() const {return mSid;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>
@@ -295,7 +296,7 @@ public:
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
-    virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    virtual void init() = 0;
     /**
      * @brief Clients exchange an anonymous id for statistics purposes
      * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids

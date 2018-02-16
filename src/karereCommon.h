@@ -44,8 +44,6 @@
     #endif
 #endif
 
-#define KARERE_GELB_HOST "gelb.karere.mega.nz"
-#define KARERE_PRESENCED_URL "mcd270n310.userstorage.mega.co.nz"
 #define KARERE_LOGIN_TIMEOUT 15000
 #define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
@@ -184,8 +182,6 @@ static inline int64_t timestampMs() { return services_get_time_ms(); }
 #define GUI_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 #define GUI_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_gui, fmtString, ##__VA_ARGS__)
 #define GUI_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_gui, fmtString, ##__VA_ARGS__)
-
-#define JINGLE_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_jingle, fmtString, ##__VA_ARGS__)
 
 #define API_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)
 #define API_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_megachatapi, fmtString, ##__VA_ARGS__)

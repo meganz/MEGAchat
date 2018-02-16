@@ -72,8 +72,6 @@
 		947565F81F18D4E900FE8664 /* chatdDb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chatdDb.h; path = ../../src/chatdDb.h; sourceTree = "<group>"; };
 		947565F91F18D4E900FE8664 /* chatdICrypto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chatdICrypto.h; path = ../../src/chatdICrypto.h; sourceTree = "<group>"; };
 		947565FA1F18D4E900FE8664 /* chatdMsg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chatdMsg.h; path = ../../src/chatdMsg.h; sourceTree = "<group>"; };
-		947565FB1F18D4E900FE8664 /* chatRoom.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chatRoom.h; path = ../../src/chatRoom.h; sourceTree = "<group>"; };
-		947565FC1F18D4E900FE8664 /* contactList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = contactList.h; path = ../../src/contactList.h; sourceTree = "<group>"; };
 		947565FD1F18D4E900FE8664 /* db.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = db.h; path = ../../src/db.h; sourceTree = "<group>"; };
 		947565FE1F18D4E900FE8664 /* dummyCrypto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dummyCrypto.h; path = ../../src/dummyCrypto.h; sourceTree = "<group>"; };
 		947565FF1F18D4E900FE8664 /* IGui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IGui.h; path = ../../src/IGui.h; sourceTree = "<group>"; };
@@ -87,31 +85,21 @@
 		947566081F18D4E900FE8664 /* serverListProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = serverListProvider.h; path = ../../src/serverListProvider.h; sourceTree = "<group>"; };
 		947566091F18D4E900FE8664 /* serverListProviderForwards.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = serverListProviderForwards.h; path = ../../src/serverListProviderForwards.h; sourceTree = "<group>"; };
 		9475660A1F18D4E900FE8664 /* stringUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stringUtils.h; path = ../../src/stringUtils.h; sourceTree = "<group>"; };
-		9475660B1F18D4E900FE8664 /* strophe.disco.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.disco.h; path = ../../src/strophe.disco.h; sourceTree = "<group>"; };
-		9475660C1F18D4E900FE8664 /* textModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = textModule.h; path = ../../src/textModule.h; sourceTree = "<group>"; };
-		9475660D1F18D4E900FE8664 /* textModuleTypeConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = textModuleTypeConfig.h; path = ../../src/textModuleTypeConfig.h; sourceTree = "<group>"; };
 		9475660E1F18D4E900FE8664 /* url.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = url.h; path = ../../src/url.h; sourceTree = "<group>"; };
 		9475660F1F18D4E900FE8664 /* userAttrCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = userAttrCache.h; path = ../../src/userAttrCache.h; sourceTree = "<group>"; };
 		947566101F18D4E900FE8664 /* videoRenderer_objc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = videoRenderer_objc.h; path = ../../src/videoRenderer_objc.h; sourceTree = "<group>"; };
 		947566111F18D4E900FE8664 /* videoRenderer_Qt.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = videoRenderer_Qt.h; path = ../../src/videoRenderer_Qt.h; sourceTree = "<group>"; };
 		947566171F18D53D00FE8664 /* IDeviceListImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IDeviceListImpl.h; path = ../../src/rtcModule/IDeviceListImpl.h; sourceTree = "<group>"; };
-		947566181F18D53D00FE8664 /* IJingleSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IJingleSession.h; path = ../../src/rtcModule/IJingleSession.h; sourceTree = "<group>"; };
 		9475661A1F18D53D00FE8664 /* IRtcStats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IRtcStats.h; path = ../../src/rtcModule/IRtcStats.h; sourceTree = "<group>"; };
 		9475661B1F18D53D00FE8664 /* ITypes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypes.h; path = ../../src/rtcModule/ITypes.h; sourceTree = "<group>"; };
 		9475661C1F18D53D00FE8664 /* ITypesImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ITypesImpl.h; path = ../../src/rtcModule/ITypesImpl.h; sourceTree = "<group>"; };
 		9475661D1F18D53D00FE8664 /* IVideoRenderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IVideoRenderer.h; path = ../../src/rtcModule/IVideoRenderer.h; sourceTree = "<group>"; };
-		9475661E1F18D53D00FE8664 /* lib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lib.h; path = ../../src/rtcModule/lib.h; sourceTree = "<group>"; };
-		9475661F1F18D53D00FE8664 /* rtcModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcModule.h; path = ../../src/rtcModule/rtcModule.h; sourceTree = "<group>"; };
 		947566201F18D53D00FE8664 /* rtcmPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcmPrivate.h; path = ../../src/rtcModule/rtcmPrivate.h; sourceTree = "<group>"; };
 		947566211F18D53D00FE8664 /* rtcStats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rtcStats.h; path = ../../src/rtcModule/rtcStats.h; sourceTree = "<group>"; };
 		947566221F18D53D00FE8664 /* streamPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = streamPlayer.h; path = ../../src/rtcModule/streamPlayer.h; sourceTree = "<group>"; };
-		947566231F18D53D00FE8664 /* strophe.jingle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.jingle.h; path = ../../src/rtcModule/strophe.jingle.h; sourceTree = "<group>"; };
-		947566241F18D53D00FE8664 /* strophe.jingle.sdp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.jingle.sdp.h; path = ../../src/rtcModule/strophe.jingle.sdp.h; sourceTree = "<group>"; };
-		947566251F18D53D00FE8664 /* strophe.jingle.session.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = strophe.jingle.session.h; path = ../../src/rtcModule/strophe.jingle.session.h; sourceTree = "<group>"; };
 		947566261F18D53D00FE8664 /* webrtcAdapter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = webrtcAdapter.h; path = ../../src/rtcModule/webrtcAdapter.h; sourceTree = "<group>"; };
 		947566271F18D53D00FE8664 /* webrtcAsyncWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = webrtcAsyncWaiter.h; path = ../../src/rtcModule/webrtcAsyncWaiter.h; sourceTree = "<group>"; };
 		947566291F18D57F00FE8664 /* asyncTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asyncTools.h; path = ../../src/base/asyncTools.h; sourceTree = "<group>"; };
-		9475662A1F18D57F00FE8664 /* cservices-strophe.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "cservices-strophe.h"; path = "../../src/base/cservices-strophe.h"; sourceTree = "<group>"; };
 		9475662B1F18D57F00FE8664 /* cservices-thread.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "cservices-thread.h"; path = "../../src/base/cservices-thread.h"; sourceTree = "<group>"; };
 		9475662C1F18D57F00FE8664 /* cservices.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cservices.h; path = ../../src/base/cservices.h; sourceTree = "<group>"; };
 		9475662D1F18D57F00FE8664 /* gcm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = gcm.h; path = ../../src/base/gcm.h; sourceTree = "<group>"; };
@@ -252,8 +240,6 @@
 				947565F81F18D4E900FE8664 /* chatdDb.h */,
 				947565F91F18D4E900FE8664 /* chatdICrypto.h */,
 				947565FA1F18D4E900FE8664 /* chatdMsg.h */,
-				947565FB1F18D4E900FE8664 /* chatRoom.h */,
-				947565FC1F18D4E900FE8664 /* contactList.h */,
 				947565FD1F18D4E900FE8664 /* db.h */,
 				947565FE1F18D4E900FE8664 /* dummyCrypto.h */,
 				947565FF1F18D4E900FE8664 /* IGui.h */,
@@ -267,9 +253,6 @@
 				947566081F18D4E900FE8664 /* serverListProvider.h */,
 				947566091F18D4E900FE8664 /* serverListProviderForwards.h */,
 				9475660A1F18D4E900FE8664 /* stringUtils.h */,
-				9475660B1F18D4E900FE8664 /* strophe.disco.h */,
-				9475660C1F18D4E900FE8664 /* textModule.h */,
-				9475660D1F18D4E900FE8664 /* textModuleTypeConfig.h */,
 				9475660E1F18D4E900FE8664 /* url.h */,
 				9475660F1F18D4E900FE8664 /* userAttrCache.h */,
 				947566101F18D4E900FE8664 /* videoRenderer_objc.h */,
@@ -282,19 +265,13 @@
 			isa = PBXGroup;
 			children = (
 				947566171F18D53D00FE8664 /* IDeviceListImpl.h */,
-				947566181F18D53D00FE8664 /* IJingleSession.h */,
 				9475661A1F18D53D00FE8664 /* IRtcStats.h */,
 				9475661B1F18D53D00FE8664 /* ITypes.h */,
 				9475661C1F18D53D00FE8664 /* ITypesImpl.h */,
 				9475661D1F18D53D00FE8664 /* IVideoRenderer.h */,
-				9475661E1F18D53D00FE8664 /* lib.h */,
-				9475661F1F18D53D00FE8664 /* rtcModule.h */,
 				947566201F18D53D00FE8664 /* rtcmPrivate.h */,
 				947566211F18D53D00FE8664 /* rtcStats.h */,
 				947566221F18D53D00FE8664 /* streamPlayer.h */,
-				947566231F18D53D00FE8664 /* strophe.jingle.h */,
-				947566241F18D53D00FE8664 /* strophe.jingle.sdp.h */,
-				947566251F18D53D00FE8664 /* strophe.jingle.session.h */,
 				947566261F18D53D00FE8664 /* webrtcAdapter.h */,
 				947566271F18D53D00FE8664 /* webrtcAsyncWaiter.h */,
 			);
@@ -305,7 +282,6 @@
 			isa = PBXGroup;
 			children = (
 				947566291F18D57F00FE8664 /* asyncTools.h */,
-				9475662A1F18D57F00FE8664 /* cservices-strophe.h */,
 				9475662B1F18D57F00FE8664 /* cservices-thread.h */,
 				9475662C1F18D57F00FE8664 /* cservices.h */,
 				9475662D1F18D57F00FE8664 /* gcm.h */,
@@ -724,14 +700,12 @@
 					"../../third-party",
 					../../src,
 					../../../SDK/include,
-					../../../SDK/bindings/ios/3rdparty/include/libws,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/include/libevent,
 					../../../SDK/bindings/ios/3rdparty/webrtc,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -755,7 +729,6 @@
 					"-D__STDC_CONSTANT_MACROS",
 					"-D__STDC_FORMAT_MACROS",
 					"-D_FORTIFY_SOURCE=2",
-					"-DNDEBUG",
 					"-DNVALGRIND",
 					"-DDYNAMIC_ANNOTATIONS_ENABLED=0",
 					"-DNS_BLOCK_ASSERTIONS=1",
@@ -764,15 +737,12 @@
 					"-DRTC_DISABLE_VP9",
 					"-DHAVE_SCTP",
 					"-DWEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1",
-					"-DWEBRTC_POSIX",
-					"-DWEBRTC_MAC",
-					"-DWEBRTC_IOS",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
 			};
 			name = Debug;
 		};
@@ -818,14 +788,12 @@
 					"../../third-party",
 					../../src,
 					../../../SDK/include,
-					../../../SDK/bindings/ios/3rdparty/include/libws,
 					../../../SDK/bindings/ios/3rdparty/include,
-					../../../SDK/bindings/ios/3rdparty/include/libevent,
 					../../../SDK/bindings/ios/3rdparty/webrtc,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
 					../../../SDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LIBRARY_SEARCH_PATHS = ../../../SDK/bindings/ios/3rdparty/lib;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_CFLAGS = (
@@ -858,15 +826,12 @@
 					"-DRTC_DISABLE_VP9",
 					"-DHAVE_SCTP",
 					"-DWEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1",
-					"-DWEBRTC_POSIX",
-					"-DWEBRTC_MAC",
-					"-DWEBRTC_IOS",
 				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
-				USER_HEADER_SEARCH_PATHS = "../../../SDK/bindings/ios/3rdparty/include/libws ../../../SDK/bindings/ios/3rdparty/include/libevent ../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
+				USER_HEADER_SEARCH_PATHS = "../../../SDK/include/mega/posix ../../../SDK/bindings/ios ../../../SDK/bindings/ios/private ../../../SDK/bindings/ios/3rdparty";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
