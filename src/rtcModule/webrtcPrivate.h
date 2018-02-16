@@ -132,7 +132,7 @@ protected:
     template <class... Args>
     bool cmdBroadcast(uint8_t type, Args... args);
     void startIncallPingTimer();
-    void stopIncallPingTimer();
+    void stopIncallPingTimer(bool endCall = true);
     bool broadcastCallReq();
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid);
@@ -177,6 +177,8 @@ public:
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
+    virtual void stopCallsTimers();
+    virtual void restartCallsTimers();
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd

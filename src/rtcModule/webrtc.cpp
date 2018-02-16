@@ -511,6 +511,28 @@ void RtcModule::hangupAll(TermCode code)
     }
 }
 
+void RtcModule::stopCallsTimers()
+{
+    for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
+    {
+        auto& call = callIt->second;
+        callIt++;
+        // Stop timer
+        call->stopIncallPingTimer(false);
+    }
+}
+
+void RtcModule::restartCallsTimers()
+{
+    for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
+    {
+        auto& call = callIt->second;
+        callIt++;
+        // Restart timer
+        call->startIncallPingTimer();
+    }
+}
+
 template <class... Args>
 void RtcModule::sendCommand(Chat &chat, uint8_t opcode, uint8_t command, Id chatid, Id userid, uint32_t clientid, Args... args)
 {
@@ -1082,15 +1104,19 @@ void Call::asyncDestroy(TermCode code, bool weTerminate)
     }, mManager.mClient.appCtx);
 }
 
-void Call::stopIncallPingTimer()
+void Call::stopIncallPingTimer(bool endCall)
 {
     if (mInCallPingTimer)
     {
         cancelInterval(mInCallPingTimer, mManager.mClient.appCtx);
         mInCallPingTimer = 0;
     }
-    mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() +
-        mManager.mClient.myHandle() + mChat.connection().clientId());
+
+    if (endCall)
+    {
+        mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() +
+            mManager.mClient.myHandle() + mChat.connection().clientId());
+    }
 }
 
 void Call::removeSession(Session& sess, TermCode reason)
