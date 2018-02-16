@@ -13,8 +13,6 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
     userHandle = mUserHandle;
     const char *contactEmail = megaChatApi->getContactEmail(userHandle);
     megachat::MegaChatRoom * chatRoom = megaChatApi->getChatRoomByUser(userHandle);
-    megachat::MegaChatHandle chatId = chatRoom->getChatId();
-
     ui->setupUi(this);
     setAvatarStyle();
     ui->mUnreadIndicator->hide();
