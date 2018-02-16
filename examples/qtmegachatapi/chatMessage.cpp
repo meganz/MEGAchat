@@ -36,11 +36,11 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
             {
                 QString text;
-                text.append(tr("[Attached Msg]\n"));
+                text.append(tr("[Attached Msg]"));
                 mega::MegaNodeList *nodeList=message->getMegaNodeList();
                 for(int i=0; i<nodeList->size(); i++)
                 {
-                    text.append(tr("\n[Node]\n"))
+                    text.append(tr("\n[Node]"))
                     .append("\nName: ")
                     .append(nodeList->get(i)->getName())
                     .append("\nHandle: ")
@@ -55,10 +55,10 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
             {
                 QString text;
-                text.append(tr("[Attached Contacts]\n"));
+                text.append(tr("[Attached Contacts]"));
                 for(int i=0; i<message->getUsersCount(); i++)
                 {
-                  text.append(tr("\n[User]\n"))
+                  text.append(tr("\n[User]"))
                   .append("\nName: ")
                   .append(message->getUserName(i))
                   .append("\nEmail: ")

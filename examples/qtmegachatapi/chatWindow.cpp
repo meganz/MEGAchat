@@ -280,6 +280,24 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
 }
 
 
+void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item)
+{
+    switch (msg->getType())
+    {
+        case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
+        {
+        item->setSizeHint(QSize(item->sizeHint().height(), 150));
+        break;
+        }
+
+        case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+        {
+        item->setSizeHint(QSize(item->sizeHint().height(), 150));
+        break;
+        }
+    }
+}
+
 QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int index)
 {
     QListWidgetItem* item = new QListWidgetItem;
@@ -287,6 +305,7 @@ QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int 
     ChatMessage * widget = new ChatMessage(this, megaChatApi, chatId, msg);
     widget->setWidgetItem(item);
     item->setSizeHint(widget->size());
+    setMessageHeight(msg,item);
 
     if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED || msg->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
     {

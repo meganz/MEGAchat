@@ -67,7 +67,7 @@
      <property name="styleSheet">
       <string notr="true">.QWidget, .QLabel 
 {
-background-color:rgb(250, 250, 250);
+background-color:rgb(224, 224, 224);
 border-radius:12;
 }</string>
      </property>

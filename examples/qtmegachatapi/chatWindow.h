@@ -30,6 +30,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void createMembersMenu(QMenu& menu);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
         void moveManualSendingToSending(megachat::MegaChatMessage * msg);
+        void setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item);
         QListWidgetItem* addMsgWidget (megachat::MegaChatMessage * msg, int index);
         ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
 
