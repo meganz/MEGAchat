@@ -49,6 +49,10 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                     .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())));
                 }
                 ui->mMsgDisplay->setText(text);
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
                 text.clear();
                 break;
             }
@@ -65,17 +69,30 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                   .append(message->getUserEmail(i));
                 }
                 ui->mMsgDisplay->setText(text);
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                text.clear();
                 break;
             }
             case megachat::MegaChatMessage::TYPE_NORMAL:
             {
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 setMessageContent(msg->getContent());
                 break;
             }
         }
     }
     else
+    {
         ui->mMsgDisplay->setText(managementInfoToString().c_str());
+        ui->mHeader->setStyleSheet("background-color: rgba(192,123,11,128)\n");
+        ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+        ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+    }
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
     updateToolTip();
