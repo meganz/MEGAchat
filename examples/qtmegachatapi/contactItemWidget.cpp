@@ -17,7 +17,7 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
     setAvatarStyle();
     ui->mUnreadIndicator->hide();
     QString text = QString::fromUtf8(contactEmail);
-    ui->mName->setText("");
+    ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
 
     delete chatRoom;
