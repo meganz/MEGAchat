@@ -32,7 +32,7 @@ void ChatItemWidget::invalidChatWindowHandle()
     mChatWindow = NULL;
 }
 
-void ChatItemWidget::updateToolTip(megachat::MegaChatApi* mChatApi, const megachat::MegaChatListItem *item)
+void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
 {
     megachat::MegaChatRoom * chatRoom = megaChatApi->getChatRoom(item->getChatId());
     std::string chatId = std::to_string(item->getChatId());
@@ -40,9 +40,14 @@ void ChatItemWidget::updateToolTip(megachat::MegaChatApi* mChatApi, const megach
     std::string lastMessageId = std::to_string(item->getLastMessageId());
     QString text = NULL;
 
-    if(strcmp(item->getLastMessage(),"") == 0)
+    int lastMessageType = item->getLastMessageType();
+    if (lastMessageType == MegaChatMessage::TYPE_INVALID)
     {
-        lastMessage="<empty>";
+        lastMessage = "<empty>";
+    }
+    else if (lastMessageType == 0xFF)
+    {
+        lastMessage = "<loading...>";
     }
     else
     {

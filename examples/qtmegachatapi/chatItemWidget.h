@@ -30,7 +30,7 @@ class ChatItemWidget : public QWidget
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
-        virtual void updateToolTip(megachat::MegaChatApi* api, const megachat::MegaChatListItem *item);
+        virtual void updateToolTip(const megachat::MegaChatListItem *item);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
 
