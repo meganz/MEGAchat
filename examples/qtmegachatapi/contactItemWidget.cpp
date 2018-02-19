@@ -45,7 +45,6 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     auto removeAction = menu.addAction(tr("Remove contact"));
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
-    menu.setStyleSheet("background-color: lightgray");
     menu.exec(event->globalPos());
     menu.deleteLater();
 }

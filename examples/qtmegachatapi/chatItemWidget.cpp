@@ -229,7 +229,6 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
 
     auto actTruncate = menu.addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
-    menu.setStyleSheet("background-color: lightgray");
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
