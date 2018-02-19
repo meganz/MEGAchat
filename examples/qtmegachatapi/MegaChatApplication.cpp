@@ -41,7 +41,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     // Keep the app open until it's explicitly closed
     setQuitOnLastWindowClosed(true);
 
-    loginDialog = NULL;
+    mLoginDialog = NULL;
     sid = NULL;
 
     // Initialize the SDK and MEGAchat
@@ -56,9 +56,9 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
 
     // Start GUI
-    mainWin = new MainWindow(0, logger);
-    mainWin->setMegaChatApi(megaChatApi);
-    mainWin->setMegaApi(megaApi);
+    mMainWin = new MainWindow(0, mLogger);
+    mMainWin->setMegaChatApi(megaChatApi);
+    mMainWin->setMegaApi(megaApi);
 }
 
 MegaChatApplication::~MegaChatApplication()
@@ -67,8 +67,8 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatRequestListenerDelegate;
     delete megaChatApi;
     delete megaApi;
-    delete mainWin;
-    delete logger;
+    delete mMainWin;
+    delete mLogger;
     delete [] sid;
 }
 
@@ -89,16 +89,16 @@ void MegaChatApplication::init()
 
 void MegaChatApplication::login()
 {
-    loginDialog = new LoginDialog();
-    connect(loginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
-    loginDialog->show();
+    mLoginDialog = new LoginDialog();
+    connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
+    mLoginDialog->show();
 }
 
 void MegaChatApplication::onLoginClicked()
 {
-    QString email = loginDialog->getEmail();
-    QString password = loginDialog->getPassword();
-    loginDialog->setState(LoginDialog::loggingIn);
+    QString email = mLoginDialog->getEmail();
+    QString password = mLoginDialog->getPassword();
+    mLoginDialog->setState(LoginDialog::loggingIn);
     megaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
@@ -130,11 +130,11 @@ void MegaChatApplication::saveSid(const char* sdkSid)
 void MegaChatApplication::configureLogs()
 {
     std::string logPath = appDir + "/log.txt";
-    logger = new MegaLoggerApplication(logPath.c_str());
-    logger->setLogConsole(true);
+    mLogger = new MegaLoggerApplication(logPath.c_str());
+    mLogger->setLogConsole(true);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
-    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLoggerObject(mLogger);
     MegaChatApi::setLogToConsole(true);
     MegaChatApi::setCatchException(false);
 }
@@ -144,9 +144,9 @@ void MegaChatApplication::addChats()
     MegaChatListItemList * chatList = megaChatApi->getChatListItems();
     for (int i = 0; i < chatList->size(); i++)
     {
-        mainWin->addChat(chatList->get(i));
+        mMainWin->addChat(chatList->get(i));
     }
-    mainWin->addChatListener();
+    mMainWin->addChatListener();
     delete chatList;
 }
 
@@ -155,7 +155,7 @@ void MegaChatApplication::addContacts()
 {
     MegaUser * contact = NULL;
     MegaUserList *contactList = megaApi->getContacts();
-    mainWin->setNContacts(contactList->size());
+    mMainWin->setNContacts(contactList->size());
 
     for (int i=0; i<contactList->size(); i++)
     {
@@ -163,7 +163,7 @@ void MegaChatApplication::addContacts()
         const char *contactEmail = contact->getEmail();
         megachat::MegaChatHandle userHandle = megaChatApi->getUserHandleByEmail(contactEmail);
         if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
-            mainWin->addContact(userHandle);
+            mMainWin->addContact(userHandle);
     }
     delete contactList;
 }
@@ -200,18 +200,18 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_LOGIN:
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                if (loginDialog)
+                if (mLoginDialog)
                 {
-                    loginDialog->setState(LoginDialog::fetchingNodes);
+                    mLoginDialog->setState(LoginDialog::fetchingNodes);
                 }
                 api->fetchNodes();
             }
             else
             {
-                if (loginDialog)
+                if (mLoginDialog)
                 {
-                    loginDialog->setState(LoginDialog::badCredentials);
-                    loginDialog->enableControls(true);
+                    mLoginDialog->setState(LoginDialog::badCredentials);
+                    mLoginDialog->enableControls(true);
                 }
                 else
                 {
@@ -225,18 +225,18 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 delete [] sid;
                 sid = megaApi->dumpSession();
                 saveSid(sid);
-                loginDialog->deleteLater();
-                loginDialog = NULL;
-                mainWin->setWindowTitle(api->getMyEmail());
-                mainWin->show();
+                mLoginDialog->deleteLater();
+                mLoginDialog = NULL;
+                mMainWin->setWindowTitle(api->getMyEmail());
+                mMainWin->show();
                 addContacts();
                 megaChatApi->connect();
             }
             else
             {
                 QMessageBox::critical(nullptr, tr("Fetch Nodes"), tr("Error Fetching nodes: ").append(e->getErrorString()));
-                loginDialog->deleteLater();
-                loginDialog = NULL;
+                mLoginDialog->deleteLater();
+                mLoginDialog = NULL;
                 init();
             }
             break;
@@ -264,8 +264,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
             else
             {
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
-                loginDialog->deleteLater();
-                loginDialog = NULL;
+                mLoginDialog->deleteLater();
+                mLoginDialog = NULL;
                 init();
             }
             break;
@@ -274,7 +274,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
              {
                 MegaChatHandle userHandle = request->getUserHandle();
                 const char *firstname = request->getText();
-                mainWin->updateContactFirstname(userHandle,firstname);
+                mMainWin->updateContactFirstname(userHandle,firstname);
              }
              break;
          case MegaChatRequest::TYPE_CREATE_CHATROOM:
@@ -282,13 +282,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
              {
                 std::string title;
                 MegaChatHandle handle = request->getChatHandle();
-                QString qTitle = QInputDialog::getText(this->mainWin, tr("Change chat title"), tr("Leave blank for default title"));
+                QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
                 if (! qTitle.isNull())
                     title = qTitle.toStdString();
 
                 this->megaChatApi->setChatTitle(handle, title.c_str());
                 const MegaChatListItem* chatListItem = this->megaChatApi->getChatListItem(handle);
-                mainWin->addChat(chatListItem);
+                mMainWin->addChat(chatListItem);
                 delete chatListItem;
              }
              break;

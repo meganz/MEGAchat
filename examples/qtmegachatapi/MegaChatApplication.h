@@ -34,11 +34,11 @@ class MegaChatApplication : public QApplication,
         virtual void onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList);
 
     protected:
-        char* sid;
-        std::string appDir;
-        MainWindow *mainWin;
-        LoginDialog *loginDialog;
-        MegaLoggerApplication *logger;
+        char* mSid;
+        std::string mAppDir;
+        MainWindow *mMainWin;
+        LoginDialog *mLoginDialog;
+        MegaLoggerApplication *mLogger;
         mega::MegaApi *megaApi;
         megachat::MegaChatApi *megaChatApi;
         mega::QTMegaListener *megaListenerDelegate;
