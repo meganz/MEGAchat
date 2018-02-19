@@ -69,9 +69,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (this->megaChatApi->isSignalActivityRequired() &&
-            (event->type() == QEvent::MouseButtonRelease
-             || event->type() == QEvent::HoverEnter))
+    if (this->megaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
     {
         this->megaChatApi->signalPresenceActivity();
     }
