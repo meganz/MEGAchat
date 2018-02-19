@@ -36,7 +36,6 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
         mkdir(appDir.c_str(), 0700);
     }
 
-    fetchNodesRetries = 0;
     connectionRetries = 0;
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
@@ -236,20 +235,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             }
             else
             {
-                if(fetchNodesRetries<MAX_RETRIES)
-                {
-                    api->fetchNodes();
-                    fetchNodesRetries+=1;
-                }
-                else
-                {
-                    QMessageBox::critical(nullptr, tr("Fetch Nodes"), tr("Error Fetching nodes: ").append(e->getErrorString()));
-                    loginDialog->deleteLater();
-                    loginDialog = NULL;
-                    fetchNodesRetries = 0;
-                    connectionRetries = 0;
-                    init();
-                }
+                QMessageBox::critical(nullptr, tr("Fetch Nodes"), tr("Error Fetching nodes: ").append(e->getErrorString()));
+                loginDialog->deleteLater();
+                loginDialog = NULL;
+                connectionRetries = 0;
+                init();
             }
             break;
         case MegaRequest::TYPE_REMOVE_CONTACT:
@@ -286,7 +276,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
                     QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                     loginDialog->deleteLater();
                     loginDialog = NULL;
-                    fetchNodesRetries = 0;
                     connectionRetries = 0;
                     init();
                 }

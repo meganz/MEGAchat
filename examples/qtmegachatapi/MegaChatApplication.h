@@ -35,7 +35,6 @@ class MegaChatApplication : public QApplication,
 
     protected:
         char* sid;
-        int fetchNodesRetries;
         int connectionRetries;
         std::string appDir;
         MainWindow *mainWin;
