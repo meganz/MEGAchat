@@ -145,7 +145,8 @@ void ChatItemWidget::unshowAsHidden()
 ChatWindow* ChatItemWidget::showChatWindow()
 {
     ChatWindow* window;
-    const char * chatWindowTitle = ui->mName->text().toStdString().c_str();
+    std::string titleStd = ui->mName->text().toStdString();
+    const char * chatWindowTitle = titleStd.c_str();
     megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(chatHandle);
 
     if (!chatWindowHandle)
@@ -243,12 +244,12 @@ void ChatItemWidget::truncateChat()
 
 void ChatItemWidget::setTitle()
 {
-    const char * title;
+    std::string title;
     QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
     if (! qTitle.isNull())
     {
-        title = qTitle.toStdString().c_str();
-        this->megaChatApi->setChatTitle(chatHandle,title);
+        title = qTitle.toStdString();
+        this->megaChatApi->setChatTitle(chatHandle,title.c_str());
     }
 }
 

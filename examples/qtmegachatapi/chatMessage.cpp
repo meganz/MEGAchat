@@ -244,19 +244,16 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
    }
 }
 
-
 void ChatMessage::onMessageDelAction()
 {
     chatWin->deleteChatMessage(this->message);
 }
 
-
 void ChatMessage::onMessageEditAction()
 {
-        auto action = qobject_cast<QAction*>(QObject::sender());
-        startEditingMsgWidget();
+    auto action = qobject_cast<QAction*>(QObject::sender());
+    startEditingMsgWidget();
 }
-
 
 void ChatMessage::cancelMsgEdit(bool clicked)
 {
@@ -264,12 +261,11 @@ void ChatMessage::cancelMsgEdit(bool clicked)
     chatWin->ui->mMessageEdit->setText(QString());
 }
 
-
 void ChatMessage::saveMsgEdit(bool clicked)
 {
-    const char * editedMsg =chatWin->ui->mMessageEdit->toPlainText().toStdString().c_str();
+    std::string editedMsg =chatWin->ui->mMessageEdit->toPlainText().toStdString();
     if(this->message->getContent() != editedMsg)
-                this->megaChatApi->editMessage(chatId,message->getMsgId() ,editedMsg);
+                this->megaChatApi->editMessage(chatId,message->getMsgId() ,editedMsg.c_str());
     clearEdit();
 }
 
@@ -296,8 +292,6 @@ void ChatMessage::startEditingMsgWidget()
     chatWin->ui->mMessageEdit->setText(ui->mMsgDisplay->toPlainText());
     chatWin->ui->mMessageEdit->moveCursor(QTextCursor::End);
 }
-
-
 
 ChatMessage* ChatMessage::clearEdit()
 {
@@ -348,7 +342,6 @@ void ChatMessage::setManualMode(bool manualMode)
         delete discardManualSending;
     }
 }
-
 
 void ChatMessage::onManualSending()
 {

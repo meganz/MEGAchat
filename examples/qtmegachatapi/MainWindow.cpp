@@ -267,8 +267,8 @@ void MainWindow::onAddContact()
         QMessageBox::critical(this, tr("Add contact"), tr("You can't add your own email as contact"));
         return;
     }
-    auto utf8 = email.toUtf8();
-    megaApi->inviteContact(email.toStdString().c_str(),tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD);
+    std::string emailStd = email.toStdString();
+    megaApi->inviteContact(emailStd.c_str(),tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD);
 }
 
 
