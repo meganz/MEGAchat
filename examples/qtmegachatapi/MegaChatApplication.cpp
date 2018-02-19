@@ -257,7 +257,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
     switch (request->getType())
     {
          case MegaChatRequest::TYPE_CONNECT:
-            if (e->getErrorCode() == MegaError::API_OK)
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
                 addChats();
             }
@@ -270,7 +270,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
             }
             break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
-             if (e->getErrorCode() == MegaError::API_OK)
+             if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
                 MegaChatHandle userHandle = request->getUserHandle();
                 const char *firstname = request->getText();
@@ -278,7 +278,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
              }
              break;
          case MegaChatRequest::TYPE_CREATE_CHATROOM:
-             if (e->getErrorCode() == MegaError::API_OK)
+             if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
                 std::string title;
                 MegaChatHandle handle = request->getChatHandle();
@@ -293,17 +293,12 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
              }
              break;
          case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
-            switch (e->getErrorCode())
-                case MegaChatError::ERROR_ACCESS:
-                    QMessageBox::critical(nullptr, tr("Leave chat"), tr("Error leaving chat: ").append(e->getErrorString()));
-                    break;
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+                QMessageBox::critical(nullptr, tr("Leave chat"), tr("Error leaving chat: ").append(e->getErrorString()));
             break;
          case MegaChatRequest::TYPE_EDIT_CHATROOM_NAME:
-            switch (e->getErrorCode())
-                case MegaChatError::ERROR_ACCESS:
-                        QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
-                        break;
-                break;
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+                QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
     }
 }
