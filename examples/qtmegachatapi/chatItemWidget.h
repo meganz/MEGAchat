@@ -23,7 +23,7 @@ class ChatItemWidget : public QWidget
         void showAsHidden();
         void contextMenuEvent(QContextMenuEvent* event);
         void setChatHandle(const megachat::MegaChatHandle &mChatId);
-        megachat::MegaChatHandle getChatHandle() const;
+        megachat::MegaChatHandle getChatId() const;
         void setOlderMessageLoaded(const megachat::MegaChatHandle &msgId);
         megachat::MegaChatHandle getOlderMessageLoaded() const;
         QListWidgetItem *getWidgetItem() const;

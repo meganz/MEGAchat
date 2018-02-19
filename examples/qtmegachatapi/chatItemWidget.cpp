@@ -206,7 +206,7 @@ ChatItemWidget::~ChatItemWidget()
     delete ui;
 }
 
-megachat::MegaChatHandle ChatItemWidget::getChatHandle() const
+megachat::MegaChatHandle ChatItemWidget::getChatId() const
 {
     return mChatId;
 }
@@ -242,7 +242,7 @@ void ChatItemWidget::setTitle()
 {
     std::string title;
     QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
-    if (! qTitle.isNull())
+    if (!qTitle.isNull())
     {
         title = qTitle.toStdString();
         this->megaChatApi->setChatTitle(mChatId,title.c_str());

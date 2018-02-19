@@ -429,7 +429,7 @@ void ChatWindow::onMemberSetPriv()
 
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhand = uHandle.toLongLong();
-      megachat::MegaChatHandle chatId=mChatItemWidget->getChatHandle();
+      megachat::MegaChatHandle chatId=mChatItemWidget->getChatId();
       this->megaChatApi->updateChatPermissions(chatId, userhand, privilege);
 }
 
