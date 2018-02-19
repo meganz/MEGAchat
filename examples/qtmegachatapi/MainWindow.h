@@ -40,7 +40,6 @@ class MainWindow :
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
 
-
     public:
         MegaLoggerApplication *mLogger;
         int getNContacts() const;
@@ -65,7 +64,6 @@ class MainWindow :
         void onAddContact();
         void setOnlineStatus();
         void onChangeChatVisibility();
-
 
     signals:
         void esidLogout();

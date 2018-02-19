@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     chatsVisibility = true;
-    mLogger=logger;
+    mLogger = logger;
     qApp->installEventFilter(this);
 }
 
@@ -63,7 +63,6 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     auto actVisibility = menu.addAction(tr("Show/Hide leaved chats"));
     connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeChatVisibility()));
 
-    menu.setStyleSheet("background-color: lightgray");
     menu.exec(event->globalPos());
 }
 
@@ -269,15 +268,13 @@ void MainWindow::onAddContact()
     megaApi->inviteContact(emailStd.c_str(),tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD);
 }
 
-
-
 void MainWindow::setOnlineStatus()
 {
     auto action = qobject_cast<QAction*>(QObject::sender());
     assert(action);
     bool ok;
     auto pres = action->data().toUInt(&ok);
-    if (!ok || (pres ==MegaChatApi::STATUS_INVALID))
+    if (!ok || (pres == MegaChatApi::STATUS_INVALID))
     {
         return;
     }
@@ -289,7 +286,6 @@ void MainWindow::addChatListener()
     megaChatListenerDelegate = new QTMegaChatListener(megaChatApi, this);
     megaChatApi->addChatListener(megaChatListenerDelegate);
 }
-
 
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
 {
@@ -350,12 +346,11 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
     }
 }
 
-
 void MainWindow::onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config)
 {
     ui->bOnlineStatus->setText(config->isPending()
-        ?kOnlineSymbol_InProgress
-        :kOnlineSymbol_Set);
+        ? kOnlineSymbol_InProgress
+        : kOnlineSymbol_Set);
 
     ui->bOnlineStatus->setStyleSheet(
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
@@ -379,9 +374,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
 
     if (itContacts != contactWidgets.end())
     {                
-        ContactItemWidget * contactItemWidget = itContacts->second;
+        ContactItemWidget *contactItemWidget = itContacts->second;
         contactItemWidget->updateTitle(firstname);
     }
 }
-
-

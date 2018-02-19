@@ -12,7 +12,6 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
     this->megaChatApi = megaChatApi;
     this->mUserHandle = userHandle;
     const char *contactEmail = megaChatApi->getContactEmail(userHandle);
-    megachat::MegaChatRoom * chatRoom = megaChatApi->getChatRoomByUser(userHandle);
     ui->setupUi(this);
     setAvatarStyle();
     ui->mUnreadIndicator->hide();
@@ -20,7 +19,6 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
 
-    delete chatRoom;
     delete contactEmail;
     this->megaChatApi->getUserFirstname(userHandle);
 }
@@ -52,8 +50,8 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
 void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
 {
    QString text = NULL;
-   char * email = this->megaChatApi->getContactEmail(contactHandle);
-   mega::MegaUser* contact = this->megaApi->getContact(email);
+   char *email = this->megaChatApi->getContactEmail(contactHandle);
+   mega::MegaUser *contact = this->megaApi->getContact(email);
    megachat::MegaChatHandle chatHandle = this->megaChatApi->getChatHandleByUser(contactHandle);
 
    if (contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
@@ -71,10 +69,8 @@ void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
 
 void ContactItemWidget::onCreateGroupChat()
 {
-   std::string title;
-   QString qTitle ;
    QMessageBox msgBox;
-   msgBox.setText("Do you want to invite "+ui->mName->text() +" a new group chat.");
+   msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat.");
    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
    msgBox.setDefaultButton(QMessageBox::Save);
    int ret = msgBox.exec();
@@ -111,7 +107,6 @@ void ContactItemWidget::onContactRemove()
     delete contact;
 }
 
-
 void ContactItemWidget::updateTitle(const char * firstname)
 {
     QString text = QString::fromUtf8(firstname);
@@ -125,7 +120,7 @@ ContactItemWidget::~ContactItemWidget()
 
 void ContactItemWidget::updateOnlineIndicator(int newState)
 {
-    if (newState>0 && newState <NINDCOLORS)
+    if (newState >= 0 && newState < NINDCOLORS)
     {
         ui->mOnlineIndicator->setStyleSheet(
            QString("background-color: ")+gOnlineIndColors[newState]+

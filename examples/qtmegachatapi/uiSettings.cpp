@@ -3,7 +3,7 @@
 QChar kOnlineSymbol_InProgress(0x267a);
 QChar kOnlineSymbol_Set(0x25cf);
 
-QString gOnlineIndColors[5] =
+QString gOnlineIndColors[NINDCOLORS] =
 { "black", "lightgray", "orange", "lightgreen", "red" };
 
 QString kOnlineStatusBtnStyle = QStringLiteral(
