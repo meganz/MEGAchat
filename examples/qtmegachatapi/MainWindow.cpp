@@ -325,10 +325,14 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
 
 void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
 {
+    // if invalid, means it's unknown --> use black
+    if (status == megachat::MegaChatApi::STATUS_INVALID)
+        status = 0;
+
     if (this->megaChatApi->getMyUserHandle() == userhandle && !inProgress)
     {
         ui->bOnlineStatus->setText(kOnlineSymbol_Set);
-        if (status >0 && status<NINDCOLORS)
+        if (status >= 0 && status < NINDCOLORS)
             ui->bOnlineStatus->setStyleSheet(kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
     }
     else
@@ -338,22 +342,24 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
         if (itContacts != contactWidgets.end())
         {
             ContactItemWidget * contactItemWidget = itContacts->second;
-            if(inProgress)
-                contactItemWidget->updateOnlineIndicator(0);
-            else
-                contactItemWidget->updateOnlineIndicator(status);
+            assert(!inProgress);    // we are not notified about status in progress for contacts, but for us
+            contactItemWidget->updateOnlineIndicator(status);
         }
     }
 }
 
 void MainWindow::onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config)
 {
+    int status = config->getOnlineStatus();
+    if (status == megachat::MegaChatApi::STATUS_INVALID)
+        status = 0;
+
     ui->bOnlineStatus->setText(config->isPending()
         ? kOnlineSymbol_InProgress
         : kOnlineSymbol_Set);
 
     ui->bOnlineStatus->setStyleSheet(
-        kOnlineStatusBtnStyle.arg(gOnlineIndColors[config->getOnlineStatus()]));
+        kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
 }
 
 int MainWindow::getNContacts() const

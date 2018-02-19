@@ -192,12 +192,8 @@ void ChatItemWidget::setOlderMessageLoaded(const megachat::MegaChatHandle &msgId
 
 void ChatItemWidget::onlineIndicatorUpdate(int newState)
 {
-    int virtPresence = (newState == megachat::MegaChatApi::CHAT_CONNECTION_ONLINE)
-            ? megachat::MegaChatApi::CHAT_CONNECTION_ONLINE
-            : megachat::MegaChatApi::CHAT_CONNECTION_IN_PROGRESS;
-
     ui->mOnlineIndicator->setStyleSheet(
-        QString("background-color: ")+gOnlineIndColors[virtPresence]+
+        QString("background-color: ")+gOnlineIndColors[newState]+
         ";border-radius: 4px");
 }
 
