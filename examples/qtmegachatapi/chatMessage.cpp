@@ -204,7 +204,7 @@ void ChatMessage::setTimestamp(int64_t ts)
 {
     QDateTime t;
     t.setTime_t(ts);
-    ui->mTimestampDisplay->setText(t.toString("hh:mm:ss"));
+    ui->mTimestampDisplay->setText(t.toString("hh:mm:ss - dd.MM.yy"));
 }
 
 void ChatMessage::setStatus(int status)
