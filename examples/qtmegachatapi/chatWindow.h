@@ -19,7 +19,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 {
     Q_OBJECT
     public:
-        ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatRoom *cRoom, const char * title);
+        ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title);
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
@@ -33,6 +33,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item);
         QListWidgetItem* addMsgWidget (megachat::MegaChatMessage * msg, int index);
         ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
+        megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
 
     protected:
         Ui::ChatWindowUi *ui;
