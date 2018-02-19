@@ -105,16 +105,18 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
     }
 
     megachat::MegaChatHandle msgId = getMessageId(msg);
+    ChatMessage *chatMessage = findChatMessage(msgId);
+    if (!chatMessage)
+    {
+        // message not found in UI
+        return;
+    }
 
-    ChatMessage * chatMessage = findChatMessage(msgId);
     if (msg->hasChanged(megachat::MegaChatMessage::CHANGE_TYPE_CONTENT))
     {
-        if(chatMessage)
-        {
-            chatMessage->setMessageContent(msg->getContent());
-            if (msg->isEdited())
-                chatMessage->markAsEdited();
-        }
+        chatMessage->setMessageContent(msg->getContent());
+        if (msg->isEdited())
+            chatMessage->markAsEdited();
     }
 
     if (msg->hasChanged(megachat::MegaChatMessage::CHANGE_TYPE_STATUS))
@@ -136,8 +138,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             else
             {
-                if(chatMessage)
-                    chatMessage->setStatus(msg->getStatus());
+                chatMessage->setStatus(msg->getStatus());
             }
         }
      }
@@ -301,14 +302,8 @@ QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage * msg, int i
     item->setSizeHint(widget->size());
     setMessageHeight(msg,item);
 
-    if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED || msg->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
-    {
-        mMsgsWidgetsMap.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getMsgId(),widget));
-    }
-    else
-    {
-        mMsgsWidgetsMap.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getTempId(),widget));
-    }
+    megachat::MegaChatHandle msgId = getMessageId(msg);
+    mMsgsWidgetsMap.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msgId, widget));
 
     ui->mMessageList->insertItem(index, item);
     ui->mMessageList->setItemWidget(item, widget);
