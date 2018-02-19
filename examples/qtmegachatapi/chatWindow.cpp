@@ -106,17 +106,14 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
 
     megachat::MegaChatHandle msgId = getMessageId(msg);
     ChatMessage *chatMessage = findChatMessage(msgId);
-    if (!chatMessage)
-    {
-        // message not found in UI
-        return;
-    }
-
     if (msg->hasChanged(megachat::MegaChatMessage::CHANGE_TYPE_CONTENT))
     {
-        chatMessage->setMessageContent(msg->getContent());
-        if (msg->isEdited())
-            chatMessage->markAsEdited();
+        if (chatMessage)
+        {
+            chatMessage->setMessageContent(msg->getContent());
+            if (msg->isEdited())
+                chatMessage->markAsEdited();
+        }
     }
 
     if (msg->hasChanged(megachat::MegaChatMessage::CHANGE_TYPE_STATUS))
@@ -138,7 +135,10 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             else
             {
-                chatMessage->setStatus(msg->getStatus());
+                megachat::MegaChatHandle msgId = getMessageId(msg);
+                ChatMessage *chatMessage = findChatMessage(msgId);
+                if (chatMessage)
+                    chatMessage->setStatus(msg->getStatus());
             }
         }
      }
