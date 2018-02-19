@@ -194,7 +194,9 @@ std::string ChatMessage::managementInfoToString() const
         return ret;
     }
     default:
-        throw std::runtime_error("Message with type "+std::to_string(message->getType())+" is not a management message");
+        ret.append("Management message with unknown type: ")
+           .append(std::to_string(message->getType()));
+        return ret;
     }
 }
 
