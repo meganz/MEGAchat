@@ -14,7 +14,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
     chatRoom = cRoom;
     megaChatApi = mChatApi;
     chatItemWidget = (ChatItemWidget *) parent;
-    logger = ((MainWindow *)chatItemWidget->parent())->logger;
+    logger = ((MainWindow *)chatItemWidget->parent())->mLogger;
 
     ui->setupUi(this);
     ui->mSplitter->setStretchFactor(0,1);

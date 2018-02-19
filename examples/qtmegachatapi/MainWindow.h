@@ -23,7 +23,7 @@ class MainWindow :
 {
     Q_OBJECT
     public:
-        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *mLogger=NULL);
+        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL);
         virtual ~MainWindow();
         void setMegaChatApi(megachat::MegaChatApi *megaChatApi);
         void setMegaApi(mega::MegaApi *megaApi);
@@ -42,7 +42,7 @@ class MainWindow :
 
 
     public:
-        MegaLoggerApplication *logger;
+        MegaLoggerApplication *mLogger;
         int getNContacts() const;
         void setNContacts(int nContacts);
 

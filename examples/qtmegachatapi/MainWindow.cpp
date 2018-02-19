@@ -11,7 +11,7 @@
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *mLogger) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *mLogger) :
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     chatsVisibility = true;
-    logger=mLogger;
+    mLogger=logger;
     qApp->installEventFilter(this);
 }
 
