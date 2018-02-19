@@ -41,7 +41,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
     QString text = NULL;
 
     int lastMessageType = item->getLastMessageType();
-    if (lastMessageType == MegaChatMessage::TYPE_INVALID)
+    if (lastMessageType == megachat::MegaChatMessage::TYPE_INVALID)
     {
         lastMessage = "<empty>";
     }
@@ -63,23 +63,19 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle))
-            .append(tr("\nLast message:\n")).append(QString::fromStdString(lastMessage))
-            .append(tr("\nLast message Id:\n")).append(QString::fromStdString(lastMessageId));
+            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
+            .append(tr("\nLast message Id: ")).append(QString::fromStdString(lastMessageId));
     }
     else
     {
-        const char * peerName  = NULL;
-        const char * peerEmail = NULL;
-        std::string peerId = "";
-        int  peerPriv = -1;
         int ownPrivilege = chatRoom->getOwnPrivilege();
-        int participantsCount = chatRoom->getPeerCount();
         text.append(tr("Group chat room: "))
             .append(QString::fromStdString(chatId)
             .append(tr("\nOwn privilege: "))
             .append(QString(chatRoom->privToString(ownPrivilege)))
             .append(tr("\nOther participants:")));
 
+        int participantsCount = chatRoom->getPeerCount();
         if (participantsCount == 0)
         {
             text.append(" (none)");
@@ -89,13 +85,13 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             text.append("\n");
             for(int i=0; i<participantsCount; i++)
             {
-                peerName  = chatRoom->getPeerFullname(i);
-                peerEmail = chatRoom->getPeerEmail(i);
-                peerId    = std::to_string (chatRoom->getPeerHandle(i));
-                peerPriv  = chatRoom->getPeerPrivilege(i);
+                const char *peerName = chatRoom->getPeerFullname(i);
+                const char *peerEmail = chatRoom->getPeerEmail(i);
+                std::string peerId = std::to_string (chatRoom->getPeerHandle(i));
+                int peerPriv = chatRoom->getPeerPrivilege(i);
                 auto line = QString(" %1 (%2, %3): priv %4\n")
                         .arg(QString(peerName))
-                        .arg(peerEmail?QString::fromStdString(peerEmail):tr("(email unknown)"))
+                        .arg(peerEmail ? QString::fromStdString(peerEmail) : tr("(email unknown)"))
                         .arg(QString::fromStdString(peerId))
                         .arg(QString(chatRoom->privToString(peerPriv)));
                 text.append(line);
