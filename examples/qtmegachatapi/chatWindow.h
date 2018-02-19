@@ -7,7 +7,7 @@
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
 
-#define NMESSAGES_LOAD 4
+#define NMESSAGES_LOAD 16   // number of messages to load at every fetch
 class ChatMessage;
 
 namespace Ui{

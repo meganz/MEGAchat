@@ -264,7 +264,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         int pendingLoad;
         pendingLoad=NMESSAGES_LOAD-loadedMessages+nSending+nManualSending;
-        if (pendingLoad>0)
+        if (!megaChatApi->isFullHistoryLoaded(chatRoom->getChatId()) && pendingLoad > 0)
         {
             int source = megaChatApi->loadMessages(chatRoom->getChatId(),pendingLoad);
             if (source == megachat::MegaChatApi::SOURCE_NONE)
@@ -435,5 +435,8 @@ void ChatWindow::onMemberSetPriv()
 
 void ChatWindow::onMsgListRequestHistory()
 {
-    megaChatApi->loadMessages(chatRoom->getChatId(),NMESSAGES_LOAD);
+    if (!megaChatApi->isFullHistoryLoaded(chatRoom->getChatId()))
+    {
+        megaChatApi->loadMessages(chatRoom->getChatId(),NMESSAGES_LOAD);
+    }
 }
