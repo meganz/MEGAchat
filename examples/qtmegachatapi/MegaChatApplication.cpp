@@ -246,7 +246,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
 
         case MegaRequest::TYPE_INVITE_CONTACT:
-            if (e->getErrorCode() == MegaError::API_EACCESS)
+            if (e->getErrorCode() != MegaError::API_OK)
                 QMessageBox::critical(nullptr, tr("Invite contact"), tr("Error inviting contact: ").append(e->getErrorString()));
             break;
     }
