@@ -12,12 +12,11 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
     : QWidget((QWidget *)parent),
       ui(new Ui::ChatMessageWidget)
 {
-    chatWin=parent;
+    mChatWindow=parent;
     this->chatId=chatId;
     megaChatApi = mChatApi;
     ui->setupUi(this);
     message = msg;
-    edited = false;
     setAuthor();
     setTimestamp(message->getTimestamp());
 
@@ -38,7 +37,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 QString text;
                 text.append(tr("[Attached Msg]"));
                 mega::MegaNodeList *nodeList=message->getMegaNodeList();
-                for(int i=0; i<nodeList->size(); i++)
+                for(int i = 0; i < nodeList->size(); i++)
                 {
                     text.append(tr("\n[Node]"))
                     .append("\nName: ")
@@ -61,7 +60,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             {
                 QString text;
                 text.append(tr("[Attached Contacts]"));
-                for(int i=0; i<message->getUsersCount(); i++)
+                for(unsigned int i = 0; i < message->getUsersCount(); i++)
                 {
                   text.append(tr("\n[User]"))
                   .append("\nName: ")
@@ -129,12 +128,12 @@ void ChatMessage::updateToolTip()
 
 QListWidgetItem *ChatMessage::getWidgetItem() const
 {
-    return widgetItem;
+    return mListWidgetItem;
 }
 
 void ChatMessage::setWidgetItem(QListWidgetItem *item)
 {
-    widgetItem = item;
+    mListWidgetItem = item;
 }
 
 megachat::MegaChatMessage *ChatMessage::getMessage() const
@@ -151,7 +150,6 @@ void ChatMessage::setMessageContent(const char * content)
 {
     ui->mMsgDisplay->setText(content);
 }
-
 
 std::string ChatMessage::managementInfoToString() const
 {
@@ -200,7 +198,7 @@ void ChatMessage::setTimestamp(int64_t ts)
 
 void ChatMessage::setStatus(int status)
 {
-    if (status==megachat::MegaChatMessage::STATUS_UNKNOWN)
+    if (status == megachat::MegaChatMessage::STATUS_UNKNOWN)
         ui->mStatusDisplay->setText("Invalid");
     else
     {
@@ -210,17 +208,21 @@ void ChatMessage::setStatus(int status)
 
 void ChatMessage::setAuthor()
 {
-    megachat::MegaChatHandle userHandle = message->getUserHandle();
-    const char * chatTitle = megaChatApi->getChatRoom(chatId)->getPeerFullnameByHandle(userHandle);
-    if(userHandle==this->megaChatApi->getMyUserHandle())
-       {ui->mAuthorDisplay->setText(tr("me"));}
+    if (isMine())
+    {
+        ui->mAuthorDisplay->setText(tr("me"));
+    }
     else
-       {ui->mAuthorDisplay->setText(tr(chatTitle));}
+    {
+        const char *chatTitle = megaChatApi->getChatRoom(chatId)->getPeerFullnameByHandle(message->getUserHandle());
+        ui->mAuthorDisplay->setText(tr(chatTitle));
+        delete chatTitle;
+    }
 }
 
 bool ChatMessage::isMine() const
 {
-    return this->message->getUserHandle() == this->megaChatApi->getMyUserHandle();
+    return (message->getUserHandle() == megaChatApi->getMyUserHandle());
 }
 
 void ChatMessage::markAsEdited()
@@ -229,12 +231,11 @@ void ChatMessage::markAsEdited()
     ui->mStatusDisplay->setText(ui->mStatusDisplay->text()+" (Edited)");
 }
 
-
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
    if (isMine() && !message->isManagementMessage())
    {
-        QMenu * menu = ui->mMsgDisplay->createStandardContextMenu(point);
+        QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
         auto action = menu->addAction(tr("&Edit message"));
         action->setData(QVariant::fromValue(this));
         connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
@@ -247,38 +248,38 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
 
 void ChatMessage::onMessageDelAction()
 {
-    chatWin->deleteChatMessage(this->message);
+    mChatWindow->deleteChatMessage(this->message);
 }
 
 void ChatMessage::onMessageEditAction()
 {
-    auto action = qobject_cast<QAction*>(QObject::sender());
     startEditingMsgWidget();
 }
 
 void ChatMessage::cancelMsgEdit(bool clicked)
 {
     clearEdit();
-    chatWin->ui->mMessageEdit->setText(QString());
+    mChatWindow->ui->mMessageEdit->setText(QString());
 }
 
 void ChatMessage::saveMsgEdit(bool clicked)
 {
-    std::string editedMsg =chatWin->ui->mMessageEdit->toPlainText().toStdString();
-    if(this->message->getContent() != editedMsg)
-                this->megaChatApi->editMessage(chatId,message->getMsgId() ,editedMsg.c_str());
+    std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
+    if(message->getContent() != editedMsg)
+    {
+        megaChatApi->editMessage(chatId,message->getMsgId(), editedMsg.c_str());
+    }
     clearEdit();
 }
 
 void ChatMessage::startEditingMsgWidget()
 {
-    edited = true;
-    chatWin->ui->mMsgSendBtn->setEnabled(false);
-    chatWin->ui->mMessageEdit->blockSignals(true);
+    mChatWindow->ui->mMsgSendBtn->setEnabled(false);
+    mChatWindow->ui->mMessageEdit->blockSignals(true);
     ui->mEditDisplay->hide();
     ui->mStatusDisplay->hide();
 
-    QPushButton * cancelBtn = new QPushButton(this);
+    QPushButton *cancelBtn = new QPushButton(this);
     connect(cancelBtn, SIGNAL(clicked(bool)), this, SLOT(cancelMsgEdit(bool)));
     cancelBtn->setText("Cancel edit");
     auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
@@ -290,15 +291,14 @@ void ChatMessage::startEditingMsgWidget()
     layout->insertWidget(3, saveBtn);
 
     setLayout(layout);
-    chatWin->ui->mMessageEdit->setText(ui->mMsgDisplay->toPlainText());
-    chatWin->ui->mMessageEdit->moveCursor(QTextCursor::End);
+    mChatWindow->ui->mMessageEdit->setText(ui->mMsgDisplay->toPlainText());
+    mChatWindow->ui->mMessageEdit->moveCursor(QTextCursor::End);
 }
 
-ChatMessage* ChatMessage::clearEdit()
+void ChatMessage::clearEdit()
 {
-    edited = false;
-    chatWin->ui->mMessageEdit->setText("");
-    chatWin->ui->mMessageEdit->moveCursor(QTextCursor::Start);
+    mChatWindow->ui->mMessageEdit->setText("");
+    mChatWindow->ui->mMessageEdit->moveCursor(QTextCursor::Start);
     auto header = ui->mHeader->layout();
     auto cancelBtn = header->itemAt(2)->widget();
     auto saveBtn = header->itemAt(3)->widget();
@@ -308,9 +308,8 @@ ChatMessage* ChatMessage::clearEdit()
     ui->mStatusDisplay->show();
     delete cancelBtn;
     delete saveBtn;
-    chatWin->ui->mMsgSendBtn->setEnabled(true);
-    chatWin->ui->mMessageEdit->blockSignals(false);
-    return this;
+    mChatWindow->ui->mMsgSendBtn->setEnabled(true);
+    mChatWindow->ui->mMessageEdit->blockSignals(false);
 }
 
 void ChatMessage::setManualMode(bool manualMode)
@@ -324,7 +323,6 @@ void ChatMessage::setManualMode(bool manualMode)
         manualSendBtn->setText("Send (Manual mode)");
         auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
         layout->insertWidget(2, manualSendBtn);
-
 
         QPushButton * discardBtn = new QPushButton(this);
         connect(discardBtn, SIGNAL(clicked(bool)), this, SLOT(onDiscardManualSending()));
@@ -346,22 +344,24 @@ void ChatMessage::setManualMode(bool manualMode)
 
 void ChatMessage::onManualSending()
 {
-   if(chatWin->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
+   if(mChatWindow->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
    {
-       this->megaChatApi->removeUnsentMessage(chatWin->mChatRoom->getChatId(), message->getRowId());
-       megachat::MegaChatMessage * tempMessage = this->megaChatApi->sendMessage(chatWin->mChatRoom->getChatId(), message->getContent());
+       megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), message->getRowId());
+       megachat::MegaChatMessage *tempMessage = megaChatApi->sendMessage(mChatWindow->mChatRoom->getChatId(), message->getContent());
        setManualMode(false);
-       chatWin->eraseChatMessage(message, true);
-       chatWin->moveManualSendingToSending(tempMessage);
+       mChatWindow->eraseChatMessage(message, true);
+       mChatWindow->moveManualSendingToSending(tempMessage);
    }
    else
-   {QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));}
+   {
+       QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));
+   }
 }
 
 void ChatMessage::onDiscardManualSending()
 {
-   this->megaChatApi->removeUnsentMessage(chatWin->mChatRoom->getChatId(), message->getRowId());
-   chatWin->eraseChatMessage(message, true);
+   megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), message->getRowId());
+   mChatWindow->eraseChatMessage(message, true);
 }
 
 

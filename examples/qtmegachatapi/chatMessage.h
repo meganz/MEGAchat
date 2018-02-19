@@ -20,11 +20,11 @@ class ChatMessage: public QWidget
         megachat::MegaChatHandle chatId;
         megachat::MegaChatMessage *message;
         megachat::MegaChatApi* megaChatApi;
-        QListWidgetItem * widgetItem;
+        QListWidgetItem * mListWidgetItem;
         void updateToolTip();
-        ChatWindow *chatWin;
-        bool edited;
+        ChatWindow *mChatWindow;
         friend class ChatWindow;
+
     public:
         ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg);
         virtual ~ChatMessage();
@@ -40,9 +40,8 @@ class ChatMessage: public QWidget
         void setWidgetItem(QListWidgetItem *item);
         megachat::MegaChatMessage *getMessage() const;
         void setMessage(megachat::MegaChatMessage *message);
-        ChatMessage* clearEdit();
+        void clearEdit();
         void setManualMode(bool manualMode);
-
 
     public slots:
         void onDiscardManualSending();
