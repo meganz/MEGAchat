@@ -1,6 +1,6 @@
 karere/
 res/
-rtctestapp_autogen/
+qtchat_autogen/
 CMakeFiles/
 CMakeDoxyfile.in
 CMakeDoxygenDefaults.cmake
@@ -8,5 +8,5 @@ CPackConfig.cmake
 CPackSourceConfig.cmake
 Makefile
 cmake_install.cmake
-rtctestapp
+qtchat
 

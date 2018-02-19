@@ -1,12 +1,14 @@
 #We need cmake 3.0 or later because of the autouic, autorcc reatures for Qt
 cmake_minimum_required(VERSION 3.0)
-project(rtctestapp)
+project(qtchat)
 
 FIND_PACKAGE(Qt5Widgets REQUIRED)
 
 set(CMAKE_MACOSX_RPATH 1)
 #set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+set(BINDING_QT_INCLUDE_DIR "../../bindings/qt/")
 set(BINDING_INCLUDE_DIRS ${BINDING_QT_INCLUDE_DIR})
 set_property(GLOBAL PROPERTY BINDING_INCLUDE_DIRS ${BINDING_INCLUDE_DIRS})
 
@@ -19,6 +21,12 @@ set (SRCS
      chatWindow.cpp
      main.cpp
      megachatapplication.cpp
+     ../../bindings/qt/QTMegaChatEvent.cpp
+     ../../bindings/qt/QTMegaChatListener.cpp
+     ../../bindings/qt/QTMegaChatRequestListener.cpp
+     ../../bindings/qt/QTMegaChatRoomListener.cpp
+
+
 #need to include also headers with Q_OBJECTs so that automoc knows to parse them
      widgetSubclass.h
 #==
@@ -47,16 +55,16 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KA
 get_property(KARERE_DEFINES GLOBAL PROPERTY KARERE_DEFINES)
 add_definitions(${KARERE_DEFINES})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -DKARERE_DISABLE_WEBRTC")
 set(SYSLIBS)
 if (CLANG_STDLIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
     set(SYSLIBS ${CLANG_STDLIB})
 endif()
 
-add_executable(rtctestapp MACOSX_BUNDLE ${SRCS})
-set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE AUTOUIC TRUE AUTORCC TRUE)
-target_link_libraries(rtctestapp
+add_executable(qtchat MACOSX_BUNDLE ${SRCS})
+set_target_properties(qtchat PROPERTIES AUTOMOC TRUE AUTOUIC TRUE AUTORCC TRUE)
+target_link_libraries(qtchat
     Qt5::Widgets
     karere
     ${SYSLIBS}
@@ -69,11 +77,11 @@ execute_process(COMMAND ${QMAKE_EXECUTABLE} -query QT_INSTALL_PLUGINS
 )
 
 if (APPLE) # AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
-    set_target_properties(rtctestapp PROPERTIES
+    set_target_properties(qtchat PROPERTIES
         MACOSX_RPATH ON
         INSTALL_RPATH "@executable_path")
 
-    set_target_properties(rtctestapp PROPERTIES
+    set_target_properties(qtchat PROPERTIES
         MACOSX_BUNDLE_INFO_STRING "${PROJECT_NAME}, Copyright 2016 Mega LTD."
         MACOSX_BUNDLE_ICON_FILE ""
         MACOSX_BUNDLE_GUI_IDENTIFIER "${megachat-test}"
@@ -87,36 +95,36 @@ if (APPLE) # AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
 
     INSTALL(FILES
        "${QT_PLUGINS_DIR}/platforms/libqcocoa.dylib"
-       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/platforms
+       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/qtchat.app/Contents/Plugins/platforms
        COMPONENT Runtime)
 
     INSTALL(FILES
        "${QT_PLUGINS_DIR}/imageformats/libqsvg.dylib"
        "${QT_PLUGINS_DIR}/imageformats/libqicns.dylib"
-       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats
+       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/qtchat.app/Contents/Plugins/imageformats
        COMPONENT Runtime)
 
     INSTALL(CODE "
        include(BundleUtilities)
        set(BU_CHMOD_BUNDLE_ITEMS ON)
        set(plugins
-           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/platforms/libqcocoa.dylib
-           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqsvg.dylib
-           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqicns.dylib
+           ${CMAKE_CURRENT_BINARY_DIR}/qtchat.app/Contents/Plugins/platforms/libqcocoa.dylib
+           ${CMAKE_CURRENT_BINARY_DIR}/qtchat.app/Contents/Plugins/imageformats/libqsvg.dylib
+           ${CMAKE_CURRENT_BINARY_DIR}/qtchat.app/Contents/Plugins/imageformats/libqicns.dylib
        )
 
     fixup_bundle(
-           \"${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app\" \"\${plugins}\" \"\")"
+           \"${CMAKE_CURRENT_BINARY_DIR}/qtchat.app\" \"\${plugins}\" \"\")"
            COMPONENT Runtime)
 
-    INSTALL(TARGETS rtctestapp BUNDLE DESTINATION . COMPONENT Runtime)
+    INSTALL(TARGETS qtchat BUNDLE DESTINATION . COMPONENT Runtime)
 
     set(CPACK_BINARY_DRAGNDROP ON)
     set(CPACK_OSX_PACKAGE_VERSION 10.10)
     include(CPack)
 elseif(UNIX)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
-    INSTALL(TARGETS rtctestapp DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+    INSTALL(TARGETS qtchat DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
     INSTALL(FILES
        "${QT_PLUGINS_DIR}/platforms/libqxcb.so"
        DESTINATION ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms
@@ -134,7 +142,7 @@ elseif(UNIX)
 #            ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms/libqxcb.so
 #            ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats/libqsvg.so
 #        )
-#        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/rtctestapp\" \"\${plugins}\" \"\")
+#        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/qtchat\" \"\${plugins}\" \"\")
 #    "
 #    COMPONENT Runtime)
 

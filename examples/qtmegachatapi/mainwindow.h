@@ -1,14 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QDrag>
 #include <QMimeData>
-//#include <mstrophepp.h>
 #include <webrtc.h>
-//#include <../strophe.disco.h>
 #include <ui_mainwindow.h>
 #include <ui_clistitem.h>
 #include <ui_loginDialog.h>
@@ -36,26 +33,37 @@ class Client;
 QString prettyInterval(int64_t secs);
 class CListItem;
 
-class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
+
+class LoginDialog: public QDialog //, public karere::IApp::ILoginDialog
 {
     Q_OBJECT
-    Ui::LoginDialog ui;
-    promise::Promise<std::pair<std::string, std::string>> mPromise;
-    static QString sLoginStageStrings[kLast+1];
-    ~LoginDialog();
-public:
+    public:
+        enum LoginStage {
+            authenticating,
+            badCredentials,
+            loggingIn,
+            fetchingNodes,
+            loginComplete,
+            last=loginComplete
+        };
 
-    LoginDialog(QWidget* parent);
-    void destroy();
-    void enableControls(bool enable);
-    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
-    virtual void setState(LoginStage state);
+        LoginDialog(QWidget* parent);
+        void destroy();
+        void enableControls(bool enable);
+        virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials();
+        virtual void setState(LoginStage state);
 
-public slots:
-    void onOkBtn(bool);
-    void onCancelBtn(bool);
-    void onType(const QString&);
-    virtual void closeEvent(QCloseEvent *event);
+    public slots:
+        void onOkBtn(bool);
+        void onCancelBtn(bool);
+        void onType(const QString&);
+        virtual void closeEvent(QCloseEvent *event);
+
+    private:
+        Ui::LoginDialog ui;
+        promise::Promise<std::pair<std::string, std::string>> mPromise;
+        static QString sLoginStageStrings[last+1];
+        ~LoginDialog();
 };
 
 
@@ -68,21 +76,22 @@ class MainWindow :
     Q_OBJECT
     karere::Client* mClient;
 public:
-    explicit MainWindow(karere::Client* aClient=nullptr);
-    void setClient(karere::Client& client) { mClient = &client;}
-
-    //Assign a pointer to MegachatApi Object
-    void setMegaChatApi(MegaChatApi * mchatApi) {this->megaChatApi=mchatApi;}
-
-    karere::Client& client() const { return *mClient; }
+    explicit MainWindow(karere::Client* aClient = nullptr);
     ~MainWindow();
+    void setClient(karere::Client& client) {mClient = &client;}
+    void setMegaChatApi(MegaChatApi * mchatApi) {this->megaChatApi = mchatApi;}
+    void setMegaApi(MegaApi * mApi) {this->megaApi = mApi;}
     Ui::MainWindow ui;
-
-    //MOVE LOGIN DIALOG TO MEGACHATAPPLICATION
-    LoginDialog* mLoginDlg;
-
-
     megachat::MegaChatApi * megaChatApi;
+    mega::MegaApi * megaApi;
+
+    //New peer chat add
+    void addPeerChat(MegaChatHandle chatId,MegaChatApi *mChatApi);
+
+
+    //Remove this object
+    karere::Client& client() const { return *mClient; }
+
     void removeItem(IListItem& item);
 
 //IContactList
@@ -152,13 +161,13 @@ public:
 extern bool inCall;
 extern QColor gAvatarColors[];
 extern QString gOnlineIndColors[karere::Presence::kLast+1];
-class CListItem: public QWidget, public virtual karere::IApp::IListItem
+
+class CListItem: public QWidget
 {
 protected:
     Ui::CListItemGui ui;
     int mLastOverlayCount = 0;
 public:
-//karere::ITitleDisplay interface
     virtual void onUnreadCountChanged(int count)
     {
         if (count < 0)
@@ -185,7 +194,7 @@ public:
         ui.setupUi(this);
         ui.mUnreadIndicator->hide();
     }
-    virtual promise::Promise<ChatWindow*> showChatWindow() = 0;
+    //virtual promise::Promise<ChatWindow*> showChatWindow() = 0;
     void showAsHidden()
     {
         ui.mName->setStyleSheet("color: rgba(0,0,0,128)\n");
@@ -591,5 +600,135 @@ public:
         ui.mName->setText(text);
     }
 };
+
+
+//----------------------------------------------------------------------------------->
+class CListChatItemTwo: public CListItem
+{
+    Q_OBJECT
+protected:
+      MegaChatRoom *chatRoom;
+      MegaChatListItem *chatListItem;
+public:
+     promise::Promise<ChatWindow*> showChatWindow()
+     {
+         ChatWindow* window=nullptr;
+         /*auto& thisRoom = room();
+         if (!thisRoom.appChatHandler())
+         {
+             window = new ChatWindow(this, thisRoom);
+             thisRoom.setAppChatHandler(window);
+         }
+         else
+         {
+             //window = static_cast<ChatWindow*>(thisRoom.appChatHandler()->userp);
+         }
+         window->show();*/
+         return window;
+    }
+
+    CListChatItemTwo(QWidget* parent, MegaChatHandle chatId, MegaChatApi *mChatApi): CListItem(parent)
+    {
+        chatRoom=mChatApi->getChatRoom(chatId);
+        chatListItem=mChatApi->getChatListItem(chatId);
+    }
+
+    virtual void onLastMessageUpdated()
+    {
+        /*updateToolTip();
+        GUI_LOG_DEBUG("%s: onLastMessageUpdated: type 0x%x, data: %s",
+            karere::Id(chatRoom->getChatId()).toString(),
+            (chatListItem->getLastMessageType(),chatListItem->getLastMessageType()?chatListItem->getLastMessage(): "<none>")
+            );
+        */
+    }
+
+    virtual void onLastTsUpdated(uint32_t ts)
+    {
+        /*GUI_LOG_DEBUG("%s: onLastTsUpdated: %u",
+            karere::Id(chatRoom->getChatId()).toString(),
+            ts);*/
+    }
+
+    virtual void onChatOnlineState(const MegaChatHandle state)
+    {
+        /*MegaChatHandle virtPresence = (state == MegaChatApi::CHAT_CONNECTION_ONLINE)
+            ?MegaChatApi::STATUS_ONLINE
+            :MegaChatApi::STATUS_OFFLINE;
+
+        ui.mOnlineIndicator->setStyleSheet(
+            QString("background-color: ")+gOnlineIndColors[virtPresence]
+            +";border-radius: 4px");*/
+    }
+
+    virtual void onVisibilityChanged(int newVisibility) {}
+
+    virtual void mouseDoubleClickEvent(QMouseEvent* event)
+    {
+        showChatWindow();
+    }
+protected:
+    virtual void updateToolTip() = 0;
+protected slots:
+    void truncateChat()
+    {/*
+        auto& thisroom = room();
+        if (thisroom.chat().empty())
+            return;
+        thisroom.parent.client.api.call(
+            &::mega::MegaApi::truncateChat,
+            thisroom.chatid(),
+            thisroom.chat().at(thisroom.chat().highnum()).id().val);*/
+    }
+};
+
+
+class CListPeerChatItemThree: public CListChatItemTwo
+{
+protected:
+      MegaChatRoom *chatRoom;
+      MegaChatListItem *chatListItem;
+public:
+    CListPeerChatItemThree(QWidget* parent,megachat::MegaChatHandle chatId,MegaChatApi *mChatApi)
+        : CListChatItemTwo(parent,chatId,mChatApi)
+    {
+        chatRoom=mChatApi->getChatRoom(chatId);
+        chatListItem=mChatApi->getChatListItem(chatId);
+
+        if(!chatListItem->isActive())
+            showAsHidden();
+
+        ui.mAvatar->setText("1");
+        updateToolTip();
+    }
+
+    void updateToolTip() //WARNING: Must be called after app init, as the xmpp jid is not initialized during creation
+    {
+        QString text(tr("1on1 Chat room:"));
+        text.append(QString::fromStdString(karere::Id(chatRoom->getChatId()).toString()));
+        text.append(tr("\nEmail: "));
+        text.append(QString::fromStdString(chatRoom->getPeerEmail(0)));
+        text.append(tr("\nUser handle: ")).append(QString::fromStdString(std::to_string(chatListItem->getPeerHandle())));        
+        text.append(tr("\nLast message:\n")).append(QString::fromStdString(chatListItem->getLastMessage()));
+        setToolTip(text);
+        ui.mName->setText(text);
+    }
+
+    void contextMenuEvent(QContextMenuEvent* event)
+    {
+        QMenu menu(this);
+        auto actTruncate = menu.addAction(tr("Truncate chat"));
+        connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
+        menu.setStyleSheet("background-color: lightgray");
+        menu.exec(event->globalPos());
+    }
+
+    virtual void onTitleChanged(const std::string& title)
+    {
+        QString text = QString::fromStdString(title);
+        ui.mName->setText(text);
+    }
+};
+//----------------------------------------------------------------------------------->
 
 #endif // MAINWINDOW_H

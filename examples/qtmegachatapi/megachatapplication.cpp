@@ -42,7 +42,6 @@ using namespace promise;
 using namespace mega;
 using namespace megachat;
 using namespace karere;
-using namespace strophe;
 
 namespace megachatapplication {
 QChar kOnlineSymbol_InProgress(0x267a);
@@ -57,131 +56,80 @@ QString kOnlineStatusBtnStyle = QStringLiteral(
 }
 
 
-
-
-AppDelegate appDelegate;
-const QEvent::Type GcmEvent::type = (QEvent::Type)QEvent::registerEventType();
-
-bool AppDelegate::event(QEvent* event)
-{
-    if (event->type() != GcmEvent::type)
-        return false;
-
-    megaProcessMessage(static_cast<GcmEvent*>(event)->ptr);    
-    return true;
-}
-
-void AppDelegate::onAppTerminate(MegaChatApplication *megaChatApp)
+void MegaChatApplication::onAppTerminate()
 {
     static bool called = false;
     if (called)
         return;
-    called = true;   
-    //delete megaChatApp;
+    called = true;
+    //delete this;
 }
 
-void AppDelegate::onEsidLogout()
-{/*
-    marshallCall([this]()
-    {
-        QObject::disconnect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-
-        gClient.reset();
-        remove((gAppDir+"/sid").c_str());
-        delete mainWin;
-        QMessageBox::critical(nullptr, tr("Logout"), tr("Your session has been closed remotely"));
-        createWindowAndClient();
-
-        gClient->loginSdkAndInit(nullptr)
-        .then([]()
-        {
-            KR_LOG_DEBUG("New client initialized with new session");
-            saveSid(gSdk->dumpSession());
-            QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
-            gClient->connect(Presence::kInvalid);
-        })
-        .fail([](const promise::Error& err)
-        {
-            KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
-        });
-    }, NULL);*/
-}
-
-extern "C" void AppDelegate::myMegaPostMessageToGui(void* msg, void* appCtx, AppDelegate *appDelegate)
+MegaChatApplication::MegaChatApplication(int &argc ,char** argv) : QApplication(argc,argv)
 {
-    QEvent* event = new GcmEvent(msg);
-    QApplication::postEvent(appDelegate, event);
-}
-
-
-MegaChatApplication::MegaChatApplication(std::string &dir)
-{
-         appDir=dir;
-         configureLogs();
-
-         //Create Main Window
-         mainWin = new MainWindow();
-
-         //Create MegaAPI
-         megaApi=new ::mega::MegaApi("karere-native", appDir.c_str(), "Karere Native");
-         megaApi->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
-         megaApi->addListener(this);
-
-         //Create MegaChatAPI
-         megaChatApi=new ::megachat::MegaChatApi(megaApi);
-         megaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
-         megaChatApi->addChatRequestListener(this);
-         megaChatApi->addChatListener(this);
-
-         #ifndef KARERE_DISABLE_WEBRTC
-            megaChatApi->addChatCallListener(mainWin);
-         #endif
-
-         mainWin->setMegaChatApi(megaChatApi);
-
-         //Create Login Dialog
-         loginDlg = new LoginDialog(nullptr);
-
-         //Create websocket
-         websocketsIO = new LibwsIO();
+     this->setQuitOnLastWindowClosed(false);
+     appDir = karere::createAppDir();
+     configureLogs();
+     mainWin = new MainWindow();
+     loginDlg = nullptr;
+     megaApi = new ::mega::MegaApi("karere-native", appDir.c_str(), "Karere Native");
+     megaApi->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+     megaApi->addListener(this);
+     megaChatApi = new ::megachat::MegaChatApi(megaApi);
+     megaChatApi->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
+     megaChatApi->addChatRequestListener(this);
+     megaChatApi->addChatListener(this);
+     mainWin->setMegaChatApi(megaChatApi);
+     mainWin->setMegaApi(megaApi);
 }
 
 MegaChatApplication::~MegaChatApplication()
 {
-    megaApi->logout(nullptr);
-    megaChatApi->logout(nullptr);
-
-    marshallCall([this]()
-    {
     delete megaChatApi;
     delete megaApi;
-    qApp->quit();
-    delete websocketsIO;
     delete mainWin;
     loginDlg->destroy();
     delete logger;
-    }, NULL);
 }
 
-int MegaChatApplication::init()
+void MegaChatApplication::init()
 {
-    return megaChatApi->init(sid);
+    int initializationState = megaChatApi->init(sid);
+
+    if (!this->getSid())
+    {
+        assert(initializationState == MegaChatApi::INIT_WAITING_NEW_SESSION);
+        this->login();
+    }
+    else
+    {
+        assert(initializationState == MegaChatApi::INIT_OFFLINE_SESSION);
+    }
 }
 
 void MegaChatApplication::login()
 {
+    loginDlg = new LoginDialog(nullptr);
     auto pms = loginDlg->requestCredentials();
     pms
        .then([this](const std::pair<std::string, std::string>& cred)
        {
            assert(loginDlg);
-           loginDlg->setState(karere::IApp::ILoginDialog::kLoggingIn);
-           megaApi->login(cred.first.c_str(), cred.second.c_str());           
+           loginDlg->setState(LoginDialog::loggingIn);
+           megaApi->login(cred.first.c_str(), cred.second.c_str());
+           QObject::connect(mainWin, SIGNAL(esidLogout()), this, SLOT(onAppTerminate()));
        })
-       .fail([](const promise::Error& err)
+       .fail([this](const promise::Error& err)
        {
+            this->quit();
        });
-    QObject::connect(mainWin, SIGNAL(esidLogout()), &appDelegate, SLOT(onEsidLogout()));
+}
+
+void MegaChatApplication::logout()
+{
+    megaApi->logout();
+    megaChatApi->logout();
+    //Implements differents options depending on the status
 }
 
 void MegaChatApplication::readSid()
@@ -192,7 +140,7 @@ void MegaChatApplication::readSid()
     {
        sidf.getline(buf, 256);
        if (!sidf.fail())
-           sid=strdup(buf);
+           sid = strdup(buf);
            //strcpy (sid,buf);
     }
 }
@@ -206,7 +154,7 @@ void MegaChatApplication::sigintHandler(int)
 {
     printf("SIGINT Received\n"); //don't use the logger, as it may cause a deadlock
     fflush(stdout);
-    marshallCall([this]{mainWin->close();}, NULL);
+    mainWin->close();;
 }
 
 void MegaChatApplication::saveSid(const char* sdkSid)
@@ -219,10 +167,12 @@ void MegaChatApplication::saveSid(const char* sdkSid)
 
 void MegaChatApplication::configureLogs()
 {
-    std::string logPath=appDir+"/log.txt";
+    std::string logPath = appDir+"/log.txt";
     logger = new MegaLoggerApplication(logPath.c_str());
-    MegaApi::addLoggerObject(logger);
-    MegaApi::setLogToConsole(false);
+
+    //MegaApi::addLoggerObject(logger);
+    //MegaApi::setLogToConsole(false);
+
     MegaChatApi::setLoggerObject(logger);
     MegaChatApi::setLogToConsole(false);
     MegaChatApi::setCatchException(false);
@@ -241,26 +191,20 @@ void MegaChatApplication::onChatInitStateUpdate(megachat::MegaChatApi *api, int 
     else if (newState == karere::Client::kInitErrSidInvalid)
     {
         mainWin->hide();
-        marshallCall([this]()
-        {
-            //CHECK IF THE FUNCTION IS IN THE CORRECT AMBIT
-            Q_EMIT mainWin->esidLogout();
-
-        }, NULL);
+        Q_EMIT mainWin->esidLogout();
     }
 
     if (newState == karere::Client::kInitHasOfflineSession ||
             newState == karere::Client::kInitHasOnlineSession)
     {
-        //setWindowTitle(mClient->myEmail().c_str());
-        mainWin->setWindowTitle("");
+        mainWin->setWindowTitle(megaChatApi->getMyEmail());
     }
     else
     {
         mainWin->setWindowTitle("");
     }
 }
-
+//------------------------------------------------------------------------------------------------------>
 
 
 void MegaChatApplication::onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item){}
@@ -298,12 +242,12 @@ void MegaChatApplication::onRequestFinish(mega::MegaApi *api, mega::MegaRequest 
         case mega::MegaRequest::TYPE_LOGIN:
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
-               loginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
+               loginDlg->setState(LoginDialog::fetchingNodes);
                api->fetchNodes();
             }
             else
             {
-               loginDlg->setState(IApp::ILoginDialog::kBadCredentials);
+               loginDlg->setState(LoginDialog::badCredentials);
                //Request credentials again
             }
             break;
@@ -323,6 +267,20 @@ void MegaChatApplication::onRequestFinish(mega::MegaApi *api, mega::MegaRequest 
     }
 }
 
+void MegaChatApplication::addChats()
+{
+    MegaChatListItemList * chatList = megaChatApi->getChatListItems();
+    for(int i=0; i<chatList->size();i++)
+    {
+        if (!chatList->get(i)->isGroup())
+        {
+            mainWin->addPeerChat(chatList->get(i)->getChatId(),this->megaChatApi);
+        }
+    }
+}
+
+
+
 // implementation for MegachatRequestListener
 void MegaChatApplication::onRequestFinish(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError* e)
 {
@@ -331,7 +289,9 @@ void MegaChatApplication::onRequestFinish(megachat::MegaChatApi* megaChatApi, me
         case megachat::MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
-                KR_LOG_DEBUG("CONNECT OK");
+               addChats();
+
+               int a=0;
             }
             else
             {
@@ -339,6 +299,7 @@ void MegaChatApplication::onRequestFinish(megachat::MegaChatApi* megaChatApi, me
             break;
     }
 }
+
 
 
 
@@ -392,6 +353,8 @@ void setVidencParams()
 #endif
 }
 */
+//------------------------------------------------------------------------------------------------------>
+
 
 MegaLoggerApplication::MegaLoggerApplication(const char *filename)
 {

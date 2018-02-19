@@ -26,33 +26,23 @@ using namespace mega;
 using namespace megachat;
 using namespace karere;
 
-void createWindowAndClient(std::string &appDir)
-{
-    MegaChatApplication *mChatApplication = new MegaChatApplication(appDir);
-    mChatApplication->readSid();
-    int initializationState = mChatApplication->init();
+MegaChatApplication *mChatApplication = nullptr;
 
-    if (!mChatApplication->getSid())
-    {
-        assert(initializationState == MegaChatApi::INIT_WAITING_NEW_SESSION);
-        mChatApplication->login();
-    }
-    else
-    {
-        assert(initializationState == MegaChatApi::INIT_OFFLINE_SESSION);
-    }
+void createWindowAndClient(int &argc, char **argv)
+{
+    mChatApplication = new MegaChatApplication(argc,argv);
+    mChatApplication->readSid();
+    mChatApplication->init();
 }
 
 int main(int argc, char **argv)
 {
-    std::string appDir = karere::createAppDir();
     const char* customApiUrl = getenv("KR_API_URL");
     if (customApiUrl)
     {
         KR_LOG_WARNING("Using custom API server, due to KR_API_URL env variable");
         ::mega::MegaClient::APIURL = customApiUrl;
     }
-    //gLogger.addUserLogger("karere-remote", new RemoteLogger);
 
     #ifdef __APPLE__
     //Set qt plugin dir for release builds
@@ -70,9 +60,7 @@ int main(int argc, char **argv)
     #endif
     #endif
 
-    QApplication a(argc, argv);
-    a.setQuitOnLastWindowClosed(false);
-    createWindowAndClient(appDir);
-    return a.exec();
+    createWindowAndClient(argc,argv);
+    return mChatApplication->exec();
 }
 #include <main.moc>
