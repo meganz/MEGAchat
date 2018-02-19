@@ -36,8 +36,6 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
         mkdir(appDir.c_str(), 0700);
     }
 
-    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
-    MegaChatApi::setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     configureLogs();
 
     // Keep the app open until it's explicitly closed
@@ -134,6 +132,8 @@ void MegaChatApplication::configureLogs()
     std::string logPath = appDir + "/log.txt";
     logger = new MegaLoggerApplication(logPath.c_str());
     logger->setLogConsole(true);
+    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+    MegaChatApi::setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLoggerObject(logger);
     MegaChatApi::setLogToConsole(true);
     MegaChatApi::setCatchException(false);
@@ -254,7 +254,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
 
 void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequest *request, MegaChatError* e)
 {
-    string firstname = "";
     switch (request->getType())
     {
          case MegaChatRequest::TYPE_CONNECT:
