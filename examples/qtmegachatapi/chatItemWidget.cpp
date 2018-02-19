@@ -143,31 +143,25 @@ void ChatItemWidget::unshowAsHidden()
     ui->mName->setStyleSheet("color: rgba(255,255,255,255)\n");
 }
 
-
-
 ChatWindow* ChatItemWidget::showChatWindow()
 {
-    ChatWindow* window;
     std::string titleStd = ui->mName->text().toStdString();
     const char * chatWindowTitle = titleStd.c_str();
     megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(mChatId);
 
     if (!mChatWindow)
     {
-        window = new ChatWindow(this, megaChatApi, chatRoom->copy(), chatWindowTitle);
-        mChatWindow = window;
-        window->show();
-        window->openChatRoom();
-        delete chatRoom;
-        return window;
+        mChatWindow = new ChatWindow(this, megaChatApi, chatRoom->copy(), chatWindowTitle);
+        mChatWindow->show();
+        mChatWindow->openChatRoom();
     }
     else
     {
-        window = static_cast<ChatWindow*>(mChatWindow);
-        window->show();
-        window->setWindowState(Qt::WindowActive);
-        return window;
+        mChatWindow->show();
+        mChatWindow->setWindowState(Qt::WindowActive);
     }
+    delete chatRoom;
+    return mChatWindow;
 }
 
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
