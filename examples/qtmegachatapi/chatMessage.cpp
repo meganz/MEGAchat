@@ -107,22 +107,31 @@ ChatMessage::~ChatMessage()
 
 void ChatMessage::updateToolTip()
 {
-    megachat::MegaChatHandle msgId;
-    megachat::MegaChatHandle chatId = chatWin->mChatRoom->getChatId();
-    if (message->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED || message->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
-        msgId = message->getMsgId();
-    else
-        msgId = message->getTempId();
+    QString tooltip;
 
-    QString tooltip = NULL;
-        tooltip.append(tr("msgid: "))
-        .append(QString::fromStdString(std::to_string(msgId)))
-        .append(tr("\ntype: "))
-        .append(QString::fromStdString(std::to_string(message->getType())))
-        .append(tr("\nuserid: "))
-        .append(QString::fromStdString(std::to_string(message->getUserHandle())))
-        .append(tr("\nchatid: "))
-        .append(QString::fromStdString(std::to_string(chatId)));
+    megachat::MegaChatHandle msgId;
+    int status = message->getStatus();
+    switch (status)
+    {
+    case megachat::MegaChatMessage::STATUS_SENDING:
+        tooltip.append(tr("tempId: "));
+        msgId = message->getTempId();
+        break;
+    case megachat::MegaChatMessage::STATUS_SENDING_MANUAL:
+        tooltip.append(tr("rowId: "));
+        msgId = message->getRowId();
+        break;
+    default:
+        tooltip.append(tr("msgId: "));
+        msgId = message->getMsgId();
+        break;
+    }
+
+    tooltip.append(QString::fromStdString(std::to_string(msgId)))
+            .append(tr("\ntype: "))
+            .append(QString::fromStdString(std::to_string(message->getType())))
+            .append(tr("\nuserid: "))
+            .append(QString::fromStdString(std::to_string(message->getUserHandle())));
     ui->mHeader->setToolTip(tooltip);
 }
 
