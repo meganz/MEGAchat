@@ -306,7 +306,7 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
     {
        this->show();
     }
-    else if (newState == MegaChatApi::INIT_NO_CACHE)
+    else if (newState == MegaChatApi::INIT_ERROR)
     {
        this->hide();
        Q_EMIT esidLogout();

@@ -82,7 +82,8 @@ void MegaChatApplication::init()
     }
     else
     {
-        assert(initState == MegaChatApi::INIT_OFFLINE_SESSION);
+        assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
+               || initState == MegaChatApi::INIT_NO_CACHE);
         megaApi->fastLogin(mSid);
     }
 }
