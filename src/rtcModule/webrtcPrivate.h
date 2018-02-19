@@ -177,8 +177,8 @@ public:
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
-    virtual void stopCallsTimers();
-    virtual void restartCallsTimers();
+    virtual void stopCallsTimers(int shard);
+    virtual void restartCallsTimers(int shard);
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd

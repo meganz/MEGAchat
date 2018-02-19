@@ -300,11 +300,11 @@ public:
      * @brief This function is used to stop incall timer call during reconnection process
      * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
      */
-    virtual void stopCallsTimers() = 0;
+    virtual void stopCallsTimers(int shard) = 0;
     /**
      * @brief This function is used to restart incall timer call after reconnection process
      */
-    virtual void restartCallsTimers() = 0;
+    virtual void restartCallsTimers(int shard) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -393,6 +393,8 @@ public:
     }
 
     void heartbeat();
+
+    int shard();
 };
 
 enum ServerHistFetchState

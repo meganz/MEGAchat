@@ -511,25 +511,31 @@ void RtcModule::hangupAll(TermCode code)
     }
 }
 
-void RtcModule::stopCallsTimers()
+void RtcModule::stopCallsTimers(int shard)
 {
     for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
     {
         auto& call = callIt->second;
         callIt++;
-        // Stop timer
-        call->stopIncallPingTimer(false);
+
+        if (call->chat().connection().shard() == shard)
+        {
+            call->stopIncallPingTimer(false);
+        }
     }
 }
 
-void RtcModule::restartCallsTimers()
+void RtcModule::restartCallsTimers(int shard)
 {
     for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
     {
         auto& call = callIt->second;
         callIt++;
-        // Restart timer
-        call->startIncallPingTimer();
+
+        if (call->chat().connection().shard() == shard)
+        {
+            call->startIncallPingTimer();
+        }
     }
 }
 
