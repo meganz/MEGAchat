@@ -46,7 +46,8 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                     .append("\nHandle: ")
                     .append(QString::fromStdString(std::to_string(nodeList->get(i)->getHandle())))
                     .append("\nSize: ")
-                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())));
+                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
+                    .append(" bytes");
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
