@@ -12,7 +12,7 @@ class ContactItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ContactItemWidget(QWidget *parent , megachat::MegaChatApi * mChatApi, mega::MegaApi * mApi, megachat::MegaChatHandle mUserHandle);
+        ContactItemWidget(QWidget *parent , megachat::MegaChatApi * megChatApi, mega::MegaApi * megaApi, megachat::MegaChatHandle userHandle);
         virtual ~ContactItemWidget();
         void contextMenuEvent(QContextMenuEvent* event);
         void setAvatarStyle();
@@ -22,7 +22,7 @@ class ContactItemWidget : public QWidget
 
     private:
         Ui::ChatItem *ui;
-        megachat::MegaChatHandle userHandle;
+        megachat::MegaChatHandle mUserHandle;
         megachat::MegaChatApi * megaChatApi;
         mega::MegaApi * megaApi;
 

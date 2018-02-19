@@ -4,13 +4,13 @@
 #include <QMessageBox>
 #include <QMenu>
 
-ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * mChatApi, mega::MegaApi * mApi, megachat::MegaChatHandle mUserHandle) :
+ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * megaChatApi, mega::MegaApi * megaApi, megachat::MegaChatHandle userHandle) :
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
-    megaApi = mApi;
-    megaChatApi = mChatApi;
-    userHandle = mUserHandle;
+    this->megaApi = megaApi;
+    this->megaChatApi = megaChatApi;
+    this->mUserHandle = userHandle;
     const char *contactEmail = megaChatApi->getContactEmail(userHandle);
     megachat::MegaChatRoom * chatRoom = megaChatApi->getChatRoomByUser(userHandle);
     ui->setupUi(this);
@@ -22,12 +22,12 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
 
     delete chatRoom;
     delete contactEmail;
-    megaChatApi->getUserFirstname(userHandle);
+    this->megaChatApi->getUserFirstname(userHandle);
 }
 
 void ContactItemWidget::setAvatarStyle()
 {
-    QColor & col = gAvatarColors[userHandle & 0x0f];
+    QColor & col = gAvatarColors[mUserHandle & 0x0f];
     QString style = "border-radius: 4px;"
             "border: 2px solid rgba(0,0,0,0);"
             "color: white;"
@@ -84,7 +84,7 @@ void ContactItemWidget::onCreateGroupChat()
    {
         megachat::MegaChatPeerList *peerList;
         peerList = megachat::MegaChatPeerList::createInstance();
-        peerList->addPeer(this->userHandle, 2);
+        peerList->addPeer(mUserHandle, 2);
         this->megaChatApi->createChat(true, peerList);
    }
    msgBox.deleteLater();
@@ -92,7 +92,7 @@ void ContactItemWidget::onCreateGroupChat()
 
 void ContactItemWidget::onContactRemove()
 {
-    char * email = megaChatApi->getContactEmail(userHandle);
+    char * email = megaChatApi->getContactEmail(mUserHandle);
     mega::MegaUser *contact = megaApi->getContact(email);
     QString msg = tr("Are you sure you want to remove ");
     msg.append(ui->mName->text());

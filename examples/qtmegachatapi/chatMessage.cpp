@@ -109,7 +109,7 @@ ChatMessage::~ChatMessage()
 void ChatMessage::updateToolTip()
 {
     megachat::MegaChatHandle msgId;
-    megachat::MegaChatHandle chatId = chatWin->chatRoom->getChatId();
+    megachat::MegaChatHandle chatId = chatWin->mChatRoom->getChatId();
     if (message->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED || message->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
         msgId = message->getMsgId();
     else
@@ -346,10 +346,10 @@ void ChatMessage::setManualMode(bool manualMode)
 
 void ChatMessage::onManualSending()
 {
-   if(chatWin->chatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
+   if(chatWin->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
    {
-       this->megaChatApi->removeUnsentMessage(chatWin->chatRoom->getChatId(), message->getRowId());
-       megachat::MegaChatMessage * tempMessage = this->megaChatApi->sendMessage(chatWin->chatRoom->getChatId(), message->getContent());
+       this->megaChatApi->removeUnsentMessage(chatWin->mChatRoom->getChatId(), message->getRowId());
+       megachat::MegaChatMessage * tempMessage = this->megaChatApi->sendMessage(chatWin->mChatRoom->getChatId(), message->getContent());
        setManualMode(false);
        chatWin->eraseChatMessage(message, true);
        chatWin->moveManualSendingToSending(tempMessage);
@@ -360,7 +360,7 @@ void ChatMessage::onManualSending()
 
 void ChatMessage::onDiscardManualSending()
 {
-   this->megaChatApi->removeUnsentMessage(chatWin->chatRoom->getChatId(), message->getRowId());
+   this->megaChatApi->removeUnsentMessage(chatWin->mChatRoom->getChatId(), message->getRowId());
    chatWin->eraseChatMessage(message, true);
 }
 

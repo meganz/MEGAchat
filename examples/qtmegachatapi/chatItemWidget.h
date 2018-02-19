@@ -15,14 +15,14 @@ class ChatItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ChatItemWidget(QWidget *parent , megachat::MegaChatApi* mChatApi, const megachat::MegaChatListItem *item);
+        ChatItemWidget(QWidget *parent , megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item);
         virtual ~ChatItemWidget();
         ChatWindow* showChatWindow();
         void invalidChatWindowHandle();
         void unshowAsHidden();
         void showAsHidden();
         void contextMenuEvent(QContextMenuEvent* event);
-        void setChatHandle(const megachat::MegaChatHandle &chatId);
+        void setChatHandle(const megachat::MegaChatHandle &mChatId);
         megachat::MegaChatHandle getChatHandle() const;
         void setOlderMessageLoaded(const megachat::MegaChatHandle &msgId);
         megachat::MegaChatHandle getOlderMessageLoaded() const;
@@ -37,14 +37,14 @@ class ChatItemWidget : public QWidget
     private:
         Ui::ChatItem *ui;
         int mLastOverlayCount;
-        megachat::MegaChatHandle olderMessageLoaded;
-        megachat::MegaChatHandle chatHandle;
+        megachat::MegaChatHandle mOlderMessageLoaded;
+        megachat::MegaChatHandle mChatId;
         megachat::MegaChatApi * megaChatApi;
-        ChatWindow * chatWindowHandle;
-        QListWidgetItem *widgetItem;
+        ChatWindow * mChatWindow;
+        QListWidgetItem *mListWidgetItem;
 
     protected:
-        MainWindow * mainWin;
+        MainWindow * mMainWin;
 
     private slots:
         void leaveGroupChat();

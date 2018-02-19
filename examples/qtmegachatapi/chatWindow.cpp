@@ -11,10 +11,10 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
     nSending = 0;
     loadedMessages = 0;
     nManualSending = 0;
-    chatRoom = cRoom;
+    mChatRoom = cRoom;
     megaChatApi = mChatApi;
-    chatItemWidget = (ChatItemWidget *) parent;
-    logger = ((MainWindow *)chatItemWidget->parent())->mLogger;
+    mChatItemWidget = (ChatItemWidget *) parent;
+    mLogger = ((MainWindow *)mChatItemWidget->parent())->mLogger;
 
     ui->setupUi(this);
     ui->mSplitter->setStretchFactor(0,1);
@@ -37,7 +37,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
         ui->mVideoCallBtn->hide();
     #endif
 
-    if (!chatRoom->isGroup())
+    if (!mChatRoom->isGroup())
         ui->mMembersBtn->hide();
     else
         setAcceptDrops(true);
@@ -45,7 +45,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
 
-    if (!chatRoom->isActive())
+    if (!mChatRoom->isActive())
         ui->mMessageEdit->setEnabled(false);
 
     QDialog::show();
@@ -55,19 +55,19 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* mChatApi, megacha
 void ChatWindow::openChatRoom()
 {
     int source=0;
-    bool result = this->megaChatApi->openChatRoom(chatRoom->getChatId(),megaChatRoomListenerDelegate);
+    bool result = this->megaChatApi->openChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     if(result)
     {
-        source = megaChatApi->loadMessages(chatRoom->getChatId(),NMESSAGES_LOAD);
+        source = megaChatApi->loadMessages(mChatRoom->getChatId(),NMESSAGES_LOAD);
     }
 }
 
 ChatWindow::~ChatWindow()
 {
-    this->megaChatApi->closeChatRoom(chatRoom->getChatId(),megaChatRoomListenerDelegate);
-    chatItemWidget->invalidChatWindowHandle();
+    this->megaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
+    mChatItemWidget->invalidChatWindowHandle();
     delete megaChatRoomListenerDelegate;
-    delete chatRoom;
+    delete mChatRoom;
     delete ui;
 }
 
@@ -78,7 +78,7 @@ void ChatWindow::onMsgSendBtn()
     if (qtext.isEmpty())
         return;
 
-    megachat::MegaChatMessage * tempMessage= this->megaChatApi->sendMessage(chatRoom->getChatId(), qtext.toUtf8().toStdString().c_str());
+    megachat::MegaChatMessage * tempMessage= this->megaChatApi->sendMessage(mChatRoom->getChatId(), qtext.toUtf8().toStdString().c_str());
     nSending+=1;
     addMsgWidget(tempMessage, (loadedMessages)+nSending);
 
@@ -95,9 +95,9 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
 
 void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat)
 {
-    megachat::MegaChatRoom *auxRoom = this->megaChatApi->getChatRoom(chatRoom->getChatId());
-    delete chatRoom;
-    chatRoom = auxRoom;
+    megachat::MegaChatRoom *auxRoom = this->megaChatApi->getChatRoom(mChatRoom->getChatId());
+    delete mChatRoom;
+    mChatRoom = auxRoom;
 }
 
 
@@ -135,7 +135,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             megachat::MegaChatMessage * auxMSG = msg->copy();
             megachat::MegaChatHandle msgId=auxMSG->getMsgId();
             addMsgWidget(auxMSG, loadedMessages);
-            chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
+            mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());
             loadedMessages+=1;
         }
         else
@@ -157,11 +157,11 @@ void ChatWindow::deleteChatMessage(megachat::MegaChatMessage *msg)
 {
    std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
    megachat::MegaChatHandle msgId=msg->getMsgId();
-   itMessages = messagesWidgets.find(msgId);
+   itMessages = mMsgsWidgetsMap.find(msgId);
 
-   if (itMessages != messagesWidgets.end())
+   if (itMessages != mMsgsWidgetsMap.end())
    {
-      this->megaChatApi->deleteMessage(chatRoom->getChatId(), msg->getMsgId());
+      this->megaChatApi->deleteMessage(mChatRoom->getChatId(), msg->getMsgId());
    }
 }
 
@@ -176,13 +176,13 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal)
    else
       msgId=msg->getMsgId();
 
-   itMessages = messagesWidgets.find(msgId);
-   if (itMessages != messagesWidgets.end())
+   itMessages = mMsgsWidgetsMap.find(msgId);
+   if (itMessages != mMsgsWidgetsMap.end())
    {
         ChatMessage * auxMessage = itMessages->second;
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
         QListWidgetItem * auxItem = ui->mMessageList->takeItem(row);
-        messagesWidgets.erase(itMessages);
+        mMsgsWidgetsMap.erase(itMessages);
         delete auxItem;
         return true;
    }
@@ -193,9 +193,9 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal)
 ChatMessage * ChatWindow::findChatMessage(megachat::MegaChatHandle msgId)
 {
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
-    itMessages = messagesWidgets.find(msgId);
+    itMessages = mMsgsWidgetsMap.find(msgId);
 
-    if (itMessages != messagesWidgets.end())
+    if (itMessages != mMsgsWidgetsMap.end())
     {
         return itMessages->second;
     }
@@ -210,7 +210,7 @@ void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaCha
 {
     if(msg)
     {
-        chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
+        mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());
         addMsgWidget(msg->copy(), (loadedMessages));
         loadedMessages+=1;
     }
@@ -221,7 +221,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     if(msg)
     {
         if (loadedMessages==0)
-            {chatItemWidget->setOlderMessageLoaded(msg->getMsgId());}
+            {mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());}
 
         if(msg->isDeleted())
             return;
@@ -264,16 +264,16 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         int pendingLoad;
         pendingLoad=NMESSAGES_LOAD-loadedMessages+nSending+nManualSending;
-        if (!megaChatApi->isFullHistoryLoaded(chatRoom->getChatId()) && pendingLoad > 0)
+        if (!megaChatApi->isFullHistoryLoaded(mChatRoom->getChatId()) && pendingLoad > 0)
         {
-            int source = megaChatApi->loadMessages(chatRoom->getChatId(),pendingLoad);
+            int source = megaChatApi->loadMessages(mChatRoom->getChatId(),pendingLoad);
             if (source == megachat::MegaChatApi::SOURCE_NONE)
             {
                 pendingLoad = 0;
             }
             else if (source == megachat::MegaChatApi::SOURCE_ERROR)
             {
-                logger->postLog("MegachatApi error - Load messages - source error");
+                mLogger->postLog("MegachatApi error - Load messages - source error");
             }
         }
     }
@@ -301,7 +301,7 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetIt
 QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int index)
 {
     QListWidgetItem* item = new QListWidgetItem;
-    megachat::MegaChatHandle chatId = chatRoom->getChatId();
+    megachat::MegaChatHandle chatId = mChatRoom->getChatId();
     ChatMessage * widget = new ChatMessage(this, megaChatApi, chatId, msg);
     widget->setWidgetItem(item);
     item->setSizeHint(widget->size());
@@ -309,11 +309,11 @@ QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int 
 
     if (msg->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED || msg->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
     {
-        messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getMsgId(),widget));        
+        mMsgsWidgetsMap.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getMsgId(),widget));
     }
     else
     {
-        messagesWidgets.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getTempId(),widget));
+        mMsgsWidgetsMap.insert(std::pair<megachat::MegaChatHandle, ChatMessage *>(msg->getTempId(),widget));
     }
 
     ui->mMessageList->insertItem(index, item);
@@ -321,7 +321,7 @@ QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int 
     ui->mMessageList->scrollToBottom();
 
     if (!widget->isMine() && msg->getStatus()==megachat::MegaChatMessage::STATUS_NOT_SEEN)
-        megaChatApi->setMessageSeen(chatRoom->getChatId(), msg->getMsgId());
+        megaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
 
     return item;
 }
@@ -329,7 +329,7 @@ QListWidgetItem* ChatWindow::addMsgWidget (megachat::MegaChatMessage * msg, int 
 
 void ChatWindow::onMembersBtn(bool)
 {
-    if(chatRoom->isGroup())
+    if(mChatRoom->isGroup())
     {
         QMenu menu(this);
         createMembersMenu(menu);
@@ -343,15 +343,15 @@ void ChatWindow::onMembersBtn(bool)
 
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
-    MainWindow * mainWin = chatItemWidget->mainWin;
+    MainWindow * mainWin = mChatItemWidget->mMainWin;
     mega::MegaUserList *userList = mainWin->getUserContactList();
-    if (chatRoom->getPeerCount()==0)
+    if (mChatRoom->getPeerCount()==0)
     {
         menu.addAction(tr("You are alone in this chatroom"))->setEnabled(false);
         return;
     }
 
-    if(chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR)
+    if(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR)
     {
         auto addEntry = menu.addMenu("Add contact to chat");
         for (int i=0 ; i< userList->size(); i++)
@@ -367,23 +367,23 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         auto addEntry = menu.addMenu("Invalid permissions to add participants");
     }
 
-    for (int i=0; i<chatRoom->getPeerCount(); i++)
+    for (int i=0; i<mChatRoom->getPeerCount(); i++)
     {
-        if(chatRoom->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
+        if(mChatRoom->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
         {
-            auto entry = menu.addMenu(chatRoom->getPeerFirstname(i));
+            auto entry = menu.addMenu(mChatRoom->getPeerFirstname(i));
             auto actRemove = entry->addAction(tr("Remove from chat"));
-            actRemove->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
+            actRemove->setProperty("userHandle", QVariant((qulonglong)mChatRoom->getPeerHandle(i)));
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
             auto menuSetPriv = entry->addMenu(tr("Set privilege"));
             auto actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-            actSetPrivFullAccess->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
+            actSetPrivFullAccess->setProperty("userHandle", QVariant((qulonglong)mChatRoom->getPeerHandle(i)));
             connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
             auto actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-            actSetPrivReadOnly->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
+            actSetPrivReadOnly->setProperty("userHandle", QVariant((qulonglong)mChatRoom->getPeerHandle(i)));
             connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
             auto actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-            actSetPrivStandard->setProperty("userHandle", QVariant((qulonglong)chatRoom->getPeerHandle(i)));
+            actSetPrivStandard->setProperty("userHandle", QVariant((qulonglong)mChatRoom->getPeerHandle(i)));
             connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
     }
@@ -397,7 +397,7 @@ void ChatWindow::onMemberAdd()
 
     QVariant uHandle = action->property("userHandle");
     megachat::MegaChatHandle userhand = uHandle.toLongLong();
-    megaChatApi->inviteToChat(chatRoom->getChatId(),userhand,megachat::MegaChatPeerList::PRIV_STANDARD);
+    megaChatApi->inviteToChat(mChatRoom->getChatId(),userhand,megachat::MegaChatPeerList::PRIV_STANDARD);
 }
 
 void ChatWindow::onMemberRemove()
@@ -408,7 +408,7 @@ void ChatWindow::onMemberRemove()
 
     QVariant uHandle = action->property("userHandle");
     megachat::MegaChatHandle userhand = uHandle.toLongLong();
-    megaChatApi->removeFromChat(chatRoom->getChatId(), userhand);
+    megaChatApi->removeFromChat(mChatRoom->getChatId(), userhand);
 }
 
 void ChatWindow::onMemberSetPriv()
@@ -429,14 +429,14 @@ void ChatWindow::onMemberSetPriv()
 
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhand = uHandle.toLongLong();
-      megachat::MegaChatHandle chatId=chatItemWidget->getChatHandle();
+      megachat::MegaChatHandle chatId=mChatItemWidget->getChatHandle();
       this->megaChatApi->updateChatPermissions(chatId, userhand, privilege);
 }
 
 void ChatWindow::onMsgListRequestHistory()
 {
-    if (!megaChatApi->isFullHistoryLoaded(chatRoom->getChatId()))
+    if (!megaChatApi->isFullHistoryLoaded(mChatRoom->getChatId()))
     {
-        megaChatApi->loadMessages(chatRoom->getChatId(),NMESSAGES_LOAD);
+        megaChatApi->loadMessages(mChatRoom->getChatId(),NMESSAGES_LOAD);
     }
 }

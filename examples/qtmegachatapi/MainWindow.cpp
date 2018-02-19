@@ -153,7 +153,7 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
 
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
     ChatItemWidget *chatItemWidget = new ChatItemWidget(this, megaChatApi, chatListItem);
-    chatItemWidget->updateToolTip(megaChatApi, chatListItem);
+    chatItemWidget->updateToolTip(chatListItem);
     QListWidgetItem *item = new QListWidgetItem();
     chatItemWidget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
@@ -177,7 +177,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Last Message update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG):
                 {
-                    chatItemWidget->updateToolTip(api, item);
+                    chatItemWidget->updateToolTip(item);
                     break;
                 }
             //Unread count update
@@ -195,13 +195,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Own priv update
             case (megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV):
                 {
-                    chatItemWidget->updateToolTip(api, item);
+                    chatItemWidget->updateToolTip(item);
                     break;
                 }
             //Participants update
             case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
                 {
-                    chatItemWidget->updateToolTip(api, item);
+                    chatItemWidget->updateToolTip(item);
                     break;
                 }
             //The chatroom has been left by own user

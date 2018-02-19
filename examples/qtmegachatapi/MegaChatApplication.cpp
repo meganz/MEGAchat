@@ -29,11 +29,11 @@ int main(int argc, char **argv)
 
 MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(argc, argv)
 {
-    appDir = QDir::homePath().toStdString() + "/.karere";
+    mAppDir = QDir::homePath().toStdString() + "/.karere";
     struct stat st = {0};
-    if (stat(appDir.c_str(), &st) == -1)
+    if (stat(mAppDir.c_str(), &st) == -1)
     {
-        mkdir(appDir.c_str(), 0700);
+        mkdir(mAppDir.c_str(), 0700);
     }
 
     configureLogs();
@@ -42,10 +42,10 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     setQuitOnLastWindowClosed(true);
 
     mLoginDialog = NULL;
-    sid = NULL;
+    mSid = NULL;
 
     // Initialize the SDK and MEGAchat
-    megaApi = new MegaApi("karere-native", appDir.c_str(), "Karere Native");
+    megaApi = new MegaApi("karere-native", mAppDir.c_str(), "Karere Native");
     megaChatApi = new MegaChatApi(megaApi);
 
     // Create delegate listeners
@@ -69,13 +69,13 @@ MegaChatApplication::~MegaChatApplication()
     delete megaApi;
     delete mMainWin;
     delete mLogger;
-    delete [] sid;
+    delete [] mSid;
 }
 
 void MegaChatApplication::init()
 {
-    int initState = megaChatApi->init(sid);
-    if (!sid)
+    int initState = megaChatApi->init(mSid);
+    if (!mSid)
     {
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
         login();
@@ -83,7 +83,7 @@ void MegaChatApplication::init()
     else
     {
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION);
-        megaApi->fastLogin(sid);
+        megaApi->fastLogin(mSid);
     }
 }
 
@@ -110,18 +110,18 @@ void MegaChatApplication::logout()
 void MegaChatApplication::readSid()
 {
     char buf[256];
-    ifstream sidf(appDir + "/sid");
+    ifstream sidf(mAppDir + "/sid");
     if (!sidf.fail())
     {
        sidf.getline(buf, 256);
        if (!sidf.fail())
-           sid = strdup(buf);
+           mSid = strdup(buf);
     }
 }
 
 void MegaChatApplication::saveSid(const char* sdkSid)
 {
-    ofstream osidf(appDir + "/sid");
+    ofstream osidf(mAppDir + "/sid");
     assert(sdkSid);
     osidf << sdkSid;
     osidf.close();
@@ -129,7 +129,7 @@ void MegaChatApplication::saveSid(const char* sdkSid)
 
 void MegaChatApplication::configureLogs()
 {
-    std::string logPath = appDir + "/log.txt";
+    std::string logPath = mAppDir + "/log.txt";
     mLogger = new MegaLoggerApplication(logPath.c_str());
     mLogger->setLogConsole(true);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
@@ -171,7 +171,7 @@ void MegaChatApplication::addContacts()
 
 std::string MegaChatApplication::getAppDir() const
 {
-    return appDir;
+    return mAppDir;
 }
 
 
@@ -222,9 +222,9 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_FETCH_NODES:
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                delete [] sid;
-                sid = megaApi->dumpSession();
-                saveSid(sid);
+                delete [] mSid;
+                mSid = megaApi->dumpSession();
+                saveSid(mSid);
                 mLoginDialog->deleteLater();
                 mLoginDialog = NULL;
                 mMainWin->setWindowTitle(api->getMyEmail());

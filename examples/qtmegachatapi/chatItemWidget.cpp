@@ -4,19 +4,21 @@
 #include <QMenu>
 #include <iostream>
 
-ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* mChatApi, const megachat::MegaChatListItem *item) :
+ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item) :
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
-    widgetItem = NULL;
+    mMainWin = (MainWindow *) parent;
+    mListWidgetItem = NULL;
+    mChatWindow = NULL;
+
     mLastOverlayCount = 0;
-    mainWin = (MainWindow *) parent;
-    olderMessageLoaded = 0;
-    chatWindowHandle = NULL;
+    mOlderMessageLoaded = 0;
+    mChatId = item->getChatId();
+    this->megaChatApi= megaChatApi;
+
     ui->setupUi(this);
     ui->mUnreadIndicator->hide();
-    chatHandle = item->getChatId();
-    megaChatApi= mChatApi;
     ui->mName->setText(item->getTitle());
 
     if (!item->isGroup())
@@ -27,12 +29,12 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* mChatApi,
 
 void ChatItemWidget::invalidChatWindowHandle()
 {
-    this->chatWindowHandle=NULL;
+    mChatWindow = NULL;
 }
 
 void ChatItemWidget::updateToolTip(megachat::MegaChatApi* mChatApi, const megachat::MegaChatListItem *item)
 {
-    megachat::MegaChatRoom * chatRoom = mChatApi->getChatRoom(item->getChatId());
+    megachat::MegaChatRoom * chatRoom = megaChatApi->getChatRoom(item->getChatId());
     std::string chatId = std::to_string(item->getChatId());
     std::string lastMessage;
     std::string lastMessageId = std::to_string(item->getLastMessageId());
@@ -147,12 +149,12 @@ ChatWindow* ChatItemWidget::showChatWindow()
     ChatWindow* window;
     std::string titleStd = ui->mName->text().toStdString();
     const char * chatWindowTitle = titleStd.c_str();
-    megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(chatHandle);
+    megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(mChatId);
 
-    if (!chatWindowHandle)
+    if (!mChatWindow)
     {
         window = new ChatWindow(this, megaChatApi, chatRoom->copy(), chatWindowTitle);
-        chatWindowHandle = window;
+        mChatWindow = window;
         window->show();
         window->openChatRoom();
         delete chatRoom;
@@ -160,7 +162,7 @@ ChatWindow* ChatItemWidget::showChatWindow()
     }
     else
     {
-        window = static_cast<ChatWindow*>(chatWindowHandle);
+        window = static_cast<ChatWindow*>(mChatWindow);
         window->show();
         window->setWindowState(Qt::WindowActive);
         return window;
@@ -174,22 +176,22 @@ void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
 
 QListWidgetItem *ChatItemWidget::getWidgetItem() const
 {
-    return widgetItem;
+    return mListWidgetItem;
 }
 
 void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
 {
-    widgetItem = item;
+    mListWidgetItem = item;
 }
 
 megachat::MegaChatHandle ChatItemWidget::getOlderMessageLoaded() const
 {
-    return olderMessageLoaded;
+    return mOlderMessageLoaded;
 }
 
 void ChatItemWidget::setOlderMessageLoaded(const megachat::MegaChatHandle &msgId)
 {
-    olderMessageLoaded = msgId;
+    mOlderMessageLoaded = msgId;
 }
 
 
@@ -211,18 +213,18 @@ ChatItemWidget::~ChatItemWidget()
 
 megachat::MegaChatHandle ChatItemWidget::getChatHandle() const
 {
-    return chatHandle;
+    return mChatId;
 }
 
 void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 {
-    chatHandle = chatId;
+    mChatId = chatId;
 }
 
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     QMenu menu(this);
-    if(megaChatApi->getChatListItem(chatHandle)->isGroup())
+    if(megaChatApi->getChatListItem(mChatId)->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
@@ -239,7 +241,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
 
 void ChatItemWidget::truncateChat()
 {
-    this->megaChatApi->clearChatHistory(chatHandle);
+    this->megaChatApi->clearChatHistory(mChatId);
 }
 
 void ChatItemWidget::setTitle()
@@ -249,11 +251,11 @@ void ChatItemWidget::setTitle()
     if (! qTitle.isNull())
     {
         title = qTitle.toStdString();
-        this->megaChatApi->setChatTitle(chatHandle,title.c_str());
+        this->megaChatApi->setChatTitle(mChatId,title.c_str());
     }
 }
 
 void ChatItemWidget::leaveGroupChat()
 {
-    this->megaChatApi->leaveChat(chatHandle);
+    this->megaChatApi->leaveChat(mChatId);
 }

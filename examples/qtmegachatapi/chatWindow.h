@@ -37,11 +37,11 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
     protected:
         Ui::ChatWindowUi *ui;
         megachat::MegaChatApi* megaChatApi;
-        megachat::MegaChatRoom * chatRoom;
-        ChatItemWidget * chatItemWidget;
-        MegaLoggerApplication * logger;
+        megachat::MegaChatRoom * mChatRoom;
+        ChatItemWidget * mChatItemWidget;
+        MegaLoggerApplication * mLogger;
         megachat::QTMegaChatRoomListener * megaChatRoomListenerDelegate;
-        std::map<megachat::MegaChatHandle, ChatMessage *> messagesWidgets;
+        std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         int nSending;
         int loadedMessages;
         int nManualSending;
