@@ -5,6 +5,7 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <assert.h>
+#include <sys/stat.h>
 #include "signal.h"
 
 using namespace std;
@@ -28,6 +29,13 @@ int main(int argc, char **argv)
 
 MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(argc, argv)
 {
+    appDir = QDir::homePath().toStdString() + "/.karere";
+    struct stat st = {0};
+    if (stat(appDir.c_str(), &st) == -1)
+    {
+        mkdir(appDir.c_str(), 0700);
+    }
+
     fetchNodesRetries = 0;
     connectionRetries = 0;
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
@@ -125,7 +133,6 @@ void MegaChatApplication::saveSid(const char* sdkSid)
 
 void MegaChatApplication::configureLogs()
 {
-    appDir = QDir::homePath().toStdString() + "/.karere";
     std::string logPath = appDir + "/log.txt";
     logger = new MegaLoggerApplication(logPath.c_str());
     logger->setLogConsole(true);
