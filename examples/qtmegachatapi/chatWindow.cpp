@@ -11,7 +11,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     nSending = 0;
     loadedMessages = 0;
     nManualSending = 0;
-    pendingLoad = 0;
+    mPendingLoad = 0;
     mChatRoom = cRoom;
     this->megaChatApi = megaChatApi;
     mChatItemWidget = (ChatItemWidget *) parent;
@@ -107,8 +107,6 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
 
     megachat::MegaChatHandle msgId = getMessageId(msg);
     ChatMessage *chatMessage = findChatMessage(msgId);
-    if(!chatMessage)
-        return;
 
     if (msg->hasChanged(megachat::MegaChatMessage::CHANGE_TYPE_CONTENT))
     {
@@ -262,17 +260,17 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     {
 
 
-        if (!megaChatApi->isFullHistoryLoaded(mChatRoom->getChatId()) && pendingLoad > 0)
+        if (!megaChatApi->isFullHistoryLoaded(mChatRoom->getChatId()) && mPendingLoad > 0)
         {
-            pendingLoad = NMESSAGES_LOAD - loadedMessages + nSending + nManualSending;
-            int source = megaChatApi->loadMessages(mChatRoom->getChatId(),pendingLoad);
+            mPendingLoad = NMESSAGES_LOAD - loadedMessages + nSending + nManualSending;
+            int source = megaChatApi->loadMessages(mChatRoom->getChatId(),mPendingLoad);
             if (source == megachat::MegaChatApi::SOURCE_NONE)
             {
-                pendingLoad = 0;
+                mPendingLoad = 0;
             }
             else if (source == megachat::MegaChatApi::SOURCE_ERROR)
             {
-                pendingLoad = 0;
+                mPendingLoad = 0;
                 mLogger->postLog("MegachatApi error - Load messages - source error");
             }
         }
