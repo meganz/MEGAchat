@@ -39,7 +39,8 @@ class ChatItemWidget : public QWidget
         int mLastOverlayCount;
         megachat::MegaChatHandle mOlderMessageLoaded;
         megachat::MegaChatHandle mChatId;
-        megachat::MegaChatApi * megaChatApi;
+        megachat::MegaChatApi * mMegaChatApi;
+        mega::MegaApi * mMegaApi;
         ChatWindow * mChatWindow;
         QListWidgetItem *mListWidgetItem;
 

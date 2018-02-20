@@ -8,9 +8,9 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
-    this->megaApi = megaApi;
-    this->megaChatApi = megaChatApi;
-    this->mUserHandle = userHandle;
+    mMegaApi = megaApi;
+    mMegaChatApi = megaChatApi;
+    mUserHandle = userHandle;
     const char *contactEmail = megaChatApi->getContactEmail(userHandle);
     ui->setupUi(this);
     setAvatarStyle();
@@ -20,7 +20,7 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * m
     ui->mAvatar->setText(QString(text[0].toUpper()));
 
     delete contactEmail;
-    this->megaChatApi->getUserFirstname(userHandle);
+    this->mMegaChatApi->getUserFirstname(userHandle);
 }
 
 void ContactItemWidget::setAvatarStyle()
@@ -50,17 +50,18 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
 void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
 {
    QString text = NULL;
-   char *email = this->megaChatApi->getContactEmail(contactHandle);
-   mega::MegaUser *contact = this->megaApi->getContact(email);
-   megachat::MegaChatHandle chatHandle = this->megaChatApi->getChatHandleByUser(contactHandle);
+   char *email = this->mMegaChatApi->getContactEmail(contactHandle);
+   mega::MegaUser *contact = this->mMegaApi->getContact(email);
+   const char * contactHandle_64 = mMegaApi->handleToBase64(contactHandle);
+   const char * chatHandle_64 = mMegaApi->handleToBase64(this->mMegaChatApi->getChatHandleByUser(contactHandle));
 
    if (contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
         text.append(tr("INVISIBLE:\n"));
 
    text.append(tr("Email: "))
         .append(QString::fromStdString(email))
-        .append(tr("\nUser handle: ")).append(QString::fromStdString(std::to_string(contactHandle)))
-        .append(tr("\nChat handle: ")).append(QString::fromStdString(std::to_string(chatHandle)));
+        .append(tr("\nUser handle: ")).append(contactHandle_64)
+        .append(tr("\nChat handle: ")).append((chatHandle_64));
 
    setToolTip(text);
    delete contact;
@@ -80,15 +81,15 @@ void ContactItemWidget::onCreateGroupChat()
         megachat::MegaChatPeerList *peerList;
         peerList = megachat::MegaChatPeerList::createInstance();
         peerList->addPeer(mUserHandle, 2);
-        this->megaChatApi->createChat(true, peerList);
+        this->mMegaChatApi->createChat(true, peerList);
    }
    msgBox.deleteLater();
 }
 
 void ContactItemWidget::onContactRemove()
 {
-    char * email = megaChatApi->getContactEmail(mUserHandle);
-    mega::MegaUser *contact = megaApi->getContact(email);
+    char * email = mMegaChatApi->getContactEmail(mUserHandle);
+    mega::MegaUser *contact = mMegaApi->getContact(email);
     QString msg = tr("Are you sure you want to remove ");
     msg.append(ui->mName->text());
 
@@ -102,7 +103,7 @@ void ContactItemWidget::onContactRemove()
     if (ret != QMessageBox::Yes)
         return;
 
-    megaApi->removeContact(contact);
+    mMegaApi->removeContact(contact);
     delete email;
     delete contact;
 }

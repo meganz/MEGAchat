@@ -49,8 +49,8 @@ class MainWindow :
         Ui::MainWindow *ui;
         bool chatsVisibility;
         QMenu * onlineStatus;
-        mega::MegaApi * megaApi;
-        megachat::MegaChatApi * megaChatApi;
+        mega::MegaApi * mMegaApi;
+        megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;

@@ -39,20 +39,20 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     mSid = NULL;
 
     // Initialize the SDK and MEGAchat
-    megaApi = new MegaApi("karere-native", mAppDir.c_str(), "Karere Native");
-    megaChatApi = new MegaChatApi(megaApi);
+    mMegaApi = new MegaApi("karere-native", mAppDir.c_str(), "Karere Native");
+    megaChatApi = new MegaChatApi(mMegaApi);
 
     // Create delegate listeners
-    megaListenerDelegate = new QTMegaListener(megaApi, this);
+    megaListenerDelegate = new QTMegaListener(mMegaApi, this);
     megaChatRequestListenerDelegate = new QTMegaChatRequestListener(megaChatApi, this);
-    megaApi->addListener(megaListenerDelegate);
+    mMegaApi->addListener(megaListenerDelegate);
     megaChatApi->addChatRequestListener(megaChatRequestListenerDelegate);
 
 
     // Start GUI
     mMainWin = new MainWindow(0, mLogger);
     mMainWin->setMegaChatApi(megaChatApi);
-    mMainWin->setMegaApi(megaApi);
+    mMainWin->setMegaApi(mMegaApi);
 }
 
 MegaChatApplication::~MegaChatApplication()
@@ -60,7 +60,7 @@ MegaChatApplication::~MegaChatApplication()
     delete megaListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaChatApi;
-    delete megaApi;
+    delete mMegaApi;
     delete mMainWin;
     delete mLogger;
     delete [] mSid;
@@ -78,7 +78,7 @@ void MegaChatApplication::init()
     {
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
-        megaApi->fastLogin(mSid);
+        mMegaApi->fastLogin(mSid);
     }
 }
 
@@ -94,12 +94,12 @@ void MegaChatApplication::onLoginClicked()
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
-    megaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
+    mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
 void MegaChatApplication::logout()
 {
-    megaApi->logout();
+    mMegaApi->logout();
 }
 
 void MegaChatApplication::readSid()
@@ -149,7 +149,7 @@ void MegaChatApplication::addChats()
 void MegaChatApplication::addContacts()
 {
     MegaUser * contact = NULL;
-    MegaUserList *contactList = megaApi->getContacts();
+    MegaUserList *contactList = mMegaApi->getContacts();
     mMainWin->setNContacts(contactList->size());
 
     for (int i=0; i<contactList->size(); i++)
@@ -218,7 +218,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             if (e->getErrorCode() == MegaError::API_OK)
             {
                 delete [] mSid;
-                mSid = megaApi->dumpSession();
+                mSid = mMegaApi->dumpSession();
                 saveSid(mSid);
                 mLoginDialog->deleteLater();
                 mLoginDialog = NULL;

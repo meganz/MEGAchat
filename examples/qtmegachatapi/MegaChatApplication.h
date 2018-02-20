@@ -39,7 +39,7 @@ class MegaChatApplication : public QApplication,
         MainWindow *mMainWin;
         LoginDialog *mLoginDialog;
         MegaLoggerApplication *mLogger;
-        mega::MegaApi *megaApi;
+        mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *megaChatApi;
         mega::QTMegaListener *megaListenerDelegate;
         megachat::QTMegaChatRequestListener *megaChatRequestListenerDelegate;

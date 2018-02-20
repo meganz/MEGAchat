@@ -11,11 +11,11 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mMainWin = (MainWindow *) parent;
     mListWidgetItem = NULL;
     mChatWindow = NULL;
-
+    mMegaApi = mMainWin->mMegaApi;
     mLastOverlayCount = 0;
     mOlderMessageLoaded = 0;
     mChatId = item->getChatId();
-    this->megaChatApi= megaChatApi;
+    this->mMegaChatApi= megaChatApi;
 
     ui->setupUi(this);
     ui->mUnreadIndicator->hide();
@@ -34,10 +34,10 @@ void ChatItemWidget::invalidChatWindowHandle()
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
 {
-    megachat::MegaChatRoom * chatRoom = megaChatApi->getChatRoom(item->getChatId());
-    std::string chatId = std::to_string(item->getChatId());
-    std::string lastMessage;
-    std::string lastMessageId = std::to_string(item->getLastMessageId());
+    megachat::MegaChatRoom * chatRoom = mMegaChatApi->getChatRoom(mChatId);
+    const char * lastMessage;
+    const char * chatId_64 = mMainWin->mMegaApi->handleToBase64(mChatId);
+    const char * lastMessageId_64 = mMainWin->mMegaApi->handleToBase64(item->getLastMessageId());
     QString text = NULL;
 
     int lastMessageType = item->getLastMessageType();
@@ -56,21 +56,22 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
 
     if(!item->isGroup())
     {
-        std::string peerEmail = chatRoom->getPeerEmail(0);
-        std::string peerHandle = std::to_string(item->getPeerHandle());
+        const char * peerEmail = chatRoom->getPeerEmail(0);
+        const char * peerHandle_64 = mMainWin->mMegaApi->handleToBase64(item->getPeerHandle());
         text.append(tr("1on1 Chat room:"))
-            .append(QString::fromStdString(chatId))
+            .append(QString::fromStdString(chatId_64))
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
-            .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle))
+            .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
             .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
-            .append(tr("\nLast message Id: ")).append(QString::fromStdString(lastMessageId));
+            .append(tr("\nLast message Id: ")).append(QString::fromStdString(lastMessageId_64));
+       delete peerHandle_64;
     }
     else
     {
         int ownPrivilege = chatRoom->getOwnPrivilege();
         text.append(tr("Group chat room: "))
-            .append(QString::fromStdString(chatId)
+            .append(QString::fromStdString(chatId_64)
             .append(tr("\nOwn privilege: "))
             .append(QString(chatRoom->privToString(ownPrivilege)))
             .append(tr("\nOther participants:")));
@@ -87,22 +88,26 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             {
                 const char *peerName = chatRoom->getPeerFullname(i);
                 const char *peerEmail = chatRoom->getPeerEmail(i);
-                std::string peerId = std::to_string (chatRoom->getPeerHandle(i));
+                const char *peerId_64 = mMainWin->mMegaApi->handleToBase64(chatRoom->getPeerHandle(i));
                 int peerPriv = chatRoom->getPeerPrivilege(i);
                 auto line = QString(" %1 (%2, %3): priv %4\n")
                         .arg(QString(peerName))
                         .arg(peerEmail ? QString::fromStdString(peerEmail) : tr("(email unknown)"))
-                        .arg(QString::fromStdString(peerId))
+                        .arg(QString::fromStdString(peerId_64))
                         .arg(QString(chatRoom->privToString(peerPriv)));
                 text.append(line);
-                delete [] peerName;
+                delete peerName;
+                delete peerId_64;
             }
             text.resize(text.size()-1);
         }
         text.append(tr("\nLast message:\n ")).append(QString::fromStdString(lastMessage));
+        text.append(tr("\nLast message Id: ")).append(QString::fromStdString(lastMessageId_64));
     }
     setToolTip(text);
     delete chatRoom;
+    delete chatId_64;
+    delete lastMessageId_64;
 }
 
 void ChatItemWidget::onUnreadCountChanged(int count)
@@ -147,11 +152,11 @@ ChatWindow* ChatItemWidget::showChatWindow()
 {
     std::string titleStd = ui->mName->text().toStdString();
     const char * chatWindowTitle = titleStd.c_str();
-    megachat::MegaChatRoom * chatRoom = this->megaChatApi->getChatRoom(mChatId);
+    megachat::MegaChatRoom * chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
 
     if (!mChatWindow)
     {
-        mChatWindow = new ChatWindow(this, megaChatApi, chatRoom->copy(), chatWindowTitle);
+        mChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
         mChatWindow->show();
         mChatWindow->openChatRoom();
     }
@@ -215,7 +220,7 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     QMenu menu(this);
-    if(megaChatApi->getChatListItem(mChatId)->isGroup())
+    if(mMegaChatApi->getChatListItem(mChatId)->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
@@ -231,7 +236,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
 
 void ChatItemWidget::truncateChat()
 {
-    this->megaChatApi->clearChatHistory(mChatId);
+    this->mMegaChatApi->clearChatHistory(mChatId);
 }
 
 void ChatItemWidget::setTitle()
@@ -241,11 +246,11 @@ void ChatItemWidget::setTitle()
     if (!qTitle.isNull())
     {
         title = qTitle.toStdString();
-        this->megaChatApi->setChatTitle(mChatId,title.c_str());
+        this->mMegaChatApi->setChatTitle(mChatId,title.c_str());
     }
 }
 
 void ChatItemWidget::leaveGroupChat()
 {
-    this->megaChatApi->leaveChat(mChatId);
+    this->mMegaChatApi->leaveChat(mChatId);
 }

@@ -19,7 +19,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 {
     Q_OBJECT
     public:
-        ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title);
+        ChatWindow(QWidget* parent, megachat::MegaChatApi* mMegaChatApi, megachat::MegaChatRoom *cRoom, const char * title);
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
@@ -37,7 +37,8 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 
     protected:
         Ui::ChatWindowUi *ui;
-        megachat::MegaChatApi* megaChatApi;
+        megachat::MegaChatApi* mMegaChatApi;
+        mega::MegaApi * mMegaApi;
         megachat::MegaChatRoom * mChatRoom;
         ChatItemWidget * mChatItemWidget;
         MegaLoggerApplication * mLogger;

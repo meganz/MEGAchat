@@ -20,8 +20,8 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     inactiveChats = 0;
     ui->setupUi(this);
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
-    megaChatApi = NULL;
-    megaApi = NULL;
+    mMegaChatApi = NULL;
+    mMegaApi = NULL;
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     chatsVisibility = true;
@@ -40,17 +40,17 @@ MainWindow::~MainWindow()
 
 mega::MegaUserList * MainWindow::getUserContactList()
 {
-    return megaApi->getContacts();
+    return mMegaApi->getContacts();
 }
 
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
 {
-    this->megaChatApi = megaChatApi;
+    this->mMegaChatApi = megaChatApi;
 }
 
 void MainWindow::setMegaApi(MegaApi *megaApi)
 {
-    this->megaApi = megaApi;        
+    this->mMegaApi = megaApi;
 }
 
 void MainWindow::contextMenuEvent(QContextMenuEvent *event)
@@ -68,9 +68,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (this->megaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
+    if (this->mMegaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
     {
-        this->megaChatApi->signalPresenceActivity();
+        this->mMegaChatApi->signalPresenceActivity();
     }
     return false;
 }
@@ -126,7 +126,7 @@ void MainWindow::on_bOnlineStatus_clicked()
 
 void MainWindow::addContact(MegaChatHandle contactHandle)
 {
-    ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, megaChatApi, megaApi, contactHandle);
+    ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, mMegaChatApi, mMegaApi, contactHandle);
     contactItemWidget->updateToolTip(contactHandle);
     QListWidgetItem *item = new QListWidgetItem();
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
@@ -151,7 +151,7 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
     }
 
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
-    ChatItemWidget *chatItemWidget = new ChatItemWidget(this, megaChatApi, chatListItem);
+    ChatItemWidget *chatItemWidget = new ChatItemWidget(this, mMegaChatApi, chatListItem);
     chatItemWidget->updateToolTip(chatListItem);
     QListWidgetItem *item = new QListWidgetItem();
     chatItemWidget->setWidgetItem(item);
@@ -232,7 +232,7 @@ void MainWindow::onChangeChatVisibility()
     bool active;
     for (itChats = chatWidgets.begin(); itChats != chatWidgets.end(); ++itChats)
     {
-        active = megaChatApi->getChatListItem(itChats->first)->isActive();
+        active = mMegaChatApi->getChatListItem(itChats->first)->isActive();
         if(!active)
         {
             if(chatsVisibility)
@@ -255,7 +255,7 @@ void MainWindow::onAddContact()
     if (email.isNull())
         return;
 
-    char *myEmail = megaApi->getMyEmail();
+    char *myEmail = mMegaApi->getMyEmail();
     QString qMyEmail = myEmail;
     delete [] myEmail;
 
@@ -265,7 +265,7 @@ void MainWindow::onAddContact()
         return;
     }
     std::string emailStd = email.toStdString();
-    megaApi->inviteContact(emailStd.c_str(),tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD);
+    mMegaApi->inviteContact(emailStd.c_str(),tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD);
 }
 
 void MainWindow::setOnlineStatus()
@@ -278,13 +278,13 @@ void MainWindow::setOnlineStatus()
     {
         return;
     }
-    this->megaChatApi->setOnlineStatus(pres);
+    this->mMegaChatApi->setOnlineStatus(pres);
 }
 
 void MainWindow::addChatListener()
 {
-    megaChatListenerDelegate = new QTMegaChatListener(megaChatApi, this);
-    megaChatApi->addChatListener(megaChatListenerDelegate);
+    megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
+    mMegaChatApi->addChatListener(megaChatListenerDelegate);
 }
 
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
@@ -328,7 +328,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
     if (status == megachat::MegaChatApi::STATUS_INVALID)
         status = 0;
 
-    if (this->megaChatApi->getMyUserHandle() == userhandle && !inProgress)
+    if (this->mMegaChatApi->getMyUserHandle() == userhandle && !inProgress)
     {
         ui->bOnlineStatus->setText(kOnlineSymbol_Set);
         if (status >= 0 && status < NINDCOLORS)

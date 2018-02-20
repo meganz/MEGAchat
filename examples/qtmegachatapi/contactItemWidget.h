@@ -12,19 +12,19 @@ class ContactItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ContactItemWidget(QWidget *parent , megachat::MegaChatApi * megChatApi, mega::MegaApi * megaApi, megachat::MegaChatHandle userHandle);
+        ContactItemWidget(QWidget *parent , megachat::MegaChatApi *megChatApi, mega::MegaApi *mMegaApi, megachat::MegaChatHandle userHandle);
         virtual ~ContactItemWidget();
         void contextMenuEvent(QContextMenuEvent* event);
         void setAvatarStyle();
         void updateOnlineIndicator(int newState);
         void updateToolTip(megachat::MegaChatHandle contactHandle);
-        void updateTitle(const char * firstname);
+        void updateTitle(const char *firstname);
 
     private:
         Ui::ChatItem *ui;
         megachat::MegaChatHandle mUserHandle;
-        megachat::MegaChatApi * megaChatApi;
-        mega::MegaApi * megaApi;
+        megachat::MegaChatApi *mMegaChatApi;
+        mega::MegaApi *mMegaApi;
 
     private slots:
         void onCreateGroupChat();

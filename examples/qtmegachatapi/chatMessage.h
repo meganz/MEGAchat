@@ -17,8 +17,8 @@ class ChatMessage: public QWidget
     Q_OBJECT
     protected:
         Ui::ChatMessageWidget *ui;
-        megachat::MegaChatHandle chatId;
-        megachat::MegaChatMessage *message;
+        megachat::MegaChatHandle mChatId;
+        megachat::MegaChatMessage *mMessage;
         megachat::MegaChatApi* megaChatApi;
         QListWidgetItem * mListWidgetItem;
         void updateToolTip();
@@ -26,7 +26,7 @@ class ChatMessage: public QWidget
         friend class ChatWindow;
 
     public:
-        ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg);
+        ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
         virtual ~ChatMessage();
         std::string managementInfoToString() const;
         void setMessageContent(const char * content);

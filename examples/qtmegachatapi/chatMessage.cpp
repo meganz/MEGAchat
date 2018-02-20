@@ -13,19 +13,19 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
       ui(new Ui::ChatMessageWidget)
 {
     mChatWindow=parent;
-    this->chatId=chatId;
+    this->mChatId=chatId;
     megaChatApi = mChatApi;
     ui->setupUi(this);
-    message = msg;
+    mMessage = msg;
     setAuthor();
-    setTimestamp(message->getTimestamp());
+    setTimestamp(mMessage->getTimestamp());
 
-    if(this->megaChatApi->getChatRoom(chatId)->isGroup() && message->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
+    if(this->megaChatApi->getChatRoom(chatId)->isGroup() && mMessage->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
         setStatus(megachat::MegaChatMessage::STATUS_SERVER_RECEIVED);
     else
-        setStatus(message->getStatus());
+        setStatus(mMessage->getStatus());
 
-    if (message->isEdited())
+    if (mMessage->isEdited())
         markAsEdited();
 
     if (!msg->isManagementMessage())
@@ -36,7 +36,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             {
                 QString text;
                 text.append(tr("[Attached Msg]"));
-                mega::MegaNodeList *nodeList=message->getMegaNodeList();
+                mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
                 for(int i = 0; i < nodeList->size(); i++)
                 {
                     text.append(tr("\n[Node]"))
@@ -60,13 +60,13 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             {
                 QString text;
                 text.append(tr("[Attached Contacts]"));
-                for(unsigned int i = 0; i < message->getUsersCount(); i++)
+                for(unsigned int i = 0; i < mMessage->getUsersCount(); i++)
                 {
                   text.append(tr("\n[User]"))
                   .append("\nName: ")
-                  .append(message->getUserName(i))
+                  .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
-                  .append(message->getUserEmail(i));
+                  .append(mMessage->getUserEmail(i));
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");
@@ -101,7 +101,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
 
 ChatMessage::~ChatMessage()
 {
-    delete message;
+    delete mMessage;
     delete ui;
 }
 
@@ -110,28 +110,28 @@ void ChatMessage::updateToolTip()
     QString tooltip;
 
     megachat::MegaChatHandle msgId;
-    int status = message->getStatus();
+    int status = mMessage->getStatus();
     switch (status)
     {
     case megachat::MegaChatMessage::STATUS_SENDING:
         tooltip.append(tr("tempId: "));
-        msgId = message->getTempId();
+        msgId = mMessage->getTempId();
         break;
     case megachat::MegaChatMessage::STATUS_SENDING_MANUAL:
         tooltip.append(tr("rowId: "));
-        msgId = message->getRowId();
+        msgId = mMessage->getRowId();
         break;
     default:
         tooltip.append(tr("msgId: "));
-        msgId = message->getMsgId();
+        msgId = mMessage->getMsgId();
         break;
     }
 
     tooltip.append(QString::fromStdString(std::to_string(msgId)))
             .append(tr("\ntype: "))
-            .append(QString::fromStdString(std::to_string(message->getType())))
+            .append(QString::fromStdString(std::to_string(mMessage->getType())))
             .append(tr("\nuserid: "))
-            .append(QString::fromStdString(std::to_string(message->getUserHandle())));
+            .append(QString::fromStdString(std::to_string(mMessage->getUserHandle())));
     ui->mHeader->setToolTip(tooltip);
 }
 
@@ -147,12 +147,12 @@ void ChatMessage::setWidgetItem(QListWidgetItem *item)
 
 megachat::MegaChatMessage *ChatMessage::getMessage() const
 {
-    return message;
+    return mMessage;
 }
 
 void ChatMessage::setMessage(megachat::MegaChatMessage *message)
 {
-    this->message = message;
+    this->mMessage = message;
 }
 
 void ChatMessage::setMessageContent(const char * content)
@@ -164,40 +164,44 @@ std::string ChatMessage::managementInfoToString() const
 {
     std::string ret;
     ret.reserve(128);
+    const char * userHandle_64 = this->mChatWindow->mMegaApi->handleToBase64(mMessage->getUserHandle());
+    const char * actionHandle_64 = this->mChatWindow->mMegaApi->handleToBase64(mMessage->getHandleOfAction());
 
-    switch (message->getType())
+    switch (mMessage->getType())
     {
     case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
     {
-        ret.append("User ").append(std::to_string(message->getUserHandle()))
-           .append((message->getPrivilege() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
-           .append(" user ").append(std::to_string(message->getHandleOfAction()));
+        ret.append("User ").append(userHandle_64)
+           .append((mMessage->getPrivilege() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
+           .append(" user ").append(actionHandle_64);
         return ret;
     }
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
-        ret.append("Chat history was truncated by user ").append(std::to_string(message->getUserHandle()));
+        ret.append("Chat history was truncated by user ").append(userHandle_64);
         return ret;
     }
     case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
     {
-        ret.append("User ").append(std::to_string(message->getUserHandle()))
-           .append(" set privilege of user ").append(std::to_string(message->getHandleOfAction()))
-           .append(" to ").append(std::to_string(message->getPrivilege()));
+        ret.append("User ").append(userHandle_64)
+           .append(" set privilege of user ").append(actionHandle_64)
+           .append(" to ").append(std::to_string(mMessage->getPrivilege()));
         return ret;
     }
     case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
     {
-        ret.append("User ").append(std::to_string(message->getUserHandle()))
+        ret.append("User ").append(userHandle_64)
            .append(" set chat title to '")
-           .append(this->megaChatApi->getChatRoom(chatId)->getTitle())+='\'';
+           .append(this->megaChatApi->getChatRoom(mChatId)->getTitle())+='\'';
         return ret;
     }
     default:
         ret.append("Management message with unknown type: ")
-           .append(std::to_string(message->getType()));
+           .append(std::to_string(mMessage->getType()));
         return ret;
     }
+    delete userHandle_64;
+    delete actionHandle_64;
 }
 
 void ChatMessage::setTimestamp(int64_t ts)
@@ -225,7 +229,7 @@ void ChatMessage::setAuthor()
     }
     else
     {
-        const char *chatTitle = megaChatApi->getChatRoom(chatId)->getPeerFullnameByHandle(message->getUserHandle());
+        const char *chatTitle = megaChatApi->getChatRoom(mChatId)->getPeerFullnameByHandle(mMessage->getUserHandle());
         ui->mAuthorDisplay->setText(tr(chatTitle));
         delete chatTitle;
     }
@@ -233,18 +237,18 @@ void ChatMessage::setAuthor()
 
 bool ChatMessage::isMine() const
 {
-    return (message->getUserHandle() == megaChatApi->getMyUserHandle());
+    return (mMessage->getUserHandle() == megaChatApi->getMyUserHandle());
 }
 
 void ChatMessage::markAsEdited()
 {
-    setStatus(message->getStatus());
+    setStatus(mMessage->getStatus());
     ui->mStatusDisplay->setText(ui->mStatusDisplay->text()+" (Edited)");
 }
 
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
-   if (isMine() && !message->isManagementMessage())
+   if (isMine() && !mMessage->isManagementMessage())
    {
         QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
         auto action = menu->addAction(tr("&Edit message"));
@@ -259,7 +263,7 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
 
 void ChatMessage::onMessageDelAction()
 {
-    mChatWindow->deleteChatMessage(this->message);
+    mChatWindow->deleteChatMessage(this->mMessage);
 }
 
 void ChatMessage::onMessageEditAction()
@@ -276,9 +280,9 @@ void ChatMessage::cancelMsgEdit(bool clicked)
 void ChatMessage::saveMsgEdit(bool clicked)
 {
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
-    if(message->getContent() != editedMsg)
+    if(mMessage->getContent() != editedMsg)
     {
-        megaChatApi->editMessage(chatId,message->getMsgId(), editedMsg.c_str());
+        megaChatApi->editMessage(mChatId,mMessage->getMsgId(), editedMsg.c_str());
     }
     clearEdit();
 }
@@ -357,10 +361,10 @@ void ChatMessage::onManualSending()
 {
    if(mChatWindow->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
    {
-       megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), message->getRowId());
-       megachat::MegaChatMessage *tempMessage = megaChatApi->sendMessage(mChatWindow->mChatRoom->getChatId(), message->getContent());
+       megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getRowId());
+       megachat::MegaChatMessage *tempMessage = megaChatApi->sendMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getContent());
        setManualMode(false);
-       mChatWindow->eraseChatMessage(message, true);
+       mChatWindow->eraseChatMessage(mMessage, true);
        mChatWindow->moveManualSendingToSending(tempMessage);
    }
    else
@@ -371,8 +375,8 @@ void ChatMessage::onManualSending()
 
 void ChatMessage::onDiscardManualSending()
 {
-   megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), message->getRowId());
-   mChatWindow->eraseChatMessage(message, true);
+   megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getRowId());
+   mChatWindow->eraseChatMessage(mMessage, true);
 }
 
 
