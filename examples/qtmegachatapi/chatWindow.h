@@ -46,6 +46,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         int nSending;
         int loadedMessages;
         int nManualSending;
+        int pendingLoad;
 
     private slots:
         void onMsgListRequestHistory();

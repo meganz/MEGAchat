@@ -12,18 +12,12 @@ using namespace std;
 using namespace mega;
 using namespace megachat;
 
-void segfault_sigaction(int signal, siginfo_t *si, void *arg)
-{
-    exit(0);
-}
-
 int main(int argc, char **argv)
 {
     struct sigaction sa;
     MegaChatApplication app(argc,argv);
     app.readSid();
     app.init();
-    sigaction(SIGSEGV, &sa, NULL);
     return app.exec();
 }
 

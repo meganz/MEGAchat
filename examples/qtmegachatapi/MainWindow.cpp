@@ -325,7 +325,6 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
 
 void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
 {
-    // if invalid, means it's unknown --> use black
     if (status == megachat::MegaChatApi::STATUS_INVALID)
         status = 0;
 
@@ -342,7 +341,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
         if (itContacts != contactWidgets.end())
         {
             ContactItemWidget * contactItemWidget = itContacts->second;
-            assert(!inProgress);    // we are not notified about status in progress for contacts, but for us
+            assert(!inProgress);
             contactItemWidget->updateOnlineIndicator(status);
         }
     }
