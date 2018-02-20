@@ -1360,7 +1360,9 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            assert(reason == TermCode::kErrProtoTimeout || reason == TermCode::kErrSessSetupTimeout);
+            assert(reason == TermCode::kErrProtoTimeout ||
+                   reason == TermCode::kErrSessSetupTimeout ||
+                   reason == TermCode::kErrSessRetryTimeout);
         }
 
         break;
@@ -2309,6 +2311,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrIceFail);
         RET_ENUM_NAME(kErrSdp);
         RET_ENUM_NAME(kErrUserOffline);
+        RET_ENUM_NAME(kErrSessRetryTimeout);
         RET_ENUM_NAME(kInvalid);
         RET_ENUM_NAME(kNotFinished);
         default: return "(invalid term code)";
