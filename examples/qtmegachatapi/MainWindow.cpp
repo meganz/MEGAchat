@@ -213,11 +213,12 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
                     int row = ui->contactList->row(chatItemWidget->getWidgetItem());
-                    QListWidgetItem *item = new QListWidgetItem();
-                    chatItemWidget->setWidgetItem(item);
-                    item->setSizeHint(QSize(item->sizeHint().height(), 28));
-                    ui->contactList->addItem(item);
-                    ui->contactList->setItemWidget(item, chatItemWidget);
+                    QListWidgetItem *qItem = new QListWidgetItem();
+                    chatItemWidget->setWidgetItem(qItem);
+                    qItem->setSizeHint(QSize(qItem->sizeHint().height(), 28));
+                    ui->contactList->addItem(qItem);
+                    ui->contactList->setItemWidget(qItem, chatItemWidget);
+                    chatItemWidget->updateToolTip(item);
                     delete(ui->contactList->takeItem(row));
                     break;
                 }

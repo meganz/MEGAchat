@@ -50,10 +50,17 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
 void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
 {
    QString text = NULL;
-   char *email = this->mMegaChatApi->getContactEmail(contactHandle);
-   mega::MegaUser *contact = this->mMegaApi->getContact(email);
-   const char * contactHandle_64 = mMegaApi->handleToBase64(contactHandle);
-   const char * chatHandle_64 = mMegaApi->handleToBase64(this->mMegaChatApi->getChatHandleByUser(contactHandle));
+   char *email = mMegaChatApi->getContactEmail(contactHandle);
+   mega::MegaUser *contact = mMegaApi->getContact(email);
+   const char *chatHandle_64;
+   const char *contactHandle_64 = mMegaApi->userHandleToBase64(contactHandle);
+   const char *auxChatHandle_64 = mMegaApi->userHandleToBase64(mMegaChatApi->getChatHandleByUser(contactHandle));
+
+   chatHandle_64 = "--------";
+   if (mMegaChatApi->getChatHandleByUser(contactHandle) != megachat::MEGACHAT_INVALID_HANDLE)
+   {
+         chatHandle_64 = auxChatHandle_64;
+   }
 
    if (contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
         text.append(tr("INVISIBLE:\n"));
@@ -64,6 +71,8 @@ void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
         .append(tr("\nChat handle: ")).append((chatHandle_64));
 
    setToolTip(text);
+   delete contactHandle_64;
+   delete auxChatHandle_64;
    delete contact;
    delete email;
 }

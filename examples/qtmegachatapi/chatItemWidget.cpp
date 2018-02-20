@@ -34,13 +34,16 @@ void ChatItemWidget::invalidChatWindowHandle()
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
 {
-    megachat::MegaChatRoom * chatRoom = mMegaChatApi->getChatRoom(mChatId);
-    const char * lastMessage;
-    const char * chatId_64 = mMainWin->mMegaApi->handleToBase64(mChatId);
-    const char * lastMessageId_64 = mMainWin->mMegaApi->handleToBase64(item->getLastMessageId());
     QString text = NULL;
-
+    const char *lastMessage;
+    const char *lastMessageId_64 = "----------";;
+    const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageId());
+    const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
+    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+    megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
+    megachat::MegaChatHandle auxHandle = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
+
     if (lastMessageType == megachat::MegaChatMessage::TYPE_INVALID)
     {
         lastMessage = "<empty>";
@@ -52,20 +55,24 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
     else
     {
         lastMessage = item->getLastMessage();
+        if(item->getLastMessageId()!= megachat::MEGACHAT_INVALID_HANDLE)
+        {
+            lastMessageId_64 = auxLastMessageId_64;
+        }
     }
 
     if(!item->isGroup())
     {
-        const char * peerEmail = chatRoom->getPeerEmail(0);
-        const char * peerHandle_64 = mMainWin->mMegaApi->handleToBase64(item->getPeerHandle());
+        const char *peerEmail = chatRoom->getPeerEmail(0);
+        const char *peerHandle_64 = mMainWin->mMegaApi->userHandleToBase64(item->getPeerHandle());
         text.append(tr("1on1 Chat room:"))
             .append(QString::fromStdString(chatId_64))
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
             .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
-            .append(tr("\nLast message Id: ")).append(QString::fromStdString(lastMessageId_64));
-       delete peerHandle_64;
+            .append(tr("\nLast message Id: ")).append(lastMessageId_64);
+        delete peerHandle_64;
     }
     else
     {
@@ -88,7 +95,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             {
                 const char *peerName = chatRoom->getPeerFullname(i);
                 const char *peerEmail = chatRoom->getPeerEmail(i);
-                const char *peerId_64 = mMainWin->mMegaApi->handleToBase64(chatRoom->getPeerHandle(i));
+                const char *peerId_64 = mMainWin->mMegaApi->userHandleToBase64(chatRoom->getPeerHandle(i));
                 int peerPriv = chatRoom->getPeerPrivilege(i);
                 auto line = QString(" %1 (%2, %3): priv %4\n")
                         .arg(QString(peerName))
@@ -102,12 +109,12 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             text.resize(text.size()-1);
         }
         text.append(tr("\nLast message:\n ")).append(QString::fromStdString(lastMessage));
-        text.append(tr("\nLast message Id: ")).append(QString::fromStdString(lastMessageId_64));
+        text.append(tr("\nLast message Id: ")).append(lastMessageId_64);
     }
     setToolTip(text);
     delete chatRoom;
     delete chatId_64;
-    delete lastMessageId_64;
+    delete auxLastMessageId_64;
 }
 
 void ChatItemWidget::onUnreadCountChanged(int count)
@@ -148,11 +155,11 @@ void ChatItemWidget::unshowAsHidden()
     ui->mName->setStyleSheet("color: rgba(255,255,255,255)\n");
 }
 
-ChatWindow* ChatItemWidget::showChatWindow()
+ChatWindow *ChatItemWidget::showChatWindow()
 {
     std::string titleStd = ui->mName->text().toStdString();
-    const char * chatWindowTitle = titleStd.c_str();
-    megachat::MegaChatRoom * chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
+    const char *chatWindowTitle = titleStd.c_str();
+    megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
 
     if (!mChatWindow)
     {
@@ -169,7 +176,7 @@ ChatWindow* ChatItemWidget::showChatWindow()
     return mChatWindow;
 }
 
-void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent* event)
+void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     showChatWindow();
 }
@@ -217,7 +224,7 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
     mChatId = chatId;
 }
 
-void ChatItemWidget::contextMenuEvent(QContextMenuEvent* event)
+void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     if(mMegaChatApi->getChatListItem(mChatId)->isGroup())

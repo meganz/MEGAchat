@@ -164,8 +164,8 @@ std::string ChatMessage::managementInfoToString() const
 {
     std::string ret;
     ret.reserve(128);
-    const char * userHandle_64 = this->mChatWindow->mMegaApi->handleToBase64(mMessage->getUserHandle());
-    const char * actionHandle_64 = this->mChatWindow->mMegaApi->handleToBase64(mMessage->getHandleOfAction());
+    const char *userHandle_64 = this->mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
+    const char *actionHandle_64 = this->mChatWindow->mMegaApi->userHandleToBase64(mMessage->getHandleOfAction());
 
     switch (mMessage->getType())
     {
