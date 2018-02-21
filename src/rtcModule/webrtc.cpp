@@ -274,6 +274,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
     if (!ringing)
     {
+        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state in Progress");
         return;
     }
 
@@ -290,6 +291,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             {
                 if (clientid != existingCall->callerClient())
                 {
+                    RTCM_LOG_DEBUG("handleCallData: Receive a CALLDATA with other call in progress");
                     existingCall->sendBusy();
                 }
                 return;
@@ -701,20 +703,52 @@ void Call::msgCallTerminate(RtMessage& packet)
     }
     auto code = packet.payload.read<uint8_t>(0);
     bool isCallParticipant = false;
-    for (auto& item: mSessions)
+    if (mSessions.size() > 0)
     {
-        auto& sess = item.second;
-        if (sess->mPeer == packet.userid && sess->mPeerClient == packet.clientid)
+        for (auto& item: mSessions)
         {
-            isCallParticipant = true;
-            break;
+            auto& sess = item.second;
+            if (sess->mPeer == packet.userid && sess->mPeerClient == packet.clientid)
+            {
+                isCallParticipant = true;
+                break;
+            }
         }
     }
+    else if (mState <= kStateJoining && mCallerUser == packet.userid && mCallerClient == packet.clientid)
+    {
+        isCallParticipant = true;
+    }
+    else
+    {
+        EndpointId endpointId(packet.userid, packet.clientid);
+        std::map<chatd::EndpointId, int>::const_iterator itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
+        int retry = 0;
+        if (itSessionRetryNumber == mSessRetriesNumber.end())
+        {
+            retry = itSessionRetryNumber->second;
+        }
+
+        time_t sessionRetryTime = 0;
+        std::map<chatd::EndpointId, time_t>::const_iterator itSessionRetyTime = mSessRetriesTime.find(endpointId);
+        if (itSessionRetyTime != mSessRetriesTime.end())
+        {
+            sessionRetryTime = itSessionRetyTime->second;
+        }
+
+        if (retry && (time(NULL) - sessionRetryTime <= RtcModule::kSessSetupTimeout))
+        {
+            // no session to this peer at the moment, but we are in the process of reconnecting to them
+            isCallParticipant = true;
+        }
+    }
+
     if (!isCallParticipant)
     {
         SUB_LOG_WARNING("Received CALL_TERMINATE from a client that is not in the call, ignoring");
         return;
     }
+
     destroy(static_cast<TermCode>(code | TermCode::kPeer), false);
 }
 void Call::msgCallReqDecline(RtMessage& packet)
@@ -1139,24 +1173,25 @@ void Call::removeSession(Session& sess, TermCode reason)
     // and can try re-establishing the session
 
     EndpointId endpointId(sess.mPeer, sess.mPeerClient);
-    auto it = mSessRetries.find(endpointId);
-    if (it == mSessRetries.end())
+    std::map<chatd::EndpointId, int>::iterator itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
+    if (itSessionRetryNumber == mSessRetriesNumber.end())
     {
-        mSessRetries[endpointId] = 1;
+        mSessRetriesNumber[endpointId] = 1;
     }
     else
     {
-        mSessRetries[endpointId]++;
+        itSessionRetryNumber->second++;
     }
 
-    int retryId = mSessRetries[endpointId];
+    mSessRetriesTime[endpointId] = time(NULL);
+
+    int retryId = mSessRetriesNumber[endpointId];
     mTotalSessionRetry ++;
     int retryNumber = mTotalSessionRetry;
 
     if (!sess.isCaller())
     {
         SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sess.sessionId().toString().c_str());
-        // es Necesario la marshallCall??
         auto wptr = weakHandle();
         auto peer = sess.mPeer;
         marshallCall([wptr, this, peer]()
@@ -1170,28 +1205,39 @@ void Call::removeSession(Session& sess, TermCode reason)
     }
     else
     {
-        if (!mIsGroup)
-        {
-            auto wptr = weakHandle();
-            mRejoinTimer = setTimeout([this, wptr, endpointId, retryId, retryNumber]()
-            {
-                if (wptr.deleted())
-                    return;
-
-                if (mState >= kStateTerminating || mSessRetries[endpointId] > retryId)
-                {
-                    return; // there was another retry meanwhile, this timer is not relevant anymore
-                }
-
-                if (mSessions.empty() && mTotalSessionRetry == retryNumber)
-                { // There was no newer retry that we would have to wait for
-                    SUB_LOG_DEBUG("Timed out waiting for peer to rejoin, terminating call");
-
-                    hangup(kErrSessRetryTimeout);
-                }
-            }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
-        }
+        // Else wait for peer to re-join...
+        SUB_LOG_DEBUG("Session to %s failed, expecting peer to re-establish it...", sess.sessionId().toString().c_str());
     }
+
+    // set a timeout for the session recovery
+    auto wptr = weakHandle();
+    mRejoinTimer = setTimeout([this, wptr, endpointId, retryId, retryNumber]()
+    {
+        if (wptr.deleted())
+            return;
+
+        if (mSessRetriesNumber[endpointId] != retryId)
+        {
+            return; // there was another retry meanwhile, this timer is not relevant anymore
+        }
+
+        mSessRetriesTime[endpointId] = 0;
+
+        if ((mTotalSessionRetry == retryNumber) // there was a newer retry on another session
+                || (mState >= kStateTerminating)) // call already terminating
+        {
+           return; //timer is not relevant anymore
+        }
+
+        if (!mIsGroup && mSessions.empty())
+        {
+            // There are no sessions currently
+            // TODO: For group calls we would need to revise this
+            SUB_LOG_DEBUG("Timed out waiting for peer to rejoin, terminating call");
+            hangup(kErrSessRetryTimeout);
+        }
+
+    }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
 
     mSessions.erase(sess.mSid);
 }
@@ -1360,9 +1406,7 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            assert(reason == TermCode::kErrProtoTimeout ||
-                   reason == TermCode::kErrSessSetupTimeout ||
-                   reason == TermCode::kErrSessRetryTimeout);
+            assert(reason === TermCode::kUserHangup || isTermError(reason));
         }
 
         break;
@@ -1477,6 +1521,7 @@ std::map<Id, uint8_t> Call::sessionState() const
 
 void Call::sendBusy()
 {
+    // Broadcast instead of send only to requestor, so that all other our clients know we rejected the call
     cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, TermCode::kBusy);
 }
 

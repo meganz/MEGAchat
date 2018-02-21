@@ -86,7 +86,8 @@ class Call: public ICall
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
-    std::map<chatd::EndpointId, int> mSessRetries;
+    std::map<chatd::EndpointId, int> mSessRetriesNumber;
+    std::map<chatd::EndpointId, time_t> mSessRetriesTime;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::string mName;
     megaHandle mCallOutTimer = 0;
