@@ -147,8 +147,12 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         if (msg->getStatus() == megachat::MegaChatMessage::STATUS_SERVER_RECEIVED)
         {
-            eraseChatMessage(msg, true);
-            nSending--;
+            ChatMessage *auxMessage = findChatMessage(msg->getTempId());
+            if (auxMessage)
+            {
+                eraseChatMessage(auxMessage->getMessage(), true);
+                nSending--;
+            }
             megachat::MegaChatMessage *auxMsg = msg->copy();
             addMsgWidget(auxMsg, loadedMessages);
             mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());
@@ -184,8 +188,7 @@ void ChatWindow::deleteChatMessage(megachat::MegaChatMessage *msg)
 
 bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal)
 {
-    megachat::MegaChatHandle msgId = temporal ? msg->getTempId(): msg->getMsgId();
-
+    megachat::MegaChatHandle msgId = getMessageId(msg);
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
     itMessages = mMsgsWidgetsMap.find(msgId);
     if (itMessages != mMsgsWidgetsMap.end())
@@ -258,16 +261,15 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
             if(msg->getStatus() == megachat::MegaChatMessage::STATUS_SENDING_MANUAL)
             {
                 nManualSending++;
-                ChatMessage *auxMessage = findChatMessage(msg->getRowId());
+                ChatMessage *auxMessage = findChatMessage(msg->getTempId());
                 if (auxMessage)
                 {
-                    eraseChatMessage(msg, true);
+                    eraseChatMessage(auxMessage->getMessage(), true);
                     nSending--;
                 }
 
                 addMsgWidget(msg, loadedMessages + nSending + nManualSending);
-                auxMessage = findChatMessage(msg->getTempId());
-
+                auxMessage = findChatMessage(msg->getRowId());
                 if(auxMessage)
                 {
                     auxMessage->setMessage(msg->copy());
