@@ -47,7 +47,12 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     setAttribute(Qt::WA_DeleteOnClose);
 
     if (!mChatRoom->isActive())
+    {
         ui->mMessageEdit->setEnabled(false);
+        ui->mMessageEdit->blockSignals(true);
+        ui->mMsgSendBtn->setEnabled(false);
+        ui->mMembersBtn->hide();
+    }
 
     QDialog::show();
     this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
@@ -103,9 +108,12 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
 
 void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
 {
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
+    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
     {
-       this->close();
+        ui->mMessageEdit->setEnabled(false);
+        ui->mMessageEdit->blockSignals(true);
+        ui->mMsgSendBtn->setEnabled(false);
+        ui->mMembersBtn->hide();
     }
 
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
@@ -359,6 +367,11 @@ void ChatWindow::onMembersBtn(bool)
 
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
+    if (!mChatRoom->isActive())
+    {
+        return ;
+    }
+
     MainWindow *mainWin = mChatItemWidget->mMainWin;
     mega::MegaUserList *userList = mainWin->getUserContactList();
     if (mChatRoom->getPeerCount() == 0)

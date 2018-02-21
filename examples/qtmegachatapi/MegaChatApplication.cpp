@@ -181,8 +181,17 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
         {
             user = userList->get(i);
             userHandle = userList->get(i)->getHandle();
-            if(userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
+            std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
+            itContacts = this->mMainWin->contactWidgets.find(userHandle);
+            if (itContacts == this->mMainWin->contactWidgets.end())
+            {
+                mMainWin->addContact(userHandle);
+            }
+            else
+            {
+                if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
                 megaChatApi->getUserFirstname(userHandle);
+            }
         }
     }
 }

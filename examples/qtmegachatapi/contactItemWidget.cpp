@@ -52,6 +52,10 @@ void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
    QString text = NULL;
    char *email = mMegaChatApi->getContactEmail(contactHandle);
    mega::MegaUser *contact = mMegaApi->getContact(email);
+   if (!contact)
+   {
+       return;
+   }
    const char *chatHandle_64;
    const char *contactHandle_64 = mMegaApi->userHandleToBase64(contactHandle);
    const char *auxChatHandle_64 = mMegaApi->userHandleToBase64(mMegaChatApi->getChatHandleByUser(contactHandle));

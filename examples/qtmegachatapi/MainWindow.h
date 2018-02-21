@@ -69,6 +69,7 @@ class MainWindow :
         void esidLogout();
 
      friend class ChatItemWidget;
+     friend class MegaChatApplication;
 };
 
 #endif // MAINWINDOW_H
