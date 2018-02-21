@@ -1548,6 +1548,7 @@ void Chat::initChat()
     mRefidToIdxMap.clear();
 
     mHasMoreHistoryInDb = false;
+    mHaveAllHistory = false;
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -2037,37 +2038,6 @@ void Chat::flushOutputQueue(bool fromStart)
 
     while (mNextUnsent != mSending.end())
     {
-        ManualSendReason reason = kManualSendInvalidReason;
-
-        if (mOwnPrivilege < PRIV_FULL)
-        {
-            reason = kManualSendNoWriteAccess;
-        }
-        else if (manualResendWhenUserJoins() && !mNextUnsent->isEdit() && (mNextUnsent->recipients != mUsers))
-        {
-            reason = kManualSendUsersChanged;
-        }
-        else if ((time(NULL) - mNextUnsent->msg->ts) > CHATD_MAX_EDIT_AGE)
-        {
-            reason = kManualSendTooOld;
-        }
-
-        if (reason != kManualSendInvalidReason)
-        {
-            auto start = mNextUnsent;
-            mNextUnsent = mSending.end();
-            // Too old message or edit, or group composition has changed, or no write access.
-            // Move it and all following items as well
-            for (auto it = start; it != mSending.end();)
-            {
-                auto erased = it;
-                it++;
-                moveItemToManualSending(erased, reason);
-            }
-            CALL_CRYPTO(resetSendKey);
-            return;
-        }
-
         //kickstart encryption
         //return true if we encrypted and sent at least one message
         if (!msgEncryptAndSend(mNextUnsent++))
@@ -2090,7 +2060,10 @@ void Chat::removeManualSend(uint64_t rowid)
     {
         ManualSendReason reason;
         Message *msg = getManualSending(rowid, reason);
-        if (msg->id() == mLastTextMsg.id())
+        bool updateLastMsg = (mLastTextMsg.idx() == CHATD_IDX_INVALID) // if not confirmed yet...
+                ? (msg->id() == mLastTextMsg.xid()) // ...and it's the msgxid about to be removed
+                : (msg->id() == mLastTextMsg.id()); // or was confirmed and the msgid is about to be removed (a pending edit)
+        if (updateLastMsg)
         {
             findAndNotifyLastTextMsg();
         }

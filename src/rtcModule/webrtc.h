@@ -39,7 +39,6 @@ typedef uint8_t TermCode;
 #include "karereCommon.h" //for AvFlags
 #include <karereId.h>
 #include <trackDelete.h>
-#include <serverListProviderForwards.h>
 #include <IRtcCrypto.h>
 
 namespace chatd
@@ -106,13 +105,15 @@ enum TermCode: uint8_t
     kErrLocalMedia = 27,        // < Error getting media from mic/camera
     kErrNoMedia = 28,           // < There is no media to be exchanged - both sides don't have audio/video to send
     kErrNetSignalling = 29,     // < chatd shard was disconnected
-    kErrIceDisconn = 30,        // < ice-disconnect condition on webrtc connection
-    kErrIceFail = 31,           // <ice-fail condition on webrtc connection
+    kErrIceDisconn = 30,        // < The media connection got broken, due to network error
+    kErrIceFail = 31,           // < Media connection could not be established, because webrtc was unable to traverse NAT.
+    // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
     kErrSdp = 32,               // < error generating or setting SDP description
     kErrUserOffline = 33,       // < we received a notification that that user went offline
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
     kErrorLast = 35,            // < Last enum indicating call termination due to error
+    kLast = 35,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
@@ -297,7 +298,7 @@ public:
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
-    virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    virtual void init() = 0;
     /**
      * @brief Clients exchange an anonymous id for statistics purposes
      * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids

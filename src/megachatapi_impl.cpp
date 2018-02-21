@@ -4375,7 +4375,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.titleString();
+        string name = peerchat.completeTitleString();
 
         this->peers.push_back(userpriv_pair(uh, priv));
 

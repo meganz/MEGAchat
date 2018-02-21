@@ -829,27 +829,23 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-        auto wptr = weakHandle();
-
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init(10000)
-    .then([this, isInBackground, wptr]()
+    rtc->init();
+#endif
+
+    connectToChatd(isInBackground);
+
+    auto wptr = weakHandle();
+    auto pms = connectToPresenced(mOwnPresence)
+    .then([this, wptr]()
     {
         if (wptr.deleted())
         {
             return;
         }
-        connectToChatd(isInBackground);
-    });
-#else
-    connectToChatd(isInBackground);
-#endif
 
-    auto pms = connectToPresenced(mOwnPresence)
-    .then([this]()
-    {
         setConnState(kConnected);
     })
     .fail([this](const promise::Error& err)
@@ -857,6 +853,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         setConnState(kDisconnected);
         return err;
     });
+
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
@@ -1556,17 +1553,17 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 auto self = static_cast<PeerChatRoom*>(userp);
                 if (!data || data->empty() || (*data->buf() == 0))
                 {
-                    self->updateTitle(self->mEmail);
+                    self->updateTitle(encodeFirstName(self->mEmail));
                 }
                 else
                 {
-                    self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                    self->updateTitle(std::string(data->buf(), data->dataSize()));
                 }
             });
 
         if (mTitleString.empty()) // user attrib fetch was not synchornous
         {
-            updateTitle(mEmail);
+            updateTitle(encodeFirstName(mEmail));
             assert(!mTitleString.empty());
         }
     }
@@ -1617,7 +1614,12 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-const std::string& PeerChatRoom::titleString() const
+const char *PeerChatRoom::titleString() const
+{
+    return mTitleString.c_str() + 1;
+}
+
+const std::string &PeerChatRoom::completeTitleString() const
 {
     return mTitleString;
 }
@@ -2821,7 +2823,7 @@ void Contact::notifyTitleChanged()
 
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
-            mChatRoom->updateTitle(mTitleString.substr(1));
+            mChatRoom->updateTitle(mTitleString);
     }, mClist.client.appCtx);
 }
 
@@ -2867,7 +2869,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    mChatRoom->updateTitle(mTitleString.substr(1));
+    mChatRoom->updateTitle(mTitleString);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
