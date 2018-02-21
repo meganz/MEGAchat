@@ -1223,7 +1223,7 @@ void Call::removeSession(Session& sess, TermCode reason)
 
         mSessRetriesTime[endpointId] = 0;
 
-        if ((mTotalSessionRetry == retryNumber) // there was a newer retry on another session
+        if ((mTotalSessionRetry > retryNumber) // there was a newer retry on another session
                 || (mState >= kStateTerminating)) // call already terminating
         {
            return; //timer is not relevant anymore
