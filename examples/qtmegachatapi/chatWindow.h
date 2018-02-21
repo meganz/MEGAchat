@@ -22,12 +22,13 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         ChatWindow(QWidget* parent, megachat::MegaChatApi* mMegaChatApi, megachat::MegaChatRoom *cRoom, const char * title);
         virtual ~ChatWindow();
         void openChatRoom();
-        void onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
+        void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
         void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
+        void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
         void moveManualSendingToSending(megachat::MegaChatMessage * msg);
         void setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item);

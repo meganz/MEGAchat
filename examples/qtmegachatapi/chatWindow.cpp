@@ -17,13 +17,12 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     mChatItemWidget = (ChatItemWidget *) parent;
     mMegaApi = mChatItemWidget->mMegaApi;
     mLogger = ((MainWindow *)mChatItemWidget->parent())->mLogger;
-
     ui->setupUi(this);
     ui->mSplitter->setStretchFactor(0,1);
     ui->mSplitter->setStretchFactor(1,0);
     ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
-    ui->mTitleLabel->setText(title);
     ui->mChatdStatusDisplay->hide();
+    setChatTittle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
@@ -52,6 +51,16 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     QDialog::show();
     this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
+}
+
+void ChatWindow::setChatTittle(const char *title)
+{
+    QString chatTitle = NULL;
+    chatTitle.append(title)
+    .append(" [")
+    .append(mChatRoom->privToString(mChatRoom->getOwnPrivilege()))
+    .append("]");
+    ui->mTitleLabel->setText(chatTitle);
 }
 
 void ChatWindow::openChatRoom()
@@ -92,10 +101,25 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
     addMsgWidget(msg, loadedMessages + nSending);
 }
 
-void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat)
+void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
 {
-    // TODO: update UI based on changes reported by `chat`: title, chatd connection, peers names,
-    // own privilege...
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
+    {
+       this->close();
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
+    {
+       delete mChatRoom;
+       this->mChatRoom = chat->copy();
+       this->setChatTittle(mChatRoom->getTitle());
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS))
+    {
+        delete mChatRoom;
+        this->mChatRoom = chat->copy();
+    }
 }
 
 void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
@@ -259,8 +283,6 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     }
     else
     {
-
-
         if (!mMegaChatApi->isFullHistoryLoaded(mChatRoom->getChatId()) && mPendingLoad > 0)
         {
             mPendingLoad = NMESSAGES_LOAD - loadedMessages + nSending + nManualSending;
