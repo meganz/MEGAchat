@@ -1005,10 +1005,13 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
             cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
             mDestroySessionTimer = 0;
             SUB_LOG_WARNING("Timed out waiting for all sessions to terminate, force closing them");
-            for (auto& item: mSessions)
+            for (auto itSessions = mSessions.begin(); itSessions != mSessions.end();)
             {
-                item.second->destroy(code, msg);
+                auto session = itSessions->second;
+                itSessions++;
+                session->destroy(code, msg);
             }
+
             ctx->pms.resolve();
             return;
         }
