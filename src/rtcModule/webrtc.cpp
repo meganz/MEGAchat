@@ -1547,7 +1547,7 @@ string Session::getDeviceInfo() const
     }
 
 
-    int endVersionPosition = userAgent.find(" (");
+    size_t endVersionPosition = userAgent.find(" (");
     if (endVersionPosition != std::string::npos &&
             endTypePosition != std::string::npos &&
             endVersionPosition > endTypePosition)
