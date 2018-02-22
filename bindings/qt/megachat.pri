@@ -53,7 +53,42 @@ HEADERS  += asyncTest-framework.h \
             ../bindings/qt/QTMegaChatEvent.h \
             ../bindings/qt/QTMegaChatListener.h \
             ../bindings/qt/QTMegaChatRoomListener.h \
-            ../bindings/qt/QTMegaChatRequestListener.h
+            ../bindings/qt/QTMegaChatRequestListener.h \
+            base/asyncTools.h \
+            base/addrinfo.hpp \
+            base/cservices-thread.h \
+            base/cservices.h \
+            base/gcmpp.h \
+            base/logger.h \
+            base/loggerFile.h \
+            base/loggerConsole.h \
+            base/retryHandler.h \
+            base/promise.h \
+            base/services.h \
+            base/timers.hpp \
+            base/trackDelete.h \
+            net/libwsIO.h \
+            net/libwebsocketsIO.h \
+            net/websocketsIO.h \
+            rtcModule/IDeviceListImpl.h \
+            rtcModule/IRtcCrypto.h \
+            rtcModule/IRtcStats.h \
+            rtcModule/ITypes.h \
+            rtcModule/ITypesImpl.h \
+            rtcModule/IVideoRenderer.h \
+            rtcModule/messages.h \
+            rtcModule/rtcmPrivate.h \
+            rtcModule/rtcStats.h \
+            rtcModule/streamPlayer.h \
+            rtcModule/webrtc.h \
+            rtcModule/webrtcAdapter.h \
+            rtcModule/webrtcAsyncWaiter.h \
+            rtcModule/webrtcPrivate.h \
+            strongvelope/tlvstore.h \
+            strongvelope/strongvelope.h \
+            strongvelope/cryptofunctions.h \
+            waiter/libuvWaiter.h \
+            waiter/libeventWaiter.h
 
 DEFINES += USE_LIBWEBSOCKETS=1
 
@@ -94,3 +129,5 @@ karereDbSchemaTarget.depends = FORCE
 karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
 PRE_TARGETDEPS += karereDbSchema.cpp
 QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
+
+DISTFILES +=
