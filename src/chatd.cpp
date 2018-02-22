@@ -354,7 +354,12 @@ Promise<void> Connection::reconnect()
                 return pms;
             }
 
-            mClient.mRtcHandler->stopCallsTimers(mShardNo);
+#ifndef KARERE_DISABLE_WEBRTC
+            if (mClient.mRtcHandler)
+            {
+                mClient.mRtcHandler->stopCallsTimers(mShardNo);
+            }
+#endif
             disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
@@ -433,7 +438,12 @@ Promise<void> Connection::reconnect()
                 mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
                 mHeartbeatEnabled = true;
                 sendKeepalive(mClient.mKeepaliveType);
-                mClient.mRtcHandler->restartCallsTimers(mShardNo);
+#ifndef KARERE_DISABLE_WEBRTC
+                if (mClient.mRtcHandler)
+                {
+                    mClient.mRtcHandler->restartCallsTimers(mShardNo);
+                }
+#endif
                 return rejoinExistingChats();
             });
         }, wptr, mClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
