@@ -94,7 +94,6 @@ protected:
     bool mCallStartingSignalled = false;
     bool mCallStartedSignalled = false;
     megaHandle mInCallPingTimer = 0;
-    megaHandle mRejoinTimer = 0;
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;

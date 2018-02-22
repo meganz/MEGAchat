@@ -520,7 +520,7 @@ void RtcModule::stopCallsTimers(int shard)
         auto& call = callIt->second;
         callIt++;
 
-        if (call->chat().connection().shard() == shard)
+        if (call->chat().connection().shardNo() == shard)
         {
             call->stopIncallPingTimer(false);
         }
@@ -534,7 +534,7 @@ void RtcModule::restartCallsTimers(int shard)
         auto& call = callIt->second;
         callIt++;
 
-        if (call->chat().connection().shard() == shard)
+        if (call->chat().connection().shardNo() == shard)
         {
             call->startIncallPingTimer();
         }
@@ -705,10 +705,12 @@ void Call::msgCallTerminate(RtMessage& packet)
     bool isCallParticipant = false;
     if (mSessions.size() > 0)
     {
-        for (auto& item: mSessions)
+        for (auto sessionIt = mSessions.begin(); sessionIt != mSessions.end();)
         {
-            auto& sess = item.second;
-            if (sess->mPeer == packet.userid && sess->mPeerClient == packet.clientid)
+            auto& session = sessionIt->second;
+            sessionIt++;
+
+            if (session->mPeer == packet.userid && session->mPeerClient == packet.clientid)
             {
                 isCallParticipant = true;
                 break;
@@ -722,7 +724,7 @@ void Call::msgCallTerminate(RtMessage& packet)
     else
     {
         EndpointId endpointId(packet.userid, packet.clientid);
-        std::map<chatd::EndpointId, int>::const_iterator itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
+        auto itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
         int retry = 0;
         if (itSessionRetryNumber == mSessRetriesNumber.end())
         {
@@ -730,7 +732,7 @@ void Call::msgCallTerminate(RtMessage& packet)
         }
 
         time_t sessionRetryTime = 0;
-        std::map<chatd::EndpointId, time_t>::const_iterator itSessionRetyTime = mSessRetriesTime.find(endpointId);
+        auto itSessionRetyTime = mSessRetriesTime.find(endpointId);
         if (itSessionRetyTime != mSessRetriesTime.end())
         {
             sessionRetryTime = itSessionRetyTime->second;
@@ -1176,7 +1178,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     // and can try re-establishing the session
 
     EndpointId endpointId(sess.mPeer, sess.mPeerClient);
-    std::map<chatd::EndpointId, int>::iterator itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
+    auto itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
     if (itSessionRetryNumber == mSessRetriesNumber.end())
     {
         mSessRetriesNumber[endpointId] = 1;
@@ -1214,7 +1216,7 @@ void Call::removeSession(Session& sess, TermCode reason)
 
     // set a timeout for the session recovery
     auto wptr = weakHandle();
-    mRejoinTimer = setTimeout([this, wptr, endpointId, retryId, retryNumber]()
+    setTimeout([this, wptr, endpointId, retryId, retryNumber]()
     {
         if (wptr.deleted())
             return;
@@ -1781,18 +1783,6 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     {
         mTsIceConn = time(NULL);
         mCall.notifySessionConnected(*this);
-
-        if (!isCaller())
-        {
-            auto wptr = weakHandle();
-            mSetupTimer = setTimeout([wptr, this] {
-                if (wptr.deleted())
-                    return;
-                if (mState < kStateInProgress) {
-                    terminateAndDestroy(TermCode::kErrIceDisconn);
-                }
-            }, 4000, mManager.mClient.appCtx);
-        }
     }
 }
 

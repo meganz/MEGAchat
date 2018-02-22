@@ -499,7 +499,7 @@ void Connection::heartbeat()
     }
 }
 
-int Connection::shard()
+int Connection::shardNo() const
 {
     return mShardNo;
 }

@@ -394,7 +394,7 @@ public:
 
     void heartbeat();
 
-    int shard();
+    int shardNo() const;
 };
 
 enum ServerHistFetchState
