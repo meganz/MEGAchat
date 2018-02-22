@@ -1116,8 +1116,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else
                 {
-                    chat.rejectGeneric(op);
-                    //TODO: Implement
+                    chat.rejectGeneric(op, reason);
                 }
                 break;
             }
@@ -2280,22 +2279,9 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
     }
 }
 
-template<bool mustBeInSending>
-void Chat::rejectGeneric(uint8_t opcode)
+void Chat::rejectGeneric(uint8_t /*opcode*/, uint8_t /*reason*/)
 {
-    if (!mustBeInSending)
-        return;
-
-    if (mSending.empty())
-    {
-        throw std::runtime_error("rejectGeneric(mustBeInSending): Send queue is empty");
-    }
-    if (mSending.front().opcode() != opcode)
-    {
-        throw std::runtime_error("rejectGeneric(mustBeInSending): Rejected command is not at the front of the send queue");
-    }
-    CALL_DB(deleteItemFromSending, mSending.front().rowid);
-    mSending.pop_front();
+    //TODO: Implement
 }
 
 void Chat::onMsgUpdated(Message* cipherMsg)

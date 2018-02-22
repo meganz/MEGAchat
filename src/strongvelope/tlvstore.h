@@ -58,18 +58,20 @@ public:
             return false;
         size_t typeLen = mLegacyMode ? 2 : 1;
         record.type = mSource.read<uint8_t>(mOffset);
-
         record.dataOffset = mOffset+typeLen+2;
         uint16_t valueLen = ntohs(mSource.read<uint16_t>(mOffset+typeLen));
+
         if ((valueLen == 0xffff) && !mLegacyMode)
         {
-            record.dataLen = mSource.dataSize() - record.dataOffset+1;
+            record.dataLen = mSource.dataSize() - record.dataOffset;
             mOffset = mSource.dataSize();
-            return false;
+        }
+        else
+        {
+            record.dataLen = valueLen;
+            mOffset = record.dataOffset+record.dataLen;
         }
 
-        record.dataLen = valueLen;
-        mOffset = record.dataOffset+record.dataLen;
         if (mOffset > mSource.dataSize())
             throw std::runtime_error("TlvContainer::getRecord: Corrupt data - spans outside of physical buffer");
 

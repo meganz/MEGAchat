@@ -1027,8 +1027,7 @@ protected:
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void rejectMsgupd(karere::Id id, uint8_t serverReason);
-    template <bool mustBeInSending=false>
-    void rejectGeneric(uint8_t opcode);
+    void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
     void deleteMessagesBefore(Idx idx);
