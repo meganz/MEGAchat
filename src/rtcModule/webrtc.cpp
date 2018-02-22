@@ -1519,7 +1519,7 @@ string Session::getDeviceInfo() const
     std::string testChatId = "MEGAChatTest";
     std::string syncId = "MEGAsync";
 
-    std::string deviceType = "Unkown";
+    std::string deviceType = "Unknown";
     std::string version = "0";
 
     long long endTypePosition = std::string::npos;
@@ -1545,7 +1545,7 @@ string Session::getDeviceInfo() const
     }
     else
     {
-        deviceType = "Unkown";
+        deviceType = "n";
     }
 
     int endVersionPosition = userAgent.find(" (");
