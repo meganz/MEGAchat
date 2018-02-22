@@ -337,7 +337,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 client->wsi = NULL;
                 lws_set_wsi_user(dwsi, NULL);
             }
-            client->wsCloseCb(0, 0, "", 0);
+            client->wsCloseCb(reason, 0, "closed", 7);
             break;
         }
             

@@ -39,7 +39,6 @@ typedef uint8_t TermCode;
 #include "karereCommon.h" //for AvFlags
 #include <karereId.h>
 #include <trackDelete.h>
-#include <serverListProviderForwards.h>
 #include <IRtcCrypto.h>
 
 namespace chatd
@@ -106,8 +105,9 @@ enum TermCode: uint8_t
     kErrLocalMedia = 27,     // < Error getting media from mic/camera
     kErrNoMedia = 28,        // < There is no media to be exchanged - both sides don't have audio/video to send
     kErrNetSignalling = 29,  // < chatd shard was disconnected
-    kErrIceDisconn = 30,     // < ice-disconnect condition on webrtc connection
-    kErrIceFail = 31,        // <ice-fail condition on webrtc connection
+    kErrIceDisconn = 30,     // < The media connection got broken, due to network error
+    kErrIceFail = 31,        // < Media connection could not be established, because webrtc was unable to traverse NAT.
+    // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
     kErrSdp = 32,            // < error generating or setting SDP description
     kErrUserOffline = 33,    // < we received a notification that that user went offline
     kErrorLast = 33,         // < Last enum indicating call termination due to error
@@ -200,6 +200,7 @@ public:
     karere::Id peerAnonId() const { return mPeerAnonId; }
     virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
+    karere::Id sessionId() const {return mSid;}
 };
 
 class ICall: public karere::WeakReferenceable<ICall>
@@ -295,7 +296,7 @@ public:
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
-    virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    virtual void init() = 0;
     /**
      * @brief Clients exchange an anonymous id for statistics purposes
      * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids

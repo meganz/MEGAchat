@@ -69,7 +69,8 @@ void sdpSetVideoBw(std::string& sdp, int maxbr);
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mTurnServerProvider(client.api, "turn", iceServers, 3600)
+  mIceServerProvider(client.api, "turn"),
+  mStaticIceSever(iceServers)
 {
     if (!artc::isInitialized())
     {
@@ -84,37 +85,29 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
     initInputDevices();
 }
 
-promise::Promise<void> RtcModule::init(unsigned gelbTimeout)
+void RtcModule::init()
 {
+    StaticProvider iceServerStatic(mStaticIceSever);
+    setIceServers(iceServerStatic);
     auto wptr = weakHandle();
-    return updateIceServers(gelbTimeout)
-    .fail([](const promise::Error& err)
-    {
-        RTCM_LOG_ERROR("updateIceServers failed, and it shouldn't. Error: %s", err.what());
-        assert(false);
-    })
-    .then([this, wptr]()
+    mIceServerProvider.fetchServers()
+    .then([wptr, this]()
     {
         if (wptr.deleted())
             return;
-        mClient.chatd->setRtcHandler(this);
+        setIceServers(mIceServerProvider);
+    })
+    .fail([](const promise::Error& err)
+    {
+        KR_LOG_ERROR("Gelb failed with error '%s', using static server list", err.what());
     });
+
+    mClient.chatd->setRtcHandler(this);
 }
 
 IRtcModule* create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto* crypto, const char* iceServers)
 {
     return new RtcModule(client, handler, crypto, iceServers);
-}
-promise::Promise<void> RtcModule::updateIceServers(unsigned timeout)
-{
-    auto wptr = weakHandle();
-    return mTurnServerProvider.getServers(timeout)
-    .then([wptr, this](ServerList<TurnServerInfo>* servers)
-    {
-        if (wptr.deleted())
-            return;
-        setIceServers(*servers);
-    });
 }
 
 template <class T>
@@ -212,24 +205,31 @@ void RtcModule::onDisconnect(chatd::Connection& conn)
     }
 }
 
-int RtcModule::setIceServers(const ServerList<TurnServerInfo>& servers)
+int RtcModule::setIceServers(const ServerList &servers)
 {
+    if (servers.empty())
+        return 0;
+
     webrtc::PeerConnectionInterface::IceServers rtcServers;
-    webrtc::PeerConnectionInterface::IceServer rtcServer;
     for (auto& server: servers)
     {
-        rtcServer.uri = server->url;
+        webrtc::PeerConnectionInterface::IceServer rtcServer;
+        rtcServer.uri = server->url;        
+
         if (!server->user.empty())
             rtcServer.username = server->user;
         else
             rtcServer.username = KARERE_TURN_USERNAME;
+
         if (!server->pass.empty())
             rtcServer.password = server->pass;
         else
             rtcServer.password = KARERE_TURN_PASSWORD;
+
         KR_LOG_DEBUG("Adding ICE server: '%s'", rtcServer.uri.c_str());
         rtcServers.push_back(rtcServer);
     }
+
     mIceServers.swap(rtcServers);
     return (int)(mIceServers.size());
 }
@@ -660,6 +660,8 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     {
         mLocalPlayer->attachVideo(mLocalStream->video());
     }
+
+    mLocalPlayer->enableVideo(av.video());
 }
 
 void Call::msgCallTerminate(RtMessage& packet)
@@ -1344,6 +1346,7 @@ AvFlags Call::muteUnmute(AvFlags av)
     auto oldAv = mLocalStream->effectiveAv();
     mLocalStream->setAv(av);
     av = mLocalStream->effectiveAv();
+    mLocalPlayer->enableVideo(av.video());
     if (oldAv != av)
     {
         for (auto& item: mSessions)
@@ -1414,10 +1417,10 @@ AvFlags Call::sentAv() const
     C: send SESSION callid.8 sid.8 anonId.8 encHashKey.32 actualCallId.8
         => call state: CallState.kInProgress
         => sess state: SessState.kWaitSdpOffer
-    A: send SDP_OFFER sid.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
+    A: send SDP_OFFER sid.8 encHashKey.32 fprHash.32 avflags.1 sdpLen.2 sdpOffer.sdpLen
         => call state: CallState.kInProress
         => sess state: SessState.kWaitSdpAnswer
-    C: send SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
+    C: send SDP_ANSWER sid.8 fprHash.32 avflags.1 sdpLen.2 sdpAnswer.sdpLen
         => state: SessState.kWaitMedia
     A and C: exchange ICE_CANDIDATE sid.8 midLen.1 mid.midLen mLineIdx.1 candLen.2 iceCand.candLen
     A or C: may send MUTE sid.8 avState.1 (if user mutes/unmutes audio/video).
@@ -1432,7 +1435,7 @@ AvFlags Call::sentAv() const
         the peer from thinking that the webrtc connection was closed
         due to error
         => state: Sess.kDestroyed
-@note avflags of caller are duplicated in RTCMD.CALL_REQUEST and RTCMD.SDP_OFFER
+@note avflags of caller are duplicated in CALLDATA and RTCMD.SDP_ANSWER
 The first is purely informative, to make the callee aware what type of
 call the caller is requesting - audio or video.
 This is not available when joining an existing call.
@@ -1569,6 +1572,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
         FIRE_EVENT(SESS, onVideoRecv);
     });
     mRemotePlayer->attachToStream(stream);
+    mRemotePlayer->enableVideo(mPeerAv.video());
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -1985,9 +1989,8 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
         info.aaid = mPeerAnonId;
     }
 
-    std::string stats = mStatRecorder->getStats(info);
+    std::string stats = mStatRecorder->terminate(info);
     mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
-
     return;
 }
 
@@ -2044,6 +2047,8 @@ void Session::msgMute(RtMessage& packet)
 {
     auto oldAv = mPeerAv;
     mPeerAv.set(packet.payload.read<uint8_t>(8));
+    mRemotePlayer->enableVideo(mPeerAv.video());
+
     FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 
