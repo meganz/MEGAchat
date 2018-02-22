@@ -21,7 +21,8 @@ struct StatSessInfo
     karere::Id caid;
     karere::Id aaid;
     bool isCaller;
-    StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo);
+    std::string deviceInfo;
+    StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo, const std::string &aDeviceInfo);
 };
 
 class ConnInfo: public IConnInfo
@@ -51,6 +52,7 @@ public:
     karere::Id mSessionId;
     karere::Id mOwnAnonId;
     karere::Id mPeerAnonId;
+    std::string mDeviceInfo;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
     //IRtcStats implementation
