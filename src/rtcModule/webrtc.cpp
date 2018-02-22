@@ -1512,6 +1512,8 @@ webrtc::FakeConstraints* Session::pcConstraints()
 
 string Session::getDeviceInfo() const
 {
+    // UserAgent Format
+    // MEGA<app>/<version> (platform) Megaclient/<version>
     std::string userAgent = mCall.mChat.mClient.karereClient->api.sdk.getUserAgent();
 
     std::string androidId = "MEGAAndroid";
@@ -1519,11 +1521,11 @@ string Session::getDeviceInfo() const
     std::string testChatId = "MEGAChatTest";
     std::string syncId = "MEGAsync";
 
-    std::string deviceType = "Unknown";
+    std::string deviceType = "n";
     std::string version = "0";
 
-    long long endTypePosition = std::string::npos;
-    long long idPosition = std::string::npos;
+    size_t endTypePosition = std::string::npos;
+    size_t idPosition;
     if ((idPosition = userAgent.find(androidId)) != std::string::npos)
     {
         deviceType = "na";
@@ -1543,10 +1545,7 @@ string Session::getDeviceInfo() const
         deviceType = "nsync";
         endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
     }
-    else
-    {
-        deviceType = "n";
-    }
+
 
     int endVersionPosition = userAgent.find(" (");
     if (endVersionPosition != std::string::npos &&
