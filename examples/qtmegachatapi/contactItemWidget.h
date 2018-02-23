@@ -12,12 +12,12 @@ class ContactItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ContactItemWidget(QWidget *parent , megachat::MegaChatApi *megChatApi, mega::MegaApi *mMegaApi, megachat::MegaChatHandle userHandle);
+        ContactItemWidget(QWidget *parent , megachat::MegaChatApi *megChatApi, mega::MegaApi *mMegaApi, mega::MegaUser *contact);
         virtual ~ContactItemWidget();
-        void contextMenuEvent(QContextMenuEvent* event);
+        void contextMenuEvent(QContextMenuEvent *event);
         void setAvatarStyle();
         void updateOnlineIndicator(int newState);
-        void updateToolTip(megachat::MegaChatHandle contactHandle);
+        void updateToolTip(mega::MegaUser *contact);
         void updateTitle(const char *firstname);
 
     private:

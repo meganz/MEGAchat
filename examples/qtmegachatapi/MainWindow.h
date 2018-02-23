@@ -28,7 +28,7 @@ class MainWindow :
         void setMegaChatApi(megachat::MegaChatApi *megaChatApi);
         void setMegaApi(mega::MegaApi *megaApi);
         void addChat(const megachat::MegaChatListItem *chatListItem);
-        void addContact(megachat::MegaChatHandle contactHandle);
+        void addContact(mega::MegaUser *contact);
         void addChatListener();
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         mega::MegaUserList * getUserContactList();

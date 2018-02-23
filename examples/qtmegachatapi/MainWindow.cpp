@@ -124,15 +124,15 @@ void MainWindow::on_bOnlineStatus_clicked()
 }
 
 
-void MainWindow::addContact(MegaChatHandle contactHandle)
+void MainWindow::addContact(MegaUser *contact)
 {
-    ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, mMegaChatApi, mMegaApi, contactHandle);
-    contactItemWidget->updateToolTip(contactHandle);
+    ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, mMegaChatApi, mMegaApi, contact);
+    contactItemWidget->updateToolTip(contact);
     QListWidgetItem *item = new QListWidgetItem();
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
     ui->contactList->insertItem(0, item);
     ui->contactList->setItemWidget(item, contactItemWidget);
-    contactWidgets.insert(std::pair<mega::MegaHandle, ContactItemWidget *>(contactHandle,contactItemWidget));
+    contactWidgets.insert(std::pair<mega::MegaHandle, ContactItemWidget *>(contact->getHandle(),contactItemWidget));
 }
 
 
