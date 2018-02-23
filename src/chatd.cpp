@@ -661,7 +661,9 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(", userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
-            tmpString.append(to_string(clientId));
+            std::stringstream stream;
+            stream << std::hex << clientId;
+            tmpString.append(stream.str());
             return tmpString;
         }
         case OP_ENDCALL:
@@ -675,7 +677,9 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(", userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
-            tmpString.append(to_string(clientId));
+            std::stringstream stream;
+            stream << std::hex << clientId;
+            tmpString.append(stream.str());
             return tmpString;
         }
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1246,7 +1250,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 // clientid.4 reserved.4
                 READ_32(clientid, 0);
                 mClientId = clientid;
-                CHATD_LOG_DEBUG("recv CLIENTID - 0x%04x", clientid);
+                CHATD_LOG_DEBUG("recv CLIENTID - %x", clientid);
             }
             case OP_ECHO:
             {
