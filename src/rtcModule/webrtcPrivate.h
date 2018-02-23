@@ -59,7 +59,7 @@ protected:
     void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
-
+    std::string getDeviceInfo() const;
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
