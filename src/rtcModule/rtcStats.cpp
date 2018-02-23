@@ -59,9 +59,9 @@ void Recorder::resetBwCalculators()
     mConnTxBwCalc.reset(&(mCurrSample->cstats.s));
 }
 
-long long Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
+int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
 {
-    long long numericalValue = 0;
+    int64_t numericalValue = 0;
     const webrtc::StatsReport::Value *value = item->FindValue(name);
     if (value)
     {
@@ -95,10 +95,10 @@ std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, c
     return stringValue;
 }
 
-void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
+void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
 {
-    long deltaBytes = newTotalBytes - mTotalBytes;
-    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128) / (periodMs / 1000); //from bytes/s to kbits/s
+    uint64_t deltaBytes = newTotalBytes - mTotalBytes;
+    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
     mTotalBytes = newTotalBytes;
     mBwInfo->bs += deltaBytes;
     mBwInfo->abps = (mBwInfo->abps * 4+bps) / 5;
