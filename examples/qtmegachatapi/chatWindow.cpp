@@ -145,9 +145,22 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         if (chatMessage)
         {
-            chatMessage->setMessageContent(msg->getContent());
-            if (msg->isEdited())
-                chatMessage->markAsEdited();
+            if (msg->getType() == megachat::MegaChatMessage::TYPE_TRUNCATE)
+            {
+                truncateChatUI();
+                megachat::MegaChatMessage *auxMsg = msg->copy();
+                addMsgWidget(auxMsg, loadedMessages);
+                mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());
+                mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
+            }
+            else
+            {
+               chatMessage->setMessageContent(msg->getContent());
+               if (msg->isEdited())
+               {
+                  chatMessage->markAsEdited();
+               }
+            }
         }
     }
 
@@ -191,6 +204,19 @@ void ChatWindow::deleteChatMessage(megachat::MegaChatMessage *msg)
     if (itMessages != mMsgsWidgetsMap.end())
     {
         mMegaChatApi->deleteMessage(mChatRoom->getChatId(), msgId);
+    }
+}
+
+void ChatWindow::truncateChatUI()
+{
+    std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
+    for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end(); itMessages++)
+    {
+        ChatMessage *auxMessage = itMessages->second;
+        int row = ui->mMessageList->row(auxMessage->getWidgetItem());
+        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+        mMsgsWidgetsMap.erase(itMessages);
+        delete auxItem;
     }
 }
 
@@ -420,6 +446,14 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
     }
+    auto truncate = menu.addAction("Truncate chat");
+    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+}
+
+
+void ChatWindow::onTruncateChat()
+{
+    this->mMegaChatApi->clearChatHistory(mChatRoom->getChatId());
 }
 
 void ChatWindow::onMemberAdd()
