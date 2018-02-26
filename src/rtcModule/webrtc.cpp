@@ -726,7 +726,7 @@ void Call::msgCallTerminate(RtMessage& packet)
         EndpointId endpointId(packet.userid, packet.clientid);
         auto itSessionRetryNumber = mSessRetriesNumber.find(endpointId);
         int retry = 0;
-        if (itSessionRetryNumber == mSessRetriesNumber.end())
+        if (itSessionRetryNumber != mSessRetriesNumber.end())
         {
             retry = itSessionRetryNumber->second;
         }
