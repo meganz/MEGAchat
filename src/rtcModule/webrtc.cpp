@@ -1167,14 +1167,9 @@ void Call::stopIncallPingTimer(bool endCall)
 void Call::removeSession(Session& sess, TermCode reason)
 {
     // TODO: For group calls we would need to revise this
-    if (mState == kStateTerminating || (!mIsGroup && reason == kErrUserOffline))
+    if (mState == kStateTerminating)
     {
         mSessions.erase(sess.mSid);
-        if (mState != kStateTerminating)
-        {
-            destroy(reason, false);
-        }
-
         return;
     }
 
@@ -1459,17 +1454,25 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
         destroy(TermCode::kUserHangup, false);
         return;
     }
-    for (auto& item: mSessions)
+
+    if (mIsGroup)
     {
-        auto sess = item.second;
-        if (sess->mPeer == userid && sess->mPeerClient == clientid)
+        for (auto& item: mSessions)
         {
-            marshallCall([sess]()
+            auto sess = item.second;
+            if (sess->mPeer == userid && sess->mPeerClient == clientid)
             {
-                sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrUserOffline | TermCode::kPeer));
-            }, mManager.mClient.appCtx);
-            return;
+                marshallCall([sess]()
+                {
+                    sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrUserOffline | TermCode::kPeer));
+                }, mManager.mClient.appCtx);
+                return;
+            }
         }
+    }
+    else
+    {
+        destroy(TermCode::kErrUserOffline, userid == mChat.client().karereClient->myHandle());
     }
 }
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
