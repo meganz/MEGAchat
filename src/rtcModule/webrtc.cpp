@@ -1166,9 +1166,15 @@ void Call::stopIncallPingTimer(bool endCall)
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    if (mState == kStateTerminating)
+    // TODO: For group calls we would need to revise this
+    if (mState == kStateTerminating || (!mIsGroup && reason == kErrUserOffline))
     {
         mSessions.erase(sess.mSid);
+        if (mState != kStateTerminating)
+        {
+            destroy(reason, false);
+        }
+
         return;
     }
 
