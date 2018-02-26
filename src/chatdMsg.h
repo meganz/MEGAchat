@@ -261,6 +261,10 @@ enum Opcode
       *
       * C->S: register / keepalive participation in channel's call (max interval: 5 s)
       * S->C: notify all clients of someone having joined the call (sent immediately after a chatd connection is established)
+      *
+      * If there are less than two parties pinging INCALL in a 1:1 chat with CALLDATA having its connected flag set,
+      * the call is considered terminated, and an `ENDCALL` is broadcast.
+      * @note that chatd does not parse CALLDATA yet, so the above is not enforced (yet).
       */
     OP_INCALL = 28,
 
