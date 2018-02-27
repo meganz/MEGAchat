@@ -653,12 +653,9 @@ string Command::toString(const StaticBuffer& data)
         case OP_INCALL:
         {
             string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
             karere::Id userId = data.read<uint64_t>(9);
             uint32_t clientId = data.read<uint32_t>(17);
-            tmpString.append("INCALL - chatId: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", userId: ");
+            tmpString.append("INCALL userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
             std::stringstream stream;
@@ -669,12 +666,9 @@ string Command::toString(const StaticBuffer& data)
         case OP_ENDCALL:
         {
             string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
             karere::Id userId = data.read<uint64_t>(9);
             uint32_t clientId = data.read<uint32_t>(17);
-            tmpString.append("ENDCALL - chatId: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", userId: ");
+            tmpString.append("ENDCALL userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
             std::stringstream stream;
