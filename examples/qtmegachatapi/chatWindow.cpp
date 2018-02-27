@@ -408,6 +408,9 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
     if(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR)
     {
+        auto truncate = menu.addAction("Truncate chat");
+        connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+
         auto addEntry = menu.addMenu("Add contact to chat");
         for (int i = 0 ; i < userList->size(); i++)
         {
@@ -419,21 +422,25 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     else
     {
-        menu.addMenu("Invalid permissions to add participants");
+        menu.setStyleSheet(QString("background-color:#DDDDDD"));
     }
 
     for (int i = 0; i < mChatRoom->getPeerCount(); i++)
     {
         QVariant userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
+        QString title;
+        title.append(" ")
+            .append(QString::fromStdString(mChatRoom->getPeerFirstname(i)))
+            .append(" [")
+            .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
+            .append("]");
 
+        auto entry = menu.addMenu(title);
         if(mChatRoom->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
         {
-            auto entry = menu.addMenu(mChatRoom->getPeerFirstname(i));
-
             auto actRemove = entry->addAction(tr("Remove from chat"));
             actRemove->setProperty("userHandle", userhandle);
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
-
             auto menuSetPriv = entry->addMenu(tr("Set privilege"));
             auto actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
             actSetPrivFullAccess->setProperty("userHandle", userhandle);
@@ -446,8 +453,6 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
     }
-    auto truncate = menu.addAction("Truncate chat");
-    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
 }
 
 
