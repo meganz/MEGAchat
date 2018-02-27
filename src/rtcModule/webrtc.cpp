@@ -527,20 +527,6 @@ void RtcModule::stopCallsTimers(int shard)
     }
 }
 
-void RtcModule::restartCallsTimers(int shard)
-{
-    for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
-    {
-        auto& call = callIt->second;
-        callIt++;
-
-        if (call->chat().connection().shardNo() == shard)
-        {
-            call->startIncallPingTimer();
-        }
-    }
-}
-
 template <class... Args>
 void RtcModule::sendCommand(Chat &chat, uint8_t opcode, uint8_t command, Id chatid, Id userid, uint32_t clientid, Args... args)
 {
