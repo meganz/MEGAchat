@@ -145,9 +145,26 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         if (chatMessage)
         {
-            chatMessage->setMessageContent(msg->getContent());
-            if (msg->isEdited())
-                chatMessage->markAsEdited();
+            if (msg->getType() == megachat::MegaChatMessage::TYPE_TRUNCATE)
+            {
+                truncateChatUI();
+                megachat::MegaChatMessage *auxMsg = msg->copy();
+                addMsgWidget(auxMsg, loadedMessages);
+                mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());
+
+                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle())
+                {
+                    mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
+                }
+            }
+            else
+            {
+               chatMessage->setMessageContent(msg->getContent());
+               if (msg->isEdited())
+               {
+                  chatMessage->markAsEdited();
+               }
+            }
         }
     }
 
@@ -191,6 +208,19 @@ void ChatWindow::deleteChatMessage(megachat::MegaChatMessage *msg)
     if (itMessages != mMsgsWidgetsMap.end())
     {
         mMegaChatApi->deleteMessage(mChatRoom->getChatId(), msgId);
+    }
+}
+
+void ChatWindow::truncateChatUI()
+{
+    std::map<megachat::MegaChatHandle, ChatMessage*>::iterator itMessages;
+    for (itMessages = mMsgsWidgetsMap.begin(); itMessages != mMsgsWidgetsMap.end(); itMessages++)
+    {
+        ChatMessage *auxMessage = itMessages->second;
+        int row = ui->mMessageList->row(auxMessage->getWidgetItem());
+        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
+        mMsgsWidgetsMap.erase(itMessages);
+        delete auxItem;
     }
 }
 
@@ -382,6 +412,9 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
     if(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR)
     {
+        auto truncate = menu.addAction("Truncate chat");
+        connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+
         auto addEntry = menu.addMenu("Add contact to chat");
         for (int i = 0 ; i < userList->size(); i++)
         {
@@ -393,21 +426,25 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
     else
     {
-        menu.addMenu("Invalid permissions to add participants");
+        menu.setStyleSheet(QString("background-color:#DDDDDD"));
     }
 
     for (int i = 0; i < mChatRoom->getPeerCount(); i++)
     {
         QVariant userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
+        QString title;
+        title.append(" ")
+            .append(QString::fromStdString(mChatRoom->getPeerFirstname(i)))
+            .append(" [")
+            .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
+            .append("]");
 
+        auto entry = menu.addMenu(title);
         if(mChatRoom->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
         {
-            auto entry = menu.addMenu(mChatRoom->getPeerFirstname(i));
-
             auto actRemove = entry->addAction(tr("Remove from chat"));
             actRemove->setProperty("userHandle", userhandle);
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
-
             auto menuSetPriv = entry->addMenu(tr("Set privilege"));
             auto actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
             actSetPrivFullAccess->setProperty("userHandle", userhandle);
@@ -420,6 +457,12 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
     }
+}
+
+
+void ChatWindow::onTruncateChat()
+{
+    this->mMegaChatApi->clearChatHistory(mChatRoom->getChatId());
 }
 
 void ChatWindow::onMemberAdd()

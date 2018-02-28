@@ -4,23 +4,21 @@
 #include <QMessageBox>
 #include <QMenu>
 
-ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi * megaChatApi, mega::MegaApi * megaApi, megachat::MegaChatHandle userHandle) :
+ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi, mega::MegaUser *contact) :
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
     mMegaApi = megaApi;
     mMegaChatApi = megaChatApi;
-    mUserHandle = userHandle;
-    const char *contactEmail = megaChatApi->getContactEmail(userHandle);
+    mUserHandle = contact->getHandle();
+    const char *contactEmail = contact->getEmail();
     ui->setupUi(this);
     setAvatarStyle();
     ui->mUnreadIndicator->hide();
     QString text = QString::fromUtf8(contactEmail);
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
-
-    delete contactEmail;
-    this->mMegaChatApi->getUserFirstname(userHandle);
+    this->mMegaChatApi->getUserFirstname(contact->getHandle());
 }
 
 void ContactItemWidget::setAvatarStyle()
@@ -47,27 +45,29 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     menu.deleteLater();
 }
 
-void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
+void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 {
    QString text = NULL;
-   char *email = mMegaChatApi->getContactEmail(contactHandle);
-   mega::MegaUser *contact = mMegaApi->getContact(email);
+   const char *email = contact->getEmail();
+   const char *contactHandle_64 = mMegaApi->userHandleToBase64(contact->getHandle());
    if (!contact)
    {
-       return;
+      return;
    }
-   const char *chatHandle_64;
-   const char *contactHandle_64 = mMegaApi->userHandleToBase64(contactHandle);
-   const char *auxChatHandle_64 = mMegaApi->userHandleToBase64(mMegaChatApi->getChatHandleByUser(contactHandle));
 
-   chatHandle_64 = "--------";
-   if (mMegaChatApi->getChatHandleByUser(contactHandle) != megachat::MEGACHAT_INVALID_HANDLE)
+   const char *chatHandle_64 = "--------";
+   const char *auxChatHandle_64 = mMegaApi->userHandleToBase64(mMegaChatApi->getChatHandleByUser(contact->getHandle()));
+
+   if (mMegaChatApi->getChatHandleByUser(contact->getHandle()) != megachat::MEGACHAT_INVALID_HANDLE)
    {
-         chatHandle_64 = auxChatHandle_64;
+      chatHandle_64 = auxChatHandle_64;
    }
+
 
    if (contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+   {
         text.append(tr("INVISIBLE:\n"));
+   }
 
    text.append(tr("Email: "))
         .append(QString::fromStdString(email))
@@ -77,8 +77,6 @@ void ContactItemWidget::updateToolTip(megachat::MegaChatHandle contactHandle)
    setToolTip(text);
    delete contactHandle_64;
    delete auxChatHandle_64;
-   delete contact;
-   delete email;
 }
 
 void ContactItemWidget::onCreateGroupChat()

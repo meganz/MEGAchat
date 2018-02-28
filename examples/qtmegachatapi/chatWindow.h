@@ -28,6 +28,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
+        void truncateChatUI();
         void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
         void moveManualSendingToSending(megachat::MegaChatMessage * msg);
@@ -56,6 +57,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberRemove();
         void onMsgSendBtn();
         void onMemberAdd();
+        void onTruncateChat();
         void onMembersBtn(bool);
 
     friend class ChatMessage;

@@ -158,7 +158,7 @@ void MegaChatApplication::addContacts()
         const char *contactEmail = contact->getEmail();
         megachat::MegaChatHandle userHandle = megaChatApi->getUserHandleByEmail(contactEmail);
         if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
-            mMainWin->addContact(userHandle);
+            mMainWin->addContact(contact);
     }
     delete contactList;
 }
@@ -185,7 +185,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
             itContacts = this->mMainWin->contactWidgets.find(userHandle);
             if (itContacts == this->mMainWin->contactWidgets.end())
             {
-                mMainWin->addContact(userHandle);
+                mMainWin->addContact(user);
             }
             else
             {
