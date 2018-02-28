@@ -1462,6 +1462,8 @@ public:
 
     virtual ~MegaChatApi();
 
+    static const char *getAppDir();
+
     /**
      * @brief Set a MegaChatLogger implementation to receive SDK logs
      *

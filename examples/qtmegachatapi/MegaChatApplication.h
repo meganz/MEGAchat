@@ -20,7 +20,6 @@ class MegaChatApplication : public QApplication,
     public:
         MegaChatApplication(int &argc, char** argv);
         virtual ~MegaChatApplication();
-        std::string getAppDir() const;
         void init();
         void login();
         void logout();
