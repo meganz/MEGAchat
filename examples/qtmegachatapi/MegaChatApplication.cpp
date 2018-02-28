@@ -23,13 +23,7 @@ int main(int argc, char **argv)
 
 MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(argc, argv)
 {
-    mAppDir = QDir::homePath().toStdString() + "/.karere";
-    struct stat st = {0};
-    if (stat(mAppDir.c_str(), &st) == -1)
-    {
-        mkdir(mAppDir.c_str(), 0700);
-    }
-
+    mAppDir = MegaChatApi::getAppDir();
     configureLogs();
 
     // Keep the app open until it's explicitly closed
@@ -162,13 +156,6 @@ void MegaChatApplication::addContacts()
     }
     delete contactList;
 }
-
-
-std::string MegaChatApplication::getAppDir() const
-{
-    return mAppDir;
-}
-
 
 void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList)
 {
