@@ -151,7 +151,11 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
                 megachat::MegaChatMessage *auxMsg = msg->copy();
                 addMsgWidget(auxMsg, loadedMessages);
                 mChatItemWidget->setOlderMessageLoaded(msg->getMsgId());
-                mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
+
+                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle())
+                {
+                    mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
+                }
             }
             else
             {

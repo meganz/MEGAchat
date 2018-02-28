@@ -185,10 +185,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
             itContacts = this->mMainWin->contactWidgets.find(userHandle);
             if (itContacts == this->mMainWin->contactWidgets.end())
             {
-                if (user)
-                {
-                    mMainWin->addContact(user);
-                }
+                mMainWin->addContact(user);
             }
             else
             {
