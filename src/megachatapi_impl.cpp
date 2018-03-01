@@ -5390,6 +5390,14 @@ MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
     chatCall = NULL;
 }
 
+MegaChatCallHandler::MegaChatCallHandler(const MegaChatCallHandler &callHandler)
+{
+    megaChatApi = callHandler.megaChatApi;
+    call = NULL;
+    localVideoReceiver = NULL;
+    chatCall = NULL;
+}
+
 MegaChatCallHandler::~MegaChatCallHandler()
 {
     delete chatCall;
@@ -5570,6 +5578,13 @@ void MegaChatCallHandler::onCallStarted()
     {
         API_LOG_ERROR("MegaChatCallHandler::onCallStarted - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
     }
+}
+
+rtcModule::ICallHandler *MegaChatCallHandler::copy()
+{
+    MegaChatCallHandler *callHandler = new MegaChatCallHandler(*this);
+
+    return callHandler;
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()

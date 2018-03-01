@@ -1458,7 +1458,15 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
     }
     else if (mState == kStateInProgress)
     {
-        destroy(TermCode::kErrUserOffline, userid == mChat.client().karereClient->myHandle());
+        karere::Id chatid = mChat.chatId();
+        AvFlags flags = sentAv();
+        rtcModule::ICallHandler *handler = mHandler->copy();
+        RtcModule* manager = &mManager;
+        destroy(TermCode::kErrUserOffline, userid == mChat.client().karereClient->myHandle())
+        .then([manager, chatid, flags, handler]()
+        {
+            manager->startCall(chatid, flags, *handler);
+        });
     }
 }
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)

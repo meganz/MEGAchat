@@ -161,6 +161,7 @@ public:
     virtual void onRingOut(karere::Id peer) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
+    virtual ICallHandler* copy() = 0;
 };
 class IGlobalHandler
 {

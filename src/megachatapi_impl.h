@@ -435,6 +435,7 @@ class MegaChatCallHandler : public rtcModule::ICallHandler
 {
 public:
     MegaChatCallHandler(MegaChatApiImpl *megaChatApi);
+    MegaChatCallHandler(const MegaChatCallHandler& callHandler);
     virtual ~MegaChatCallHandler();
     virtual void setCall(rtcModule::ICall* call);
     virtual void onStateChange(uint8_t newState);
@@ -445,6 +446,8 @@ public:
     virtual void onRingOut(karere::Id peer);
     virtual void onCallStarting();
     virtual void onCallStarted();
+    virtual ICallHandler* copy();
+
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
 private:
