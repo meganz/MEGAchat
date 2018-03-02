@@ -31,7 +31,7 @@
 // define the weak symbol for Logger to know where to create the log file
 namespace karere
 {
-    APP_ALWAYS_EXPORT std::string getAppDir() 
+    APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
             return "/data/data/mega.privacy.android.app"; 
