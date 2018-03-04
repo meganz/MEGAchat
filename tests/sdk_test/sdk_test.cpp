@@ -648,16 +648,11 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     megaChatApi[accountIndex]->addChatRequestListener(this);
     megaChatApi[accountIndex]->addChatListener(this);
     MegaChatApi::setLoggerObject(logger);
-    // back to enabled: init + fetchnodes + connect
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->enableChat(session),
                      "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
 
     MegaApi::removeLoggerObject(logger);
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
-    flagFetchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagFetchNodes = false;
-    megaApi[accountIndex]->fetchNodes();
-    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "Expired timeout for fetch nodes");
-    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
     ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
     initStateValue = initState[accountIndex];
     ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
