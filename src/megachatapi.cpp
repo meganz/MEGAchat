@@ -178,6 +178,11 @@ int MegaChatApi::getInitState()
     return pImpl->getInitState();
 }
 
+bool MegaChatApi::enableChat(const char *sid)
+{
+    return pImpl->enableChat(sid);
+}
+
 void MegaChatApi::connect(MegaChatRequestListener *listener)
 {
     pImpl->connect(listener);

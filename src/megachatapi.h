@@ -1527,11 +1527,6 @@ public:
      * If a session id is provided, karere will try to resume the session from its cache and will
      * return MegaChatApi::INIT_OFFLINE_SESSION.
      *
-     * If a session id is provided but the correspoding cache is not available, it will return
-     * MegaChatApi::INIT_NO_CACHE and the app should go through a login + fetchnodes in order to
-     * re-create a new cache from scratch. No need to invalidate the SDK's cache, MEGAchat's cache
-     * will be regenerated based on data from SDK's cache upong fetchnodes completion.
-     *
      * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
      * the documentation of the callback for possible values.
      *
@@ -1561,6 +1556,16 @@ public:
      * @return The current initialization state
      */
     int getInitState();
+
+    /**
+     * @brief This function enable the chat for the provided session. Replace behavior of MegaChatApi::init()
+     * (returned value MegaChatApi::INIT_NO_CACHE) + fetchnodes in order to re-create a new cache from scratch.
+     * Megachat's chache will be regenerated based on data from SDK's cache. No need to invalidate the SDK's cache.
+     *
+     * @param sid Session id that wants to be resumed. If NULL is passed, it will return false
+     * @return true if chat has been enable correctly and false in other case
+     */
+    bool enableChat(const char *sid);
 
     // ============= Requests ================
 

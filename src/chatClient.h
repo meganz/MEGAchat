@@ -729,6 +729,9 @@ public:
     const char* connStateStr() const { return connStateToStr(mConnState); }
     static const char* connStateToStr(ConnState state);
 
+    void initCacheFromSdkSession(const std::string scsn,
+                                 std::shared_ptr<::mega::MegaUserList> contactList,
+                                 std::shared_ptr<::mega::MegaTextChatList> chatList);
 
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after

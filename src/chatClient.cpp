@@ -594,23 +594,25 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
-        auto state = mInitState;
-        char* pscsn = api.sdk.getSequenceNumber();
-        std::string scsn;
-        if (pscsn)
-        {
-            scsn = pscsn;
-            delete[] pscsn;
-        }
-        std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
-        std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
 
         auto wptr = weakHandle();
-        marshallCall([wptr, this, state, scsn, contactList, chatList]()
+        marshallCall([wptr, this]()
         {
             if (wptr.deleted())
                 return;
 
+            char* pscsn = api.sdk.getSequenceNumber();
+            std::string scsn;
+            if (pscsn)
+            {
+                scsn = pscsn;
+                delete[] pscsn;
+            }
+
+            std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
+            std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+
+            auto state = mInitState;
             if (state == kInitHasOfflineSession)
             {
 // disable this safety checkup, since dumpSession() differs from first-time login value
@@ -629,20 +631,9 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-                assert(sid);
-                initWithNewSession(sid.get(), scsn, contactList, chatList)
-                .fail([this](const promise::Error& err)
-                {
-                    mSessionReadyPromise.reject(err);
-                    return err;
-                })
-                .then([this]()
-                {
-                    setInitState(kInitHasOnlineSession);
-                    mSessionReadyPromise.resolve();
-                });
+                initCacheFromSdkSession(scsn, contactList, chatList);
             }
+
             api.sdk.resumeActionPackets();
         }, appCtx);
         break;
@@ -2939,6 +2930,23 @@ const char* Client::connStateToStr(ConnState state)
         RETURN_ENUM_NAME(kConnected);
         default: return "(invalid)";
     }
+}
+
+void Client::initCacheFromSdkSession(const std::string scsn, std::shared_ptr<::mega::MegaUserList> contactList, std::shared_ptr<::mega::MegaTextChatList> chatList)
+{
+    std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+    assert(sid);
+    initWithNewSession(sid.get(), scsn, contactList, chatList)
+    .fail([this](const promise::Error& err)
+    {
+        mSessionReadyPromise.reject(err);
+        return err;
+    })
+    .then([this]()
+    {
+        setInitState(kInitHasOnlineSession);
+        mSessionReadyPromise.resolve();
+    });
 }
 
 bool Client::isCallInProgress() const
