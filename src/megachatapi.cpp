@@ -143,6 +143,11 @@ MegaChatApi::~MegaChatApi()
     delete pImpl;
 }
 
+const char *MegaChatApi::getAppDir()
+{
+    return karere::getAppDir().c_str();
+}
+
 void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
 {
     MegaChatApiImpl::setLoggerClass(megaLogger);

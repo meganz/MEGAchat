@@ -1510,6 +1510,54 @@ webrtc::FakeConstraints* Session::pcConstraints()
     return &mCall.mManager.mPcConstraints;
 }
 
+string Session::getDeviceInfo() const
+{
+    // UserAgent Format
+    // MEGA<app>/<version> (platform) Megaclient/<version>
+    std::string userAgent = mCall.mChat.mClient.karereClient->api.sdk.getUserAgent();
+
+    std::string androidId = "MEGAAndroid";
+    std::string iosId = "MEGAiOS";
+    std::string testChatId = "MEGAChatTest";
+    std::string syncId = "MEGAsync";
+
+    std::string deviceType = "n";
+    std::string version = "0";
+
+    size_t endTypePosition = std::string::npos;
+    size_t idPosition;
+    if ((idPosition = userAgent.find(androidId)) != std::string::npos)
+    {
+        deviceType = "na";
+        endTypePosition = idPosition + androidId.size() + 1; // remove '/'
+    }
+    else if ((idPosition = userAgent.find(iosId)) != std::string::npos)
+    {
+        deviceType = "ni";
+        endTypePosition = idPosition + iosId.size() + 1;  // remove '/'
+    }
+    else if ((idPosition = userAgent.find(testChatId)) != std::string::npos)
+    {
+        deviceType = "nct";
+    }
+    else if ((idPosition = userAgent.find(syncId)) != std::string::npos)
+    {
+        deviceType = "nsync";
+        endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
+    }
+
+
+    size_t endVersionPosition = userAgent.find(" (");
+    if (endVersionPosition != std::string::npos &&
+            endTypePosition != std::string::npos &&
+            endVersionPosition > endTypePosition)
+    {
+        version = userAgent.substr(endTypePosition, endVersionPosition - endTypePosition);
+    }
+
+    return deviceType + ":" + version;
+}
+
 void Session::handleMessage(RtMessage& packet)
 {
     switch (packet.type)
@@ -1975,7 +2023,9 @@ void Session::destroy(TermCode code, const std::string& msg)
 
 void Session::submitStats(TermCode termCode, const std::string& errInfo)
 {
-    stats::StatSessInfo info(mSid, termCode, errInfo);
+    std::string deviceInformation = getDeviceInfo();
+
+    stats::StatSessInfo info(mSid, termCode, errInfo, deviceInformation);
     if (mIsJoiner)
     { // isJoiner means answerer
         info.isCaller = false;
