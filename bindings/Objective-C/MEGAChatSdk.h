@@ -81,6 +81,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)connect;
 
+- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)connectInBackground;
+
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)disconnect;
 - (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
