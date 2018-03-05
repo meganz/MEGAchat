@@ -81,6 +81,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->connect();
 }
 
+- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->connectInBackground([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)connectInBackground {
+    self.megaChatApi->connectInBackground();
+}
+
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->disconnect([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
