@@ -70,6 +70,7 @@ class MainWindow :
 
      friend class ChatItemWidget;
      friend class MegaChatApplication;
+     friend class ChatSettings;
 };
 
 #endif // MAINWINDOW_H

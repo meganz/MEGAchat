@@ -9,7 +9,7 @@ namespace Ui
     class SettingsDialog;
     class MainWindow;
 }
-
+class MainWindow;
 class ChatSettings : public QDialog
 {
     Q_OBJECT
@@ -19,6 +19,13 @@ class ChatSettings : public QDialog
         void applySettings();
 
     protected:
-       Ui::SettingsDialog *ui;
+        MainWindow *mMainWin;
+        Ui::SettingsDialog *ui;
+        #ifndef KARERE_DISABLE_WEBRTC
+            void selectVideoInput();
+            void selectAudioInput();
+            int mAudioInIdx;
+            int mVideoInIdx;
+        #endif
 };
 #endif // SETTINGSDIALOG_H
