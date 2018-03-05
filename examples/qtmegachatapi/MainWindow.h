@@ -74,7 +74,7 @@ class MainWindow :
 
     protected:
         Ui::MainWindow *ui;
-        bool chatsVisibility;
+        bool itemsVisibility;
         QMenu * onlineStatus;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
@@ -90,7 +90,7 @@ class MainWindow :
         void on_bOnlineStatus_clicked();
         void onAddContact();
         void setOnlineStatus();
-        void onChangeChatVisibility();
+        void onChangeItemsVisibility();
 
     signals:
         void esidLogout();

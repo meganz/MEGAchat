@@ -176,7 +176,13 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
             else
             {
                 if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
-                megaChatApi->getUserFirstname(userHandle);
+                {
+                    megaChatApi->getUserFirstname(userHandle);
+                }
+                else if (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+                {
+                    mMainWin->orderContactChatList(mMainWin->itemsVisibility);
+                }
             }
         }
     }
