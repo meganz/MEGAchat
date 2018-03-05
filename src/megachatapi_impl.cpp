@@ -1672,8 +1672,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
         }
         else
         {
-            for (auto it = mClient->chats->begin();
-                 it != mClient->chats->end(); it++)
+            for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
             {
                 if (!it->second->isGroup())
                     continue;
@@ -1692,6 +1691,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
     }
 
     sdkMutex.unlock();
+
     return status;
 }
 
