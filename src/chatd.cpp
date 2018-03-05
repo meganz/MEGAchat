@@ -277,6 +277,8 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
+        CHATD_LOG_DEBUG("Socket close and state is not kStateLoggedIn (but %s), start retry controller", connStateToStr(oldState));
+
         assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
         {
@@ -289,7 +291,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
     else
     {
-        CHATD_LOG_DEBUG("Socket close and state is not kStateLoggedIn (but %d), start retry controller", connStateToStr(oldState));
+        CHATD_LOG_DEBUG("Socket close at state kStateLoggedIn");
         reconnect(); //start retry controller
     }
 }
