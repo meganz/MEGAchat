@@ -144,7 +144,6 @@ void MegaChatApplication::addContacts()
 {
     MegaUser * contact = NULL;
     MegaUserList *contactList = mMegaApi->getContacts();
-    mMainWin->setNContacts(contactList->size());
 
     for (int i=0; i<contactList->size(); i++)
     {
