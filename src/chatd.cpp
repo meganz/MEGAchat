@@ -153,11 +153,12 @@ void Client::notifyUserIdle()
 
 void Client::notifyUserActive()
 {
+    sendEcho();
+
     if (mKeepaliveType == OP_KEEPALIVE)
         return;
     mKeepaliveType = OP_KEEPALIVE;
     sendKeepalive();
-    sendEcho();
 }
 
 bool Client::isMessageReceivedConfirmationActive() const
