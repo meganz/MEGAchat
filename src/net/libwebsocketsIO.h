@@ -12,6 +12,8 @@ class LibwebsocketsIO : public WebsocketsIO
 {
 public:
     struct lws_context *wscontext;
+    uv_loop_t* eventloop;
+
     LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx);
     virtual ~LibwebsocketsIO();
     

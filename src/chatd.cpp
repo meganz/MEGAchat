@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <random>
 
+#include "net/libwebsocketsIO.h"
+
 using namespace std;
 using namespace promise;
 using namespace karere;
@@ -233,7 +235,9 @@ void Chat::login()
 
 Connection::Connection(Client& client, int shardNo)
 : mClient(client), mShardNo(shardNo)
-{}
+{
+    usingipv6 = false;
+}
 
 void Connection::wsConnectCb()
 {
@@ -255,7 +259,6 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s", mShardNo, reason.c_str());
-
     mHeartbeatEnabled = false;
     auto oldState = mState;
     mState = kStateDisconnected;
@@ -274,6 +277,8 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     if (oldState == kStateDisconnected)
         return;
+
+    usingipv6 = !usingipv6;
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
@@ -332,6 +337,99 @@ bool Connection::sendEcho()
     return false;
 }
 
+class MyData {
+public:
+    MyData(DeleteTrackable::Handle w, void *p) : wptr(w), pointer(p) {}
+
+    DeleteTrackable::Handle wptr;
+    void *pointer;
+};
+
+static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+    MyData *data = (MyData *)req->data;
+    Connection* conn = (Connection *)data->pointer;
+    delete req;
+
+    if (data->wptr.deleted())
+    {
+        CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+        uv_freeaddrinfo(res);
+        delete data;
+        return;
+    }
+    delete data;
+
+    if (conn->mState != Connection::kStateResolving)
+    {
+        CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", connStateToStr(conn->mState));
+        uv_freeaddrinfo(res);
+        return;
+    }
+
+     if (status < 0)
+     {
+        CHATD_LOG_DEBUG("DNS query failed in chatd. Error code: %d", status);
+        if (!conn->mConnectPromise.done())
+        {
+            conn->mConnectPromise.reject("Async DNS error in chatd", status, kErrorTypeGeneric);
+        }
+        if (!conn->mLoginPromise.done())
+        {
+            conn->mLoginPromise.reject("Async DNS error in chatd", status, kErrorTypeGeneric);
+        }
+        uv_freeaddrinfo(res);
+        return;
+     }
+
+
+    conn->mState = Connection::kStateConnecting;
+    string ip;
+    struct addrinfo *hp = res;
+    while (hp)
+    {
+        char straddr[INET6_ADDRSTRLEN];
+        straddr[0] = 0;
+
+        if (!conn->usingipv6 && hp->ai_family == AF_INET)
+        {
+            sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
+        }
+        else if (conn->usingipv6 && hp->ai_family == AF_INET6)
+        {
+            sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
+        }
+
+        if (straddr[0])
+        {
+            ip = straddr;
+            break;
+        }
+
+        hp = hp->ai_next;
+    }
+
+    CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", conn->mShardNo, ip.c_str());
+    std::string urlPath = conn->mUrl.path;
+    if (Client::chatdVersion >= 2)
+    {
+        urlPath.append("/1");
+    }
+
+    bool rt = conn->wsConnect(conn->mClient.karereClient->websocketIO, ip.c_str(),
+              conn->mUrl.host.c_str(),
+              conn->mUrl.port,
+              urlPath.c_str(),
+              conn->mUrl.isSecure);
+    if (!rt)
+    {
+        conn->onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
+    }
+    uv_freeaddrinfo(res);
+}
+
 Promise<void> Connection::reconnect()
 {
     assert(!mHeartbeatEnabled);
@@ -371,59 +469,28 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);                
             }
 
-            this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([wptr, this](ReqResult result)
+            struct addrinfo hints = {};
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
+            uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
+            MyData *data = new MyData(wptr, this);
+            h->data = data;
+            int status = uv_getaddrinfo(((LibwebsocketsIO *)mClient.karereClient->websocketIO)->eventloop, h, on_resolved, mUrl.host.c_str(), NULL, &hints);
+            if (status < 0)
             {
-                if (wptr.deleted())
-                {
-                    CHATD_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
-                    return;
-                }
-                if (mState != kStateResolving)
-                {
-                    CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", connStateToStr(mState));
-                    return;
-                }
-                
-                mState = kStateConnecting;
-                string ip = result->getText();
-                CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
-
-                std::string urlPath = mUrl.path;
-                if (Client::chatdVersion >= 2)
-                {
-                    urlPath.append("/1");
-                }
-
-                bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          urlPath.c_str(),
-                          mUrl.isSecure);
-                if (!rt)
-                {
-                    throw std::runtime_error("Websocket error on wsConnect (chatd)");
-                }
-            })
-            .fail([wptr, this](const promise::Error& err)
-            {
-                if (wptr.deleted())
-                {
-                    CHATD_LOG_DEBUG("DNS resolution failed, but chatd client was deleted. Error: %s", err.what());
-                    return;
-                }
-
+                delete h;
+                delete data;
                 if (!mConnectPromise.done())
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    mConnectPromise.reject("Sync DNS error in chatd", status, kErrorTypeGeneric);
                 }
 
                 if (!mLoginPromise.done())
                 {
-                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    mLoginPromise.reject("Sync DNS error in chatd", status, kErrorTypeGeneric);
                 }
-            });
-            
+            }
+
             return mConnectPromise
             .then([wptr, this]() -> promise::Promise<void>
             {

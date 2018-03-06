@@ -250,7 +250,7 @@ public:
     };
     enum: uint16_t { kProtoVersion = 0x0001 };
 
-protected:
+    bool usingipv6;
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Client *karereClient;

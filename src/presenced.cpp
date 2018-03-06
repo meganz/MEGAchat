@@ -1,6 +1,8 @@
 #include "presenced.h"
 #include "chatClient.h"
 
+#include "net/libwebsocketsIO.h"
+
 using namespace std;
 using namespace promise;
 using namespace karere;
@@ -31,6 +33,7 @@ namespace presenced
     Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
 : mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps)
 {
+   usingipv6 = false;
 }
 
 promise::Promise<void>
@@ -89,6 +92,8 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (oldState == kDisconnected)
         return;
+
+    usingipv6 = !usingipv6;
 
     if (oldState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
@@ -175,6 +180,92 @@ void Client::signalActivity(bool force)
         sendUserActive(true, force);
 }
 
+class MyData {
+public:
+    MyData(DeleteTrackable::Handle w, void *p) : wptr(w), pointer(p) {}
+
+    DeleteTrackable::Handle wptr;
+    void *pointer;
+};
+
+static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+    MyData *data = (MyData *)req->data;
+    Client* client = (Client *)data->pointer;
+    delete req;
+
+    if (data->wptr.deleted())
+    {
+        PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+        uv_freeaddrinfo(res);
+        delete data;
+        return;
+    }
+    delete data;
+
+    if (client->mConnState != Client::kResolving)
+    {
+        PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+        uv_freeaddrinfo(res);
+        return;
+    }
+
+    if (status < 0)
+    {
+        PRESENCED_LOG_DEBUG("DNS query failed in presenced. Error code: %d", status);
+        if (!client->mConnectPromise.done())
+        {
+            client->mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+        }
+        if (!client->mLoginPromise.done())
+        {
+            client->mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+        }
+        uv_freeaddrinfo(res);
+        return;
+    }
+
+    client->setConnState(Client::kConnecting);
+    string ip;
+    struct addrinfo *hp = res;
+    while (hp)
+    {
+        char straddr[INET6_ADDRSTRLEN];
+        straddr[0] = 0;
+
+        if (!client->usingipv6 && hp->ai_family == AF_INET)
+        {
+            sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
+        }
+        else if (client->usingipv6 && hp->ai_family == AF_INET6)
+        {
+            sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
+        }
+
+        if (straddr[0])
+        {
+            ip = straddr;
+            break;
+        }
+
+        hp = hp->ai_next;
+    }
+
+    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
+    bool rt = client->wsConnect(client->karereClient->websocketIO, ip.c_str(),
+              client->mUrl.host.c_str(),
+              client->mUrl.port,
+              client->mUrl.path.c_str(),
+              client->mUrl.isSecure);
+    if (!rt)
+    {
+        client->onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
+    }
+    uv_freeaddrinfo(res);
+}
+
 Promise<void>
 Client::reconnect(const std::string& url)
 {
@@ -213,53 +304,26 @@ Client::reconnect(const std::string& url)
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostmane...");
 
-            mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([wptr, this](ReqResult result)
+            struct addrinfo hints = {};
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
+            uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
+            MyData *data = new MyData(wptr, this);
+            h->data = data;
+            int status = uv_getaddrinfo(((LibwebsocketsIO *)karereClient->websocketIO)->eventloop, h, on_resolved, mUrl.host.c_str(), NULL, &hints);
+            if (status < 0)
             {
-                if (wptr.deleted())
+                delete h;
+                delete data;
+                if (!mConnectPromise.done())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
-                    return;
+                    mConnectPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
                 }
-                if (mConnState != kResolving)
+                if (!mLoginPromise.done())
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
-                    return;
+                    mLoginPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
                 }
-
-                setConnState(kConnecting);
-                string ip = result->getText();
-                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure);
-                if (!rt)
-                {
-                    throw std::runtime_error("Websocket error on wsConnect (presenced)");
-                }
-            })
-            .fail([wptr, this](const promise::Error& err)
-            {
-                if (wptr.deleted())
-                {
-                    PRESENCED_LOG_DEBUG("DNS resolution failed, but presenced client was deleted. Error: %s", err.what());
-                    return;
-                }
-
-                if (err.type() == ERRTYPE_MEGASDK)
-                {
-                    if (!mConnectPromise.done())
-                    {
-                        mConnectPromise.reject(err.msg(), err.code(), err.type());
-                    }
-                    if (!mLoginPromise.done())
-                    {
-                        mLoginPromise.reject(err.msg(), err.code(), err.type());
-                    }
-                }
-            });
+            }
             
             return mConnectPromise
             .then([wptr, this]()

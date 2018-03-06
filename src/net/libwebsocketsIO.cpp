@@ -40,6 +40,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
         WEBSOCKETS_LOG_ERROR("Fatal error: NULL or invalid waiter object");
         exit(0);
     }
+    eventloop = libuvWaiter->eventloop;
     lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
