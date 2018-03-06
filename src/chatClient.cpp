@@ -2934,9 +2934,9 @@ const char* Client::connStateToStr(ConnState state)
 
 void Client::initCacheFromSdkSession(const std::string scsn, std::shared_ptr<::mega::MegaUserList> contactList, std::shared_ptr<::mega::MegaTextChatList> chatList)
 {
-    std::unique_ptr<char[]> sid(api.sdk.dumpSession());
+    const char* sid = api.sdk.dumpSession();
     assert(sid);
-    initWithNewSession(sid.get(), scsn, contactList, chatList)
+    initWithNewSession(sid, scsn, contactList, chatList)
     .fail([this](const promise::Error& err)
     {
         mSessionReadyPromise.reject(err);
@@ -2947,6 +2947,8 @@ void Client::initCacheFromSdkSession(const std::string scsn, std::shared_ptr<::m
         setInitState(kInitHasOnlineSession);
         mSessionReadyPromise.resolve();
     });
+
+    delete sid;
 }
 
 bool Client::isCallInProgress() const
