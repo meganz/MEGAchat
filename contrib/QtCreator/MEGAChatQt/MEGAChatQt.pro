@@ -115,3 +115,6 @@ macx {
     QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
     QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
 }
+
+RESOURCES += \
+    ../../../examples/qtmegachatapi/res/resources.qrc
