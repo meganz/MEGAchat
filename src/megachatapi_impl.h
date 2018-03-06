@@ -787,6 +787,7 @@ public:
 
     int init(const char *sid);
     int getInitState();
+    bool enableChat(const char *sid);
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);

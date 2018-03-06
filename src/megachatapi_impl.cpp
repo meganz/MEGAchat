@@ -1175,6 +1175,44 @@ int MegaChatApiImpl::getInitState()
     return initState;
 }
 
+bool MegaChatApiImpl::enableChat(const char *sid)
+{
+    if (sid == NULL)
+    {
+        API_LOG_ERROR("Failure to enable chat, invalid session");
+        return false;
+    }
+
+    sdkMutex.lock();
+    int state = init(sid);
+    if (state == MegaChatApi::INIT_NO_CACHE)
+    {
+        mClient->api.sdk.pauseActionPackets();
+        char* pscsn = mClient->api.sdk.getSequenceNumber();
+        std::string scsn;
+        if (pscsn)
+        {
+            scsn = pscsn;
+            delete[] pscsn;
+        }
+
+        std::shared_ptr<::mega::MegaUserList> contactList(mClient->api.sdk.getContacts());
+        std::shared_ptr<::mega::MegaTextChatList> chatList(mClient->api.sdk.getChatList());
+        mClient->initCacheFromSdkSession(scsn, contactList, chatList);
+
+        mClient->api.sdk.resumeActionPackets();
+    }
+    else
+    {
+        sdkMutex.unlock();
+        API_LOG_ERROR("Failure to enable chat, unexpected init state: %d", state);
+        return false;
+    }
+
+    sdkMutex.unlock();
+    return true;
+}
+
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 {
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
