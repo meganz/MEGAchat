@@ -2404,7 +2404,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // avoid the whole replay (even the idempotent part), and just bail out.
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
-    CALL_CRYPTO(resetSendKey)
+    CALL_CRYPTO(resetSendKey);
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)
     {
