@@ -1385,6 +1385,9 @@ public:
  *     6. Call MegaChatApi::connect() and wait for completion
  *     7. The app is ready to operate
  *
+ * In the event the app is already logged in by using MegaApi and the user aims to enable MegaChatApi, a call
+ * to MegaChatApi::enableChat would be enough to initialize MEGAchat.
+ *
  * Important considerations:
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
@@ -1558,12 +1561,17 @@ public:
     int getInitState();
 
     /**
-     * @brief This function enable the chat for the provided session. Replace behavior of MegaChatApi::init()
-     * (returned value MegaChatApi::INIT_NO_CACHE) + fetchnodes in order to re-create a new cache from scratch.
-     * Megachat's chache will be regenerated based on data from SDK's cache. No need to invalidate the SDK's cache.
+     * @brief Enable the chat using the provided SDK session.
+     *
+     * This function allows to regenerate the cache of MEGAchat based on the current state of the
+     * account in the SDK (contacts, chats...). No need to invalidate the SDK's cache.
+     *
+     * When the SDK is logged in already and the user wants to enable the chat engine, this function
+     * is more convenient than the previous approach: MegaChatApi::init() (returning
+     * MegaChatApi::INIT_NO_CACHE) followed by a full fetchnodes in order to re-create a new cache from scratch.
      *
      * @param sid Session id that wants to be resumed. If NULL is passed, it will return false
-     * @return true if chat has been enable correctly and false in other case
+     * @return true if MEGAchat has been enabled successfully.
      */
     bool enableChat(const char *sid);
 
