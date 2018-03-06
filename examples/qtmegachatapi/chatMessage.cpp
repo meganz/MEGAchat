@@ -41,10 +41,10 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 {
                     const char *auxNodeHandle_64 =this->mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
                     text.append(tr("\n[Node]"))
-                    .append("\nName: ")
-                    .append(nodeList->get(i)->getName())
                     .append("\nHandle: ")
                     .append(QString::fromStdString(auxNodeHandle_64))
+                    .append("\nName: ")
+                    .append(nodeList->get(i)->getName())
                     .append("\nSize: ")
                     .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
                     .append(" bytes");
@@ -63,7 +63,10 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 text.append(tr("[Contacts attachment msg]"));
                 for(unsigned int i = 0; i < mMessage->getUsersCount(); i++)
                 {
+                  const char *auxUserHandle_64 =this->mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle(i));
                   text.append(tr("\n[User]"))
+                  .append("\nHandle: ")
+                  .append(auxUserHandle_64)
                   .append("\nName: ")
                   .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
