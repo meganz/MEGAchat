@@ -1177,7 +1177,7 @@ int MegaChatApiImpl::getInitState()
 
 bool MegaChatApiImpl::enableChat(const char *sid)
 {
-    if (sid == NULL)
+    if (sid == NULL || sid[0] == '\0')
     {
         API_LOG_ERROR("Failure to enable chat, invalid session");
         return false;
