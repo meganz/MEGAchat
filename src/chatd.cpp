@@ -2315,6 +2315,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     .then([this](Message* msg)
     {
         assert(!msg->isEncrypted());
+        if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
+        {
+            if (msg->dataSize() < 2)
+                CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
+            else
+                msg->type = msg->buf()[1];
+        }
+
         //update in db
         CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded

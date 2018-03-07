@@ -566,6 +566,11 @@ public:
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
+        TYPE_CONTAINS_META          = 19,   /// User message with meta contains
+    };
+
+    enum {
+      META_CONTAINS_RICH_PREVIEW     = 0,    /// Rich preview meta contains
     };
 
     enum
