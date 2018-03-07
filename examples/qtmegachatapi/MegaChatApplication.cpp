@@ -144,7 +144,6 @@ void MegaChatApplication::addContacts()
 {
     MegaUser * contact = NULL;
     MegaUserList *contactList = mMegaApi->getContacts();
-    mMainWin->setNContacts(contactList->size());
 
     for (int i=0; i<contactList->size(); i++)
     {
@@ -177,7 +176,13 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
             else
             {
                 if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
-                megaChatApi->getUserFirstname(userHandle);
+                {
+                    megaChatApi->getUserFirstname(userHandle);
+                }
+                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
+                {
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility);
+                }
             }
         }
     }

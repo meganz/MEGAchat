@@ -19,12 +19,15 @@ class ContactItemWidget : public QWidget
         void updateOnlineIndicator(int newState);
         void updateToolTip(mega::MegaUser *contact);
         void updateTitle(const char *firstname);
+        QListWidgetItem *getWidgetItem() const;
+        void setWidgetItem(QListWidgetItem *item);
 
     private:
         Ui::ChatItem *ui;
         megachat::MegaChatHandle mUserHandle;
         megachat::MegaChatApi *mMegaChatApi;
         mega::MegaApi *mMegaApi;
+        QListWidgetItem *mListWidgetItem;
 
     private slots:
         void onCreateGroupChat();
