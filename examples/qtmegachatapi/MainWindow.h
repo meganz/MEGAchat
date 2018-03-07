@@ -74,7 +74,7 @@ class MainWindow :
 
     protected:
         Ui::MainWindow *ui;
-        bool itemsVisibility;
+        bool allItemsVisibility;
         QMenu * onlineStatus;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;

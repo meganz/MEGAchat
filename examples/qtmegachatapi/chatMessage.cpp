@@ -48,6 +48,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                     .append("\nSize: ")
                     .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
                     .append(" bytes");
+                    delete auxNodeHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
@@ -71,6 +72,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                   .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
                   .append(mMessage->getUserEmail(i));
+                  delete auxUserHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");

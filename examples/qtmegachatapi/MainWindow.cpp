@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     mMegaApi = NULL;
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
-    itemsVisibility = false;
+    allItemsVisibility = false;
     mLogger = logger;
     qApp->installEventFilter(this);
 }
@@ -66,7 +66,7 @@ void MainWindow::orderContactChatList(bool showInactive)
 {
     clearContactChatList();
     addContacts();
-     QString text;
+    QString text;
     if(showInactive)
     {
         addInactiveChats();
@@ -88,20 +88,18 @@ void MainWindow::addContacts()
     MegaUserList *contactList = mMegaApi->getContacts();
     setNContacts(contactList->size());
 
-    for (int i=0; i<contactList->size(); i++)
+    for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
         const char *contactEmail = contact->getEmail();
-        megachat::MegaChatHandle userHandle = this->mMegaChatApi->getUserHandleByEmail(contactEmail);
+        mega::MegaHandle userHandle = contact->getHandle();
 
-        if ((userHandle != megachat::MEGACHAT_INVALID_HANDLE)
-            && (userHandle != this->mMegaChatApi->getMyUserHandle()))
+        if (userHandle != this->mMegaChatApi->getMyUserHandle())
         {
-            if(contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && itemsVisibility != true)
+            if(contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
             {
                 continue;
             }
-
             addContact(contact);
         }
     }
@@ -296,7 +294,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
-                    orderContactChatList(itemsVisibility);
+                    orderContactChatList(allItemsVisibility);
                 }
         }
      }
@@ -304,8 +302,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
 
 void MainWindow::onChangeItemsVisibility()
 {
-    itemsVisibility = !itemsVisibility;
-    orderContactChatList(itemsVisibility);
+    allItemsVisibility = !allItemsVisibility;
+    orderContactChatList(allItemsVisibility);
 }
 
 void MainWindow::onAddContact()
@@ -350,7 +348,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
 {
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        orderContactChatList(itemsVisibility);
+        orderContactChatList(allItemsVisibility);
         return;
     }
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
@@ -407,7 +405,6 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
             ContactItemWidget * contactItemWidget = itContacts->second;
             assert(!inProgress);
             contactItemWidget->updateOnlineIndicator(status);
-
         }
     }
 }

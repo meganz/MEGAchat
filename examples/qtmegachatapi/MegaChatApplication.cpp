@@ -179,9 +179,9 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
                 {
                     megaChatApi->getUserFirstname(userHandle);
                 }
-                else if (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->itemsVisibility);
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility);
                 }
             }
         }
