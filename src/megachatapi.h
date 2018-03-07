@@ -570,7 +570,7 @@ public:
     };
 
     enum {
-      META_CONTAINS_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
+      META_CONTAINS_RICH_PREVIEW    = 0,    /// Rich-preview type for messages with meta contained
     };
 
     enum
