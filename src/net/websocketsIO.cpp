@@ -1,7 +1,7 @@
 #include "net/websocketsIO.h"
 
 WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx)
-    : mApi(*megaApi, ctx)
+    : mApi(*megaApi, ctx, false)
 {
     this->mutex = mutex;
     this->appCtx = ctx;
