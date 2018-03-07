@@ -56,7 +56,7 @@ bool LibwsIO::wsResolveDNS(const char *hostname, int, std::function<void (int, s
     })
     .fail([f](const promise::Error& err)
     {
-        f(err.code(), string());
+        f(err.code(), err.what());
     });
     return 0;
 }
