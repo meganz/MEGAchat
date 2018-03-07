@@ -373,8 +373,8 @@ Promise<void> Connection::reconnect()
             }
 
 
-            int status = wsResolveDNS(mClient.karereClient->websocketIO, mUrl.host.c_str(), usingipv6 ? AF_INET6 : AF_INET,
-                         [wptr, this](int status, std::string ip)
+            int status = wsResolveDNS(mClient.karereClient->websocketIO, mUrl.host.c_str(),
+                         [wptr, this](int status, std::string ipv4, std::string ipv6)
             {
                 if (wptr.deleted())
                 {
@@ -402,6 +402,7 @@ Promise<void> Connection::reconnect()
                 }
 
                 mState = kStateConnecting;
+                string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
                 CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
 
                 std::string urlPath = mUrl.path;

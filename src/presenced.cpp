@@ -213,8 +213,8 @@ Client::reconnect(const std::string& url)
 
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostname...");
-            int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(), usingipv6 ? AF_INET6 : AF_INET,
-                         [wptr, this](int status, std::string ip)
+            int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
+                         [wptr, this](int status, std::string ipv4, std::string ipv6)
             {
                 if (wptr.deleted())
                 {
@@ -242,6 +242,7 @@ Client::reconnect(const std::string& url)
                 }
 
                 setConnState(kConnecting);
+                string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
                 bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
                       mUrl.host.c_str(),

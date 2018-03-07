@@ -30,7 +30,7 @@ protected:
     
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
-    virtual bool wsResolveDNS(const char *hostname, int family, std::function<void(int status, std::string ip)> f) = 0;
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::string ipv4, std::string ipv6)> f) = 0;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) = 0;
@@ -49,7 +49,7 @@ private:
 public:
     WebsocketsClient();
     virtual ~WebsocketsClient();
-    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, int family, std::function<void(int status, std::string ip)> f);
+    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::string, std::string)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error

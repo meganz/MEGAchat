@@ -47,16 +47,26 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
 
 }
 
-bool LibwsIO::wsResolveDNS(const char *hostname, int, std::function<void (int, std::string)> f)
+bool LibwsIO::wsResolveDNS(const char *hostname, std::function<void (int, std::string, std::string)> f)
 {
     mApi.call(&::mega::MegaApi::queryDNS, hostname)
     .then([f](ReqResult result)
     {
-        f(0, result->getText());
+        string ipv4, ipv6;
+        string ip = result->getText();
+        if (ip.size() && ip[0] == '[')
+        {
+            ipv6 = ip;
+        }
+        else
+        {
+            ipv4 = ip;
+        }
+        f(0, ipv4, ipv6);
     })
     .fail([f](const promise::Error& err)
-    {
-        f(err.code(), err.what());
+    {       
+        f(err.code(), string(), string());
     });
     return 0;
 }

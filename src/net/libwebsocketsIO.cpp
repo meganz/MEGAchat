@@ -57,47 +57,54 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
-    string ip;
-    std::function<void (int, string)>* func = (std::function<void (int, string)>*)req->data;
+    string ipv4, ipv6;
+    std::function<void (int, string, string)>* func = (std::function<void (int, string, string)>*)req->data;
     struct addrinfo *hp = res;
     while (hp)
     {
         char straddr[INET6_ADDRSTRLEN];
         straddr[0] = 0;
 
-        if (hp->ai_family == AF_INET)
+        if (!ipv4.size() && hp->ai_family == AF_INET)
         {
             sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
             inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
+            if (straddr[0])
+            {
+                ipv4 = straddr;
+            }
         }
-        else if (hp->ai_family == AF_INET6)
+        else if (!ipv6.size() && hp->ai_family == AF_INET6)
         {
             sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
             inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
+            if (straddr[0])
+            {
+                ipv6 = string("[") + straddr + "]";
+            }
         }
 
-        if (straddr[0])
+        if (ipv4.size() && ipv6.size())
         {
-            ip = straddr;
             break;
         }
 
         hp = hp->ai_next;
     }
 
-    (*func)(status, ip);
+    (*func)(status, ipv4, ipv6);
     uv_freeaddrinfo(res);
     delete func;
     delete req;
 }
 
-bool LibwebsocketsIO::wsResolveDNS(const char *hostname, int family, std::function<void (int, string)> f)
+bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, string, string)> f)
 {
     struct addrinfo hints = {};
-    hints.ai_family = family;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
-    h->data = new std::function<void (int, string)>(f);
+    h->data = new std::function<void (int, string, string)>(f);
     return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, &hints);
 }
 

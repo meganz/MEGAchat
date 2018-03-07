@@ -18,7 +18,7 @@ public:
 
 protected:
     ws_base_s wscontext;
-    virtual bool wsResolveDNS(const char *hostname, int family, std::function<void(int status, std::string ip)> f);
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int, std::string, std::string)> f);
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client);
