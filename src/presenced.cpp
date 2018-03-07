@@ -229,7 +229,7 @@ Client::reconnect(const std::string& url)
 
                 if (status < 0)
                 {
-                    PRESENCED_LOG_DEBUG("Async DNS error in presenced. Error code: %d", status);
+                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
                     if (!mConnectPromise.done())
                     {
                         mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
@@ -238,6 +238,7 @@ Client::reconnect(const std::string& url)
                     {
                         mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
                     }
+                    return;
                 }
 
                 setConnState(kConnecting);

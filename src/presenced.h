@@ -251,7 +251,6 @@ public:
     enum: uint16_t { kProtoVersion = 0x0001 };
 
 protected:
-    bool usingipv6;
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Client *karereClient;
@@ -261,6 +260,7 @@ protected:
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
+    bool usingipv6;
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
