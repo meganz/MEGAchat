@@ -516,3 +516,58 @@ void ChatWindow::onMsgListRequestHistory()
         mMegaChatApi->loadMessages(mChatRoom->getChatId(), NMESSAGES_LOAD);
     }
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    void ChatWindow::onVideoCallBtn(bool)
+    {
+        onCallBtn(true);
+    }
+
+    void ChatWindow::onAudioCallBtn(bool)
+    {
+        onCallBtn(false);
+    }
+
+    void ChatWindow::createCallGui(rtcModule::ICall *call)
+    {
+        assert(!mCallGui);
+        auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
+        mCallGui = new CallGui(this, call);
+        layout->insertWidget(1, mCallGui, 1);
+        ui->mTitlebar->hide();
+        ui->mTextChatWidget->hide();
+    }
+
+    void ChatWindow::closeEvent(QCloseEvent *event)
+    {
+        if (mCallGui)
+        {
+            mCallGui->hangup();
+        }
+        event->accept();
+    }
+
+    void ChatWindow::onCallBtn(bool video)
+    {
+        if (mChatRoom->isGroup())
+        {
+            QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
+            return;
+        }
+        if (mCallGui)
+        {
+            return;
+        }
+        createCallGui(nullptr);
+        //mRoom.mediaCall(karere::AvFlags(true, video), *mCallGui);
+    }
+
+    void ChatWindow::deleteCallGui()
+    {
+        assert(mCallGui);
+        delete mCallGui;
+        mCallGui = nullptr;
+        ui->mTitlebar->show();
+        ui->mTextChatWidget->show();
+    }
+#endif

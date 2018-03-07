@@ -46,6 +46,7 @@ class ChatItemWidget : public QWidget
 
     protected:
         MainWindow * mMainWin;
+        bool isChatOpened();
 
     private slots:
         void leaveGroupChat();
@@ -54,6 +55,6 @@ class ChatItemWidget : public QWidget
 
     friend class ChatWindow;
     friend class MainWindow;
-
+    friend class CallAnswerGui;
 };
 #endif // CHATITEM_H

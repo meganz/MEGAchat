@@ -422,7 +422,7 @@ border-image: url(':/fullscreen-hover.svg');
             </size>
            </property>
            <property name="title">
-            <string>Local</string>
+            <string/>
            </property>
            <property name="alignment">
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -472,13 +472,13 @@ border-image: url(':/fullscreen-hover.svg');
               </property>
               <property name="minimumSize">
                <size>
-                <width>200</width>
+                <width>160</width>
                 <height>150</height>
                </size>
               </property>
               <property name="maximumSize">
                <size>
-                <width>200</width>
+                <width>160</width>
                 <height>150</height>
                </size>
               </property>

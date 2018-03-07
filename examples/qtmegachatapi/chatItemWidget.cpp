@@ -178,6 +178,11 @@ ChatWindow *ChatItemWidget::showChatWindow()
     return mChatWindow;
 }
 
+bool ChatItemWidget::isChatOpened()
+{
+    return (mChatWindow ?true :false);
+}
+
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     showChatWindow();
