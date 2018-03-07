@@ -411,13 +411,36 @@ Promise<void> Connection::reconnect()
                     urlPath.append("/1");
                 }
 
-                bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
+                bool rt = wsConnect(mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
                           urlPath.c_str(),
                           mUrl.isSecure);
                 if (!rt)
                 {
+                    string otherip;
+                    if (ip == ipv6 && ipv4.size())
+                    {
+                        otherip = ipv4;
+                    }
+                    else if (ip == ipv4 && ipv6.size())
+                    {
+                        otherip = ipv6;
+                    }
+
+                    if (otherip.size())
+                    {
+                        CHATD_LOG_DEBUG("Connection to chatd failed. Retrying using the IP: %s", otherip.c_str());
+                        if (wsConnect(mClient.karereClient->websocketIO, otherip.c_str(),
+                                                  mUrl.host.c_str(),
+                                                  mUrl.port,
+                                                  urlPath.c_str(),
+                                                  mUrl.isSecure))
+                        {
+                            return;
+                        }
+                    }
+
                     onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
                 }
             });

@@ -251,6 +251,29 @@ Client::reconnect(const std::string& url)
                       mUrl.isSecure);
                 if (!rt)
                 {
+                    string otherip;
+                    if (ip == ipv6 && ipv4.size())
+                    {
+                        otherip = ipv4;
+                    }
+                    else if (ip == ipv4 && ipv6.size())
+                    {
+                        otherip = ipv6;
+                    }
+
+                    if (otherip.size())
+                    {
+                        CHATD_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
+                        if (wsConnect(karereClient->websocketIO, otherip.c_str(),
+                                      mUrl.host.c_str(),
+                                      mUrl.port,
+                                      mUrl.path.c_str(),
+                                      mUrl.isSecure))
+                        {
+                            return;
+                        }
+                    }
+
                     onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
                 }
             });
