@@ -35,18 +35,20 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
             {
                 QString text;
-                text.append(tr("[Attached Msg]"));
+                text.append(tr("[Nodes attachment msg]"));
                 mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
                 for(int i = 0; i < nodeList->size(); i++)
                 {
+                    const char *auxNodeHandle_64 =this->mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
                     text.append(tr("\n[Node]"))
+                    .append("\nHandle: ")
+                    .append(QString::fromStdString(auxNodeHandle_64))
                     .append("\nName: ")
                     .append(nodeList->get(i)->getName())
-                    .append("\nHandle: ")
-                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getHandle())))
                     .append("\nSize: ")
                     .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
                     .append(" bytes");
+                    delete auxNodeHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
@@ -59,14 +61,18 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
             {
                 QString text;
-                text.append(tr("[Attached Contacts]"));
+                text.append(tr("[Contacts attachment msg]"));
                 for(unsigned int i = 0; i < mMessage->getUsersCount(); i++)
                 {
+                  const char *auxUserHandle_64 =this->mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle(i));
                   text.append(tr("\n[User]"))
+                  .append("\nHandle: ")
+                  .append(auxUserHandle_64)
                   .append("\nName: ")
                   .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
                   .append(mMessage->getUserEmail(i));
+                  delete auxUserHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");

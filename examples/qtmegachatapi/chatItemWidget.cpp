@@ -15,16 +15,23 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mLastOverlayCount = 0;
     mOlderMessageLoaded = 0;
     mChatId = item->getChatId();
-    this->mMegaChatApi= megaChatApi;
-
+    mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    ui->mUnreadIndicator->hide();
+    int unreadCount = mMegaChatApi->getChatListItem(mChatId)->getUnreadCount();
+    onUnreadCountChanged(unreadCount);
     ui->mName->setText(item->getTitle());
 
     if (!item->isGroup())
+    {
         ui->mAvatar->setText("1");
+    }
     else
+    {
         ui->mAvatar->setText("G");
+    }
+
+    int status = mMegaChatApi->getChatConnectionState(mChatId);
+    this->onlineIndicatorUpdate(status);
 }
 
 void ChatItemWidget::invalidChatWindowHandle()
@@ -119,24 +126,19 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
 
 void ChatItemWidget::onUnreadCountChanged(int count)
 {
-    if (count < 0)
+    if(count < 0)
+    {
         ui->mUnreadIndicator->setText(QString::number(-count)+"+");
+    }
     else
+    {
         ui->mUnreadIndicator->setText(QString::number(count));
-
-    ui->mUnreadIndicator->adjustSize();
-
-    if (count)
-    {
-        if (!mLastOverlayCount)
-            ui->mUnreadIndicator->show();
-    }
-    else
-    {
-        if (mLastOverlayCount)
+        if (count == 0)
+        {
             ui->mUnreadIndicator->hide();
+        }
     }
-    mLastOverlayCount = count;
+    ui->mUnreadIndicator->adjustSize();
 }
 
 void ChatItemWidget::onTitleChanged(const std::string& title)

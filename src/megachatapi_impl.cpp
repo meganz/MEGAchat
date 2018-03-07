@@ -5912,16 +5912,10 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
         }
 
-        // fa -> image thumbail
-        if (megaNode->hasThumbnail() || megaNode->hasPreview())
+        // fa -> image thumbnail/preview/mediainfo
+        const char *fa = megaNode->getFileAttrString();
+        if (fa)
         {
-            const char *fa = megaNode->getFileAttrString();
-            if (!fa)
-            {
-                API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());
-                return NULL;
-            }
-
             std::string faString(fa);
             delete [] fa;
 

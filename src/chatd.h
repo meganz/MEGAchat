@@ -322,7 +322,7 @@ public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
     enum {
         kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
-        kEchoTimeout = 3    // echo to check connection is alive when back to foreground
+        kEchoTimeout = 1    // echo to check connection is alive when back to foreground
          };
 
 protected:

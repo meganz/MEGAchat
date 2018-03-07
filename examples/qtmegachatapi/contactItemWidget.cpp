@@ -19,6 +19,8 @@ ContactItemWidget::ContactItemWidget(QWidget *parent , megachat::MegaChatApi *me
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
     this->mMegaChatApi->getUserFirstname(contact->getHandle());
+    int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
+    updateOnlineIndicator(status);
 }
 
 void ContactItemWidget::setAvatarStyle()
@@ -44,6 +46,17 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
+
+QListWidgetItem *ContactItemWidget::getWidgetItem() const
+{
+    return mListWidgetItem;
+}
+
+void ContactItemWidget::setWidgetItem(QListWidgetItem *item)
+{
+    mListWidgetItem = item;
+}
+
 
 void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 {
