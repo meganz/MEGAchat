@@ -1,6 +1,7 @@
 #include "net/websocketsIO.h"
 
-WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex, void *ctx)
+WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx)
+    : mApi(*megaApi, ctx)
 {
     this->mutex = mutex;
     this->appCtx = ctx;
@@ -84,6 +85,11 @@ WebsocketsClient::~WebsocketsClient()
 {
     delete ctx;
     ctx = NULL;
+}
+
+bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, int family, std::function<void (int, std::string)> f)
+{
+    return websocketIO->wsResolveDNS(hostname, family, f);
 }
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)

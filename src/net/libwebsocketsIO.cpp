@@ -17,7 +17,7 @@ static struct lws_protocols protocols[] =
     { NULL, NULL, 0, 0 } /* terminator */
 };
 
-LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx) : WebsocketsIO(mutex, ctx)
+LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
 {
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
@@ -53,6 +53,52 @@ LibwebsocketsIO::~LibwebsocketsIO()
 void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 {    
 
+}
+
+static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+    string ip;
+    std::function<void (int, string)>* func = (std::function<void (int, string)>*)req->data;
+    struct addrinfo *hp = res;
+    while (hp)
+    {
+        char straddr[INET6_ADDRSTRLEN];
+        straddr[0] = 0;
+
+        if (hp->ai_family == AF_INET)
+        {
+            sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
+        }
+        else if (hp->ai_family == AF_INET6)
+        {
+            sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
+        }
+
+        if (straddr[0])
+        {
+            ip = straddr;
+            break;
+        }
+
+        hp = hp->ai_next;
+    }
+
+    (*func)(status, ip);
+    uv_freeaddrinfo(res);
+    delete func;
+    delete req;
+}
+
+bool LibwebsocketsIO::wsResolveDNS(const char *hostname, int family, std::function<void (int, string)> f)
+{
+    struct addrinfo hints = {};
+    hints.ai_family = family;
+    hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
+    uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
+    h->data = new std::function<void (int, string)>(f);
+    return uv_getaddrinfo(eventloop, h, on_resolved, hostname, NULL, &hints);
 }
 
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)

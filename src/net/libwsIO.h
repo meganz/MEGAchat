@@ -5,18 +5,20 @@
 #include "net/websocketsIO.h"
 #include "trackDelete.h"
 #include <mega/waiter.h>
+#include <functional>
 
 // Websockets network layer implementation based on libws
 class LibwsIO : public WebsocketsIO
 {
 public:
-    LibwsIO(::mega::Mutex *mutex = NULL, ::mega::Waiter* waiter = NULL, void *ctx = NULL);
+    LibwsIO(::mega::Mutex *mutex = NULL, ::mega::Waiter* waiter = NULL, ::mega::MegaApi *api, void *ctx = NULL);
     virtual ~LibwsIO();
     
     virtual void addevents(::mega::Waiter*, int);
 
 protected:
     ws_base_s wscontext;
+    virtual bool wsResolveDNS(const char *hostname, int family, std::function<void(int status, std::string ip)> f);
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client);

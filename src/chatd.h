@@ -325,7 +325,7 @@ public:
         kEchoTimeout = 1    // echo to check connection is alive when back to foreground
          };
 
-
+protected:
     bool usingipv6;
     Client& mClient;
     int mShardNo;

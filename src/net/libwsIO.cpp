@@ -7,7 +7,7 @@
 
 using namespace std;
 
-LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx) : WebsocketsIO(mutex, ctx)
+LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
 {
     ::mega::LibeventWaiter *libeventWaiter = dynamic_cast<::mega::LibeventWaiter *>(waiter);
     ws_global_init(&wscontext, libeventWaiter ? libeventWaiter->eventloop : services_get_event_loop(), NULL,
@@ -45,6 +45,20 @@ LibwsIO::~LibwsIO()
 void LibwsIO::addevents(::mega::Waiter* waiter, int)
 {
 
+}
+
+bool LibwsIO::wsResolveDNS(const char *hostname, int, std::function<void (int, std::string)> f)
+{
+    mApi->call(&::mega::MegaApi::queryDNS, hostname)
+    .then([f](ReqResult result)
+    {
+        f(result->getText(), 0);
+    })
+    .fail([f](const promise::Error& err)
+    {
+        f(string(), err.code());
+    });
+    return 0;
 }
 
 WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)

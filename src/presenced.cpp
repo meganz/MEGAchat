@@ -1,8 +1,6 @@
 #include "presenced.h"
 #include "chatClient.h"
 
-#include "net/libwebsocketsIO.h"
-
 using namespace std;
 using namespace promise;
 using namespace karere;
@@ -180,92 +178,6 @@ void Client::signalActivity(bool force)
         sendUserActive(true, force);
 }
 
-class MyData {
-public:
-    MyData(DeleteTrackable::Handle w, void *p) : wptr(w), pointer(p) {}
-
-    DeleteTrackable::Handle wptr;
-    void *pointer;
-};
-
-static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
-{
-    MyData *data = (MyData *)req->data;
-    Client* client = (Client *)data->pointer;
-    delete req;
-
-    if (data->wptr.deleted())
-    {
-        PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
-        uv_freeaddrinfo(res);
-        delete data;
-        return;
-    }
-    delete data;
-
-    if (client->mConnState != Client::kResolving)
-    {
-        PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
-        uv_freeaddrinfo(res);
-        return;
-    }
-
-    if (status < 0)
-    {
-        PRESENCED_LOG_DEBUG("DNS query failed in presenced. Error code: %d", status);
-        if (!client->mConnectPromise.done())
-        {
-            client->mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
-        }
-        if (!client->mLoginPromise.done())
-        {
-            client->mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
-        }
-        uv_freeaddrinfo(res);
-        return;
-    }
-
-    client->setConnState(Client::kConnecting);
-    string ip;
-    struct addrinfo *hp = res;
-    while (hp)
-    {
-        char straddr[INET6_ADDRSTRLEN];
-        straddr[0] = 0;
-
-        if (!client->usingipv6 && hp->ai_family == AF_INET)
-        {
-            sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
-            inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
-        }
-        else if (client->usingipv6 && hp->ai_family == AF_INET6)
-        {
-            sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
-            inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
-        }
-
-        if (straddr[0])
-        {
-            ip = straddr;
-            break;
-        }
-
-        hp = hp->ai_next;
-    }
-
-    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-    bool rt = client->wsConnect(client->karereClient->websocketIO, ip.c_str(),
-              client->mUrl.host.c_str(),
-              client->mUrl.port,
-              client->mUrl.path.c_str(),
-              client->mUrl.isSecure);
-    if (!rt)
-    {
-        client->onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
-    }
-    uv_freeaddrinfo(res);
-}
-
 Promise<void>
 Client::reconnect(const std::string& url)
 {
@@ -303,18 +215,49 @@ Client::reconnect(const std::string& url)
 
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostmane...");
+            int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(), usingipv6 ? AF_INET6 : AF_INET,
+                         [wptr, this](int status, std::string ip)
+            {
+                if (wptr.deleted())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                    return;
+                }
+                if (mConnState != kResolving)
+                {
+                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    return;
+                }
 
-            struct addrinfo hints = {};
-            hints.ai_family = AF_UNSPEC;
-            hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
-            uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
-            MyData *data = new MyData(wptr, this);
-            h->data = data;
-            int status = uv_getaddrinfo(((LibwebsocketsIO *)karereClient->websocketIO)->eventloop, h, on_resolved, mUrl.host.c_str(), NULL, &hints);
+                if (status < 0)
+                {
+                    PRESENCED_LOG_DEBUG("Async DNS error in presenced. Error code: %d", status);
+                    if (!mConnectPromise.done())
+                    {
+                        mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+                    }
+                    if (!mLoginPromise.done())
+                    {
+                        mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+                    }
+                }
+
+                setConnState(kConnecting);
+                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
+                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
+                      mUrl.host.c_str(),
+                      mUrl.port,
+                      mUrl.path.c_str(),
+                      mUrl.isSecure);
+                if (!rt)
+                {
+                    onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
+                }
+            });
+
             if (status < 0)
             {
-                delete h;
-                delete data;
+                PRESENCED_LOG_DEBUG("Sync DNS error in presenced. Error code: %d", status);
                 if (!mConnectPromise.done())
                 {
                     mConnectPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
