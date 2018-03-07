@@ -11,7 +11,7 @@
 class LibwsIO : public WebsocketsIO
 {
 public:
-    LibwsIO(::mega::Mutex *mutex = NULL, ::mega::Waiter* waiter = NULL, ::mega::MegaApi *api, void *ctx = NULL);
+    LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx = NULL);
     virtual ~LibwsIO();
     
     virtual void addevents(::mega::Waiter*, int);

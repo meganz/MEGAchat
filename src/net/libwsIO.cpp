@@ -49,14 +49,14 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
 
 bool LibwsIO::wsResolveDNS(const char *hostname, int, std::function<void (int, std::string)> f)
 {
-    mApi->call(&::mega::MegaApi::queryDNS, hostname)
+    mApi.call(&::mega::MegaApi::queryDNS, hostname)
     .then([f](ReqResult result)
     {
-        f(result->getText(), 0);
+        f(0, result->getText());
     })
     .fail([f](const promise::Error& err)
     {
-        f(string(), err.code());
+        f(err.code(), string());
     });
     return 0;
 }
