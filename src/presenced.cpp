@@ -28,11 +28,9 @@ using namespace karere;
 namespace presenced
 {
 
-    Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps)
-{
-   usingipv6 = false;
-}
+Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
+: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps), usingipv6(false)
+{}
 
 promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
@@ -214,7 +212,7 @@ Client::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostmane...");
+            PRESENCED_LOG_DEBUG("Resolving hostname...");
             int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(), usingipv6 ? AF_INET6 : AF_INET,
                          [wptr, this](int status, std::string ip)
             {

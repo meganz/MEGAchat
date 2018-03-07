@@ -232,10 +232,8 @@ void Chat::login()
 }
 
 Connection::Connection(Client& client, int shardNo)
-: mClient(client), mShardNo(shardNo)
-{
-    usingipv6 = false;
-}
+: mClient(client), mShardNo(shardNo), usingipv6(false)
+{}
 
 void Connection::wsConnectCb()
 {

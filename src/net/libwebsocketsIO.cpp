@@ -55,7 +55,7 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 }
 
-static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
     string ip;
     std::function<void (int, string)>* func = (std::function<void (int, string)>*)req->data;
@@ -98,7 +98,7 @@ bool LibwebsocketsIO::wsResolveDNS(const char *hostname, int family, std::functi
     hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
     h->data = new std::function<void (int, string)>(f);
-    return uv_getaddrinfo(eventloop, h, on_resolved, hostname, NULL, &hints);
+    return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, &hints);
 }
 
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
