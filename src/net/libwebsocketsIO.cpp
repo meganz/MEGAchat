@@ -100,12 +100,9 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
 
 bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, string, string)> f)
 {
-    struct addrinfo hints = {};
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
     h->data = new std::function<void (int, string, string)>(f);
-    return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, &hints);
+    return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, NULL);
 }
 
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
