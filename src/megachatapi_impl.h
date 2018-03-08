@@ -965,7 +965,6 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
-    virtual void notifyInvited(const karere::ChatRoom& room);
     virtual void onInitStateChange(int newState);
 
     // rtcModule::IChatListHandler implementation
