@@ -27,5 +27,7 @@ class ChatSettings : public QDialog
             int mAudioInIdx;
             int mVideoInIdx;
         #endif
+    private slots:
+            void on_buttonBox_clicked(QAbstractButton *button);
 };
 #endif // SETTINGSDIALOG_H

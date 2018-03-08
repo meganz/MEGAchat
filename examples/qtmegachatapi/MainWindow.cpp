@@ -157,10 +157,17 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
 void MainWindow::on_bSettings_clicked()
 {
+    this->mMegaChatApi->loadAudioVideoDeviceList();
+}
+
+
+void MainWindow::createSettingsMenu()
+{
     ChatSettings *chatSettings = new ChatSettings(this);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
+
 
 void MainWindow::on_bOnlineStatus_clicked()
 {

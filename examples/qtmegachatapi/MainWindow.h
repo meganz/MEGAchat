@@ -57,6 +57,7 @@ class MainWindow :
         void addContacts();
         void addInactiveChats();
         void addActiveChats();
+        void createSettingsMenu();
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         mega::MegaUserList *getUserContactList();
         bool eventFilter(QObject *obj, QEvent *event);

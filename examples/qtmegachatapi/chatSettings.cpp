@@ -14,12 +14,15 @@ ChatSettings::ChatSettings(QMainWindow *parent)
         {
             ui->audioInCombo->addItem(audioInDevices->get(i));
         }
+        mAudioInIdx = ui->audioInCombo->currentIndex();
         delete audioInDevices;
+
         mega::MegaStringList *videoInDevices = mMainWin->mMegaChatApi->getChatVideoInDevices();
         for (int i=0; i<videoInDevices->size(); i++)
         {
             ui->videoInCombo->addItem(videoInDevices->get(i));
         }
+        mVideoInIdx = ui->videoInCombo->currentIndex();
         delete videoInDevices;
     #endif
 }
@@ -27,4 +30,23 @@ ChatSettings::ChatSettings(QMainWindow *parent)
 ChatSettings::~ChatSettings()
 {
     delete ui;
+}
+
+void ChatSettings::on_buttonBox_clicked(QAbstractButton *button)
+{
+    #ifndef KARERE_DISABLE_WEBRTC
+        if (ui->audioInCombo->currentIndex() != mAudioInIdx)
+        {
+            mAudioInIdx = ui->audioInCombo->currentIndex();
+            std::string device =  ui->audioInCombo->itemText(ui->audioInCombo->currentIndex()).toLatin1().data();
+            mMainWin->mMegaChatApi->setChatAudioInDevice(device.c_str());
+        }
+
+        if (ui->videoInCombo->currentIndex() != mVideoInIdx)
+        {
+            mVideoInIdx = ui->videoInCombo->currentIndex();
+            std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
+            mMainWin->mMegaChatApi->setChatVideoInDevice(device.c_str());
+        }
+    #endif
 }
