@@ -3013,11 +3013,11 @@ void MegaChatApiImpl::removeChatCallHandler(MegaChatHandle chatid)
 
 #endif
 
-void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
+void MegaChatApiImpl::notifyInvited(ChatRoom &room)
 {
-    MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(room);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(room);
 
-    fireOnChatRoomUpdate(chat);
+    fireOnChatListItemUpdate(item);
 }
 
 void MegaChatApiImpl::onInitStateChange(int newState)

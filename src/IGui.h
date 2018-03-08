@@ -360,7 +360,7 @@ public:
      * @brief Called by karere when we become participants in a 1on1 or a group chat.
      * @param room The chat room object.
      */
-    virtual void notifyInvited(const ChatRoom& room) {}
+    virtual void notifyInvited(ChatRoom& room) {}
 
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init

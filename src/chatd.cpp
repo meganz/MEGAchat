@@ -2985,7 +2985,7 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
         return LastTextMsgState::kFetching;
     }
 
-    if (mLastTextMsg.isValid()) // findlLastTextMsg() may have found it locally
+    if (mLastTextMsg.isValid()) // findLastTextMsg() may have found it locally
     {
         msg = &mLastTextMsg;
         return LastTextMsgState::kHave;
