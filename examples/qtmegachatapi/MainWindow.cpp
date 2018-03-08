@@ -203,6 +203,16 @@ void MainWindow::on_bOnlineStatus_clicked()
     onlineStatus->deleteLater();
 }
 
+ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandle)
+{
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
+    itChats = chatWidgets.find(chatHandle);
+    if (itChats == chatWidgets.end())
+    {
+        return NULL;
+    }
+    return itChats->second;
+}
 
 void MainWindow::addContact(MegaUser *contact)
 {
