@@ -3013,13 +3013,6 @@ void MegaChatApiImpl::removeChatCallHandler(MegaChatHandle chatid)
 
 #endif
 
-void MegaChatApiImpl::notifyInvited(const ChatRoom &room)
-{
-    MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(room);
-
-    fireOnChatRoomUpdate(chat);
-}
-
 void MegaChatApiImpl::onInitStateChange(int newState)
 {
     API_LOG_DEBUG("Karere initialization state has changed: %d", newState);
