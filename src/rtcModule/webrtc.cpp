@@ -1456,7 +1456,7 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
             }
         }
     }
-    else if (mState == kStateInProgress)
+    else
     {
         destroy(TermCode::kErrUserOffline, userid == mChat.client().karereClient->myHandle());
     }
