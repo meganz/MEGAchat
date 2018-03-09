@@ -154,8 +154,6 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
                 truncateChatUI();
                 megachat::MegaChatMessage *auxMsg = msg->copy();
                 addMsgWidget(auxMsg, loadedMessages);
-                ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
-                chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
 
                 if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle())
                 {
@@ -185,8 +183,6 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             megachat::MegaChatMessage *auxMsg = msg->copy();
             addMsgWidget(auxMsg, loadedMessages);
-            ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
-            chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
             loadedMessages++;
         }
         else
@@ -278,8 +274,6 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
 {
-    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
-    chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
     addMsgWidget(msg->copy(), loadedMessages);
     loadedMessages++;
 }
@@ -288,12 +282,6 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
 {
     if(msg)
     {
-        if (loadedMessages == 0)
-        {
-            ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
-            chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
-        }
-
         if(msg->isDeleted())
             return;
 
