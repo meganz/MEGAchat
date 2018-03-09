@@ -10,7 +10,7 @@ using namespace mega;
 using namespace karere;
 
 CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
-    : QWidget(parent), mChatWindow(parent), mCall(call), ui(new Ui::CallGui)
+    : QWidget(parent), mChatWindow(parent), mICall(call), ui(new Ui::CallGui)
 {
     ui->setupUi(this);
     ui->localRenderer->setMirrored(true);
@@ -22,22 +22,26 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
     setAvatarOnRemote();
     setAvatarOnLocal();
     ui->localRenderer->enableStaticImage();
-
-    if (mCall)
-    {
-        auto av = mCall->sentAv();
-        ui->mMuteMicChk->setChecked(!av.audio());
-        ui->mMuteCamChk->setChecked(!av.video());
-        mCall->changeHandler(this);
-        mCall->changeLocalRenderer(ui->localRenderer);
-        ui->remoteRenderer->enableStaticImage();
-    }
-    else
-    {
-        ui->remoteRenderer->enableStaticImage();
-    }
+    ui->remoteRenderer->enableStaticImage();
+    mCall = NULL;
 }
 
+//We need to implement all callbacks from videocall listener to handle different states in calls
+//ie when the interlocutor finish call ...
+
+void CallGui::connectCall()
+{
+    //mChatWindow->mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+
+
+    localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
+    remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
+    mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+    bool lAudio = mCall->hasLocalAudio();
+    bool lVideo = mCall->hasLocalVideo();
+    bool rAudio = mCall->hasRemoteAudio();
+    bool rVideo = mCall->hasRemoteVideo();
+}
 
 void CallGui::drawPeerAvatar(QImage &image)
 {
@@ -103,21 +107,21 @@ void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
 
 void CallGui::onHupBtn(bool)
 {
-    if (!mCall)
+    if (!mICall)
     {
         return;
     }
-    mCall->hangup();
+    //mICall->hangup();
 }
 void CallGui::onMuteMic(bool checked)
 {
-    AvFlags av(!checked, mCall->sentAv().video());
-    mCall->muteUnmute(av);
+    AvFlags av(!checked, mICall->sentAv().video());
+    mICall->muteUnmute(av);
 }
 void CallGui::onMuteCam(bool checked)
 {
-    AvFlags av(mCall->sentAv().audio(), !checked);
-    mCall->muteUnmute(av);
+    AvFlags av(mICall->sentAv().audio(), !checked);
+    mICall->muteUnmute(av);
     if (checked)
     {
         ui->localRenderer->enableStaticImage();
@@ -130,7 +134,7 @@ void CallGui::onMuteCam(bool checked)
 
 void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string& text)
 {
-    mCall = nullptr;
+    mICall = nullptr;
     mChatWindow->deleteCallGui();
 }
 
@@ -183,14 +187,14 @@ void CallGui::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::
 
 void CallGui::hangup()
 {
-    mCall->hangup();
+    mICall->hangup();
 }
 
 
 /*called only for outgoing calls*/
 void CallGui::setCall(rtcModule::ICall *call)
 {
-    mCall = call;
+    mICall = call;
 }
 
 void CallGui::onLocalStreamObtained(rtcModule::IVideoRenderer *& renderer)

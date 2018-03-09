@@ -81,6 +81,9 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/megaLoggerApplication.cpp \
     ../../../examples/qtmegachatapi/chatMessage.cpp \
     ../../../examples/qtmegachatapi/callGui.cpp \
+    ../../../examples/qtmegachatapi/callListener.cpp \
+    ../../../examples/qtmegachatapi/remoteCallListener.cpp \
+    ../../../examples/qtmegachatapi/localCallListener.cpp \
     ../../src/videoRenderer_Qt.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
@@ -95,6 +98,9 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/megaLoggerApplication.h \
     ../../../examples/qtmegachatapi/chatMessage.h \
     ../../../examples/qtmegachatapi/callGui.h \
+    ../../../examples/qtmegachatapi/callListener.h \
+    ../../../examples/qtmegachatapi/remoteCallListener.h \
+    ../../../examples/qtmegachatapi/localCallListener.h \
     ../../src/videoRenderer_Qt.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \

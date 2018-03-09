@@ -296,6 +296,31 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
+
+         case MegaChatRequest::TYPE_START_CHAT_CALL:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+              {
+                QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
+              }
+            else
+            {
+                //request->getFlag();
+                megachat::MegaChatHandle chatHandle = request->getChatHandle();
+                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
+                itChats = mMainWin->chatWidgets.find(chatHandle);
+
+                if (itChats != mMainWin->chatWidgets.end())
+                {
+                    ChatItemWidget * chatItemWidget = itChats->second;
+                    ChatWindow * chatWin = chatItemWidget->showChatWindow();
+                    chatWin->connectCall();
+                }
+            }
+            break;
+
+         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
+                mMainWin->createSettingsMenu();
+            break;
     }
 }
 

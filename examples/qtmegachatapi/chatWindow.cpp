@@ -556,10 +556,15 @@ void ChatWindow::onMsgListRequestHistory()
         }
         if (mCallGui)
         {
-            return;
+         //   return;
         }
         createCallGui(nullptr);
-        //mRoom.mediaCall(karere::AvFlags(true, video), *mCallGui);
+        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), true);
+    }
+
+    void ChatWindow::connectCall()
+    {
+        mCallGui->connectCall();
     }
 
     void ChatWindow::deleteCallGui()

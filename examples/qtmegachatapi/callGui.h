@@ -9,6 +9,9 @@
 #include <trackDelete.h>
 #include "uiSettings.h"
 #include "megachatapi.h"
+#include "remoteCallListener.h"
+#include "localCallListener.h"
+#include "QTMegaChatCallListener.h"
 
 class ChatWindow;
 class MainWindow;
@@ -36,8 +39,12 @@ class CallGui: public QWidget, public rtcModule::ICallHandler, public rtcModule:
 Q_OBJECT
 protected:
     ChatWindow *mChatWindow;
-    rtcModule::ICall *mCall;
+    rtcModule::ICall *mICall;
+    megachat::MegaChatCall * mCall;
     rtcModule::ISession *mSess = nullptr;
+    RemoteCallListener * remoteCallListener;
+    LocalCallListener * localCallListener;
+    QTMegaChatCallListener *megaChatCallListenerDelegate;
     void setAvatarOnRemote();
     void setAvatarOnLocal();
     void drawAvatar(QImage &image, QChar letter, uint64_t userid);
@@ -52,6 +59,7 @@ public:
     Ui::CallGui *ui;
     CallGui(ChatWindow *parent, rtcModule::ICall *call);
     void hangup();
+    void connectCall();
     virtual rtcModule::ISessionHandler* onNewSession(rtcModule::ISession &sess);
     virtual void setCall(rtcModule::ICall *call);
     virtual void onLocalStreamObtained(rtcModule::IVideoRenderer *&renderer);
@@ -67,6 +75,9 @@ public:
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string &msg);
     virtual void onSessStateChange(uint8_t newState);
     virtual void onVideoRecv();
+
+    friend class RemoteCallListener;
+    friend class LocalCallListener;
 };
 
 #endif // MAINWINDOW_H
