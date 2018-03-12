@@ -1,7 +1,7 @@
 #include "callListener.h"
 
 CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui)
- : MegaChatCallListener(), MegaChatVideoListener()
+ : MegaChatVideoListener()
 {    
     mMegaChatApi = megaChatApi;
     mCallGui = callGui;

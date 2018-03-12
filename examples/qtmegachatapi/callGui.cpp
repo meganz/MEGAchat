@@ -31,16 +31,11 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
 
 void CallGui::connectCall()
 {
-    //mChatWindow->mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
-
-
-    localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
+    megaChatCallListenerDelegate = new QTMegaChatCallListener(mChatWindow->mMegaChatApi, this);
+    mChatWindow->mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
+    localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
-    bool lAudio = mCall->hasLocalAudio();
-    bool lVideo = mCall->hasLocalVideo();
-    bool rAudio = mCall->hasRemoteAudio();
-    bool rVideo = mCall->hasRemoteVideo();
 }
 
 void CallGui::drawPeerAvatar(QImage &image)

@@ -34,7 +34,7 @@ public slots:
     void onBtnClick(QAbstractButton *btn);
 };
 
-class CallGui: public QWidget, public rtcModule::ICallHandler, public rtcModule::ISessionHandler
+class CallGui: public QWidget, public MegaChatCallListener, public rtcModule::ICallHandler, public rtcModule::ISessionHandler
 {
 Q_OBJECT
 protected:

@@ -6,6 +6,8 @@ using namespace megachat;
 
 class LocalCallListener: public CallListener
 {   
+    protected:
+        int frameCounter;
     public:
         LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui);
         virtual ~ LocalCallListener();

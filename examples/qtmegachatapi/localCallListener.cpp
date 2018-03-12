@@ -5,6 +5,7 @@
 LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui):
 CallListener(megaChatApi,callGui)
 {
+    frameCounter = 0;
     mMegaChatApi->addChatLocalVideoListener(megaChatVideoListenerDelegate);    
 }
 
@@ -16,14 +17,15 @@ LocalCallListener::~LocalCallListener()
 
 void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
-    if((width == 0) || (height == 0))
+    frameCounter++;
+    if((width == 0) || (height == 0) || (frameCounter <= 1))
     {
         return;
     }
 
-    unsigned char* auxBuf = reinterpret_cast<unsigned char*> (buffer);
-    QImage *Img = new QImage(auxBuf, width, height, QImage::Format_ARGB32);
-    this->mCallGui->ui->localRenderer->setStaticImage(Img);
+    unsigned char *auxBuf = reinterpret_cast<unsigned char*> (buffer);
+    QImage *auxImg = new QImage(auxBuf, width, height, QImage::Format_ARGB32);
+    this->mCallGui->ui->localRenderer->setStaticImage(auxImg);
     this->mCallGui->ui->localRenderer->enableStaticImage();
 }
 

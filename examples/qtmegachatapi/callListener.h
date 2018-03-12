@@ -6,7 +6,7 @@
 using namespace megachat;
 class CallGui;
 
-class CallListener: public MegaChatVideoListener, public MegaChatCallListener
+class CallListener: public MegaChatVideoListener
 {
     protected:
         MegaChatApi *mMegaChatApi;
