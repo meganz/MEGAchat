@@ -311,9 +311,29 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
 
                 if (itChats != mMainWin->chatWidgets.end())
                 {
-                    ChatItemWidget * chatItemWidget = itChats->second;
-                    ChatWindow * chatWin = chatItemWidget->showChatWindow();
+                    ChatItemWidget *chatItemWidget = itChats->second;
+                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
                     chatWin->connectCall();
+                }
+            }
+            break;
+
+          case MegaChatRequest::TYPE_HANG_CHAT_CALL:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+              {
+                QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
+              }
+            else
+            {
+                megachat::MegaChatHandle chatHandle = request->getChatHandle();
+                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
+                itChats = mMainWin->chatWidgets.find(chatHandle);
+
+                if (itChats != mMainWin->chatWidgets.end())
+                {
+                    ChatItemWidget *chatItemWidget = itChats->second;
+                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
+                    chatWin->hangCall();
                 }
             }
             break;

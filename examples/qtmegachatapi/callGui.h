@@ -51,14 +51,15 @@ protected:
     void drawOwnAvatar(QImage &image);
     void drawPeerAvatar(QImage &image);
 public slots:
-    void onHupBtn(bool);
+    void onHangCall(bool);
     void onChatBtn(bool);
     void onMuteCam(bool);
     void onMuteMic(bool);
 public:
     Ui::CallGui *ui;
     CallGui(ChatWindow *parent, rtcModule::ICall *call);
-    void hangup();
+    virtual ~ CallGui();
+    void hangCall();
     void connectCall();
     virtual rtcModule::ISessionHandler* onNewSession(rtcModule::ISession &sess);
     virtual void setCall(rtcModule::ICall *call);

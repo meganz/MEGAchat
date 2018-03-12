@@ -542,8 +542,9 @@ void ChatWindow::onMsgListRequestHistory()
     {
         if (mCallGui)
         {
-            mCallGui->hangup();
+            mCallGui->onHangCall(true);
         }
+        delete this;
         event->accept();
     }
 
@@ -565,6 +566,11 @@ void ChatWindow::onMsgListRequestHistory()
     void ChatWindow::connectCall()
     {
         mCallGui->connectCall();
+    }
+
+    void ChatWindow::hangCall()
+    {
+        mCallGui->hangCall();
     }
 
     void ChatWindow::deleteCallGui()

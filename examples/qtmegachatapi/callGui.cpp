@@ -14,7 +14,7 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
 {
     ui->setupUi(this);
     ui->localRenderer->setMirrored(true);
-    connect(ui->mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHupBtn(bool)));
+    connect(ui->mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHangCall(bool)));
     connect(ui->mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui->mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
     connect(ui->mMuteCamChk, SIGNAL(clicked(bool)), this, SLOT(onMuteCam(bool)));
@@ -100,14 +100,33 @@ void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
 }
 
 
-void CallGui::onHupBtn(bool)
+void CallGui::onHangCall(bool)
 {
-    if (!mICall)
+    if (!mCall)
     {
-        return;
+        hangCall();
     }
-    //mICall->hangup();
+    else
+    {
+        mChatWindow->mMegaChatApi->hangChatCall(mCall->getChatid());
+    }
 }
+
+void CallGui::hangCall()
+{
+   mChatWindow->deleteCallGui();
+}
+
+CallGui:: ~ CallGui()
+{
+    mChatWindow->mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+    delete megaChatCallListenerDelegate;
+    delete remoteCallListener;
+    delete localCallListener;
+    delete mCall;
+    delete ui;
+}
+
 void CallGui::onMuteMic(bool checked)
 {
     AvFlags av(!checked, mICall->sentAv().video());
@@ -180,10 +199,7 @@ void CallGui::onChatBtn(bool)
 void CallGui::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
 {}
 
-void CallGui::hangup()
-{
-    mICall->hangup();
-}
+
 
 
 /*called only for outgoing calls*/
