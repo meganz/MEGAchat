@@ -3071,6 +3071,12 @@ void MegaChatApiImpl::onInitStateChange(int newState)
     }
 }
 
+void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
+{
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    fireOnChatNotification(chatid, message);
+}
+
 int MegaChatApiImpl::convertInitState(int state)
 {
     switch (state)

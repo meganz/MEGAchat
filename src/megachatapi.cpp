@@ -1276,3 +1276,8 @@ bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
 }
+
+void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
+{
+
+}
