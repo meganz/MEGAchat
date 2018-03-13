@@ -2304,7 +2304,7 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
     }
 }
 
-void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::__cxx11::string &errmsg)
+void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::string &errmsg)
 {
     KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
         karere::Id(mChatid).toString().c_str(),
