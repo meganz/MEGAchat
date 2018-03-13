@@ -3013,6 +3013,24 @@ public:
      */
     void removeChatRequestListener(MegaChatRequestListener* listener);
 
+    /**
+     * @brief Register a listener to receive notifications
+     *
+     * You can use MegaChatApi::removeChatRequestListener to stop receiving events.
+     *
+     * @param listener Listener that will receive all events about requests
+     */
+    void addChatNotificationListener(MegaChatNotificationListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatNotificationListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    void removeChatNotificationListener(MegaChatNotificationListener* listener);
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Register a listener to receive all events about calls

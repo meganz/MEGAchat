@@ -677,6 +677,16 @@ void MegaChatApi::removeChatRequestListener(MegaChatRequestListener *listener)
     pImpl->removeChatRequestListener(listener);
 }
 
+void MegaChatApi::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->addChatNotificationListener(listener);
+}
+
+void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->removeChatNotificationListener(listener);
+}
+
 MegaChatRequest::~MegaChatRequest() { }
 MegaChatRequest *MegaChatRequest::copy()
 {
