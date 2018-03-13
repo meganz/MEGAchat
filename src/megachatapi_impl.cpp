@@ -1497,6 +1497,16 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
     }
 }
 
+void MegaChatApiImpl::fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg)
+{
+    for(set<MegaChatNotificationListener *>::iterator it = notificationListeners.begin(); it != notificationListeners.end() ; it++)
+    {
+        (*it)->onChatNotification(chatApi, chatid, msg);
+    }
+
+    delete msg;
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -2834,6 +2844,18 @@ void MegaChatApiImpl::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomLis
     sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    notificationListeners.insert(listener);
+    sdkMutex.unlock();
+}
+
 void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     if (!listener)
@@ -2921,6 +2943,18 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
 
     sdkMutex.lock();
     roomListeners.erase(listener);
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    notificationListeners.erase(listener);
     sdkMutex.unlock();
 }
 
