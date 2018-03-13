@@ -38,10 +38,13 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
     // Create delegate listeners
     megaListenerDelegate = new QTMegaListener(mMegaApi, this);
-    megaChatRequestListenerDelegate = new QTMegaChatRequestListener(megaChatApi, this);
     mMegaApi->addListener(megaListenerDelegate);
+
+    megaChatRequestListenerDelegate = new QTMegaChatRequestListener(megaChatApi, this);
     megaChatApi->addChatRequestListener(megaChatRequestListenerDelegate);
 
+    megaChatNotificationListenerDelegate = new QTMegaChatNotificationListener(megaChatApi, this);
+    megaChatApi->addChatNotificationListener(megaChatNotificationListenerDelegate);
 
     // Start GUI
     mMainWin = new MainWindow(0, mLogger);
@@ -188,6 +191,20 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
     }
 }
 
+void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chatid, MegaChatMessage *msg)
+{
+    const char *chat = mMegaApi->userHandleToBase64((MegaHandle)chatid);
+    const char *msgid = mMegaApi->userHandleToBase64((MegaHandle)msg->getMsgId());
+
+    string log("Chat notification received in chat [");
+    log.append(chat);
+    log.append("], msgid: ");
+    log.append(msgid);
+    mLogger->postLog(log.c_str());
+
+    delete chat;
+    delete msgid;
+}
 
 void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
