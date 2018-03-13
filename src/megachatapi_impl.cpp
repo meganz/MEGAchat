@@ -4152,7 +4152,7 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status,
     message->setStatus(status);
     chatApi->fireOnMessageUpdate(message);
 
-    if (msg.userid == chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApi->fireOnChatNotification(chatid, message);
