@@ -46,6 +46,7 @@ static size_t myStrncpy(char* dest, const char* src, size_t maxCount);
 
 void Logger::logToConsole(bool enable)
 {
+    LockGuard lock(mMutex);
     if (enable)
     {
         if (mConsoleLogger)
@@ -62,6 +63,7 @@ void Logger::logToConsole(bool enable)
 
 void Logger::logToConsoleUseColors(bool useColors)
 {
+    LockGuard lock(mMutex);
     if (mConsoleLogger)
     {
         mConsoleLogger->setUseColors(useColors);
@@ -70,6 +72,7 @@ void Logger::logToConsoleUseColors(bool useColors)
 
 void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
 {
+    LockGuard lock(mMutex);
     if (!fileName) //disable
     {
         mFileLogger.reset();
@@ -81,6 +84,7 @@ void Logger::logToFile(const char* fileName, size_t rotateSizeKb)
 
 void Logger::setAutoFlush(bool enable)
 {
+    LockGuard lock(mMutex);
     if (enable)
         mFlags &= ~krLogNoAutoFlush;
     else
