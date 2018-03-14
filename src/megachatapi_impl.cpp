@@ -1188,7 +1188,16 @@ MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 
 void MegaChatApiImpl::removeChatRoomHandler(MegaChatHandle chatid)
 {
-    chatRoomHandler.erase(chatid);
+    map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
+    if (it == chatRoomHandler.end())
+    {
+        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+        return;
+    }
+
+    MegaChatRoomHandler *roomHandler = chatRoomHandler[chatid];
+    chatRoomHandler.erase(it);
+    delete roomHandler;
 }
 
 ChatRoom *MegaChatApiImpl::findChatRoom(MegaChatHandle chatid)
