@@ -2055,8 +2055,7 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     {
         chatroom->removeAppChatHandler();
 
-        MegaChatRoomHandler *roomHandler = getChatRoomHandler(chatid);
-        roomHandler->removeChatRoomListener(listener);
+        removeChatRoomListener(chatid, listener);
         removeChatRoomHandler(chatid);
     }
 
