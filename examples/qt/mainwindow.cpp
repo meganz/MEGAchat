@@ -411,7 +411,9 @@ void MainWindow::onAddContact()
             return;
         }
     }
-    client().api.call(&MegaApi::inviteContact, email.toUtf8().data(), tr("I'd like to add you to my contact list").toUtf8().data(), MegaContactRequest::INVITE_ACTION_ADD)
+    client().api.call(&MegaApi::inviteContact, (const char*) email.toUtf8().data(),
+                      (const char*) tr("I'd like to add you to my contact list").toUtf8().data(),
+                      (int) MegaContactRequest::INVITE_ACTION_ADD)
     .fail([this, email](const promise::Error& err)
     {
         QString msg;
