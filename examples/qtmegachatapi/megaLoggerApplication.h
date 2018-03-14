@@ -11,11 +11,11 @@ class MegaLoggerApplication : public mega::MegaLogger, public megachat::MegaChat
         std::ofstream *getOutputStream() { return &testlog; }
         void postLog(const char *message);
         bool getLogConsole() const;
-        void setLogConsole(bool logConsole);
+        void setLogConsole(bool mLogConsole);
 
     private:
         std::ofstream testlog;
-        bool logConsole;
+        bool mLogConsole;
 
     protected:
         void log(const char *time, int loglevel, const char *source, const char *message);
