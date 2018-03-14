@@ -1546,6 +1546,53 @@ void Chat::initChat()
     mHaveAllHistory = false;
 }
 
+void Chat::requestRichLink(Message &message)
+{
+    std::string text = message.toText();
+    if (hasUrl(text))
+    {
+        std::string linkRequest = std::string("http://") + text;
+        auto wptr = weakHandle();
+        karere::Id messageId = message.id();
+        Idx messageIdx = msgIndexFromId(messageId);
+        uint16_t updated = message.updated;
+        client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
+        .then([wptr, this, messageIdx, updated, text](ReqResult result)
+        {
+            if (wptr.deleted())
+                return;
+            std::string header;
+            std::string textMessage = result->getText();
+
+            std::cerr << "Request Result: " << result->getText() << std::endl;
+
+            header.insert(header.begin(), 0x0);
+            header.insert(header.begin(), Message::kMsgContainsMeta);
+            header.insert(header.begin(), 0x0);
+            header = header + std::string("{\"textMessage\":\"") + text + std::string("\",\"extra\":[");
+            std::string updateText = header + textMessage + std::string("]}");
+            size_t size = updateText.size();
+            Message *message = findOrNull(messageIdx);
+            if (message && updated == message->updated)
+            {
+                msgModify(*message, updateText.c_str(), size, NULL);
+            }
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            if (wptr.deleted())
+                return;
+
+            CHATID_LOG_ERROR("Fail to request rich link: request error (%d)", err.code());
+        });
+    }
+}
+
+bool Chat::hasUrl(const string &text)
+{
+    return false;
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
@@ -1757,8 +1804,16 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.assign((void*)newdata, newlen);
         CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
     } //end msg.isSending()
+
+
+    unsigned char type = msg.type;
+    if (msg.type == Message::kMsgContainsMeta)
+    {
+        type = Message::kMsgNormal;
+    }
+
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
-        msg.isSending(), msg.keyid, msg.type, userp);
+        msg.isSending(), msg.keyid, type, userp);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd]()
@@ -2220,6 +2275,8 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
             notifyLastTextMsg();
         }
     }
+
+    requestRichLink(*msg);
     return idx;
 }
 
@@ -2321,6 +2378,13 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
                 msg->type = msg->buf()[1];
+        }
+        else if (msg->type == Message::kMsgNormal)
+        {
+            if (msg->userid == client().userId())
+            {
+                requestRichLink(*msg);
+            }
         }
 
         //update in db

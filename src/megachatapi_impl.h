@@ -620,6 +620,8 @@ private:
 };
 
 class MegaChatAttachedUser;
+class MegaChatRichPreview;
+class MegaChatContainsMeta;
 
 class MegaChatMessagePrivate : public MegaChatMessage
 {
@@ -657,6 +659,18 @@ public:
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 
+    virtual int containsMetaType() const;
+    virtual const char *getRichPreviewText() const;
+    virtual const char *getRichPreviewTitle() const;
+    virtual const char *getRichPreviewDescription() const;
+    virtual const char *getRichPreviewImage() const;
+    virtual unsigned int getRichPreviewImageSize() const;
+    virtual const char *getRichPreviewImageFormat() const;
+    virtual const char *getRichPreviewIcon() const;
+    virtual unsigned int getRichPreviewIconSize() const;
+    virtual const char *getRichPreviewIconFormat() const;
+    virtual const char *getRichPreviewUrl() const;
+
     void setStatus(int status);
     void setTempId(MegaChatHandle tempId);
     void setRowId(int id);
@@ -683,6 +697,7 @@ private:
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
+    const MegaChatContainsMeta* megaChatContainsMeta;
 };
 
 //Thread safe request queue
@@ -1003,6 +1018,69 @@ protected:
     std::string mName;
 };
 
+/**
+ * @brief This class represents meta contained
+ *
+ * This class include pointer to differents kind of meta contained (Rich preview).
+ * There are valida data if Message is from type MegaChatMessage::TYPE_CONTAINS_META.
+ * Use MegaChatMessage::containsMetaType() to dectect the kind of meta contained
+ *
+ * This class is used internally by MegaChatMessagePrivate, not exposed to apps.
+ *
+ * @see MegaChatMessage::containsMetaType()
+ */
+class MegaChatContainsMeta
+{
+public:
+    MegaChatContainsMeta(const MegaChatRichPreview *richPreview);
+    ~MegaChatContainsMeta();
+
+    int getType() const;
+
+    const MegaChatRichPreview *getRichPreview() const;
+protected:
+    int type = MegaChatMessage::CONTAINS_META_INVALID;
+    const MegaChatRichPreview *mRichPreview;
+};
+
+/**
+ * @brief This class store rich preview data
+ *
+ * This class contanis the data for rich links. Only has values if Message is from
+ * type MegaChatMessage::TYPE_CONTAINS_META and meta containded is from type
+ * MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+ *
+ * This class is used internally by MegaChatMessagePrivate, not exposed to apps.
+ */
+class MegaChatRichPreview
+{
+public:
+    MegaChatRichPreview(const std::string &text, const std::string &title, const std::string &description,
+                        const std::string &image, const std::string &imageFormat, const std::string &icon,
+                        const std::string &iconFormat, const std::string &url);
+
+    ~MegaChatRichPreview();
+
+    std::string getText() const;
+    std::string getTitle() const;
+    std::string getDescription() const;
+    std::string getImage() const;
+    std::string getImageFormat() const;
+    std::string getIcon() const;
+    std::string getIconFormat() const;
+    std::string getUrl() const;
+
+protected:
+    std::string mText;
+    std::string mTitle;
+    std::string mDescription;
+    std::string mUrl;
+    std::string mImage;
+    std::string mImagenFormat;
+    std::string mIcon;
+    std::string mIconFormat;
+};
+
 class DataTranslation
 {
 public:
@@ -1034,8 +1112,11 @@ public:
     // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-    static std::string parseContainsMeta(const char* json);
-    static std::string parseRichPreview(const char* json);
+    static const MegaChatContainsMeta *parseContainsMeta(const char* json);
+    static MegaChatRichPreview *parseRichPreview(const char* json);
+
+private:
+    static std::string getImageFormat(const char* imagen);
 };
 
 }
