@@ -906,6 +906,9 @@ void Call::msgSession(RtMessage& packet)
     mSessions[sid] = sess;
     notifyNewSession(*sess);
     sess->sendOffer();
+
+    EndpointId endpointId(sess->mPeer, sess->mPeerClient);
+    mSessRetriesTime[endpointId] = 0;
 }
 
 void Call::notifyNewSession(Session& sess)
@@ -940,6 +943,9 @@ void Call::msgJoin(RtMessage& packet)
         notifyNewSession(*sess);
         sess->createRtcConn();
         sess->sendCmdSession(packet);
+
+        EndpointId endpointId(sess->mPeer, sess->mPeerClient);
+        mSessRetriesTime[endpointId] = 0;
     }
     else
     {
