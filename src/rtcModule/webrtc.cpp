@@ -1184,7 +1184,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     mSessRetriesTime[endpointId] = time(NULL);
 
     int retryId = mSessRetriesNumber[endpointId];
-    mTotalSessionRetry ++;
+    mTotalSessionRetry++;
     int retryNumber = mTotalSessionRetry;
 
     if (!sess.isCaller())
