@@ -5357,11 +5357,14 @@ LoggerHandler::~LoggerHandler()
 
 void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
 {
+    mutex.lock();
     this->megaLogger = logger;
+    mutex.unlock();
 }
 
 void LoggerHandler::setLogLevel(int logLevel)
 {
+    mutex.lock();
     this->maxLogLevel = logLevel;
     switch (logLevel)
     {
@@ -5389,6 +5392,7 @@ void LoggerHandler::setLogLevel(int logLevel)
         default:
             break;
     }
+    mutex.unlock();
 }
 
 void LoggerHandler::setLogWithColors(bool useColors)
