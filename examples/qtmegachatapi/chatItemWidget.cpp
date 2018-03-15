@@ -13,7 +13,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatWindow = NULL;
     mMegaApi = mMainWin->mMegaApi;
     mLastOverlayCount = 0;
-    mOlderMessageLoaded = 0;
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
@@ -191,16 +190,6 @@ QListWidgetItem *ChatItemWidget::getWidgetItem() const
 void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
 {
     mListWidgetItem = item;
-}
-
-megachat::MegaChatHandle ChatItemWidget::getOlderMessageLoaded() const
-{
-    return mOlderMessageLoaded;
-}
-
-void ChatItemWidget::setOlderMessageLoaded(const megachat::MegaChatHandle &msgId)
-{
-    mOlderMessageLoaded = msgId;
 }
 
 
