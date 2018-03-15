@@ -11,7 +11,6 @@
 #include "megachatapi.h"
 #include "remoteCallListener.h"
 #include "localCallListener.h"
-#include "QTMegaChatCallListener.h"
 
 class ChatWindow;
 class MainWindow;
@@ -34,7 +33,7 @@ public slots:
     void onBtnClick(QAbstractButton *btn);
 };
 
-class CallGui: public QWidget, public MegaChatCallListener, public rtcModule::ICallHandler, public rtcModule::ISessionHandler
+class CallGui: public QWidget, public rtcModule::ICallHandler, public rtcModule::ISessionHandler
 {
 Q_OBJECT
 protected:
@@ -44,7 +43,6 @@ protected:
     rtcModule::ISession *mSess = nullptr;
     RemoteCallListener * remoteCallListener;
     LocalCallListener * localCallListener;
-    QTMegaChatCallListener *megaChatCallListenerDelegate;
     void setAvatarOnRemote();
     void setAvatarOnLocal();
     void drawAvatar(QImage &image, QChar letter, uint64_t userid);

@@ -31,8 +31,6 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
 
 void CallGui::connectCall()
 {
-    megaChatCallListenerDelegate = new QTMegaChatCallListener(mChatWindow->mMegaChatApi, this);
-    mChatWindow->mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
@@ -119,8 +117,6 @@ void CallGui::hangCall()
 
 CallGui:: ~ CallGui()
 {
-    mChatWindow->mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
-    delete megaChatCallListenerDelegate;
     delete remoteCallListener;
     delete localCallListener;
     delete mCall;

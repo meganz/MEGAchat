@@ -28,9 +28,3 @@ void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid,
     this->mCallGui->ui->localRenderer->setStaticImage(auxImg);
     this->mCallGui->ui->localRenderer->enableStaticImage();
 }
-
-
-void LocalCallListener::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
-{
-
-}

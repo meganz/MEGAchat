@@ -55,8 +55,20 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     }
 
     QDialog::show();
-    this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
+    megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
+    megaChatCallListenerDelegate = new QTMegaChatCallListener(megaChatApi, this);
+    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 }
+
+void ChatWindow::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
+{
+    if (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN)
+    {
+        createCallGui(nullptr);
+    }
+
+}
+
 
 void ChatWindow::setChatTittle(const char *title)
 {
@@ -79,6 +91,8 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
+    mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+    delete megaChatCallListenerDelegate;
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     mChatItemWidget->invalidChatWindowHandle();
     delete megaChatRoomListenerDelegate;
