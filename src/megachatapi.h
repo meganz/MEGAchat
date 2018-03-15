@@ -2992,7 +2992,7 @@ public:
      *
      * @param listener Object that is unregistered
      */
-    void removeChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
 
     /**
      * @brief Register a listener to receive all events about requests

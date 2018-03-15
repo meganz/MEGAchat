@@ -78,7 +78,7 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
     if (chatItemWidget)
     {
         chatItemWidget->invalidChatWindowHandle();
@@ -528,7 +528,7 @@ void ChatWindow::onMemberSetPriv()
 
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhandle = uHandle.toLongLong();
-      ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+      ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
       megachat::MegaChatHandle chatId = chatItemWidget->getChatId();
       this->mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);
 }

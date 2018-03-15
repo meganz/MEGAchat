@@ -32,7 +32,7 @@ class ChatItemWidget : public QWidget
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
 
-    private:
+    protected:
         Ui::ChatItem *ui;
         int mLastOverlayCount;
         megachat::MegaChatHandle mChatId;

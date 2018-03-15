@@ -5,7 +5,7 @@ using namespace megachat;
 
 MegaLoggerApplication::MegaLoggerApplication(const char *filename)
 {
-    logConsole=false;
+    mLogConsole=false;
     testlog.open(filename, ios::out | ios::app);
 }
 
@@ -17,14 +17,14 @@ MegaLoggerApplication::~MegaLoggerApplication()
 void MegaLoggerApplication::log(const char *time, int loglevel, const char *source, const char *message)
 {
     testlog << message << endl;
-    if(logConsole)
+    if(mLogConsole)
        cout << message << endl;
 }
 
 void MegaLoggerApplication::postLog(const char *message)
 {
     testlog << message << endl;
-    if(logConsole)
+    if(mLogConsole)
        cout << message << endl;
 }
 
@@ -42,16 +42,16 @@ void MegaLoggerApplication::log(int loglevel, const char *message)
         default: levelStr = ""; break;
     }
     testlog  << message;
-    if(logConsole)
+    if(mLogConsole)
        cout << message << endl;
 }
 
 bool MegaLoggerApplication::getLogConsole() const
 {
-    return logConsole;
+    return mLogConsole;
 }
 
 void MegaLoggerApplication::setLogConsole(bool logConsole)
 {
-    logConsole = logConsole;
+    mLogConsole = logConsole;
 }
