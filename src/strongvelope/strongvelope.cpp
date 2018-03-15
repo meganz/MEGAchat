@@ -1041,7 +1041,6 @@ ProtocolHandler::updateSenderKey()
     mParticipantsChanged = false;
 
     // Assemble the output for all recipients.
-    assert(mParticipants && !mParticipants->empty());
     return encryptKeyToAllParticipants(mCurrentKey)
     .then([this](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
     {
