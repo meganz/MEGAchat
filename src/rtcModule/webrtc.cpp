@@ -1404,7 +1404,7 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            assert(reason === TermCode::kUserHangup || isTermError(reason));
+            assert(reason == TermCode::kUserHangup || isTermError(reason));
         }
 
         break;
