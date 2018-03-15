@@ -120,6 +120,8 @@ public:
     virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
 
+    virtual void onHistoryReload() = 0;
+
 /**
  * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
  */    

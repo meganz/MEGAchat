@@ -1482,6 +1482,7 @@ void Chat::clearHistory()
 {
     initChat();
     CALL_DB(clearHistory);
+    mCrypto->onHistoryReload();
     mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
 }
@@ -2844,6 +2845,11 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
             return;
         }
     }
+}
+
+void Chat::onHistoryReloaded()
+{
+    mCrypto->onHistoryReload();
 }
 
 void Chat::handleLastReceivedSeen(Id msgid)

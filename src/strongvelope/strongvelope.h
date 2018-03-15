@@ -263,6 +263,7 @@ protected:
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
     bool mIsDestroying = false;
+    unsigned int mCacheVersion = 0;
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
@@ -341,6 +342,7 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
     virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
+    virtual void onHistoryReload();
     //====
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
