@@ -78,7 +78,7 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
     if (chatItemWidget)
     {
         chatItemWidget->invalidChatWindowHandle();
@@ -154,7 +154,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
                 truncateChatUI();
                 megachat::MegaChatMessage *auxMsg = msg->copy();
                 addMsgWidget(auxMsg, loadedMessages);
-                ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+                ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
                 chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
 
                 if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle())
@@ -185,7 +185,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             megachat::MegaChatMessage *auxMsg = msg->copy();
             addMsgWidget(auxMsg, loadedMessages);
-            ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+            ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
             chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
             loadedMessages++;
         }
@@ -278,7 +278,7 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
 {
-    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+    ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
     chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
     addMsgWidget(msg->copy(), loadedMessages);
     loadedMessages++;
@@ -290,7 +290,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     {
         if (loadedMessages == 0)
         {
-            ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+            ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
             chatItemWidget->setOlderMessageLoaded(msg->getMsgId());
         }
 
@@ -540,7 +540,7 @@ void ChatWindow::onMemberSetPriv()
 
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhandle = uHandle.toLongLong();
-      ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId());
+      ChatItemWidget *chatItemWidget = this->mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
       megachat::MegaChatHandle chatId = chatItemWidget->getChatId();
       this->mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);
 }
