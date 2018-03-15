@@ -1530,8 +1530,7 @@ void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 
 void Chat::initChat()
 {
-    mBackwardList.clear();
-    mForwardList.clear();
+    clear();
     mIdToIndexMap.clear();
 
     mForwardStart = CHATD_IDX_RANGE_MIDDLE;
@@ -2320,7 +2319,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             mSending.erase(erased);
         }
     }
-    mCrypto->msgDecrypt(cipherMsg)
+    mCrypto->msgDecrypt(cipherMsg, &mCacheVersion)
     .then([this](Message* msg)
     {
         assert(!msg->isEncrypted());
@@ -2630,7 +2629,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         }
     }
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
-    auto pms = mCrypto->msgDecrypt(&msg);
+    auto pms = mCrypto->msgDecrypt(&msg, &mCacheVersion);
     if (pms.succeeded())
     {
         assert(!msg.isEncrypted());

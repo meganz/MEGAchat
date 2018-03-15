@@ -67,9 +67,10 @@ public:
  * @brief Called by the client for received messages to decrypt them.
  * The crypto module \b must also set the type of the message, so that the client
  * knows whether to pass it to the application (i.e. contains an actual message)
- * or should not (i.e. contains a crypto system packet)
+ * or should not (i.e. contains a crypto system packet). In some cases, decryption process can
+ * be asynchronous, if chacheVersion changes during decryption process, the message is skipped
  */
-    virtual promise::Promise<Message*> msgDecrypt(Message* src) = 0;
+    virtual promise::Promise<Message*> msgDecrypt(Message* src, unsigned int *cacheVersion) = 0;
 
 /**
  * @brief The chatroom connection (to the chatd server shard) state state has changed.

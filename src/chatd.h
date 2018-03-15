@@ -548,6 +548,7 @@ protected:
     Idx mForwardStart;
     std::vector<std::unique_ptr<Message>> mForwardList;
     std::vector<std::unique_ptr<Message>> mBackwardList;
+    unsigned int mCacheVersion = 0;
     OutputQueue mSending;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
@@ -631,6 +632,7 @@ protected:
     Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
     void clear()
     {
+        mCacheVersion++;
         mBackwardList.clear();
         mForwardList.clear();
     }
