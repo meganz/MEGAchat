@@ -799,8 +799,9 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 //the peer (unless the key was encrypted using RSA), but we still need the
 //Ed25519 key for signature verification, which would not be fetched when the key
 //is decrypted.
-Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
+Promise<Message*> ProtocolHandler::msgDecrypt(Message* message, unsigned int *cacheVersion)
 {
+    assert(cacheVersion == NULL);
     try
     {
         if (message->empty())
@@ -845,11 +846,18 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             ctx->edKey.assign(key->buf(), key->dataSize());
         });
 
+
+        unsigned int currentCacheVersion = *cacheVersion;
         auto wptr = weakHandle();
         return promise::when(symPms, edPms)
-        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
+        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, currentCacheVersion, cacheVersion]() ->promise::Promise<Message*>
         {
             wptr.throwIfDeleted();
+            if (currentCacheVersion != *cacheVersion)
+            {
+                return promise::Error("Skip message decryption. Cache has been deleted");
+            }
+
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+

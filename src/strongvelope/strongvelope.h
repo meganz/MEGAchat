@@ -328,7 +328,7 @@ public:
     uint32_t currentKeyId() const { return mCurrentKeyId; }
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
     msgEncrypt(chatd::Message *message, chatd::MsgCommand* msgCmd);
-    virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
+    virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message, unsigned int *cacheVersion);
     virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);
     virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
