@@ -801,7 +801,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 //is decrypted.
 Promise<Message*> ProtocolHandler::msgDecrypt(Message* message, unsigned int *cacheVersion)
 {
-    assert(cacheVersion == NULL);
+    assert(cacheVersion != NULL);
     try
     {
         if (message->empty())
