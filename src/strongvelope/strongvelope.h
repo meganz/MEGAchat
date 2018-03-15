@@ -332,6 +332,7 @@ public:
     virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);
     virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
+    virtual void onKeyRejected();
     virtual void setUsers(karere::SetOfIds* users);
     virtual void onUserJoin(karere::Id userid);
     virtual void onUserLeave(karere::Id userid);
