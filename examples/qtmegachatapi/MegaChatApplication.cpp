@@ -298,6 +298,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
             break;
 
          case MegaChatRequest::TYPE_START_CHAT_CALL:
+         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
               {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));

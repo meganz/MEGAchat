@@ -53,6 +53,7 @@ public slots:
     void onChatBtn(bool);
     void onMuteCam(bool);
     void onMuteMic(bool);
+    void onAnswerCallBtn(bool);
 public:
     Ui::CallGui *ui;
     CallGui(ChatWindow *parent, rtcModule::ICall *call);

@@ -66,7 +66,6 @@ void ChatWindow::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
         createCallGui(nullptr);
     }
-
 }
 
 

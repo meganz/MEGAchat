@@ -19,6 +19,7 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
     connect(ui->mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
     connect(ui->mMuteCamChk, SIGNAL(clicked(bool)), this, SLOT(onMuteCam(bool)));
     connect(ui->mFullScreenChk, SIGNAL(clicked(bool)), this, SLOT(onFullScreenChk(bool)));
+    connect(ui->mAnswBtn, SIGNAL(clicked(bool)), this, SLOT(onAnswerCallBtn(bool)));
     setAvatarOnRemote();
     setAvatarOnLocal();
     ui->localRenderer->enableStaticImage();
@@ -34,6 +35,11 @@ void CallGui::connectCall()
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+}
+
+void CallGui::onAnswerCallBtn(bool)
+{
+    mChatWindow->mMegaChatApi->answerChatCall(mChatWindow->mChatRoom->getChatId(), true);
 }
 
 void CallGui::drawPeerAvatar(QImage &image)
