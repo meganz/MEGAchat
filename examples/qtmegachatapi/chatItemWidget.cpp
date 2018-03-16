@@ -192,7 +192,6 @@ void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
     mListWidgetItem = item;
 }
 
-
 void ChatItemWidget::onlineIndicatorUpdate(int newState)
 {
     ui->mOnlineIndicator->setStyleSheet(

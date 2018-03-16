@@ -2,7 +2,6 @@
 #include "chatWindow.h"
 #include "assert.h"
 #include <QMenu>
-#include "MainWindow.h"
 
 ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
     : QDialog(parent),
@@ -14,8 +13,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     mPendingLoad = 0;
     mChatRoom = cRoom;
     mMegaChatApi = megaChatApi;
-
-    mMainWin = (MainWindow *)(parent);
+    mMainWin = (MainWindow *) parent;
     mMegaApi = mMainWin->mMegaApi;
     mLogger = mMainWin->mLogger;
     ui->setupUi(this);
@@ -85,7 +83,11 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    //mChatItemWidget->invalidChatWindowHandle();
+    ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
+    if (chatItemWidget)
+    {
+        chatItemWidget->invalidChatWindowHandle();
+    }
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     delete megaChatRoomListenerDelegate;
     delete mChatRoom;
@@ -541,8 +543,7 @@ void ChatWindow::onMemberSetPriv()
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhandle = uHandle.toLongLong();
       megachat::MegaChatHandle chatId = mChatRoom->getChatId();
-      this->mMegaChatApi->updateChatPermissions(mChatRoom->getChatId(), userhandle, privilege);
-}
+      this->mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);}
 
 void ChatWindow::onMsgListRequestHistory()
 {
