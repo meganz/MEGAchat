@@ -51,7 +51,9 @@ mega::MegaUserList * MainWindow::getUserContactList()
 void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
 {
     if(!call)
+    {
         return;
+    }
     if(call->getStatus() == megachat::MegaChatCall::CALL_STATUS_DESTROYED
             || call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
     {

@@ -131,19 +131,27 @@ CallGui:: ~ CallGui()
 
 void CallGui::onMuteMic(bool checked)
 {
-    AvFlags av(!checked, mICall->sentAv().video());
-    mICall->muteUnmute(av);
-}
-void CallGui::onMuteCam(bool checked)
-{
-    AvFlags av(mICall->sentAv().audio(), !checked);
-    mICall->muteUnmute(av);
     if (checked)
     {
+        mChatWindow->mMegaChatApi->disableAudio(mChatWindow->mChatRoom->getChatId());
+    }
+    else
+    {
+        mChatWindow->mMegaChatApi->enableAudio(mChatWindow->mChatRoom->getChatId());
+    }
+}
+
+void CallGui::onMuteCam(bool checked)
+{
+    if (checked)
+    {
+        mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
+        setAvatarOnLocal();
         ui->localRenderer->enableStaticImage();
     }
     else
     {
+        mChatWindow->mMegaChatApi->enableVideo(mChatWindow->mChatRoom->getChatId());
         ui->localRenderer->disableStaticImage();
     }
 }
