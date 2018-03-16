@@ -266,6 +266,14 @@ public:
     virtual void onUserTyping(karere::Id userid) {}
 
     /**
+     * @brief onUserStopTyping Called when a signal is received that a peer
+     * has stopped to type a message.
+     * @param user The user that has stop to type. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
+    virtual void onUserStopTyping(karere::Id userid) {}
+
+    /**
      * @brief Called when the last known text message changes/is updated, so that
      * the app can display it next to the chat title
      * @param msg Contains the properties of the last text message
@@ -1003,6 +1011,12 @@ public:
      * other clients receiving \c onUserTyping() callbacks
      */
     void sendTypingNotification();
+
+    /** @brief Broadcasts a notification that the user has stopped typing. This will trigged
+     * other clients receiving \c onUserStopTyping() callbacks
+     */
+    void sendStopTypingNotification();
+
     /**
      * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages

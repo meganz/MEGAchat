@@ -1569,6 +1569,11 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
             return;
         
         msgSubmit(message);
+        if (message->type == Message::kMsgNormal)
+        {
+            sendStopTypingNotification();
+        }
+
     }, mClient.karereClient->appCtx);
     return message;
 }
@@ -1776,6 +1781,11 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
+        if (upd->type == Message::kMsgNormal)
+        {
+            sendStopTypingNotification();
+        }
+
     }, mClient.karereClient->appCtx);
     
     return upd;
@@ -3092,6 +3102,11 @@ void Chat::sendTypingNotification()
     sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserTyping);
 }
 
+void Chat::sendStopTypingNotification()
+{
+    sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserStopTyping);
+}
+
 void Chat::handleBroadcast(karere::Id from, uint8_t type)
 {
     if (type == Command::kBroadcastUserTyping)
@@ -3099,12 +3114,16 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
     }
+    else if (type == Command::kBroadcastUserStopTyping)
+    {
+        CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserStopTyping");
+        CALL_LISTENER(onUserStopTyping, from);
+    }
     else
     {
         CHATID_LOG_WARNING("recv BROADCAST <unknown_type>");
     }
 }
-
 
 bool Chat::manualResendWhenUserJoins() const
 {

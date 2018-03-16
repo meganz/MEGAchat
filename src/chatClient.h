@@ -125,6 +125,9 @@ public:
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() { mChat->sendTypingNotification(); }
 
+    /** @brief send a notification to the chatroom that the user has stopped typing. */
+    virtual void sendStopTypingNotification() { mChat->sendStopTypingNotification(); }
+
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
      * message count change.
