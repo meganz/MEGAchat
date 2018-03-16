@@ -115,7 +115,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 #pragma mark - Add and remove delegates
 
 - (void)addChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
-- (void)removeChatRoomDelegate:(id<MEGAChatRoomDelegate>)delegate;
+- (void)removeChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
