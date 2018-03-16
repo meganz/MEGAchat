@@ -5,7 +5,7 @@
 #include "MainWindow.h"
 
 ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
-    : QDialog(0),
+    : QDialog(parent),
       ui(new Ui::ChatWindowUi)
 {
     nSending = 0;
@@ -15,7 +15,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     mChatRoom = cRoom;
     mMegaChatApi = megaChatApi;
 
-    mMainWin = (MainWindow *)(parent->parent());
+    mMainWin = (MainWindow *)(parent);
     mMegaApi = mMainWin->mMegaApi;
     mLogger = mMainWin->mLogger;
     ui->setupUi(this);
@@ -405,7 +405,6 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         return ;
     }
 
-
     mega::MegaUserList *userList = mMegaApi->getContacts();
     if(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR)
     {
@@ -453,7 +452,8 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             }
 
             auto entry = menu.addMenu(title);
-            if(mChatRoom->getOwnPrivilege()== megachat::MegaChatRoom::PRIV_MODERATOR)
+            if(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR
+                    && userhandle != mMegaApi->getMyUserHandle())
             {
                 auto actRemove = entry->addAction(tr("Remove from chat"));
                 actRemove->setProperty("userHandle", userhandle);

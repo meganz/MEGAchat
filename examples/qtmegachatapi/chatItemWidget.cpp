@@ -164,7 +164,7 @@ ChatWindow *ChatItemWidget::showChatWindow()
 
     if (!mChatWindow)
     {
-        mChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
+        mChatWindow = new ChatWindow(mMainWin, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
         mChatWindow->show();
         mChatWindow->openChatRoom();
     }
