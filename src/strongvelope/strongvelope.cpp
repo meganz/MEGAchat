@@ -824,7 +824,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
         if (message->userid == API_USER)    // management message
         {
-            handleManagementMessage(parsedMsg, message)
+            return handleManagementMessage(parsedMsg, message)
             .then([this, wptr, cacheVersion](Message* message) ->promise::Promise<Message*>
             {
                 wptr.throwIfDeleted();
