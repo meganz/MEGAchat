@@ -536,7 +536,7 @@ void ChatWindow::onMemberRemove()
 
     QVariant uHandle = action->property("userHandle");
     megachat::MegaChatHandle userhandle = uHandle.toLongLong();
-    if (userhandle == mMegaChatApi->getMyUserHandle())
+    if (uHandle.toString() == mMegaApi->getMyUserHandle())
     {
         mMegaChatApi->leaveChat(mChatRoom->getChatId());
     }
