@@ -9,6 +9,7 @@
 #include "contactItemWidget.h"
 #include "QTMegaChatListener.h"
 #include "megaLoggerApplication.h"
+#include "QTMegaChatCallListener.h"
 
 struct Chat
 {
@@ -34,6 +35,8 @@ struct ChatComparator
 
 class ChatItemWidget;
 class ContactItemWidget;
+class QTMegaChatCallListener;
+
 namespace Ui
 {
     class MainWindow;
@@ -41,7 +44,8 @@ namespace Ui
 class ChatSettings;
 class MainWindow :
       public QMainWindow,
-      public megachat::MegaChatListener
+      public megachat::MegaChatListener,
+      public megachat::MegaChatCallListener
 {
     Q_OBJECT
     public:
@@ -58,6 +62,7 @@ class MainWindow :
         void addInactiveChats();
         void addActiveChats();
         void createSettingsMenu();
+        void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         mega::MegaUserList *getUserContactList();
         bool eventFilter(QObject *obj, QEvent *event);
@@ -80,6 +85,7 @@ class MainWindow :
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
+        megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
         int activeChats;

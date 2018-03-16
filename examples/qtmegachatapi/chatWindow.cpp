@@ -9,6 +9,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
       ui(new Ui::ChatWindowUi)
 {
     nSending = 0;
+    mCallGui = NULL;
     loadedMessages = 0;
     nManualSending = 0;
     mPendingLoad = 0;
@@ -16,7 +17,6 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     mMegaChatApi = megaChatApi;
     mChatItemWidget = (ChatItemWidget *) parent;
     mMegaApi = mChatItemWidget->mMegaApi;
-    mLogger = ((MainWindow *)mChatItemWidget->parent())->mLogger;
     ui->setupUi(this);
     ui->mSplitter->setStretchFactor(0,1);
     ui->mSplitter->setStretchFactor(1,0);
@@ -55,19 +55,8 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     }
 
     QDialog::show();
-    megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
-    megaChatCallListenerDelegate = new QTMegaChatCallListener(megaChatApi, this);
-    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+    megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
 }
-
-void ChatWindow::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
-{
-    if (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN)
-    {
-        createCallGui(nullptr);
-    }
-}
-
 
 void ChatWindow::setChatTittle(const char *title)
 {
@@ -90,8 +79,6 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
-    delete megaChatCallListenerDelegate;
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     mChatItemWidget->invalidChatWindowHandle();
     delete megaChatRoomListenerDelegate;
@@ -543,7 +530,6 @@ void ChatWindow::onMsgListRequestHistory()
 
     void ChatWindow::createCallGui(rtcModule::ICall *call)
     {
-        assert(!mCallGui);
         auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
         mCallGui = new CallGui(this, call);
         layout->insertWidget(1, mCallGui, 1);

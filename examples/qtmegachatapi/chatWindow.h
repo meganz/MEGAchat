@@ -6,7 +6,6 @@
 #include "chatItemWidget.h"
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
-#include "QTMegaChatCallListener.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
     #include "callGui.h"
@@ -27,7 +26,7 @@ class ChatWindowUi;
 }
 class ChatItemWidget;
 
-class ChatWindow : public QDialog, megachat::MegaChatRoomListener, public MegaChatCallListener
+class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 {
     Q_OBJECT
     public:
@@ -44,7 +43,6 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, public MegaCh
         void connectCall();
         void hangCall();
         void setChatTittle(const char *title);
-        void onChatCallUpdate(MegaChatApi *api, MegaChatCall *call);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
         void moveManualSendingToSending(megachat::MegaChatMessage *msg);
         void setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetItem *item);
@@ -62,7 +60,6 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, public MegaCh
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
-        QTMegaChatCallListener *megaChatCallListenerDelegate;
         int nSending;
         int loadedMessages;
         int nManualSending;
@@ -90,5 +87,6 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, public MegaCh
     friend class CallGui;
     friend class ChatMessage;
     friend class CallAnswerGui;
+    friend class MainWindow;
 };
 #endif // CHATWINDOW_H

@@ -35,9 +35,12 @@ MainWindow::~MainWindow()
     {
         delete megaChatListenerDelegate;
     }
+    mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+    delete megaChatCallListenerDelegate;
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
+
 }
 
 mega::MegaUserList * MainWindow::getUserContactList()
@@ -45,9 +48,50 @@ mega::MegaUserList * MainWindow::getUserContactList()
     return mMegaApi->getContacts();
 }
 
+void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
+{
+    if(!call)
+        return;
+    if(call->getStatus() == megachat::MegaChatCall::CALL_STATUS_DESTROYED
+            || call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
+    {
+        return;
+    }
+
+
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
+    if(itWidgets == chatWidgets.end())
+    {
+        throw std::runtime_error("Incoming call from unknown contact");
+    }
+
+   ChatItemWidget * chatItemWidget = itWidgets->second;
+   const char *chatWindowTitle = mMegaChatApi->getChatListItem(call->getChatid())->getTitle();
+   if (!chatItemWidget->mChatWindow)
+   {
+        megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(call->getChatid());
+        chatItemWidget->mChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
+        chatItemWidget->mChatWindow->show();
+        chatItemWidget->mChatWindow->openChatRoom();
+   }
+   else
+   {
+        chatItemWidget->mChatWindow->show();
+        chatItemWidget->mChatWindow->setWindowState(Qt::WindowActive);
+   }
+
+   if((call->getStatus() == megachat::MegaChatCall::CALL_STATUS_RING_IN)
+           && (chatItemWidget->mChatWindow->mCallGui)==NULL)
+   {
+       chatItemWidget->mChatWindow->createCallGui(nullptr);
+   }
+}
+
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
 {
     this->mMegaChatApi = megaChatApi;
+    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 }
 
 void MainWindow::setMegaApi(MegaApi *megaApi)
