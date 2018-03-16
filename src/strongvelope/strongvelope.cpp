@@ -808,6 +808,9 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 {
     try
     {
+        auto wptr = weakHandle();
+        unsigned int cacheVersion = mCacheVersion;
+
         // deleted message
         if (message->empty())
         {
@@ -821,7 +824,18 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
         if (message->userid == API_USER)    // management message
         {
-            return handleManagementMessage(parsedMsg, message);
+            handleManagementMessage(parsedMsg, message)
+            .then([this, wptr, cacheVersion](Message* message) ->promise::Promise<Message*>
+            {
+                wptr.throwIfDeleted();
+
+                if (cacheVersion != mCacheVersion)
+                {
+                    return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ERRTYPE);
+                }
+
+                return message;
+            });
         }
 
         // Get keyid
@@ -858,8 +872,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         });
 
         // Verify signature and decrypt
-        auto wptr = weakHandle();
-        unsigned int cacheVersion = mCacheVersion;
         return promise::when(symPms, edPms)
         .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
@@ -867,8 +879,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
             if (cacheVersion != mCacheVersion)
             {
-                return promise::Error("msgDecrypt: history was reloaded, ignore message "+
-                                      message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+                return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ERRTYPE);
             }
 
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
