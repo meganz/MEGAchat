@@ -332,6 +332,7 @@ public:
          };
 
 protected:
+    bool usingipv6;
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
