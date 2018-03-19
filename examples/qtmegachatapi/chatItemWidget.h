@@ -24,8 +24,6 @@ class ChatItemWidget : public QWidget
         void contextMenuEvent(QContextMenuEvent* event);
         void setChatHandle(const megachat::MegaChatHandle &mChatId);
         megachat::MegaChatHandle getChatId() const;
-        void setOlderMessageLoaded(const megachat::MegaChatHandle &msgId);
-        megachat::MegaChatHandle getOlderMessageLoaded() const;
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
@@ -37,7 +35,6 @@ class ChatItemWidget : public QWidget
     protected:
         Ui::ChatItem *ui;
         int mLastOverlayCount;
-        megachat::MegaChatHandle mOlderMessageLoaded;
         megachat::MegaChatHandle mChatId;
         megachat::MegaChatApi * mMegaChatApi;
         mega::MegaApi * mMegaApi;

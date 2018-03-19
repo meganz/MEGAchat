@@ -112,6 +112,7 @@ void MainWindow::clearContactChatList()
 
 void MainWindow::orderContactChatList(bool showInactive)
 {
+    auxChatWidgets = chatWidgets;
     clearContactChatList();
     addContacts();
     QString text;
@@ -125,7 +126,7 @@ void MainWindow::orderContactChatList(bool showInactive)
         text.append(" Showing <visible> elements");
     }
     addActiveChats();
-
+    auxChatWidgets.clear();
     this->ui->mOnlineStatusDisplay->setText(text);
 }
 
@@ -258,6 +259,28 @@ void MainWindow::on_bOnlineStatus_clicked()
     onlineStatus->deleteLater();
 }
 
+ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder)
+{
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
+    if (!reorder)
+    {
+        itChats = chatWidgets.find(chatHandle);
+        if (itChats == chatWidgets.end())
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        itChats = auxChatWidgets.find(chatHandle);
+        if (itChats == auxChatWidgets.end())
+        {
+            return NULL;
+        }
+    }
+    return itChats->second;
+}
+
 
 void MainWindow::addContact(MegaUser *contact)
 {
@@ -293,9 +316,16 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
     QListWidgetItem *item = new QListWidgetItem();
     chatItemWidget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
+    chatWidgets.insert(std::pair<megachat::MegaChatHandle, ChatItemWidget *>(chathandle,chatItemWidget));
     ui->contactList->insertItem(index, item);
     ui->contactList->setItemWidget(item, chatItemWidget);
-    chatWidgets.insert(std::pair<megachat::MegaChatHandle, ChatItemWidget *>(chathandle,chatItemWidget));
+
+    ChatItemWidget *auxChatItemWidget = getChatItemWidget(chathandle, true);
+    if(auxChatItemWidget)
+    {
+        chatItemWidget->mChatWindow = auxChatItemWidget->mChatWindow;
+        auxChatItemWidget->deleteLater();
+    }
 }
 
 void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
