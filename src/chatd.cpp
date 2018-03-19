@@ -1161,6 +1161,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
+                else if (op == OP_NEWKEY)
+                {
+                    chat.onKeyReject();
+                }
                 else
                 {
                     chat.rejectGeneric(op, reason);
@@ -2279,6 +2283,11 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         return;
     }
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+}
+
+void Chat::onKeyReject()
+{
+    mCrypto->onKeyRejected();
 }
 
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)

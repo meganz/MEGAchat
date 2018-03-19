@@ -1035,6 +1035,7 @@ protected:
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
+    void onKeyReject();
     void rejectMsgupd(karere::Id id, uint8_t serverReason);
     void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
