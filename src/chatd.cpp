@@ -2398,8 +2398,15 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     })
     .fail([this, cipherMsg](const promise::Error& err)
     {
-        CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
-            ID_CSTR(cipherMsg->id()), err.what());
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+        }
+        else
+        {
+            CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
+                ID_CSTR(cipherMsg->id()), err.what());
+        }
     });
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
@@ -2648,6 +2655,12 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     auto message = &msg;
     pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
     {
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+            return promise::Error("msgIncomingAfterAdd: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+        }
+
         assert(message->isEncrypted() == 1);
         message->setEncrypted(2);
         if ((err.type() != SVCRYPTO_ERRTYPE) ||
