@@ -17,7 +17,7 @@ QTMegaChatCallListener::~QTMegaChatCallListener()
 void QTMegaChatCallListener::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
     QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnChatCallUpdate);
-    event->setChatCall(call);
+    event->setChatCall(call->copy());
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 

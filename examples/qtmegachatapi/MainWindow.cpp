@@ -50,22 +50,23 @@ mega::MegaUserList * MainWindow::getUserContactList()
 
 void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
 {
-    if(!call)
-    {
-        return;
-    }
-    if(call->getStatus() == megachat::MegaChatCall::CALL_STATUS_DESTROYED
-            || call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
-    {
-        return;
-    }
+   if(!call)
+   {
+       return;
+   }
 
+   if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
+   {
+       //free resources;
+       delete call;
+       return;
+   }
 
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
-    if(itWidgets == chatWidgets.end())
-    {
-        throw std::runtime_error("Incoming call from unknown contact");
-    }
+   std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
+   if(itWidgets == chatWidgets.end())
+   {
+       throw std::runtime_error("Incoming call from unknown contact");
+   }
 
    ChatItemWidget * chatItemWidget = itWidgets->second;
    const char *chatWindowTitle = mMegaChatApi->getChatListItem(call->getChatid())->getTitle();
@@ -87,6 +88,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
    {
        chatItemWidget->mChatWindow->createCallGui(nullptr);
    }
+   delete call;
 }
 
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
