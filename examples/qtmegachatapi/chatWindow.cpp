@@ -587,10 +587,10 @@ void ChatWindow::onMsgListRequestHistory()
         onCallBtn(false);
     }
 
-    void ChatWindow::createCallGui(rtcModule::ICall *call)
+    void ChatWindow::createCallGui()
     {
         auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
-        mCallGui = new CallGui(this, call);
+        mCallGui = new CallGui(this);
         layout->insertWidget(1, mCallGui, 1);
         ui->mTitlebar->hide();
         ui->mTextChatWidget->hide();
@@ -617,7 +617,7 @@ void ChatWindow::onMsgListRequestHistory()
         {
          //   return;
         }
-        createCallGui(nullptr);
+        createCallGui();
         mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), true);
     }
 

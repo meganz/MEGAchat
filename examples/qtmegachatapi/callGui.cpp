@@ -9,8 +9,8 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
-    : QWidget(parent), mChatWindow(parent), mICall(call), ui(new Ui::CallGui)
+CallGui::CallGui(ChatWindow *parent)
+    : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
 {
     ui->setupUi(this);
     ui->localRenderer->setMirrored(true);
@@ -29,9 +29,6 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
     remoteCallListener = NULL;
     localCallListener = NULL;
 }
-
-//We need to implement all callbacks from videocall listener to handle different states in calls
-//ie when the interlocutor finish call ...
 
 void CallGui::connectCall()
 {
@@ -160,7 +157,6 @@ void CallGui::onMuteCam(bool checked)
 
 void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string& text)
 {
-    mICall = nullptr;
     mChatWindow->deleteCallGui();
 }
 
@@ -208,17 +204,8 @@ void CallGui::onChatBtn(bool)
     else
         txtChat.show();
 }
-void CallGui::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
-{}
 
 
-
-
-/*called only for outgoing calls*/
-void CallGui::setCall(rtcModule::ICall *call)
-{
-    mICall = call;
-}
 
 void CallGui::onLocalStreamObtained(rtcModule::IVideoRenderer *& renderer)
 {
@@ -229,105 +216,13 @@ void CallGui::onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererRet)
 {
     rendererRet = ui->remoteRenderer;
 }
-void CallGui::onRemoteStreamRemoved() {}
-void CallGui::onStateChange(uint8_t newState) {}
-rtcModule::ISessionHandler* CallGui::onNewSession(rtcModule::ISession& sess)
-{
-    mSess = &sess;
-    return this;
-}
+
+
 void CallGui::onLocalMediaError(const std::string err)
 {
     KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
 }
-void CallGui::onRingOut(karere::Id peer) {}
-void CallGui::onCallStarting() {}
-void CallGui::onCallStarted() {}
-void CallGui::onSessStateChange(uint8_t newState) {} //ISession
-
-CallAnswerGui::CallAnswerGui(MainWindow *parent, rtcModule::ICall *call)
-:QObject(parent), mMainWin(parent), mCall(call)
-{    
-    megachat::MegaChatHandle callerHandle = call->caller();
-    mChatRoom = parent->mMegaChatApi->getChatRoomByUser(callerHandle);
-
-    if(!mChatRoom)
-    {
-        throw std::runtime_error("Incoming call from unknown contact");
-    }
-
-    QString title = NULL;
-    title.append(mChatRoom->getPeerFullnameByHandle(callerHandle))
-            .append(" is calling you");
-
-    msg.reset(new QMessageBox(QMessageBox::Information,
-        "Incoming call", title,
-        QMessageBox::NoButton, mMainWin));
-
-    answerBtn = msg->addButton("Answer", QMessageBox::AcceptRole);
-    rejectBtn = msg->addButton("Reject", QMessageBox::RejectRole);
-    msg->setWindowModality(Qt::NonModal);
-    QObject::connect(msg.get(), SIGNAL(buttonClicked(QAbstractButton*)),
-        this, SLOT(onBtnClick(QAbstractButton*)));
-    msg->show();
-    msg->raise();
-}
 
 
-void CallAnswerGui::onCallStarting()
-{
-    if(!mChatRoom)
-    {
-        throw std::runtime_error("CallAnswerGui::onSession: peer '"+mCall->caller().toString()+"' not in contact list");
-    }
-
-    ChatItemWidget * chatItemWidget = NULL;
-    megachat::MegaChatHandle chatHandle = mChatRoom->getChatId();
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-    itChats = mMainWin->chatWidgets.find(chatHandle);
-    if (itChats != mMainWin->chatWidgets.end())
-    {
-       chatItemWidget = itChats->second;
-    }
-
-    bool isOpen = chatItemWidget->isChatOpened();
-    ChatWindow * chatWin = chatItemWidget->showChatWindow();
-    if (isOpen)
-    {
-        //handover event handling and local video renderer to chat window
-        chatWin->createCallGui(mCall);
-        delete this;
-    }
-    else
-    {        
-        chatWin->createCallGui(mCall);
-    }
-}
-
-//ICallHandler minimal implementation
-void CallAnswerGui::onDestroy(rtcModule::TermCode termcode, bool byPeer, const std::string& text)
-{
-    KR_LOG_DEBUG("Call destroyed: %s, %s\n", rtcModule::termCodeToStr(termcode), text.c_str());
-    delete this;
-}
 
 
-void CallAnswerGui::setCall(rtcModule::ICall *call)
-{
-    assert(false);
-}
-
-
-void CallAnswerGui::onBtnClick(QAbstractButton *btn)
-{
-    msg->close();
-    if (btn == answerBtn)
-    {
-        mCall->answer(karere::AvFlags(true, true));
-        //Call handler will be switched upon receipt of onCallStarting
-    }
-    else //decline button
-    {
-        mCall->hangup();
-    }
-}
