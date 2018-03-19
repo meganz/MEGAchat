@@ -336,6 +336,11 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     }
 }
 
+void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
+{
+    truncateChatUI();
+}
+
 
 void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item)
 {

@@ -24,7 +24,8 @@ public:
         OnChatRoomUpdate,
         OnMessageLoaded,
         OnMessageReceived,
-        OnMessageUpdate
+        OnMessageUpdate,
+        OnHistoryReloaded
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);
