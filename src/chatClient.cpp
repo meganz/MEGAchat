@@ -1756,7 +1756,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         ChatRoom* room = addRoom(apiRoom);
         chatids.insert(chatid);
-        client.app.notifyInvited(*room);
 
         if (client.connected())
         {

@@ -2,9 +2,11 @@
 #define websocketsIO_h
 
 #include <iostream>
+#include <functional>
 #include <mega/waiter.h>
 #include <mega/thread.h>
 #include "base/logger.h"
+#include "sdkApi.h"
 
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
@@ -18,15 +20,17 @@ class WebsocketsClientImpl;
 class WebsocketsIO : public mega::EventTrigger
 {
 public:
-    WebsocketsIO(::mega::Mutex *mutex, void *ctx);
+    WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
     
 protected:
     ::mega::Mutex *mutex;
+    MyMegaApi mApi;
     void *appCtx;
     
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::string ipv4, std::string ipv6)> f) = 0;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) = 0;
@@ -45,6 +49,7 @@ private:
 public:
     WebsocketsClient();
     virtual ~WebsocketsClient();
+    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::string, std::string)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
