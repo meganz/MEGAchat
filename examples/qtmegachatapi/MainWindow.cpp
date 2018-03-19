@@ -57,7 +57,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
    if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
    {
-       //free resources;
+       ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
+       chatItemWidget->mChatWindow->hangCall();
        delete call;
        return;
    }

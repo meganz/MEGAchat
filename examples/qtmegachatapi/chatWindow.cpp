@@ -628,14 +628,16 @@ void ChatWindow::onMsgListRequestHistory()
 
     void ChatWindow::hangCall()
     {
-        mCallGui->hangCall();
+        deleteCallGui();
     }
 
     void ChatWindow::deleteCallGui()
     {
-        assert(mCallGui);
-        delete mCallGui;
-        mCallGui = nullptr;
+        if (mCallGui)
+        {
+            mCallGui->deleteLater();
+            mCallGui = NULL;
+        }
         ui->mTitlebar->show();
         ui->mTextChatWidget->show();
     }

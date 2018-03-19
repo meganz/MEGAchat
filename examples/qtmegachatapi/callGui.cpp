@@ -25,6 +25,8 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
     ui->localRenderer->enableStaticImage();
     ui->remoteRenderer->enableStaticImage();
     mCall = NULL;
+    remoteCallListener = NULL;
+    localCallListener = NULL;
 }
 
 //We need to implement all callbacks from videocall listener to handle different states in calls
@@ -35,6 +37,7 @@ void CallGui::connectCall()
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+    this->ui->mAnswBtn->hide();
 }
 
 void CallGui::onAnswerCallBtn(bool)
@@ -106,14 +109,7 @@ void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
 
 void CallGui::onHangCall(bool)
 {
-    if (!mCall)
-    {
-        hangCall();
-    }
-    else
-    {
-        mChatWindow->mMegaChatApi->hangChatCall(mCall->getChatid());
-    }
+     mChatWindow->mMegaChatApi->hangChatCall(mChatWindow->mChatRoom->getChatId());
 }
 
 void CallGui::hangCall()
@@ -123,9 +119,14 @@ void CallGui::hangCall()
 
 CallGui:: ~ CallGui()
 {
-    delete remoteCallListener;
-    delete localCallListener;
-    delete mCall;
+    if(remoteCallListener)
+    {
+        delete remoteCallListener;
+    }
+    if (localCallListener)
+    {
+        delete localCallListener;
+    }
     delete ui;
 }
 
