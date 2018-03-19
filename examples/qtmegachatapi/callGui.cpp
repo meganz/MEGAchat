@@ -22,6 +22,7 @@ CallGui::CallGui(ChatWindow *parent, rtcModule::ICall* call)
     connect(ui->mAnswBtn, SIGNAL(clicked(bool)), this, SLOT(onAnswerCallBtn(bool)));
     setAvatarOnRemote();
     setAvatarOnLocal();
+    ui->mFullScreenChk->hide();
     ui->localRenderer->enableStaticImage();
     ui->remoteRenderer->enableStaticImage();
     mCall = NULL;
