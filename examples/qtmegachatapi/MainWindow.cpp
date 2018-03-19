@@ -84,6 +84,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
         chatItemWidget->mChatWindow->setWindowState(Qt::WindowActive);
    }
 
+   if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS)
+           &&(call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS))
+   {
+        if(call->hasRemoteVideo())
+        {
+            chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->disableStaticImage();
+
+        }
+        else
+        {
+            chatItemWidget->mChatWindow->mCallGui->setAvatarOnRemote();
+            chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->enableStaticImage();
+        }
+   }
+
    if((call->getStatus() == megachat::MegaChatCall::CALL_STATUS_RING_IN)
            && (chatItemWidget->mChatWindow->mCallGui)==NULL)
    {

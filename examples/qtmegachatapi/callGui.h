@@ -78,6 +78,7 @@ public:
 
     friend class RemoteCallListener;
     friend class LocalCallListener;
+    friend class MainWindow;
 };
 
 #endif // MAINWINDOW_H
