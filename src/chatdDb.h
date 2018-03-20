@@ -156,6 +156,15 @@ public:
         }
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
+
+    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated)
+    {
+        SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
+        stmt3 << mChat.chatId() << msgid;
+        stmt3.stepMustHaveData();
+        *updated = stmt3.intCol(0);
+    }
+
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
