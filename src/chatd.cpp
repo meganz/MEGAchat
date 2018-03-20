@@ -148,7 +148,17 @@ void Client::notifyUserIdle()
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
         return;
     mKeepaliveType = OP_KEEPALIVEAWAY;
+    cleanTimers();
     sendKeepalive();
+}
+
+void Client::cleanTimers()
+{
+   for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
+   {
+        cancelTimeout(*it, karereClient->appCtx);
+   }
+   mSeenTimers.clear();
 }
 
 void Client::notifyUserActive()
@@ -1975,42 +1985,52 @@ bool Chat::setMessageSeen(Idx idx)
     }
 
     auto wptr = weakHandle();
-    karere::Id id = msg.id();
-    marshallCall([wptr, this, id, idx]()
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, &msg, &mEchoTimer]()
     {
         if (wptr.deleted())
-            return;
-
-        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
-        sendCommand(Command(OP_SEEN) + mChatId + id);
-        
-        Idx notifyStart;
-        if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
-            notifyStart = lownum()-1;
+          return;
         }
-        else
+        mClient.mSeenTimers.erase(mEchoTimer);
+        mEchoTimer = 0;
+        karere::Id id = msg.id();
+        marshallCall([wptr, this, id, idx]()
         {
-            Idx lowest = lownum()-1;
-            notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
-        }
-        mLastSeenIdx = idx;
-        Idx highest = highnum();
-        Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
-
-        for (Idx i=notifyStart+1; i<=notifyEnd; i++)
-        {
-            auto& m = at(i);
-            if (m.userid != mClient.mUserId)
+            if (wptr.deleted())
             {
-                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+                return;
             }
-        }
-        mLastSeenId = id;
-        CALL_DB(setLastSeen, mLastSeenId);
-        CALL_LISTENER(onUnreadChanged);
-    }, mClient.karereClient->appCtx);
-    
+            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+            sendCommand(Command(OP_SEEN) + mChatId + id);
+
+            Idx notifyStart;
+            if (mLastSeenIdx == CHATD_IDX_INVALID)
+            {
+                notifyStart = lownum()-1;
+            }
+            else
+            {
+                Idx lowest = lownum()-1;
+                notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+            }
+            mLastSeenIdx = idx;
+            Idx highest = highnum();
+            Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+
+            for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+            {
+                auto& m = at(i);
+                if (m.userid != mClient.mUserId)
+                {
+                    CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+                }
+            }
+            mLastSeenId = id;
+            CALL_DB(setLastSeen, mLastSeenId);
+            CALL_LISTENER(onUnreadChanged);
+        }, mClient.karereClient->appCtx);
+    },200, mClient.karereClient->appCtx);
+    mClient.mSeenTimers.insert(mEchoTimer);
     return true;
 }
 
@@ -2133,6 +2153,11 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
+}
+
+Client::~Client()
+{
+    cleanTimers();
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
