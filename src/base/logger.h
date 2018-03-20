@@ -96,7 +96,7 @@ public:
     volatile unsigned flags() const { return mFlags;}
     void setFlags(unsigned flags)
     {
-        std::lock_guard<std::recursive_mutex> lock(mMutex);
+        LockGuard lock(mMutex);
         mFlags = flags;
     }
     KarereLogChannel logChannels[krLogChannelCount];

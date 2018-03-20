@@ -1030,6 +1030,14 @@ void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
     addDecryptedKey(userKeyId, mCurrentKey);
 }
 
+void ProtocolHandler::onKeyRejected()
+{
+    if (!mCurrentKey || (mCurrentKeyId != CHATD_KEYID_UNCONFIRMED))
+        throw std::runtime_error("strongvelope: onKeyRejected: Current send key is already confirmed");
+
+    resetSendKey();
+}
+
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::updateSenderKey()
 {
@@ -1041,7 +1049,6 @@ ProtocolHandler::updateSenderKey()
     mParticipantsChanged = false;
 
     // Assemble the output for all recipients.
-    assert(mParticipants && !mParticipants->empty());
     return encryptKeyToAllParticipants(mCurrentKey)
     .then([this](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
     {

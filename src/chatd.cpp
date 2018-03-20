@@ -148,7 +148,17 @@ void Client::notifyUserIdle()
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
         return;
     mKeepaliveType = OP_KEEPALIVEAWAY;
+    cancelTimers();
     sendKeepalive();
+}
+
+void Client::cancelTimers()
+{
+   for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
+   {
+        cancelTimeout(*it, karereClient->appCtx);
+   }
+   mSeenTimers.clear();
 }
 
 void Client::notifyUserActive()
@@ -232,7 +242,7 @@ void Chat::login()
 }
 
 Connection::Connection(Client& client, int shardNo)
-: mClient(client), mShardNo(shardNo)
+: mClient(client), mShardNo(shardNo), usingipv6(false)
 {}
 
 void Connection::wsConnectCb()
@@ -255,7 +265,6 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     CHATD_LOG_WARNING("Socket close on connection to shard %d. Reason: %s", mShardNo, reason.c_str());
-
     mHeartbeatEnabled = false;
     auto oldState = mState;
     mState = kStateDisconnected;
@@ -274,6 +283,8 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     if (oldState == kStateDisconnected)
         return;
+
+    usingipv6 = !usingipv6;
 
     if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
     {
@@ -357,6 +368,12 @@ Promise<void> Connection::reconnect()
                 return pms;
             }
 
+#ifndef KARERE_DISABLE_WEBRTC
+            if (mClient.mRtcHandler)
+            {
+                mClient.mRtcHandler->stopCallsTimers(mShardNo);
+            }
+#endif
             disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
@@ -371,8 +388,9 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);                
             }
 
-            this->mClient.mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([wptr, this](ReqResult result)
+
+            int status = wsResolveDNS(mClient.karereClient->websocketIO, mUrl.host.c_str(),
+                         [wptr, this](int status, std::string ipv4, std::string ipv6)
             {
                 if (wptr.deleted())
                 {
@@ -384,9 +402,23 @@ Promise<void> Connection::reconnect()
                     CHATD_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", connStateToStr(mState));
                     return;
                 }
-                
+
+                if (status < 0)
+                {
+                   CHATD_LOG_DEBUG("Async DNS error in chatd. Error code: %d", status);
+                   if (!mConnectPromise.done())
+                   {
+                       mConnectPromise.reject("Async DNS error in chatd", status, kErrorTypeGeneric);
+                   }
+                   if (!mLoginPromise.done())
+                   {
+                       mLoginPromise.reject("Async DNS error in chatd", status, kErrorTypeGeneric);
+                   }
+                   return;
+                }
+
                 mState = kStateConnecting;
-                string ip = result->getText();
+                string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
                 CHATD_LOG_DEBUG("Connecting to chatd (shard %d) using the IP: %s", mShardNo, ip.c_str());
 
                 std::string urlPath = mUrl.path;
@@ -395,35 +427,54 @@ Promise<void> Connection::reconnect()
                     urlPath.append("/1");
                 }
 
-                bool rt = wsConnect(this->mClient.karereClient->websocketIO, ip.c_str(),
+                bool rt = wsConnect(mClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
                           urlPath.c_str(),
                           mUrl.isSecure);
                 if (!rt)
                 {
-                    throw std::runtime_error("Websocket error on wsConnect (chatd)");
-                }
-            })
-            .fail([wptr, this](const promise::Error& err)
-            {
-                if (wptr.deleted())
-                {
-                    CHATD_LOG_DEBUG("DNS resolution failed, but chatd client was deleted. Error: %s", err.what());
-                    return;
-                }
+                    string otherip;
+                    if (ip == ipv6 && ipv4.size())
+                    {
+                        otherip = ipv4;
+                    }
+                    else if (ip == ipv4 && ipv6.size())
+                    {
+                        otherip = ipv6;
+                    }
 
+                    if (otherip.size())
+                    {
+                        CHATD_LOG_DEBUG("Connection to chatd failed. Retrying using the IP: %s", otherip.c_str());
+                        if (wsConnect(mClient.karereClient->websocketIO, otherip.c_str(),
+                                                  mUrl.host.c_str(),
+                                                  mUrl.port,
+                                                  urlPath.c_str(),
+                                                  mUrl.isSecure))
+                        {
+                            return;
+                        }
+                    }
+
+                    onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
+                }
+            });
+
+            if (status < 0)
+            {
+                CHATD_LOG_DEBUG("Sync DNS error in chatd. Error code: %d", status);
                 if (!mConnectPromise.done())
                 {
-                    mConnectPromise.reject(err.msg(), err.code(), err.type());
+                    mConnectPromise.reject("Sync DNS error in chatd", status, kErrorTypeGeneric);
                 }
 
                 if (!mLoginPromise.done())
                 {
-                    mLoginPromise.reject(err.msg(), err.code(), err.type());
+                    mLoginPromise.reject("Sync DNS error in chatd", status, kErrorTypeGeneric);
                 }
-            });
-            
+            }
+
             return mConnectPromise
             .then([wptr, this]() -> promise::Promise<void>
             {
@@ -488,6 +539,11 @@ void Connection::heartbeat()
         }
         reconnect();
     }
+}
+
+int Connection::shardNo() const
+{
+    return mShardNo;
 }
 
 void Client::disconnect()
@@ -639,29 +695,27 @@ string Command::toString(const StaticBuffer& data)
         case OP_INCALL:
         {
             string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
             karere::Id userId = data.read<uint64_t>(9);
             uint32_t clientId = data.read<uint32_t>(17);
-            tmpString.append("INCALL - chatId: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", userId: ");
+            tmpString.append("INCALL userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
-            tmpString.append(to_string(clientId));
+            std::stringstream stream;
+            stream << std::hex << clientId;
+            tmpString.append(stream.str());
             return tmpString;
         }
         case OP_ENDCALL:
         {
             string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
             karere::Id userId = data.read<uint64_t>(9);
             uint32_t clientId = data.read<uint32_t>(17);
-            tmpString.append("ENDCALL - chatId: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", userId: ");
+            tmpString.append("ENDCALL userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
-            tmpString.append(to_string(clientId));
+            std::stringstream stream;
+            stream << std::hex << clientId;
+            tmpString.append(stream.str());
             return tmpString;
         }
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1117,6 +1171,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
+                else if (op == OP_NEWKEY)
+                {
+                    chat.onKeyReject();
+                }
                 else
                 {
                     chat.rejectGeneric(op, reason);
@@ -1231,7 +1289,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 // clientid.4 reserved.4
                 READ_32(clientid, 0);
                 mClientId = clientid;
-                CHATD_LOG_DEBUG("recv CLIENTID - 0x%04x", clientid);
+                CHATD_LOG_DEBUG("recv CLIENTID - %x", clientid);
             }
             case OP_ECHO:
             {
@@ -1928,14 +1986,16 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    marshallCall([wptr, this, id, idx]()
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, id, mEchoTimer]()
     {
         if (wptr.deleted())
-            return;
+          return;
+
+        mClient.mSeenTimers.erase(mEchoTimer);
 
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
-        
+
         Idx notifyStart;
         if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
@@ -1961,8 +2021,10 @@ bool Chat::setMessageSeen(Idx idx)
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
-    }, mClient.karereClient->appCtx);
-    
+    }, kSeenTimeout, mClient.karereClient->appCtx);
+
+    mClient.mSeenTimers.insert(mEchoTimer);
+
     return true;
 }
 
@@ -2085,6 +2147,11 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
+}
+
+Client::~Client()
+{
+    cancelTimers();
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
@@ -2235,6 +2302,11 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         return;
     }
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+}
+
+void Chat::onKeyReject()
+{
+    mCrypto->onKeyRejected();
 }
 
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)

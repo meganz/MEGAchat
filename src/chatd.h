@@ -64,6 +64,8 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
+/** Timeout to send SEEN (Milliseconds)**/
+enum { kSeenTimeout = 200 };
 enum { kProtocolVersion = 0x01 };
 
 class DbInterface;
@@ -295,6 +297,12 @@ public:
     virtual void onShutdown() {}
     virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
     virtual void onDisconnect(chatd::Connection& conn) {}
+
+    /**
+     * @brief This function is used to stop incall timer call during reconnection process
+     * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
+     */
+    virtual void stopCallsTimers(int shard) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -326,6 +334,7 @@ public:
          };
 
 protected:
+    bool usingipv6;
     Client& mClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
@@ -383,6 +392,8 @@ public:
     }
 
     void heartbeat();
+
+    int shardNo() const;
 };
 
 enum ServerHistFetchState
@@ -1026,6 +1037,7 @@ protected:
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
+    void onKeyReject();
     void rejectMsgupd(karere::Id id, uint8_t serverReason);
     void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
@@ -1060,6 +1072,8 @@ protected:
     std::map<karere::Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
+ // set of seen timers
+    std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
@@ -1084,7 +1098,7 @@ public:
     karere::Id userId() const { return mUserId; }
     void setKeepaliveType(bool isInBackground);
     Client(karere::Client *client, karere::Id userId);
-    ~Client(){}
+    ~Client();
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
     {
         auto it = mChatForChatId.find(chatid);
@@ -1113,6 +1127,8 @@ public:
     void notifyUserActive();
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);
+    /** Clean the timers set */
+    void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;

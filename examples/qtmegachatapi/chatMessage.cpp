@@ -365,17 +365,17 @@ void ChatMessage::setManualMode(bool manualMode)
 
 void ChatMessage::onManualSending()
 {
-   if(mChatWindow->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
+   if(mChatWindow->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_RO)
+   {
+       QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));
+   }
+   else
    {
        megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getRowId());
        megachat::MegaChatMessage *tempMessage = megaChatApi->sendMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getContent());
        setManualMode(false);
        mChatWindow->eraseChatMessage(mMessage, true);
        mChatWindow->moveManualSendingToSending(tempMessage);
-   }
-   else
-   {
-       QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));
    }
 }
 
