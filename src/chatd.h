@@ -64,7 +64,7 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
-/** Timeout to send SEEN **/
+/** Timeout to send SEEN (Milliseconds)**/
 enum { kSeenTimeout = 200 };
 enum { kProtocolVersion = 0x01 };
 
@@ -1128,7 +1128,7 @@ public:
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);
     /** Clean the timers set */
-    void cleanTimers();
+    void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;

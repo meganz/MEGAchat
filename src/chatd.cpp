@@ -148,11 +148,11 @@ void Client::notifyUserIdle()
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
         return;
     mKeepaliveType = OP_KEEPALIVEAWAY;
-    cleanTimers();
+    cancelTimers();
     sendKeepalive();
 }
 
-void Client::cleanTimers()
+void Client::cancelTimers()
 {
    for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
    {
@@ -1984,15 +1984,16 @@ bool Chat::setMessageSeen(Idx idx)
         return false;
     }
 
+    karere::Id auxId = msg.id();
     auto wptr = weakHandle();
-    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, &msg, mEchoTimer]()
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, auxId, mEchoTimer]()
     {
         if (wptr.deleted())
         {
           return;
         }
         mClient.mSeenTimers.erase(mEchoTimer);
-        karere::Id id = msg.id();
+        karere::Id id = auxId;
 
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
@@ -2150,7 +2151,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 
 Client::~Client()
 {
-    cleanTimers();
+    cancelTimers();
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
