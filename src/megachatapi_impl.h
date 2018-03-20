@@ -350,7 +350,17 @@ public:
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
-    MegaChatRoomHandler(MegaChatApiImpl*, MegaChatHandle chatid);
+    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid);
+
+    void addChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatRoomListener(MegaChatRoomListener *listener);
+
+    // MegaChatRoomListener callbacks
+    void fireOnChatRoomUpdate(MegaChatRoom *chat);
+    void fireOnMessageLoaded(MegaChatMessage *msg);
+    void fireOnMessageReceived(MegaChatMessage *msg);
+    void fireOnMessageUpdate(MegaChatMessage *msg);
+    void fireOnHistoryReloaded(MegaChatRoom *chat);
 
     // karere::IApp::IChatHandler implementation
 #ifndef KARERE_DISABLE_WEBRTC
@@ -400,11 +410,14 @@ public:
 protected:
 
 private:
-    MegaChatApiImpl *chatApi;
+    MegaChatApiImpl *chatApiImpl;
+    MegaChatApi *chatApi;       // for notifications in callbacks
     MegaChatHandle chatid;
 
     chatd::Chat *mChat;
     karere::ChatRoom *mRoom;
+
+    std::set<MegaChatRoomListener *> roomListeners;
 
     // nodes with granted/revoked access from loaded messsages
     std::map<MegaChatHandle, bool> attachmentsAccess;  // handle, access
@@ -748,7 +761,6 @@ private:
     EventQueue eventQueue;
 
     std::set<MegaChatListener *> listeners;
-    std::set<MegaChatRoomListener *> roomListeners;
     std::set<MegaChatRequestListener *> requestListeners;
 
     std::set<MegaChatPeerListItemHandler *> chatPeerListItemHandler;
@@ -811,7 +823,7 @@ public:
     void addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
     void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatListener(MegaChatListener *listener);
-    void removeChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
@@ -835,13 +847,6 @@ public:
     void fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
     void fireOnChatLocalVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
 #endif
-
-    // MegaChatRoomListener callbacks
-    void fireOnChatRoomUpdate(MegaChatRoom *chat);
-    void fireOnMessageLoaded(MegaChatMessage *msg);
-    void fireOnMessageReceived(MegaChatMessage *msg);
-    void fireOnMessageUpdate(MegaChatMessage *msg);
-    void fireOnHistoryReloaded(MegaChatRoom *chat);
 
     // MegaChatListener callbacks (specific ones)
     void fireOnChatListItemUpdate(MegaChatListItem *item);

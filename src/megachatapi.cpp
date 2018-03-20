@@ -31,7 +31,7 @@
 // define the weak symbol for Logger to know where to create the log file
 namespace karere
 {
-    APP_ALWAYS_EXPORT std::string getAppDir() 
+    APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
             return "/data/data/mega.privacy.android.app"; 
@@ -662,9 +662,9 @@ void MegaChatApi::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListene
     pImpl->addChatRoomListener(chatid, listener);
 }
 
-void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->removeChatRoomListener(listener);
+    pImpl->removeChatRoomListener(chatid, listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)

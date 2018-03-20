@@ -1180,7 +1180,7 @@ MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
     if (it == chatRoomHandler.end())
     {
-        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatid);
+        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatApi, chatid);
     }
 
     return chatRoomHandler[chatid];
@@ -1188,7 +1188,16 @@ MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 
 void MegaChatApiImpl::removeChatRoomHandler(MegaChatHandle chatid)
 {
-    chatRoomHandler.erase(chatid);
+    map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
+    if (it == chatRoomHandler.end())
+    {
+        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+        return;
+    }
+
+    MegaChatRoomHandler *roomHandler = chatRoomHandler[chatid];
+    chatRoomHandler.erase(it);
+    delete roomHandler;
 }
 
 ChatRoom *MegaChatApiImpl::findChatRoom(MegaChatHandle chatid)
@@ -1381,56 +1390,6 @@ void MegaChatApiImpl::fireOnChatLocalVideoData(MegaChatHandle chatid, int width,
 }
 
 #endif  // webrtc
-
-void MegaChatApiImpl::fireOnChatRoomUpdate(MegaChatRoom *chat)
-{
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
-    {
-        (*it)->onChatRoomUpdate(chatApi, chat);
-    }
-
-    delete chat;
-}
-
-void MegaChatApiImpl::fireOnMessageLoaded(MegaChatMessage *msg)
-{
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
-    {
-        (*it)->onMessageLoaded(chatApi, msg);
-    }
-
-    delete msg;
-}
-
-void MegaChatApiImpl::fireOnMessageReceived(MegaChatMessage *msg)
-{
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
-    {
-        (*it)->onMessageReceived(chatApi, msg);
-    }
-
-    delete msg;
-}
-
-void MegaChatApiImpl::fireOnMessageUpdate(MegaChatMessage *msg)
-{
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
-    {
-        (*it)->onMessageUpdate(chatApi, msg);
-    }
-
-    delete msg;
-}
-
-void MegaChatApiImpl::fireOnHistoryReloaded(MegaChatRoom *chat)
-{
-    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
-    {
-        (*it)->onHistoryReloaded(chatApi, chat);
-    }
-
-    delete chat;
-}
 
 void MegaChatApiImpl::fireOnChatListItemUpdate(MegaChatListItem *item)
 {
@@ -1670,7 +1629,24 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
         {
             status = getOnlineStatus();
         }
+        else
+        {
+            for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+            {
+                if (!it->second->isGroup())
+                    continue;
 
+                GroupChatRoom *chat = (GroupChatRoom*) it->second;
+                const GroupChatRoom::MemberMap &membersMap = chat->peers();
+                GroupChatRoom::MemberMap::const_iterator itMembers = membersMap.find(userhandle);
+                if (itMembers != membersMap.end())
+                {
+                    status = itMembers->second->presence().status();
+                    sdkMutex.unlock();
+                    return status;
+                }
+            }
+        }
     }
 
     sdkMutex.unlock();
@@ -2078,8 +2054,9 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     if (chatroom)
     {
         chatroom->removeAppChatHandler();
+
+        removeChatRoomListener(chatid, listener);
         removeChatRoomHandler(chatid);
-        removeChatRoomListener(listener);
     }
 
     sdkMutex.unlock();
@@ -2813,7 +2790,8 @@ void MegaChatApiImpl::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomLis
     }
 
     sdkMutex.lock();
-    roomListeners.insert(listener);
+    MegaChatRoomHandler *roomHandler = getChatRoomHandler(chatid);
+    roomHandler->addChatRoomListener(listener);
     sdkMutex.unlock();
 }
 
@@ -2895,7 +2873,7 @@ void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApiImpl::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     if (!listener)
     {
@@ -2903,7 +2881,8 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatRoomListener *listener)
     }
 
     sdkMutex.lock();
-    roomListeners.erase(listener);
+    MegaChatRoomHandler *roomHandler = getChatRoomHandler(chatid);
+    roomHandler->removeChatRoomListener(listener);
     sdkMutex.unlock();
 }
 
@@ -3823,12 +3802,13 @@ void MegaChatVideoReceiver::released()
 
 rtcModule::ICallHandler *MegaChatRoomHandler::callHandler()
 {
-    return chatApi->findChatCallHandler(chatid);
+    return chatApiImpl->findChatCallHandler(chatid);
 }
 #endif
 
-MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandle chatid)
+MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid)
 {
+    this->chatApiImpl = chatApiImpl;
     this->chatApi = chatApi;
     this->chatid = chatid;
 
@@ -3836,13 +3816,72 @@ MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApi, MegaChatHandl
     this->mChat = NULL;
 }
 
+void MegaChatRoomHandler::addChatRoomListener(MegaChatRoomListener *listener)
+{
+    roomListeners.insert(listener);
+}
+
+void MegaChatRoomHandler::removeChatRoomListener(MegaChatRoomListener *listener)
+{
+    roomListeners.erase(listener);
+}
+
+void MegaChatRoomHandler::fireOnChatRoomUpdate(MegaChatRoom *chat)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onChatRoomUpdate(chatApi, chat);
+    }
+
+    delete chat;
+}
+
+void MegaChatRoomHandler::fireOnMessageLoaded(MegaChatMessage *msg)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onMessageLoaded(chatApi, msg);
+    }
+
+    delete msg;
+}
+
+void MegaChatRoomHandler::fireOnMessageReceived(MegaChatMessage *msg)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onMessageReceived(chatApi, msg);
+    }
+
+    delete msg;
+}
+
+void MegaChatRoomHandler::fireOnMessageUpdate(MegaChatMessage *msg)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onMessageUpdate(chatApi, msg);
+    }
+
+    delete msg;
+}
+
+void MegaChatRoomHandler::fireOnHistoryReloaded(MegaChatRoom *chat)
+{
+    for(set<MegaChatRoomListener *>::iterator it = roomListeners.begin(); it != roomListeners.end() ; it++)
+    {
+        (*it)->onHistoryReloaded(chatApi, chat);
+    }
+
+    delete chat;
+}
 
 void MegaChatRoomHandler::onUserTyping(karere::Id user)
 {
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setUserTyping(user.val);
 
-    chatApi->fireOnChatRoomUpdate(chat);
+    fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
@@ -3865,8 +3904,8 @@ void MegaChatRoomHandler::onLastMessageTsUpdated(uint32_t ts)
 
 void MegaChatRoomHandler::onHistoryReloaded()
 {
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
-    chatApi->fireOnHistoryReloaded(chat);
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    fireOnHistoryReloaded(chat);
 }
 
 bool MegaChatRoomHandler::isRevoked(MegaChatHandle h)
@@ -3953,32 +3992,32 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
 
 void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
 {
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setMembersUpdated();
 
-    chatApi->fireOnChatRoomUpdate(chat);
+    fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::onTitleChanged(const string &title)
 {
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setTitle(title);
 
-    chatApi->fireOnChatRoomUpdate(chat);
+    fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::onUnreadCountChanged(int count)
 {
-    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApi->getChatRoom(chatid);
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setUnreadCount(count);
 
-    chatApi->fireOnChatRoomUpdate(chat);
+    fireOnChatRoomUpdate(chat);
 }
 
 void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 {
     mChat = &chat;
-    mRoom = chatApi->findChatRoom(chatid);
+    mRoom = chatApiImpl->findChatRoom(chatid);
 
     attachmentsAccess.clear();
     attachmentsIds.clear();
@@ -3998,17 +4037,17 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     set <MegaChatHandle> *msgToUpdate = handleNewMessage(message);
 
-    chatApi->fireOnMessageReceived(message);
+    fireOnMessageReceived(message);
 
     if (msgToUpdate)
     {
         for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
         {
-            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApi->getMessage(chatid, *itMsgId);
+            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApiImpl->getMessage(chatid, *itMsgId);
             if (msg)
             {
                 msg->setAccess();
-                chatApi->fireOnMessageUpdate(msg);
+                fireOnMessageUpdate(msg);
             }
         }
         delete msgToUpdate;
@@ -4020,19 +4059,19 @@ void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::S
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     handleHistoryMessage(message);
 
-    chatApi->fireOnMessageLoaded(message);
+    fireOnMessageLoaded(message);
 }
 
 void MegaChatRoomHandler::onHistoryDone(chatd::HistSource /*source*/)
 {
-    chatApi->fireOnMessageLoaded(NULL);
+    fireOnMessageLoaded(NULL);
 }
 
 void MegaChatRoomHandler::onUnsentMsgLoaded(chatd::Message &msg)
 {
     Message::Status status = (Message::Status) MegaChatMessage::STATUS_SENDING;
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, MEGACHAT_INVALID_INDEX);
-    chatApi->fireOnMessageLoaded(message);
+    fireOnMessageLoaded(message);
 }
 
 void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsSending)
@@ -4044,7 +4083,7 @@ void MegaChatRoomHandler::onUnsentEditLoaded(chatd::Message &msg, bool oriMsgIsS
     }
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kSending, index);
     message->setContentChanged();
-    chatApi->fireOnMessageLoaded(message);
+    fireOnMessageLoaded(message);
 }
 
 void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx idx)
@@ -4055,17 +4094,17 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
 
     std::set <MegaChatHandle> *msgToUpdate = handleNewMessage(message);
 
-    chatApi->fireOnMessageUpdate(message);
+    fireOnMessageUpdate(message);
 
     if (msgToUpdate)
     {
         for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
         {
-            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApi->getMessage(chatid, *itMsgId);
+            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApiImpl->getMessage(chatid, *itMsgId);
             if (msg)
             {
                 msg->setAccess();
-                chatApi->fireOnMessageUpdate(msg);
+                fireOnMessageUpdate(msg);
             }
         }
         delete msgToUpdate;
@@ -4077,14 +4116,14 @@ void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t reason)
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, Message::kServerRejected, MEGACHAT_INVALID_INDEX);
     message->setStatus(MegaChatMessage::STATUS_SERVER_REJECTED);
     message->setCode(reason);
-    chatApi->fireOnMessageUpdate(message);
+    fireOnMessageUpdate(message);
 }
 
 void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status newStatus, const Message &msg)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, newStatus, idx);
     message->setStatus(newStatus);
-    chatApi->fireOnMessageUpdate(message);
+    fireOnMessageUpdate(message);
 }
 
 void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
@@ -4092,7 +4131,7 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     Message::Status status = mChat->getMsgStatus(msg, idx);
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setContentChanged();
-    chatApi->fireOnMessageUpdate(message);
+    fireOnMessageUpdate(message);
 }
 
 void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason reason)
@@ -4108,7 +4147,7 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
         API_LOG_WARNING("Edit message rejected, reason: %d", reason);
         message->setCode(reason);
     }
-    chatApi->fireOnMessageUpdate(message);
+    fireOnMessageUpdate(message);
 }
 
 void MegaChatRoomHandler::onOnlineStateChange(ChatState state)
@@ -4128,7 +4167,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         mRoom->onUserJoin(userid, privilege);
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        if (userid.val == chatApi->getMyUserHandle())
+        if (userid.val == chatApiImpl->getMyUserHandle())
         {
             chatroom->setOwnPriv(privilege);
         }
@@ -4136,7 +4175,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         {
             chatroom->setMembersUpdated();
         }
-        chatApi->fireOnChatRoomUpdate(chatroom);
+        fireOnChatRoomUpdate(chatroom);
     }
 }
 
@@ -4149,7 +4188,7 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
 
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
         chatroom->setMembersUpdated();
-        chatApi->fireOnChatRoomUpdate(chatroom);
+        fireOnChatRoomUpdate(chatroom);
     }
 }
 
@@ -4158,7 +4197,7 @@ void MegaChatRoomHandler::onRejoinedChat()
     if (mRoom)
     {
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-        chatApi->fireOnChatRoomUpdate(chatroom);
+        fireOnChatRoomUpdate(chatroom);
     }
 }
 
@@ -4168,7 +4207,7 @@ void MegaChatRoomHandler::onExcludedFromChat()
     {
         MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
         chatroom->setClosed();
-        chatApi->fireOnChatRoomUpdate(chatroom);
+        fireOnChatRoomUpdate(chatroom);
     }
 }
 
@@ -4183,7 +4222,7 @@ void MegaChatRoomHandler::onUnreadChanged()
         {
             MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
             chatroom->setUnreadCount(mChat->unreadMsgCount());
-            chatApi->fireOnChatRoomUpdate(chatroom);
+            fireOnChatRoomUpdate(chatroom);
         }
     }
 }
@@ -4196,7 +4235,7 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
     message->setStatus(MegaChatMessage::STATUS_SENDING_MANUAL);
     message->setRowId(id); // identifier for the manual-send queue, for removal from queue
     message->setCode(reason);
-    chatApi->fireOnMessageLoaded(message);
+    fireOnMessageLoaded(message);
 }
 
 
@@ -5319,11 +5358,14 @@ LoggerHandler::~LoggerHandler()
 
 void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
 {
+    mutex.lock();
     this->megaLogger = logger;
+    mutex.unlock();
 }
 
 void LoggerHandler::setLogLevel(int logLevel)
 {
+    mutex.lock();
     this->maxLogLevel = logLevel;
     switch (logLevel)
     {
@@ -5351,6 +5393,7 @@ void LoggerHandler::setLogLevel(int logLevel)
         default:
             break;
     }
+    mutex.unlock();
 }
 
 void LoggerHandler::setLogWithColors(bool useColors)
@@ -5888,16 +5931,10 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
         }
 
-        // fa -> image thumbail
-        if (megaNode->hasThumbnail() || megaNode->hasPreview())
+        // fa -> image thumbnail/preview/mediainfo
+        const char *fa = megaNode->getFileAttrString();
+        if (fa)
         {
-            const char *fa = megaNode->getFileAttrString();
-            if (!fa)
-            {
-                API_LOG_ERROR("Failed to get the fileattribute string of node %d", megaNode->getHandle());
-                return NULL;
-            }
-
             std::string faString(fa);
             delete [] fa;
 

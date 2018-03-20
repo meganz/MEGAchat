@@ -358,6 +358,12 @@ Promise<void> Connection::reconnect()
                 return pms;
             }
 
+#ifndef KARERE_DISABLE_WEBRTC
+            if (mClient.mRtcHandler)
+            {
+                mClient.mRtcHandler->stopCallsTimers(mShardNo);
+            }
+#endif
             disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
@@ -525,6 +531,11 @@ void Connection::heartbeat()
     }
 }
 
+int Connection::shardNo() const
+{
+    return mShardNo;
+}
+
 void Client::disconnect()
 {
     for (auto& conn: mConnections)
@@ -674,29 +685,27 @@ string Command::toString(const StaticBuffer& data)
         case OP_INCALL:
         {
             string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
             karere::Id userId = data.read<uint64_t>(9);
             uint32_t clientId = data.read<uint32_t>(17);
-            tmpString.append("INCALL - chatId: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", userId: ");
+            tmpString.append("INCALL userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
-            tmpString.append(to_string(clientId));
+            std::stringstream stream;
+            stream << std::hex << clientId;
+            tmpString.append(stream.str());
             return tmpString;
         }
         case OP_ENDCALL:
         {
             string tmpString;
-            karere::Id chatid = data.read<uint64_t>(1);
             karere::Id userId = data.read<uint64_t>(9);
             uint32_t clientId = data.read<uint32_t>(17);
-            tmpString.append("ENDCALL - chatId: ");
-            tmpString.append(ID_CSTR(chatid));
-            tmpString.append(", userId: ");
+            tmpString.append("ENDCALL userId: ");
             tmpString.append(ID_CSTR(userId));
             tmpString.append(", clientId: ");
-            tmpString.append(to_string(clientId));
+            std::stringstream stream;
+            stream << std::hex << clientId;
+            tmpString.append(stream.str());
             return tmpString;
         }
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1266,7 +1275,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 // clientid.4 reserved.4
                 READ_32(clientid, 0);
                 mClientId = clientid;
-                CHATD_LOG_DEBUG("recv CLIENTID - 0x%04x", clientid);
+                CHATD_LOG_DEBUG("recv CLIENTID - %x", clientid);
             }
             case OP_ECHO:
             {
@@ -2442,6 +2451,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // avoid the whole replay (even the idempotent part), and just bail out.
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
+    CALL_CRYPTO(resetSendKey);
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)
     {
@@ -3019,7 +3029,7 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
         return LastTextMsgState::kFetching;
     }
 
-    if (mLastTextMsg.isValid()) // findlLastTextMsg() may have found it locally
+    if (mLastTextMsg.isValid()) // findLastTextMsg() may have found it locally
     {
         msg = &mLastTextMsg;
         return LastTextMsgState::kHave;

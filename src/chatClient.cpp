@@ -2566,34 +2566,39 @@ void ContactList::loadFromDb()
     while(stmt.step())
     {
         auto userid = stmt.uint64Col(0);
-        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), stmt.intCol(2), stmt.int64Col(3),
-            nullptr));
+        Contact *contact = new Contact(*this, userid, stmt.stringCol(1), stmt.intCol(2), stmt.int64Col(3), nullptr);
+        this->emplace(userid, contact);
     }
 }
 
 bool ContactList::addUserFromApi(mega::MegaUser& user)
 {
     auto userid = user.getHandle();
-    auto& item = (*this)[userid];
-    if (item)
+    auto it = this->find(userid);
+    if (it != this->end())
     {
+        Contact *contact = it->second;
+        assert(contact);
         int newVisibility = user.getVisibility();
-        if (item->visibility() == newVisibility)
+        if (contact->visibility() == newVisibility)
         {
             return false;
         }
         client.db.query("update contacts set visibility = ? where userid = ?",
             newVisibility, userid);
-        item->onVisibilityChanged(newVisibility);
+        contact->onVisibilityChanged(newVisibility);
         return true;
     }
+
+    // contact was not created yet
     auto cmail = user.getEmail();
     std::string email(cmail ? cmail : "");
     int visibility = user.getVisibility();
     auto ts = user.getTimestamp();
     client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
             userid, email, visibility, ts);
-    item = new Contact(*this, userid, email, visibility, ts, nullptr);
+    Contact *contact = new Contact(*this, userid, email, visibility, ts, nullptr);
+    this->emplace(userid, contact);
     KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
     return true;
 }

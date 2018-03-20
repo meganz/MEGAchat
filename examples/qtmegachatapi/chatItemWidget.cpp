@@ -13,18 +13,24 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatWindow = NULL;
     mMegaApi = mMainWin->mMegaApi;
     mLastOverlayCount = 0;
-    mOlderMessageLoaded = 0;
     mChatId = item->getChatId();
-    this->mMegaChatApi= megaChatApi;
-
+    mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    ui->mUnreadIndicator->hide();
+    int unreadCount = mMegaChatApi->getChatListItem(mChatId)->getUnreadCount();
+    onUnreadCountChanged(unreadCount);
     ui->mName->setText(item->getTitle());
 
     if (!item->isGroup())
+    {
         ui->mAvatar->setText("1");
+    }
     else
+    {
         ui->mAvatar->setText("G");
+    }
+
+    int status = mMegaChatApi->getChatConnectionState(mChatId);
+    this->onlineIndicatorUpdate(status);
 }
 
 void ChatItemWidget::invalidChatWindowHandle()
@@ -119,24 +125,19 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
 
 void ChatItemWidget::onUnreadCountChanged(int count)
 {
-    if (count < 0)
+    if(count < 0)
+    {
         ui->mUnreadIndicator->setText(QString::number(-count)+"+");
+    }
     else
+    {
         ui->mUnreadIndicator->setText(QString::number(count));
-
-    ui->mUnreadIndicator->adjustSize();
-
-    if (count)
-    {
-        if (!mLastOverlayCount)
-            ui->mUnreadIndicator->show();
-    }
-    else
-    {
-        if (mLastOverlayCount)
+        if (count == 0)
+        {
             ui->mUnreadIndicator->hide();
+        }
     }
-    mLastOverlayCount = count;
+    ui->mUnreadIndicator->adjustSize();
 }
 
 void ChatItemWidget::onTitleChanged(const std::string& title)
@@ -163,7 +164,7 @@ ChatWindow *ChatItemWidget::showChatWindow()
 
     if (!mChatWindow)
     {
-        mChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
+        mChatWindow = new ChatWindow(mMainWin, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
         mChatWindow->show();
         mChatWindow->openChatRoom();
     }
@@ -190,17 +191,6 @@ void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
 {
     mListWidgetItem = item;
 }
-
-megachat::MegaChatHandle ChatItemWidget::getOlderMessageLoaded() const
-{
-    return mOlderMessageLoaded;
-}
-
-void ChatItemWidget::setOlderMessageLoaded(const megachat::MegaChatHandle &msgId)
-{
-    mOlderMessageLoaded = msgId;
-}
-
 
 void ChatItemWidget::onlineIndicatorUpdate(int newState)
 {

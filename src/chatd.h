@@ -295,6 +295,12 @@ public:
     virtual void onShutdown() {}
     virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
     virtual void onDisconnect(chatd::Connection& conn) {}
+
+    /**
+     * @brief This function is used to stop incall timer call during reconnection process
+     * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
+     */
+    virtual void stopCallsTimers(int shard) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -384,6 +390,8 @@ public:
     }
 
     void heartbeat();
+
+    int shardNo() const;
 };
 
 enum ServerHistFetchState
