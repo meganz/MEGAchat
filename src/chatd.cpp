@@ -2318,25 +2318,13 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
-        uint8_t prevType;
         if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            prevType = histmsg.type;
 
-            if (msg->type == Message::kMsgTruncate)
-            {
-                if (histmsg.type == msg->type)
-                {
-                    CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
-                    delete msg;
-                    return;
-                }
-
-                histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
-            }
-            else if (histmsg.updated == msg->updated)
+            if ( (msg->type == Message::kMsgTruncate && histmsg.type == msg->type)
+                    || (histmsg.updated == msg->updated) )
             {
                 CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
                 delete msg;
@@ -2351,6 +2339,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
+            if (msg->type == Message::kMsgTruncate)
+            {
+                histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+            }
 
             if (idx > mNextHistFetchIdx)
             {
@@ -2359,7 +2351,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             }
             else
             {
-                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet message");
+                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
             if (msg->userid != client().userId() && // is not our own message
