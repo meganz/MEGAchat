@@ -1985,51 +1985,44 @@ bool Chat::setMessageSeen(Idx idx)
     }
 
     auto wptr = weakHandle();
-    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, &msg, &mEchoTimer]()
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, &msg, mEchoTimer]()
     {
         if (wptr.deleted())
         {
           return;
         }
         mClient.mSeenTimers.erase(mEchoTimer);
-        mEchoTimer = 0;
         karere::Id id = msg.id();
-        marshallCall([wptr, this, id, idx]()
+
+        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+        sendCommand(Command(OP_SEEN) + mChatId + id);
+
+        Idx notifyStart;
+        if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
-            if (wptr.deleted())
-            {
-                return;
-            }
-            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
-            sendCommand(Command(OP_SEEN) + mChatId + id);
+            notifyStart = lownum()-1;
+        }
+        else
+        {
+            Idx lowest = lownum()-1;
+            notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+        }
+        mLastSeenIdx = idx;
+        Idx highest = highnum();
+        Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
 
-            Idx notifyStart;
-            if (mLastSeenIdx == CHATD_IDX_INVALID)
+        for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+        {
+            auto& m = at(i);
+            if (m.userid != mClient.mUserId)
             {
-                notifyStart = lownum()-1;
+                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
             }
-            else
-            {
-                Idx lowest = lownum()-1;
-                notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
-            }
-            mLastSeenIdx = idx;
-            Idx highest = highnum();
-            Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
-
-            for (Idx i=notifyStart+1; i<=notifyEnd; i++)
-            {
-                auto& m = at(i);
-                if (m.userid != mClient.mUserId)
-                {
-                    CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
-                }
-            }
-            mLastSeenId = id;
-            CALL_DB(setLastSeen, mLastSeenId);
-            CALL_LISTENER(onUnreadChanged);
-        }, mClient.karereClient->appCtx);
-    },200, mClient.karereClient->appCtx);
+        }
+        mLastSeenId = id;
+        CALL_DB(setLastSeen, mLastSeenId);
+        CALL_LISTENER(onUnreadChanged);
+    },kSeenTimeout, mClient.karereClient->appCtx);
     mClient.mSeenTimers.insert(mEchoTimer);
     return true;
 }

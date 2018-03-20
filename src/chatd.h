@@ -64,6 +64,8 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
+/** Timeout to send SEEN **/
+enum { kSeenTimeout = 200 };
 enum { kProtocolVersion = 0x01 };
 
 class DbInterface;
@@ -1070,7 +1072,7 @@ protected:
     std::map<karere::Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
-/// set of seen timers
+ // set of seen timers
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
