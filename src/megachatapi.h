@@ -2420,6 +2420,8 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * Stop typing command is sent automatically
+     *
      * You take the ownership of the returned value.
      *
      * @note Any tailing carriage return and/or line feed ('\r' and '\n') will be removed.
@@ -2445,8 +2447,6 @@ public:
      *
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
-     *
-     * If message type is Message::kMsgNormal, a stop typing command is sent automatically
      *
      * You take the ownership of the returned value.
      *
@@ -2620,7 +2620,7 @@ public:
      * reach the status delivered, since the target user will not send the required acknowledge to the
      * server upon reception.
      *
-     * If message type is Message::kMsgNormal, a stop typing command is sent automatically
+     * Stop typing command is sent automatically
      * 
      * You take the ownership of the returned value.
      *
@@ -2705,6 +2705,8 @@ public:
 
     /**
      * @brief Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
      *
      * Other peers in the chatroom will receive a notification via
      * \c MegaChatRoomListener::onChatRoomUpdate with the change type
@@ -3471,6 +3473,9 @@ public:
 
     /**
      * @brief Returns the handle of the user who is typing or has stopped typing a message in the chatroom
+     *
+     * The app should have a timer that is reset each time a typing
+     * notification is received. When the timer expires, it should hide the notification
      *
      * @return The user that is typing
      */

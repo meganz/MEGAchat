@@ -259,7 +259,7 @@ public:
      * @brief onUserTyping Called when a signal is received that a peer
      * is typing a message. Normally the app should have a timer that
      * is reset each time a typing notification is received. When the timer
-     * expires, it should hide the notification GUI.
+     * expires or stop typing is received, it should hide the notification GUI.
      * @param user The user that is typing. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
@@ -267,7 +267,8 @@ public:
 
     /**
      * @brief onUserStopTyping Called when a signal is received that a peer
-     * has stopped to type a message.
+     * has stopped to type a message. When this message arrives, notification GUI
+     * has to be removed.
      * @param user The user that has stop to type. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
