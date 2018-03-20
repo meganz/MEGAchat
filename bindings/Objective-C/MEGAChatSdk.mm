@@ -188,7 +188,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->addChatRoomListener(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:NO]);
 }
 
-- (void)removeChatRoomDelegate:(id<MEGAChatRoomDelegate>)delegate {    
+- (void)removeChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     std::vector<DelegateMEGAChatRoomListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -207,7 +207,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     
     for (int i = 0; i < listenersToRemove.size(); i++)
     {
-        self.megaChatApi->removeChatRoomListener(listenersToRemove[i]);
+        self.megaChatApi->removeChatRoomListener(chatId, listenersToRemove[i]);
         delete listenersToRemove[i];
     }
 }
