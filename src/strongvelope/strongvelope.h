@@ -182,7 +182,7 @@ struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::Dele
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
-    promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg);
+    promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
 };
 
 
@@ -271,6 +271,8 @@ public:
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, void *ctx);
+
+    unsigned int getCacheVersion() const;
 protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
