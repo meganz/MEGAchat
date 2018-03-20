@@ -148,7 +148,17 @@ void Client::notifyUserIdle()
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
         return;
     mKeepaliveType = OP_KEEPALIVEAWAY;
+    cancelTimers();
     sendKeepalive();
+}
+
+void Client::cancelTimers()
+{
+   for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
+   {
+        cancelTimeout(*it, karereClient->appCtx);
+   }
+   mSeenTimers.clear();
 }
 
 void Client::notifyUserActive()
@@ -1976,14 +1986,16 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    marshallCall([wptr, this, id, idx]()
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, id, mEchoTimer]()
     {
         if (wptr.deleted())
-            return;
+          return;
+
+        mClient.mSeenTimers.erase(mEchoTimer);
 
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
-        
+
         Idx notifyStart;
         if (mLastSeenIdx == CHATD_IDX_INVALID)
         {
@@ -2009,8 +2021,10 @@ bool Chat::setMessageSeen(Idx idx)
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
-    }, mClient.karereClient->appCtx);
-    
+    }, kSeenTimeout, mClient.karereClient->appCtx);
+
+    mClient.mSeenTimers.insert(mEchoTimer);
+
     return true;
 }
 
@@ -2133,6 +2147,11 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
+}
+
+Client::~Client()
+{
+    cancelTimers();
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
