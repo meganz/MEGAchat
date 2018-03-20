@@ -2395,8 +2395,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             idx = msgit->second;
             auto& histmsg = at(idx);
 
-            if ( (msg->type == Message::kMsgTruncate && histmsg.type == msg->type)
-                    || (histmsg.updated == msg->updated) )
+            if ( (msg->type == Message::kMsgTruncate
+                  && histmsg.type == msg->type
+                  && histmsg.ts == msg->ts)
+                    || (msg->type != Message::kMsgTruncate
+                        && histmsg.updated == msg->updated) )
             {
                 CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
                 delete msg;
