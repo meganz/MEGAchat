@@ -23,8 +23,11 @@ void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid,
         return;
     }
 
-    unsigned char *auxBuf = reinterpret_cast<unsigned char*> (buffer);
-    QImage *auxImg = new QImage(auxBuf, width, height, QImage::Format_RGBA8888);
-    this->mCallGui->ui->localRenderer->setStaticImage(auxImg);
+    unsigned char *auxBuf = reinterpret_cast<unsigned char*> (strdup(buffer));
+    oldFrame = actFrame;
+    actFrame = new QImage(auxBuf, width, height, QImage::Format_RGBA8888, myImageCleanupHandler, auxBuf);
+    this->mCallGui->ui->localRenderer->disableStaticImage();
+    this->mCallGui->ui->localRenderer->setStaticImage(actFrame);
     this->mCallGui->ui->localRenderer->enableStaticImage();
+    delete oldFrame;
 }

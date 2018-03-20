@@ -11,3 +11,9 @@ CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui)
  {
      delete megaChatVideoListenerDelegate;     
  }
+
+ void CallListener::myImageCleanupHandler(void *info)
+ {
+     char *auxBuf = (char*)info;
+     delete auxBuf;
+ }
