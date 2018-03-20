@@ -1984,16 +1984,14 @@ bool Chat::setMessageSeen(Idx idx)
         return false;
     }
 
-    karere::Id auxId = msg.id();
     auto wptr = weakHandle();
-    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, auxId, mEchoTimer]()
+    karere::Id id = msg.id();
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, id, mEchoTimer]()
     {
         if (wptr.deleted())
-        {
           return;
-        }
+
         mClient.mSeenTimers.erase(mEchoTimer);
-        karere::Id id = auxId;
 
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
@@ -2023,8 +2021,10 @@ bool Chat::setMessageSeen(Idx idx)
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
-    },kSeenTimeout, mClient.karereClient->appCtx);
+    }, kSeenTimeout, mClient.karereClient->appCtx);
+
     mClient.mSeenTimers.insert(mEchoTimer);
+
     return true;
 }
 
