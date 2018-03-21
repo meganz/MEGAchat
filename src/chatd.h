@@ -667,7 +667,8 @@ protected:
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
     void requestRichLink(Message &message);
-    bool hasUrl(const std::string &text);
+    bool hasUrl(const std::string &text, std::string &url);
+    bool parseUrl(const std::string &url);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE

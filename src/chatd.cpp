@@ -4,6 +4,7 @@
 #include "base64url.h"
 #include <algorithm>
 #include <random>
+#include <regex>
 
 using namespace std;
 using namespace promise;
@@ -1549,9 +1550,16 @@ void Chat::initChat()
 void Chat::requestRichLink(Message &message)
 {
     std::string text = message.toText();
-    if (hasUrl(text))
+    std::string url;
+    if (hasUrl(text, url))
     {
-        std::string linkRequest = std::string("http://") + text;
+        std::regex expresion("([A-Za-z]{3,9}:(?:\/\/))(.+)");
+        std::string linkRequest = url;
+        if (!regex_match(url, expresion))
+        {
+            linkRequest = std::string("http://") + url;
+        }
+
         auto wptr = weakHandle();
         karere::Id messageId = message.id();
         Idx messageIdx = msgIndexFromId(messageId);
@@ -1588,9 +1596,34 @@ void Chat::requestRichLink(Message &message)
     }
 }
 
-bool Chat::hasUrl(const string &text)
+bool Chat::hasUrl(const string &text, std::string &url)
 {
+    std::string::size_type position = 0;
+    while (position < text.size())
+    {
+        std::string::size_type nextPosition = text.find(' ', position);
+        if (nextPosition == std::string::npos)
+        {
+            nextPosition = text.size();
+        }
+
+        std::string partialTex = text.substr(position, nextPosition - position);
+        if (parseUrl(partialTex))
+        {
+            url = partialTex;
+            return true;
+        }
+
+        position = nextPosition + 1;
+    }
+
     return false;
+}
+
+bool Chat::parseUrl(const string &url)
+{
+    std::regex regularExpresion(R"((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)");
+    return regex_match(url, regularExpresion);
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
