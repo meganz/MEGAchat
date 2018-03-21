@@ -5,7 +5,6 @@
 LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui):
 CallListener(megaChatApi,callGui)
 {
-    frameCounter = 0;
     mMegaChatApi->addChatLocalVideoListener(megaChatVideoListenerDelegate);    
 }
 
@@ -17,8 +16,7 @@ LocalCallListener::~LocalCallListener()
 
 void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
-    frameCounter++;
-    if((width == 0) || (height == 0) || (frameCounter <= 1))
+    if((width == 0) || (height == 0))
     {
         return;
     }
