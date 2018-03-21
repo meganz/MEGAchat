@@ -5,6 +5,8 @@
 RemoteCallListener::RemoteCallListener(MegaChatApi *megaChatApi, CallGui *callGui):
 CallListener(megaChatApi,callGui)
 {
+    oldFrame = NULL;
+    actFrame = NULL;
     mMegaChatApi->addChatRemoteVideoListener(megaChatVideoListenerDelegate);
 }
 
@@ -26,5 +28,8 @@ void RemoteCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid
     actFrame = new QImage(auxBuf, width, height, QImage::Format_RGBA8888, myImageCleanupHandler, auxBuf);
     this->mCallGui->ui->remoteRenderer->setStaticImage(actFrame);
     this->mCallGui->ui->remoteRenderer->enableStaticImage();
-    delete oldFrame;
+    if(oldFrame)
+    {
+        delete oldFrame;
+    }
 }
