@@ -2923,11 +2923,6 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
     }
 }
 
-void Chat::onHistoryReloaded()
-{
-    mCrypto->onHistoryReload();
-}
-
 void Chat::handleLastReceivedSeen(Id msgid)
 {
     //normally the indices will not be set if mLastXXXId == msgid, as there will be only
