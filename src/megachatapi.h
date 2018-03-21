@@ -571,7 +571,7 @@ public:
 
     enum
     {
-      CONTAINS_META_INVALID         = -1,    /// There isn't any meta contained
+      CONTAINS_META_INVALID         = -1,   /// There isn't any meta contained
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
     };
 
