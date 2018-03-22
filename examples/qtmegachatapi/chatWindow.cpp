@@ -619,7 +619,7 @@ void ChatWindow::onMsgListRequestHistory()
 
     void ChatWindow::connectCall(bool video)
     {
-        mCallGui->connectCall();
+        mCallGui->connectCall(video);
     }
 
     void ChatWindow::hangCall()

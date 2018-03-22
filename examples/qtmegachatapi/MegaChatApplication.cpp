@@ -306,7 +306,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
               }
             else
             {
-                bool video = false;
                 megachat::MegaChatHandle chatHandle = request->getChatHandle();
                 std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
                 itChats = mMainWin->chatWidgets.find(chatHandle);
@@ -315,12 +314,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
                 {
                     ChatItemWidget *chatItemWidget = itChats->second;
                     ChatWindow *chatWin = chatItemWidget->showChatWindow();
-
-                    if (request->getFlag())
-                    {
-                        video = true;
-                    }
-                    chatWin->connectCall(video);
+                    chatWin->connectCall(request->getFlag());
                 }
             }
             break;
