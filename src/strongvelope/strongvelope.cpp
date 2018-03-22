@@ -876,6 +876,11 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         {
             wptr.throwIfDeleted();
 
+            if (cacheVersion != mCacheVersion)
+            {
+                return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+            }
+
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
@@ -894,14 +899,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     }
     catch(std::runtime_error& e)
     {
-        if (cacheVersion != mCacheVersion)
-        {
-            return promise::Error(e.what(), EINVAL, SVCRYPTO_ENOMSG);
-        }
-        else
-        {
-            return promise::Error(e.what());
-        }
+        return promise::Error(e.what());
     }
 }
 
@@ -1200,7 +1198,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
         if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
         {
-            throw std::runtime_error("decryptChatTitle: history was reloaded, ignore message");
+            throw promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
         }
 
         symmetricDecrypt(*key, *msg);
