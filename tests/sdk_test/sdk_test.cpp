@@ -1216,23 +1216,19 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     // --> Try to send a message without the right privilege
     string msg1 = "HOLA " + mAccounts[a1].getEmail()+ " - This message can't be send because I'm read-only";
     bool *flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
-    bool *flagTyping1 = &chatroomListener->userTyping[a1]; *flagTyping1 = false;
-    uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     chatroomListener->clearMessages(a2);   // will be set at reception
     MegaChatMessage *msgSent = megaChatApi[a2]->sendMessage(chatid, msg1.c_str());
     ASSERT_CHAT_TEST(msgSent, "Succeed to send message, when it should fail");
     delete msgSent; msgSent = NULL;
     ASSERT_CHAT_TEST(waitForResponse(flagRejected), "Timeout expired for rejection of message");    // for confirmation, sendMessage() is synchronous
     ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a2] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
-    ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for sending stop typing notification");
-    ASSERT_CHAT_TEST(*uhAction == megaChatApi[a2]->getMyUserHandle(), "My user handle is wrong at stop typing");
 
     // --> Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
     // --> Send typing notification
-    flagTyping1 = &chatroomListener->userTyping[a2]; *flagTyping1 = false;
+    bool *flagTyping1 = &chatroomListener->userTyping[a2]; *flagTyping1 = false;
     uhAction = &chatroomListener->uhAction[a2]; *uhAction = MEGACHAT_INVALID_HANDLE;
     megaChatApi[a1]->sendTypingNotification(chatid);
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to send user typing: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
@@ -1252,14 +1248,10 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
     bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
-    flagTyping1 = &chatroomListener->userTyping[a2]; *flagTyping1 = false;
-    uhAction = &chatroomListener->uhAction[a2]; *uhAction = MEGACHAT_INVALID_HANDLE;
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
     MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
     ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
-    ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for sending stop typing notification");
-    ASSERT_CHAT_TEST(*uhAction == megaChatApi[a1]->getMyUserHandle(), "My user handle is wrong at stop typing");
     MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
     ASSERT_CHAT_TEST(msgId != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
@@ -2707,16 +2699,12 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
 
     MegaChatMessage *messageSendEdit = NULL;
     MegaChatHandle *msgidSendEdit = NULL;
-    bool *flagTyping1 = &chatroomListener->userTyping[receiverAccountIndex]; *flagTyping1 = false;
-    MegaChatHandle *uhAction = &chatroomListener->uhAction[receiverAccountIndex]; *uhAction = MEGACHAT_INVALID_HANDLE;
     if (messageId == MEGACHAT_INVALID_HANDLE)
     {
         flagConfirmed = &chatroomListener->msgConfirmed[senderAccountIndex]; *flagConfirmed = false;
         flagReceived = &chatroomListener->msgReceived[receiverAccountIndex]; *flagReceived = false;
 
         messageSendEdit = megaChatApi[senderAccountIndex]->sendMessage(chatid, textToSend.c_str());
-        ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for receive stop typing notification");
-        ASSERT_CHAT_TEST(*uhAction == megaChatApi[senderAccountIndex]->getMyUserHandle(), "My user handle is wrong at stop typing");
         msgidSendEdit = &chatroomListener->mConfirmedMessageHandle[senderAccountIndex];
     }
     else  // Update Message
@@ -2724,8 +2712,6 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
         flagConfirmed = &chatroomListener->msgEdited[senderAccountIndex]; *flagConfirmed = false;
         flagReceived = &chatroomListener->msgEdited[receiverAccountIndex]; *flagReceived = false;
         messageSendEdit = megaChatApi[senderAccountIndex]->editMessage(chatid, messageId, textToSend.c_str());
-        ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for receive stop typing notification");
-        ASSERT_CHAT_TEST(*uhAction == megaChatApi[senderAccountIndex]->getMyUserHandle(), "My user handle is wrong at stop typing");
         msgidSendEdit = &chatroomListener->mEditedMessageHandle[senderAccountIndex];
     }
 

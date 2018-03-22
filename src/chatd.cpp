@@ -1569,10 +1569,6 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
             return;
         
         msgSubmit(message);
-        if (message->type == Message::kMsgNormal)
-        {
-            sendStopTypingNotification();
-        }
 
     }, mClient.karereClient->appCtx);
     return message;
@@ -1781,10 +1777,6 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
-        if (upd->type == Message::kMsgNormal)
-        {
-            sendStopTypingNotification();
-        }
 
     }, mClient.karereClient->appCtx);
     

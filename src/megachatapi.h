@@ -2420,7 +2420,8 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
-     * Stop typing command is sent automatically
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+     * that it isn't typing
      *
      * You take the ownership of the returned value.
      *
@@ -2620,7 +2621,8 @@ public:
      * reach the status delivered, since the target user will not send the required acknowledge to the
      * server upon reception.
      *
-     * Stop typing command is sent automatically
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+     * that it isn't typing
      * 
      * You take the ownership of the returned value.
      *
