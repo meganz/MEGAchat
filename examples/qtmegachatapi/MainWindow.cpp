@@ -35,9 +35,12 @@ MainWindow::~MainWindow()
     {
         delete megaChatListenerDelegate;
     }
+    mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+    delete megaChatCallListenerDelegate;
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
+
 }
 
 mega::MegaUserList * MainWindow::getUserContactList()
@@ -45,9 +48,70 @@ mega::MegaUserList * MainWindow::getUserContactList()
     return mMegaApi->getContacts();
 }
 
+void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
+{
+   if(!call)
+   {
+       return;
+   }
+
+   if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
+   {
+       ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
+       chatItemWidget->mChatWindow->hangCall();
+       delete call;
+       return;
+   }
+
+   std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
+   if(itWidgets == chatWidgets.end())
+   {
+       throw std::runtime_error("Incoming call from unknown contact");
+   }
+
+   ChatItemWidget * chatItemWidget = itWidgets->second;
+   const char *chatWindowTitle = mMegaChatApi->getChatListItem(call->getChatid())->getTitle();
+   if (!chatItemWidget->mChatWindow)
+   {
+        megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(call->getChatid());
+        chatItemWidget->mChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
+        chatItemWidget->mChatWindow->show();
+        chatItemWidget->mChatWindow->openChatRoom();
+   }
+   else
+   {
+        chatItemWidget->mChatWindow->show();
+        chatItemWidget->mChatWindow->setWindowState(Qt::WindowActive);
+   }
+
+   if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS)
+           &&(call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS))
+   {
+        if(call->hasRemoteVideo())
+        {
+            chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->disableStaticImage();
+
+        }
+        else
+        {
+            chatItemWidget->mChatWindow->mCallGui->setAvatarOnRemote();
+            chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->enableStaticImage();
+        }
+   }
+
+   if((call->getStatus() == megachat::MegaChatCall::CALL_STATUS_RING_IN)
+           && (chatItemWidget->mChatWindow->mCallGui)==NULL)
+   {
+       chatItemWidget->mChatWindow->createCallGui();
+   }
+   delete call;
+}
+
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
 {
     this->mMegaChatApi = megaChatApi;
+    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 }
 
 void MainWindow::setMegaApi(MegaApi *megaApi)
@@ -158,10 +222,17 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
 void MainWindow::on_bSettings_clicked()
 {
+    this->mMegaChatApi->loadAudioVideoDeviceList();
+}
+
+
+void MainWindow::createSettingsMenu()
+{
     ChatSettings *chatSettings = new ChatSettings(this);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
+
 
 void MainWindow::on_bOnlineStatus_clicked()
 {

@@ -54,6 +54,8 @@ HEADERS  += asyncTest-framework.h \
             ../bindings/qt/QTMegaChatListener.h \
             ../bindings/qt/QTMegaChatRoomListener.h \
             ../bindings/qt/QTMegaChatRequestListener.h \
+            ../bindings/qt/QTMegaChatCallListener.h \
+            ../bindings/qt/QTMegaChatVideoListener.h \
             base/asyncTools.h \
             base/addrinfo.hpp \
             base/cservices-thread.h \
@@ -96,7 +98,9 @@ CONFIG(qt) {
   SOURCES += ../bindings/qt/QTMegaChatEvent.cpp \
             ../bindings/qt/QTMegaChatListener.cpp \
             ../bindings/qt/QTMegaChatRoomListener.cpp \
-            ../bindings/qt/QTMegaChatRequestListener.cpp
+            ../bindings/qt/QTMegaChatRequestListener.cpp \
+            ../bindings/qt/QTMegaChatCallListener.cpp \
+            ../bindings/qt/QTMegaChatVideoListener.cpp
 }
 
 CONFIG(USE_WEBRTC) {
@@ -106,7 +110,7 @@ CONFIG(USE_WEBRTC) {
              rtcModule/rtcStats.cpp
 }
 else {
-    DEFINES += KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE
+    DEFINES += KARERE_DISABLE_WEBRTC=0 SVC_DISABLE_STROPHE
 }
 
 

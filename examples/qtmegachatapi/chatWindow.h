@@ -8,6 +8,17 @@
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
 
+#ifndef KARERE_DISABLE_WEBRTC
+    #include "callGui.h"
+#else
+    namespace rtcmodule
+    {
+        class ICallHandler{};
+    }
+    class CallGui: public rtcModule::ICallHandler {};
+#endif
+
+
 #define NMESSAGES_LOAD 16   // number of messages to load at every fetch
 class ChatMessage;
 class MainWindow;
@@ -21,32 +32,36 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 {
     Q_OBJECT
     public:
-        ChatWindow(QWidget* parent, megachat::MegaChatApi* mMegaChatApi, megachat::MegaChatRoom *cRoom, const char * title);
+        ChatWindow(QWidget *parent, megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRoom *cRoom, const char *title);
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
-        void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
+        void onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void truncateChatUI();
+        void connectCall();
+        void hangCall();
         void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
-        void moveManualSendingToSending(megachat::MegaChatMessage * msg);
-        void setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item);
-        QListWidgetItem* addMsgWidget (megachat::MegaChatMessage * msg, int index);
-        ChatMessage * findChatMessage(megachat::MegaChatHandle msgId);
+        void moveManualSendingToSending(megachat::MegaChatMessage *msg);
+        void setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetItem *item);
+        QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
+        ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
 
     protected:
         Ui::ChatWindowUi *ui;
-        megachat::MegaChatApi* mMegaChatApi;
-        mega::MegaApi * mMegaApi;
-        megachat::MegaChatRoom * mChatRoom;
+        CallGui *mCallGui;
         MainWindow *mMainWin;
-        MegaLoggerApplication * mLogger;
-        megachat::QTMegaChatRoomListener * megaChatRoomListenerDelegate;
+        megachat::MegaChatApi *mMegaChatApi;
+        mega::MegaApi *mMegaApi;
+        megachat::MegaChatRoom *mChatRoom;
+        ChatItemWidget *mChatItemWidget;
+        MegaLoggerApplication *mLogger;
+        megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
         int nSending;
@@ -62,7 +77,20 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberAdd();
         void onTruncateChat();
         void onMembersBtn(bool);
+        void onCallBtn(bool video);
 
+    protected slots:
+        #ifndef KARERE_DISABLE_WEBRTC
+            void closeEvent(QCloseEvent *event);
+            void createCallGui();
+            void onVideoCallBtn(bool);
+            void onAudioCallBtn(bool);
+            void deleteCallGui();
+        #endif
+
+    friend class CallGui;
     friend class ChatMessage;
+    friend class CallAnswerGui;
+    friend class MainWindow;
 };
 #endif // CHATWINDOW_H

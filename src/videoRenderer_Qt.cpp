@@ -30,6 +30,7 @@ void VideoRendererQt::setStaticImage(QImage* image)
 {
     if (!image)
         throw std::runtime_error("showStaticImage: NULL image provided");
+    mStaticImage.release();
     mStaticImage.reset(image);
 }
 
