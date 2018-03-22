@@ -261,11 +261,20 @@ public:
      * @brief onUserTyping Called when a signal is received that a peer
      * is typing a message. Normally the app should have a timer that
      * is reset each time a typing notification is received. When the timer
-     * expires, it should hide the notification GUI.
+     * expires or stop typing is received, it should hide the notification GUI.
      * @param user The user that is typing. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
+
+    /**
+     * @brief onUserStopTyping Called when a signal is received that a peer
+     * has stopped to type a message. When this message arrives, notification GUI
+     * has to be removed.
+     * @param user The user that has stop to type. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
+    virtual void onUserStopTyping(karere::Id userid) {}
 
     /**
      * @brief Called when the last known text message changes/is updated, so that
@@ -1006,6 +1015,12 @@ public:
      * other clients receiving \c onUserTyping() callbacks
      */
     void sendTypingNotification();
+
+    /** @brief Broadcasts a notification that the user has stopped typing. This will trigged
+     * other clients receiving \c onUserStopTyping() callbacks
+     */
+    void sendStopTypingNotification();
+
     /**
      * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
