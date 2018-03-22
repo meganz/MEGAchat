@@ -16,16 +16,10 @@ RemoteCallListener::~RemoteCallListener()
 
 void RemoteCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
-    if((width == 0) || (height == 0))
+    QImage *auxImg = CreateFrame(width, height, buffer, size);
+    if(auxImg)
     {
-        return;
+        this->mCallGui->ui->remoteRenderer->setStaticImage(auxImg);
+        this->mCallGui->ui->remoteRenderer->enableStaticImage();
     }
-
-
-    char * copyBuff = new char[size];
-    memcpy(copyBuff,buffer,size);
-    unsigned char* auxBuf = reinterpret_cast<unsigned char*> (copyBuff);
-    QImage *Img = new QImage(auxBuf, width, height, QImage::Format_RGBA8888);
-    this->mCallGui->ui->remoteRenderer->setStaticImage(Img);
-    this->mCallGui->ui->remoteRenderer->enableStaticImage();
 }
