@@ -21,7 +21,10 @@ void RemoteCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid
         return;
     }
 
-    unsigned char* auxBuf = reinterpret_cast<unsigned char*> (buffer);
+
+    char * copyBuff = new char[size];
+    memcpy(copyBuff,buffer,size);
+    unsigned char* auxBuf = reinterpret_cast<unsigned char*> (copyBuff);
     QImage *Img = new QImage(auxBuf, width, height, QImage::Format_RGBA8888);
     this->mCallGui->ui->remoteRenderer->setStaticImage(Img);
     this->mCallGui->ui->remoteRenderer->enableStaticImage();

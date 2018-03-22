@@ -20,8 +20,13 @@ void QTMegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle c
     event->setChatHandle(chatid);
     event->setWidth(width);
     event->setHeight(height);
-    event->setBuffer(buffer);
     event->setSize(size);
+
+    char * auxBuff = new char[size];
+    memcpy(auxBuff, buffer, size);
+    event->setBuffer(auxBuff);
+    event->setSize(size);
+    event->setBuffer(auxBuff);
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
@@ -32,7 +37,12 @@ void QTMegaChatVideoListener::customEvent(QEvent *e)
     switch(event->type())
     {
         case QTMegaChatEvent::OnChatVideoData:
-            if (listener) listener->onChatVideoData(event->getMegaChatApi(), event->getChatHandle(), event->getWidth(), event->getHeight(), event->getBuffer(), event->getSize());
+            if (listener)
+            {
+                char * auxBuff = event->getBuffer();
+                listener->onChatVideoData(event->getMegaChatApi(), event->getChatHandle(), event->getWidth(), event->getHeight(), auxBuff, event->getSize());
+                delete auxBuff;
+            }
             break;
         default:
             break;
