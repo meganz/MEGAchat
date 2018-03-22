@@ -39,7 +39,7 @@ class CallGui: public QWidget
         CallGui(ChatWindow *parent);
         virtual ~ CallGui();
         void hangCall();
-        void connectCall();
+        void connectCall(bool video);
         virtual void onLocalStreamObtained(rtcModule::IVideoRenderer *&renderer);
         virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererRet);
         virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string &msg);

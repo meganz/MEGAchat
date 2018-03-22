@@ -613,15 +613,11 @@ void ChatWindow::onMsgListRequestHistory()
             QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
             return;
         }
-        if (mCallGui)
-        {
-         //   return;
-        }
         createCallGui();
-        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), true);
+        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
     }
 
-    void ChatWindow::connectCall()
+    void ChatWindow::connectCall(bool video)
     {
         mCallGui->connectCall();
     }

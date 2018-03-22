@@ -30,12 +30,16 @@ CallGui::CallGui(ChatWindow *parent)
     localCallListener = NULL;
 }
 
-void CallGui::connectCall()
+void CallGui::connectCall(bool video)
 {
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
-    this->ui->mAnswBtn->hide();
+    ui->mAnswBtn->hide();
+    if(!video)
+    {
+        ui->mMuteCamChk->setChecked(true);
+    }
 }
 
 void CallGui::onAnswerCallBtn(bool)
