@@ -2720,8 +2720,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     {
         if (err.type() == SVCRYPTO_ENOMSG)
         {
-            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
-            return promise::Error("msgIncomingAfterAdd: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+            return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
         }
 
         assert(message->isEncrypted() == 1);
@@ -2798,6 +2797,12 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
             }
         }
+    })
+    .fail([this](const promise::Error& err)
+    {
+        //TODO: If a message could be deleted individually, decryption process should be restarted again
+        // It isn't a possibilty with acutal implementation
+        CHATID_LOG_WARNING("Message can't be decrypted: Fail type (%d) - %s", err.type(), err.what());
     });
 
     return false; //decrypt was not done immediately
