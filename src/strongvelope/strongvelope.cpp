@@ -759,11 +759,6 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
         // the promise returns it
         .then([msg, parsedMsg](Message* retMsg)
         {
-            if (retMsg == NULL)
-            {
-                return std::string("");
-            }
-
             return std::string(retMsg->buf(), retMsg->dataSize());
         });
     }
@@ -816,10 +811,10 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 //is decrypted.
 Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 {
+    unsigned int cacheVersion = mCacheVersion;
     try
     {
         auto wptr = weakHandle();
-        unsigned int cacheVersion = mCacheVersion;
 
         // deleted message
         if (message->empty())
@@ -838,12 +833,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             .then([this, wptr, cacheVersion](Message* message) ->promise::Promise<Message*>
             {
                 wptr.throwIfDeleted();
-
-                if (!message)
-                {
-                    return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
-                }
-
                 return message;
             });
         }
@@ -887,11 +876,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         {
             wptr.throwIfDeleted();
 
-            if (cacheVersion != mCacheVersion)
-            {
-                return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
-            }
-
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
@@ -910,7 +894,14 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     }
     catch(std::runtime_error& e)
     {
-        return promise::Error(e.what());
+        if (cacheVersion != mCacheVersion)
+        {
+            return promise::Error(e.what(), EINVAL, SVCRYPTO_ENOMSG);
+        }
+        else
+        {
+            return promise::Error(e.what());
+        }
     }
 }
 
@@ -1209,8 +1200,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
         if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
         {
-            chatd::Message* message = NULL;
-            return message;
+            throw std::runtime_error("decryptChatTitle: history was reloaded, ignore message");
         }
 
         symmetricDecrypt(*key, *msg);
