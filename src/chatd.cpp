@@ -2596,7 +2596,7 @@ Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
 }
 /* We have 3 stages:
  - add to history buffer, allocating an index
- - decrypt - may not happen asynchronous if crypto needs to fetch stuff from network.
+ - decrypt - may happen asynchronous if crypto needs to fetch stuff from network.
  Also the message may be undecryptable - in this case continue as normal, but message's
  isEncrypted() flag will be set to true, so GUI can decide how to show it
  - add message to history db (including its isEncrypted() state(), handle received
