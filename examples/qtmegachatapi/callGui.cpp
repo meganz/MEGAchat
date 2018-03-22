@@ -9,7 +9,7 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-CallGui::CallGui(ChatWindow *parent)
+CallGui::CallGui(ChatWindow *parent, bool video)
     : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
 {
     ui->setupUi(this);
@@ -25,20 +25,29 @@ CallGui::CallGui(ChatWindow *parent)
     ui->mFullScreenChk->hide();
     ui->localRenderer->enableStaticImage();
     ui->remoteRenderer->enableStaticImage();
+
+    mVideo = video;
+    if (!mVideo)
+    {
+        ui->mMuteCamChk->setChecked(true);
+    }
     mCall = NULL;
     remoteCallListener = NULL;
     localCallListener = NULL;
 }
 
-void CallGui::connectCall(bool video)
+void CallGui::connectCall()
 {
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
     ui->mAnswBtn->hide();
-    if(!video)
+
+    if(!mVideo)
     {
-        ui->mMuteCamChk->setChecked(true);
+        mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
+        setAvatarOnLocal();
+        ui->localRenderer->enableStaticImage();
     }
 }
 

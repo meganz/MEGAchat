@@ -23,6 +23,7 @@ class CallGui: public QWidget
         megachat::MegaChatCall *mCall;
         RemoteCallListener *remoteCallListener;
         LocalCallListener *localCallListener;
+        bool mVideo;
         void setAvatarOnRemote();
         void setAvatarOnLocal();
         void drawAvatar(QImage &image, QChar letter, uint64_t userid);
@@ -36,10 +37,10 @@ class CallGui: public QWidget
         void onAnswerCallBtn(bool);
     public:
         Ui::CallGui *ui;
-        CallGui(ChatWindow *parent);
+        CallGui(ChatWindow *parent, bool video);
         virtual ~ CallGui();
         void hangCall();
-        void connectCall(bool video);
+        void connectCall();
         virtual void onLocalStreamObtained(rtcModule::IVideoRenderer *&renderer);
         virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererRet);
         virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string &msg);

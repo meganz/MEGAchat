@@ -587,10 +587,10 @@ void ChatWindow::onMsgListRequestHistory()
         onCallBtn(false);
     }
 
-    void ChatWindow::createCallGui()
+    void ChatWindow::createCallGui(bool video)
     {
         auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
-        mCallGui = new CallGui(this);
+        mCallGui = new CallGui(this, video);
         layout->insertWidget(1, mCallGui, 1);
         ui->mTitlebar->hide();
         ui->mTextChatWidget->hide();
@@ -613,13 +613,13 @@ void ChatWindow::onMsgListRequestHistory()
             QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
             return;
         }
-        createCallGui();
+        createCallGui(video);
         mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
     }
 
-    void ChatWindow::connectCall(bool video)
+    void ChatWindow::connectCall()
     {
-        mCallGui->connectCall(video);
+        mCallGui->connectCall();
     }
 
     void ChatWindow::hangCall()

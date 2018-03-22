@@ -102,7 +102,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
    if((call->getStatus() == megachat::MegaChatCall::CALL_STATUS_RING_IN)
            && (chatItemWidget->mChatWindow->mCallGui)==NULL)
    {
-       chatItemWidget->mChatWindow->createCallGui();
+       bool video = call->hasRemoteVideo();
+       chatItemWidget->mChatWindow->createCallGui(call->hasRemoteVideo());
    }
    delete call;
 }
