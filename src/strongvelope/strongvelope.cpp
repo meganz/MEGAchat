@@ -814,8 +814,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     unsigned int cacheVersion = mCacheVersion;
     try
     {
-        auto wptr = weakHandle();
-
         // deleted message
         if (message->empty())
         {
@@ -827,15 +825,8 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
         message->type = parsedMsg->type;
 
-        if (message->userid == API_USER)    // management message
-        {
-            return handleManagementMessage(parsedMsg, message)
-            .then([this, wptr, cacheVersion](Message* message) ->promise::Promise<Message*>
-            {
-                wptr.throwIfDeleted();
-                return message;
-            });
-        }
+        if (message->userid == API_USER)
+            return handleManagementMessage(parsedMsg, message);
 
         // Get keyid
         uint64_t keyid;
@@ -856,6 +847,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             EcKey edKey;
         };
         auto ctx = std::make_shared<Context>();
+
         auto symPms = getKey(UserKeyId(message->userid, keyid), isLegacy)
         .then([ctx](const std::shared_ptr<SendKey>& key)
         {
@@ -871,6 +863,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         });
 
         // Verify signature and decrypt
+        auto wptr = weakHandle();
         return promise::when(symPms, edPms)
         .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
