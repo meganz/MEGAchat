@@ -9,12 +9,15 @@
 #include "QTMegaChatListener.h"
 #include "QTMegaChatRequestListener.h"
 #include "QTMegaChatRoomListener.h"
+#include "QTMegaChatNotificationListener.h"
+
 #define MAX_RETRIES 5
 class MegaLoggerApplication;
 
 class MegaChatApplication : public QApplication,
     public mega::MegaListener,
-    public megachat::MegaChatRequestListener
+    public megachat::MegaChatRequestListener,
+    public megachat::MegaChatNotificationListener
 {
     Q_OBJECT
     public:
@@ -31,6 +34,7 @@ class MegaChatApplication : public QApplication,
         virtual void onRequestFinish(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
         virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
         virtual void onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList);
+        virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
     protected:
         char* mSid;
@@ -42,6 +46,7 @@ class MegaChatApplication : public QApplication,
         megachat::MegaChatApi *megaChatApi;
         mega::QTMegaListener *megaListenerDelegate;
         megachat::QTMegaChatRequestListener *megaChatRequestListenerDelegate;
+        megachat::QTMegaChatNotificationListener *megaChatNotificationListenerDelegate;
 
     public slots:
         void onLoginClicked();

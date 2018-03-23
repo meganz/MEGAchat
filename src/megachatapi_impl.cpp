@@ -1465,6 +1465,16 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
     }
 }
 
+void MegaChatApiImpl::fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg)
+{
+    for(set<MegaChatNotificationListener *>::iterator it = notificationListeners.begin(); it != notificationListeners.end() ; it++)
+    {
+        (*it)->onChatNotification(chatApi, chatid, msg);
+    }
+
+    delete msg;
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -2814,6 +2824,18 @@ void MegaChatApiImpl::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomLis
     sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    notificationListeners.insert(listener);
+    sdkMutex.unlock();
+}
+
 void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     if (!listener)
@@ -2902,6 +2924,18 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoom
     sdkMutex.lock();
     MegaChatRoomHandler *roomHandler = getChatRoomHandler(chatid);
     roomHandler->removeChatRoomListener(listener);
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    notificationListeners.erase(listener);
     sdkMutex.unlock();
 }
 
@@ -3016,6 +3050,12 @@ void MegaChatApiImpl::onInitStateChange(int newState)
     {
         fireOnChatInitStateUpdate(state);
     }
+}
+
+void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
+{
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    fireOnChatNotification(chatid, message);
 }
 
 int MegaChatApiImpl::convertInitState(int state)
@@ -4079,6 +4119,15 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
         }
         delete msgToUpdate;
     }
+
+    // check if notification is required
+    if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+    {
+
+        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+        chatApiImpl->fireOnChatNotification(chatid, message);
+    }
 }
 
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
@@ -4146,11 +4195,17 @@ void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t reason)
     fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status newStatus, const Message &msg)
+void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status, const Message &msg)
 {
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, newStatus, idx);
-    message->setStatus(newStatus);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    message->setStatus(status);
     fireOnMessageUpdate(message);
+
+    if (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    {
+        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+        chatApiImpl->fireOnChatNotification(chatid, message);
+    }
 }
 
 void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
@@ -4159,6 +4214,15 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setContentChanged();
     fireOnMessageUpdate(message);
+
+    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
+    // and, if so, remove the block from `onRecvNewMessage()`
+    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    {
+        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+        chatApiImpl->fireOnChatNotification(chatid, message);
+    }
 }
 
 void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason reason)

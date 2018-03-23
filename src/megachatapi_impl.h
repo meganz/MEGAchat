@@ -763,6 +763,7 @@ private:
     EventQueue eventQueue;
 
     std::set<MegaChatListener *> listeners;
+    std::set<MegaChatNotificationListener *> notificationListeners;
     std::set<MegaChatRequestListener *> requestListeners;
 
     std::set<MegaChatPeerListItemHandler *> chatPeerListItemHandler;
@@ -823,9 +824,11 @@ public:
     void addChatRequestListener(MegaChatRequestListener *listener);
     void addChatListener(MegaChatListener *listener);
     void addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
+    void addChatNotificationListener(MegaChatNotificationListener *listener);
     void removeChatRequestListener(MegaChatRequestListener *listener);
     void removeChatListener(MegaChatListener *listener);
     void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
+    void removeChatNotificationListener(MegaChatNotificationListener *listener);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
     void addChatLocalVideoListener(MegaChatVideoListener *listener);
@@ -856,6 +859,9 @@ public:
     void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
     void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
+
+    // MegaChatNotificationListener callbacks
+    void fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg);
 
     // ============= API requests ================
 
@@ -974,6 +980,7 @@ public:
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
     virtual void onInitStateChange(int newState);
+    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);
