@@ -47,9 +47,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     megaChatApi->addChatNotificationListener(megaChatNotificationListenerDelegate);
 
     // Start GUI
-    mMainWin = new MainWindow(0, mLogger);
-    mMainWin->setMegaChatApi(megaChatApi);
-    mMainWin->setMegaApi(mMegaApi);
+    mMainWin = new MainWindow(0, mLogger, megaChatApi, mMegaApi);
 }
 
 MegaChatApplication::~MegaChatApplication()

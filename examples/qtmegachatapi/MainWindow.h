@@ -49,10 +49,8 @@ class MainWindow :
 {
     Q_OBJECT
     public:
-        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL);
+        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, mega::MegaApi *megaApi = NULL);
         virtual ~MainWindow();
-        void setMegaChatApi(megachat::MegaChatApi *megaChatApi);
-        void setMegaApi(mega::MegaApi *megaApi);
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
         void addChatListener();

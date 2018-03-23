@@ -11,7 +11,7 @@
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -20,14 +20,16 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     inactiveChats = 0;
     ui->setupUi(this);
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
-    mMegaChatApi = NULL;
-    mMegaApi = NULL;
+    mMegaChatApi = megaChatApi;
+    mMegaApi = megaApi;
     megaChatCallListenerDelegate = NULL;
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     allItemsVisibility = false;
     mLogger = logger;
     qApp->installEventFilter(this);
+    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 }
 
 MainWindow::~MainWindow()
@@ -123,21 +125,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            }
            break;
    }
-}
-
-void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
-{
-    mMegaChatApi = megaChatApi;
-    if(!megaChatCallListenerDelegate)
-    {
-        megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
-        mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
-    }
-}
-
-void MainWindow::setMegaApi(MegaApi *megaApi)
-{
-    this->mMegaApi = megaApi;
 }
 
 void MainWindow::clearContactChatList()
