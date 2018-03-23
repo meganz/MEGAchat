@@ -5240,6 +5240,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             megaChatUsers = JSonUtils::parseAttachContactJSon(msg.toText().c_str());
             break;
         }
+        case MegaChatMessage::TYPE_CONTAINS_META:
+        {
+            std::string linkName = JSonUtils::parseContainsMeta(msg.toText().c_str());
+            this->msg = linkName.size() ? MegaApi::strdup(linkName.c_str()) : NULL;
+            // TODO remove when applications can manage MegaChatMessage::TYPE_CONTAINS_META
+            this->type = MegaChatMessage::TYPE_NORMAL;
+        }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
@@ -6298,5 +6305,41 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     }
 
     return messageContents;
+}
+
+string JSonUtils::parseContainsMeta(const char *json)
+{
+    switch (json[0])
+    {
+    case MegaChatMessagePrivate::META_CONTAINS_RICH_PREVIEW:
+        return parseRichPreview(&json[1]);
+        break;
+    default:
+        break;
+    }
+}
+
+string JSonUtils::parseRichPreview(const char *json)
+{
+    if (!json  || strcmp(json, "") == 0)
+    {
+        return std::string();
+    }
+
+    rapidjson::StringStream stringStream(json);
+
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
+    if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
+    {
+        API_LOG_ERROR("Invalid JSon struct");
+        return std::string();
+    }
+
+    std::string textMessage = iteratorTestMessage->value.GetString();
+
+    return textMessage;
 }
 
