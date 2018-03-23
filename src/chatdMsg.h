@@ -348,7 +348,8 @@ public:
         kMsgUserFirst         = 0x10,
         kMsgAttachment        = 0x10,
         kMsgRevokeAttachment  = 0x11,
-        kMsgContact           = 0x12
+        kMsgContact           = 0x12,
+        kMsgContainsMeta      = 0x13
 
     };
     enum Status

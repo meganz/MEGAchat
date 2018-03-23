@@ -1041,7 +1041,8 @@ public:
     // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-
+    static std::string parseContainsMeta(const char* json);
+    static std::string parseRichPreview(const char* json);
 };
 
 }
