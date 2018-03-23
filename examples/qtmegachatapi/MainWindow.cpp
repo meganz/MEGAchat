@@ -55,14 +55,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
        return;
    }
 
-   if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_TERMINATING)
-   {
-       ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
-       chatItemWidget->mChatWindow->hangCall();
-       delete call;
-       return;
-   }
-
    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
    if(itWidgets == chatWidgets.end())
    {
@@ -84,26 +76,48 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
         chatItemWidget->mChatWindow->setWindowState(Qt::WindowActive);
    }
 
-   if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS)
-           &&(call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS))
-   {
-        if(call->hasRemoteVideo())
-        {
-            chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->disableStaticImage();
 
-        }
-        else
-        {
-            chatItemWidget->mChatWindow->mCallGui->setAvatarOnRemote();
-            chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->enableStaticImage();
-        }
-   }
-
-   if((call->getStatus() == megachat::MegaChatCall::CALL_STATUS_RING_IN)
-           && (chatItemWidget->mChatWindow->mCallGui)==NULL)
+   switch(call->getStatus())
    {
-       bool video = call->hasRemoteVideo();
-       chatItemWidget->mChatWindow->createCallGui(call->hasRemoteVideo());
+       case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
+           {
+               ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
+               chatItemWidget->mChatWindow->hangCall();
+               delete call;
+               return;
+           }
+           break;
+       case megachat::MegaChatCall::CALL_STATUS_RING_IN:
+           {
+              if(chatItemWidget->mChatWindow->mCallGui==NULL)
+              {
+                 bool video = call->hasRemoteVideo();
+                 chatItemWidget->mChatWindow->createCallGui(call->hasRemoteVideo());
+              }
+           }
+           break;
+       case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+           {
+               if (chatItemWidget->mChatWindow->mCallGui && !(chatItemWidget->mChatWindow->mCallGui->mCall))
+               {
+                   chatItemWidget->mChatWindow->connectCall();
+               }
+
+               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
+               {
+                    if(call->hasRemoteVideo())
+                    {
+                        chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->disableStaticImage();
+
+                    }
+                    else
+                    {
+                        chatItemWidget->mChatWindow->mCallGui->setAvatarOnRemote();
+                        chatItemWidget->mChatWindow->mCallGui->ui->remoteRenderer->enableStaticImage();
+                    }
+               }
+           }
+           break;
    }
    delete call;
 }
