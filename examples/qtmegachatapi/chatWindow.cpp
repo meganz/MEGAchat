@@ -282,6 +282,16 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
     return megachat::MEGACHAT_INVALID_HANDLE;
 }
 
+CallGui *ChatWindow::getCallGui() const
+{
+    return mCallGui;
+}
+
+void ChatWindow::setCallGui(CallGui *callGui)
+{
+    mCallGui = callGui;
+}
+
 void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
 {
     addMsgWidget(msg->copy(), loadedMessages);

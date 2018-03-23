@@ -51,6 +51,8 @@ class CallGui: public QWidget
     friend class RemoteCallListener;
     friend class LocalCallListener;
     friend class MainWindow;
+    megachat::MegaChatCall *getCall() const;
+    void setCall(megachat::MegaChatCall *call);
 };
 
 #endif // MAINWINDOW_H

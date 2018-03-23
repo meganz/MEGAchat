@@ -51,6 +51,8 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+        CallGui *getCallGui() const;
+        void setCallGui(CallGui *callGui);
 
     protected:
         Ui::ChatWindowUi *ui;

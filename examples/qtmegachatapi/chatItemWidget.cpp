@@ -187,6 +187,16 @@ void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
     showChatWindow();
 }
 
+ChatWindow *ChatItemWidget::getChatWindow() const
+{
+    return mChatWindow;
+}
+
+void ChatItemWidget::setChatWindow(ChatWindow *chatWindow)
+{
+    mChatWindow = chatWindow;
+}
+
 QListWidgetItem *ChatItemWidget::getWidgetItem() const
 {
     return mListWidgetItem;

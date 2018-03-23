@@ -195,6 +195,16 @@ void CallGui::onVideoRecv()
     ui->remoteRenderer->disableStaticImage();
 }
 
+megachat::MegaChatCall *CallGui::getCall() const
+{
+    return mCall;
+}
+
+void CallGui::setCall(megachat::MegaChatCall *call)
+{
+    mCall = call;
+}
+
 void CallGui::setAvatarOnRemote()
 {
     auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);

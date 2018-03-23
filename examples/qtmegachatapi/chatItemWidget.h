@@ -31,6 +31,8 @@ class ChatItemWidget : public QWidget
         virtual void updateToolTip(const megachat::MegaChatListItem *item);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
+        ChatWindow *getChatWindow() const;
+        void setChatWindow(ChatWindow *chatWindow);
 
     protected:
         Ui::ChatItem *ui;
