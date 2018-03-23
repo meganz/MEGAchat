@@ -185,6 +185,12 @@ void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const ch
  */
 void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t len)
 {
+    if (!msg)
+    {
+        assert(false);
+        return;
+    }
+
     LockGuard lock(mMutex);
     if (len == (size_t)-1)
         len = strlen(msg);

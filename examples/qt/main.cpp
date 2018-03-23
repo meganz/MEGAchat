@@ -80,7 +80,7 @@ void createWindowAndClient()
     gSdk.reset(new ::mega::MegaApi("karere-native", gAppDir.c_str(), "Karere Native"));
 
     // Websockets network layer based on libws
-    gWebsocketsIO.reset(new LibwsIO());
+    gWebsocketsIO.reset(new LibwsIO(NULL, NULL, gSdk.get()));
     gClient.reset(new karere::Client(*gSdk, gWebsocketsIO.get(), *mainWin, gAppDir, 0));
     mainWin->setClient(*gClient);
     QObject::connect(mainWin, SIGNAL(esidLogout()), &appDelegate, SLOT(onEsidLogout()));

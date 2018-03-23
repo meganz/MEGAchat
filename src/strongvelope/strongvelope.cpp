@@ -463,6 +463,11 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     }
 }
 
+unsigned int ProtocolHandler::getCacheVersion() const
+{
+    return mCacheVersion;
+}
+
 void ProtocolHandler::loadKeysFromDb()
 {
 //    int oldest = time(NULL)-CHATD_MAX_EDIT_AGE-600;
@@ -748,7 +753,7 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
             karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
 
         auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-        return parsedMsg->decryptChatTitle(msg.get())
+        return parsedMsg->decryptChatTitle(msg.get(), false)
         // warning: parsedMsg must be kept alive when .then() is executed, so we
         // capture the shared pointer to it. Msg also must be kept alive, as
         // the promise returns it
@@ -761,6 +766,11 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
     {
         return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
     }
+}
+
+void ProtocolHandler::onHistoryReload()
+{
+    mCacheVersion++;
 }
 
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
@@ -785,7 +795,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case Message::kMsgChatTitle:
         {
-            return parsedMsg->decryptChatTitle(msg);
+            return parsedMsg->decryptChatTitle(msg, true);
         }
         default:
             return promise::Error("Unknown management message type "+
@@ -801,20 +811,26 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 //is decrypted.
 Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 {
+    unsigned int cacheVersion = mCacheVersion;
     try
     {
+        // deleted message
         if (message->empty())
         {
             message->setEncrypted(0);
             return Promise<Message*>(message);
         }
+
+        // Get type
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
-        bool isLegacy = parsedMsg->protocolVersion <= 1;
         message->type = parsedMsg->type;
+
         if (message->userid == API_USER)
             return handleManagementMessage(parsedMsg, message);
 
+        // Get keyid
         uint64_t keyid;
+        bool isLegacy = (parsedMsg->protocolVersion <= 1);
         if (isLegacy)
         {
             keyid = parsedMsg->keyId;
@@ -824,7 +840,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             keyid = message->keyid;
         }
 
-        // Get sender key.
+        // Get sender key
         struct Context
         {
             std::shared_ptr<SendKey> sendKey;
@@ -833,11 +849,12 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto ctx = std::make_shared<Context>();
 
         auto symPms = getKey(UserKeyId(message->userid, keyid), isLegacy)
-                .then([ctx](const std::shared_ptr<SendKey>& key)
+        .then([ctx](const std::shared_ptr<SendKey>& key)
         {
             ctx->sendKey = key;
         });
 
+        // Get signing key
         auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,
             ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
         .then([ctx](Buffer* key)
@@ -845,15 +862,22 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             ctx->edKey.assign(key->buf(), key->dataSize());
         });
 
+        // Verify signature and decrypt
         auto wptr = weakHandle();
         return promise::when(symPms, edPms)
-        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid]() ->promise::Promise<Message*>
+        .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
             wptr.throwIfDeleted();
+
+            if (cacheVersion != mCacheVersion)
+            {
+                return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+            }
+
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
-                    message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+                                      message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
             }
 
             if (isLegacy)
@@ -1030,6 +1054,14 @@ void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
     addDecryptedKey(userKeyId, mCurrentKey);
 }
 
+void ProtocolHandler::onKeyRejected()
+{
+    if (!mCurrentKey || (mCurrentKeyId != CHATD_KEYID_UNCONFIRMED))
+        throw std::runtime_error("strongvelope: onKeyRejected: Current send key is already confirmed");
+
+    resetSendKey();
+}
+
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::updateSenderKey()
 {
@@ -1125,7 +1157,7 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 }
 
 promise::Promise<chatd::Message*>
-ParsedMessage::decryptChatTitle(chatd::Message* msg)
+ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
     msg->userid = sender;
     const char* pos = encryptedKey.buf();
@@ -1151,10 +1183,17 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg)
     auto buf = std::make_shared<Buffer>(16);
     buf->assign(pos, 16);
     auto wptr = weakHandle();
+    unsigned int cacheVersion = mProtoHandler.getCacheVersion();
     return mProtoHandler.decryptKey(buf, sender, receiver)
-    .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
+    .then([this, wptr, msg, cacheVersion, msgCanBeDeleted](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
+
+        if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
+        {
+            throw promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
+        }
+
         symmetricDecrypt(*key, *msg);
         msg->setEncrypted(0);
         return msg;

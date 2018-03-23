@@ -36,9 +36,10 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
-        void onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
-        void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
-        void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
+        void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
+        void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
+        void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void truncateChatUI();

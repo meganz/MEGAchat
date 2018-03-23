@@ -93,7 +93,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->mClient = NULL;
     this->terminating = false;
     this->waiter = new MegaChatWaiter();
-    this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, this);
+    this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, megaApi, this);
 
     //Start blocking thread
     threadExit = 0;
@@ -245,9 +245,18 @@ void MegaChatApiImpl::sendPendingRequests()
             ChatRoom *chatroom = findChatRoom(chatid);
             if (chatroom)
             {
-                chatroom->sendTypingNotification();
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                if (request->getFlag())
+                {
+                    chatroom->sendTypingNotification();
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
+                else
+                {
+                    chatroom->sendStopTypingNotification();
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
             }
             else
             {
@@ -2455,6 +2464,16 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3884,6 +3903,14 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onUserStopTyping(karere::Id user)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    chat->setUserStopTyping(user.val);
+
+    fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 {
     if (mRoom)
@@ -4646,6 +4673,12 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
     this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
 }
 
+void MegaChatRoomPrivate::setUserStopTyping(MegaChatHandle uh)
+{
+    this->uh = uh;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING;
+}
+
 void MegaChatRoomPrivate::setClosed()
 {
     this->changed |= MegaChatRoom::CHANGE_TYPE_CLOSED;
@@ -5142,6 +5175,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         {
             megaChatUsers = JSonUtils::parseAttachContactJSon(msg.toText().c_str());
             break;
+        }
+        case MegaChatMessage::TYPE_CONTAINS_META:
+        {
+            std::string linkName = JSonUtils::parseContainsMeta(msg.toText().c_str());
+            this->msg = linkName.size() ? MegaApi::strdup(linkName.c_str()) : NULL;
+            // TODO remove when applications can manage MegaChatMessage::TYPE_CONTAINS_META
+            this->type = MegaChatMessage::TYPE_NORMAL;
         }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
@@ -6201,5 +6241,41 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     }
 
     return messageContents;
+}
+
+string JSonUtils::parseContainsMeta(const char *json)
+{
+    switch (json[0])
+    {
+    case MegaChatMessagePrivate::META_CONTAINS_RICH_PREVIEW:
+        return parseRichPreview(&json[1]);
+        break;
+    default:
+        break;
+    }
+}
+
+string JSonUtils::parseRichPreview(const char *json)
+{
+    if (!json  || strcmp(json, "") == 0)
+    {
+        return std::string();
+    }
+
+    rapidjson::StringStream stringStream(json);
+
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
+    if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
+    {
+        API_LOG_ERROR("Invalid JSon struct");
+        return std::string();
+    }
+
+    std::string textMessage = iteratorTestMessage->value.GetString();
+
+    return textMessage;
 }
 

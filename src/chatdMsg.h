@@ -348,7 +348,8 @@ public:
         kMsgUserFirst         = 0x10,
         kMsgAttachment        = 0x10,
         kMsgRevokeAttachment  = 0x11,
-        kMsgContact           = 0x12
+        kMsgContact           = 0x12,
+        kMsgContainsMeta      = 0x13
 
     };
     enum Status
@@ -507,7 +508,7 @@ protected:
     : Buffer(reserve, payloadSize+1) { write(0, opcode); }
     Command(const char* data, size_t size): Buffer(data, size){}
 public:
-    enum { kBroadcastUserTyping = 1 };
+    enum { kBroadcastUserTyping = 1,  kBroadcastUserStopTyping = 2};
     Command(): Buffer(){}
     Command(Command&& other)
     : Buffer(std::forward<Buffer>(other))

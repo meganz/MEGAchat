@@ -411,7 +411,6 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
             auto pscsn = event->getText();
             if (!pscsn)
             {
-                KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
                 return;
             }
             std::string scsn = pscsn;
@@ -423,6 +422,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
                     return;
                 }
 
+                KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
                 commit(scsn);
             }, appCtx);
         }

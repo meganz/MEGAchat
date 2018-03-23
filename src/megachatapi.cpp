@@ -508,6 +508,11 @@ void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestL
     pImpl->sendTypingNotification(chatid, listener);
 }
 
+void MegaChatApi::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->sendStopTypingNotification(chatid, listener);
+}
+
 bool MegaChatApi::isMessageReceptionConfirmationActive() const
 {
     return pImpl->isMessageReceptionConfirmationActive();
