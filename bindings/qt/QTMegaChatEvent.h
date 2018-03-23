@@ -25,6 +25,7 @@ public:
         OnMessageLoaded,
         OnMessageReceived,
         OnMessageUpdate,
+        OnHistoryReloaded,
         OnChatNotification
     };
 

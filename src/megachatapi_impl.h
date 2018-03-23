@@ -397,6 +397,7 @@ public:
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
     virtual void onUserTyping(karere::Id user);
+    virtual void onUserStopTyping(karere::Id user);
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
@@ -589,6 +590,7 @@ public:
     void setUnreadCount(int count);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);
+    void setUserStopTyping(MegaChatHandle uh);
     void setClosed();
 
 private:
@@ -934,6 +936,7 @@ public:
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
 

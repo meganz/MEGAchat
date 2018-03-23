@@ -2421,6 +2421,9 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+     * that it isn't typing
+     *
      * You take the ownership of the returned value.
      *
      * @note Any tailing carriage return and/or line feed ('\r' and '\n') will be removed.
@@ -2618,6 +2621,9 @@ public:
      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
      * reach the status delivered, since the target user will not send the required acknowledge to the
      * server upon reception.
+     *
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+     * that it isn't typing
      * 
      * You take the ownership of the returned value.
      *
@@ -2699,6 +2705,24 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns whether reception of messages is acknowledged
@@ -3268,13 +3292,14 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
-        CHANGE_TYPE_UNREAD_COUNT    = 0x02,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
-        CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_USER_TYPING     = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_OWN_PRIV        = 0x40  /// Our privilege level has changed
+        CHANGE_TYPE_STATUS              = 0x01, /// obsolete
+        CHANGE_TYPE_UNREAD_COUNT        = 0x02,
+        CHANGE_TYPE_PARTICIPANTS        = 0x04, /// joins/leaves/privileges/names
+        CHANGE_TYPE_TITLE               = 0x08,
+        CHANGE_TYPE_USER_TYPING         = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
+        CHANGE_TYPE_OWN_PRIV            = 0x40,  /// Our privilege level has changed
+        CHANGE_TYPE_USER_STOP_TYPING    = 0x80 /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
     };
 
     enum {
@@ -3468,10 +3493,10 @@ public:
     virtual int getUnreadCount() const;
 
     /**
-     * @brief Returns the handle of the user who is typing a message in the chatroom
+     * @brief Returns the handle of the user who is typing or has stopped typing a message in the chatroom
      *
-     * Normally the app should have a timer that is reset each time a typing
-     * notification is received. When the timer expires, it should hide the notification GUI.
+     * The app should have a timer that is reset each time a typing
+     * notification is received. When the timer expires, it should hide the notification
      *
      * @return The user that is typing
      */

@@ -507,7 +507,7 @@ protected:
     : Buffer(reserve, payloadSize+1) { write(0, opcode); }
     Command(const char* data, size_t size): Buffer(data, size){}
 public:
-    enum { kBroadcastUserTyping = 1 };
+    enum { kBroadcastUserTyping = 1,  kBroadcastUserStopTyping = 2};
     Command(): Buffer(){}
     Command(Command&& other)
     : Buffer(std::forward<Buffer>(other))

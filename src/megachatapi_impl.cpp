@@ -245,9 +245,18 @@ void MegaChatApiImpl::sendPendingRequests()
             ChatRoom *chatroom = findChatRoom(chatid);
             if (chatroom)
             {
-                chatroom->sendTypingNotification();
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                if (request->getFlag())
+                {
+                    chatroom->sendTypingNotification();
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
+                else
+                {
+                    chatroom->sendStopTypingNotification();
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
             }
             else
             {
@@ -2465,6 +2474,16 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3924,6 +3943,14 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onUserStopTyping(karere::Id user)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    chat->setUserStopTyping(user.val);
+
+    fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 {
     if (mRoom)
@@ -4708,6 +4735,12 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
 {
     this->uh = uh;
     this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
+}
+
+void MegaChatRoomPrivate::setUserStopTyping(MegaChatHandle uh)
+{
+    this->uh = uh;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING;
 }
 
 void MegaChatRoomPrivate::setClosed()

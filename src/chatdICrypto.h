@@ -9,7 +9,8 @@ namespace chatd
 enum
 {
     SVCRYPTO_ERRTYPE = 0x3e9ac910, //< all promise errors originating from strongvelope should have this type
-    SVCRYPTO_ENOKEY = 1 //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
+    SVCRYPTO_ENOKEY = 1, //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
+    SVCRYPTO_ENOMSG = 2 //< Can't decrypt because message has been deleted during decryption process
 };
 
 class Chat;
@@ -132,6 +133,8 @@ public:
 
     virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
+
+    virtual void onHistoryReload() = 0;
 
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
