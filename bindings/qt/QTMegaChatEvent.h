@@ -25,10 +25,10 @@ public:
         OnMessageLoaded,
         OnMessageReceived,
         OnMessageUpdate,
+        OnHistoryReloaded,
+        OnChatNotification,
         OnChatVideoData,
-        OnChatCallUpdate,
-        OnHistoryReloaded,       
-        OnChatNotification
+        OnChatCallUpdate
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);

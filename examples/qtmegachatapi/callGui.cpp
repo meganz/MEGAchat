@@ -75,6 +75,7 @@ void CallGui::drawPeerAvatar(QImage &image)
         : QChar(title[0]);
 
     drawAvatar(image, letter, peerHandle);
+    delete [] title;
 }
 
 void CallGui::drawOwnAvatar(QImage &image)
@@ -82,6 +83,7 @@ void CallGui::drawOwnAvatar(QImage &image)
     const char *myName = mChatWindow->mMegaChatApi->getMyFirstname();
     QChar letter = std::strlen(myName) == 0 ? QChar('?'): QString::fromStdString(myName)[0];
     drawAvatar(image, letter, mChatWindow->mMegaChatApi->getMyUserHandle());
+    delete [] myName;
 }
 
 void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
@@ -117,7 +119,6 @@ void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
                      Qt::AlignHCenter|Qt::AlignVCenter, letter);
 }
 
-
 void CallGui::onHangCall(bool)
 {
      mChatWindow->mMegaChatApi->hangChatCall(mChatWindow->mChatRoom->getChatId());
@@ -137,6 +138,10 @@ CallGui:: ~ CallGui()
     if (localCallListener)
     {
         delete localCallListener;
+    }
+    if (mCall)
+    {
+        delete mCall;
     }
     delete ui;
 }
@@ -228,8 +233,6 @@ void CallGui::onChatBtn(bool)
         txtChat.show();
 }
 
-
-
 void CallGui::onLocalStreamObtained(rtcModule::IVideoRenderer *& renderer)
 {
     renderer = ui->localRenderer;
@@ -239,7 +242,6 @@ void CallGui::onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererRet)
 {
     rendererRet = ui->remoteRenderer;
 }
-
 
 void CallGui::onLocalMediaError(const std::string err)
 {

@@ -22,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
     mMegaChatApi = NULL;
     mMegaApi = NULL;
+    megaChatCallListenerDelegate = NULL;
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     allItemsVisibility = false;
@@ -59,7 +60,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
    }
 
    ChatItemWidget * chatItemWidget = itWidgets->second;
-   const char *chatWindowTitle = mMegaChatApi->getChatListItem(call->getChatid())->getTitle();
+   MegaChatListItem *auxItem = mMegaChatApi->getChatListItem(call->getChatid());
+   const char *chatWindowTitle = auxItem->getTitle();
+   delete auxItem;
    ChatWindow *auxChatWindow = NULL;
 
    if (!chatItemWidget->getChatWindow())
@@ -69,6 +72,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
         chatItemWidget->setChatWindow(auxChatWindow);
         auxChatWindow->show();
         auxChatWindow->openChatRoom();
+        delete chatRoom;
    }
    else
    {
@@ -76,7 +80,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
         auxChatWindow->show();
         auxChatWindow->setWindowState(Qt::WindowActive);
    }
-
 
    switch(call->getStatus())
    {
@@ -92,7 +95,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
               if(auxChatWindow->getCallGui()==NULL)
               {
-                 bool video = call->hasRemoteVideo();
                  auxChatWindow->createCallGui(call->hasRemoteVideo());
               }
            }
@@ -125,9 +127,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
 {
-    this->mMegaChatApi = megaChatApi;
-    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
-    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+    mMegaChatApi = megaChatApi;
+    if(!megaChatCallListenerDelegate)
+    {
+        megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+        mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+    }
 }
 
 void MainWindow::setMegaApi(MegaApi *megaApi)
@@ -241,14 +246,12 @@ void MainWindow::on_bSettings_clicked()
     this->mMegaChatApi->loadAudioVideoDeviceList();
 }
 
-
 void MainWindow::createSettingsMenu()
 {
     ChatSettings *chatSettings = new ChatSettings(this);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
-
 
 void MainWindow::on_bOnlineStatus_clicked()
 {
