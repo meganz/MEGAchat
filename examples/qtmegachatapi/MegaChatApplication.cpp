@@ -54,11 +54,15 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
 MegaChatApplication::~MegaChatApplication()
 {
-    delete megaListenerDelegate;
+    mMegaApi->removeListener(megaListenerDelegate);
+    megaChatApi->removeChatRequestListener(megaChatRequestListenerDelegate);
+    megaChatApi->removeChatNotificationListener(megaChatNotificationListenerDelegate);
+    delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
+    delete megaListenerDelegate;
+    delete mMainWin;
     delete megaChatApi;
     delete mMegaApi;
-    delete mMainWin;
     delete mLogger;
     delete [] mSid;
 }

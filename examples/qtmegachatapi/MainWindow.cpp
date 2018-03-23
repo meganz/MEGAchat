@@ -31,16 +31,13 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
 
 MainWindow::~MainWindow()
 {
-    if (megaChatListenerDelegate)
-    {
-        delete megaChatListenerDelegate;
-    }
+    mMegaChatApi->removeChatListener(megaChatListenerDelegate);
     mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+    delete megaChatListenerDelegate;
     delete megaChatCallListenerDelegate;
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
-
 }
 
 mega::MegaUserList * MainWindow::getUserContactList()
@@ -87,7 +84,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            {
                ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
                chatItemWidget->getChatWindow()->hangCall();
-               delete call;
                return;
            }
            break;
@@ -125,7 +121,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            }
            break;
    }
-   delete call;
 }
 
 void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
