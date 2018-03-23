@@ -1531,6 +1531,7 @@ void Chat::clearHistory()
 {
     initChat();
     CALL_DB(clearHistory);
+    mCrypto->onHistoryReload();
     mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
 }
@@ -2462,8 +2463,15 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     })
     .fail([this, cipherMsg](const promise::Error& err)
     {
-        CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
-            ID_CSTR(cipherMsg->id()), err.what());
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+        }
+        else
+        {
+            CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
+                ID_CSTR(cipherMsg->id()), err.what());
+        }
     });
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
@@ -2590,7 +2598,7 @@ Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
 }
 /* We have 3 stages:
  - add to history buffer, allocating an index
- - decrypt - may not happen asynchronous if crypto needs to fetch stuff from network.
+ - decrypt - may happen asynchronous if crypto needs to fetch stuff from network.
  Also the message may be undecryptable - in this case continue as normal, but message's
  isEncrypted() flag will be set to true, so GUI can decide how to show it
  - add message to history db (including its isEncrypted() state(), handle received
@@ -2712,6 +2720,11 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     auto message = &msg;
     pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
     {
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+        }
+
         assert(message->isEncrypted() == 1);
         message->setEncrypted(2);
         if ((err.type() != SVCRYPTO_ERRTYPE) ||
@@ -2786,6 +2799,12 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
             }
         }
+    })
+    .fail([this](const promise::Error& err)
+    {
+        //TODO: If a message could be deleted individually, decryption process should be restarted again
+        // It isn't a possibilty with acutal implementation
+        CHATID_LOG_WARNING("Message can't be decrypted: Fail type (%d) - %s", err.type(), err.what());
     });
 
     return false; //decrypt was not done immediately

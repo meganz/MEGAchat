@@ -1060,6 +1060,7 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
+
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
      * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
