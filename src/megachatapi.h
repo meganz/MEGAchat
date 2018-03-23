@@ -55,6 +55,7 @@ class MegaChatCall;
 class MegaChatCallListener;
 class MegaChatVideoListener;
 class MegaChatListener;
+class MegaChatNotificationListener;
 class MegaChatListItem;
 
 /**
@@ -3041,6 +3042,24 @@ public:
      */
     void removeChatRequestListener(MegaChatRequestListener* listener);
 
+    /**
+     * @brief Register a listener to receive notifications
+     *
+     * You can use MegaChatApi::removeChatRequestListener to stop receiving events.
+     *
+     * @param listener Listener that will receive all events about requests
+     */
+    void addChatNotificationListener(MegaChatNotificationListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatNotificationListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    void removeChatNotificationListener(MegaChatNotificationListener* listener);
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Register a listener to receive all events about calls
@@ -3695,6 +3714,57 @@ public:
      * @param chat MegaChatRoom whose local history is about to be discarded
      */
     virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
+};
+
+/**
+ * @brief Interface to get notifications to show to the user on mobile devices
+ *
+ * Mobile platforms usually provide a framework to push-notifications to mobile devices.
+ * The app needs to register a push-notification token (@see MegaApi::registerPushNotifications in the SDK)
+ * in order to get those notifications (triggered by MEGA servers on certain events).
+ *
+ * This listener provides the required data to prepare platform-specific notifications for
+ * several events, such as new messages received, deletions, truncation of history...
+ *
+ * Multiple inheritance isn't used for compatibility with other programming languages
+ *
+ * The implementation will receive callbacks from an internal worker thread.
+ *
+ */
+class MegaChatNotificationListener
+{
+public:
+    virtual ~MegaChatNotificationListener() {}
+
+    /**
+     * @brief This function is called when there are interesting events for notifications
+     *
+     * The possible events that are notified are the following:
+     *  - Reception of a new message from other user if still unseen.
+     *  - Edition/deletion of received unseen messages.
+     *  - Trucate of history (for both, when truncate is ours or theirs).
+     *  - Changes on the lastest message seen by us (don't notify previous unseen messages).
+     *
+     * @note This notifications cover every chatroom that is not opened. For the opened chatroom,
+     * you will not get these notifications (the user is not interested on getting notifications for
+     * events happening in the chatroom that is currently looking at).
+     * Rembember to close the chatroom if the apps enters in background, since you will get a push
+     * notification but, once the app resumes, you will not get notifications about a chatroom if
+     * it's opened.
+     *
+     * Depending on the status of the message (seen or unseen), if it has been edited/deleted,
+     * or even on the type of the message (truncate), the app should add/update/clear the corresponding
+     * notifications on the mobile device.
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the third parameter.
+     * The MegaChatMessage object will be valid until this function returns. If you
+     * want to save the MegaChatMessage, use MegaChatMessage::copy
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msg MegaChatMessage representing a 1on1 or groupchat in the list.
+     */
+    virtual void onChatNotification(MegaChatApi* api, MegaChatHandle chatid, MegaChatMessage *msg);
 };
 
 }

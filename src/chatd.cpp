@@ -2403,13 +2403,27 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
-        uint8_t prevType;
-        if (msgit != mIdToIndexMap.end())
+        if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            prevType = histmsg.type;
-            histmsg.takeFrom(std::move(*msg));
+
+            if ( (msg->type == Message::kMsgTruncate
+                  && histmsg.type == msg->type
+                  && histmsg.ts == msg->ts)
+                    || (msg->type != Message::kMsgTruncate
+                        && histmsg.updated == msg->updated) )
+            {
+                CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
+                delete msg;
+                return;
+            }
+
+            //update in db
+            CALL_DB(updateMsgInHistory, msg->id(), *msg);
+
+            // update in RAM
+            histmsg.assign(*msg);     // content
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
@@ -2425,7 +2439,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             }
             else
             {
-                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet message");
+                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
             if (msg->userid != client().userId() && // is not our own message
@@ -2434,8 +2448,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CALL_LISTENER(onUnreadChanged);
             }
 
-            //last text msg stuff
-            if ((mLastTextMsg.idx() == idx) && (msg->type != Message::kMsgTruncate))
+            if (msg->type == Message::kMsgTruncate)
+            {
+                handleTruncate(*msg, idx);
+            }
+            else if (mLastTextMsg.idx() == idx) //last text msg stuff
             {
                 //our last text message was edited
                 if (histmsg.isText()) //same message, but with updated contents
@@ -2448,26 +2465,22 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 }
             }
         }
-        else
+        else    // message not loaded in RAM
         {
-            idx = CHATD_IDX_INVALID;
-            prevType = Message::kMsgInvalid;
-            CHATID_LOG_DEBUG("onMessageEdited() Updated from message not loaded - skipped");
-            delete msg;
-            return;
+            CHATID_LOG_DEBUG("onMsgUpdated(): update for message not loaded");
+
+            // check if message in DB is outdated
+            uint16_t delta = 0;
+            CALL_DB(getMessageDelta, msg->id(), &delta);
+
+            if (delta != msg->updated)
+            {
+                //update in db
+                CALL_DB(updateMsgInHistory, msg->id(), *msg);
+            }
         }
 
-        if (msg->type == Message::kMsgTruncate)
-        {
-            if (prevType != Message::kMsgTruncate)
-            {
-                handleTruncate(*msg, idx);
-            }
-            else
-            {
-                CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
-            }
-        }
+        delete msg;
     })
     .fail([this, cipherMsg](const promise::Error& err)
     {
