@@ -1574,21 +1574,20 @@ void Chat::requestRichLink(Message &message)
         {
             if (wptr.deleted())
                 return;
-            std::string header;
-            std::string textMessage = result->getText();
 
-            std::cerr << "Request Result: " << result->getText() << std::endl;
-
-            header.insert(header.begin(), 0x0);
-            header.insert(header.begin(), Message::kMsgContainsMeta);
-            header.insert(header.begin(), 0x0);
-            header = header + std::string("{\"textMessage\":\"") + text + std::string("\",\"extra\":[");
-            std::string updateText = header + textMessage + std::string("]}");
-            size_t size = updateText.size();
-            Message *message = findOrNull(messageIdx);
-            if (message && updated == message->updated)
+            Message *msg = findOrNull(messageIdx);
+            if (msg && updated == msg->updated)
             {
-                msgModify(*message, updateText.c_str(), size, NULL);
+                std::string header;
+                std::string textMessage = result->getText();
+                header.insert(header.begin(), 0x0);
+                header.insert(header.begin(), Message::kMsgContainsMeta);
+                header.insert(header.begin(), 0x0);
+                header = header + std::string("{\"textMessage\":\"") + msg->toText() + std::string("\",\"extra\":[");
+                std::string updateText = header + textMessage + std::string("]}");
+                size_t size = updateText.size();
+
+                msgModify(*msg, updateText.c_str(), size, NULL);
             }
         })
         .fail([wptr, this](const promise::Error& err)
@@ -2391,6 +2390,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
+    bool msgUpdatedByMe = false;
+
     if (cipherMsg->userid == client().userId())
     {
         for (auto it = mSending.begin(); it != mSending.end(); )
@@ -2408,10 +2409,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             it++;
             mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
+            msgUpdatedByMe = true;
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .then([this](Message* msg)
+    .then([this, msgUpdatedByMe](Message* msg)
     {
         assert(!msg->isEncrypted());
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
@@ -2421,12 +2423,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             else
                 msg->type = msg->buf()[1];
         }
-        else if (msg->type == Message::kMsgNormal)
+        else if (msg->type == Message::kMsgNormal && msgUpdatedByMe && client().isRichLinkEnable())
         {
-            if (client().isRichLinkEnable() && msg->userid == client().userId())
-            {
-                requestRichLink(*msg);
-            }
+            requestRichLink(*msg);
         }
 
         //update in db
