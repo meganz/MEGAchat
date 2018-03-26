@@ -13,6 +13,7 @@ QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(t
     config = NULL;
     chat = NULL;
     msg = NULL;
+    buffer = NULL;
     inProgress = false;
     status = 0;
 }
