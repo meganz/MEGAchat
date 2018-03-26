@@ -1558,7 +1558,7 @@ void Chat::requestRichLink(Message &message)
     std::string url;
     if (hasUrl(text, url))
     {
-        std::regex expresion("([A-Za-z]{3,9}:(?:\/\/))(.+)");
+        std::regex expresion("^(http://|https://)(.+)");
         std::string linkRequest = url;
         if (!regex_match(url, expresion))
         {
@@ -1627,7 +1627,7 @@ bool Chat::hasUrl(const string &text, std::string &url)
 
 bool Chat::parseUrl(const string &url)
 {
-    std::regex regularExpresion(R"((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)");
+    std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9]+([-.]{1}[a-z0-9]+)*.[a-z]{2,5}(:[0-9]{1,5})?(.*)?$");
     return regex_match(url, regularExpresion);
 }
 
