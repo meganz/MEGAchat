@@ -167,6 +167,11 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
+bool Client::isRichLinkEnable() const
+{
+    return mRichLinkEnable;
+}
+
 void Chat::connect()
 {
     // attempt a connection ONLY if this is a new shard.
@@ -2309,7 +2314,11 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    requestRichLink(*msg);
+    if (mClient.isRichLinkEnable())
+    {
+        requestRichLink(*msg);
+    }
+
     return idx;
 }
 
@@ -2414,7 +2423,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         }
         else if (msg->type == Message::kMsgNormal)
         {
-            if (msg->userid == client().userId())
+            if (client().isRichLinkEnable() && msg->userid == client().userId())
             {
                 requestRichLink(*msg);
             }

@@ -1065,6 +1065,8 @@ protected:
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
+    bool mRichLinkEnable = true;
+
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1117,6 +1119,7 @@ public:
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);
     bool isMessageReceivedConfirmationActive() const;
+    bool isRichLinkEnable() const;
     friend class Connection;
     friend class Chat;
 
