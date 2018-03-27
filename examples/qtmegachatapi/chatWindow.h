@@ -6,9 +6,11 @@
 #include "chatItemWidget.h"
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
+#include "MainWindow.h"
 
 #define NMESSAGES_LOAD 16   // number of messages to load at every fetch
 class ChatMessage;
+class MainWindow;
 
 namespace Ui{
 class ChatWindowUi;
@@ -26,6 +28,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
+        void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void truncateChatUI();
@@ -42,10 +45,11 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         megachat::MegaChatApi* mMegaChatApi;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatRoom * mChatRoom;
-        ChatItemWidget * mChatItemWidget;
+        MainWindow *mMainWin;
         MegaLoggerApplication * mLogger;
         megachat::QTMegaChatRoomListener * megaChatRoomListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
+        std::string mChatTitle;
         int nSending;
         int loadedMessages;
         int nManualSending;

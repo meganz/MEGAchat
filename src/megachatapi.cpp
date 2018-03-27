@@ -508,6 +508,11 @@ void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestL
     pImpl->sendTypingNotification(chatid, listener);
 }
 
+void MegaChatApi::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->sendStopTypingNotification(chatid, listener);
+}
+
 bool MegaChatApi::isMessageReceptionConfirmationActive() const
 {
     return pImpl->isMessageReceptionConfirmationActive();
@@ -662,9 +667,9 @@ void MegaChatApi::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListene
     pImpl->addChatRoomListener(chatid, listener);
 }
 
-void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->removeChatRoomListener(listener);
+    pImpl->removeChatRoomListener(chatid, listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
@@ -675,6 +680,16 @@ void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
 void MegaChatApi::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     pImpl->removeChatRequestListener(listener);
+}
+
+void MegaChatApi::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->addChatNotificationListener(listener);
+}
+
+void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->removeChatNotificationListener(listener);
 }
 
 MegaChatRequest::~MegaChatRequest() { }
@@ -1330,4 +1345,9 @@ bool MegaChatPresenceConfig::isPending() const
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
+}
+
+void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
+{
+
 }

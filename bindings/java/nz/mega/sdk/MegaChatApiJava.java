@@ -26,6 +26,7 @@ public class MegaChatApiJava {
     static Set<DelegateMegaChatRoomListener> activeChatRoomListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRoomListener>());
     static Set<DelegateMegaChatCallListener> activeChatCallListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatCallListener>());
     static Set<DelegateMegaChatVideoListener> activeChatVideoListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatVideoListener>());
+    static Set<DelegateMegaChatNotificationListener> activeChatNotificationListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatNotificationListener>());
 
     void runCallback(Runnable runnable) {
         runnable.run();
@@ -64,6 +65,42 @@ public class MegaChatApiJava {
     public void addChatRemoteVideoListener(MegaChatVideoListenerInterface listener)
     {
         megaChatApi.addChatRemoteVideoListener(createDelegateChatVideoListener(listener, true));
+    }
+
+    /**
+     * Register a listener to receive notifications
+     *
+     * You can use MegaChatApi::removeChatRequestListener to stop receiving events.
+     *
+     * @param listener Listener that will receive all events about requests
+     */
+    public void addChatNotificationListener(MegaChatNotificationListenerInterface listener){
+        megaChatApi.addChatNotificationListener(createDelegateChatNotificationListener(listener));
+    }
+
+    /**
+     * Unregister a MegaChatNotificationListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    public void removeChatNotificationListener(MegaChatNotificationListenerInterface listener){
+        ArrayList<DelegateMegaChatNotificationListener> listenersToRemove = new ArrayList<DelegateMegaChatNotificationListener>();
+        synchronized (activeChatNotificationListeners) {
+            Iterator<DelegateMegaChatNotificationListener> it = activeChatNotificationListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatNotificationListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i=0;i<listenersToRemove.size();i++){
+            megaChatApi.removeChatNotificationListener(listenersToRemove.get(i));
+        }
     }
 
     public void removeChatRequestListener(MegaChatRequestListenerInterface listener) {
@@ -1797,6 +1834,12 @@ public class MegaChatApiJava {
     private MegaChatVideoListener createDelegateChatVideoListener(MegaChatVideoListenerInterface listener, boolean remote) {
         DelegateMegaChatVideoListener delegateListener = new DelegateMegaChatVideoListener(this, listener, remote);
         activeChatVideoListeners.add(delegateListener);
+        return delegateListener;
+    }
+
+    private MegaChatNotificationListener createDelegateChatNotificationListener(MegaChatNotificationListenerInterface listener) {
+        DelegateMegaChatNotificationListener delegateListener = new DelegateMegaChatNotificationListener(this, listener);
+        activeChatNotificationListeners.add(delegateListener);
         return delegateListener;
     }
 

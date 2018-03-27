@@ -411,7 +411,6 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
             auto pscsn = event->getText();
             if (!pscsn)
             {
-                KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
                 return;
             }
             std::string scsn = pscsn;
@@ -423,6 +422,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
                     return;
                 }
 
+                KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
                 commit(scsn);
             }, appCtx);
         }
@@ -1756,7 +1756,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         ChatRoom* room = addRoom(apiRoom);
         chatids.insert(chatid);
-        client.app.notifyInvited(*room);
 
         if (client.connected())
         {
@@ -2302,6 +2301,44 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
     if (display)
     {
         display->onChatOnlineState(state);
+    }
+}
+
+void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::string &errmsg)
+{
+    KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
+        karere::Id(mChatid).toString().c_str(),
+        msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
+        errmsg.c_str());
+}
+
+void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
+{
+    if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
+void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
+{
+    chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
+
+    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
+    // and, if so, remove the block from `onRecvNewMessage()`
+    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
+void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
+{
+    if (msg.userid != parent.client.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
     }
 }
 

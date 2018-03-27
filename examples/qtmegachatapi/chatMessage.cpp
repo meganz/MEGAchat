@@ -133,12 +133,16 @@ void ChatMessage::updateToolTip()
         break;
     }
 
-    tooltip.append(QString::fromStdString(std::to_string(msgId)))
+    const char *auxMsgId_64 = mChatWindow->mMegaApi->userHandleToBase64(msgId);
+    const char *auxUserId_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
+    tooltip.append(QString::fromStdString(auxMsgId_64))
             .append(tr("\ntype: "))
             .append(QString::fromStdString(std::to_string(mMessage->getType())))
             .append(tr("\nuserid: "))
-            .append(QString::fromStdString(std::to_string(mMessage->getUserHandle())));
+            .append(QString::fromStdString(auxUserId_64));
     ui->mHeader->setToolTip(tooltip);
+    delete auxMsgId_64;
+    delete auxUserId_64;
 }
 
 QListWidgetItem *ChatMessage::getWidgetItem() const
@@ -365,17 +369,17 @@ void ChatMessage::setManualMode(bool manualMode)
 
 void ChatMessage::onManualSending()
 {
-   if(mChatWindow->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_MODERATOR)
+   if(mChatWindow->mChatRoom->getOwnPrivilege() == megachat::MegaChatPeerList::PRIV_RO)
+   {
+       QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));
+   }
+   else
    {
        megaChatApi->removeUnsentMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getRowId());
        megachat::MegaChatMessage *tempMessage = megaChatApi->sendMessage(mChatWindow->mChatRoom->getChatId(), mMessage->getContent());
        setManualMode(false);
        mChatWindow->eraseChatMessage(mMessage, true);
        mChatWindow->moveManualSendingToSending(tempMessage);
-   }
-   else
-   {
-       QMessageBox::critical(nullptr, tr("Manual sending"), tr("You don't have permissions to send this message"));
    }
 }
 

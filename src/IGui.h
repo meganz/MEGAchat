@@ -356,17 +356,15 @@ public:
      */
     virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
 #endif
-    /**
-     * @brief Called by karere when we become participants in a 1on1 or a group chat.
-     * @param room The chat room object.
-     */
-    virtual void notifyInvited(const ChatRoom& room) {}
 
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init
      * state and their meaning.
      */
     virtual void onInitStateChange(int newState) {}
+
+    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx) {}
+
     virtual ~IApp() {}
 };
 }

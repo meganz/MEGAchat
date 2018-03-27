@@ -145,11 +145,15 @@ public:
     ::mega::MegaApi& sdk;
     std::unique_ptr<MyMegaLogger> mLogger;
     void *appCtx;
+    bool logging;
     
-    MyMegaApi(::mega::MegaApi& aSdk, void *ctx)
-    :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx)
+    MyMegaApi(::mega::MegaApi& aSdk, void *ctx, bool addlogger = true)
+    :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx), logging(addlogger)
     {
-        sdk.addLoggerObject(mLogger.get());
+        if (addlogger)
+        {
+            sdk.addLoggerObject(mLogger.get());
+        }
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
@@ -168,7 +172,10 @@ public:
 
     ~MyMegaApi()
     {
-        sdk.removeLoggerObject(mLogger.get());
+        if (logging)
+        {
+            sdk.removeLoggerObject(mLogger.get());
+        }
         mLogger.reset();
         KR_LOG_DEBUG("Deleted SDK logger");
     }

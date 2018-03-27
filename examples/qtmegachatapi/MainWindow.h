@@ -66,7 +66,7 @@ class MainWindow :
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
-
+        ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
     public:
         MegaLoggerApplication *mLogger;
         int getNContacts() const;
@@ -80,6 +80,7 @@ class MainWindow :
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
+        std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
         int activeChats;
         int inactiveChats;
@@ -97,6 +98,7 @@ class MainWindow :
 
      friend class ChatItemWidget;
      friend class MegaChatApplication;
+     friend class ChatWindow;
 };
 
 #endif // MAINWINDOW_H
