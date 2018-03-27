@@ -785,6 +785,7 @@ public:
      */
     void terminate(bool deleteDb=false);
 
+    void setCommitMode(bool commitEach);
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 

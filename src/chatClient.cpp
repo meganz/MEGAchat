@@ -184,7 +184,7 @@ void Client::createDbSchema()
 
 void Client::heartbeat()
 {
-    if (db.isOpen())
+    if (db.isOpen() && !(db.getCommitMode()))
     {
         db.timedCommit();
     }
@@ -375,6 +375,11 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         chats->onChatsUpdate(*chatList);
         commit(scsn);
     });
+}
+
+void Client::setCommitMode(bool commitEach)
+{
+    db.setCommitMode(commitEach);
 }
 
 void Client::commit(const std::string& scsn)

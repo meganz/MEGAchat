@@ -1460,6 +1460,7 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
 
         if (allConnected)
         {
+            mClient->setCommitMode(true);
             (*it)->onChatConnectionStateUpdate(chatApi, MEGACHAT_INVALID_HANDLE, newState);
         }
     }
