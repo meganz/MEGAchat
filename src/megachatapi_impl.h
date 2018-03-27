@@ -954,6 +954,8 @@ public:
     void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
+    bool isRichLinksEnabled();
+    void setRichLinkEnable(bool richLinkEnable);
 
 #ifndef KARERE_DISABLE_WEBRTC
 

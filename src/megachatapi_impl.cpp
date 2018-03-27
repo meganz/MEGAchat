@@ -2505,6 +2505,33 @@ void MegaChatApiImpl::saveCurrentState()
     sdkMutex.unlock();
 }
 
+bool MegaChatApiImpl::isRichLinksEnabled()
+{
+    sdkMutex.lock();
+
+    if (mClient)
+    {
+        // Get value from user attribute
+        return mClient->chatd->isRichLinkEnable();
+    }
+
+    sdkMutex.unlock();
+
+    return false;
+}
+
+void MegaChatApiImpl::setRichLinkEnable(bool richLinkEnable)
+{
+    sdkMutex.lock();
+
+    if (mClient)
+    {
+        // set rich link value user attribute
+    }
+
+    sdkMutex.unlock();
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -5279,7 +5306,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             if (msg.toText().length() > 2)
             {
                 megaChatContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
-                text = megaChatContainsMeta->getRichPreview()->getText() + std::string(" -> Link");
+                text = megaChatContainsMeta->getRichPreview()->getText();
             }
 
             this->msg = text.size() ? MegaApi::strdup(text.c_str()) : NULL;

@@ -2874,6 +2874,26 @@ public:
      */
     void saveCurrentState();
 
+    /**
+     * @brief Returns whether rich links are enabled
+     *
+     * In case this function returns true, every message confirmed (sent and updated) will be parser and if
+     * url is found, message will be update with rich preview from api
+     *
+     * @return True if rich preview is enabled. False if they are not.
+     */
+    bool isRichLinksEnabled();
+
+    /**
+     * @brief Enable update messages with rich links
+     *
+     * If we enable this flag, every message confirmed (sent and updated) will be parser and if
+     * url is found, message will be update with rich preview from api
+     *
+     * @param richLinkEnable Value to set at rich link flag
+     */
+    void setRichLinkEnable(bool richLinkEnable);
+
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
     /**
