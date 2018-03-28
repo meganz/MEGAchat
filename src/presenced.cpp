@@ -655,6 +655,12 @@ void Client::setConnState(ConnState newState)
 {
     if (newState == mConnState)
         return;
+
+    if (newState == kResolving && karereClient->getCommitMode())
+    {
+        karereClient->setCommitMode(false);
+    }
+
     mConnState = newState;
 #ifndef LOG_LISTENER_CALLS
     PRESENCED_LOG_DEBUG("Connection state changed to %s", connStateToStr(mConnState));
