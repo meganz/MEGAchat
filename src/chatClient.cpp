@@ -184,7 +184,7 @@ void Client::createDbSchema()
 
 void Client::heartbeat()
 {
-    if (db.isOpen() && !(db.getCommitMode()))
+    if (db.isOpen())
     {
         db.timedCommit();
     }
