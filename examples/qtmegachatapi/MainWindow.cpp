@@ -379,6 +379,11 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         orderContactChatList(allItemsVisibility);
+        megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+        if (presenceConfig)
+        {
+            onChatPresenceConfigUpdate(mMegaChatApi, presenceConfig);
+        }
         return;
     }
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
