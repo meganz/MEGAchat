@@ -57,6 +57,22 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
 }
 
+void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
+{
+    std::map<megachat::MegaChatHandle, ChatMessage *>::iterator it;
+    for (it = mMsgsWidgetsMap.begin(); it != mMsgsWidgetsMap.end(); it++)
+    {
+        ChatMessage *chatMessage = it->second;
+        if (chatMessage->mMessage->getUserHandle() == contactHandle)
+        {
+            //chatMessage->updateToolTip(mMegaChatApi->getChatListItem(it->first), firstname);
+            chatMessage->setAuthor(firstname);
+        }
+    }
+}
+
+
+
 void ChatWindow::setChatTittle(const char *title)
 {
     if(title)

@@ -266,13 +266,36 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
             }
             break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
+             {
+             MegaChatHandle userHandle = request->getUserHandle();
              if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
-                MegaChatHandle userHandle = request->getUserHandle();
+                 //check if empty
                 const char *firstname = request->getText();
                 mMainWin->updateContactFirstname(userHandle,firstname);
+                mMainWin->updateMessageFirstname(userHandle,firstname);
+             }
+             else
+             {
+                this->megaChatApi->getUserEmail(userHandle);
              }
              break;
+             }
+         case MegaChatRequest::TYPE_GET_EMAIL:
+            {
+            MegaChatHandle userHandle = request->getUserHandle();
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
+            {
+               const char *email = request->getText();
+               mMainWin->updateContactFirstname(userHandle,email);
+               mMainWin->updateMessageFirstname(userHandle,email);
+            }
+            else
+            {
+               mMainWin->updateMessageFirstname(userHandle,"Unknown contact");
+            }
+            break;
+            }
          case MegaChatRequest::TYPE_CREATE_CHATROOM:
              if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
