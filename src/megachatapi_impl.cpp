@@ -2505,33 +2505,6 @@ void MegaChatApiImpl::saveCurrentState()
     sdkMutex.unlock();
 }
 
-bool MegaChatApiImpl::isRichLinksEnabled()
-{
-    sdkMutex.lock();
-
-    if (mClient)
-    {
-        // Get value from user attribute
-        return mClient->chatd->isRichLinkEnable();
-    }
-
-    sdkMutex.unlock();
-
-    return false;
-}
-
-void MegaChatApiImpl::setRichLinkEnable(bool richLinkEnable)
-{
-    sdkMutex.lock();
-
-    if (mClient)
-    {
-        // set rich link value user attribute
-    }
-
-    sdkMutex.unlock();
-}
-
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
