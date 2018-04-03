@@ -216,16 +216,22 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
+    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+    bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+    delete chatRoom;
+
     QMenu menu(this);
     if(mMegaChatApi->getChatListItem(mChatId)->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
         auto actTopic = menu.addAction(tr("Set chat topic"));
+        actTopic->setEnabled(canChangePrivs);
         connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
     }
 
     auto actTruncate = menu.addAction(tr("Truncate chat"));
+    actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
     menu.exec(event->globalPos());
     menu.deleteLater();
