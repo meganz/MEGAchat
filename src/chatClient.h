@@ -813,7 +813,6 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
     void setCommitMode(bool commitEach);
-    bool getCommitMode();
     void saveDb();  // forces a commit
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC

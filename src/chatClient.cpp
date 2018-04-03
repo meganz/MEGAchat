@@ -184,7 +184,7 @@ void Client::createDbSchema()
 
 void Client::heartbeat()
 {
-    if (db.isOpen() && !(db.getCommitMode()))
+    if (db.isOpen())
     {
         db.timedCommit();
     }
@@ -380,11 +380,6 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
 void Client::setCommitMode(bool commitEach)
 {
     db.setCommitMode(commitEach);
-}
-
-bool Client::getCommitMode()
-{
-    return db.getCommitMode();
 }
 
 void Client::commit(const std::string& scsn)
