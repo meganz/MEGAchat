@@ -9,13 +9,13 @@
 #include "MainWindow.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
-    #include "callGui.h"
+#include "callGui.h"
 #else
-    namespace rtcmodule
-    {
-        class ICallHandler{};
-    }
-    class CallGui: public rtcModule::ICallHandler {};
+namespace rtcmodule
+{
+    class ICallHandler{};
+}
+class CallGui: public rtcModule::ICallHandler {};
 #endif
 
 
@@ -83,13 +83,13 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onCallBtn(bool video);
 
     protected slots:
-        #ifndef KARERE_DISABLE_WEBRTC
-            void closeEvent(QCloseEvent *event);
-            void createCallGui(bool);
-            void onVideoCallBtn(bool);
-            void onAudioCallBtn(bool);
-            void deleteCallGui();
-        #endif
+#ifndef KARERE_DISABLE_WEBRTC
+        void closeEvent(QCloseEvent *event);
+        void createCallGui(bool);
+        void onVideoCallBtn(bool);
+        void onAudioCallBtn(bool);
+        void deleteCallGui();
+#endif
 
     friend class CallGui;
     friend class ChatMessage;

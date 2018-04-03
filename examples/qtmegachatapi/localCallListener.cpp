@@ -13,7 +13,6 @@ LocalCallListener::~LocalCallListener()
     mMegaChatApi->removeChatLocalVideoListener(megaChatVideoListenerDelegate);    
 }
 
-
 void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
     QImage *auxImg = CreateFrame(width, height, buffer, size);

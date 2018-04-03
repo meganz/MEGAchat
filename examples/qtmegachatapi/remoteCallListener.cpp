@@ -13,7 +13,6 @@ RemoteCallListener::~RemoteCallListener()
     mMegaChatApi->removeChatRemoteVideoListener(megaChatVideoListenerDelegate);
 }
 
-
 void RemoteCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
 {
     QImage *auxImg = CreateFrame(width, height, buffer, size);

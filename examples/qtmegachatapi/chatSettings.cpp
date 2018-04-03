@@ -34,28 +34,28 @@ ChatSettings::~ChatSettings()
 
 void ChatSettings::on_buttonBox_clicked(QAbstractButton *button)
 {
-    #ifndef KARERE_DISABLE_WEBRTC
-        if (ui->audioInCombo->currentIndex() != mAudioInIdx)
-        {
-            mAudioInIdx = ui->audioInCombo->currentIndex();
-            std::string device =  ui->audioInCombo->itemText(ui->audioInCombo->currentIndex()).toLatin1().data();
+#ifndef KARERE_DISABLE_WEBRTC
+    if (ui->audioInCombo->currentIndex() != mAudioInIdx)
+    {
+        mAudioInIdx = ui->audioInCombo->currentIndex();
+        std::string device =  ui->audioInCombo->itemText(ui->audioInCombo->currentIndex()).toLatin1().data();
 
-            bool result = mMainWin->mMegaChatApi->setChatAudioInDevice(device.c_str());
-            if (!result)
-            {
-                QMessageBox::critical(this, "Call settings", "The audio device could not be set");
-            }
-        }
-
-        if (ui->videoInCombo->currentIndex() != mVideoInIdx)
+        bool result = mMainWin->mMegaChatApi->setChatAudioInDevice(device.c_str());
+        if (!result)
         {
-            mVideoInIdx = ui->videoInCombo->currentIndex();
-            std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
-            bool result = mMainWin->mMegaChatApi->setChatVideoInDevice(device.c_str());
-            if (!result)
-            {
-                QMessageBox::critical(this, "Call settings", "The video device could not be set");
-            }
+            QMessageBox::critical(this, "Call settings", "The audio device could not be set");
         }
-    #endif
+    }
+
+    if (ui->videoInCombo->currentIndex() != mVideoInIdx)
+    {
+        mVideoInIdx = ui->videoInCombo->currentIndex();
+        std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
+        bool result = mMainWin->mMegaChatApi->setChatVideoInDevice(device.c_str());
+        if (!result)
+        {
+            QMessageBox::critical(this, "Call settings", "The video device could not be set");
+        }
+    }
+#endif
 }

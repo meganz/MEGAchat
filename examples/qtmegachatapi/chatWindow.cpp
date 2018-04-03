@@ -592,64 +592,64 @@ void ChatWindow::onMsgListRequestHistory()
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    void ChatWindow::onVideoCallBtn(bool)
-    {
-        onCallBtn(true);
-    }
+void ChatWindow::onVideoCallBtn(bool)
+{
+    onCallBtn(true);
+}
 
-    void ChatWindow::onAudioCallBtn(bool)
-    {
-        onCallBtn(false);
-    }
+void ChatWindow::onAudioCallBtn(bool)
+{
+    onCallBtn(false);
+}
 
-    void ChatWindow::createCallGui(bool video)
-    {
-        auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
-        mCallGui = new CallGui(this, video);
-        layout->insertWidget(1, mCallGui, 1);
-        ui->mTitlebar->hide();
-        ui->mTextChatWidget->hide();
-    }
+void ChatWindow::createCallGui(bool video)
+{
+    auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
+    mCallGui = new CallGui(this, video);
+    layout->insertWidget(1, mCallGui, 1);
+    ui->mTitlebar->hide();
+    ui->mTextChatWidget->hide();
+}
 
-    void ChatWindow::closeEvent(QCloseEvent *event)
+void ChatWindow::closeEvent(QCloseEvent *event)
+{
+    if (mCallGui)
     {
-        if (mCallGui)
-        {
-            mCallGui->onHangCall(true);
-        }
-        delete this;
-        event->accept();
+        mCallGui->onHangCall(true);
     }
+    delete this;
+    event->accept();
+}
 
-    void ChatWindow::onCallBtn(bool video)
+void ChatWindow::onCallBtn(bool video)
+{
+    if (mChatRoom->isGroup())
     {
-        if (mChatRoom->isGroup())
-        {
-            QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
-            return;
-        }
-        createCallGui(video);
-        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+        QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
+        return;
     }
+    createCallGui(video);
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+}
 
-    void ChatWindow::connectCall()
-    {
-        mCallGui->connectCall();
-    }
+void ChatWindow::connectCall()
+{
+    mCallGui->connectCall();
+}
 
-    void ChatWindow::hangCall()
-    {
-        deleteCallGui();
-    }
+void ChatWindow::hangCall()
+{
+    deleteCallGui();
+}
 
-    void ChatWindow::deleteCallGui()
+void ChatWindow::deleteCallGui()
+{
+    if (mCallGui)
     {
-        if (mCallGui)
-        {
-            mCallGui->deleteLater();
-            mCallGui = NULL;
-        }
-        ui->mTitlebar->show();
-        ui->mTextChatWidget->show();
+        mCallGui->deleteLater();
+        mCallGui = NULL;
     }
+    ui->mTitlebar->show();
+    ui->mTextChatWidget->show();
+}
 #endif
