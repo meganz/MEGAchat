@@ -384,6 +384,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
         {
             onChatPresenceConfigUpdate(mMegaChatApi, presenceConfig);
         }
+        delete presenceConfig;
         return;
     }
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;

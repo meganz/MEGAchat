@@ -1781,6 +1781,8 @@ public:
     /**
      * @brief Get the current presence configuration
      *
+     * You take the ownership of the returned value
+     *
      * @see \c MegaChatPresenceConfig for further details.
      *
      * @return The current presence configuration, or NULL if not received yet from server
