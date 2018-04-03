@@ -5243,9 +5243,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
             std::string linkName = JSonUtils::parseContainsMeta(msg.toText().c_str());
-            this->msg = MegaApi::strdup(linkName.c_str());
+
             // TODO remove when applications can manage MegaChatMessage::TYPE_CONTAINS_META
-            this->type = MegaChatMessage::TYPE_NORMAL;
+            if (linkName.size())
+            {
+                this->msg = MegaApi::strdup(linkName.c_str());
+                this->type = MegaChatMessage::TYPE_NORMAL;
+            }
         }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
