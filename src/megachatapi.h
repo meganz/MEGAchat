@@ -2874,28 +2874,6 @@ public:
      */
     void saveCurrentState();
 
-    /**
-     * @brief Returns whether rich links are enabled
-     *
-     * In case this function returns true, every message confirmed (sent and updated) will be parser and if
-     * url is found, the message will be update. Message type will convert into MegaChatMessage::TYPE_CONTAINS_META
-     * and the contain will update with rich preview from request to api
-     *
-     * @return True if rich preview is enabled. False if they are not.
-     */
-    bool isRichLinksEnabled();
-
-    /**
-     * @brief Enable update messages with rich links
-     *
-     * If we enable this flag, every message confirmed (sent and updated) will be parser and if
-     * url is found, Message type will convert into MegaChatMessage::TYPE_CONTAINS_META
-     * and the contain will update with rich preview from request to api
-     *
-     * @param richLinkEnable Value to set at rich link flag
-     */
-    void setRichLinkEnable(bool richLinkEnable);
-
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
     /**

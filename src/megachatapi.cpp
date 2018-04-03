@@ -523,16 +523,6 @@ void MegaChatApi::saveCurrentState()
     pImpl->saveCurrentState();
 }
 
-bool MegaChatApi::isRichLinksEnabled()
-{
-    return pImpl->isRichLinksEnabled();
-}
-
-void MegaChatApi::setRichLinkEnable(bool richLinkEnable)
-{
-    pImpl->setRichLinkEnable(richLinkEnable);
-}
-
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
