@@ -1294,6 +1294,12 @@ void MegaChatApiImpl::setCatchException(bool enable)
     karere::gCatchException = enable;
 }
 
+bool MegaChatApiImpl::hasUrl(const char *text)
+{
+    std::string url;
+    return chatd::Message::hasUrl(text, url);
+}
+
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
 {
     API_LOG_INFO("Request (%s) starting", request->getRequestString());

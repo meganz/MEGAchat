@@ -3233,6 +3233,14 @@ public:
 
     static void setCatchException(bool enable);
 
+    /**
+     * @brief Checks whether \c text has an url
+     *
+     * @param text String where url has to be found it
+     * @return True if \c text has an url
+     */
+    static bool hasUrl(const char* text);
+
 private:
     MegaChatApiImpl *pImpl;
 };

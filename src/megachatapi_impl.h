@@ -832,6 +832,7 @@ public:
 #endif
 
     static void setCatchException(bool enable);
+    static bool hasUrl(const char* text);
 
     // ============= Listeners ================
 

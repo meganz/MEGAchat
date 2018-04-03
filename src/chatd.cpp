@@ -1615,7 +1615,7 @@ void Chat::requestRichLink(Message &message)
 {
     std::string text = message.toText();
     std::string url;
-    if (hasUrl(text, url))
+    if (Message::hasUrl(text, url))
     {
         std::regex expresion("^(http://|https://)(.+)");
         std::string linkRequest = url;
@@ -1659,35 +1659,7 @@ void Chat::requestRichLink(Message &message)
     }
 }
 
-bool Chat::hasUrl(const string &text, std::string &url)
-{
-    std::string::size_type position = 0;
-    while (position < text.size())
-    {
-        std::string::size_type nextPosition = text.find(' ', position);
-        if (nextPosition == std::string::npos)
-        {
-            nextPosition = text.size();
-        }
 
-        std::string partialTex = text.substr(position, nextPosition - position);
-        if (parseUrl(partialTex))
-        {
-            url = partialTex;
-            return true;
-        }
-
-        position = nextPosition + 1;
-    }
-
-    return false;
-}
-
-bool Chat::parseUrl(const string &url)
-{
-    std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9]+([-.]{1}[a-z0-9]+)*.[a-z]{2,5}(:[0-9]{1,5})?(.*)?$");
-    return regex_match(url, regularExpresion);
-}
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
@@ -3394,4 +3366,34 @@ const char* Message::statusNames[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
+
+bool Message::hasUrl(const string &text, string &url)
+{
+    std::string::size_type position = 0;
+    while (position < text.size())
+    {
+        std::string::size_type nextPosition = text.find(' ', position);
+        if (nextPosition == std::string::npos)
+        {
+            nextPosition = text.size();
+        }
+
+        std::string partialTex = text.substr(position, nextPosition - position);
+        if (parseUrl(partialTex))
+        {
+            url = partialTex;
+            return true;
+        }
+
+        position = nextPosition + 1;
+    }
+
+    return false;
+}
+
+bool Message::parseUrl(const std::string &url)
+{
+    std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9]+([-.]{1}[a-z0-9]+)*.[a-z]{2,5}(:[0-9]{1,5})?(.*)?$");
+    return regex_match(url, regularExpresion);
+}
 }

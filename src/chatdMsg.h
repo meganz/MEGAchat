@@ -495,6 +495,9 @@ public:
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
 
+    static bool hasUrl(const std::string &text, std::string &url);
+    static bool parseUrl(const std::string &url);
+
 protected:
     static const char* statusNames[];
     friend class Chat;
