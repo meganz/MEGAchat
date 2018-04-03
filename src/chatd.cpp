@@ -345,6 +345,7 @@ bool Connection::sendEcho()
 
 Promise<void> Connection::reconnect()
 {
+    mClient.karereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
     try
     {
@@ -1996,6 +1997,9 @@ bool Chat::setMessageSeen(Idx idx)
 
         mClient.mSeenTimers.erase(mEchoTimer);
 
+        if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
+            return;
+
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
 
@@ -3062,6 +3066,26 @@ void Chat::setOnlineState(ChatState state)
 {
     if (state == mOnlineState)
         return;
+
+    bool allConnected = true;
+    if (state == kChatStateOnline)
+    {
+       std::map<uint64_t, ChatRoom*> *chats = mClient.karereClient->chats.get();
+       std::map<uint64_t, ChatRoom*>::iterator itChatRooms;
+       for (itChatRooms = chats->begin(); itChatRooms != chats->end(); itChatRooms++)
+       {
+           if (itChatRooms->second->chatdOnlineState() != kChatStateOnline)
+           {
+               allConnected = false;
+               break;
+           }
+       }
+       if (allConnected)
+       {
+           mClient.karereClient->setCommitMode(true);
+       }
+    }
+
     mOnlineState = state;
     CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);

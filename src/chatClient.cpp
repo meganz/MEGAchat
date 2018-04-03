@@ -377,6 +377,11 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     });
 }
 
+void Client::setCommitMode(bool commitEach)
+{
+    db.setCommitMode(commitEach);
+}
+
 void Client::commit(const std::string& scsn)
 {
     if (scsn.empty())
