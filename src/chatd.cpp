@@ -4,6 +4,7 @@
 #include "base64url.h"
 #include <algorithm>
 #include <random>
+#include <regex>
 
 using namespace std;
 using namespace promise;
@@ -174,6 +175,11 @@ void Client::notifyUserActive()
 bool Client::isMessageReceivedConfirmationActive() const
 {
     return mMessageReceivedConfirmation;
+}
+
+bool Client::isRichLinkEnable() const
+{
+    return mRichLinkEnable;
 }
 
 void Chat::connect()
@@ -1605,6 +1611,84 @@ void Chat::initChat()
     mHaveAllHistory = false;
 }
 
+void Chat::requestRichLink(Message &message)
+{
+    std::string text = message.toText();
+    std::string url;
+    if (hasUrl(text, url))
+    {
+        std::regex expresion("^(http://|https://)(.+)");
+        std::string linkRequest = url;
+        if (!regex_match(url, expresion))
+        {
+            linkRequest = std::string("http://") + url;
+        }
+
+        auto wptr = weakHandle();
+        karere::Id messageId = message.id();
+        Idx messageIdx = msgIndexFromId(messageId);
+        uint16_t updated = message.updated;
+        client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
+        .then([wptr, this, messageIdx, updated, text](ReqResult result)
+        {
+            if (wptr.deleted())
+                return;
+
+            Message *msg = findOrNull(messageIdx);
+            if (msg && updated == msg->updated)
+            {
+                std::string header;
+                std::string textMessage = result->getText();
+                header.insert(header.begin(), 0x0);
+                header.insert(header.begin(), Message::kMsgContainsMeta);
+                header.insert(header.begin(), 0x0);
+                header = header + std::string("{\"textMessage\":\"") + msg->toText() + std::string("\",\"extra\":[");
+                std::string updateText = header + textMessage + std::string("]}");
+                size_t size = updateText.size();
+
+                msgModify(*msg, updateText.c_str(), size, NULL);
+            }
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            if (wptr.deleted())
+                return;
+
+            CHATID_LOG_ERROR("Fail to request rich link: request error (%d)", err.code());
+        });
+    }
+}
+
+bool Chat::hasUrl(const string &text, std::string &url)
+{
+    std::string::size_type position = 0;
+    while (position < text.size())
+    {
+        std::string::size_type nextPosition = text.find(' ', position);
+        if (nextPosition == std::string::npos)
+        {
+            nextPosition = text.size();
+        }
+
+        std::string partialTex = text.substr(position, nextPosition - position);
+        if (parseUrl(partialTex))
+        {
+            url = partialTex;
+            return true;
+        }
+
+        position = nextPosition + 1;
+    }
+
+    return false;
+}
+
+bool Chat::parseUrl(const string &url)
+{
+    std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9]+([-.]{1}[a-z0-9]+)*.[a-z]{2,5}(:[0-9]{1,5})?(.*)?$");
+    return regex_match(url, regularExpresion);
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
     // write the new message to the message buffer and mark as in sending state
@@ -1817,8 +1901,16 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.assign((void*)newdata, newlen);
         CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
     } //end msg.isSending()
+
+
+    unsigned char type = msg.type;
+    if (msg.type == Message::kMsgContainsMeta)
+    {
+        type = Message::kMsgNormal;
+    }
+
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
-        msg.isSending(), msg.keyid, msg.type, userp);
+        msg.isSending(), msg.keyid, type, userp);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd]()
@@ -2290,6 +2382,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
             notifyLastTextMsg();
         }
     }
+
+    if (mClient.isRichLinkEnable())
+    {
+        requestRichLink(*msg);
+    }
+
     return idx;
 }
 
@@ -2367,6 +2465,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
+    bool msgUpdatedByMe = false;
+
     if (cipherMsg->userid == client().userId())
     {
         for (auto it = mSending.begin(); it != mSending.end(); )
@@ -2384,10 +2484,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             it++;
             mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
+            msgUpdatedByMe = true;
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .then([this](Message* msg)
+    .then([this, msgUpdatedByMe](Message* msg)
     {
         assert(!msg->isEncrypted());
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
@@ -2396,6 +2497,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
                 msg->type = msg->buf()[1];
+        }
+        else if (msg->type == Message::kMsgNormal && msgUpdatedByMe && client().isRichLinkEnable())
+        {
+            requestRichLink(*msg);
         }
 
         //update in db

@@ -686,6 +686,9 @@ protected:
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
+    void requestRichLink(Message &message);
+    bool hasUrl(const std::string &text, std::string &url);
+    bool parseUrl(const std::string &url);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -1092,6 +1095,8 @@ protected:
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
+    bool mRichLinkEnable = true;
+
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1146,6 +1151,7 @@ public:
     /** Clean the timers set */
     void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
+    bool isRichLinkEnable() const;
     friend class Connection;
     friend class Chat;
 

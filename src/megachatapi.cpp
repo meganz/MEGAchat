@@ -523,6 +523,16 @@ void MegaChatApi::saveCurrentState()
     pImpl->saveCurrentState();
 }
 
+bool MegaChatApi::isRichLinksEnabled()
+{
+    return pImpl->isRichLinksEnabled();
+}
+
+void MegaChatApi::setRichLinkEnable(bool richLinkEnable)
+{
+    pImpl->setRichLinkEnable(richLinkEnable);
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -1199,6 +1209,61 @@ int MegaChatMessage::getChanges() const
 bool MegaChatMessage::hasChanged(int) const
 {
     return false;
+}
+
+int MegaChatMessage::containsMetaType() const
+{
+    return CONTAINS_META_INVALID;
+}
+
+const char *MegaChatMessage::getRichPreviewText() const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getRichPreviewTitle() const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getRichPreviewDescription() const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getRichPreviewImage() const
+{
+    return NULL;
+}
+
+unsigned int MegaChatMessage::getRichPreviewImageSize() const
+{
+    return 0;
+}
+
+const char *MegaChatMessage::getRichPreviewImageFormat() const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getRichPreviewIcon() const
+{
+    return NULL;
+}
+
+unsigned int MegaChatMessage::getRichPreviewIconSize() const
+{
+    return 0;
+}
+
+const char *MegaChatMessage::getRichPreviewIconFormat() const
+{
+    return NULL;
+}
+
+const char *MegaChatMessage::getRichPreviewUrl() const
+{
+    return NULL;
 }
 
 int MegaChatMessage::getCode() const
