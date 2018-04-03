@@ -40,7 +40,7 @@ void CallGui::connectCall()
 {
     remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
-    mCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+    setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
     ui->mAnswBtn->hide();
 
     if(!mVideo)
@@ -81,7 +81,7 @@ void CallGui::drawPeerAvatar(QImage &image)
 void CallGui::drawOwnAvatar(QImage &image)
 {   
     const char *myName = mChatWindow->mMegaChatApi->getMyFirstname();
-    QChar letter = std::strlen(myName) == 0 ? QChar('?'): QString::fromStdString(myName)[0];
+    QChar letter = (std::strlen(myName) == 0) ? QChar('?') : QString::fromStdString(myName)[0];
     drawAvatar(image, letter, mChatWindow->mMegaChatApi->getMyUserHandle());
     delete [] myName;
 }
@@ -129,20 +129,11 @@ void CallGui::hangCall()
    mChatWindow->deleteCallGui();
 }
 
-CallGui:: ~ CallGui()
+CallGui:: ~CallGui()
 {
-    if(remoteCallListener)
-    {
-        delete remoteCallListener;
-    }
-    if (localCallListener)
-    {
-        delete localCallListener;
-    }
-    if (mCall)
-    {
-        delete mCall;
-    }
+    delete remoteCallListener;
+    delete localCallListener;
+    delete mCall;
     delete ui;
 }
 
@@ -207,6 +198,11 @@ megachat::MegaChatCall *CallGui::getCall() const
 
 void CallGui::setCall(megachat::MegaChatCall *call)
 {
+    if (mCall)
+    {
+        delete mCall;
+    }
+
     mCall = call;
 }
 
@@ -247,7 +243,3 @@ void CallGui::onLocalMediaError(const std::string err)
 {
     KR_LOG_ERROR("=============LocalMediaFail: %s", err.c_str());
 }
-
-
-
-
