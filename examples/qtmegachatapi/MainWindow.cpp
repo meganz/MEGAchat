@@ -53,45 +53,44 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
    {
        return;
    }
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
+    if(itWidgets == chatWidgets.end())
+    {
+        throw std::runtime_error("Incoming call from unknown contact");
+    }
 
-   std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
-   if(itWidgets == chatWidgets.end())
-   {
-       throw std::runtime_error("Incoming call from unknown contact");
-   }
+    ChatItemWidget *chatItemWidget = itWidgets->second;
+    MegaChatListItem *auxItem = mMegaChatApi->getChatListItem(call->getChatid());
+    const char *chatWindowTitle = auxItem->getTitle();
+    delete auxItem;
+    ChatWindow *auxChatWindow = NULL;
 
-   ChatItemWidget * chatItemWidget = itWidgets->second;
-   MegaChatListItem *auxItem = mMegaChatApi->getChatListItem(call->getChatid());
-   const char *chatWindowTitle = auxItem->getTitle();
-   delete auxItem;
-   ChatWindow *auxChatWindow = NULL;
-
-   if (!chatItemWidget->getChatWindow())
-   {
+    if (!chatItemWidget->getChatWindow())
+    {
         megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(call->getChatid());
         auxChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
         chatItemWidget->setChatWindow(auxChatWindow);
         auxChatWindow->show();
         auxChatWindow->openChatRoom();
         delete chatRoom;
-   }
-   else
-   {
+    }
+    else
+    {
         auxChatWindow =chatItemWidget->getChatWindow();
         auxChatWindow->show();
         auxChatWindow->setWindowState(Qt::WindowActive);
-   }
+    }
 
-   switch(call->getStatus())
-   {
-       case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
+    switch(call->getStatus())
+    {
+        case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
            {
                ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
                chatItemWidget->getChatWindow()->hangCall();
                return;
            }
            break;
-       case megachat::MegaChatCall::CALL_STATUS_RING_IN:
+        case megachat::MegaChatCall::CALL_STATUS_RING_IN:
            {
               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
               if(auxChatWindow->getCallGui()==NULL)
@@ -100,7 +99,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
               }
            }
            break;
-       case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+        case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
            {
                ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
                if ((auxChatWindow->getCallGui()) && !(auxChatWindow->getCallGui()->getCall()))
@@ -123,7 +122,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                }
            }
            break;
-   }
+    }
 }
 
 void MainWindow::clearContactChatList()
