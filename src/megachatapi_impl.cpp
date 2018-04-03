@@ -6322,6 +6322,8 @@ string JSonUtils::parseContainsMeta(const char *json)
         return std::string();
         break;
     }
+    
+    return std::string();
 }
 
 string JSonUtils::parseRichPreview(const char *json)
