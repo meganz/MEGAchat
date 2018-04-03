@@ -5243,7 +5243,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
             std::string linkName = JSonUtils::parseContainsMeta(msg.toText().c_str());
-            this->msg = linkName.size() ? MegaApi::strdup(linkName.c_str()) : NULL;
+            this->msg = MegaApi::strdup(linkName.c_str());
             // TODO remove when applications can manage MegaChatMessage::TYPE_CONTAINS_META
             this->type = MegaChatMessage::TYPE_NORMAL;
         }
