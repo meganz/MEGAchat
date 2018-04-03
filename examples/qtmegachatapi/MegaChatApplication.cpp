@@ -34,32 +34,32 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
     // Initialize the SDK and MEGAchat
     mMegaApi = new MegaApi("karere-native", mAppDir.c_str(), "Karere Native");
-    megaChatApi = new MegaChatApi(mMegaApi);
+    mMegaChatApi = new MegaChatApi(mMegaApi);
 
     // Create delegate listeners
     megaListenerDelegate = new QTMegaListener(mMegaApi, this);
     mMegaApi->addListener(megaListenerDelegate);
 
-    megaChatRequestListenerDelegate = new QTMegaChatRequestListener(megaChatApi, this);
-    megaChatApi->addChatRequestListener(megaChatRequestListenerDelegate);
+    megaChatRequestListenerDelegate = new QTMegaChatRequestListener(mMegaChatApi, this);
+    mMegaChatApi->addChatRequestListener(megaChatRequestListenerDelegate);
 
-    megaChatNotificationListenerDelegate = new QTMegaChatNotificationListener(megaChatApi, this);
-    megaChatApi->addChatNotificationListener(megaChatNotificationListenerDelegate);
+    megaChatNotificationListenerDelegate = new QTMegaChatNotificationListener(mMegaChatApi, this);
+    mMegaChatApi->addChatNotificationListener(megaChatNotificationListenerDelegate);
 
     // Start GUI
-    mMainWin = new MainWindow(0, mLogger, megaChatApi, mMegaApi);
+    mMainWin = new MainWindow(0, mLogger, mMegaChatApi, mMegaApi);
 }
 
 MegaChatApplication::~MegaChatApplication()
 {
     mMegaApi->removeListener(megaListenerDelegate);
-    megaChatApi->removeChatRequestListener(megaChatRequestListenerDelegate);
-    megaChatApi->removeChatNotificationListener(megaChatNotificationListenerDelegate);
+    mMegaChatApi->removeChatRequestListener(megaChatRequestListenerDelegate);
+    mMegaChatApi->removeChatNotificationListener(megaChatNotificationListenerDelegate);
     delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
     delete mMainWin;
-    delete megaChatApi;
+    delete mMegaChatApi;
     delete mMegaApi;
     delete mLogger;
     delete [] mSid;
@@ -67,7 +67,7 @@ MegaChatApplication::~MegaChatApplication()
 
 void MegaChatApplication::init()
 {
-    int initState = megaChatApi->init(mSid);
+    int initState = mMegaChatApi->init(mSid);
     if (!mSid)
     {
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
@@ -135,7 +135,7 @@ void MegaChatApplication::configureLogs()
 
 void MegaChatApplication::addChats()
 {
-    MegaChatListItemList * chatList = megaChatApi->getChatListItems();
+    MegaChatListItemList *chatList = mMegaChatApi->getChatListItems();
     for (int i = 0; i < chatList->size(); i++)
     {
         mMainWin->addChat(chatList->get(i));
@@ -154,7 +154,7 @@ void MegaChatApplication::addContacts()
     {
         contact = contactList->get(i);
         const char *contactEmail = contact->getEmail();
-        megachat::MegaChatHandle userHandle = megaChatApi->getUserHandleByEmail(contactEmail);
+        megachat::MegaChatHandle userHandle = mMegaChatApi->getUserHandleByEmail(contactEmail);
         if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
             mMainWin->addContact(contact);
     }
@@ -182,7 +182,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
             {
                 if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
                 {
-                    megaChatApi->getUserFirstname(userHandle);
+                    mMegaChatApi->getUserFirstname(userHandle);
                 }
                 else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
                 {
@@ -245,7 +245,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 mMainWin->setWindowTitle(api->getMyEmail());
                 mMainWin->show();
                 addContacts();
-                megaChatApi->connect();
+                mMegaChatApi->connect();
             }
             else
             {
@@ -267,7 +267,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     }
 }
 
-void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequest *request, MegaChatError* e)
+void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequest *request, MegaChatError *e)
 {
     switch (request->getType())
     {
@@ -301,8 +301,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
                 if (! qTitle.isNull())
                     title = qTitle.toStdString();
 
-                this->megaChatApi->setChatTitle(handle, title.c_str());
-                const MegaChatListItem* chatListItem = this->megaChatApi->getChatListItem(handle);
+                this->mMegaChatApi->setChatTitle(handle, title.c_str());
+                const MegaChatListItem *chatListItem = this->mMegaChatApi->getChatListItem(handle);
                 mMainWin->addChat(chatListItem);
                 delete chatListItem;
              }
