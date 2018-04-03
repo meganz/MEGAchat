@@ -5279,12 +5279,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             if (msg.toText().length() > 2)
             {
                 megaChatContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
-                text = megaChatContainsMeta->getRichPreview()->getText();
             }
-
-            this->msg = text.size() ? MegaApi::strdup(text.c_str()) : NULL;
-            // TODO remove when applications can manage MegaChatMessage::TYPE_CONTAINS_META
-            this->type = MegaChatMessage::TYPE_NORMAL;
         }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
@@ -6094,7 +6089,7 @@ const char *MegaChatAttachedUser::getName() const
 }
 
 MegaChatContainsMeta::MegaChatContainsMeta(const MegaChatRichPreview *richPreview)
-    : mRichPreview(richPreview)
+    : mRichPreview(richPreview), mType(MegaChatMessage::CONTAINS_META_RICH_PREVIEW)
 {
 }
 
@@ -6105,7 +6100,7 @@ MegaChatContainsMeta::~MegaChatContainsMeta()
 
 int MegaChatContainsMeta::getType() const
 {
-    return type;
+    return mType;
 }
 
 const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
@@ -6527,6 +6522,19 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
 
             delete megaNodeList;
 
+            break;
+        }
+        case MegaChatMessage::TYPE_CONTAINS_META:
+        {
+            std::string metaContained = content;
+            metaContained.erase(metaContained.begin(), metaContained.begin() + 2);
+            const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(metaContained.c_str());
+            if (containsMeta->getType() == MegaChatMessagePrivate::CONTAINS_META_RICH_PREVIEW)
+            {
+                messageContents = containsMeta->getRichPreview()->getText();
+            }
+
+            delete containsMeta;
             break;
         }
         default:

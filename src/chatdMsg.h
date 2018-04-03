@@ -474,7 +474,8 @@ public:
                 && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
                 && (type == kMsgNormal                  // include normal messages
                     || type == kMsgAttachment           // include node-attachment messages
-                    || type == kMsgContact));           // include contact-attachment messages
+                    || type == kMsgContact)
+                    || type == kMsgContainsMeta);       // include containsMeta messages
     }
 
     /** @brief Convert attachment etc. special messages to text */

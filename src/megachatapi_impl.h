@@ -1053,8 +1053,8 @@ public:
 
     const MegaChatRichPreview *getRichPreview() const;
 protected:
-    int type = MegaChatMessage::CONTAINS_META_INVALID;
-    const MegaChatRichPreview *mRichPreview;
+    int mType = MegaChatMessage::CONTAINS_META_INVALID;
+    const MegaChatRichPreview *mRichPreview = NULL;
 };
 
 /**

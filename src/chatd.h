@@ -1095,7 +1095,7 @@ protected:
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
-    bool mRichLinkEnable = true;
+    bool mRichLinkEnable = false;
 
     Connection& chatidConn(karere::Id chatid)
     {
