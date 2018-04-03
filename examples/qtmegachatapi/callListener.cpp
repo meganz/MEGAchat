@@ -19,12 +19,12 @@ CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui)
          return NULL;
      }
 
-     char *copyBuff = new char[size];
-     memcpy(copyBuff,buffer,size);
-     unsigned char *auxBuf = reinterpret_cast<unsigned char*> (copyBuff);
-     QImage *auxImg = new QImage(auxBuf, width, height, QImage::Format_RGBA8888, myImageCleanupHandler, auxBuf);
+     unsigned char *copyBuff = new unsigned char[size];
+     memcpy(copyBuff, buffer, size);
+     QImage *auxImg = new QImage(copyBuff, width, height, QImage::Format_RGBA8888, myImageCleanupHandler, copyBuff);
      if(auxImg->isNull())
      {
+         delete [] copyBuff;
          return NULL;
      }
      return auxImg;
@@ -34,6 +34,7 @@ CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui)
  {
      if (info)
      {
-         delete info;
+         unsigned char *auxBuf = reinterpret_cast<unsigned char*> (info);
+         delete [] auxBuf;
      }
  }
