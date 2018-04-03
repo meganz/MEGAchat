@@ -652,6 +652,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->sendTypingNotification(chatId);
 }
 
+- (void)sendStopTypingNotificationForChat:(uint64_t)chatId {
+    self.megaChatApi->sendStopTypingNotification(chatId);
+}
+
 - (void)saveCurrentState {
     self.megaChatApi->saveCurrentState();
 }
