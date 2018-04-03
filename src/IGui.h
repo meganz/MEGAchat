@@ -362,6 +362,9 @@ public:
      * state and their meaning.
      */
     virtual void onInitStateChange(int newState) {}
+
+    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx) {}
+
     virtual ~IApp() {}
 };
 }

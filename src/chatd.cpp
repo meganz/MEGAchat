@@ -148,7 +148,17 @@ void Client::notifyUserIdle()
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
         return;
     mKeepaliveType = OP_KEEPALIVEAWAY;
+    cancelTimers();
     sendKeepalive();
+}
+
+void Client::cancelTimers()
+{
+   for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
+   {
+        cancelTimeout(*it, karereClient->appCtx);
+   }
+   mSeenTimers.clear();
 }
 
 void Client::notifyUserActive()
@@ -1161,6 +1171,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
                 }
+                else if (op == OP_NEWKEY)
+                {
+                    chat.onKeyReject();
+                }
                 else
                 {
                     chat.rejectGeneric(op, reason);
@@ -1517,6 +1531,7 @@ void Chat::clearHistory()
 {
     initChat();
     CALL_DB(clearHistory);
+    mCrypto->onHistoryReload();
     mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
 }
@@ -1604,6 +1619,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
             return;
         
         msgSubmit(message);
+
     }, mClient.karereClient->appCtx);
     return message;
 }
@@ -1811,6 +1827,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             return;
         
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
+
     }, mClient.karereClient->appCtx);
     
     return upd;
@@ -1972,41 +1989,48 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    marshallCall([wptr, this, id, idx]()
+    megaHandle mEchoTimer = karere::setTimeout([this, wptr, idx, id, mEchoTimer]()
     {
         if (wptr.deleted())
-            return;
+          return;
 
-        CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
-        sendCommand(Command(OP_SEEN) + mChatId + id);
-        
-        Idx notifyStart;
-        if (mLastSeenIdx == CHATD_IDX_INVALID)
-        {
-            notifyStart = lownum()-1;
-        }
-        else
-        {
-            Idx lowest = lownum()-1;
-            notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
-        }
-        mLastSeenIdx = idx;
-        Idx highest = highnum();
-        Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+        mClient.mSeenTimers.erase(mEchoTimer);
 
-        for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+        if ((mLastSeenIdx == CHATD_IDX_INVALID) || (idx > mLastSeenIdx))
         {
-            auto& m = at(i);
-            if (m.userid != mClient.mUserId)
+            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
+            sendCommand(Command(OP_SEEN) + mChatId + id);
+
+            Idx notifyStart;
+            if (mLastSeenIdx == CHATD_IDX_INVALID)
             {
-                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+                notifyStart = lownum()-1;
             }
+            else
+            {
+                Idx lowest = lownum()-1;
+                notifyStart = (mLastSeenIdx < lowest) ? lowest : mLastSeenIdx;
+            }
+            mLastSeenIdx = idx;
+            Idx highest = highnum();
+            Idx notifyEnd = (mLastSeenIdx > highest) ? highest : mLastSeenIdx;
+
+            for (Idx i=notifyStart+1; i<=notifyEnd; i++)
+            {
+                auto& m = at(i);
+                if (m.userid != mClient.mUserId)
+                {
+                    CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+                }
+            }
+            mLastSeenId = id;
+            CALL_DB(setLastSeen, mLastSeenId);
+            CALL_LISTENER(onUnreadChanged);
         }
-        mLastSeenId = id;
-        CALL_DB(setLastSeen, mLastSeenId);
-        CALL_LISTENER(onUnreadChanged);
-    }, mClient.karereClient->appCtx);
-    
+    }, kSeenTimeout, mClient.karereClient->appCtx);
+
+    mClient.mSeenTimers.insert(mEchoTimer);
+
     return true;
 }
 
@@ -2129,6 +2153,11 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
+}
+
+Client::~Client()
+{
+    cancelTimers();
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
@@ -2281,6 +2310,11 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
 }
 
+void Chat::onKeyReject()
+{
+    mCrypto->onKeyRejected();
+}
+
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
 {
     if (mSending.empty())
@@ -2359,18 +2393,40 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     .then([this](Message* msg)
     {
         assert(!msg->isEncrypted());
+        if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
+        {
+            if (msg->dataSize() < 2)
+                CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
+            else
+                msg->type = msg->buf()[1];
+        }
+
         //update in db
         CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
-        uint8_t prevType;
-        if (msgit != mIdToIndexMap.end())
+        if (msgit != mIdToIndexMap.end())   // message is loaded in RAM
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
-            prevType = histmsg.type;
-            histmsg.takeFrom(std::move(*msg));
+
+            if ( (msg->type == Message::kMsgTruncate
+                  && histmsg.type == msg->type
+                  && histmsg.ts == msg->ts)
+                    || (msg->type != Message::kMsgTruncate
+                        && histmsg.updated == msg->updated) )
+            {
+                CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
+                delete msg;
+                return;
+            }
+
+            //update in db
+            CALL_DB(updateMsgInHistory, msg->id(), *msg);
+
+            // update in RAM
+            histmsg.assign(*msg);     // content
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
@@ -2386,7 +2442,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             }
             else
             {
-                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet message");
+                CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
             if (msg->userid != client().userId() && // is not our own message
@@ -2395,8 +2451,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CALL_LISTENER(onUnreadChanged);
             }
 
-            //last text msg stuff
-            if ((mLastTextMsg.idx() == idx) && (msg->type != Message::kMsgTruncate))
+            if (msg->type == Message::kMsgTruncate)
+            {
+                handleTruncate(*msg, idx);
+            }
+            else if (mLastTextMsg.idx() == idx) //last text msg stuff
             {
                 //our last text message was edited
                 if (histmsg.isText()) //same message, but with updated contents
@@ -2409,31 +2468,34 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 }
             }
         }
-        else
+        else    // message not loaded in RAM
         {
-            idx = CHATD_IDX_INVALID;
-            prevType = Message::kMsgInvalid;
-            CHATID_LOG_DEBUG("onMessageEdited() Updated from message not loaded - skipped");
-            delete msg;
-            return;
+            CHATID_LOG_DEBUG("onMsgUpdated(): update for message not loaded");
+
+            // check if message in DB is outdated
+            uint16_t delta = 0;
+            CALL_DB(getMessageDelta, msg->id(), &delta);
+
+            if (delta != msg->updated)
+            {
+                //update in db
+                CALL_DB(updateMsgInHistory, msg->id(), *msg);
+            }
         }
 
-        if (msg->type == Message::kMsgTruncate)
-        {
-            if (prevType != Message::kMsgTruncate)
-            {
-                handleTruncate(*msg, idx);
-            }
-            else
-            {
-                CHATID_LOG_DEBUG("Skipping replayed truncate MSGUPD");
-            }
-        }
+        delete msg;
     })
     .fail([this, cipherMsg](const promise::Error& err)
     {
-        CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
-            ID_CSTR(cipherMsg->id()), err.what());
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+        }
+        else
+        {
+            CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
+                ID_CSTR(cipherMsg->id()), err.what());
+        }
     });
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
@@ -2560,7 +2622,7 @@ Message::Status Chat::getMsgStatus(const Message& msg, Idx idx) const
 }
 /* We have 3 stages:
  - add to history buffer, allocating an index
- - decrypt - may not happen asynchronous if crypto needs to fetch stuff from network.
+ - decrypt - may happen asynchronous if crypto needs to fetch stuff from network.
  Also the message may be undecryptable - in this case continue as normal, but message's
  isEncrypted() flag will be set to true, so GUI can decide how to show it
  - add message to history db (including its isEncrypted() state(), handle received
@@ -2682,6 +2744,11 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     auto message = &msg;
     pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
     {
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+        }
+
         assert(message->isEncrypted() == 1);
         message->setEncrypted(2);
         if ((err.type() != SVCRYPTO_ERRTYPE) ||
@@ -2756,6 +2823,12 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
             }
         }
+    })
+    .fail([this](const promise::Error& err)
+    {
+        //TODO: If a message could be deleted individually, decryption process should be restarted again
+        // It isn't a possibilty with acutal implementation
+        CHATID_LOG_WARNING("Message can't be decrypted: Fail type (%d) - %s", err.type(), err.what());
     });
 
     return false; //decrypt was not done immediately
@@ -3127,6 +3200,11 @@ void Chat::sendTypingNotification()
     sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserTyping);
 }
 
+void Chat::sendStopTypingNotification()
+{
+    sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserStopTyping);
+}
+
 void Chat::handleBroadcast(karere::Id from, uint8_t type)
 {
     if (type == Command::kBroadcastUserTyping)
@@ -3134,12 +3212,16 @@ void Chat::handleBroadcast(karere::Id from, uint8_t type)
         CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserTyping");
         CALL_LISTENER(onUserTyping, from);
     }
+    else if (type == Command::kBroadcastUserStopTyping)
+    {
+        CHATID_LOG_DEBUG("recv BROADCAST kBroadcastUserStopTyping");
+        CALL_LISTENER(onUserStopTyping, from);
+    }
     else
     {
         CHATID_LOG_WARNING("recv BROADCAST <unknown_type>");
     }
 }
-
 
 bool Chat::manualResendWhenUserJoins() const
 {

@@ -182,7 +182,7 @@ struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::Dele
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
-    promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg);
+    promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
 };
 
 
@@ -263,6 +263,7 @@ protected:
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
     bool mIsDestroying = false;
+    unsigned int mCacheVersion = 0;
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
@@ -270,6 +271,8 @@ public:
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, void *ctx);
+
+    unsigned int getCacheVersion() const;
 protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
@@ -332,6 +335,7 @@ public:
     virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);
     virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
+    virtual void onKeyRejected();
     virtual void setUsers(karere::SetOfIds* users);
     virtual void onUserJoin(karere::Id userid);
     virtual void onUserLeave(karere::Id userid);
@@ -341,6 +345,7 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
     virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
+    virtual void onHistoryReload();
     //====
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);

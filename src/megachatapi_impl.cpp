@@ -245,9 +245,18 @@ void MegaChatApiImpl::sendPendingRequests()
             ChatRoom *chatroom = findChatRoom(chatid);
             if (chatroom)
             {
-                chatroom->sendTypingNotification();
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                if (request->getFlag())
+                {
+                    chatroom->sendTypingNotification();
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
+                else
+                {
+                    chatroom->sendStopTypingNotification();
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
             }
             else
             {
@@ -1456,6 +1465,16 @@ void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int
     }
 }
 
+void MegaChatApiImpl::fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg)
+{
+    for(set<MegaChatNotificationListener *>::iterator it = notificationListeners.begin(); it != notificationListeners.end() ; it++)
+    {
+        (*it)->onChatNotification(chatApi, chatid, msg);
+    }
+
+    delete msg;
+}
+
 void MegaChatApiImpl::connect(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CONNECT, listener);
@@ -2455,6 +2474,16 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2795,6 +2824,18 @@ void MegaChatApiImpl::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomLis
     sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    notificationListeners.insert(listener);
+    sdkMutex.unlock();
+}
+
 void MegaChatApiImpl::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     if (!listener)
@@ -2883,6 +2924,18 @@ void MegaChatApiImpl::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoom
     sdkMutex.lock();
     MegaChatRoomHandler *roomHandler = getChatRoomHandler(chatid);
     roomHandler->removeChatRoomListener(listener);
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    if (!listener)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    notificationListeners.erase(listener);
     sdkMutex.unlock();
 }
 
@@ -2997,6 +3050,12 @@ void MegaChatApiImpl::onInitStateChange(int newState)
     {
         fireOnChatInitStateUpdate(state);
     }
+}
+
+void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
+{
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    fireOnChatNotification(chatid, message);
 }
 
 int MegaChatApiImpl::convertInitState(int state)
@@ -3884,6 +3943,14 @@ void MegaChatRoomHandler::onUserTyping(karere::Id user)
     fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onUserStopTyping(karere::Id user)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    chat->setUserStopTyping(user.val);
+
+    fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
 {
     if (mRoom)
@@ -4052,6 +4119,15 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
         }
         delete msgToUpdate;
     }
+
+    // check if notification is required
+    if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+    {
+
+        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+        chatApiImpl->fireOnChatNotification(chatid, message);
+    }
 }
 
 void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
@@ -4119,11 +4195,17 @@ void MegaChatRoomHandler::onMessageRejected(const Message &msg, uint8_t reason)
     fireOnMessageUpdate(message);
 }
 
-void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status newStatus, const Message &msg)
+void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status, const Message &msg)
 {
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, newStatus, idx);
-    message->setStatus(newStatus);
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+    message->setStatus(status);
     fireOnMessageUpdate(message);
+
+    if (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    {
+        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+        chatApiImpl->fireOnChatNotification(chatid, message);
+    }
 }
 
 void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
@@ -4132,6 +4214,15 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     message->setContentChanged();
     fireOnMessageUpdate(message);
+
+    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
+    // and, if so, remove the block from `onRecvNewMessage()`
+    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    {
+        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+        chatApiImpl->fireOnChatNotification(chatid, message);
+    }
 }
 
 void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason reason)
@@ -4646,6 +4737,12 @@ void MegaChatRoomPrivate::setUserTyping(MegaChatHandle uh)
     this->changed |= MegaChatRoom::CHANGE_TYPE_USER_TYPING;
 }
 
+void MegaChatRoomPrivate::setUserStopTyping(MegaChatHandle uh)
+{
+    this->uh = uh;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING;
+}
+
 void MegaChatRoomPrivate::setClosed()
 {
     this->changed |= MegaChatRoom::CHANGE_TYPE_CLOSED;
@@ -5142,6 +5239,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         {
             megaChatUsers = JSonUtils::parseAttachContactJSon(msg.toText().c_str());
             break;
+        }
+        case MegaChatMessage::TYPE_CONTAINS_META:
+        {
+            std::string linkName = JSonUtils::parseContainsMeta(msg.toText().c_str());
+            this->msg = linkName.size() ? MegaApi::strdup(linkName.c_str()) : NULL;
+            // TODO remove when applications can manage MegaChatMessage::TYPE_CONTAINS_META
+            this->type = MegaChatMessage::TYPE_NORMAL;
         }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
@@ -6201,5 +6305,43 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     }
 
     return messageContents;
+}
+
+string JSonUtils::parseContainsMeta(const char *json)
+{
+    switch (json[0])
+    {
+    case MegaChatMessagePrivate::META_CONTAINS_RICH_PREVIEW:
+        return parseRichPreview(&json[1]);
+        break;
+    default:
+        break;
+    }
+    
+    return std::string();
+}
+
+string JSonUtils::parseRichPreview(const char *json)
+{
+    if (!json  || strcmp(json, "") == 0)
+    {
+        return std::string();
+    }
+
+    rapidjson::StringStream stringStream(json);
+
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
+    if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
+    {
+        API_LOG_ERROR("Invalid JSon struct");
+        return std::string();
+    }
+
+    std::string textMessage = iteratorTestMessage->value.GetString();
+
+    return textMessage;
 }
 

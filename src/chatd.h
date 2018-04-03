@@ -64,6 +64,8 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
 };
+/** Timeout to send SEEN (Milliseconds)**/
+enum { kSeenTimeout = 200 };
 enum { kProtocolVersion = 0x01 };
 
 class DbInterface;
@@ -259,11 +261,20 @@ public:
      * @brief onUserTyping Called when a signal is received that a peer
      * is typing a message. Normally the app should have a timer that
      * is reset each time a typing notification is received. When the timer
-     * expires, it should hide the notification GUI.
+     * expires or stop typing is received, it should hide the notification GUI.
      * @param user The user that is typing. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
+
+    /**
+     * @brief onUserStopTyping Called when a signal is received that a peer
+     * has stopped to type a message. When this message arrives, notification GUI
+     * has to be removed.
+     * @param user The user that has stop to type. The app can use the user attrib
+     * cache to get a human-readable name for the user.
+     */
+    virtual void onUserStopTyping(karere::Id userid) {}
 
     /**
      * @brief Called when the last known text message changes/is updated, so that
@@ -1004,6 +1015,12 @@ public:
      * other clients receiving \c onUserTyping() callbacks
      */
     void sendTypingNotification();
+
+    /** @brief Broadcasts a notification that the user has stopped typing. This will trigged
+     * other clients receiving \c onUserStopTyping() callbacks
+     */
+    void sendStopTypingNotification();
+
     /**
      * @brief Generates a backreference id. Must be public because strongvelope
      *  uses it to generate chat title messages
@@ -1035,6 +1052,7 @@ protected:
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
+    void onKeyReject();
     void rejectMsgupd(karere::Id id, uint8_t serverReason);
     void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
@@ -1042,6 +1060,7 @@ protected:
     void deleteMessagesBefore(Idx idx);
     void createMsgBackRefs(OutputQueue::iterator msgit);
     void verifyMsgOrder(const Message& msg, Idx idx);
+
     /**
      * @brief Initiates replaying of callbacks about unsent messages and unsent
      * edits, i.e. \c onUnsentMsgLoaded() and \c onUnsentEditLoaded().
@@ -1069,6 +1088,8 @@ protected:
     std::map<karere::Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
+ // set of seen timers
+    std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
@@ -1093,7 +1114,7 @@ public:
     karere::Id userId() const { return mUserId; }
     void setKeepaliveType(bool isInBackground);
     Client(karere::Client *client, karere::Id userId);
-    ~Client(){}
+    ~Client();
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
     {
         auto it = mChatForChatId.find(chatid);
@@ -1122,6 +1143,8 @@ public:
     void notifyUserActive();
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);
+    /** Clean the timers set */
+    void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
     friend class Connection;
     friend class Chat;
@@ -1181,6 +1204,7 @@ public:
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
+    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
     virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;

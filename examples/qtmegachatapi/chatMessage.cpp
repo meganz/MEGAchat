@@ -133,12 +133,16 @@ void ChatMessage::updateToolTip()
         break;
     }
 
-    tooltip.append(QString::fromStdString(std::to_string(msgId)))
+    const char *auxMsgId_64 = mChatWindow->mMegaApi->userHandleToBase64(msgId);
+    const char *auxUserId_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
+    tooltip.append(QString::fromStdString(auxMsgId_64))
             .append(tr("\ntype: "))
             .append(QString::fromStdString(std::to_string(mMessage->getType())))
             .append(tr("\nuserid: "))
-            .append(QString::fromStdString(std::to_string(mMessage->getUserHandle())));
+            .append(QString::fromStdString(auxUserId_64));
     ui->mHeader->setToolTip(tooltip);
+    delete auxMsgId_64;
+    delete auxUserId_64;
 }
 
 QListWidgetItem *ChatMessage::getWidgetItem() const
