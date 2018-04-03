@@ -49,10 +49,6 @@ mega::MegaUserList * MainWindow::getUserContactList()
 
 void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
 {
-   if(!call)
-   {
-       return;
-   }
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
     if(itWidgets == chatWidgets.end())
     {
