@@ -3077,11 +3077,10 @@ void Chat::setOnlineState(ChatState state)
                break;
            }
        }
-    }
-
-    if (allConnected)
-    {
-        mClient.karereClient->setCommitMode(true);
+       if (allConnected)
+       {
+           mClient.karereClient->setCommitMode(true);
+       }
     }
 
     mOnlineState = state;
