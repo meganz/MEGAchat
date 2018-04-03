@@ -20,7 +20,7 @@ QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(t
 
 QTMegaChatEvent::~QTMegaChatEvent()
 {
-    delete buffer;
+    delete [] buffer;
     delete request;
     delete error;
     delete item;
@@ -166,6 +166,11 @@ void QTMegaChatEvent::setHeight(int height)
 
 void QTMegaChatEvent::setBuffer(char *buffer)
 {
+    if (this->buffer)
+    {
+        delete [] this->buffer;
+    }
+
     this->buffer = buffer;
 }
 

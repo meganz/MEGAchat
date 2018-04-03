@@ -22,7 +22,6 @@ void QTMegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle c
     event->setHeight(height);
     char * auxBuff = new char[size];
     memcpy(auxBuff, buffer, size);
-    delete event->getBuffer();
     event->setBuffer(auxBuff);
     event->setSize(size);
     QCoreApplication::postEvent(this, event, INT_MIN);
