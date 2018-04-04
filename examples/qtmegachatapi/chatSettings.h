@@ -3,6 +3,7 @@
 #include <QDialog>
 #include "MainWindow.h"
 #include "ui_settingsDialog.h"
+const int deviceListInvalidIndex = -1;
 
 namespace Ui
 {
@@ -10,22 +11,35 @@ namespace Ui
     class MainWindow;
 }
 class MainWindow;
-class ChatSettings : public QDialog
+class ChatSettings
+{
+    public:
+        ChatSettings();
+        virtual ~ChatSettings();
+        int getAudioInIdx() const;
+        void setAudioInIdx(int audioInIdx);
+        int getVideoInIdx() const;
+        void setVideoInIdx(int videoInIdx);
+
+    private:
+        int mAudioInIdx;
+        int mVideoInIdx;
+};
+
+class ChatSettingsDialog : public QDialog
 {
     Q_OBJECT
     public:
-        ChatSettings(QMainWindow *parent);
-        virtual ~ChatSettings();
+        ChatSettingsDialog(QMainWindow *parent, ChatSettings *chatSettings);
+        virtual ~ChatSettingsDialog();
         void applySettings();
 
     protected:
         MainWindow *mMainWin;
         Ui::SettingsDialog *ui;
+        ChatSettings *mChatSettings;
         #ifndef KARERE_DISABLE_WEBRTC
-            void selectVideoInput();
-            void selectAudioInput();
-            int mAudioInIdx;
-            int mVideoInIdx;
+            void setDevices();
         #endif
     private slots:
             void on_buttonBox_clicked(QAbstractButton *button);

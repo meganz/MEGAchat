@@ -33,6 +33,8 @@ struct ChatComparator
     }
 };
 
+class ChatSettings;
+class ChatSettingsDialog;
 class ChatItemWidget;
 class ContactItemWidget;
 class QTMegaChatCallListener;
@@ -41,7 +43,7 @@ namespace Ui
 {
     class MainWindow;
 }
-class ChatSettings;
+
 class MainWindow :
       public QMainWindow,
       public megachat::MegaChatListener,
@@ -79,7 +81,8 @@ class MainWindow :
     protected:
         Ui::MainWindow *ui;
         bool allItemsVisibility;
-        QMenu * onlineStatus;
+        QMenu *onlineStatus;
+        ChatSettings *mChatSettings;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
@@ -103,7 +106,7 @@ class MainWindow :
 
      friend class ChatItemWidget;
      friend class MegaChatApplication;
-     friend class ChatSettings;
+     friend class ChatSettingsDialog;
      friend class CallAnswerGui;
      friend class ChatWindow;
 };

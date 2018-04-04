@@ -26,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     onlineStatus = NULL;
     allItemsVisibility = false;
     mLogger = logger;
+    mChatSettings = new ChatSettings();
     qApp->installEventFilter(this);
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
@@ -37,6 +38,7 @@ MainWindow::~MainWindow()
     mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
     delete megaChatListenerDelegate;
     delete megaChatCallListenerDelegate;
+    delete mChatSettings;
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
@@ -229,7 +231,7 @@ void MainWindow::on_bSettings_clicked()
 
 void MainWindow::createSettingsMenu()
 {
-    ChatSettings *chatSettings = new ChatSettings(this);
+    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this, mChatSettings);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
