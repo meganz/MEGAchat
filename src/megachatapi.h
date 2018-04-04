@@ -3247,10 +3247,10 @@ public:
     static void setCatchException(bool enable);
 
     /**
-     * @brief Checks whether \c text has an url
+     * @brief Checks whether \c text contains a URL
      *
-     * @param text String where url has to be found it
-     * @return True if \c text has an url
+     * @param text String to search for a URL
+     * @return True if \c text contains a URL
      */
     static bool hasUrl(const char* text);
 

@@ -1640,8 +1640,7 @@ void Chat::requestRichLink(Message &message)
         }
 
         auto wptr = weakHandle();
-        karere::Id messageId = message.id();
-        Idx messageIdx = msgIndexFromId(messageId);
+        Idx messageIdx = msgIndexFromId(message.id());
         uint16_t updated = message.updated;
         client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
         .then([wptr, this, messageIdx, updated, text](ReqResult result)
@@ -1669,7 +1668,7 @@ void Chat::requestRichLink(Message &message)
             if (wptr.deleted())
                 return;
 
-            CHATID_LOG_ERROR("Fail to request rich link: request error (%d)", err.code());
+            CHATID_LOG_ERROR("Failed to request rich link: request error (%d)", err.code());
         });
     }
 }
