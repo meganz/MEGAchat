@@ -498,6 +498,11 @@ MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
     return  pImpl->getLastMessageSeen(chatid);
 }
 
+MegaChatHandle MegaChatApi::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    return pImpl->getLastMessageSeenId(chatid);
+}
+
 void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId)
 {
     pImpl->removeUnsentMessage(chatid, rowId);
