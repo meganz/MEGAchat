@@ -26,6 +26,7 @@ public class MegaChatApiJava {
     static Set<DelegateMegaChatRoomListener> activeChatRoomListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRoomListener>());
     static Set<DelegateMegaChatCallListener> activeChatCallListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatCallListener>());
     static Set<DelegateMegaChatVideoListener> activeChatVideoListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatVideoListener>());
+    static Set<DelegateMegaChatNotificationListener> activeChatNotificationListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatNotificationListener>());
 
     void runCallback(Runnable runnable) {
         runnable.run();
@@ -64,6 +65,42 @@ public class MegaChatApiJava {
     public void addChatRemoteVideoListener(MegaChatVideoListenerInterface listener)
     {
         megaChatApi.addChatRemoteVideoListener(createDelegateChatVideoListener(listener, true));
+    }
+
+    /**
+     * Register a listener to receive notifications
+     *
+     * You can use MegaChatApi::removeChatRequestListener to stop receiving events.
+     *
+     * @param listener Listener that will receive all events about requests
+     */
+    public void addChatNotificationListener(MegaChatNotificationListenerInterface listener){
+        megaChatApi.addChatNotificationListener(createDelegateChatNotificationListener(listener));
+    }
+
+    /**
+     * Unregister a MegaChatNotificationListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    public void removeChatNotificationListener(MegaChatNotificationListenerInterface listener){
+        ArrayList<DelegateMegaChatNotificationListener> listenersToRemove = new ArrayList<DelegateMegaChatNotificationListener>();
+        synchronized (activeChatNotificationListeners) {
+            Iterator<DelegateMegaChatNotificationListener> it = activeChatNotificationListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatNotificationListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i=0;i<listenersToRemove.size();i++){
+            megaChatApi.removeChatNotificationListener(listenersToRemove.get(i));
+        }
     }
 
     public void removeChatRequestListener(MegaChatRequestListenerInterface listener) {
@@ -1495,6 +1532,45 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void sendStopTypingNotification(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.sendStopTypingNotification(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void sendStopTypingNotification(long chatid){
+        megaChatApi.sendStopTypingNotification(chatid);
+    }
+
+    /**
      * Saves the current state
      *
      * The DB cache works with transactions. In order to prevent losing recent changes when the app
@@ -1797,6 +1873,12 @@ public class MegaChatApiJava {
     private MegaChatVideoListener createDelegateChatVideoListener(MegaChatVideoListenerInterface listener, boolean remote) {
         DelegateMegaChatVideoListener delegateListener = new DelegateMegaChatVideoListener(this, listener, remote);
         activeChatVideoListeners.add(delegateListener);
+        return delegateListener;
+    }
+
+    private MegaChatNotificationListener createDelegateChatNotificationListener(MegaChatNotificationListenerInterface listener) {
+        DelegateMegaChatNotificationListener delegateListener = new DelegateMegaChatNotificationListener(this, listener);
+        activeChatNotificationListeners.add(delegateListener);
         return delegateListener;
     }
 

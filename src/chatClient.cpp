@@ -377,6 +377,11 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     });
 }
 
+void Client::setCommitMode(bool commitEach)
+{
+    db.setCommitMode(commitEach);
+}
+
 void Client::commit(const std::string& scsn)
 {
     if (scsn.empty())
@@ -2301,6 +2306,44 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
     if (display)
     {
         display->onChatOnlineState(state);
+    }
+}
+
+void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::string &errmsg)
+{
+    KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
+        karere::Id(mChatid).toString().c_str(),
+        msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
+        errmsg.c_str());
+}
+
+void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
+{
+    if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
+void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
+{
+    chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
+
+    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
+    // and, if so, remove the block from `onRecvNewMessage()`
+    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
+void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
+{
+    if (msg.userid != parent.client.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
     }
 }
 
