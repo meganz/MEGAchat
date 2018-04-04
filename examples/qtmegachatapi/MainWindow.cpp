@@ -92,12 +92,10 @@ void MainWindow::addContacts()
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
-        const char *contactEmail = contact->getEmail();
         mega::MegaHandle userHandle = contact->getHandle();
-
         if (userHandle != this->mMegaChatApi->getMyUserHandle())
         {
-            if(contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
+            if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
             {
                 continue;
             }
