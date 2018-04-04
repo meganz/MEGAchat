@@ -1488,6 +1488,18 @@ public class MegaChatApiJava {
     }
 
     /**
+     *  Returns message id of the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return Message id for the last-seen-by-us, or invalid handle if \c chatid is invalid or
+     * the user has not seen any message in that chat
+     */
+    public long getLastMessageSeenId(long chatid){
+        return megaChatApi.getLastMessageSeenId(chatid);
+    }
+
+    /**
      * Removes the unsent message from the queue
      *
      * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
