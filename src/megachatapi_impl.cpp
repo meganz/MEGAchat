@@ -2456,6 +2456,24 @@ MegaChatMessage *MegaChatApiImpl::getLastMessageSeen(MegaChatHandle chatid)
     return megaMsg;
 }
 
+MegaChatHandle MegaChatApiImpl::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    MegaChatHandle lastMessageSeenId = MEGACHAT_INVALID_HANDLE;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        lastMessageSeenId = chat.lastSeenId();
+    }
+
+    sdkMutex.unlock();
+
+    return lastMessageSeenId;
+}
+
 void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
     sdkMutex.lock();
