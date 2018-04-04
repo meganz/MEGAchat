@@ -2678,7 +2678,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      *
      * @return The last-seen-by-us MegaChatMessage, or NULL if c\ chatid is invalid or
-     * last message seen is not in local cache.
+     * last message seen is not loaded in memory.
      */
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
 
