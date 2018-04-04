@@ -38,9 +38,9 @@ class ChatSettingsDialog : public QDialog
         MainWindow *mMainWin;
         Ui::SettingsDialog *ui;
         ChatSettings *mChatSettings;
-        #ifndef KARERE_DISABLE_WEBRTC
-            void setDevices();
-        #endif
+#ifndef KARERE_DISABLE_WEBRTC
+        void setDevices();
+#endif
     private slots:
             void on_buttonBox_clicked(QAbstractButton *button);
 };
