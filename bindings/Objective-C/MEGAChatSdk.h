@@ -211,6 +211,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
+- (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
 - (void)saveCurrentState;
 
 #pragma mark - Audio and video calls

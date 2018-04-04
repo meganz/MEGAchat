@@ -2462,6 +2462,24 @@ MegaChatMessage *MegaChatApiImpl::getLastMessageSeen(MegaChatHandle chatid)
     return megaMsg;
 }
 
+MegaChatHandle MegaChatApiImpl::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    MegaChatHandle lastMessageSeenId = MEGACHAT_INVALID_HANDLE;
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        lastMessageSeenId = chat.lastSeenId();
+    }
+
+    sdkMutex.unlock();
+
+    return lastMessageSeenId;
+}
+
 void MegaChatApiImpl::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
     sdkMutex.lock();
@@ -5281,7 +5299,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
-            std::string text("");
             if (msg.toText().length() > 2)
             {
                 megaChatContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
@@ -6567,7 +6584,6 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json)
         }
         default:
         {
-            containsMeta = NULL;
             break;
         }
     }

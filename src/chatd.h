@@ -908,6 +908,9 @@ public:
     /** @brief The last-seen-by-us pointer */
     Idx lastSeenIdx() const { return mLastSeenIdx; }
 
+    /** @brief The last-seen-by-us pointer */
+    karere::Id lastSeenId() const { return mLastSeenId; }
+
     /** @brief Whether the next history fetch will be from local db or from server */
     bool historyFetchIsFromDb() const { return (mOldestKnownMsgId != 0); }
 
