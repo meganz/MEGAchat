@@ -14,6 +14,7 @@
 #include "chatdMsg.h"
 #include "url.h"
 #include "net/websocketsIO.h"
+#include "userAttrCache.h"
 
 namespace karere {
     class Client;
@@ -1094,6 +1095,7 @@ protected:
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
     bool mRichLinkEnable = false;
+    karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
     Connection& chatidConn(karere::Id chatid)
     {

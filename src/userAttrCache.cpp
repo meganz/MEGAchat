@@ -39,6 +39,12 @@ inline static Buffer* bufFromCstr(const char* cstr)
     return new Buffer(cstr, strlen(cstr));
 }
 
+inline static Buffer* bufFromTLV(const ::mega::MegaStringMap *map, const char *key)
+{
+    const char *buf = map->get(key);
+    return buf ? new Buffer(buf, strlen(buf)) : nullptr;
+}
+
 Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
 {
      throw std::runtime_error("Not implemented");
@@ -145,7 +151,7 @@ UserAttrDesc gUserAttrDescs[21] =
   //richLink
     {
       ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS,
-      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromCstr(req.getText()); },
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromTLV(req.getMegaStringMap(), "num"); },
       ::mega::MegaUser::CHANGE_TYPE_RICH_PREVIEWS
     },
   //email

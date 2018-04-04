@@ -83,6 +83,20 @@ const unsigned Client::chatdVersion = 2;
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
 {
+    mRichPrevAttrCbHandle = karereClient->userAttrCache().getAttr(mUserId, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
+       [](::Buffer *buf, void* userp)
+       {
+            if (buf && !buf->empty())
+            {
+                char tmp[2];
+                base64urldecode(buf->buf(), buf->size(), tmp, 2);
+                static_cast<Client*>(userp)->mRichLinkEnable = (*tmp == '1');
+            }
+            else
+            {
+                static_cast<Client*>(userp)->mRichLinkEnable = false;
+            }
+       });
 }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
@@ -2219,6 +2233,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 Client::~Client()
 {
     cancelTimers();
+    karereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
