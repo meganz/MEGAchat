@@ -130,6 +130,7 @@ std::string rtmsgCommandToString(const StaticBuffer& data);
 class ISessionHandler
 {
 public:
+    virtual ~ISessionHandler(){}
     virtual void onSessStateChange(uint8_t newState) = 0;
     virtual void onSessDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
     virtual void onRemoteStreamAdded(IVideoRenderer*& rendererOut) = 0;
@@ -177,7 +178,7 @@ class ISession: public karere::DeleteTrackable
 protected:
     Call& mCall;
     karere::Id mSid;
-    uint8_t mState;
+    uint8_t mState = kStateInitial;
     bool mIsJoiner;
     karere::Id mPeer;
     karere::Id mPeerAnonId;
@@ -187,6 +188,7 @@ protected:
 public:
     enum: uint8_t
     {
+        kStateInitial,
         kStateWaitSdpOffer,         // < Session just created, waiting for SDP offer from initiator
         kStateWaitLocalSdpAnswer,   // < Remote SDP offer has been set, and we are generating SDP answer
         kStateWaitSdpAnswer,        // < SDP offer has been sent by initiator, waiting for SDP answer
@@ -200,6 +202,7 @@ public:
     bool isCaller() const { return !mIsJoiner; }
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
+    karere::Id peer() const { return mPeer; }
     virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
@@ -250,6 +253,7 @@ public:
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
     TermCode termCode() const {return mTermCode; }
     bool isJoiner() { return mIsJoiner; }
+    ICallHandler *callHandler() { return mHandler; }
     virtual karere::AvFlags sentAv() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
     virtual bool answer(karere::AvFlags av) = 0;

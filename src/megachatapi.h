@@ -98,11 +98,20 @@ public:
 
     enum
     {
+        SESSION_STATUS_INITIAL = 0,
+        SESSION_STATUS_IN_PROGRESS,        /// Session is stablished and there is communication between peers
+        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
+        SESSION_STATUS_NO_SESSION,         /// There are no session for that peer id
+    };
+
+    enum
+    {
         CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
         CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
+        CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
     };
 
     enum
@@ -218,6 +227,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
      * Check MegaChatCall::isRinging() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
+     * Check MegaChatCall::getSessionStatus() and MegaChatCall::getPeerSessionStatusChange() values
      */
     virtual int getChanges() const;
 
@@ -247,6 +259,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
      * Check MegaChatCall::isRinging() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
+     * Check MegaChatCall::getSessionStatus() and MegaChatCall::getPeerSessionStatusChange() values
      *
      * @return true if this call has an specific change
      */
@@ -320,6 +335,31 @@ public:
      * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
      */
     virtual bool isRinging() const;
+
+    /**
+     * @brief Returns the status of the session for a peer
+     *
+     * Valid values:
+     *  - SESSION_STATUS_INITIAL
+     *  - SESSION_STATUS_IN_PROGRESS
+     *  - SESSION_STATUS_DESTROYED
+     *  - SESSION_STATUS_NO_SESSION
+     *
+     * If \c peerId has not any session in the call SESSION_STATUS_NO_SESSION will be returned
+     *
+     * @return Session status for \c peerId
+     */
+    virtual int getSessionStatus(MegaChatHandle peerId) const;
+
+    /**
+     * @brief Returns peer id which session status has changed
+     *
+     * This function only return a valid value when session status changed is notified
+     * MegaChatCallListener::onChatCallUpdate
+     *
+     * @return Handle of the peer which session has change its status
+     */
+    virtual MegaChatHandle getPeerSessionStatusChange() const;
 };
 
 /**
