@@ -6319,6 +6319,14 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
 
             break;
         }
+        case MegaChatMessage::TYPE_CONTAINS_META:
+        {
+            std::string metaContained = content;
+            metaContained.erase(metaContained.begin(), metaContained.begin() + 2);
+            std::string containsMeta = JSonUtils::parseContainsMeta(metaContained.c_str());
+            messageContents = containsMeta;
+            break;
+        }
         default:
         {
             messageContents = content;
