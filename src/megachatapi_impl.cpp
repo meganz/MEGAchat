@@ -6345,6 +6345,7 @@ string JSonUtils::parseContainsMeta(const char *json)
         return parseRichPreview(&json[1]);
         break;
     default:
+        API_LOG_ERROR("Invalid Type for message with meta contained");
         return std::string();
         break;
     }
