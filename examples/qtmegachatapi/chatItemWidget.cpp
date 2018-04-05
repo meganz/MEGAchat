@@ -157,6 +157,13 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     {
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
         msgAuthor = (char*) chatRoom->getPeerFirstnameByHandle(msgUserId);
+        if (msgAuthor)
+        {
+            if ((strlen(msgAuthor)) == 0)
+            {
+                return NULL;
+            }
+        }
         delete chatRoom;
     }
     return msgAuthor;

@@ -257,7 +257,15 @@ void ChatMessage::setAuthor(const char *author)
 
         if (msgAuthor)
         {
-            ui->mAuthorDisplay->setText(tr(msgAuthor));
+            if (strlen(msgAuthor) == 0)
+            {
+                ui->mAuthorDisplay->setText(tr("Unknown participant"));
+                megaChatApi->getUserFirstname(mMessage->getUserHandle());
+            }
+            else
+            {
+                ui->mAuthorDisplay->setText(tr(msgAuthor));
+            }
         }
         else
         {

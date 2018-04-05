@@ -287,8 +287,12 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
              MegaChatHandle userHandle = request->getUserHandle();
              if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
-                 //check if empty
                 const char *firstname = request->getText();
+                if ((strlen(firstname)) == 0)
+                {
+                    this->megaChatApi->getUserEmail(userHandle);
+                    break;
+                }
                 mMainWin->updateContactFirstname(userHandle,firstname);
                 mMainWin->updateMessageFirstname(userHandle,firstname);
              }

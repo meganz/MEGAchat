@@ -462,10 +462,22 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             }
             else
             {
+                const char *memberName = mChatRoom->getPeerFirstname(i);
+                if (!memberName)
+                {
+                    memberName = mChatRoom->getPeerEmail(i);
+                }
+                else
+                {
+                   if ((strlen(memberName)) == 0)
+                   {
+                       memberName = mChatRoom->getPeerEmail(i);
+                   }
+                }
                 privilege = mChatRoom->getPeerPrivilege(i);
                 userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
                 title.append(" ")
-                    .append(QString::fromStdString(mChatRoom->getPeerFirstname(i)))
+                    .append(QString::fromStdString(memberName))
                     .append(" [")
                     .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
                     .append("]");
