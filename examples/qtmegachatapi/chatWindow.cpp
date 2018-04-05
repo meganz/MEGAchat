@@ -65,7 +65,6 @@ void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, 
         ChatMessage *chatMessage = it->second;
         if (chatMessage->mMessage->getUserHandle() == contactHandle)
         {
-            //chatMessage->updateToolTip(mMegaChatApi->getChatListItem(it->first), firstname);
             chatMessage->setAuthor(firstname);
         }
     }
@@ -75,7 +74,7 @@ void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, 
 
 void ChatWindow::setChatTittle(const char *title)
 {
-    if(title)
+    if (title)
     {
         mChatTitle = title;
     }

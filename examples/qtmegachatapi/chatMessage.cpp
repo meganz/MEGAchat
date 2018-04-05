@@ -21,7 +21,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
     setTimestamp(mMessage->getTimestamp());
     megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatId);
 
-    if(chatRoom->isGroup() && mMessage->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
+    if (chatRoom->isGroup() && mMessage->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
         setStatus(megachat::MegaChatMessage::STATUS_SERVER_RECEIVED);
     else
         setStatus(mMessage->getStatus());
@@ -189,7 +189,7 @@ std::string ChatMessage::managementInfoToString() const
     }
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
-        ChatItemWidget * item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
+        ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
 
         item->updateToolTip(this->megaChatApi->getChatListItem(mChatId), NULL);
 
@@ -240,7 +240,7 @@ void ChatMessage::setStatus(int status)
 
 void ChatMessage::setAuthor(const char *author)
 {
-    if(author)
+    if (author)
     {
         ui->mAuthorDisplay->setText(tr(author));
         return;

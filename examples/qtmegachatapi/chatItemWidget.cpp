@@ -148,7 +148,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
 
 const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle msgUserId)
 {
-    char* msgAuthor = NULL;
+    char *msgAuthor = NULL;
     if(msgUserId == mMegaChatApi->getMyUserHandle())
     {
         msgAuthor = "Me";
