@@ -5210,35 +5210,18 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
     if (msg->getType() == TYPE_CONTAINS_META)
     {
-        switch (msg->containsMetaType())
+        const MegaChatMessagePrivate *msgPrivate = static_cast<const MegaChatMessagePrivate *>(msg);
+        const MegaChatContainsMeta *containsMeta = msgPrivate->getMetaContains();
+        if (containsMeta != NULL)
         {
-            case CONTAINS_META_RICH_PREVIEW:
-            {
-                const char *text = msg->getRichPreviewText();
-                const char *title = msg->getRichPreviewTitle();
-                const char *description = msg->getRichPreviewDescription();
-                const char *image = msg->getRichPreviewImage();
-                const char *imageFormat = msg->getRichPreviewImageFormat();
-                const char *icon = msg->getRichPreviewIcon();
-                const char *iconFormat = msg->getRichPreviewIconFormat();
-                const char *url = msg->getRichPreviewUrl();
-                MegaChatRichPreview *richPreview = new MegaChatRichPreview(std::string(text), std::string(title), std::string(description),
-                                                                           image, std::string(imageFormat),
-                                                                           icon, std::string(iconFormat), std::string(url));
-
-                this->megaChatContainsMeta = new MegaChatContainsMeta(richPreview);
-                break;
-            }
-            default:
-            {
-                this->megaChatContainsMeta = NULL;
-                break;
-            }
+            this->megaChatContainsMeta = containsMeta->copy();
         }
-    }
-    else
-    {
-        this->megaChatContainsMeta = NULL;
+        else
+        {
+            API_LOG_ERROR("Invalid meta contained type: %d", containsMeta->getType());
+            assert(false);
+            this->megaChatContainsMeta = NULL;
+        }
     }
 }
 
@@ -5317,6 +5300,7 @@ MegaChatMessagePrivate::~MegaChatMessagePrivate()
     delete [] msg;
     delete megaChatUsers;
     delete megaNodeList;
+    delete megaChatContainsMeta;
 }
 
 MegaChatMessage *MegaChatMessagePrivate::copy() const
@@ -5572,6 +5556,11 @@ void MegaChatMessagePrivate::setCode(int code)
 void MegaChatMessagePrivate::setAccess()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
+}
+
+const MegaChatContainsMeta *MegaChatMessagePrivate::getMetaContains() const
+{
+    return megaChatContainsMeta;
 }
 
 unsigned int MegaChatMessagePrivate::getUsersCount() const
@@ -6131,6 +6120,32 @@ const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
     return mRichPreview;
 }
 
+MegaChatContainsMeta *MegaChatContainsMeta::copy() const
+{
+    switch (mType)
+    {
+        case MegaChatMessage::CONTAINS_META_RICH_PREVIEW:
+        {
+            if (mRichPreview)
+            {
+                MegaChatRichPreview *richPreview = mRichPreview->copy();
+                return new MegaChatContainsMeta(richPreview);
+            }
+
+            break;
+        }
+        default:
+        {
+            return NULL;
+            break;
+        }
+    }
+
+    API_LOG_ERROR("Meta contained of type %d is NULL", mType);
+    assert(false);
+    return NULL;
+}
+
 MegaChatRichPreview::MegaChatRichPreview(const string &text, const string &title, const string &description,
                                          const string &image, const string &imageFormat, const string &icon,
                                          const string &iconFormat, const string &url)
@@ -6182,6 +6197,11 @@ string MegaChatRichPreview::getIconFormat() const
 string MegaChatRichPreview::getUrl() const
 {
     return mUrl;
+}
+
+MegaChatRichPreview *MegaChatRichPreview::copy() const
+{
+    return new MegaChatRichPreview(mText, mTitle, mDescription, mImage, mImagenFormat, mIcon, mIconFormat, mUrl);
 }
 
 std::vector<int32_t> DataTranslation::b_to_vector(const std::string& data)

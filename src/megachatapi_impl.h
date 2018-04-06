@@ -692,6 +692,7 @@ public:
     void setContentChanged();
     void setCode(int code);
     void setAccess();
+    const MegaChatContainsMeta *getMetaContains() const;
 
 private:
     int changed;
@@ -710,9 +711,9 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
-    std::vector<MegaChatAttachedUser>* megaChatUsers;
-    mega::MegaNodeList* megaNodeList;
-    const MegaChatContainsMeta* megaChatContainsMeta;
+    std::vector<MegaChatAttachedUser>* megaChatUsers = NULL;
+    mega::MegaNodeList* megaNodeList = NULL;
+    const MegaChatContainsMeta* megaChatContainsMeta = NULL;
 };
 
 //Thread safe request queue
@@ -1054,6 +1055,8 @@ public:
     int getType() const;
 
     const MegaChatRichPreview *getRichPreview() const;
+    MegaChatContainsMeta *copy() const;
+
 protected:
     int mType = MegaChatMessage::CONTAINS_META_INVALID;
     const MegaChatRichPreview *mRichPreview = NULL;
@@ -1085,16 +1088,16 @@ public:
     std::string getIcon() const;
     std::string getIconFormat() const;
     std::string getUrl() const;
-
+    MegaChatRichPreview *copy() const;
 protected:
     std::string mText;
     std::string mTitle;
     std::string mDescription;
-    std::string mUrl;
     std::string mImage;
     std::string mImagenFormat;
     std::string mIcon;
     std::string mIconFormat;
+    std::string mUrl;
 };
 
 class DataTranslation
