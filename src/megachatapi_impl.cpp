@@ -6319,6 +6319,13 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
 
             break;
         }
+        case MegaChatMessage::TYPE_CONTAINS_META:
+        {
+            std::string metaContained = content;
+            metaContained.erase(metaContained.begin(), metaContained.begin() + 2);
+            messageContents = JSonUtils::parseContainsMeta(metaContained.c_str());
+            break;
+        }
         default:
         {
             messageContents = content;
@@ -6337,6 +6344,7 @@ string JSonUtils::parseContainsMeta(const char *json)
         return parseRichPreview(&json[1]);
         break;
     default:
+        API_LOG_ERROR("Invalid Type for message with meta contained");
         return std::string();
         break;
     }
