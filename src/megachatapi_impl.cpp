@@ -6323,8 +6323,7 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
         {
             std::string metaContained = content;
             metaContained.erase(metaContained.begin(), metaContained.begin() + 2);
-            std::string containsMeta = JSonUtils::parseContainsMeta(metaContained.c_str());
-            messageContents = containsMeta;
+            messageContents = JSonUtils::parseContainsMeta(metaContained.c_str());
             break;
         }
         default:
