@@ -5802,17 +5802,11 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
             megaChatApi->fireOnChatCallUpdate(chatCall);
             break;
         }
-        case rtcModule::ISession::kStateTerminating:
+        case rtcModule::ISession::kStateDestroyed:
         {
             MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
             chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_DESTROYED, session->peer());
             megaChatApi->fireOnChatCallUpdate(chatCall);
-            break;
-        }
-        case rtcModule::ISession::kStateDestroyed:
-        {
-            MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-            chatCall->removeSession(session->peer());
             break;
         }
         default:
@@ -5822,6 +5816,8 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 
 void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
 {
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    chatCall->removeSession(session->peer());
 }
 
 void MegaChatSessionHandler::onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererOut)
