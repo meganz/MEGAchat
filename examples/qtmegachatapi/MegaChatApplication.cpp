@@ -296,10 +296,15 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
                 std::string title;
                 MegaChatHandle handle = request->getChatHandle();
                 QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
-                if (! qTitle.isNull())
+                if (!qTitle.isNull())
+                {
                     title = qTitle.toStdString();
+                    if (!title.empty())
+                    {
+                        this->megaChatApi->setChatTitle(handle, title.c_str());
+                    }
+                }
 
-                this->megaChatApi->setChatTitle(handle, title.c_str());
                 const MegaChatListItem* chatListItem = this->megaChatApi->getChatListItem(handle);
                 mMainWin->addChat(chatListItem);
                 delete chatListItem;
