@@ -3,6 +3,7 @@
 #include "uiSettings.h"
 #include <QMenu>
 #include <iostream>
+#include <QMessageBox>
 
 ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item) :
     QWidget(parent),
@@ -249,6 +250,11 @@ void ChatItemWidget::setTitle()
     if (!qTitle.isNull())
     {
         title = qTitle.toStdString();
+        if (title.empty())
+        {
+            QMessageBox::warning(this, tr("Set chat title"), tr("You can't set an empty title"));
+            return;
+        }
         this->mMegaChatApi->setChatTitle(mChatId,title.c_str());
     }
 }
