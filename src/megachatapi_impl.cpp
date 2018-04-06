@@ -5218,7 +5218,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
         }
         else
         {
-            API_LOG_ERROR("Invalid meta contained type: %d", containsMeta->getType());
+            API_LOG_ERROR("Invalid meta contained data");
             assert(false);
             this->megaChatContainsMeta = NULL;
         }
