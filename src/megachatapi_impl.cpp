@@ -649,7 +649,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             handle chatid = request->getChatHandle();
             const char *title = request->getText();
-            if (chatid == MEGACHAT_INVALID_HANDLE || title == NULL)
+            if (chatid == MEGACHAT_INVALID_HANDLE || title == NULL || !strlen(title))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
