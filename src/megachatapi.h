@@ -1896,6 +1896,8 @@ public:
     /**
      * @brief Get the current presence configuration
      *
+     * You take the ownership of the returned value
+     *
      * @see \c MegaChatPresenceConfig for further details.
      *
      * @return The current presence configuration, or NULL if not received yet from server
@@ -2790,9 +2792,20 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      *
-     * @return The last-seen-by-us MegaChatMessage, or NULL if error.
+     * @return The last-seen-by-us MegaChatMessage, or NULL if \c chatid is invalid or
+     * last message seen is not loaded in memory.
      */
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
+
+    /**
+     * @brief Returns message id of the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return Message id for the last-seen-by-us, or invalid handle if \c chatid is invalid or
+     * the user has not seen any message in that chat
+     */
+    MegaChatHandle getLastMessageSeenId(MegaChatHandle chatid);
 
     /**
      * @brief Removes the unsent message from the queue
@@ -3234,10 +3247,10 @@ public:
     static void setCatchException(bool enable);
 
     /**
-     * @brief Checks whether \c text has an url
+     * @brief Checks whether \c text contains a URL
      *
-     * @param text String where url has to be found it
-     * @return True if \c text has an url
+     * @param text String to search for a URL
+     * @return True if \c text contains a URL
      */
     static bool hasUrl(const char* text);
 

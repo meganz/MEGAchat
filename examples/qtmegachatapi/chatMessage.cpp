@@ -90,6 +90,32 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 setMessageContent(msg->getContent());
                 break;
             }
+            case megachat::MegaChatMessage::TYPE_CONTAINS_META:
+            {
+                QString text = tr("[Contains-metadata msg]");
+                if (mMessage->containsMetaType() == megachat::MegaChatMessage::CONTAINS_META_RICH_PREVIEW)
+                {
+                    text.append(tr("\nSubtype: rich-link"))
+                        .append(tr("\nOriginal content: "))
+                        .append(mMessage->getRichPreviewText())
+                        .append(tr("\nURL: "))
+                        .append(mMessage->getRichPreviewUrl())
+                        .append(tr("\nTitle: "))
+                        .append(mMessage->getRichPreviewTitle())
+                        .append(tr("\nDescription: "))
+                        .append(mMessage->getRichPreviewDescription())
+                        .append(tr("\nHas icon: "))
+                        .append(mMessage->getRichPreviewIcon() ? "yes" : "no")
+                        .append(tr("\nHas image: "))
+                        .append(mMessage->getRichPreviewImage() ? "yes" : "no");
+                }
+                ui->mMsgDisplay->setText(text);
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(213,245,160,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                break;
+            }
         }
     }
     else

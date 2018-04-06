@@ -83,6 +83,20 @@ const unsigned Client::chatdVersion = 2;
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
 {
+    mRichPrevAttrCbHandle = karereClient->userAttrCache().getAttr(mUserId, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
+       [](::Buffer *buf, void* userp)
+       {
+            if (buf && !buf->empty())
+            {
+                char tmp[2];
+                base64urldecode(buf->buf(), buf->size(), tmp, 2);
+                static_cast<Client*>(userp)->mRichLinkEnable = (*tmp == '1');
+            }
+            else
+            {
+                static_cast<Client*>(userp)->mRichLinkEnable = false;
+            }
+       });
 }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
@@ -351,6 +365,7 @@ bool Connection::sendEcho()
 
 Promise<void> Connection::reconnect()
 {
+    mClient.karereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
     try
     {
@@ -1625,8 +1640,7 @@ void Chat::requestRichLink(Message &message)
         }
 
         auto wptr = weakHandle();
-        karere::Id messageId = message.id();
-        Idx messageIdx = msgIndexFromId(messageId);
+        Idx messageIdx = msgIndexFromId(message.id());
         uint16_t updated = message.updated;
         client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
         .then([wptr, this, messageIdx, updated, text](ReqResult result)
@@ -1654,7 +1668,7 @@ void Chat::requestRichLink(Message &message)
             if (wptr.deleted())
                 return;
 
-            CHATID_LOG_ERROR("Fail to request rich link: request error (%d)", err.code());
+            CHATID_LOG_ERROR("Failed to request rich link: request error (%d)", err.code());
         });
     }
 }
@@ -2060,6 +2074,9 @@ bool Chat::setMessageSeen(Idx idx)
 
         mClient.mSeenTimers.erase(mEchoTimer);
 
+        if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
+            return;
+
         CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(id));
         sendCommand(Command(OP_SEEN) + mChatId + id);
 
@@ -2219,6 +2236,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 Client::~Client()
 {
     cancelTimers();
+    karereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
@@ -3139,6 +3157,26 @@ void Chat::setOnlineState(ChatState state)
 {
     if (state == mOnlineState)
         return;
+
+    bool allConnected = true;
+    if (state == kChatStateOnline)
+    {
+       std::map<uint64_t, ChatRoom*> *chats = mClient.karereClient->chats.get();
+       std::map<uint64_t, ChatRoom*>::iterator itChatRooms;
+       for (itChatRooms = chats->begin(); itChatRooms != chats->end(); itChatRooms++)
+       {
+           if (itChatRooms->second->chatdOnlineState() != kChatStateOnline)
+           {
+               allConnected = false;
+               break;
+           }
+       }
+       if (allConnected)
+       {
+           mClient.karereClient->setCommitMode(true);
+       }
+    }
+
     mOnlineState = state;
     CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
