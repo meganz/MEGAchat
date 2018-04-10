@@ -326,6 +326,11 @@ void Client::saveDb()
     }
 }
 
+promise::Promise<void> Client::pushReceived()
+{
+    return chatd->sendSync();
+}
+
 void Client::loadContactListFromApi()
 {
     std::unique_ptr<::mega::MegaUserList> contacts(api.sdk.getContacts());

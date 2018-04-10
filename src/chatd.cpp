@@ -176,6 +176,12 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
+promise::Promise<void> Client::sendSync()
+{
+
+    return mSyncPromise;
+}
+
 void Chat::connect()
 {
     // attempt a connection ONLY if this is a new shard.
@@ -545,6 +551,12 @@ void Connection::heartbeat()
 int Connection::shardNo() const
 {
     return mShardNo;
+}
+
+promise::Promise<void> Connection::sendSync()
+{
+
+    return promise::Error("No valid URL provided to retry pending connections");
 }
 
 void Client::disconnect()
