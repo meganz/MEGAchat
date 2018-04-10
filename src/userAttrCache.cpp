@@ -42,7 +42,7 @@ inline static Buffer* bufFromCstr(const char* cstr)
 inline static Buffer* bufFromTLV(const ::mega::MegaStringMap *map, const char *key)
 {
     const char *buf = map->get(key);
-    return buf ? new Buffer(buf, strlen(buf)) : nullptr;
+    return buf ? new Buffer(buf, strlen(buf)) : new Buffer(nullptr, 0);
 }
 
 Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
