@@ -807,10 +807,19 @@ void MegaChatApiImpl::sendPendingRequests()
             promise::when(promise)
             .then([this, request, buffer]()
             {
+                int errorCode = MegaChatError::ERROR_OK;
                 std::string stringToSend(buffer);
-                sendAttachNodesMessage(stringToSend, request);
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
 
+                if (stringToSend.length() > kMaxMsgSize)
+                {
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                else
+                {
+                    sendAttachNodesMessage(stringToSend, request);
+                }
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
                 delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             })
@@ -819,10 +828,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
+                    int errorCode = MegaChatError::ERROR_OK;
                     API_LOG_WARNING("Already granted access to this node previously");
                     std::string stringToSend(buffer);
-                    sendAttachNodesMessage(stringToSend, request);
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+
+                    if (stringToSend.length() > kMaxMsgSize)
+                    {
+                        errorCode = MegaChatError::ERROR_ARGS;
+                    }
+                    else
+                    {
+                        sendAttachNodesMessage(stringToSend, request);
+                    }
+
+                    megaChatError = new MegaChatErrorPrivate(errorCode);
                 }
                 else
                 {
@@ -865,11 +884,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment);
                 stringToSend.insert(stringToSend.begin(), 0x0);
                 Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
-                MegaChatMessage* megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-                request->setMegaChatMessage(megaMsg);
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
 
+                int errorCode = MegaChatError::ERROR_OK;
+                if (!m)
+                {
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                else
+                {
+                    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                    request->setMegaChatMessage(megaMsg);
+                }
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
+                fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([this, request](const promise::Error& err)
             {
@@ -2238,6 +2266,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
 
         if (!m)
         {
+            sdkMutex.unlock();
             return NULL;
         }
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
@@ -2308,10 +2337,14 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
             stringToSend.insert(stringToSend.begin(), contactType);
             stringToSend.insert(stringToSend.begin(), zero);
             Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgContact, NULL);
+            if (!m)
+            {
+                sdkMutex.unlock();
+                return NULL;
+            }
             megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
         }
     }
-
     sdkMutex.unlock();
     return megaMsg;
 }
