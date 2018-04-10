@@ -344,7 +344,7 @@ public:
 
 protected:
     bool usingipv6;
-    Client& mClient;
+    Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
