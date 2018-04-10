@@ -67,6 +67,7 @@ enum HistSource
 /** Timeout to send SEEN (Milliseconds)**/
 enum { kSeenTimeout = 200 };
 enum { kProtocolVersion = 0x01 };
+enum { kMaxMsgSize = 120000 };
 
 class DbInterface;
 struct LastTextMsg;

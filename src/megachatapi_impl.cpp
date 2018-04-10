@@ -2236,6 +2236,10 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
         Message *m = chatroom->chat().msgSubmit(msg, msgLen, t, NULL);
 
+        if (!m)
+        {
+            return NULL;
+        }
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
 
