@@ -7,6 +7,7 @@
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
+#include <QMessageBox>
 
 #define NMESSAGES_LOAD 16   // number of messages to load at every fetch
 class ChatMessage;
