@@ -1050,6 +1050,7 @@ public:
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     void clearHistory();
+    void sendSync();
 
 protected:
     void msgSubmit(Message* msg);
@@ -1094,9 +1095,8 @@ protected:
     std::map<karere::Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
- // set of seen timers
+/// set of seen timers
     std::set<megaHandle> mSeenTimers;
-    promise::Promise<void> mSyncPromise;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
     Connection& chatidConn(karere::Id chatid)
@@ -1153,9 +1153,11 @@ public:
     /** Clean the timers set */
     void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
-    promise::Promise<void> sendSync();
     friend class Connection;
     friend class Chat;
+
+    bool areAllChatsLoggedIn();
+
 
     // Chatd Version:
     // - Version 1:

@@ -318,6 +318,14 @@ enum Opcode
       */
     OP_DELREACTION = 34,
 
+    /**
+      ** @brief <chatid>
+      *
+      * C->S: ping server to ensure client is up to date for the specified chatid
+      * S->C: response to the ping initiated by client
+      */
+    OP_SYNC = 38,
+
     OP_LAST = OP_DELREACTION
 };
 

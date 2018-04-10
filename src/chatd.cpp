@@ -176,10 +176,21 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-promise::Promise<void> Client::sendSync()
+bool Client::areAllChatsLoggedIn()
 {
+    bool allConnected = true;
 
-    return mSyncPromise;
+    for (map<Id, shared_ptr<Chat>>::iterator it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
+    {
+        Chat* chat = it->second.get();
+        if (chat->onlineState() != kChatStateOnline)
+        {
+            allConnected = false;
+            break;
+        }
+    }
+
+    return allConnected;
 }
 
 void Chat::connect()
@@ -551,12 +562,6 @@ void Connection::heartbeat()
 int Connection::shardNo() const
 {
     return mShardNo;
-}
-
-promise::Promise<void> Connection::sendSync()
-{
-
-    return promise::Error("No valid URL provided to retry pending connections");
 }
 
 void Client::disconnect()
@@ -1338,6 +1343,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid), reaction);
                 break;
             }
+            case OP_SYNC:
+            {
+                READ_CHATID(0);
+                CHATD_LOG_DEBUG("%s: recv SYNC", ID_CSTR(chatid));
+                mChatdClient.karereClient->onSyncReceived(chatid);
+                break;
+            }
             default:
             {
                 CHATD_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -1547,6 +1559,11 @@ void Chat::clearHistory()
     mCrypto->onHistoryReload();
     mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
+}
+
+void Chat::sendSync()
+{
+    sendCommand(Command(OP_SYNC) + mChatId);
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -3079,29 +3096,25 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
 
-    bool allConnected = true;
-    if (state == kChatStateOnline)
-    {
-       std::map<uint64_t, ChatRoom*> *chats = mClient.karereClient->chats.get();
-       std::map<uint64_t, ChatRoom*>::iterator itChatRooms;
-       for (itChatRooms = chats->begin(); itChatRooms != chats->end(); itChatRooms++)
-       {
-           if (itChatRooms->second->chatdOnlineState() != kChatStateOnline)
-           {
-               allConnected = false;
-               break;
-           }
-       }
-       if (allConnected)
-       {
-           mClient.karereClient->setCommitMode(true);
-       }
-    }
-
     mOnlineState = state;
     CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
     CALL_LISTENER(onOnlineStateChange, state);
+
+    if (state == kChatStateOnline && mClient.areAllChatsLoggedIn())
+    {
+        mClient.karereClient->setCommitMode(true);
+
+        if (!mClient.karereClient->mSyncPromise.done())
+        {
+            mClient.karereClient->mSyncPromise.resolve();
+            if (mClient.karereClient->mSyncTimer)
+            {
+                cancelTimeout(mClient.karereClient->mSyncTimer, mClient.karereClient->appCtx);
+                mClient.karereClient->mSyncTimer = 0;
+            }
+        }
+    }
 }
 
 void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
@@ -3317,6 +3330,7 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(ECHO);
         RET_ENUM_NAME(ADDREACTION);
         RET_ENUM_NAME(DELREACTION);
+        RET_ENUM_NAME(SYNC);
         default: return "(invalid opcode)";
     };
 }

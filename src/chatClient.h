@@ -128,6 +128,8 @@ public:
     /** @brief send a notification to the chatroom that the user has stopped typing. */
     virtual void sendStopTypingNotification() { mChat->sendStopTypingNotification(); }
 
+    void sendSync() { mChat->sendSync(); }
+
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
      * message count change.
@@ -821,6 +823,10 @@ public:
 #endif
 
     promise::Promise<void> pushReceived();
+    megaHandle mSyncTimer;                  // to wait for reception of SYNCs
+    int mSyncCount;                         // to track if all chats returned SYNC
+    promise::Promise<void> mSyncPromise;    // resolved only when up to date
+    void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
