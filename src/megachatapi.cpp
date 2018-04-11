@@ -143,6 +143,11 @@ MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+bool MegaChatCall::isIgnored() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -608,6 +613,11 @@ void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
 {
     return pImpl->getChatCall(chatid);
+}
+
+void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+{
+    pImpl->setIgnoredCall(chatid);
 }
 
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)

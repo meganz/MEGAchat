@@ -184,6 +184,7 @@ public:
     virtual bool isRinging() const;
     virtual int getSessionStatus(MegaChatHandle peerId) const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
+    virtual bool isIgnored() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -196,6 +197,7 @@ public:
     void setIsRinging(bool ringing);
     void setSessionStatus(uint8_t status, MegaChatHandle peer);
     void removeSession(MegaChatHandle peer);
+    void setIgnoredCall(bool ignored);
 
 protected:
     MegaChatHandle chatid;
@@ -211,6 +213,7 @@ protected:
     MegaChatHandle peerId;
 
     int termCode;
+    bool ignored;
     bool localTermCode;
     void convertTermCode(rtcModule::TermCode termCode);
 
@@ -791,7 +794,7 @@ private:
 
     static int convertInitState(int state);
 
-    void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
+    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid);
 
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
@@ -963,6 +966,7 @@ public:
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
+    void setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
     mega::MegaHandleList *getChatCalls();
