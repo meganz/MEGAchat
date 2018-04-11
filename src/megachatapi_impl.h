@@ -789,7 +789,7 @@ private:
 
     static int convertInitState(int state);
 
-    void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
+    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid);
 
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
