@@ -110,9 +110,11 @@ CONFIG(USE_WEBRTC) {
              rtcModule/webrtc.cpp \
              rtcModule/webrtcAdapter.cpp \
              rtcModule/rtcStats.cpp
+
+    DEFINES += KARERE_DISABLE_WEBRTC=0
 }
 else {
-    DEFINES += KARERE_DISABLE_WEBRTC=0 SVC_DISABLE_STROPHE
+    DEFINES += KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE
 }
 
 
