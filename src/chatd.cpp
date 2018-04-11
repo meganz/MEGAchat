@@ -1608,11 +1608,12 @@ void Chat::initChat()
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
-    // write the new message to the message buffer and mark as in sending state
     if (msglen > kMaxMsgSize)
     {
         return NULL;
     }
+
+    // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
     message->backRefId = generateRefId(mCrypto);

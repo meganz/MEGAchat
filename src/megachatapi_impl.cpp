@@ -810,14 +810,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 int errorCode = MegaChatError::ERROR_OK;
                 std::string stringToSend(buffer);
 
-                if (stringToSend.length() > kMaxMsgSize)
+                MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
+                if (!msg)
                 {
                     errorCode = MegaChatError::ERROR_ARGS;
                 }
-                else
-                {
-                    sendAttachNodesMessage(stringToSend, request);
-                }
+                request->setMegaChatMessage(msg);
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
                 delete [] buffer;
@@ -832,14 +830,12 @@ void MegaChatApiImpl::sendPendingRequests()
                     API_LOG_WARNING("Already granted access to this node previously");
                     std::string stringToSend(buffer);
 
-                    if (stringToSend.length() > kMaxMsgSize)
+                    MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
+                    if (!msg)
                     {
                         errorCode = MegaChatError::ERROR_ARGS;
                     }
-                    else
-                    {
-                        sendAttachNodesMessage(stringToSend, request);
-                    }
+                    request->setMegaChatMessage(msg);
 
                     megaChatError = new MegaChatErrorPrivate(errorCode);
                 }
@@ -3163,16 +3159,16 @@ int MegaChatApiImpl::convertChatConnectionState(ChatState state)
     return state;
 }
 
-void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)
+MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid)
 {
-    ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+    ChatRoom *chatroom = findChatRoom(chatid);
 
     buffer.insert(buffer.begin(), Message::kMsgAttachment);
     buffer.insert(buffer.begin(), 0x0);
 
     Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
-    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-    request->setMegaChatMessage(megaMsg);
+    MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
+    return megaMsg;
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
