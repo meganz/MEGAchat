@@ -90,8 +90,8 @@ public:
         CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
         CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
         CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,            /// Intermediate state, while connection is stablished
-        CALL_STATUS_IN_PROGRESS,        /// Call is stablished and there is a full communication
+        CALL_STATUS_JOINING,            /// Intermediate state, while connection is established
+        CALL_STATUS_IN_PROGRESS,        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING,        ///
         CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
     };
@@ -99,7 +99,7 @@ public:
     enum
     {
         SESSION_STATUS_INITIAL = 0,
-        SESSION_STATUS_IN_PROGRESS,        /// Session is stablished and there is communication between peers
+        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
         SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
         SESSION_STATUS_NO_SESSION,         /// There are no session for that peer id
     };
@@ -354,10 +354,10 @@ public:
     /**
      * @brief Returns peer id which session status has changed
      *
-     * This function only return a valid value when session status changed is notified
-     * MegaChatCallListener::onChatCallUpdate
+     * This function only returns a valid value when session status change is notified
+     * via MegaChatCallListener::onChatCallUpdate
      *
-     * @return Handle of the peer which session has change its status
+     * @return Handle of the peer which session has changed its status
      */
     virtual MegaChatHandle getPeerSessionStatusChange() const;
 };
