@@ -1080,14 +1080,16 @@ public:
 
     ~MegaChatRichPreview();
 
-    std::string getText() const;
-    std::string getTitle() const;
-    std::string getDescription() const;
-    std::string getImage() const;
-    std::string getImageFormat() const;
-    std::string getIcon() const;
-    std::string getIconFormat() const;
-    std::string getUrl() const;
+    const char *getText() const;
+    const char *getTitle() const;
+    const char *getDescription() const;
+    const char *getImage() const;
+    int getImageSize() const;
+    const char *getImageFormat() const;
+    const char *getIcon() const;
+    int getIconSize() const;
+    const char *getIconFormat() const;
+    const char *getUrl() const;
     MegaChatRichPreview *copy() const;
 protected:
     std::string mText;

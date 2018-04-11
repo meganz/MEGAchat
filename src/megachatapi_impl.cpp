@@ -5422,7 +5422,7 @@ const char *MegaChatMessagePrivate::getRichPreviewText() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getText().c_str();
+        return megaChatContainsMeta->getRichPreview()->getText();
     }
 
     return NULL;
@@ -5433,7 +5433,7 @@ const char *MegaChatMessagePrivate::getRichPreviewTitle() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getTitle().c_str();
+        return megaChatContainsMeta->getRichPreview()->getTitle();
     }
 
     return NULL;
@@ -5444,7 +5444,7 @@ const char *MegaChatMessagePrivate::getRichPreviewDescription() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getDescription().c_str();
+        return megaChatContainsMeta->getRichPreview()->getDescription();
     }
 
     return NULL;
@@ -5455,7 +5455,7 @@ const char *MegaChatMessagePrivate::getRichPreviewImage() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getImage().c_str();
+        return megaChatContainsMeta->getRichPreview()->getImage();
     }
 
     return NULL;
@@ -5466,7 +5466,7 @@ unsigned int MegaChatMessagePrivate::getRichPreviewImageSize() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getImage().size();
+        return megaChatContainsMeta->getRichPreview()->getImageSize();
     }
 
     return 0;
@@ -5477,7 +5477,7 @@ const char *MegaChatMessagePrivate::getRichPreviewImageFormat() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getImageFormat().c_str();
+        return megaChatContainsMeta->getRichPreview()->getImageFormat();
     }
 
     return NULL;
@@ -5488,7 +5488,7 @@ const char *MegaChatMessagePrivate::getRichPreviewIcon() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getIcon().c_str();
+        return megaChatContainsMeta->getRichPreview()->getIcon();
     }
 
     return NULL;
@@ -5499,7 +5499,7 @@ unsigned int MegaChatMessagePrivate::getRichPreviewIconSize() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getIcon().size();
+        return megaChatContainsMeta->getRichPreview()->getIconSize();
     }
 
     return 0;
@@ -5510,7 +5510,7 @@ const char *MegaChatMessagePrivate::getRichPreviewIconFormat() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getIconFormat().c_str();
+        return megaChatContainsMeta->getRichPreview()->getIconFormat();
     }
 
     return NULL;
@@ -5521,7 +5521,7 @@ const char *MegaChatMessagePrivate::getRichPreviewUrl() const
     if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
             megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
     {
-        return megaChatContainsMeta->getRichPreview()->getUrl().c_str();
+        return megaChatContainsMeta->getRichPreview()->getUrl();
     }
 
     return NULL;
@@ -6159,44 +6159,54 @@ MegaChatRichPreview::~MegaChatRichPreview()
 {
 }
 
-string MegaChatRichPreview::getText() const
+const char *MegaChatRichPreview::getText() const
 {
-    return mText;
+    return mText.c_str();
 }
 
-string MegaChatRichPreview::getTitle() const
+const char *MegaChatRichPreview::getTitle() const
 {
-    return mTitle;
+    return mTitle.c_str();
 }
 
-string MegaChatRichPreview::getDescription() const
+const char *MegaChatRichPreview::getDescription() const
 {
-    return mDescription;
+    return mDescription.c_str();
 }
 
-string MegaChatRichPreview::getImage() const
+const char *MegaChatRichPreview::getImage() const
 {
-    return mImage;
+    return mImage.c_str();
 }
 
-string MegaChatRichPreview::getImageFormat() const
+int MegaChatRichPreview::getImageSize() const
 {
-    return mIconFormat;
+    return mImage.size();
 }
 
-string MegaChatRichPreview::getIcon() const
+const char *MegaChatRichPreview::getImageFormat() const
 {
-    return mIcon;
+    return mIconFormat.c_str();
 }
 
-string MegaChatRichPreview::getIconFormat() const
+const char *MegaChatRichPreview::getIcon() const
 {
-    return mIconFormat;
+    return mIcon.c_str();
 }
 
-string MegaChatRichPreview::getUrl() const
+int MegaChatRichPreview::getIconSize() const
 {
-    return mUrl;
+    return mIcon.size();
+}
+
+const char *MegaChatRichPreview::getIconFormat() const
+{
+    return mIconFormat.c_str();
+}
+
+const char *MegaChatRichPreview::getUrl() const
+{
+    return mUrl.c_str();
 }
 
 MegaChatRichPreview *MegaChatRichPreview::copy() const
