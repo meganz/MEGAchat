@@ -1079,6 +1079,34 @@ public:
     virtual mega::MegaNodeList *getMegaNodeList();
 
     /**
+     * @brief Returns the list of handles related to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::pushReceived - Returns the list of ids for unread messages in the chatid
+     *   (you can get the list of chatids from \c getMegaHandleList)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return mega::MegaHandleList of handles for a given chatid
+     */
+    virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
+
+    /**
+     * @brief Returns the list of handles related to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::pushReceived - Returns the list of chatids with unread messages
+     *
+     * @return mega::MegaHandleList of handles for a given chatid
+     */
+    virtual mega::MegaHandleList *getMegaHandleList();
+
+    /**
      * @brief Returns the type of parameter related to the request
      *
      * This value is valid for these requests:

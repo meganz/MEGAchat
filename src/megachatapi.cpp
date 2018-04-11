@@ -778,6 +778,16 @@ MegaNodeList *MegaChatRequest::getMegaNodeList()
     return NULL;
 }
 
+MegaHandleList *MegaChatRequest::getMegaHandleList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
+{
+    return NULL;
+}
+
 int MegaChatRequest::getParamType()
 {
     return -1;

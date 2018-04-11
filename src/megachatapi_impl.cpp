@@ -899,6 +899,38 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->pushReceived()
             .then([this, request]()
             {
+                MegaHandleList *chatids = MegaHandleList::createInstance();
+
+                // map of chatid as key, vector of msgids as value
+                std::map<MegaChatHandle, vector<MegaChatHandle>> unreadMap;
+                // for each chatroom, load all unread messages)
+                for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+                {
+                    MegaHandleList *msgids = MegaHandleList::createInstance();
+
+                    MegaChatHandle chatid = it->first;
+                    Idx lastSeenIdx = it->second->chat().lastSeenIdx();
+
+                    SqliteStmt stmt(mClient->db, "select msgid from history where chatid = ?1 and idx > ?2 and userid != ?3");
+                    stmt << chatid << lastSeenIdx << getMyUserHandle();
+                    while (stmt.step())
+                    {
+                        MegaChatHandle msgid = stmt.uint64Col(0);
+                        msgids->addMegaHandle(msgid);
+                    }
+
+                    if (msgids->size())
+                    {
+                        chatids->addMegaHandle(chatid);
+                        request->setMegaHandleListByChat(chatid, msgids);
+                    }
+                    else
+                    {
+                        delete msgids;
+                    }
+                }
+
+                request->setMegaHandleList(chatids);    // always a valid list, even if empty
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -3355,6 +3387,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->text = NULL;
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
+    this->mMegaHandleList = NULL;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -3363,6 +3396,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->peerList = NULL;
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
+    this->mMegaHandleList = NULL;
 
     this->type = request.getType();
     this->listener = request.getListener();
@@ -3377,6 +3411,15 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setText(request.getText());
     this->setMegaChatMessage(request.getMegaChatMessage());
     this->setMegaNodeList(request.getMegaNodeList());
+    this->setMegaHandleList(request.getMegaHandleList());
+    if (mMegaHandleList)
+    {
+        for (unsigned int i = 0; i < mMegaHandleList->size(); i++)
+        {
+            MegaChatHandle chatid = mMegaHandleList->get(i);
+            this->setMegaHandleListByChat(chatid, request.getMegaHandleListByChat(chatid));
+        }
+    }
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -3385,6 +3428,11 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
     delete [] text;
     delete mMessage;
     delete mMegaNodeList;
+    delete mMegaHandleList;
+    for (map<MegaChatHandle, MegaHandleList*>::iterator it = mMegaHandleListMap.begin(); it != mMegaHandleListMap.end(); it++)
+    {
+        delete it->second;
+    }
 }
 
 MegaChatRequest *MegaChatRequestPrivate::copy()
@@ -3563,9 +3611,46 @@ void MegaChatRequestPrivate::setMegaChatMessage(MegaChatMessage *message)
     mMessage = message ? message->copy() : NULL;
 }
 
+void MegaChatRequestPrivate::setMegaHandleList(MegaHandleList *handlelist)
+{
+    if (mMegaHandleList != NULL)
+    {
+        delete mMegaHandleList;
+    }
+
+    mMegaHandleList = handlelist ? handlelist->copy() : NULL;
+}
+
+void MegaChatRequestPrivate::setMegaHandleListByChat(MegaChatHandle chatid, MegaHandleList *handlelist)
+{
+    MegaHandleList *list = getMegaHandleListByChat(chatid);
+    if (list)
+    {
+        delete list;
+    }
+
+    mMegaHandleListMap[chatid] = handlelist ? handlelist->copy() : NULL;
+}
+
 MegaNodeList *MegaChatRequestPrivate::getMegaNodeList()
 {
     return mMegaNodeList;
+}
+
+MegaHandleList *MegaChatRequestPrivate::getMegaHandleListByChat(MegaChatHandle chatid)
+{
+    map<MegaChatHandle, MegaHandleList*>::iterator it = mMegaHandleListMap.find(chatid);
+    if (it != mMegaHandleListMap.end())
+    {
+        return it->second;
+    }
+
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequestPrivate::getMegaHandleList()
+{
+    return mMegaHandleList;
 }
 
 int MegaChatRequestPrivate::getParamType()
