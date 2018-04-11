@@ -901,8 +901,6 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 MegaHandleList *chatids = MegaHandleList::createInstance();
 
-                // map of chatid as key, vector of msgids as value
-                std::map<MegaChatHandle, vector<MegaChatHandle>> unreadMap;
                 // for each chatroom, load all unread messages)
                 for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                 {
@@ -924,16 +922,16 @@ void MegaChatApiImpl::sendPendingRequests()
                         chatids->addMegaHandle(chatid);
                         request->setMegaHandleListByChat(chatid, msgids);
                     }
-                    else
-                    {
-                        delete msgids;
-                    }
+
+                    delete msgids;
+
                 }
 
                 request->setMegaHandleList(chatids);    // always a valid list, even if empty
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
+                delete chatids;
 
             })
             .fail([this, request](const promise::Error& err)
