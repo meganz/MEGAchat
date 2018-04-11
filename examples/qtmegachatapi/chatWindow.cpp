@@ -171,7 +171,9 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             else
             {
-               chatMessage->setMessageContent(msg->getContent());
+                chatMessage->setMessage(msg->copy());
+                chatMessage->updateContent();
+
                if (msg->isEdited())
                {
                   chatMessage->markAsEdited();

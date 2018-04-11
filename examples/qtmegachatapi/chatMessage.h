@@ -18,10 +18,12 @@ class ChatMessage: public QWidget
     protected:
         Ui::ChatMessageWidget *ui;
         megachat::MegaChatHandle mChatId;
-        megachat::MegaChatMessage *mMessage;
+        megachat::MegaChatMessage *mMessage = NULL;
         megachat::MegaChatApi* megaChatApi;
         QListWidgetItem * mListWidgetItem;
         void updateToolTip();
+        void showRichLinkData();
+        void setMessageContent(const char * content);
         ChatWindow *mChatWindow;
         friend class ChatWindow;
 
@@ -29,7 +31,8 @@ class ChatMessage: public QWidget
         ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
         virtual ~ChatMessage();
         std::string managementInfoToString() const;
-        void setMessageContent(const char * content);
+
+        void updateContent();
         void setTimestamp(int64_t ts);
         void setStatus(int status);
         void setAuthor();
