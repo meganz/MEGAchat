@@ -66,6 +66,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             mLastMsgAuthor = "Unknown participant";
             mMegaChatApi->getUserFirstname(item->getLastMessageSender());
         }
+        delete msgAuthor;
     }
 
     if (lastMessageType == megachat::MegaChatMessage::TYPE_INVALID)
@@ -151,18 +152,23 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     char *msgAuthor = NULL;
     if(msgUserId == mMegaChatApi->getMyUserHandle())
     {
-        msgAuthor = "Me";
+        msgAuthor = new char[3];
+        strcpy(msgAuthor, "Me");
     }
     else
     {
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
-        msgAuthor = (char*) chatRoom->getPeerFirstnameByHandle(msgUserId);
-        if (msgAuthor)
+        const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
+        if (msg)
         {
-            if ((strlen(msgAuthor)) == 0)
+            size_t len = strlen(msg);
+            if (len == 0)
             {
                 return NULL;
             }
+
+            msgAuthor = new char[len];
+            strcpy(msgAuthor, msg);
         }
         delete chatRoom;
     }

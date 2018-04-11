@@ -32,7 +32,7 @@ class ChatItemWidget : public QWidget
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
-        const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);
+        const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
 
     protected:
         Ui::ChatItem *ui;
