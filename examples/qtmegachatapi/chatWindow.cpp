@@ -118,8 +118,16 @@ void ChatWindow::onMsgSendBtn()
 
     std::string msgStd = qtext.toUtf8().toStdString();
     megachat::MegaChatMessage *tempMessage= mMegaChatApi->sendMessage(mChatRoom->getChatId(), msgStd.c_str());
-    nSending++;
-    addMsgWidget(tempMessage, loadedMessages + nSending);
+
+    if(tempMessage)
+    {
+        nSending++;
+        addMsgWidget(tempMessage, loadedMessages + nSending);
+    }
+    else
+    {
+        QMessageBox::warning(nullptr, tr("Send message"), tr("The maximun length has been exceeded"));
+    }
 }
 
 void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
