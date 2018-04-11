@@ -292,7 +292,23 @@ void ChatMessage::saveMsgEdit(bool clicked)
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
     if(mMessage->getContent() != editedMsg)
     {
-        megaChatApi->editMessage(mChatId,mMessage->getMsgId(), editedMsg.c_str());
+        megachat::MegaChatHandle messageId;
+        if (mMessage->getStatus() == megachat::MegaChatMessage::STATUS_SENDING)
+        {
+            messageId = mMessage->getTempId();
+        }
+        else
+        {
+            messageId = mMessage->getMsgId();
+        }
+
+        megachat::MegaChatMessage *message = megaChatApi->editMessage(mChatId, messageId, editedMsg.c_str());
+        if (message)
+        {
+            delete mMessage;
+            setMessage(message);
+            setMessageContent(message->getContent());
+        }
     }
     clearEdit();
 }
