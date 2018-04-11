@@ -285,21 +285,55 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
             }
             break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
-             if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
-                MegaChatHandle userHandle = request->getUserHandle();
+             MegaChatHandle userHandle = request->getUserHandle();
+             int errorCode = e->getErrorCode();
+             if (errorCode == MegaChatError::ERROR_OK)
+             {
                 const char *firstname = request->getText();
+                if ((strlen(firstname)) == 0)
+                {
+                    this->mMegaChatApi->getUserEmail(userHandle);
+                    break;
+                }
                 mMainWin->updateContactFirstname(userHandle,firstname);
+                mMainWin->updateMessageFirstname(userHandle,firstname);
+             }
+             else if (errorCode == MegaChatError::ERROR_NOENT)
+             {
+                this->mMegaChatApi->getUserEmail(userHandle);
              }
              break;
+             }
+         case MegaChatRequest::TYPE_GET_EMAIL:
+            {
+            MegaChatHandle userHandle = request->getUserHandle();
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
+            {
+               const char *email = request->getText();
+               mMainWin->updateContactFirstname(userHandle,email);
+               mMainWin->updateMessageFirstname(userHandle,email);
+            }
+            else
+            {
+               mMainWin->updateMessageFirstname(userHandle,"Unknown contact");
+            }
+            break;
+            }
          case MegaChatRequest::TYPE_CREATE_CHATROOM:
              if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
                 std::string title;
                 MegaChatHandle handle = request->getChatHandle();
                 QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
-                if (! qTitle.isNull())
+                if (!qTitle.isNull())
+                {
                     title = qTitle.toStdString();
+                    if (!title.empty())
+                    {
+                        this->mMegaChatApi->setChatTitle(handle, title.c_str());
+                    }
+                }
 
                 this->mMegaChatApi->setChatTitle(handle, title.c_str());
                 const MegaChatListItem *chatListItem = this->mMegaChatApi->getChatListItem(handle);

@@ -160,12 +160,10 @@ void MainWindow::addContacts()
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
-        const char *contactEmail = contact->getEmail();
         mega::MegaHandle userHandle = contact->getHandle();
-
         if (userHandle != this->mMegaChatApi->getMyUserHandle())
         {
-            if(contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
+            if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
             {
                 continue;
             }
@@ -330,7 +328,7 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
 
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
     ChatItemWidget *chatItemWidget = new ChatItemWidget(this, mMegaChatApi, chatListItem);
-    chatItemWidget->updateToolTip(chatListItem);
+    chatItemWidget->updateToolTip(chatListItem, NULL);
     QListWidgetItem *item = new QListWidgetItem();
     chatItemWidget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
@@ -361,7 +359,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Last Message update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG):
                 {
-                    chatItemWidget->updateToolTip(item);
+                    chatItemWidget->updateToolTip(item, NULL);
                     break;
                 }
             //Unread count update
@@ -379,13 +377,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Own priv update
             case (megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV):
                 {
-                    chatItemWidget->updateToolTip(item);
+                    chatItemWidget->updateToolTip(item, NULL);
                     break;
                 }
             //Participants update
             case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
                 {
-                    chatItemWidget->updateToolTip(item);
+                    chatItemWidget->updateToolTip(item, NULL);
                     break;
                 }
             //The chatroom has been left by own user
@@ -542,6 +540,28 @@ void MainWindow::setNContacts(int nContacts)
     this->nContacts = nContacts;
 }
 
+
+void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char *firstname)
+{
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
+    for (it = chatWidgets.begin(); it != chatWidgets.end(); it++)
+    {
+        MegaChatListItem *chatListItem  = mMegaChatApi->getChatListItem(it->first);
+        ChatItemWidget *chatItemWidget = it->second;
+
+        if (chatListItem->getLastMessageSender() == contactHandle)
+        {
+            chatItemWidget->updateToolTip(mMegaChatApi->getChatListItem(it->first), firstname);
+        }
+
+        ChatWindow *chatWindow = chatItemWidget->getChatWindow();
+        if (chatWindow)
+        {
+            chatWindow->updateMessageFirstname(contactHandle, firstname);
+        }
+        delete chatListItem;
+    }
+}
 
 void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char * firstname)
 {

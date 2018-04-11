@@ -182,6 +182,7 @@ public:
     virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
     virtual bool isRinging() const;
+    virtual bool isIgnored() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -192,6 +193,7 @@ public:
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
+    void setIgnoredCall(bool ignored);
 
 protected:
     MegaChatHandle chatid;
@@ -205,6 +207,7 @@ protected:
     std::string temporaryError;
 
     int termCode;
+    bool ignored;
     bool localTermCode;
     void convertTermCode(rtcModule::TermCode termCode);
 
@@ -786,7 +789,7 @@ private:
 
     static int convertInitState(int state);
 
-    void sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate* request);
+    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid);
 
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
@@ -934,6 +937,7 @@ public:
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
+    MegaChatHandle getLastMessageSeenId(MegaChatHandle chatid);
     void removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
@@ -957,6 +961,7 @@ public:
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
+    void setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
     mega::MegaHandleList *getChatCalls();
