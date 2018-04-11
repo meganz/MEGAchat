@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
+    EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
 
 #ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
@@ -308,6 +309,9 @@ void MegaChatApiTest::SetUp()
 
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
+
+        mRichLinkFlag[i] = false;
+        mCountRichLink[i] = 0;
 
 #ifndef KARERE_DISABLE_WEBRTC
         mCallReceived[i] = false;
@@ -2505,6 +2509,57 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
+{
+    char *primarySession = login(a1);
+
+    bool *flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
+    *flagRequestRichLink = false;
+    bool *flagRichLink = &mRichLinkFlag[a1];
+    *flagRichLink = false;
+    int *countRichLink = &mCountRichLink[a1];
+    *countRichLink = 0;
+    megaApi[a1]->shouldShowRichLinkWarning();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+
+    bool enableRichLink = !(*flagRichLink);
+    bool *flagRichLinkRequest = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagRichLinkRequest = false;
+    megaApi[a1]->enableRichPreviews(enableRichLink);
+    ASSERT_CHAT_TEST(waitForResponse(flagRichLinkRequest), "User attribute retrieval not finished after timeout");
+    ASSERT_CHAT_TEST(!lastError[a1], "Failed to enable rich preview. Error: " + std::to_string(lastError[a1]));
+
+    flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
+    *flagRequestRichLink = false;
+    flagRichLink = &mRichLinkFlag[a1];
+    *flagRichLink = false;
+    countRichLink = &mCountRichLink[a1];
+    *countRichLink = 0;
+    megaApi[a1]->shouldShowRichLinkWarning();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(enableRichLink == (*flagRichLink), "Rich link enable/disable has not worked");
+
+    int counter = *countRichLink + 1;
+    bool *flagCounterRichLink = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagCounterRichLink = false;
+    megaApi[a1]->setRichLinkWarningCounterValue(counter);
+    ASSERT_CHAT_TEST(waitForResponse(flagCounterRichLink), "User attribute retrieval not finished after timeout");
+    ASSERT_CHAT_TEST(!lastError[a1], "Failed to set rich preview count. Error: " + std::to_string(lastError[a1]));
+    flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
+    *flagRequestRichLink = false;
+    flagRichLink = &mRichLinkFlag[a1];
+    *flagRichLink = false;
+    countRichLink = &mCountRichLink[a1];
+    *countRichLink = 0;
+    megaApi[a1]->shouldShowRichLinkWarning();
+    ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value");
+
+    delete [] primarySession;
+    primarySession = NULL;
+}
+
 #endif
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
@@ -3139,12 +3194,18 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                 if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
                 {
                     mFirstname = request->getText() ? request->getText() : "";
+                    nameReceived[apiIndex] = true;
                 }
                 else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
                 {
                     mLastname = request->getText() ? request->getText() : "";
+                    nameReceived[apiIndex] = true;
                 }
-                nameReceived[apiIndex] = true;
+                else if (request->getParamType() == MegaApi::USER_ATTR_RICH_PREVIEWS)
+                {
+                    mRichLinkFlag[apiIndex] = request->getFlag();
+                    mCountRichLink[apiIndex] = request->getNumber();
+                }
                 break;
 
             case MegaRequest::TYPE_COPY:
