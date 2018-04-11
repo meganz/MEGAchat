@@ -189,6 +189,7 @@ void ChatMessage::updateContent()
             }
             case megachat::MegaChatMessage::TYPE_NORMAL:
             {
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,255,255,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
