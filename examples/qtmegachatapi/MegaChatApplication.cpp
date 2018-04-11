@@ -285,7 +285,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
              {
              MegaChatHandle userHandle = request->getUserHandle();
-             if (e->getErrorCode() == MegaChatError::ERROR_OK)
+             int errorCode = e->getErrorCode();
+             if (errorCode == MegaChatError::ERROR_OK)
              {
                 const char *firstname = request->getText();
                 if ((strlen(firstname)) == 0)
@@ -296,7 +297,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
                 mMainWin->updateContactFirstname(userHandle,firstname);
                 mMainWin->updateMessageFirstname(userHandle,firstname);
              }
-             else
+             else if (errorCode == MegaChatError::ERROR_NOENT)
              {
                 this->megaChatApi->getUserEmail(userHandle);
              }
