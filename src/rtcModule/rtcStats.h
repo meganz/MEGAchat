@@ -21,7 +21,8 @@ struct StatSessInfo
     karere::Id caid;
     karere::Id aaid;
     bool isCaller;
-    StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo);
+    std::string deviceInfo;
+    StatSessInfo(karere::Id aSid, uint8_t code, const std::string& aErrInfo, const std::string &aDeviceInfo);
 };
 
 class ConnInfo: public IConnInfo
@@ -51,6 +52,7 @@ public:
     karere::Id mSessionId;
     karere::Id mOwnAnonId;
     karere::Id mPeerAnonId;
+    std::string mDeviceInfo;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
     //IRtcStats implementation
@@ -97,7 +99,7 @@ protected:
             mBwInfo = aBwInfo;
             mBwInfo->bs = 0;
         }
-        void calculate(long periodMs, long newTotalBytes);
+        void calculate(uint64_t periodMs, uint64_t newTotalBytes);
     };
 
     int mScanPeriod;
@@ -115,7 +117,7 @@ protected:
     BwCalculator mConnTxBwCalc;
     void addSample();
     void resetBwCalculators();
-    long long getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
+    int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
     std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
 public:
     Session& mSession;

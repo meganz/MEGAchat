@@ -172,7 +172,7 @@ using namespace megachat;
         case MEGAChatRoomChangeTypeUnreadCount:
             result = @"Unread count";
             break;
-        case MEGAChatRoomChangeTypeParticipans:
+        case MEGAChatRoomChangeTypeParticipants:
             result = @"Participants";
             break;
         case MEGAChatRoomChangeTypeTitle:
@@ -183,6 +183,12 @@ using namespace megachat;
             break;
         case MEGAChatRoomChangeTypeClosed:
             result = @"Closed";
+            break;
+        case MEGAChatRoomChangeTypeOwnPriv:
+            result = @"Privilege change";
+            break;
+        case MEGAChatRoomChangeTypeUserStopTyping:
+            result = @"User stops typing";
             break;
             
         default:

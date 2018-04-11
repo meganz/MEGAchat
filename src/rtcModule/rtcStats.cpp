@@ -16,8 +16,8 @@ using namespace karere;
 namespace stats
 {
 
-StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string& aErrInfo)
-:sid(aSid), errInfo(aErrInfo)
+StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string& aErrInfo, const std::string& aDeviceInfo)
+:sid(aSid), errInfo(aErrInfo), deviceInfo(aDeviceInfo)
 {
     if (termCode & TermCode::kPeer)
         mTermReason = std::string("peer-")+termCodeToStr(static_cast<TermCode>(termCode & ~TermCode::kPeer));
@@ -59,9 +59,9 @@ void Recorder::resetBwCalculators()
     mConnTxBwCalc.reset(&(mCurrSample->cstats.s));
 }
 
-long long Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
+int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
 {
-    long long numericalValue = 0;
+    int64_t numericalValue = 0;
     const webrtc::StatsReport::Value *value = item->FindValue(name);
     if (value)
     {
@@ -75,7 +75,7 @@ long long Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const
         }
         else
         {
-            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString(), value->type());
+            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
             assert(false);
         }
     }
@@ -95,10 +95,10 @@ std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, c
     return stringValue;
 }
 
-void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
+void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
 {
-    long deltaBytes = newTotalBytes - mTotalBytes;
-    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128) / (periodMs / 1000); //from bytes/s to kbits/s
+    uint64_t deltaBytes = newTotalBytes - mTotalBytes;
+    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
     mTotalBytes = newTotalBytes;
     mBwInfo->bs += deltaBytes;
     mBwInfo->abps = (mBwInfo->abps * 4+bps) / 5;
@@ -269,6 +269,7 @@ std::string Recorder::terminate(const StatSessInfo& info)
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = info.mTermReason;
+    mStats->mDeviceInfo = info.deviceInfo;
     std::string json;
     mStats->toJson(json);
     return json;
@@ -327,7 +328,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_INT(sper, mSper);
     JSON_ADD_INT(dur, round((float)mDur/1000));
     JSON_ADD_STR(termRsn, mTermRsn);
-    JSON_ADD_STR(bws, "n"); //TODO: Add platform info
+    JSON_ADD_STR(bws, mDeviceInfo); //TODO: Add platform info
 
     int isRelay = !mConnInfo.mRlySvr.empty();
     JSON_ADD_INT(rly, isRelay);

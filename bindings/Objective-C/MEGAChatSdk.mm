@@ -81,6 +81,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->connect();
 }
 
+- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->connectInBackground([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)connectInBackground {
+    self.megaChatApi->connectInBackground();
+}
+
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->disconnect([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -180,7 +188,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->addChatRoomListener(chatId, [self createDelegateMEGAChatRoomListener:delegate singleListener:NO]);
 }
 
-- (void)removeChatRoomDelegate:(id<MEGAChatRoomDelegate>)delegate {    
+- (void)removeChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {
     std::vector<DelegateMEGAChatRoomListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -199,7 +207,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     
     for (int i = 0; i < listenersToRemove.size(); i++)
     {
-        self.megaChatApi->removeChatRoomListener(listenersToRemove[i]);
+        self.megaChatApi->removeChatRoomListener(chatId, listenersToRemove[i]);
         delete listenersToRemove[i];
     }
 }
@@ -642,6 +650,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId {
     self.megaChatApi->sendTypingNotification(chatId);
+}
+
+- (void)sendStopTypingNotificationForChat:(uint64_t)chatId {
+    self.megaChatApi->sendStopTypingNotification(chatId);
 }
 
 - (void)saveCurrentState {

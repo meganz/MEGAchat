@@ -39,7 +39,6 @@ typedef uint8_t TermCode;
 #include "karereCommon.h" //for AvFlags
 #include <karereId.h>
 #include <trackDelete.h>
-#include <serverListProviderForwards.h>
 #include <IRtcCrypto.h>
 
 namespace chatd
@@ -83,37 +82,40 @@ enum: uint8_t
 };
 enum TermCode: uint8_t
 {
-    kUserHangup = 0,         // < Normal user hangup
-//    kCallReqCancel = 1,    // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
-    kCallRejected = 2,       // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
+    kUserHangup = 0,            // < Normal user hangup
+//    kCallReqCancel = 1,       // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
+    kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
     // <another client of our user
-    kAnsElsewhere = 3,       // < Call was answered on another device of ours
-    kAnswerTimeout = 5,      // < Call was not answered in a timely manner
-    kRingOutTimeout = 6,     // < We have sent a call request but no RINGING received within this timeout - no other
+    kAnsElsewhere = 3,          // < Call was answered on another device of ours
+    kAnswerTimeout = 5,         // < Call was not answered in a timely manner
+    kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
     // < users are online
-    kAppTerminating = 7,     // < The application is terminating
+    kAppTerminating = 7,        // < The application is terminating
     kCallGone = 8,
-    kBusy = 9,               // < Peer is in another call
-    kNotFinished = 10,       // < It is no finished value, it is TermCode value while call is in progress
-    kNormalHangupLast = 20,  // < Last enum specifying a normal call termination
-    kErrorFirst = 21,        // < First enum specifying call termination due to error
-    kErrApiTimeout = 22,     // < Mega API timed out on some request (usually for RSA keys)
-    kErrFprVerifFailed = 23, // < Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
-    kErrProtoTimeout = 24,   // < Protocol timeout - one if the peers did not send something that was expected,
-                             // < in a timely manner
-    kErrProtocol = 25,       // < General protocol error
-    kErrInternal = 26,       // < Internal error in the client
-    kErrLocalMedia = 27,     // < Error getting media from mic/camera
-    kErrNoMedia = 28,        // < There is no media to be exchanged - both sides don't have audio/video to send
-    kErrNetSignalling = 29,  // < chatd shard was disconnected
-    kErrIceDisconn = 30,     // < ice-disconnect condition on webrtc connection
-    kErrIceFail = 31,        // <ice-fail condition on webrtc connection
-    kErrSdp = 32,            // < error generating or setting SDP description
-    kErrUserOffline = 33,    // < we received a notification that that user went offline
-    kErrorLast = 33,         // < Last enum indicating call termination due to error
-    kLast = 33,              // < Last call terminate enum value
-    kPeer = 128,             // < If this flag is set, the condition specified by the code happened at the peer,
-                             // < not at our side
+    kBusy = 9,                  // < Peer is in another call
+    kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
+    kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
+    kErrorFirst = 21,           // < First enum specifying call termination due to error
+    kErrApiTimeout = 22,        // < Mega API timed out on some request (usually for RSA keys)
+    kErrFprVerifFailed = 23,    // < Peer DTLS-SRTP fingerprint verification failed, posible MiTM attack
+    kErrProtoTimeout = 24,      // < Protocol timeout - one if the peers did not send something that was expected,
+    // < in a timely manner
+    kErrProtocol = 25,          // < General protocol error
+    kErrInternal = 26,          // < Internal error in the client
+    kErrLocalMedia = 27,        // < Error getting media from mic/camera
+    kErrNoMedia = 28,           // < There is no media to be exchanged - both sides don't have audio/video to send
+    kErrNetSignalling = 29,     // < chatd shard was disconnected
+    kErrIceDisconn = 30,        // < The media connection got broken, due to network error
+    kErrIceFail = 31,           // < Media connection could not be established, because webrtc was unable to traverse NAT.
+    // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
+    kErrSdp = 32,               // < error generating or setting SDP description
+    kErrUserOffline = 33,       // < we received a notification that that user went offline
+    kErrSessSetupTimeout = 34,  // < timed out waiting for session
+    kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
+    kErrorLast = 35,            // < Last enum indicating call termination due to error
+    kLast = 35,                 // < Last call terminate enum value
+    kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
+                                // < not at our side
     kInvalid = 0x7f
 };
 
@@ -296,7 +298,7 @@ public:
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
-    virtual promise::Promise<void> init(unsigned gelbTimeout) = 0;
+    virtual void init() = 0;
     /**
      * @brief Clients exchange an anonymous id for statistics purposes
      * @note Currently, id is not anonymous, since signalling is done via chatd with actual userids

@@ -9,16 +9,16 @@ class ChatdSqliteDb: public chatd::DbInterface
 {
 protected:
     SqliteDb& mDb;
-    chatd::Chat& mMessages;
+    chatd::Chat& mChat;
     std::string mSendingTblName;
     std::string mHistTblName;
 public:
-    ChatdSqliteDb(chatd::Chat& msgs, SqliteDb& db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
-        :mDb(db), mMessages(msgs), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
+    ChatdSqliteDb(chatd::Chat& chat, SqliteDb& db, const std::string& sendingTblName="sending", const std::string& histTblName="history")
+        :mDb(db), mChat(chat), mSendingTblName(sendingTblName), mHistTblName(histTblName){}
     virtual void getHistoryInfo(chatd::ChatDbInfo& info)
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid=?1");
-        stmt.bind(mMessages.chatId()).step(); //will always return a row, even if table empty
+        stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
         auto minIdx = stmt.intCol(0); //WARNING: the chatd implementation uses uint32_t values for idx.
         info.newestDbIdx = stmt.intCol(1);
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
@@ -27,7 +27,7 @@ public:
             return;
         }
         SqliteStmt stmt2(mDb, "select msgid from "+mHistTblName+" where chatid=?1 and idx=?2");
-        stmt2 << mMessages.chatId() << minIdx;
+        stmt2 << mChat.chatId() << minIdx;
         stmt2.stepMustHaveData();
         info.oldestDbId = stmt2.uint64Col(0);
         stmt2.reset().bind(2, info.newestDbIdx);
@@ -39,7 +39,7 @@ public:
             info.oldestDbId = 0;
         }
         SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
-        stmt3 << mMessages.chatId();
+        stmt3 << mChat.chatId();
         stmt3.stepMustHaveData();
         info.lastSeenId = stmt3.uint64Col(0);
         info.lastRecvId = stmt3.uint64Col(1);
@@ -66,7 +66,7 @@ public:
         item.recipients.save(rcpts);
         mDb.query("insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
                          "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
-            (uint64_t)mMessages.chatId(), item.opcode(), msg->ts, msg->id(),
+            (uint64_t)mChat.chatId(), item.opcode(), msg->ts, msg->id(),
             *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
@@ -100,7 +100,7 @@ public:
         assert(item.opcode() == chatd::OP_MSGUPDX);
         mDb.query(
             "update sending set opcode=?, msgid=? where chatid=? and rowid=? and opcode=? and msgid=?",
-            chatd::OP_MSGUPD, msgid, mMessages.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
+            chatd::OP_MSGUPD, msgid, mChat.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
         assertAffectedRowCount(1, "updateSendingItemMsgidAndOpcode");
     }
     virtual void deleteItemFromSending(uint64_t rowid)
@@ -122,7 +122,7 @@ public:
     {
 #if 1
         SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from history where chatid = ?");
-        stmt << mMessages.chatId();
+        stmt << mChat.chatId();
         stmt.step();
         int low = stmt.intCol(0);
         int high = stmt.intCol(1);
@@ -132,14 +132,14 @@ public:
             CHATD_LOG_ERROR("chatid %s: addMsgToHistory: history discontinuity detected: "
                 "index of added msg %s is not adjacent to neither end of db history: "
                 "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d, lownum=%d, highnum=%d",
-                mMessages.chatId().toString().c_str(), msg.id().toString().c_str(),
-                idx, low, high, count, mMessages.forwardStart(), mMessages.lownum(), mMessages.highnum());
+                mChat.chatId().toString().c_str(), msg.id().toString().c_str(),
+                idx, low, high, count, mChat.forwardStart(), mChat.lownum(), mChat.highnum());
             assert(false);
         }
 #endif
         mDb.query("insert into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
-            "values(?,?,?,?,?,?,?,?,?,?)", idx, mMessages.chatId(), msg.id(), msg.keyid,
+            "values(?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
@@ -147,20 +147,29 @@ public:
         if (msg.type == chatd::Message::kMsgTruncate)
         {
             mDb.query("update history set type = ?, data = ?, ts = ?, userid = ? where chatid = ? and msgid = ?",
-                msg.type, msg, msg.ts, msg.userid, mMessages.chatId(), msgid);
+                msg.type, msg, msg.ts, msg.userid, mChat.chatId(), msgid);
         }
         else    // "updated" instead of "ts"
         {
             mDb.query("update history set type = ?, data = ?, updated = ?, userid = ? where chatid = ? and msgid = ?",
-                msg.type, msg, msg.updated, msg.userid, mMessages.chatId(), msgid);
+                msg.type, msg, msg.updated, msg.userid, mChat.chatId(), msgid);
         }
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
+
+    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated)
+    {
+        SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
+        stmt3 << mChat.chatId() << msgid;
+        stmt3.stepMustHaveData();
+        *updated = stmt3.intCol(0);
+    }
+
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
             "ts, updated, backrefid, backrefs, recipients from sending where chatid=? order by rowid asc");
-        stmt << mMessages.chatId();
+        stmt << mChat.chatId();
         queue.clear();
         while(stmt.step())
         {
@@ -169,7 +178,7 @@ public:
             assert((opcode == chatd::OP_NEWMSG) || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
-            auto msg = new chatd::Message(stmt.int64Col(2), mMessages.client().userId(),
+            auto msg = new chatd::Message(stmt.int64Col(2), mChat.client().userId(),
                     stmt.intCol(6), stmt.intCol(7), nullptr, 0, true, (chatd::KeyId)stmt.intCol(3),
                     (unsigned char)stmt.intCol(5));
             stmt.blobCol(4, *msg);
@@ -189,7 +198,7 @@ public:
     {
         SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated from history "
             "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
-        stmt << mMessages.chatId() << idx << count;
+        stmt << mChat.chatId() << idx << count;
         int i = 0;
         while(stmt.step())
         {
@@ -202,11 +211,11 @@ public:
             stmt.blobCol(4, buf);
 #ifndef NDEBUG
             auto idx = stmt.intCol(5);
-            if(idx != mMessages.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
+            if(idx != mChat.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
             {
                 CHATD_LOG_ERROR("chatid %s: fetchDbHistory: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mMessages.chatId().toString().c_str(),
-                    mMessages.lownum()-1-(int)messages.size(), idx);
+                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(),
+                    mChat.lownum()-1-(int)messages.size(), idx);
                 assert(false);
             }
 #endif
@@ -219,7 +228,7 @@ public:
     virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
     {
         SqliteStmt stmt(mDb, "select idx from history where chatid = ? and msgid = ?");
-        stmt << mMessages.chatId() << msgid;
+        stmt << mChat.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
@@ -231,7 +240,7 @@ public:
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mMessages.chatId() << mMessages.client().userId() << chatd::Message::kMsgRevokeAttachment;
+        stmt << mChat.chatId() << mChat.client().userId() << chatd::Message::kMsgRevokeAttachment;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -242,19 +251,19 @@ public:
         auto& msg = *item.msg;
         mDb.query("insert into manual_sending(chatid, rowid, msgid, type, "
             "ts, updated, msg, opcode, reason) values(?,?,?,?,?,?,?,?,?)",
-            mMessages.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts,
+            mChat.chatId(), item.rowid, item.msg->id(), msg.type, msg.ts,
             msg.updated, msg, item.opcode(), reason);
     }
     virtual void loadManualSendItems(std::vector<chatd::Chat::ManualSendItem>& items)
     {
         SqliteStmt stmt(mDb, "select rowid, msgid, type, ts, updated, msg, opcode, "
             "reason from manual_sending where chatid=? order by rowid asc");
-        stmt << mMessages.chatId();
+        stmt << mChat.chatId();
         while(stmt.step())
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(1), mMessages.client().userId(),
+            auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().userId(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
@@ -269,12 +278,12 @@ public:
     {
         SqliteStmt stmt(mDb, "select msgid, type, ts, updated, msg, opcode, "
             "reason from manual_sending where chatid=? and rowid=?");
-        stmt << mMessages.chatId() << rowid;
+        stmt << mChat.chatId() << rowid;
         stmt.stepMustHaveData("load manual sending item");
 
         Buffer buf;
         stmt.blobCol(4, buf);
-        auto msg = new chatd::Message(stmt.uint64Col(0), mMessages.client().userId(),
+        auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().userId(),
                                       stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
         item.msg = msg;
@@ -287,47 +296,46 @@ public:
         auto idx = getIdxOfMsgid(msg.id());
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
-        mDb.query("delete from history where chatid = ? and idx < ?", mMessages.chatId(), idx);
+        mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
 #if 1
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
-        stmt << mMessages.chatId() << msg.id();
+        stmt << mChat.chatId() << msg.id();
         stmt.step();
         if (stmt.intCol(0) != chatd::Message::kMsgTruncate)
             throw std::runtime_error("DbInterface::truncateHistory: Truncate message type is not 'truncate'");
 #endif
 
-        mDb.query("delete from manual_sending where chatid = ?", mMessages.chatId());
+        mDb.query("delete from manual_sending where chatid = ?", mChat.chatId());
     }
     virtual chatd::Idx getOldestIdx()
     {
         SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
-        stmt << mMessages.chatId();
+        stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
         return stmt.uint64Col(0);
     }
     virtual void setLastSeen(karere::Id msgid)
     {
-        mDb.query("update chats set last_seen=? where chatid=?", msgid, mMessages.chatId());
+        mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
     virtual void setLastReceived(karere::Id msgid)
     {
-        mDb.query("update chats set last_recv=? where chatid=?", msgid, mMessages.chatId());
+        mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
     virtual void setHaveAllHistory()
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'have_all_history', '1')", mMessages.chatId());
+            "values(?, 'have_all_history', '1')", mChat.chatId());
     }
     virtual bool haveAllHistory()
     {
         SqliteStmt stmt(mDb,
-            "select value from chat_vars where chatid=? and name='have_all_history'");
-        if (!stmt.step())
-            return false;
-        return stmt.stringCol(0) == "1";
+            "select value from chat_vars where chatid=? and name='have_all_history' and value='1'");
+        stmt << mChat.chatId();
+        return stmt.step();
     }
     virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
     {
@@ -335,7 +343,7 @@ public:
             "select type, idx, data, msgid, userid from history where chatid=? and "
             "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
             "order by idx desc limit 1");
-        stmt << mMessages.chatId() << from;
+        stmt << mChat.chatId() << from;
         if (!stmt.step())
         {
             msg.clear();
@@ -348,8 +356,8 @@ public:
 
     virtual void clearHistory()
     {
-        mDb.query("delete from history where chatid = ?", mMessages.chatId());
-        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mMessages.chatId());
+        mDb.query("delete from history where chatid = ?", mChat.chatId());
+        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mChat.chatId());
     }
 };
 

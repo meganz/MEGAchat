@@ -7,7 +7,6 @@
 #include <map>
 #include <type_traits>
 #include <retryHandler.h>
-#include <serverListProviderForwards.h>
 #include "userAttrCache.h"
 #include <db.h>
 #include "chatd.h"
@@ -84,7 +83,7 @@ public:
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual const std::string& titleString() const = 0;
+    virtual const char *titleString() const = 0;
 
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
@@ -130,6 +129,9 @@ public:
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() { mChat->sendTypingNotification(); }
 
+    /** @brief send a notification to the chatroom that the user has stopped typing. */
+    virtual void sendStopTypingNotification() { mChat->sendStopTypingNotification(); }
+
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
      * message count change.
@@ -147,6 +149,7 @@ public:
      * so, on removal, the app should take care to free it if needed.
      */
     void setAppChatHandler(IApp::IChatHandler* handler);
+
     /** @brief Removes the application-supplied chat event handler from the
      * room. It is up to the aplication to destroy it if needed.
      */
@@ -172,13 +175,11 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onExcludedFromRoom() {}
     virtual void onOnlineStateChange(chatd::ChatState state);
-    virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
-    {
-        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
-            karere::Id(mChatid).toString().c_str(),
-            msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
-            errmsg.c_str());
-    }
+    virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
+
+    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
+    virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
+    virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
@@ -229,7 +230,13 @@ public:
     Contact *contact() const { return mContact; }
 
     /** @brief The screen name of the peer */
-    virtual const std::string& titleString() const;
+    virtual const char *titleString() const;
+
+    /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
+      * First byte indicate first name length
+      */
+    const std::string& completeTitleString() const;
+
 
     /** @brief The screen email address of the peer */
     virtual const std::string& email() const { return mEmail; }
@@ -340,7 +347,7 @@ public:
     bool hasTitle() const { return mHasTitle; }
 
     /** @brief The title of the chatroom */
-    virtual const std::string& titleString() const { return mTitleString; }
+    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief The 'presence' of the chatroom - it's actually the online state,
      * and can be only online or offline, depending on whether we are connected
@@ -808,7 +815,7 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
-
+    void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC

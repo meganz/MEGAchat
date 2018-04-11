@@ -31,7 +31,7 @@
 // define the weak symbol for Logger to know where to create the log file
 namespace karere
 {
-    APP_ALWAYS_EXPORT std::string getAppDir() 
+    APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
             return "/data/data/mega.privacy.android.app"; 
@@ -141,6 +141,11 @@ MegaChatApi::MegaChatApi(MegaApi *megaApi)
 MegaChatApi::~MegaChatApi()
 {
     delete pImpl;
+}
+
+const char *MegaChatApi::getAppDir()
+{
+    return karere::getAppDir().c_str();
 }
 
 void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
@@ -503,6 +508,11 @@ MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
     return  pImpl->getLastMessageSeen(chatid);
 }
 
+MegaChatHandle MegaChatApi::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    return pImpl->getLastMessageSeenId(chatid);
+}
+
 void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId)
 {
     pImpl->removeUnsentMessage(chatid, rowId);
@@ -511,6 +521,11 @@ void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowI
 void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->sendTypingNotification(chatid, listener);
+}
+
+void MegaChatApi::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->sendStopTypingNotification(chatid, listener);
 }
 
 bool MegaChatApi::isMessageReceptionConfirmationActive() const
@@ -667,9 +682,9 @@ void MegaChatApi::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListene
     pImpl->addChatRoomListener(chatid, listener);
 }
 
-void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->removeChatRoomListener(listener);
+    pImpl->removeChatRoomListener(chatid, listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
@@ -680,6 +695,16 @@ void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
 void MegaChatApi::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     pImpl->removeChatRequestListener(listener);
+}
+
+void MegaChatApi::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->addChatNotificationListener(listener);
+}
+
+void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->removeChatNotificationListener(listener);
 }
 
 MegaChatRequest::~MegaChatRequest() { }
@@ -1290,4 +1315,9 @@ bool MegaChatPresenceConfig::isPending() const
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
+}
+
+void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
+{
+
 }

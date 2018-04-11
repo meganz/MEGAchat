@@ -55,6 +55,7 @@ class MegaChatCall;
 class MegaChatCallListener;
 class MegaChatVideoListener;
 class MegaChatListener;
+class MegaChatNotificationListener;
 class MegaChatListItem;
 
 /**
@@ -566,6 +567,11 @@ public:
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
+        TYPE_CONTAINS_META          = 19,   /// User message including additional metadata (ie. rich-preview for links)
+    };
+
+    enum {
+      META_CONTAINS_RICH_PREVIEW    = 0,    /// Rich-preview type for messages with meta contained
     };
 
     enum
@@ -1430,7 +1436,7 @@ public:
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
-        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> remove SDK cache and force a login+fetchnodes
+        INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> it requires login+fetchnodes
     };
 
     enum
@@ -1461,6 +1467,8 @@ public:
 //    MegaChatApi(const char *appKey, const char* appDir);
 
     virtual ~MegaChatApi();
+
+    static const char *getAppDir();
 
     /**
      * @brief Set a MegaChatLogger implementation to receive SDK logs
@@ -1526,8 +1534,9 @@ public:
      * return MegaChatApi::INIT_OFFLINE_SESSION.
      *
      * If a session id is provided but the correspoding cache is not available, it will return
-     * MegaChatApi::INIT_NO_CACHE and the app should go through a new fetchnodes in order to
-     * re-create a new cache from scratch.
+     * MegaChatApi::INIT_NO_CACHE and the app should go through a login + fetchnodes in order to
+     * re-create a new cache from scratch. No need to invalidate the SDK's cache, MEGAchat's cache
+     * will be regenerated based on data from SDK's cache upong fetchnodes completion.
      *
      * The initialization status is notified via `MegaChatListener::onChatInitStateUpdate`. See
      * the documentation of the callback for possible values.
@@ -1771,6 +1780,8 @@ public:
 
     /**
      * @brief Get the current presence configuration
+     *
+     * You take the ownership of the returned value
      *
      * @see \c MegaChatPresenceConfig for further details.
      *
@@ -2456,6 +2467,9 @@ public:
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+     * that it isn't typing
+     *
      * You take the ownership of the returned value.
      *
      * @note Any tailing carriage return and/or line feed ('\r' and '\n') will be removed.
@@ -2653,6 +2667,9 @@ public:
      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
      * reach the status delivered, since the target user will not send the required acknowledge to the
      * server upon reception.
+     *
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+     * that it isn't typing
      * 
      * You take the ownership of the returned value.
      *
@@ -2699,9 +2716,20 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      *
-     * @return The last-seen-by-us MegaChatMessage, or NULL if error.
+     * @return The last-seen-by-us MegaChatMessage, or NULL if \c chatid is invalid or
+     * last message seen is not loaded in memory.
      */
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
+
+    /**
+     * @brief Returns message id of the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return Message id for the last-seen-by-us, or invalid handle if \c chatid is invalid or
+     * the user has not seen any message in that chat
+     */
+    MegaChatHandle getLastMessageSeenId(MegaChatHandle chatid);
 
     /**
      * @brief Removes the unsent message from the queue
@@ -2734,6 +2762,24 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void sendTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns whether reception of messages is acknowledged
@@ -3028,7 +3074,7 @@ public:
      *
      * @param listener Object that is unregistered
      */
-    void removeChatRoomListener(MegaChatRoomListener *listener);
+    void removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener);
 
     /**
      * @brief Register a listener to receive all events about requests
@@ -3047,6 +3093,24 @@ public:
      * @param listener Object that is unregistered
      */
     void removeChatRequestListener(MegaChatRequestListener* listener);
+
+    /**
+     * @brief Register a listener to receive notifications
+     *
+     * You can use MegaChatApi::removeChatRequestListener to stop receiving events.
+     *
+     * @param listener Listener that will receive all events about requests
+     */
+    void addChatNotificationListener(MegaChatNotificationListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatNotificationListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    void removeChatNotificationListener(MegaChatNotificationListener* listener);
 
 #ifndef KARERE_DISABLE_WEBRTC
     /**
@@ -3292,13 +3356,14 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
-        CHANGE_TYPE_UNREAD_COUNT    = 0x02,
-        CHANGE_TYPE_PARTICIPANTS    = 0x04, /// joins/leaves/privileges/names
-        CHANGE_TYPE_TITLE           = 0x08,
-        CHANGE_TYPE_USER_TYPING     = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_OWN_PRIV        = 0x40  /// Our privilege level has changed
+        CHANGE_TYPE_STATUS              = 0x01, /// obsolete
+        CHANGE_TYPE_UNREAD_COUNT        = 0x02,
+        CHANGE_TYPE_PARTICIPANTS        = 0x04, /// joins/leaves/privileges/names
+        CHANGE_TYPE_TITLE               = 0x08,
+        CHANGE_TYPE_USER_TYPING         = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
+        CHANGE_TYPE_OWN_PRIV            = 0x40,  /// Our privilege level has changed
+        CHANGE_TYPE_USER_STOP_TYPING    = 0x80 /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
     };
 
     enum {
@@ -3492,10 +3557,10 @@ public:
     virtual int getUnreadCount() const;
 
     /**
-     * @brief Returns the handle of the user who is typing a message in the chatroom
+     * @brief Returns the handle of the user who is typing or has stopped typing a message in the chatroom
      *
-     * Normally the app should have a timer that is reset each time a typing
-     * notification is received. When the timer expires, it should hide the notification GUI.
+     * The app should have a timer that is reset each time a typing
+     * notification is received. When the timer expires, it should hide the notification
      *
      * @return The user that is typing
      */
@@ -3714,6 +3779,57 @@ public:
      * @param chat MegaChatRoom whose local history is about to be discarded
      */
     virtual void onHistoryReloaded(MegaChatApi* api, MegaChatRoom *chat);
+};
+
+/**
+ * @brief Interface to get notifications to show to the user on mobile devices
+ *
+ * Mobile platforms usually provide a framework to push-notifications to mobile devices.
+ * The app needs to register a push-notification token (@see MegaApi::registerPushNotifications in the SDK)
+ * in order to get those notifications (triggered by MEGA servers on certain events).
+ *
+ * This listener provides the required data to prepare platform-specific notifications for
+ * several events, such as new messages received, deletions, truncation of history...
+ *
+ * Multiple inheritance isn't used for compatibility with other programming languages
+ *
+ * The implementation will receive callbacks from an internal worker thread.
+ *
+ */
+class MegaChatNotificationListener
+{
+public:
+    virtual ~MegaChatNotificationListener() {}
+
+    /**
+     * @brief This function is called when there are interesting events for notifications
+     *
+     * The possible events that are notified are the following:
+     *  - Reception of a new message from other user if still unseen.
+     *  - Edition/deletion of received unseen messages.
+     *  - Trucate of history (for both, when truncate is ours or theirs).
+     *  - Changes on the lastest message seen by us (don't notify previous unseen messages).
+     *
+     * @note This notifications cover every chatroom that is not opened. For the opened chatroom,
+     * you will not get these notifications (the user is not interested on getting notifications for
+     * events happening in the chatroom that is currently looking at).
+     * Rembember to close the chatroom if the apps enters in background, since you will get a push
+     * notification but, once the app resumes, you will not get notifications about a chatroom if
+     * it's opened.
+     *
+     * Depending on the status of the message (seen or unseen), if it has been edited/deleted,
+     * or even on the type of the message (truncate), the app should add/update/clear the corresponding
+     * notifications on the mobile device.
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the third parameter.
+     * The MegaChatMessage object will be valid until this function returns. If you
+     * want to save the MegaChatMessage, use MegaChatMessage::copy
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msg MegaChatMessage representing a 1on1 or groupchat in the list.
+     */
+    virtual void onChatNotification(MegaChatApi* api, MegaChatHandle chatid, MegaChatMessage *msg);
 };
 
 }

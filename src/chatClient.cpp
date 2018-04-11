@@ -377,6 +377,11 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     });
 }
 
+void Client::setCommitMode(bool commitEach)
+{
+    db.setCommitMode(commitEach);
+}
+
 void Client::commit(const std::string& scsn)
 {
     if (scsn.empty())
@@ -411,7 +416,6 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
             auto pscsn = event->getText();
             if (!pscsn)
             {
-                KR_LOG_WARNING("EVENT_COMMIT_DB with NULL scsn, ignoring");
                 return;
             }
             std::string scsn = pscsn;
@@ -423,6 +427,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
                     return;
                 }
 
+                KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
                 commit(scsn);
             }, appCtx);
         }
@@ -829,27 +834,23 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
     });
 
-        auto wptr = weakHandle();
-
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
-    rtc->init(10000)
-    .then([this, isInBackground, wptr]()
+    rtc->init();
+#endif
+
+    connectToChatd(isInBackground);
+
+    auto wptr = weakHandle();
+    auto pms = connectToPresenced(mOwnPresence)
+    .then([this, wptr]()
     {
         if (wptr.deleted())
         {
             return;
         }
-        connectToChatd(isInBackground);
-    });
-#else
-    connectToChatd(isInBackground);
-#endif
 
-    auto pms = connectToPresenced(mOwnPresence)
-    .then([this]()
-    {
         setConnState(kConnected);
     })
     .fail([this](const promise::Error& err)
@@ -857,6 +858,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         setConnState(kDisconnected);
         return err;
     });
+
     assert(!mHeartbeatTimer);
     mHeartbeatTimer = karere::setInterval([this, wptr]()
     {
@@ -1558,17 +1560,17 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 auto self = static_cast<PeerChatRoom*>(userp);
                 if (!data || data->empty() || (*data->buf() == 0))
                 {
-                    self->updateTitle(self->mEmail);
+                    self->updateTitle(encodeFirstName(self->mEmail));
                 }
                 else
                 {
-                    self->updateTitle(std::string(data->buf()+1, data->dataSize()-1));
+                    self->updateTitle(std::string(data->buf(), data->dataSize()));
                 }
             });
 
         if (mTitleString.empty()) // user attrib fetch was not synchronous
         {
-            updateTitle(mEmail);
+            updateTitle(encodeFirstName(mEmail));
             assert(!mTitleString.empty());
         }
     }
@@ -1631,7 +1633,12 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     return changed;
 }
 
-const std::string& PeerChatRoom::titleString() const
+const char *PeerChatRoom::titleString() const
+{
+    return mTitleString.c_str() + 1;
+}
+
+const std::string &PeerChatRoom::completeTitleString() const
 {
     return mTitleString;
 }
@@ -1787,7 +1794,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         ChatRoom* room = addRoom(apiRoom);
         chatids.insert(chatid);
-        client.app.notifyInvited(*room);
 
         if (client.connected())
         {
@@ -2329,6 +2335,44 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
     }
 }
 
+void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::string &errmsg)
+{
+    KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
+        karere::Id(mChatid).toString().c_str(),
+        msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
+        errmsg.c_str());
+}
+
+void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
+{
+    if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
+void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
+{
+    chatd::Message::Status status = mChat->getMsgStatus(msg, idx);
+
+    //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
+    // and, if so, remove the block from `onRecvNewMessage()`
+    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
+void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
+{
+    if (msg.userid != parent.client.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    {
+        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+    }
+}
+
 void PeerChatRoom::onUnreadChanged()
 {
     if (mIsArchived)
@@ -2595,34 +2639,39 @@ void ContactList::loadFromDb()
     while(stmt.step())
     {
         auto userid = stmt.uint64Col(0);
-        emplace(userid, new Contact(*this, userid, stmt.stringCol(1), stmt.intCol(2), stmt.int64Col(3),
-            nullptr));
+        Contact *contact = new Contact(*this, userid, stmt.stringCol(1), stmt.intCol(2), stmt.int64Col(3), nullptr);
+        this->emplace(userid, contact);
     }
 }
 
 bool ContactList::addUserFromApi(mega::MegaUser& user)
 {
     auto userid = user.getHandle();
-    auto& item = (*this)[userid];
-    if (item)
+    auto it = this->find(userid);
+    if (it != this->end())
     {
+        Contact *contact = it->second;
+        assert(contact);
         int newVisibility = user.getVisibility();
-        if (item->visibility() == newVisibility)
+        if (contact->visibility() == newVisibility)
         {
             return false;
         }
         client.db.query("update contacts set visibility = ? where userid = ?",
             newVisibility, userid);
-        item->onVisibilityChanged(newVisibility);
+        contact->onVisibilityChanged(newVisibility);
         return true;
     }
+
+    // contact was not created yet
     auto cmail = user.getEmail();
     std::string email(cmail ? cmail : "");
     int visibility = user.getVisibility();
     auto ts = user.getTimestamp();
     client.db.query("insert or replace into contacts(userid, email, visibility, since) values(?,?,?,?)",
             userid, email, visibility, ts);
-    item = new Contact(*this, userid, email, visibility, ts, nullptr);
+    Contact *contact = new Contact(*this, userid, email, visibility, ts, nullptr);
+    this->emplace(userid, contact);
     KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
     return true;
 }
@@ -2851,7 +2900,7 @@ void Contact::notifyTitleChanged()
 
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
-            mChatRoom->updateTitle(mTitleString.substr(1));
+            mChatRoom->updateTitle(mTitleString);
     }, mClist.client.appCtx);
 }
 
@@ -2897,7 +2946,7 @@ void Contact::setChatRoom(PeerChatRoom& room)
     assert(!mChatRoom);
     assert(!mTitleString.empty());
     mChatRoom = &room;
-    mChatRoom->updateTitle(mTitleString.substr(1));
+    mChatRoom->updateTitle(mTitleString);
 }
 
 void Contact::attachChatRoom(PeerChatRoom& room)
