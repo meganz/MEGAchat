@@ -57,9 +57,24 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
 }
 
+void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
+{
+    std::map<megachat::MegaChatHandle, ChatMessage *>::iterator it;
+    for (it = mMsgsWidgetsMap.begin(); it != mMsgsWidgetsMap.end(); it++)
+    {
+        ChatMessage *chatMessage = it->second;
+        if (chatMessage->mMessage->getUserHandle() == contactHandle)
+        {
+            chatMessage->setAuthor(firstname);
+        }
+    }
+}
+
+
+
 void ChatWindow::setChatTittle(const char *title)
 {
-    if(title)
+    if (title)
     {
         mChatTitle = title;
     }
@@ -446,10 +461,22 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             }
             else
             {
+                const char *memberName = mChatRoom->getPeerFirstname(i);
+                if (!memberName)
+                {
+                    memberName = mChatRoom->getPeerEmail(i);
+                }
+                else
+                {
+                   if ((strlen(memberName)) == 0)
+                   {
+                       memberName = mChatRoom->getPeerEmail(i);
+                   }
+                }
                 privilege = mChatRoom->getPeerPrivilege(i);
                 userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
                 title.append(" ")
-                    .append(QString::fromStdString(mChatRoom->getPeerFirstname(i)))
+                    .append(QString::fromStdString(memberName))
                     .append(" [")
                     .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
                     .append("]");
