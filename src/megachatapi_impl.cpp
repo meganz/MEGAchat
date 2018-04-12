@@ -3664,6 +3664,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     ringing = false;
     ignored = false;
     changed = 0;
+    peerId = 0;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -3681,6 +3682,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
     this->ignored = call.ignored;
+    this->sessionStatus = call.sessionStatus;
+    this->peerId = call.peerId;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
