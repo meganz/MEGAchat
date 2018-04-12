@@ -248,9 +248,14 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     delete chatRoom;
 
     QMenu menu(this);
-    if(mMegaChatApi->getChatListItem(mChatId)->isGroup())
+    megachat::MegaChatListItem *item = mMegaChatApi->getChatListItem(mChatId);
+    if(item->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
+        if (!item->isActive())
+        {
+            actLeave->setEnabled(false);
+        }
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
         auto actTopic = menu.addAction(tr("Set chat topic"));
         actTopic->setEnabled(canChangePrivs);
@@ -261,7 +266,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
     auto actArchive = menu.addAction(tr("Archive chat"));
+    if (item->isArchived())
+    {
+        actArchive->setEnabled(false);
+    }
     connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+    delete item;
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
