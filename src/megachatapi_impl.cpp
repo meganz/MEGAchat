@@ -4992,6 +4992,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
+    this->archived =  chatroom.isArchived();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
@@ -5039,6 +5040,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
+    this->archived = item->isArchived();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()

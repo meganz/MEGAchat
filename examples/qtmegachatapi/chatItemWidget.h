@@ -48,6 +48,7 @@ class ChatItemWidget : public QWidget
         void leaveGroupChat();
         void setTitle();
         void truncateChat();
+        void archiveChat();
 
     friend class ChatWindow;
     friend class MainWindow;

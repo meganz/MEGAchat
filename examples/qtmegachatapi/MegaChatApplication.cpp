@@ -184,7 +184,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
                 }
                 else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility);
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
                 }
             }
         }
