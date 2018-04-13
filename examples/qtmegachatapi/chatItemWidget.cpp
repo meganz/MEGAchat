@@ -47,6 +47,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
     const char *lastMessage;
+    std::string message;
     const char *lastMessageId_64 = "----------";
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
@@ -80,7 +81,30 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     }
     else
     {
-        lastMessage = item->getLastMessage();
+        if (item->getLastMessageType() == megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
+        {
+            message.append("User ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender()))
+                    .append((item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
+                    .append(" user ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle()));
+
+            lastMessage = message.c_str();
+        }
+        else if (item->getLastMessageType() == megachat::MegaChatMessage::TYPE_PRIV_CHANGE)
+        {
+            message.append("User ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender()))
+                       .append(" set privilege of user ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle()))
+                       .append(" to ").append(megachat::MegaChatRoom::privToString(item->getLastMessagePriv()));
+
+            lastMessage = message.c_str();
+        }
+        else if (item->getLastMessageType() == megachat::MegaChatMessage::TYPE_TRUNCATE)
+        {
+            lastMessage = "Truncate";
+        }
+        else
+        {
+            lastMessage = item->getLastMessage();
+        }
         if(item->getLastMessageId()!= megachat::MEGACHAT_INVALID_HANDLE)
         {
             lastMessageId_64 = auxLastMessageId_64;

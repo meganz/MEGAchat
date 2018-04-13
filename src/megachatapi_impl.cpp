@@ -4992,6 +4992,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->ownPriv = chatroom.ownPriv();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
+    this->lastMsgPriv = Priv::PRIV_INVALID;
+    this->lastMsgHandle = MEGACHAT_INVALID_HANDLE;
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
@@ -4999,7 +5001,25 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     uint8_t lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == LastTextMsgState::kHave)
     {
-        this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
+        if (msg->type() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT ||
+                msg->type() == MegaChatMessage::TYPE_NODE_ATTACHMENT ||
+                msg->type() == MegaChatMessage::TYPE_CONTAINS_META)
+        {
+            this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
+        }
+        else if (chatroom.isGroup() &&
+                 (msg->type() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
+                 msg->type() == MegaChatMessage::TYPE_PRIV_CHANGE))
+        {
+            const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().c_str());
+            this->lastMsgPriv = management->privilege;
+            this->lastMsgHandle = (MegaChatHandle)management->target;
+        }
+        else
+        {
+            this->lastMsg = msg->contents();
+        }
+
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
         if (msg->idx() == CHATD_IDX_INVALID)
@@ -5037,6 +5057,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
+    this->lastMsgPriv = item->getLastMessagePriv();
+    this->lastMsgHandle = item->getLastMessageHandle();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -5118,6 +5140,16 @@ MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
     return peerHandle;
 }
 
+int MegaChatListItemPrivate::getLastMessagePriv() const
+{
+    return lastMsgPriv;
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageHandle() const
+{
+    return lastMsgHandle;
+}
+
 void MegaChatListItemPrivate::setOwnPriv(int ownPriv)
 {
     this->ownPriv = ownPriv;
@@ -5152,11 +5184,8 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
+void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId)
 {
-    this->lastMsg = msg;
-    this->lastMsgType = type;
-    this->lastMsgSender = uh;
     this->mLastMsgId = messageId;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
@@ -5209,8 +5238,6 @@ void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
 
-    std::string lastMessageContent = JSonUtils::getLastMessageContent(msg.contents(), msg.type());
-
     MegaChatHandle messageId = MEGACHAT_INVALID_HANDLE;
     if (msg.idx() == CHATD_IDX_INVALID)
     {
@@ -5221,7 +5248,7 @@ void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
         messageId = (MegaChatHandle) msg.id();
     }
 
-    item->setLastMessage(messageId, msg.type(), lastMessageContent, msg.sender());
+    item->setLastMessage(messageId);
     chatApi.fireOnChatListItemUpdate(item);
 }
 

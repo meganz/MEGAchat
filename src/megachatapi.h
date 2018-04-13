@@ -3316,6 +3316,26 @@ public:
      * @return The userhandle of the Contact
      */
     virtual MegaChatHandle getPeerHandle() const;
+
+    /**
+     * @brief Returns privilege stablished at last message
+     *
+     * The returned value is only valid if last message is from type MegaChatMessage::TYPE_ALTER_PARTICIPANTS
+     * and MegaChatMessage::TYPE_PRIV_CHANGE
+     *
+     * @return prilvilege stablished at last message
+     */
+    virtual int getLastMessagePriv() const;
+
+    /**
+     * @brief Returns the handle of the target user
+     *
+     * The returned value is only valid if last message is from type MegaChatMessage::TYPE_ALTER_PARTICIPANTS
+     * and MegaChatMessage::TYPE_PRIV_CHANGE
+     *
+     * @return Handle of the target user
+     */
+    virtual MegaChatHandle getLastMessageHandle() const;
 };
 
 class MegaChatRoom

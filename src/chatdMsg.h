@@ -478,6 +478,11 @@ public:
                     || type == kMsgContainsMeta));      // include containsMeta messages
     }
 
+    bool isValidLastMessage() const
+    {
+        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment);
+    }
+
     /** @brief Convert attachment etc. special messages to text */
     std::string toText() const
     {
