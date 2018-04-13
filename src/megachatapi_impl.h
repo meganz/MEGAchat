@@ -188,6 +188,7 @@ public:
     virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
     virtual bool isRinging() const;
+    virtual bool isIgnored() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -198,6 +199,7 @@ public:
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
+    void setIgnoredCall(bool ignored);
 
 protected:
     MegaChatHandle chatid;
@@ -211,6 +213,7 @@ protected:
     std::string temporaryError;
 
     int termCode;
+    bool ignored;
     bool localTermCode;
     void convertTermCode(rtcModule::TermCode termCode);
 
@@ -965,6 +968,7 @@ public:
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void loadAudioVideoDeviceList(MegaChatRequestListener *listener = NULL);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
+    void setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
     mega::MegaHandleList *getChatCalls();

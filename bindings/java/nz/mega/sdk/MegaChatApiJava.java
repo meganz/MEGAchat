@@ -1781,6 +1781,15 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Mark as ignored the MegaChatCall associated with a chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void setIgnoredCall(long chatid){
+        megaChatApi.setIgnoredCall(chatid);
+    }
+
+    /**
      * Get the MegaChatCall that has a specific handle
      *
      * You can get the handle of  a MegaChatCall using MegaChatCall::getId().

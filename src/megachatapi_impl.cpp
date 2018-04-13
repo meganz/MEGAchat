@@ -2699,6 +2699,35 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     waiter->notify();
 }
 
+void MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
+{
+    if (!mClient->rtc)
+    {
+        API_LOG_ERROR("Ignore call - WebRTC is not initialized");
+        return;
+    }
+
+    if (chatId != MEGACHAT_INVALID_HANDLE)
+    {
+        MegaChatCallHandler *handler = findChatCallHandler(chatId);
+        if (!handler)
+        {
+            API_LOG_ERROR("Ignore call - Failed to get the call handler associated to chat room");
+            return;
+        }
+
+        MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
+        if (!chatCall)
+        {
+            API_LOG_ERROR("Ignore call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+            assert(false);
+            return;
+        }
+
+        chatCall->setIgnoredCall(true);
+     }
+}
+
 MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
 {
     MegaChatCall *chatCall = NULL;
@@ -3694,6 +3723,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
     localTermCode = false;
     ringing = false;
+    ignored = false;
     changed = 0;
 }
 
@@ -3711,6 +3741,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
+    this->ignored = call.ignored;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3816,6 +3847,11 @@ bool MegaChatCallPrivate::isRinging() const
     return ringing;
 }
 
+bool MegaChatCallPrivate::isIgnored() const
+{
+    return ignored;
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -3915,6 +3951,11 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
     this->ringing = ringing;
     changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
+}
+
+void MegaChatCallPrivate::setIgnoredCall(bool ignored)
+{
+    this->ignored = ignored;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
