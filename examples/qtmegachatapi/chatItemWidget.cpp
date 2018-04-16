@@ -230,14 +230,15 @@ ChatWindow *ChatItemWidget::showChatWindow()
     return mChatWindow;
 }
 
-void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
-{
-    showChatWindow();
-}
 
 ChatWindow *ChatItemWidget::getChatWindow()
 {
     return mChatWindow;
+}
+
+void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    showChatWindow();
 }
 
 void ChatItemWidget::setChatWindow(ChatWindow *chatWindow)

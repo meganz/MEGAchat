@@ -11,12 +11,12 @@
 
 #ifndef KARERE_DISABLE_WEBRTC
 #include "callGui.h"
-#else
+/*
 namespace rtcmodule
 {
     class ICallHandler{};
 }
-class CallGui: public rtcModule::ICallHandler {};
+class CallGui: public rtcModule::ICallHandler {};*/
 #endif
 
 
@@ -54,12 +54,15 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+#ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
-
+#endif
     protected:
         Ui::ChatWindowUi *ui;
+#ifndef KARERE_DISABLE_WEBRTC
         CallGui *mCallGui;
+#endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;
         mega::MegaApi *mMegaApi;
@@ -82,8 +85,9 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberAdd();
         void onTruncateChat();
         void onMembersBtn(bool);
+#ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
-
+#endif
     protected slots:
 #ifndef KARERE_DISABLE_WEBRTC
         void closeEvent(QCloseEvent *event);

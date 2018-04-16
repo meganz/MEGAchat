@@ -64,7 +64,7 @@ void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
 #endif
 }
 
-
+#ifndef KARERE_DISABLE_WEBRTC
 void ChatSettingsDialog::setDevices()
 {
     int audioInIdx = ui->audioInCombo->currentIndex();
@@ -89,6 +89,7 @@ void ChatSettingsDialog::setDevices()
         }
     }
 }
+#endif
 
 ChatSettings::ChatSettings()
 {

@@ -29,13 +29,17 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     mChatSettings = new ChatSettings();
     qApp->installEventFilter(this);
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+#ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+#endif
 }
 
 MainWindow::~MainWindow()
 {
     mMegaChatApi->removeChatListener(megaChatListenerDelegate);
+#ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+#endif
     delete megaChatListenerDelegate;
     delete megaChatCallListenerDelegate;
     delete mChatSettings;
@@ -49,6 +53,7 @@ mega::MegaUserList * MainWindow::getUserContactList()
     return mMegaApi->getContacts();
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
 {
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
@@ -122,7 +127,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            break;
     }
 }
-
+#endif
 void MainWindow::clearContactChatList()
 {
     ui->contactList->clear();
@@ -224,7 +229,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
 void MainWindow::on_bSettings_clicked()
 {
-    this->mMegaChatApi->loadAudioVideoDeviceList();
+    #ifndef KARERE_DISABLE_WEBRTC
+        this->mMegaChatApi->loadAudioVideoDeviceList();
+    #endif
 }
 
 void MainWindow::createSettingsMenu()

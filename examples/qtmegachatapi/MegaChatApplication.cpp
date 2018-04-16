@@ -350,7 +350,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
 
-
+#ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
@@ -395,6 +395,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
          case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
                 mMainWin->createSettingsMenu();
             break;
+#endif
     }
 }
 
