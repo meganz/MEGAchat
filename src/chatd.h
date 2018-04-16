@@ -69,6 +69,7 @@ enum { kSeenTimeout = 200 };
 /** Timeout to recv SYNC (Milliseconds)**/
 enum { kSyncTimeout = 2500 };
 enum { kProtocolVersion = 0x01 };
+enum { kMaxMsgSize = 120000 };  // (in bytes)
 
 class DbInterface;
 struct LastTextMsg;

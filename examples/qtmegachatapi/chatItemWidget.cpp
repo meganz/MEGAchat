@@ -10,6 +10,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     ui(new Ui::ChatItem)
 {
     mMainWin = (MainWindow *) parent;
+    mLastMsgAuthor.clear();
     mListWidgetItem = NULL;
     mChatWindow = NULL;
     mMegaApi = mMainWin->mMegaApi;
@@ -39,21 +40,39 @@ void ChatItemWidget::invalidChatWindowHandle()
     mChatWindow = NULL;
 }
 
-void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
+void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
 {
     QString text = NULL;
-    const char *lastMessage;
-    const char *lastMessageId_64 = "----------";;
-    const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageId());
-    const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
-    megachat::MegaChatHandle auxHandle = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
+    const char *lastMessage;
+    const char *lastMessageId_64 = "----------";
+    const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
+    const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
+
+    if (author)
+    {
+        mLastMsgAuthor.assign(author);
+    }
+    else
+    {
+        const char *msgAuthor = getLastMessageSenderName(item->getLastMessageSender());
+        if (msgAuthor)
+        {
+            mLastMsgAuthor.assign(msgAuthor);
+        }
+        else
+        {
+            mLastMsgAuthor = "Unknown participant";
+            mMegaChatApi->getUserFirstname(item->getLastMessageSender());
+        }
+        delete msgAuthor;
+    }
 
     if (lastMessageType == megachat::MegaChatMessage::TYPE_INVALID)
     {
-        lastMessage = "<empty>";
+        lastMessage = "<No history>";
     }
     else if (lastMessageType == 0xFF)
     {
@@ -77,8 +96,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
-            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
-            .append(tr("\nLast message Id: ")).append(lastMessageId_64);
+            .append(tr("\n\n"))
+            .append(tr("\nLast message Id: ")).append(lastMessageId_64)
+            .append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str())
+            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage));
         delete peerHandle_64;
     }
     else
@@ -115,13 +136,44 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item)
             }
             text.resize(text.size()-1);
         }
-        text.append(tr("\nLast message:\n ")).append(QString::fromStdString(lastMessage));
+        text.append(tr("\n\n"));
         text.append(tr("\nLast message Id: ")).append(lastMessageId_64);
+        text.append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str());
+        text.append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage));
     }
     setToolTip(text);
     delete chatRoom;
     delete chatId_64;
     delete auxLastMessageId_64;
+
+}
+
+const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle msgUserId)
+{
+    char *msgAuthor = NULL;
+    if(msgUserId == mMegaChatApi->getMyUserHandle())
+    {
+        msgAuthor = new char[3];
+        strcpy(msgAuthor, "Me");
+    }
+    else
+    {
+        megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
+        const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
+        if (msg)
+        {
+            size_t len = strlen(msg);
+            if (len == 0)
+            {
+                return NULL;
+            }
+
+            msgAuthor = new char[len];
+            strcpy(msgAuthor, msg);
+        }
+        delete chatRoom;
+    }
+    return msgAuthor;
 }
 
 void ChatItemWidget::onUnreadCountChanged(int count)
@@ -175,6 +227,12 @@ ChatWindow *ChatItemWidget::showChatWindow()
         mChatWindow->setWindowState(Qt::WindowActive);
     }
     delete chatRoom;
+    return mChatWindow;
+}
+
+
+ChatWindow *ChatItemWidget::getChatWindow()
+{
     return mChatWindow;
 }
 

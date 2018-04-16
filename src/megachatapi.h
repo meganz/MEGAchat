@@ -320,6 +320,13 @@ public:
      * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
      */
     virtual bool isRinging() const;
+
+    /**
+     * @brief Returns if call has been ignored
+     *
+     * @return True if the call has been ignored, false otherwise.
+     */
+    virtual bool isIgnored() const;
 };
 
 /**
@@ -3001,6 +3008,13 @@ public:
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
      */
     MegaChatCall *getChatCall(MegaChatHandle chatid);
+
+    /**
+     * @brief Mark as ignored the MegaChatCall associated with a chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void setIgnoredCall(MegaChatHandle chatid);
 
     /**
      * @brief Get the MegaChatCall that has a specific id

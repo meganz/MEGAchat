@@ -62,20 +62,14 @@ void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 {
    QString text = NULL;
    const char *email = contact->getEmail();
-   const char *contactHandle_64 = mMegaApi->userHandleToBase64(contact->getHandle());
-   if (!contact)
-   {
-      return;
-   }
-
    const char *chatHandle_64 = "--------";
+   const char *contactHandle_64 = mMegaApi->userHandleToBase64(contact->getHandle());
    const char *auxChatHandle_64 = mMegaApi->userHandleToBase64(mMegaChatApi->getChatHandleByUser(contact->getHandle()));
 
    if (mMegaChatApi->getChatHandleByUser(contact->getHandle()) != megachat::MEGACHAT_INVALID_HANDLE)
    {
       chatHandle_64 = auxChatHandle_64;
    }
-
 
    if (contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
    {
@@ -134,7 +128,18 @@ void ContactItemWidget::onContactRemove()
 
 void ContactItemWidget::updateTitle(const char * firstname)
 {
-    QString text = QString::fromUtf8(firstname);
+    QString text;
+    if (strcmp(firstname, "") == 0)
+    {
+        const char *auxEmail = mMegaChatApi->getContactEmail(mUserHandle);
+        text = QString::fromUtf8(auxEmail);
+        delete auxEmail;
+    }
+    else
+    {
+        text = QString::fromUtf8(firstname);
+    }
+
     ui->mName->setText(text);
 }
 
