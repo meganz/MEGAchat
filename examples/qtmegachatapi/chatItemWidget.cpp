@@ -47,7 +47,6 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
     const char *lastMessage;
-    std::string message;
     const char *lastMessageId_64 = "----------";
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
@@ -83,19 +82,34 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     {
         if (item->getLastMessageType() == megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
         {
-            message.append("User ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender()))
-                    .append((item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
-                    .append(" user ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle()));
+            std::string message;
+            const char *senderName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender());
+            const char *targetName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+            bool removed = item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM;
+            message.append("User ").append(senderName)
+                    .append(removed ? " removed" : " added")
+                    .append(" user ").append(targetName);
 
             lastMessage = message.c_str();
+
+            delete [] senderName;
+            delete [] targetName;
         }
         else if (item->getLastMessageType() == megachat::MegaChatMessage::TYPE_PRIV_CHANGE)
         {
-            message.append("User ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender()))
-                       .append(" set privilege of user ").append(mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle()))
-                       .append(" to ").append(megachat::MegaChatRoom::privToString(item->getLastMessagePriv()));
+            std::string message;
+            const char *senderName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender());
+            const char *targetName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+            const char *priv = megachat::MegaChatRoom::privToString(item->getLastMessagePriv());
+
+            message.append("User ").append(senderName)
+                       .append(" set privilege of user ").append(targetName)
+                       .append(" to ").append(priv);
 
             lastMessage = message.c_str();
+
+            delete [] senderName;
+            delete [] targetName;
         }
         else if (item->getLastMessageType() == megachat::MegaChatMessage::TYPE_TRUNCATE)
         {
