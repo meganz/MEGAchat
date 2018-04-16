@@ -2548,6 +2548,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool archiveChanged = syncArchive(chat.isArchived());
     if (archiveChanged)
     {
+        mIsArchived = chat.isArchived();
         auto listItem = roomGui();
         if (listItem)
             listItem->onChatArchived(mIsArchived);
