@@ -5000,34 +5000,38 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     LastTextMsg *&msg = message;
     uint8_t lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == LastTextMsgState::kHave)
-    {
-        if (msg->type() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT ||
-                msg->type() == MegaChatMessage::TYPE_NODE_ATTACHMENT ||
-                msg->type() == MegaChatMessage::TYPE_CONTAINS_META)
-        {
-            this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
-        }
-        else if (msg->type() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
-                 msg->type() == MegaChatMessage::TYPE_PRIV_CHANGE)
-        {
-            const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().data());
-            this->lastMsgPriv = management->privilege;
-            this->lastMsgHandle = (MegaChatHandle)management->target;
-        }
-        else
-        {
-            this->lastMsg = msg->contents();
-        }
-
+    {        
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
-        if (msg->idx() == CHATD_IDX_INVALID)
+        this->mLastMsgId = (msg->idx() == CHATD_IDX_INVALID) ? msg->xid() : msg->id();
+
+        switch (lastMsgType)
         {
-            this->mLastMsgId = (MegaChatHandle) msg->xid();
-        }
-        else
-        {
-            this->mLastMsgId = (MegaChatHandle) msg->id();
+            case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+            case MegaChatMessage::TYPE_NODE_ATTACHMENT:
+            case MegaChatMessage::TYPE_CONTAINS_META:
+                this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
+                break;
+
+            case MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
+            case MegaChatMessage::TYPE_PRIV_CHANGE:
+            {
+                const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().data());
+                this->lastMsgPriv = management->privilege;
+                this->lastMsgHandle = (MegaChatHandle)management->target;
+                break;
+            }
+
+            case MegaChatMessage::TYPE_NORMAL:
+            case MegaChatMessage::TYPE_CHAT_TITLE:
+                this->lastMsg = msg->contents();
+                break;
+
+            case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
+                break;
+
+            case MegaChatMessage::TYPE_TRUNCATE:    // no content at all
+                break;
         }
     }
     else

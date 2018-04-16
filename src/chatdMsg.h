@@ -350,7 +350,6 @@ public:
         kMsgRevokeAttachment  = 0x11,
         kMsgContact           = 0x12,
         kMsgContainsMeta      = 0x13
-
     };
     enum Status
     {
