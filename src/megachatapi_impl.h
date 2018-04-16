@@ -299,8 +299,7 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
-
-    void setLastMessage(MegaChatHandle messageId);
+    void setLastMessage();
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem

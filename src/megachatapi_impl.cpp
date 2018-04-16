@@ -5187,9 +5187,8 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId)
+void MegaChatListItemPrivate::setLastMessage()
 {
-    this->mLastMsgId = messageId;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
@@ -5240,18 +5239,7 @@ void MegaChatListItemHandler::onRejoinedChat()
 void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-
-    MegaChatHandle messageId = MEGACHAT_INVALID_HANDLE;
-    if (msg.idx() == CHATD_IDX_INVALID)
-    {
-        messageId = (MegaChatHandle) msg.xid();
-    }
-    else
-    {
-        messageId = (MegaChatHandle) msg.id();
-    }
-
-    item->setLastMessage(messageId);
+    item->setLastMessage();
     chatApi.fireOnChatListItemUpdate(item);
 }
 
