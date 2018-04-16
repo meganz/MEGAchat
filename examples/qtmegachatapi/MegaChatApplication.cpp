@@ -318,6 +318,17 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
+
+        case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
+            }
+            else
+            {
+                 mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+            }
+            break;
     }
 }
 
