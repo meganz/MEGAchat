@@ -5007,9 +5007,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         {
             this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
         }
-        else if (chatroom.isGroup() &&
-                 (msg->type() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
-                 msg->type() == MegaChatMessage::TYPE_PRIV_CHANGE))
+        else if (msg->type() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
+                 msg->type() == MegaChatMessage::TYPE_PRIV_CHANGE)
         {
             const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().c_str());
             this->lastMsgPriv = management->privilege;
