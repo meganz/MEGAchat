@@ -356,6 +356,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
                 {
                     chatItemWidget->updateToolTip(item);
+                    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
                     break;
                 }
             //The chatroom has been left by own user
@@ -371,6 +372,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
                 }
         }
      }
+    else
+    {
+        if (!item->isArchived() && item->isActive())
+        {
+            orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+        }
+    }
 }
 
 void MainWindow::onChangeItemsVisibility()
