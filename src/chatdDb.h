@@ -341,10 +341,10 @@ public:
     virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
     {
         SqliteStmt stmt(mDb,
-            "select type, idx, data, msgid, userid from history where chatid=? and "
-            "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
+            "select type, idx, data, msgid, userid from history where chatid=?1 and "
+            "(length(data) > 0 OR type = ?2) and type != ?3 and (idx <= ?4)"
             "order by idx desc limit 1");
-        stmt << mChat.chatId() << from;
+        stmt << mChat.chatId() << chatd::Message::kMsgTruncate << chatd::Message::kMsgRevokeAttachment << from;
         if (!stmt.step())
         {
             msg.clear();
