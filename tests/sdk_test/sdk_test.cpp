@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
-    //EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
     EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
     EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");

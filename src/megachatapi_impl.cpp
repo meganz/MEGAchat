@@ -5028,9 +5028,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 break;
 
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
-                break;
-
             case MegaChatMessage::TYPE_TRUNCATE:    // no content at all
+            default:
                 break;
         }
     }
