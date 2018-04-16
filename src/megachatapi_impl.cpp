@@ -5881,9 +5881,13 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         }
         case rtcModule::ISession::kStateDestroyed:
         {
-            MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-            chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_DESTROYED, session->peer());
-            megaChatApi->fireOnChatCallUpdate(chatCall);
+            if (callHandler->getCall()->state() < rtcModule::ICall::kStateTerminating)
+            {
+                MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+                chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_DESTROYED, session->peer());
+                megaChatApi->fireOnChatCallUpdate(chatCall);
+            }
+
             break;
         }
         default:
