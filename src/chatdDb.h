@@ -234,14 +234,16 @@ public:
     virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
     {
         // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
-        std::string sql = "select count(*) from history where (chatid = ?)"
-                "and (userid != ?) and (type != ?) and (type != ?) and (type != ?) and (type != ?)  and (type != ?) and not (updated != 0 and length(data) = 0 )";
+        std::string sql = "select count(*) from history where (chatid = ?1)"
+                "and (userid != ?2) and ((type = ?3 || type >= ?4) and type != ?5) and not (updated != 0 and length(data) = 0 )";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mChat.chatId() << mChat.client().userId() << chatd::Message::kMsgRevokeAttachment << chatd::Message::kMsgAlterParticipants
-             << chatd::Message::kMsgTruncate << chatd::Message::kMsgPrivChange << chatd::Message::kMsgChatTitle;
+        stmt << mChat.chatId() << mChat.client().userId()   // skip own messages
+             << chatd::Message::kMsgNormal                  // include normal messages
+             << chatd::Message::kMsgUserFirst               // exclude management messages
+             << chatd::Message::kMsgRevokeAttachment;       // exclude revoke messages
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
