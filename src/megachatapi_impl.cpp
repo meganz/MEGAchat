@@ -5010,7 +5010,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
         else if (msg->type() == MegaChatMessage::TYPE_ALTER_PARTICIPANTS ||
                  msg->type() == MegaChatMessage::TYPE_PRIV_CHANGE)
         {
-            const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().c_str());
+            const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().data());
             this->lastMsgPriv = management->privilege;
             this->lastMsgHandle = (MegaChatHandle)management->target;
         }
