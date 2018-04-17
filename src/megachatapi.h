@@ -2057,6 +2057,25 @@ public:
     MegaChatListItemList *getChatListItems();
 
     /**
+     * @brief Get all chatrooms (1on1 and groupal) that contains a certain set of participants
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function returns even archived chatrooms.
+     *
+     * You take the ownership of the returned value
+     *
+     * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
+     */
+    MegaChatListItemList *getChatListItemsByPeers(megachat::MegaChatPeerList *peers);
+
+    /**
      * @brief Get the MegaChatListItem that has a specific handle
      *
      * You can get the handle of the chatroom using MegaChatRoom::getChatId or
