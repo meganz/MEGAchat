@@ -7,6 +7,7 @@
 #include <QTMegaChatEvent.h>
 #include "uiSettings.h"
 #include "chatSettings.h"
+#include <QCheckBox>
 
 using namespace mega;
 using namespace megachat;
@@ -23,6 +24,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
     mMegaChatApi = NULL;
     mMegaApi = NULL;
+    createChatWindow = NULL;
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     allItemsVisibility = false;
@@ -31,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     qApp->installEventFilter(this);
     ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
     ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
+    ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
 }
 
 MainWindow::~MainWindow()
@@ -161,6 +164,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
     connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
 
+    auto actChat = menu.addAction(tr("Add new chat group"));
+    connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
+
     menu.exec(event->globalPos());
 }
 
@@ -230,6 +236,11 @@ void MainWindow::on_bHiddenChats_clicked()
     ui->bHiddenChats->setStyleSheet(text);
 }
 
+void MainWindow::on_bChatGroup_clicked()
+{
+    onAddChatGroup();
+}
+
 void MainWindow::on_bArchivedChats_clicked()
 {
     QString text = NULL;
@@ -266,7 +277,7 @@ void MainWindow::addContact(MegaUser *contact)
 {
     int index = -(archivedChats + nContacts);
     nContacts += 1;
-    ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, mMegaChatApi, mMegaApi, contact);
+    ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, this, mMegaChatApi, mMegaApi, contact);
     contactItemWidget->updateToolTip(contact);
     QListWidgetItem *item = new QListWidgetItem();
     contactItemWidget->setWidgetItem(item);
@@ -368,6 +379,11 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
                 {
                     orderContactChatList(allItemsVisibility , archivedItemsVisibility);
                 }
+            //The Chatroom has been un/archived
+            case (megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE):
+                {
+                    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+                }
         }
      }
     else
@@ -383,6 +399,11 @@ void MainWindow::onChangeItemsVisibility()
 {
     allItemsVisibility = !allItemsVisibility;
     orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+}
+
+void MainWindow::onAddChatGroup()
+{
+
 }
 
 void MainWindow::onAddContact()

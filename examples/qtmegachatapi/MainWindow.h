@@ -79,6 +79,7 @@ class MainWindow :
         bool allItemsVisibility;
         bool archivedItemsVisibility = false;
         QMenu * onlineStatus;
+        QWidget *createChatWindow;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
@@ -94,10 +95,12 @@ class MainWindow :
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
         void onAddContact();
+        void onAddChatGroup();
         void setOnlineStatus();
         void onChangeItemsVisibility();
         void on_bHiddenChats_clicked();
         void on_bArchivedChats_clicked();
+        void on_bChatGroup_clicked();
 
     signals:
         void esidLogout();
