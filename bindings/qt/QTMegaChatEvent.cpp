@@ -13,12 +13,14 @@ QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(t
     config = NULL;
     chat = NULL;
     msg = NULL;
+    buffer = NULL;
     inProgress = false;
     status = 0;
 }
 
 QTMegaChatEvent::~QTMegaChatEvent()
 {
+    delete [] buffer;
     delete request;
     delete error;
     delete item;
@@ -67,6 +69,11 @@ MegaChatMessage *QTMegaChatEvent::getChatMessage()
     return msg;
 }
 
+MegaChatCall *QTMegaChatEvent::getChatCall()
+{
+    return call;
+}
+
 bool QTMegaChatEvent::getProgress()
 {
     return inProgress;
@@ -75,6 +82,26 @@ bool QTMegaChatEvent::getProgress()
 int QTMegaChatEvent::getStatus()
 {
     return status;
+}
+
+int QTMegaChatEvent::getWidth()
+{
+    return width;
+}
+
+int QTMegaChatEvent::getHeight()
+{
+    return height;
+}
+
+char *QTMegaChatEvent::getBuffer()
+{
+    return buffer;
+}
+
+size_t QTMegaChatEvent::getSize()
+{
+    return size;
 }
 
 void QTMegaChatEvent::setChatRequest(MegaChatRequest *request)
@@ -112,6 +139,11 @@ void QTMegaChatEvent::setChatMessage(MegaChatMessage *msg)
     this->msg = msg;
 }
 
+void QTMegaChatEvent::setChatCall(MegaChatCall *call)
+{
+    this->call = call;
+}
+
 void QTMegaChatEvent::setProgress(bool progress)
 {
     this->inProgress = progress;
@@ -120,4 +152,29 @@ void QTMegaChatEvent::setProgress(bool progress)
 void QTMegaChatEvent::setStatus(int status)
 {
     this->status = status;
+}
+
+void QTMegaChatEvent::setWidth(int width)
+{
+    this->width = width;
+}
+
+void QTMegaChatEvent::setHeight(int height)
+{
+    this->height = height;
+}
+
+void QTMegaChatEvent::setBuffer(char *buffer)
+{
+    if (this->buffer)
+    {
+        delete [] this->buffer;
+    }
+
+    this->buffer = buffer;
+}
+
+void QTMegaChatEvent::setSize(size_t size)
+{
+    this->size = size;
 }

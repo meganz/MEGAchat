@@ -241,6 +241,11 @@ void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
     showChatWindow();
 }
 
+void ChatItemWidget::setChatWindow(ChatWindow *chatWindow)
+{
+    mChatWindow = chatWindow;
+}
+
 QListWidgetItem *ChatItemWidget::getWidgetItem() const
 {
     return mListWidgetItem;
