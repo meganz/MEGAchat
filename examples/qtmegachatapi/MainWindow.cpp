@@ -17,6 +17,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
 {
     nContacts = 0;
     activeChats = 0;
+    archivedChats = 0;
     inactiveChats = 0;
     ui->setupUi(this);
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
@@ -25,8 +26,11 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     allItemsVisibility = false;
+    archivedItemsVisibility = false;
     mLogger = logger;
     qApp->installEventFilter(this);
+    ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
+    ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
 }
 
 MainWindow::~MainWindow()
@@ -62,12 +66,17 @@ void MainWindow::clearContactChatList()
     contactWidgets.clear();
 }
 
-void MainWindow::orderContactChatList(bool showInactive)
+void MainWindow::orderContactChatList(bool showInactive, bool showArchived)
 {
+    QString text;
     auxChatWidgets = chatWidgets;
     clearContactChatList();
+    if (showArchived)
+    {
+        addArchivedChats();
+    }
     addContacts();
-    QString text;
+
     if(showInactive)
     {
         addInactiveChats();
@@ -103,6 +112,16 @@ void MainWindow::addContacts()
         }
     }
     delete contactList;
+}
+
+void MainWindow::addArchivedChats()
+{
+    MegaChatListItemList *chatList = this->mMegaChatApi->getArchivedChatListItems();
+    for (int i = 0; i < chatList->size(); i++)
+    {
+        addChat(chatList->get(i));
+    }
+    delete chatList;
 }
 
 void MainWindow::addInactiveChats()
@@ -202,6 +221,24 @@ void MainWindow::on_bOnlineStatus_clicked()
     onlineStatus->deleteLater();
 }
 
+void MainWindow::on_bHiddenChats_clicked()
+{
+    QString text = NULL;
+    allItemsVisibility = !allItemsVisibility;
+    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+    allItemsVisibility?text.append("color:#00FF00; border:none"):text.append("color:#FF0000; border:none");
+    ui->bHiddenChats->setStyleSheet(text);
+}
+
+void MainWindow::on_bArchivedChats_clicked()
+{
+    QString text = NULL;
+    archivedItemsVisibility = !archivedItemsVisibility;
+    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+    archivedItemsVisibility?text.append("color:#00FF00; border:none"):text.append("color:#FF0000; border:none");
+    ui->bArchivedChats->setStyleSheet(text);
+}
+
 ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder)
 {
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
@@ -227,30 +264,36 @@ ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandl
 
 void MainWindow::addContact(MegaUser *contact)
 {
+    int index = -(archivedChats + nContacts);
+    nContacts += 1;
     ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, mMegaChatApi, mMegaApi, contact);
     contactItemWidget->updateToolTip(contact);
     QListWidgetItem *item = new QListWidgetItem();
     contactItemWidget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
-    ui->contactList->insertItem(nContacts, item);
+    ui->contactList->insertItem(index, item);
     ui->contactList->setItemWidget(item, contactItemWidget);
     contactWidgets.insert(std::pair<mega::MegaHandle, ContactItemWidget *>(contact->getHandle(),contactItemWidget));
-    nContacts +=1;
 }
 
 
 void MainWindow::addChat(const MegaChatListItem* chatListItem)
 {
     int index = 0;
-    if(!chatListItem->isActive())
+    if(chatListItem->isArchived())
     {
-        index = -(nContacts);
-        activeChats +=1;
+        index = -(archivedChats);
+        archivedChats += 1;
+    }
+    else if(!chatListItem->isActive())
+    {
+        index = -(nContacts+archivedChats+inactiveChats);
+        inactiveChats += 1;
     }
     else
     {
-        index = -(activeChats+inactiveChats+nContacts);
-        inactiveChats +=1;
+        index = -(activeChats+inactiveChats+archivedChats+nContacts);
+        activeChats += 1;
     }
 
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
@@ -322,16 +365,23 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
-                    orderContactChatList(allItemsVisibility);
+                    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
                 }
         }
      }
+    else
+    {
+        if (!item->isArchived() && item->isActive())
+        {
+            orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+        }
+    }
 }
 
 void MainWindow::onChangeItemsVisibility()
 {
     allItemsVisibility = !allItemsVisibility;
-    orderContactChatList(allItemsVisibility);
+    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
 }
 
 void MainWindow::onAddContact()
@@ -376,7 +426,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
 {
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        orderContactChatList(allItemsVisibility);
+        orderContactChatList(allItemsVisibility , archivedItemsVisibility);
         megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
         if (presenceConfig)
         {

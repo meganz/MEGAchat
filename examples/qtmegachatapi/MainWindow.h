@@ -53,9 +53,10 @@ class MainWindow :
         void addContact(mega::MegaUser *contact);
         void addChatListener();
         void clearContactChatList();
-        void orderContactChatList(bool showInactive);
+        void orderContactChatList(bool showInactive, bool showArchived);
         void addContacts();
         void addInactiveChats();
+        void addArchivedChats();
         void addActiveChats();
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
@@ -76,6 +77,7 @@ class MainWindow :
     protected:
         Ui::MainWindow *ui;
         bool allItemsVisibility;
+        bool archivedItemsVisibility = false;
         QMenu * onlineStatus;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
@@ -84,6 +86,7 @@ class MainWindow :
         std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
         int activeChats;
+        int archivedChats;
         int inactiveChats;
         int nContacts;
 
@@ -93,6 +96,8 @@ class MainWindow :
         void onAddContact();
         void setOnlineStatus();
         void onChangeItemsVisibility();
+        void on_bHiddenChats_clicked();
+        void on_bArchivedChats_clicked();
 
     signals:
         void esidLogout();

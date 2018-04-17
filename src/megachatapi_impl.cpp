@@ -284,6 +284,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+
         case MegaChatRequest::TYPE_SET_PRESENCE_PERSIST:
         {
             bool enable = request->getFlag();
@@ -1095,6 +1096,38 @@ void MegaChatApiImpl::sendPendingRequests()
             break;
         }
 #endif
+        case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
+        {
+            handle chatid = request->getChatHandle();
+            bool archive = request->getFlag();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            chatroom->archiveChat(archive)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                API_LOG_ERROR("Error archiving chat: %s", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -1876,7 +1909,10 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItems()
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            if (!it->second->isArchived())
+            {
+                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            }
         }
     }
 
@@ -1959,7 +1995,7 @@ int MegaChatApiImpl::getUnreadChats()
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
             ChatRoom *room = it->second;
-            if (room->isActive() && room->chat().unreadMsgCount())
+            if (!room->isArchived() && room->chat().unreadMsgCount())
             {
                 count++;
             }
@@ -1982,7 +2018,7 @@ MegaChatListItemList *MegaChatApiImpl::getActiveChatListItems()
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            if (it->second->isActive())
+            if (!it->second->isArchived() && it->second->isActive())
             {
                 items->addChatListItem(new MegaChatListItemPrivate(*it->second));
             }
@@ -2005,7 +2041,30 @@ MegaChatListItemList *MegaChatApiImpl::getInactiveChatListItems()
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            if (!it->second->isActive())
+            if (!it->second->isArchived() && !it->second->isActive())
+            {
+                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+            }
+        }
+    }
+
+    sdkMutex.unlock();
+
+    return items;
+}
+
+MegaChatListItemList *MegaChatApiImpl::getArchivedChatListItems()
+{
+    MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
+
+    sdkMutex.lock();
+
+    if (mClient && !terminating)
+    {
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+        {
+            if (it->second->isArchived())
             {
                 items->addChatListItem(new MegaChatListItemPrivate(*it->second));
             }
@@ -2029,7 +2088,7 @@ MegaChatListItemList *MegaChatApiImpl::getUnreadChatListItems()
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
             ChatRoom *room = it->second;
-            if (room->isActive() && room->chat().unreadMsgCount())
+            if (!room->isArchived() && room->chat().unreadMsgCount())
             {
                 items->addChatListItem(new MegaChatListItemPrivate(*it->second));
             }
@@ -2110,6 +2169,15 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_EDIT_CHATROOM_NAME, listener);
     request->setChatHandle(chatid);
     request->setText(title);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ARCHIVE_CHATROOM, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(archive);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3523,6 +3591,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SIGNAL_ACTIVITY: return "SIGNAL_ACTIVITY";
         case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
+        case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
     }
     return "UNKNOWN";
 }
@@ -4594,6 +4663,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();
+    this->archived = chat->isArchived();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
 }
@@ -4607,6 +4677,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->title = chat.titleString();
     this->unreadCount = chat.chat().unreadMsgCount();
     this->active = chat.isActive();
+    this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
 
     if (group)
@@ -4825,6 +4896,11 @@ bool MegaChatRoomPrivate::isActive() const
     return active;
 }
 
+bool MegaChatRoomPrivate::isArchived() const
+{
+    return archived;
+}
+
 int MegaChatRoomPrivate::getChanges() const
 {
     return changed;
@@ -5035,6 +5111,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
+    this->archived =  chatroom.isArchived();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
@@ -5082,6 +5159,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
+    this->archived = item->isArchived();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -5158,6 +5236,11 @@ bool MegaChatListItemPrivate::isActive() const
     return active;
 }
 
+bool MegaChatListItemPrivate::isArchived() const
+{
+    return archived;
+}
+
 MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
 {
     return peerHandle;
@@ -5195,6 +5278,12 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
 {
     this->lastTs = ts;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
+}
+
+void MegaChatListItemPrivate::setArchived(bool archived)
+{
+    this->archived = archived;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
 }
 
 void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
@@ -5281,6 +5370,13 @@ void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 {
     int newState = MegaChatApiImpl::convertChatConnectionState(state);
     chatApi.fireOnChatConnectionStateUpdate(this->mRoom.chatid(), newState);
+}
+
+void MegaChatListItemHandler::onChatArchived(bool archived)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setArchived(archived);
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)

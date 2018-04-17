@@ -184,7 +184,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
                 }
                 else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility);
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
                 }
             }
         }
@@ -345,6 +345,17 @@ void MegaChatApplication::onRequestFinish(MegaChatApi* megaChatApi, MegaChatRequ
          case MegaChatRequest::TYPE_EDIT_CHATROOM_NAME:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
+            break;
+
+        case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
+            }
+            else
+            {
+                 mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+            }
             break;
     }
 }

@@ -209,6 +209,9 @@ public:
         /** @brief Called when the connection state to the chatroom shard changes.
          */
         virtual void onChatOnlineState(const chatd::ChatState state) {}
+
+        /** @brief Called when the chat is un/archived */
+        virtual void onChatArchived(bool archived) {}
     };
 
     /**
