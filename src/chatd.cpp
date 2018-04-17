@@ -2055,11 +2055,9 @@ int Chat::unreadMsgCount() const
 {
     if (mLastSeenIdx == CHATD_IDX_INVALID)
     {
-        Message* msg;
-        if (!empty() && ((msg = newest())->type == Message::kMsgTruncate))
+        if (mHaveAllHistory)
         {
-            assert(size() == 1);
-            return (msg->userid != client().userId()) ? 1 : 0;
+            return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
         }
         else
         {
