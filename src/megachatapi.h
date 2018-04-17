@@ -2071,9 +2071,12 @@ public:
      *
      * You take the ownership of the returned value
      *
+     * @param peers MegaChatPeerList that contains the user handles of the chat participants,
+     * except our own handle because MEGAchat doesn't include them in the map of members for each chatroom.
+     *
      * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
      */
-    MegaChatListItemList *getChatListItemsByPeers(megachat::MegaChatPeerList *peers);
+    MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
 
     /**
      * @brief Get the MegaChatListItem that has a specific handle

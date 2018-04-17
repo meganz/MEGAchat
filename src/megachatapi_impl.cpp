@@ -1885,45 +1885,45 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItems()
     return items;
 }
 
-MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(megachat::MegaChatPeerList *peers)
+MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(MegaChatPeerList *peers)
 {
     MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
 
     sdkMutex.lock();
 
     if (mClient && !terminating)
+    {
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            ChatRoomList::iterator it;
-            for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+            bool sameParticipants = true;
+            MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(*it->second);
+            if (peers->size() == chat->getPeerCount())
             {
-                bool sameParticipants = true;
-                MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(*it->second);
-                if (peers->size() == chat->getPeerCount())
+                for (int i = 0; i < peers->size(); i++)
                 {
-                    for (int i = 0; i < peers->size(); i++)
+                    bool isParticipant = false;
+                    for (int j = 0; j < chat->getPeerCount(); j++)
                     {
-                        bool isParticipant = false;
-                        for (int j = 0; j < chat->getPeerCount(); j++)
+                        if (peers->getPeerHandle(i) == chat->getPeerHandle(j))
                         {
-                            if (peers->getPeerHandle(i) == chat->getPeerHandle(j))
-                            {
-                                isParticipant = true;
-                            }
-                        }
-                        if (!isParticipant)
-                        {
-                            sameParticipants = false;
-                            break;
+                            isParticipant = true;
                         }
                     }
-                    if (sameParticipants == true)
+                    if (!isParticipant)
                     {
-                        items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+                        sameParticipants = false;
+                        break;
                     }
                 }
-                delete chat;
+                if (sameParticipants == true)
+                {
+                    items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+                }
             }
+            delete chat;
         }
+    }
 
     sdkMutex.unlock();
 
