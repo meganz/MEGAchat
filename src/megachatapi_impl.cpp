@@ -808,10 +808,17 @@ void MegaChatApiImpl::sendPendingRequests()
             promise::when(promise)
             .then([this, request, buffer]()
             {
+                int errorCode = MegaChatError::ERROR_OK;
                 std::string stringToSend(buffer);
-                sendAttachNodesMessage(stringToSend, request);
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
 
+                MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
+                if (!msg)
+                {
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                request->setMegaChatMessage(msg);
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
                 delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             })
@@ -820,10 +827,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
+                    int errorCode = MegaChatError::ERROR_OK;
                     API_LOG_WARNING("Already granted access to this node previously");
                     std::string stringToSend(buffer);
-                    sendAttachNodesMessage(stringToSend, request);
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+
+                    MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
+                    if (!msg)
+                    {
+                        errorCode = MegaChatError::ERROR_ARGS;
+                    }
+                    request->setMegaChatMessage(msg);
+
+                    megaChatError = new MegaChatErrorPrivate(errorCode);
                 }
                 else
                 {
@@ -866,11 +881,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment);
                 stringToSend.insert(stringToSend.begin(), 0x0);
                 Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
-                MegaChatMessage* megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-                request->setMegaChatMessage(megaMsg);
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
 
+                int errorCode = MegaChatError::ERROR_OK;
+                if (!m)
+                {
+                    errorCode = MegaChatError::ERROR_ARGS;
+                }
+                else
+                {
+                    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+                    request->setMegaChatMessage(megaMsg);
+                }
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
+                fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([this, request](const promise::Error& err)
             {
@@ -2304,6 +2328,11 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
         unsigned char t = MegaChatMessage::TYPE_NORMAL;
         Message *m = chatroom->chat().msgSubmit(msg, msgLen, t, NULL);
 
+        if (!m)
+        {
+            sdkMutex.unlock();
+            return NULL;
+        }
         megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
     }
 
@@ -2372,10 +2401,14 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
             stringToSend.insert(stringToSend.begin(), contactType);
             stringToSend.insert(stringToSend.begin(), zero);
             Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgContact, NULL);
+            if (!m)
+            {
+                sdkMutex.unlock();
+                return NULL;
+            }
             megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
         }
     }
-
     sdkMutex.unlock();
     return megaMsg;
 }
@@ -2725,6 +2758,35 @@ void MegaChatApiImpl::loadAudioVideoDeviceList(MegaChatRequestListener *listener
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES, listener);
     requestQueue.push(request);
     waiter->notify();
+}
+
+void MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
+{
+    if (!mClient->rtc)
+    {
+        API_LOG_ERROR("Ignore call - WebRTC is not initialized");
+        return;
+    }
+
+    if (chatId != MEGACHAT_INVALID_HANDLE)
+    {
+        MegaChatCallHandler *handler = findChatCallHandler(chatId);
+        if (!handler)
+        {
+            API_LOG_ERROR("Ignore call - Failed to get the call handler associated to chat room");
+            return;
+        }
+
+        MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
+        if (!chatCall)
+        {
+            API_LOG_ERROR("Ignore call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+            assert(false);
+            return;
+        }
+
+        chatCall->setIgnoredCall(true);
+     }
 }
 
 MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
@@ -3194,16 +3256,16 @@ int MegaChatApiImpl::convertChatConnectionState(ChatState state)
     return state;
 }
 
-void MegaChatApiImpl::sendAttachNodesMessage(std::string buffer, MegaChatRequestPrivate *request)
+MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid)
 {
-    ChatRoom *chatroom = findChatRoom(request->getChatHandle());
+    ChatRoom *chatroom = findChatRoom(chatid);
 
     buffer.insert(buffer.begin(), Message::kMsgAttachment);
     buffer.insert(buffer.begin(), 0x0);
 
     Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
-    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-    request->setMegaChatMessage(megaMsg);
+    MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
+    return megaMsg;
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
@@ -3669,6 +3731,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
     localTermCode = false;
     ringing = false;
+    ignored = false;
     changed = 0;
 }
 
@@ -3686,6 +3749,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->termCode = call.termCode;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
+    this->ignored = call.ignored;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3791,6 +3855,11 @@ bool MegaChatCallPrivate::isRinging() const
     return ringing;
 }
 
+bool MegaChatCallPrivate::isIgnored() const
+{
+    return ignored;
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -3890,6 +3959,11 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
     this->ringing = ringing;
     changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
+}
+
+void MegaChatCallPrivate::setIgnoredCall(bool ignored)
+{
+    this->ignored = ignored;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
