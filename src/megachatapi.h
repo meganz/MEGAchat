@@ -229,7 +229,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * Check MegaChatCall::getSessionStatus() and MegaChatCall::getPeerSessionStatusChange() values
+     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
      */
     virtual int getChanges() const;
 
@@ -261,7 +261,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * Check MegaChatCall::getSessionStatus() and MegaChatCall::getPeerSessionStatusChange() values
+     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
      *
      * @return true if this call has an specific change
      */
