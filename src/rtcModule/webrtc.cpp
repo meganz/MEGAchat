@@ -2279,7 +2279,6 @@ void Session::mungeSdp(std::string& sdp)
 Session::~Session()
 {
     SUB_LOG_DEBUG("Destroyed");
-    delete mHandler;
 }
 
 #define RET_ENUM_NAME(name) case name: return #name

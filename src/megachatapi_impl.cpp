@@ -5896,10 +5896,11 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
     }
 }
 
-void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
+void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const std::string& /*msg*/)
 {
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     chatCall->removeSession(session->peer());
+    delete this;
 }
 
 void MegaChatSessionHandler::onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererOut)
