@@ -133,6 +133,11 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+bool MegaChatCall::isIgnored() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -336,6 +341,11 @@ MegaChatRoom *MegaChatApi::getChatRoomByUser(MegaChatHandle userhandle)
 MegaChatListItemList *MegaChatApi::getChatListItems()
 {
     return pImpl->getChatListItems();
+}
+
+MegaChatListItemList *MegaChatApi::getChatListItemsByPeers(MegaChatPeerList *peers)
+{
+    return pImpl->getChatListItemsByPeers(peers);
 }
 
 MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
@@ -608,6 +618,11 @@ void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
 {
     return pImpl->getChatCall(chatid);
+}
+
+void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+{
+    pImpl->setIgnoredCall(chatid);
 }
 
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)

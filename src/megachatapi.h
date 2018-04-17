@@ -320,6 +320,13 @@ public:
      * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
      */
     virtual bool isRinging() const;
+
+    /**
+     * @brief Returns if call has been ignored
+     *
+     * @return True if the call has been ignored, false otherwise.
+     */
+    virtual bool isIgnored() const;
 };
 
 /**
@@ -2053,6 +2060,28 @@ public:
     MegaChatListItemList *getChatListItems();
 
     /**
+     * @brief Get all chatrooms (1on1 and groupal) that contains a certain set of participants
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function returns even archived chatrooms.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param peers MegaChatPeerList that contains the user handles of the chat participants,
+     * except our own handle because MEGAchat doesn't include them in the map of members for each chatroom.
+     *
+     * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
+     */
+    MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
+
+    /**
      * @brief Get the MegaChatListItem that has a specific handle
      *
      * You can get the handle of the chatroom using MegaChatRoom::getChatId or
@@ -2995,6 +3024,13 @@ public:
      * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
      */
     MegaChatCall *getChatCall(MegaChatHandle chatid);
+
+    /**
+     * @brief Mark as ignored the MegaChatCall associated with a chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void setIgnoredCall(MegaChatHandle chatid);
 
     /**
      * @brief Get the MegaChatCall that has a specific id

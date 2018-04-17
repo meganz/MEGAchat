@@ -17,10 +17,11 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
     megaChatApi = mChatApi;
     ui->setupUi(this);
     mMessage = msg;
-    setAuthor();
+    setAuthor(NULL);
     setTimestamp(mMessage->getTimestamp());
+    megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatId);
 
-    if(this->megaChatApi->getChatRoom(chatId)->isGroup() && mMessage->getStatus()== megachat::MegaChatMessage::STATUS_DELIVERED)
+    if (chatRoom->isGroup() && mMessage->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
         setStatus(megachat::MegaChatMessage::STATUS_SERVER_RECEIVED);
     else
         setStatus(mMessage->getStatus());
@@ -99,7 +100,7 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
         ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
         ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
     }
-
+    delete chatRoom;
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
     updateToolTip();
     show();
@@ -188,6 +189,10 @@ std::string ChatMessage::managementInfoToString() const
     }
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
+        ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
+
+        item->updateToolTip(this->megaChatApi->getChatListItem(mChatId), NULL);
+
         ret.append("Chat history was truncated by user ").append(userHandle_64);
         return ret;
     }
@@ -200,9 +205,11 @@ std::string ChatMessage::managementInfoToString() const
     }
     case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
     {
+        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
         ret.append("User ").append(userHandle_64)
            .append(" set chat title to '")
-           .append(this->megaChatApi->getChatRoom(mChatId)->getTitle())+='\'';
+           .append(chatRoom->getTitle())+='\'';
+        delete chatRoom;
         return ret;
     }
     default:
@@ -231,17 +238,42 @@ void ChatMessage::setStatus(int status)
     }
 }
 
-void ChatMessage::setAuthor()
+void ChatMessage::setAuthor(const char *author)
 {
+    if (author)
+    {
+        ui->mAuthorDisplay->setText(tr(author));
+        return;
+    }
+
     if (isMine())
     {
         ui->mAuthorDisplay->setText(tr("me"));
     }
     else
     {
-        const char *chatTitle = megaChatApi->getChatRoom(mChatId)->getPeerFullnameByHandle(mMessage->getUserHandle());
-        ui->mAuthorDisplay->setText(tr(chatTitle));
-        delete chatTitle;
+        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
+        const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
+
+        if (msgAuthor)
+        {
+            if (strlen(msgAuthor) == 0)
+            {
+                ui->mAuthorDisplay->setText(tr("Unknown participant"));
+                megaChatApi->getUserFirstname(mMessage->getUserHandle());
+            }
+            else
+            {
+                ui->mAuthorDisplay->setText(tr(msgAuthor));
+            }
+        }
+        else
+        {
+            ui->mAuthorDisplay->setText(tr("Unknown participant"));
+            megaChatApi->getUserFirstname(mMessage->getUserHandle());
+        }
+        delete chatRoom;
+
     }
 }
 
@@ -292,7 +324,23 @@ void ChatMessage::saveMsgEdit(bool clicked)
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
     if(mMessage->getContent() != editedMsg)
     {
-        megaChatApi->editMessage(mChatId,mMessage->getMsgId(), editedMsg.c_str());
+        megachat::MegaChatHandle messageId;
+        if (mMessage->getStatus() == megachat::MegaChatMessage::STATUS_SENDING)
+        {
+            messageId = mMessage->getTempId();
+        }
+        else
+        {
+            messageId = mMessage->getMsgId();
+        }
+
+        megachat::MegaChatMessage *message = megaChatApi->editMessage(mChatId, messageId, editedMsg.c_str());
+        if (message)
+        {
+            delete mMessage;
+            setMessage(message);
+            setMessageContent(message->getContent());
+        }
     }
     clearEdit();
 }
