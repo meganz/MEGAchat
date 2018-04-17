@@ -1892,38 +1892,48 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(megachat::MegaCha
     sdkMutex.lock();
 
     if (mClient && !terminating)
+    {
+        ChatRoomList::iterator it;
+        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
-            ChatRoomList::iterator it;
-            for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+            bool sameParticipants = true;
+            if (it->second->isGroup())
             {
-                bool sameParticipants = true;
-                MegaChatRoomPrivate *chat = new MegaChatRoomPrivate(*it->second);
-                if (peers->size() == chat->getPeerCount())
+                GroupChatRoom *chatroom = (GroupChatRoom*) it->second;
+                if ((int)chatroom->peers().size() == peers->size())
                 {
                     for (int i = 0; i < peers->size(); i++)
                     {
-                        bool isParticipant = false;
-                        for (int j = 0; j < chat->getPeerCount(); j++)
-                        {
-                            if (peers->getPeerHandle(i) == chat->getPeerHandle(j))
-                            {
-                                isParticipant = true;
-                            }
-                        }
-                        if (!isParticipant)
+                        // if the peer in the list is part of the members in the chatroom...
+                        MegaChatHandle uh = peers->getPeerHandle(i);
+                        if (chatroom->peers().find(uh) == chatroom->peers().end())
                         {
                             sameParticipants = false;
                             break;
                         }
                     }
+
                     if (sameParticipants == true)
                     {
                         items->addChatListItem(new MegaChatListItemPrivate(*it->second));
                     }
                 }
-                delete chat;
+            }
+            else    // 1on1
+            {
+                if (peers->size() != 1)
+                {
+                    continue;
+                }
+
+                PeerChatRoom *chatroom = (PeerChatRoom*) it->second;
+                if (chatroom->peer() == peers->getPeerHandle(0))
+                {
+                    items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+                }
             }
         }
+    }
 
     sdkMutex.unlock();
 
