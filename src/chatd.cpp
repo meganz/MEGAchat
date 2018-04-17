@@ -1398,7 +1398,7 @@ void Chat::onFetchHistDone()
             //server returned zero messages
             assert((mDecryptOldHaltedAt == CHATD_IDX_INVALID) && (mDecryptNewHaltedAt == CHATD_IDX_INVALID));
             mHaveAllHistory = true;
-            CALL_DB(setHaveAllHistory);
+            CALL_DB(setHaveAllHistory, true);
             CHATID_LOG_DEBUG("Start of history reached");
             //last text msg stuff
             if (mLastTextMsg.isFetching())
@@ -2526,6 +2526,8 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //GUI must detach and free any resources associated with
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
+        CALL_DB(setHaveAllHistory, true);
+        mHaveAllHistory = true;
         deleteMessagesBefore(idx);
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {

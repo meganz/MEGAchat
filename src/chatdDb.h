@@ -327,11 +327,12 @@ public:
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
-    virtual void setHaveAllHistory()
+    virtual void setHaveAllHistory(bool haveAllHistory)
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'have_all_history', '1')", mChat.chatId());
+            "values(?, 'have_all_history', ?)", mChat.chatId(), haveAllHistory ? 1 : 0);
+        assertAffectedRowCount(1);
     }
     virtual bool haveAllHistory()
     {
@@ -360,7 +361,7 @@ public:
     virtual void clearHistory()
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
-        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mChat.chatId());
+        setHaveAllHistory(false);
     }
 };
 
