@@ -143,7 +143,7 @@ void MegaChatApiImpl::loop()
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
-{    
+{
     MegaChatApiImpl *megaChatApi = (MegaChatApiImpl *)ctx;
     if (megaChatApi)
     {
@@ -1921,7 +1921,7 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItems()
     return items;
 }
 
-MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(megachat::MegaChatPeerList *peers)
+MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(MegaChatPeerList *peers)
 {
     MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
 
@@ -1936,24 +1936,26 @@ MegaChatListItemList *MegaChatApiImpl::getChatListItemsByPeers(megachat::MegaCha
             if (it->second->isGroup())
             {
                 GroupChatRoom *chatroom = (GroupChatRoom*) it->second;
-                if ((int)chatroom->peers().size() == peers->size())
+                if ((int)chatroom->peers().size() != peers->size())
                 {
-                    for (int i = 0; i < peers->size(); i++)
-                    {
-                        // if the peer in the list is part of the members in the chatroom...
-                        MegaChatHandle uh = peers->getPeerHandle(i);
-                        if (chatroom->peers().find(uh) == chatroom->peers().end())
-                        {
-                            sameParticipants = false;
-                            break;
-                        }
-                    }
+                    continue;
+                }
 
-                    if (sameParticipants == true)
+                for (int i = 0; i < peers->size(); i++)
+                {
+                    // if the peer in the list is part of the members in the chatroom...
+                    MegaChatHandle uh = peers->getPeerHandle(i);
+                    if (chatroom->peers().find(uh) == chatroom->peers().end())
                     {
-                        items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+                        sameParticipants = false;
+                        break;
                     }
                 }
+                if (sameParticipants == true)
+                {
+                    items->addChatListItem(new MegaChatListItemPrivate(*it->second));
+                }
+
             }
             else    // 1on1
             {
@@ -2193,7 +2195,7 @@ void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatR
 }
 
 bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
-{    
+{
     if (!listener)
     {
         return false;
@@ -2578,7 +2580,7 @@ bool MegaChatApiImpl::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid
     if (chatroom)
     {
         ret = chatroom->chat().setMessageSeen((Id) msgid);
-    }    
+    }
 
     sdkMutex.unlock();
 
@@ -5121,6 +5123,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->group = chatroom.isGroup();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
+    this->archived =  chatroom.isArchived();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
 
@@ -5168,6 +5171,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
+    this->archived = item->isArchived();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -6571,7 +6575,7 @@ string JSonUtils::parseContainsMeta(const char *json)
         return std::string();
         break;
     }
-    
+
     return std::string();
 }
 
