@@ -323,12 +323,18 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTruncate = menu.addAction(tr("Truncate chat"));
     actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
-    auto actArchive = menu.addAction(tr("Archive chat"));
+
     if (item->isArchived())
     {
-        actArchive->setEnabled(false);
+        auto actArchive = menu.addAction(tr("Unarchive chat"));
+        connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
     }
-    connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+    else
+    {
+        auto actArchive = menu.addAction(tr("Archive chat"));
+        connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+    }
+
     delete item;
     menu.exec(event->globalPos());
     menu.deleteLater();
@@ -342,6 +348,11 @@ void ChatItemWidget::truncateChat()
 void ChatItemWidget::archiveChat()
 {
     mMegaChatApi->archiveChat(mChatId, true);
+}
+
+void ChatItemWidget::unarchiveChat()
+{
+    mMegaChatApi->archiveChat(mChatId, false);
 }
 
 void ChatItemWidget::setTitle()
