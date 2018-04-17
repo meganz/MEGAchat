@@ -343,6 +343,11 @@ MegaChatListItemList *MegaChatApi::getChatListItems()
     return pImpl->getChatListItems();
 }
 
+MegaChatListItemList *MegaChatApi::getChatListItemsByPeers(MegaChatPeerList *peers)
+{
+    return pImpl->getChatListItemsByPeers(peers);
+}
+
 MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
 {
     return pImpl->getChatListItem(chatid);
