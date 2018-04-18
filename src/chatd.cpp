@@ -2086,16 +2086,16 @@ int Chat::unreadMsgCount() const
     {
         if (mHaveAllHistory)
         {
-            return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
+            return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
         }
         else
         {
-            return -mDbInterface->getPeerMsgCountAfterIdx(CHATD_IDX_INVALID);
+            return -mDbInterface->getUnreadMsgCountAfterIdx(CHATD_IDX_INVALID);
         }
     }
     else if (mLastSeenIdx < lownum())
     {
-        return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
+        return mDbInterface->getUnreadMsgCountAfterIdx(mLastSeenIdx);
     }
 
     Idx first = mLastSeenIdx+1;

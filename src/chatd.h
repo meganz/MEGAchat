@@ -1217,7 +1217,7 @@ public:
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
-    virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
+    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;

@@ -231,7 +231,7 @@ public:
         stmt << mChat.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
-    virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
+    virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
     {
         // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
         std::string sql = "select count(*) from history where (chatid = ?1)"
