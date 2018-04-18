@@ -123,6 +123,14 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->isRinging() : NO;
 }
 
+- (uint64_t)peerSessionStatusChange {
+    return self.megaChatCall ? self.megaChatCall->getPeerSessionStatusChange() : MEGACHAT_INVALID_HANDLE;
+}
+
+- (MEGAChatCallSessionStatus)sessionStatusForPeer:(uint64_t)peerId {
+    return (MEGAChatCallSessionStatus) (self.megaChatCall ? self.megaChatCall->getSessionStatus(peerId) : 0);
+}
+
 + (NSString *)stringForStatus:(MEGAChatCallStatus)status {
     NSString *result;
     switch (status) {

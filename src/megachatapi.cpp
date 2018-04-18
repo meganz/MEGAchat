@@ -133,6 +133,16 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+int MegaChatCall::getSessionStatus(MegaChatHandle peerId) const
+{
+    return SESSION_STATUS_NO_SESSION;
+}
+
+MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 bool MegaChatCall::isIgnored() const
 {
     return false;
@@ -1122,6 +1132,16 @@ bool MegaChatListItem::isArchived() const
 }
 
 MegaChatHandle MegaChatListItem::getPeerHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+int MegaChatListItem::getLastMessagePriv() const
+{
+    return MegaChatRoom::PRIV_UNKNOWN;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }

@@ -10,6 +10,7 @@
 #include "QTMegaChatListener.h"
 #include "megaLoggerApplication.h"
 #include "chatGroupDialog.h"
+#include "QTMegaChatCallListener.h"
 
 struct Chat
 {
@@ -33,23 +34,26 @@ struct ChatComparator
     }
 };
 
+class ChatSettings;
+class ChatSettingsDialog;
 class ChatItemWidget;
 class ContactItemWidget;
+class QTMegaChatCallListener;
+
 namespace Ui
 {
     class MainWindow;
 }
-class ChatSettings;
+
 class MainWindow :
       public QMainWindow,
-      public megachat::MegaChatListener
+      public megachat::MegaChatListener,
+      public megachat::MegaChatCallListener
 {
     Q_OBJECT
     public:
-        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL);
+        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, mega::MegaApi *megaApi = NULL);
         virtual ~MainWindow();
-        void setMegaChatApi(megachat::MegaChatApi *megaChatApi);
-        void setMegaApi(mega::MegaApi *megaApi);
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
         void addChatListener();
@@ -59,6 +63,10 @@ class MainWindow :
         void addInactiveChats();
         void addArchivedChats();
         void addActiveChats();
+        void createSettingsMenu();
+#ifndef KARERE_DISABLE_WEBRTC
+        void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
+#endif
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
@@ -79,11 +87,12 @@ class MainWindow :
         Ui::MainWindow *ui;
         bool allItemsVisibility;
         bool archivedItemsVisibility = false;
-        QMenu * onlineStatus;
-        QWidget *createChatWindow;
+        QMenu *onlineStatus;
+        ChatSettings *mChatSettings;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
+        megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
@@ -108,6 +117,8 @@ class MainWindow :
 
      friend class ChatItemWidget;
      friend class MegaChatApplication;
+     friend class ChatSettingsDialog;
+     friend class CallAnswerGui;
      friend class ChatWindow;
 };
 

@@ -31,7 +31,7 @@ class MegaChatApplication : public QApplication,
         void addContacts();
         void configureLogs();
         void saveSid(const char* sdkSid);
-        virtual void onRequestFinish(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
+        virtual void onRequestFinish(megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
         virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
         virtual void onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
@@ -43,7 +43,7 @@ class MegaChatApplication : public QApplication,
         LoginDialog *mLoginDialog;
         MegaLoggerApplication *mLogger;
         mega::MegaApi *mMegaApi;
-        megachat::MegaChatApi *megaChatApi;
+        megachat::MegaChatApi *mMegaChatApi;
         mega::QTMegaListener *megaListenerDelegate;
         megachat::QTMegaChatRequestListener *megaChatRequestListenerDelegate;
         megachat::QTMegaChatNotificationListener *megaChatNotificationListenerDelegate;

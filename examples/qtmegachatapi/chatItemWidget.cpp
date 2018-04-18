@@ -72,7 +72,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
-    const char *lastMessage;
+    std::string lastMessage;
     const char *lastMessageId_64 = "----------";
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
@@ -96,21 +96,69 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         delete msgAuthor;
     }
 
-    if (lastMessageType == megachat::MegaChatMessage::TYPE_INVALID)
+    const char *senderName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender());
+    switch (lastMessageType)
     {
-        lastMessage = "<No history>";
-    }
-    else if (lastMessageType == 0xFF)
-    {
-        lastMessage = "<loading...>";
-    }
-    else
-    {
-        lastMessage = item->getLastMessage();
-        if(item->getLastMessageId()!= megachat::MEGACHAT_INVALID_HANDLE)
+        case megachat::MegaChatMessage::TYPE_INVALID:
+            lastMessage = "<No history>";
+            break;
+
+        case 0xFF:
+            lastMessage = "<loading...>";
+            break;
+
+        case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
         {
-            lastMessageId_64 = auxLastMessageId_64;
+            const char *targetName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+            bool removed = item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM;
+            lastMessage.append("User ").append(senderName)
+                    .append(removed ? " removed" : " added")
+                    .append(" user ").append(targetName);
+            delete [] targetName;
+            break;
         }
+        case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
+        {
+            const char *targetName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+            const char *priv = megachat::MegaChatRoom::privToString(item->getLastMessagePriv());
+            lastMessage.append("User ").append(senderName)
+                       .append(" set privilege of user ").append(targetName)
+                       .append(" to ").append(priv);
+            delete [] targetName;
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_TRUNCATE:
+            lastMessage = "Truncate";
+            break;
+
+        case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+            lastMessage.append("User ").append(senderName)
+                       .append(" attached a contact: ").append(item->getLastMessage());
+            break;
+
+        case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
+            lastMessage.append("User ").append(senderName)
+                       .append(" attached a node: ").append(item->getLastMessage());
+            break;
+
+        case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
+            lastMessage.append("User ").append(senderName)
+                       .append(" set chat title: ").append(item->getLastMessage());
+            break;
+
+        case megachat::MegaChatMessage::TYPE_CONTAINS_META: // fall-through
+            lastMessage.append("metadata: ").append(item->getLastMessage());
+            break;
+
+        default:
+            lastMessage = item->getLastMessage();
+            break;
+    }
+    delete [] senderName;
+
+    if(item->getLastMessageId() != megachat::MEGACHAT_INVALID_HANDLE)
+    {
+        lastMessageId_64 = auxLastMessageId_64;
     }
 
     if(!item->isGroup())
@@ -265,6 +313,11 @@ ChatWindow *ChatItemWidget::getChatWindow()
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
 {
     showChatWindow();
+}
+
+void ChatItemWidget::setChatWindow(ChatWindow *chatWindow)
+{
+    mChatWindow = chatWindow;
 }
 
 QListWidgetItem *ChatItemWidget::getWidgetItem() const

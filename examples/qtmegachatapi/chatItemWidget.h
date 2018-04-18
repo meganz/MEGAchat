@@ -32,6 +32,7 @@ class ChatItemWidget : public QWidget
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
+        void setChatWindow(ChatWindow *chatWindow);
         const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
 
     protected:
@@ -58,6 +59,6 @@ class ChatItemWidget : public QWidget
     friend class MainWindow;
     friend class ContactItemWidget;
     friend class ChatGroupDialog;
-
+    friend class CallAnswerGui;
 };
 #endif // CHATITEM_H

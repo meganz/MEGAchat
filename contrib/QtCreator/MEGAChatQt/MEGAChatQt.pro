@@ -60,6 +60,7 @@ CONFIG += USE_LIBUV
 CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
 CONFIG += ENABLE_CHAT
+CONFIG += USE_WEBRTC
 DEFINES += ENABLE_CHAT
 
 include(../../../bindings/qt/megachat.pri)
@@ -101,6 +102,24 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/settingsDialog.ui \
     ../../../examples/qtmegachatapi/chatMessageWidget.ui \
     ../../../examples/qtmegachatapi/chatGroupDialog.ui
+
+
+
+CONFIG(USE_WEBRTC) {
+    SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \
+        ../../../examples/qtmegachatapi/callListener.cpp \
+        ../../../examples/qtmegachatapi/remoteCallListener.cpp \
+        ../../../examples/qtmegachatapi/localCallListener.cpp \
+        ../../src/videoRenderer_Qt.cpp
+
+    HEADERS +=  ../../../examples/qtmegachatapi/callGui.h \
+        ../../../examples/qtmegachatapi/callListener.h \
+        ../../../examples/qtmegachatapi/remoteCallListener.h \
+        ../../../examples/qtmegachatapi/localCallListener.h \
+        ../../src/videoRenderer_Qt.h
+
+    FORMS += ../../../examples/qtmegachatapi/callGui.ui
+}
 
 win32 {
     QMAKE_LFLAGS += /LARGEADDRESSAWARE

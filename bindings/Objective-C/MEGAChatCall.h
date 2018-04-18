@@ -12,6 +12,13 @@ typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusDestroyed
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatCallSessionStatus) {
+    MEGAChatCallSessionStatusInitial = 0,
+    MEGAChatCallSessionStatusInProgress,
+    MEGAChatCallSessionStatusDestroyed,
+    MEGAChatCallSessionStatusNoSession
+};
+
 typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
     MEGAChatCallTermCodeUserHangup = 0,
     MEGAChatCallTermCodeCallReqCancel = 1,
@@ -30,7 +37,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
     MEGAChatCallChangeTypeRemoteAVFlags = 0x04,
     MEGAChatCallChangeTypeTemporaryError = 0x08,
-    MEGAChatCallChangeTypeRingingStatus = 0x10
+    MEGAChatCallChangeTypeRingingStatus = 0x10,
+    MEGAChatCallChangeTypeSessionStatus = 0x20
 };
 
 @interface MEGAChatCall : NSObject
@@ -50,9 +58,10 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
 @property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
+@property (nonatomic, readonly) uint64_t peerSessionStatusChange;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
-
+- (MEGAChatCallSessionStatus)sessionStatusForPeer:(uint64_t)peerId;
 
 - (instancetype)clone;
 
