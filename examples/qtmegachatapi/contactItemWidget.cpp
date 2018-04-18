@@ -95,7 +95,7 @@ void ContactItemWidget::onCreateGroupChat()
    msgBox.setDefaultButton(QMessageBox::Save);
    int ret = msgBox.exec();
 
-   if(ret == QMessageBox::Ok)
+   if (ret == QMessageBox::Ok)
    {
         megachat::MegaChatPeerList *peerList;
         peerList = megachat::MegaChatPeerList::createInstance();

@@ -9,6 +9,7 @@
 #include "contactItemWidget.h"
 #include "QTMegaChatListener.h"
 #include "megaLoggerApplication.h"
+#include "chatGroupDialog.h"
 
 struct Chat
 {

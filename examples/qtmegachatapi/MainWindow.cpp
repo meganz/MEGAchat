@@ -403,7 +403,10 @@ void MainWindow::onChangeItemsVisibility()
 
 void MainWindow::onAddChatGroup()
 {
-
+    mega::MegaUserList *list = mMegaApi->getContacts();
+    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi);
+    chatDialog->createChatList(list);
+    chatDialog->show();
 }
 
 void MainWindow::onAddContact()
