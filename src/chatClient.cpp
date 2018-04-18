@@ -1627,9 +1627,21 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
+    bool changedArchived;
     bool changed = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());   // returns true if own privilege has changed
     changed |= syncArchive(chat.isArchived());
+    changedArchived = changed;
     changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
+
+    if (changedArchived)
+    {
+        mIsArchived = chat.isArchived();
+        auto listItem = roomGui();
+        if (listItem)
+        {
+            listItem->onChatArchived(mIsArchived);
+        }
+    }
     return changed;
 }
 
