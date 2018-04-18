@@ -2852,12 +2852,23 @@ public:
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
-     * of every chatroom and will provide to the app the list of unread messages that
+     * for every chatroom and will provide to the app the list of unread messages that
      * are suitable to create OS notifications.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaHandleList()- Returns the list of chatids of chats with messages to notify
+     * - MegaChatRequest::getMegaHandleListByChat- Returns the list of msgids to notify for a given chat
+     *
+     * You can get the MegaChatMessage object by using the function \c MegaChatApi::getMessage
+     *
+     * @note A maximum of 6 messages per chat is returned by this function, regardless there might be
+     * more unread messages. This function only searchs among local messages known by client (already loaded
+     * from server and loaded in RAM). At least 32 messages are loaded in RAM for each chat.
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param listener MegaChatRequestListener to track this request
