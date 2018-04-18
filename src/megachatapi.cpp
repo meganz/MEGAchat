@@ -1101,6 +1101,16 @@ MegaChatHandle MegaChatListItem::getPeerHandle() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+int MegaChatListItem::getLastMessagePriv() const
+{
+    return MegaChatRoom::PRIV_UNKNOWN;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {
 

@@ -3237,18 +3237,22 @@ public:
      * If there are no messages in the history or the last message is still
      * pending to be retrieved from the server, it returns an empty string.
      *
-     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
-     * returns the filenames of the attached nodes. The filenames of nodes are separated
-     * by ASCII character '0x01'
-     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
-     * returns the usernames. The usernames are separated
-     * by ASCII character '0x01'
-     * 
+     * The returned value of this function depends on the type of message:
+     *
+     *  - MegaChatMessage::TYPE_NORMAL: content of the message
+     *  - MegaChatMessage::TYPE_ATTACHMENT: filenames of the attached nodes (separated by ASCII character '0x01')
+     *  - MegaChatMessage::TYPE_CONTACT: usernames of the attached contacts (separated by ASCII character '0x01')
+     *  - MegaChatMessage::TYPE_CONTAINS_META: original content of the messsage
+     *  - MegaChatMessage::TYPE_CHAT_TITLE: new title
+     *  - MegaChatMessage::TYPE_TRUNCATE: empty string
+     *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
+     *  - MegaChatMessage::TYPE_PRIV_CHANGE: empty string
+     *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
-     * use MegaChatMessage::copy
+     * use MegaChatMessage::copy.
      *
-     * @return The last message received.
+     * @return The content of the last message received.
      */
     virtual const char *getLastMessage() const;
 
@@ -3316,6 +3320,26 @@ public:
      * @return The userhandle of the Contact
      */
     virtual MegaChatHandle getPeerHandle() const;
+
+    /**
+     * @brief Returns privilege established at last message
+     *
+     * The returned value is only valid if last message is from type MegaChatMessage::TYPE_ALTER_PARTICIPANTS
+     * and MegaChatMessage::TYPE_PRIV_CHANGE.
+     *
+     * @return prilvilege stablished at last message
+     */
+    virtual int getLastMessagePriv() const;
+
+    /**
+     * @brief Returns the handle of the target user
+     *
+     * The returned value is only valid if last message is from type MegaChatMessage::TYPE_ALTER_PARTICIPANTS
+     * and MegaChatMessage::TYPE_PRIV_CHANGE.
+     *
+     * @return Handle of the target user
+     */
+    virtual MegaChatHandle getLastMessageHandle() const;
 };
 
 class MegaChatRoom

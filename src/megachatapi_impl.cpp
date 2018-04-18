@@ -4992,23 +4992,45 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->ownPriv = chatroom.ownPriv();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
+    this->lastMsgPriv = Priv::PRIV_INVALID;
+    this->lastMsgHandle = MEGACHAT_INVALID_HANDLE;
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
     LastTextMsg *&msg = message;
     uint8_t lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == LastTextMsgState::kHave)
-    {
-        this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
+    {        
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
-        if (msg->idx() == CHATD_IDX_INVALID)
+        this->mLastMsgId = (msg->idx() == CHATD_IDX_INVALID) ? msg->xid() : msg->id();
+
+        switch (lastMsgType)
         {
-            this->mLastMsgId = (MegaChatHandle) msg->xid();
-        }
-        else
-        {
-            this->mLastMsgId = (MegaChatHandle) msg->id();
+            case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
+            case MegaChatMessage::TYPE_NODE_ATTACHMENT:
+            case MegaChatMessage::TYPE_CONTAINS_META:
+                this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
+                break;
+
+            case MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
+            case MegaChatMessage::TYPE_PRIV_CHANGE:
+            {
+                const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().data());
+                this->lastMsgPriv = management->privilege;
+                this->lastMsgHandle = (MegaChatHandle)management->target;
+                break;
+            }
+
+            case MegaChatMessage::TYPE_NORMAL:
+            case MegaChatMessage::TYPE_CHAT_TITLE:
+                this->lastMsg = msg->contents();
+                break;
+
+            case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
+            case MegaChatMessage::TYPE_TRUNCATE:    // no content at all
+            default:
+                break;
         }
     }
     else
@@ -5037,6 +5059,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
+    this->lastMsgPriv = item->getLastMessagePriv();
+    this->lastMsgHandle = item->getLastMessageHandle();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -5118,6 +5142,16 @@ MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
     return peerHandle;
 }
 
+int MegaChatListItemPrivate::getLastMessagePriv() const
+{
+    return lastMsgPriv;
+}
+
+MegaChatHandle MegaChatListItemPrivate::getLastMessageHandle() const
+{
+    return lastMsgHandle;
+}
+
 void MegaChatListItemPrivate::setOwnPriv(int ownPriv)
 {
     this->ownPriv = ownPriv;
@@ -5152,12 +5186,8 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_TS;
 }
 
-void MegaChatListItemPrivate::setLastMessage(MegaChatHandle messageId, int type, const string &msg, const uint64_t uh)
+void MegaChatListItemPrivate::setLastMessage()
 {
-    this->lastMsg = msg;
-    this->lastMsgType = type;
-    this->lastMsgSender = uh;
-    this->mLastMsgId = messageId;
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
 }
 
@@ -5208,20 +5238,7 @@ void MegaChatListItemHandler::onRejoinedChat()
 void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-
-    std::string lastMessageContent = JSonUtils::getLastMessageContent(msg.contents(), msg.type());
-
-    MegaChatHandle messageId = MEGACHAT_INVALID_HANDLE;
-    if (msg.idx() == CHATD_IDX_INVALID)
-    {
-        messageId = (MegaChatHandle) msg.xid();
-    }
-    else
-    {
-        messageId = (MegaChatHandle) msg.id();
-    }
-
-    item->setLastMessage(messageId, msg.type(), lastMessageContent, msg.sender());
+    item->setLastMessage();
     chatApi.fireOnChatListItemUpdate(item);
 }
 

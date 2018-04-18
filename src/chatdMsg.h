@@ -350,7 +350,6 @@ public:
         kMsgRevokeAttachment  = 0x11,
         kMsgContact           = 0x12,
         kMsgContainsMeta      = 0x13
-
     };
     enum Status
     {
@@ -476,6 +475,11 @@ public:
                     || type == kMsgAttachment           // include node-attachment messages
                     || type == kMsgContact              // include contact-attachment messages
                     || type == kMsgContainsMeta));      // include containsMeta messages
+    }
+
+    bool isValidLastMessage() const
+    {
+        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment);
     }
 
     /** @brief Convert attachment etc. special messages to text */
