@@ -953,6 +953,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         chatids->addMegaHandle(chatid);
                         request->setMegaHandleListByChat(chatid, msgids);
                     }
+
                     delete msgids;
                 }
 
@@ -960,6 +961,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
+                delete chatids;
 
             })
             .fail([this, request](const promise::Error& err)

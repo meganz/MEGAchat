@@ -1596,6 +1596,25 @@ public class MegaChatApiJava {
             megaChatApi.saveCurrentState();
     }
 
+    /**
+     * Notify MEGAchat a push has been received
+     *
+     * This method should be called when the Android app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * of every chatroom and will provide to the app the list of unread messages that
+     * are suitable to create OS notifications.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void pushReceived(boolean beep, MegaChatRequestListenerInterface listener){
+        megaChatApi.pushReceived(beep, createDelegateRequestListener(listener));
+    }
+
     // Call management
     /**
      * Start a call in a chat room
