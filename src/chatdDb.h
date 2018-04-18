@@ -35,6 +35,7 @@ public:
         info.newestDbId = stmt2.uint64Col(0);
         if (!info.newestDbId)
         {
+            assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
             info.oldestDbId = 0;
         }
