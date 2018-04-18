@@ -965,7 +965,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
         CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
             ID_CSTR(info.oldestDbId), ID_CSTR(info.newestDbId), mForwardStart);
         loadAndProcessUnsent();
-        getHistoryFromDb(1); //to know if we have the latest message on server, we must at least load the latest db message
+        getHistoryFromDb(initialHistoryFetchCount); // ensure we have a minimum set of messages loaded and ready
     }
 }
 Chat::~Chat()
