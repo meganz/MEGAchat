@@ -2544,13 +2544,11 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
     CALL_CRYPTO(resetSendKey);
     CALL_DB(truncateHistory, msg);
-    if (idx != CHATD_IDX_INVALID)
+    if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
     {
         //GUI must detach and free any resources associated with
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
-        CALL_DB(setHaveAllHistory, true);
-        mHaveAllHistory = true;
         deleteMessagesBefore(idx);
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {
@@ -2592,6 +2590,10 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     {
         mHasMoreHistoryInDb = false;
     }
+    // since we have the truncate message in local history (otherwise chatd wouldn't have sent us
+    // the truncate), now we know we have all history and what's the oldest msgid.
+    CALL_DB(setHaveAllHistory, true);
+    mHaveAllHistory = true;
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
 }
