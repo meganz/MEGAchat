@@ -233,7 +233,7 @@ public:
     }
     virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
     {
-        // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
+        // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
         std::string sql = "select count(*) from history where (chatid = ?1)"
                 "and (userid != ?2) and ((type = ?3 || type >= ?4) and type != ?5) and not (updated != 0 and length(data) = 0 )";
         if (idx != CHATD_IDX_INVALID)

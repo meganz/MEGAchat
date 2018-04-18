@@ -2103,12 +2103,8 @@ int Chat::unreadMsgCount() const
     auto last = highnum();
     for (Idx i=first; i<=last; i++)
     {
-        // conditions to consider unread messages should match the
-        // ones in ChatdSqliteDb::getPeerMsgCountAfterIdx()
         auto& msg = at(i);
-        if (msg.userid != mClient.userId()               // skip own messages
-                && !(msg.updated && !msg.size())         // skip deleted messages
-                && (msg.isText()))  // Only text messages
+        if (msg.isValidUnread(mClient.userId()))
         {
             count++;
         }

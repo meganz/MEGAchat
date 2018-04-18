@@ -490,6 +490,15 @@ public:
         return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment);
     }
 
+    // conditions to consider unread messages should match the
+    // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
+    bool isValidUnread(karere::Id myHandle) const
+    {
+        return (userid != myHandle              // skip own messages
+                && !(updated && !size())        // skip deleted messages
+                && (isText()));                 // Only text messages
+    }
+
     /** @brief Convert attachment etc. special messages to text */
     std::string toText() const
     {
