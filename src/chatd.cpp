@@ -2579,21 +2579,15 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         }
     }
 
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId;
-    if (mOldestKnownMsgId)
-    {
-        mHasMoreHistoryInDb = (at(lownum()).id() != mOldestKnownMsgId);
-    }
-    else
-    {
-        mHasMoreHistoryInDb = false;
-    }
     // since we have the truncate message in local history (otherwise chatd wouldn't have sent us
     // the truncate), now we know we have all history and what's the oldest msgid.
     CALL_DB(setHaveAllHistory, true);
     mHaveAllHistory = true;
+    mOldestKnownMsgId = msg.id();
+
+    // if truncate was received for a message not loaded in RAM, we may have more history in DB
+    mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
+
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
 }
