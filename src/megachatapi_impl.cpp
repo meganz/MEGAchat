@@ -925,22 +925,27 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 MegaHandleList *chatids = MegaHandleList::createInstance();
 
-                // map of chatid as key, vector of msgids as value
-                std::map<MegaChatHandle, vector<MegaChatHandle>> unreadMap;
                 // for each chatroom, load all unread messages)
                 for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                 {
                     MegaHandleList *msgids = MegaHandleList::createInstance();
 
                     MegaChatHandle chatid = it->first;
-                    Idx lastSeenIdx = it->second->chat().lastSeenIdx();
+                    const Chat &chat = it->second->chat();
+                    Idx lastSeenIdx = chat.lastSeenIdx();
 
-                    SqliteStmt stmt(mClient->db, "select msgid from history where chatid = ?1 and idx > ?2 and userid != ?3");
-                    stmt << chatid << lastSeenIdx << getMyUserHandle();
-                    while (stmt.step())
+                    // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
+                    Idx first = (lastSeenIdx != CHATD_IDX_INVALID) ? (lastSeenIdx + 1) : chat.lownum();
+                    Idx last = chat.highnum();
+                    int maxCount = 6;   // do not notify more than 6 messages per chat
+                    for (Idx i = first; (i <= last), (maxCount > 0); i++)
                     {
-                        MegaChatHandle msgid = stmt.uint64Col(0);
-                        msgids->addMegaHandle(msgid);
+                        auto& msg = chat.at(i);
+                        if (msg.isValidUnread(mClient->myHandle()))
+                        {
+                            maxCount--;
+                            msgids->addMegaHandle(msg.id());
+                        }
                     }
 
                     if (msgids->size())
@@ -948,10 +953,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         chatids->addMegaHandle(chatid);
                         request->setMegaHandleListByChat(chatid, msgids);
                     }
-                    else
-                    {
-                        delete msgids;
-                    }
+                    delete msgids;
                 }
 
                 request->setMegaHandleList(chatids);    // always a valid list, even if empty
