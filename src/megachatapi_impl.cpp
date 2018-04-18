@@ -3664,6 +3664,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     ringing = false;
     ignored = false;
     changed = 0;
+    peerId = 0;
+    // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -3681,6 +3683,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
     this->ignored = call.ignored;
+    this->sessionStatus = call.sessionStatus;
+    this->peerId = call.peerId;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -3784,6 +3788,24 @@ bool MegaChatCallPrivate::isLocalTermCode() const
 bool MegaChatCallPrivate::isRinging() const
 {
     return ringing;
+}
+
+int MegaChatCallPrivate::getSessionStatus(MegaChatHandle peerId) const
+{
+    int status = SESSION_STATUS_NO_SESSION;
+
+    auto sessionStatusIt = sessionStatus.find(peerId);
+    if (sessionStatusIt != sessionStatus.end())
+    {
+        status = sessionStatusIt->second;
+    }
+
+    return status;
+}
+
+MegaChatHandle MegaChatCallPrivate::getPeerSessionStatusChange() const
+{
+    return peerId;
 }
 
 bool MegaChatCallPrivate::isIgnored() const
@@ -3890,6 +3912,18 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
 {
     this->ringing = ringing;
     changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
+}
+
+void MegaChatCallPrivate::setSessionStatus(uint8_t status, MegaChatHandle peer)
+{
+    this->sessionStatus[peer] = status;
+    peerId = peer;
+    changed |= MegaChatCall::CHANGE_TYPE_SESSION_STATUS;
+}
+
+void MegaChatCallPrivate::removeSession(MegaChatHandle peer)
+{
+    this->sessionStatus.erase(peer);
 }
 
 void MegaChatCallPrivate::setIgnoredCall(bool ignored)
@@ -5646,16 +5680,6 @@ MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
 MegaChatCallHandler::~MegaChatCallHandler()
 {
     delete chatCall;
-//    delete call;
-
-//    for (int i = 0; i < sessionHandlers.size(); ++i)
-//    {
-//        delete sessionHandlers[i];
-//    }
-
-//    sessionHandlers.clear();
-
-//    delete videoReceiver;
 }
 
 void MegaChatCallHandler::setCall(rtcModule::ICall *call)
@@ -5746,8 +5770,7 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, con
 
 rtcModule::ISessionHandler *MegaChatCallHandler::onNewSession(rtcModule::ISession &sess)
 {
-    sessionHandler = new MegaChatSessionHandler(megaChatApi, this, &sess);
-    return sessionHandler;
+    return new MegaChatSessionHandler(megaChatApi, this, &sess);
 }
 
 void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rendererOut)
@@ -5850,21 +5873,51 @@ MegaChatSessionHandler::~MegaChatSessionHandler()
 
 void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 {
-    if (rtcModule::ISession::kStateInProgress == newState)
+    switch (newState)
     {
-        MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-        chatCall->setRemoteAudioVideoFlags(session->receivedAv());
-        API_LOG_INFO("Initial remote audio/video flags. ChatId: %s, callid: %s, AV: %s",
-                     Id(chatCall->getChatid()).toString().c_str(),
-                     Id(chatCall->getId()).toString().c_str(),
-                     session->receivedAv().toString().c_str());
+        case rtcModule::ISession::kStateWaitSdpOffer:
+        case rtcModule::ISession::kStateWaitSdpAnswer:
+        {
+            MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+            chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_INITIAL, session->peer());
+            megaChatApi->fireOnChatCallUpdate(chatCall);
+            break;
+        }
+        case rtcModule::ISession::kStateInProgress:
+        {
+            MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+            chatCall->setRemoteAudioVideoFlags(session->receivedAv());
+            API_LOG_INFO("Initial remote audio/video flags. ChatId: %s, callid: %s, AV: %s",
+                         Id(chatCall->getChatid()).toString().c_str(),
+                         Id(chatCall->getId()).toString().c_str(),
+                         session->receivedAv().toString().c_str());
 
-        megaChatApi->fireOnChatCallUpdate(chatCall);
+            chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_IN_PROGRESS, session->peer());
+
+            megaChatApi->fireOnChatCallUpdate(chatCall);
+            break;
+        }
+        case rtcModule::ISession::kStateDestroyed:
+        {
+            if (callHandler->getCall()->state() < rtcModule::ICall::kStateTerminating)
+            {
+                MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+                chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_DESTROYED, session->peer());
+                megaChatApi->fireOnChatCallUpdate(chatCall);
+            }
+
+            break;
+        }
+        default:
+            break;
     }
 }
 
-void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg)
+void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const std::string& /*msg*/)
 {
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    chatCall->removeSession(session->peer());
+    delete this;
 }
 
 void MegaChatSessionHandler::onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererOut)

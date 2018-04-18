@@ -133,6 +133,16 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+int MegaChatCall::getSessionStatus(MegaChatHandle peerId) const
+{
+    return SESSION_STATUS_NO_SESSION;
+}
+
+MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 bool MegaChatCall::isIgnored() const
 {
     return false;
