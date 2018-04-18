@@ -1227,7 +1227,7 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
     virtual chatd::Idx getOldestIdx() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void setHaveAllHistory() = 0;
+    virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual bool haveAllHistory() = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void clearHistory() = 0;

@@ -8,6 +8,9 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
       ui(new Ui::ChatWindowUi)
 {
     nSending = 0;
+#ifndef KARERE_DISABLE_WEBRTC
+    mCallGui = NULL;
+#endif
     loadedMessages = 0;
     nManualSending = 0;
     mPendingLoad = 0;
@@ -54,7 +57,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     }
 
     QDialog::show();
-    this->megaChatRoomListenerDelegate =  new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
+    megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
 }
 
 void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
@@ -303,6 +306,18 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
 
     return megachat::MEGACHAT_INVALID_HANDLE;
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
+CallGui *ChatWindow::getCallGui() const
+{
+    return mCallGui;
+}
+
+void ChatWindow::setCallGui(CallGui *callGui)
+{
+    mCallGui = callGui;
+}
+#endif
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
 {
@@ -614,3 +629,66 @@ void ChatWindow::onMsgListRequestHistory()
         mMegaChatApi->loadMessages(mChatRoom->getChatId(), NMESSAGES_LOAD);
     }
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
+void ChatWindow::onVideoCallBtn(bool)
+{
+    onCallBtn(true);
+}
+
+void ChatWindow::onAudioCallBtn(bool)
+{
+    onCallBtn(false);
+}
+
+void ChatWindow::createCallGui(bool video)
+{
+    auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
+    mCallGui = new CallGui(this, video);
+    layout->insertWidget(1, mCallGui, 1);
+    ui->mTitlebar->hide();
+    ui->mTextChatWidget->hide();
+}
+
+void ChatWindow::closeEvent(QCloseEvent *event)
+{
+    if (mCallGui)
+    {
+        mCallGui->onHangCall(true);
+    }
+    delete this;
+    event->accept();
+}
+
+void ChatWindow::onCallBtn(bool video)
+{
+    if (mChatRoom->isGroup())
+    {
+        QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
+        return;
+    }
+    createCallGui(video);
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+}
+
+void ChatWindow::connectCall()
+{
+    mCallGui->connectCall();
+}
+
+void ChatWindow::hangCall()
+{
+    deleteCallGui();
+}
+
+void ChatWindow::deleteCallGui()
+{
+    if (mCallGui)
+    {
+        mCallGui->deleteLater();
+        mCallGui = NULL;
+    }
+    ui->mTitlebar->show();
+    ui->mTextChatWidget->show();
+}
+#endif
