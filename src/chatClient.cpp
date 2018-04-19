@@ -348,7 +348,7 @@ void Client::saveDb()
 promise::Promise<void> Client::pushReceived()
 {
     // if already sent SYNCs or we are not logged in right now...
-    if (mSyncTimer || !chatd->areAllChatsLoggedIn())
+    if (mSyncTimer || !chatd || !chatd->areAllChatsLoggedIn())
     {
         return mSyncPromise;
         // promise will resolve once logged in for all chats or after receive all SYNCs back
