@@ -355,6 +355,7 @@ public:
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual void hangupAll(TermCode reason) = 0;
+    virtual void removeAllAvStates(karere::Id chatid) = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

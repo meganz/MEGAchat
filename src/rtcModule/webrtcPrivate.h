@@ -213,10 +213,10 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
+    virtual void removeAllAvStates(karere::Id chatid);
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void removePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid);
-    void removeAllAvStates(karere::Id chatid);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
     ~RtcModule();
 protected:

@@ -1565,9 +1565,6 @@ Call::~Call()
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
-    mChat.removeCallParticipants();
-    mManager.removeAllAvStates(mChat.chatId());
-
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
