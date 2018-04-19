@@ -2016,14 +2016,20 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management");
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()),
                      "Title name has not changed correctly. Name establishes by a1: " + title + "Name received in a2: " + *msgContent);
+    MegaChatHandle managementMsg1 = chatroomListener->msgId[a1].back();
+    MegaChatHandle managementMsg2 = chatroomListener->msgId[a2].back();
 
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(textToSend.c_str(), itemAccount1->getLastMessage()) == 0,
-                     "Last message content has different value from message sent.\n Sent: " + textToSend + " Received: " + itemAccount1->getLastMessage());
+    ASSERT_CHAT_TEST(strcmp(title.c_str(), itemAccount1->getLastMessage()) == 0,
+                     "Last message content has not the tittle at account 1.\n Tittle: " + title + " .Last message: " + itemAccount1->getLastMessage());
 
-    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
-    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    ASSERT_CHAT_TEST(strcmp(title.c_str(), itemAccount2->getLastMessage()) == 0,
+                     "Last message content has not the tittle at account 2.\n Tittle: " + title + " .Last message: " + itemAccount2->getLastMessage());
+
+    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == managementMsg1, "Last message id is different from management message id at account1");
+    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == managementMsg2, "Last message id is different from management message id at account2");
+    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == itemAccount1->getLastMessageId(), "Last message id is different from account1 and account2");
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
@@ -2832,13 +2838,13 @@ void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHan
     MegaChatListItem *itemPrimary = megaChatApi[a1]->getChatListItem(chatid);
     ASSERT_CHAT_TEST(itemPrimary->getUnreadCount() == 0, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemPrimary->getUnreadCount()));
     ASSERT_CHAT_TEST(!strcmp(itemPrimary->getLastMessage(), ""), "Wrong content of last message for chat list item after clear history. Content: " + std::string(itemPrimary->getLastMessage()));
-    ASSERT_CHAT_TEST(itemPrimary->getLastMessageType() == MegaChatMessage::TYPE_INVALID, "Wrong type of last message after clear history. Type: " + std::to_string(itemPrimary->getLastMessageType()));
+    ASSERT_CHAT_TEST(itemPrimary->getLastMessageType() == MegaChatMessage::TYPE_TRUNCATE, "Wrong type of last message after clear history. Type: " + std::to_string(itemPrimary->getLastMessageType()));
     ASSERT_CHAT_TEST(itemPrimary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");
     delete itemPrimary; itemPrimary = NULL;
     MegaChatListItem *itemSecondary = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 1, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
+    ASSERT_CHAT_TEST(itemSecondary->getUnreadCount() == 0, "Wrong unread count for chat list item after clear history. Count: " + std::to_string(itemSecondary->getUnreadCount()));
     ASSERT_CHAT_TEST(!strcmp(itemSecondary->getLastMessage(), ""), "Wrong content of last message for chat list item after clear history. Content: " + std::string(itemSecondary->getLastMessage()));
-    ASSERT_CHAT_TEST(itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_INVALID, "Wrong type of last message after clear history. Type: " + std::to_string(itemSecondary->getLastMessageType()));
+    ASSERT_CHAT_TEST(itemSecondary->getLastMessageType() == MegaChatMessage::TYPE_TRUNCATE, "Wrong type of last message after clear history. Type: " + std::to_string(itemSecondary->getLastMessageType()));
     ASSERT_CHAT_TEST(itemSecondary->getLastTimestamp() != 0, "Wrong last timestamp after clear history");
     delete itemSecondary; itemSecondary = NULL;
 }

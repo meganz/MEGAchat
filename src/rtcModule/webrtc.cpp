@@ -33,7 +33,6 @@ using namespace karere;
 using namespace std;
 using namespace promise;
 using namespace chatd;
-using namespace std;
 
 template <class... Args>
 const char* termCodeFirstArgToString(TermCode code, Args...)
@@ -964,7 +963,7 @@ void Call::msgSession(RtMessage& packet)
     }
     auto sess = std::make_shared<Session>(*this, packet);
     mSessions[sid] = sess;
-    notifyNewSession(*sess);
+    notifyCallStarting(*sess);
     sess->sendOffer();
 
     EndpointId endpointId(sess->mPeer, sess->mPeerClient);
@@ -978,14 +977,13 @@ void Call::msgSession(RtMessage& packet)
     }
 }
 
-void Call::notifyNewSession(Session& sess)
+void Call::notifyCallStarting(Session& sess)
 {
     if (!mCallStartingSignalled)
     {
         mCallStartingSignalled = true;
         FIRE_EVENT(CALL, onCallStarting);
     }
-    sess.mHandler = mHandler->onNewSession(sess);
 }
 
 void Call::msgJoin(RtMessage& packet)
@@ -1007,7 +1005,7 @@ void Call::msgJoin(RtMessage& packet)
         // create session to this peer
         auto sess = std::make_shared<Session>(*this, packet);
         mSessions[sess->mSid] = sess;
-        notifyNewSession(*sess);
+        notifyCallStarting(*sess);
         sess->createRtcConn();
         sess->sendCmdSession(packet);
 
@@ -1757,6 +1755,7 @@ Session::Session(Call& call, RtMessage& packet)
 {
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
     call.mManager.random(mOwnSdpKey);
+    mHandler = call.callHandler()->onNewSession(*this);
     printf("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
     if (packet.type == RTCMD_JOIN)
     {
@@ -1764,7 +1763,7 @@ Session::Session(Call& call, RtMessage& packet)
         // JOIN callid.8 anonId.8
         mIsJoiner = false;
         mSid = call.mManager.random<uint64_t>();
-        mState = kStateWaitSdpOffer;
+        setState(kStateWaitSdpOffer);
         mPeerAnonId = packet.payload.read<uint64_t>(8);
     }
     else
@@ -1773,13 +1772,14 @@ Session::Session(Call& call, RtMessage& packet)
         assert(packet.type == RTCMD_SESSION);
         mIsJoiner = true;
         mSid = packet.payload.read<uint64_t>(8);
-        mState = kStateWaitSdpAnswer;
+        setState(kStateWaitSdpAnswer);
         assert(packet.payload.dataSize() >= 56);
         mPeerAnonId = packet.payload.read<uint64_t>(16);
         SdpKey encKey;
         packet.payload.read(24, encKey);
         call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
     }
+
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
     mSetupTimer = setTimeout([wptr, this] {
@@ -2475,6 +2475,7 @@ const char* ISession::stateToStr(uint8_t state)
 {
     switch(state)
     {
+        RET_ENUM_NAME(kStateInitial);
         RET_ENUM_NAME(kStateWaitSdpOffer);
         RET_ENUM_NAME(kStateWaitSdpAnswer);
         RET_ENUM_NAME(kStateWaitLocalSdpAnswer);
@@ -2517,6 +2518,7 @@ const StateDesc Call::sStateDesc = {
 
 const StateDesc Session::sStateDesc = {
     .transMap = {
+        { kStateWaitSdpOffer, kStateWaitSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kSWaitSdpOffer
         { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
         { kStateInProgress, kStateTerminating },               //for kStateWaitSdpAnswer

@@ -111,6 +111,14 @@ using namespace megachat;
     return self.megaChatListItem ? [[NSDate alloc] initWithTimeIntervalSince1970:self.megaChatListItem->getLastTimestamp()] : nil;
 }
 
+- (MEGAChatMessageType)lastMessagePriv {
+    return (MEGAChatMessageType) (self.megaChatListItem ? self.megaChatListItem->getLastMessagePriv() : 0);
+}
+
+- (uint64_t)lastMessageHandle {
+    return self.megaChatListItem ? self.megaChatListItem->getLastMessageHandle() : MEGACHAT_INVALID_HANDLE;
+}
+
 - (BOOL)hasChangedForType:(MEGAChatListItemChangeType)changeType {
     return self.megaChatListItem ? self.megaChatListItem->hasChanged((int) changeType) : NO;
 }

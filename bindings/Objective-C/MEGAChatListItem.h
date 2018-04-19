@@ -29,6 +29,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic) MEGAChatMessageType lastMessageType;
 @property (readonly, nonatomic) uint64_t lastMessageSender;
 @property (readonly, nonatomic) NSDate *lastMessageDate;
+@property (readonly, nonatomic) MEGAChatMessageType lastMessagePriv;
+@property (readonly, nonatomic) uint64_t lastMessageHandle;
 
 - (instancetype)clone;
 
