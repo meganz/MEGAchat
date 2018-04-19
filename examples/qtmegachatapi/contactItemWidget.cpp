@@ -112,8 +112,12 @@ void ContactItemWidget::onCreateGroupChat()
                 if (listItems->get(0)->isArchived())
                 {
                     ChatItemWidget *item = mMainWin->getChatItemWidget(listItems->get(0)->getChatId(), false);
-                    item->unarchiveChat();
-                    QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
+
+                    if (item)
+                    {
+                        item->unarchiveChat();
+                        QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
+                    }
                 }
                 else
                 {

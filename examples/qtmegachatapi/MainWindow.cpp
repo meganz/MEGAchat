@@ -7,7 +7,6 @@
 #include <QTMegaChatEvent.h>
 #include "uiSettings.h"
 #include "chatSettings.h"
-#include <QCheckBox>
 
 using namespace mega;
 using namespace megachat;
@@ -370,19 +369,19 @@ void MainWindow::addContact(MegaUser *contact)
 void MainWindow::addChat(const MegaChatListItem* chatListItem)
 {
     int index = 0;
-    if(chatListItem->isArchived())
+    if (chatListItem->isArchived())
     {
         index = -(archivedChats);
         archivedChats += 1;
     }
-    else if(!chatListItem->isActive())
+    else if (!chatListItem->isActive())
     {
-        index = -(nContacts+archivedChats+inactiveChats);
+        index = -(nContacts + archivedChats + inactiveChats);
         inactiveChats += 1;
     }
     else
     {
-        index = -(activeChats+inactiveChats+archivedChats+nContacts);
+        index = -(activeChats + inactiveChats + archivedChats+nContacts);
         activeChats += 1;
     }
 
