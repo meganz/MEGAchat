@@ -244,7 +244,7 @@ public:
              << chatd::Message::kMsgNormal                  // include normal messages
              << chatd::Message::kMsgUserFirst               // exclude management messages
              << chatd::Message::kMsgRevokeAttachment        // exclude revoke messages
-             << chatd::Message::kMsgInvalid;                // exclude invalid messages
+             << chatd::Message::kMsgInvalid;                // exclude (still) encrypted messages (theorically, they should not be stored in DB)
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -351,7 +351,7 @@ public:
         stmt << mChat.chatId()
              << chatd::Message::kMsgTruncate
              << chatd::Message::kMsgRevokeAttachment
-             << chatd::Message::kMsgInvalid
+             << chatd::Message::kMsgInvalid     // exclude (still) encrypted messages (theorically, they should not be stored in DB)
              << from;
         if (!stmt.step())
         {

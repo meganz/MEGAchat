@@ -479,7 +479,9 @@ public:
 
     bool isValidLastMessage() const
     {
-        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment && type != kMsgInvalid);
+        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+                && type != kMsgRevokeAttachment     // skip revokes
+                && type != kMsgInvalid);            // skip (still) encrypted messages
     }
 
     /** @brief Convert attachment etc. special messages to text */
