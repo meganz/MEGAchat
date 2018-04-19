@@ -125,7 +125,6 @@ void MegaChatApplication::configureLogs()
 {
     std::string logPath = mAppDir + "/log.txt";
     mLogger = new MegaLoggerApplication(logPath.c_str());
-    mLogger->setLogConsole(true);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLoggerObject(mLogger);

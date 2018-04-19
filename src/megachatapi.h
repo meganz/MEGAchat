@@ -3378,6 +3378,10 @@ public:
 
     /**
      * @brief Returns the sender of last message
+     *
+     * This function only returns a valid user handle when the last message type is
+     * not MegaChatMessage::TYPE_INVALID or 0xFF. Otherwise, it returns INVALID_HANDLE.
+     *
      * @return MegaChatHandle representing the user who sent the last message
      */
     virtual MegaChatHandle getLastMessageSender() const;
