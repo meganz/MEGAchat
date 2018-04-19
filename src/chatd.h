@@ -69,6 +69,7 @@ enum { kSeenTimeout = 200 };
 /** Timeout to recv SYNC (Milliseconds)**/
 enum { kSyncTimeout = 2500 };
 enum { kProtocolVersion = 0x01 };
+enum { kMaxMsgSize = 120000 };  // (in bytes)
 
 class DbInterface;
 struct LastTextMsg;
@@ -1216,7 +1217,7 @@ public:
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
-    virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
+    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
@@ -1226,7 +1227,7 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
     virtual chatd::Idx getOldestIdx() = 0;
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void setHaveAllHistory() = 0;
+    virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual bool haveAllHistory() = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void clearHistory() = 0;

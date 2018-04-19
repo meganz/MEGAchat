@@ -35,6 +35,7 @@ public:
         info.newestDbId = stmt2.uint64Col(0);
         if (!info.newestDbId)
         {
+            assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
             info.oldestDbId = 0;
         }
@@ -231,16 +232,19 @@ public:
         stmt << mChat.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
-    virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
+    virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
     {
-        // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
-        std::string sql = "select count(*) from history where (chatid = ?)"
-                "and (userid != ?) and (type != ?) and not (updated != 0 and length(data) = 0 )";
+        // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
+        std::string sql = "select count(*) from history where (chatid = ?1)"
+                "and (userid != ?2) and ((type = ?3 || type >= ?4) and type != ?5) and not (updated != 0 and length(data) = 0 )";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mChat.chatId() << mChat.client().userId() << chatd::Message::kMsgRevokeAttachment;
+        stmt << mChat.chatId() << mChat.client().userId()   // skip own messages
+             << chatd::Message::kMsgNormal                  // include normal messages
+             << chatd::Message::kMsgUserFirst               // exclude management messages
+             << chatd::Message::kMsgRevokeAttachment;       // exclude revoke messages
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -324,11 +328,12 @@ public:
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
-    virtual void setHaveAllHistory()
+    virtual void setHaveAllHistory(bool haveAllHistory)
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'have_all_history', '1')", mChat.chatId());
+            "values(?, 'have_all_history', ?)", mChat.chatId(), haveAllHistory ? 1 : 0);
+        assertAffectedRowCount(1);
     }
     virtual bool haveAllHistory()
     {
@@ -340,10 +345,10 @@ public:
     virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
     {
         SqliteStmt stmt(mDb,
-            "select type, idx, data, msgid, userid from history where chatid=? and "
-            "(type=1 or type >= 16) and (idx <= ?) and length(data) > 0 "
+            "select type, idx, data, msgid, userid from history where chatid=?1 and "
+            "(length(data) > 0 OR type = ?2) and type != ?3 and (idx <= ?4)"
             "order by idx desc limit 1");
-        stmt << mChat.chatId() << from;
+        stmt << mChat.chatId() << chatd::Message::kMsgTruncate << chatd::Message::kMsgRevokeAttachment << from;
         if (!stmt.step())
         {
             msg.clear();
@@ -357,7 +362,7 @@ public:
     virtual void clearHistory()
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
-        mDb.query("delete from chat_vars where chatid = ? and name='have_all_history'", mChat.chatId());
+        setHaveAllHistory(false);
     }
 };
 

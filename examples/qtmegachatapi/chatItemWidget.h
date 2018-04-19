@@ -17,7 +17,8 @@ class ChatItemWidget : public QWidget
     public:
         ChatItemWidget(QWidget *parent , megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item);
         virtual ~ChatItemWidget();
-        ChatWindow* showChatWindow();
+        ChatWindow *showChatWindow();
+        ChatWindow *getChatWindow();
         void invalidChatWindowHandle();
         void unshowAsHidden();
         void showAsHidden();
@@ -28,9 +29,11 @@ class ChatItemWidget : public QWidget
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
-        virtual void updateToolTip(const megachat::MegaChatListItem *item);
+        virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
+        void setChatWindow(ChatWindow *chatWindow);
+        const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
 
     protected:
         Ui::ChatItem *ui;
@@ -43,6 +46,7 @@ class ChatItemWidget : public QWidget
 
     protected:
         MainWindow * mMainWin;
+        std::string mLastMsgAuthor;
 
     private slots:
         void leaveGroupChat();
@@ -51,6 +55,6 @@ class ChatItemWidget : public QWidget
 
     friend class ChatWindow;
     friend class MainWindow;
-
+    friend class CallAnswerGui;
 };
 #endif // CHATITEM_H

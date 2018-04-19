@@ -32,7 +32,7 @@ class ChatMessage: public QWidget
         void setMessageContent(const char * content);
         void setTimestamp(int64_t ts);
         void setStatus(int status);
-        void setAuthor();
+        void setAuthor(const char *author);
         bool isMine() const;
         void markAsEdited();
         void startEditingMsgWidget();

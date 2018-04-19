@@ -90,10 +90,18 @@ public:
         CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
         CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
         CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,            /// Intermediate state, while connection is stablished
-        CALL_STATUS_IN_PROGRESS,        /// Call is stablished and there is a full communication
+        CALL_STATUS_JOINING,            /// Intermediate state, while connection is established
+        CALL_STATUS_IN_PROGRESS,        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING,        ///
         CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
+    };
+
+    enum
+    {
+        SESSION_STATUS_INITIAL = 0,
+        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
+        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
+        SESSION_STATUS_NO_SESSION,         /// There are no session for that peer id
     };
 
     enum
@@ -103,6 +111,7 @@ public:
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
         CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
+        CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
     };
 
     enum
@@ -218,6 +227,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
      * Check MegaChatCall::isRinging() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
+     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
      */
     virtual int getChanges() const;
 
@@ -247,6 +259,9 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x10
      * Check MegaChatCall::isRinging() value
+     *
+     * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
+     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
      *
      * @return true if this call has an specific change
      */
@@ -320,6 +335,31 @@ public:
      * @return True if the receiver of the call is aware of the call and is ringing, false otherwise.
      */
     virtual bool isRinging() const;
+
+    /**
+     * @brief Returns the status of the session for a peer
+     *
+     * Valid values:
+     *  - SESSION_STATUS_INITIAL
+     *  - SESSION_STATUS_IN_PROGRESS
+     *  - SESSION_STATUS_DESTROYED
+     *  - SESSION_STATUS_NO_SESSION
+     *
+     * If \c peerId has not any session in the call SESSION_STATUS_NO_SESSION will be returned
+     *
+     * @return Session status for \c peerId
+     */
+    virtual int getSessionStatus(MegaChatHandle peerId) const;
+
+    /**
+     * @brief Returns peer id which session status has changed
+     *
+     * This function only returns a valid value when session status change is notified
+     * via MegaChatCallListener::onChatCallUpdate
+     *
+     * @return Handle of the peer which session has changed its status
+     */
+    virtual MegaChatHandle getPeerSessionStatusChange() const;
 
     /**
      * @brief Returns if call has been ignored
@@ -2812,12 +2852,23 @@ public:
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
-     * of every chatroom and will provide to the app the list of unread messages that
+     * for every chatroom and will provide to the app the list of unread messages that
      * are suitable to create OS notifications.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaHandleList()- Returns the list of chatids of chats with messages to notify
+     * - MegaChatRequest::getMegaHandleListByChat- Returns the list of msgids to notify for a given chat
+     *
+     * You can get the MegaChatMessage object by using the function \c MegaChatApi::getMessage
+     *
+     * @note A maximum of 6 messages per chat is returned by this function, regardless there might be
+     * more unread messages. This function only searchs among local messages known by client (already loaded
+     * from server and loaded in RAM). At least 32 messages are loaded in RAM for each chat.
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param listener MegaChatRequestListener to track this request
@@ -3282,18 +3333,22 @@ public:
      * If there are no messages in the history or the last message is still
      * pending to be retrieved from the server, it returns an empty string.
      *
-     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
-     * returns the filenames of the attached nodes. The filenames of nodes are separated
-     * by ASCII character '0x01'
-     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
-     * returns the usernames. The usernames are separated
-     * by ASCII character '0x01'
-     * 
+     * The returned value of this function depends on the type of message:
+     *
+     *  - MegaChatMessage::TYPE_NORMAL: content of the message
+     *  - MegaChatMessage::TYPE_ATTACHMENT: filenames of the attached nodes (separated by ASCII character '0x01')
+     *  - MegaChatMessage::TYPE_CONTACT: usernames of the attached contacts (separated by ASCII character '0x01')
+     *  - MegaChatMessage::TYPE_CONTAINS_META: original content of the messsage
+     *  - MegaChatMessage::TYPE_CHAT_TITLE: new title
+     *  - MegaChatMessage::TYPE_TRUNCATE: empty string
+     *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
+     *  - MegaChatMessage::TYPE_PRIV_CHANGE: empty string
+     *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
-     * use MegaChatMessage::copy
+     * use MegaChatMessage::copy.
      *
-     * @return The last message received.
+     * @return The content of the last message received.
      */
     virtual const char *getLastMessage() const;
 
@@ -3361,6 +3416,26 @@ public:
      * @return The userhandle of the Contact
      */
     virtual MegaChatHandle getPeerHandle() const;
+
+    /**
+     * @brief Returns privilege established at last message
+     *
+     * The returned value is only valid if last message is from type MegaChatMessage::TYPE_ALTER_PARTICIPANTS
+     * and MegaChatMessage::TYPE_PRIV_CHANGE.
+     *
+     * @return prilvilege stablished at last message
+     */
+    virtual int getLastMessagePriv() const;
+
+    /**
+     * @brief Returns the handle of the target user
+     *
+     * The returned value is only valid if last message is from type MegaChatMessage::TYPE_ALTER_PARTICIPANTS
+     * and MegaChatMessage::TYPE_PRIV_CHANGE.
+     *
+     * @return Handle of the target user
+     */
+    virtual MegaChatHandle getLastMessageHandle() const;
 };
 
 class MegaChatRoom

@@ -358,7 +358,6 @@ public:
         kMsgRevokeAttachment  = 0x11,
         kMsgContact           = 0x12,
         kMsgContainsMeta      = 0x13
-
     };
     enum Status
     {
@@ -484,6 +483,20 @@ public:
                     || type == kMsgAttachment           // include node-attachment messages
                     || type == kMsgContact              // include contact-attachment messages
                     || type == kMsgContainsMeta));      // include containsMeta messages
+    }
+
+    bool isValidLastMessage() const
+    {
+        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment);
+    }
+
+    // conditions to consider unread messages should match the
+    // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
+    bool isValidUnread(karere::Id myHandle) const
+    {
+        return (userid != myHandle              // skip own messages
+                && !(updated && !size())        // skip deleted messages
+                && (isText()));                 // Only text messages
     }
 
     /** @brief Convert attachment etc. special messages to text */
