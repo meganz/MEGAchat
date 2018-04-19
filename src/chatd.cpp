@@ -202,6 +202,11 @@ void Chat::connect()
             std::string sUrl = url;
             mConnection.mUrl.parse(sUrl);
 
+            removeCallParticipants();
+            if (mClient.karereClient->rtc)
+            {
+                mClient.karereClient->rtc->removeAllAvStates(chatId());
+            }
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
             {
@@ -2872,7 +2877,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-
 
         if (mClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mClient.mUserId) && // message is not ours
