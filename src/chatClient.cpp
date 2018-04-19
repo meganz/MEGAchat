@@ -2039,7 +2039,12 @@ void GroupChatRoom::makeTitleFromMemberNames()
     mTitleString.clear();
     if (mPeers.empty())
     {
-        mTitleString = "(empty)";
+        time_t ts = mCreationTs;
+        const struct tm *time = localtime(&ts);
+        char date[18];
+        strftime(date, sizeof(date), "%Y-%m-%d %H:%M", time);
+        mTitleString = "Chat created on ";
+        mTitleString.append(date);
     }
     else
     {

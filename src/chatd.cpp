@@ -1418,7 +1418,7 @@ void Chat::onFetchHistDone()
             //server returned zero messages
             assert((mDecryptOldHaltedAt == CHATD_IDX_INVALID) && (mDecryptNewHaltedAt == CHATD_IDX_INVALID));
             mHaveAllHistory = true;
-            CALL_DB(setHaveAllHistory);
+            CALL_DB(setHaveAllHistory, true);
             CHATID_LOG_DEBUG("Start of history reached");
             //last text msg stuff
             if (mLastTextMsg.isFetching())
@@ -1467,7 +1467,7 @@ void Chat::loadAndProcessUnsent()
     //last text message stuff
     for (auto it = mSending.rbegin(); it!=mSending.rend(); it++)
     {
-        if (it->msg->isText())
+        if (it->msg->isValidLastMessage())
         {
             onLastTextMsgUpdated(*it->msg);
             return;
@@ -1677,6 +1677,11 @@ void Chat::requestRichLink(Message &message)
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
+    if (msglen > kMaxMsgSize)
+    {
+        return NULL;
+    }
+
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().userId(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
@@ -1699,7 +1704,7 @@ void Chat::msgSubmit(Message* msg)
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     // last text msg stuff
-    if (msg->isText())
+    if (msg->isValidLastMessage())
     {
         onLastTextMsgUpdated(*msg);
     }
@@ -2127,11 +2132,9 @@ int Chat::unreadMsgCount() const
 {
     if (mLastSeenIdx == CHATD_IDX_INVALID)
     {
-        Message* msg;
-        if (!empty() && ((msg = newest())->type == Message::kMsgTruncate))
+        if (mHaveAllHistory)
         {
-            assert(size() == 1);
-            return (msg->userid != client().userId()) ? 1 : 0;
+            return mDbInterface->getPeerMsgCountAfterIdx(mLastSeenIdx);
         }
         else
         {
@@ -2153,7 +2156,7 @@ int Chat::unreadMsgCount() const
         auto& msg = at(i);
         if (msg.userid != mClient.userId()               // skip own messages
                 && !(msg.updated && !msg.size())         // skip deleted messages
-                && (msg.type != Message::kMsgRevokeAttachment))  // skip revoke messages
+                && (msg.isText()))  // Only text messages
         {
             count++;
         }
@@ -2348,7 +2351,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
 
     // last text message stuff
-    if (msg->isText())
+    if (msg->isValidLastMessage())
     {
         if (mLastTextMsg.idx() == CHATD_IDX_INVALID)
         {
@@ -2550,7 +2553,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             else if (mLastTextMsg.idx() == idx) //last text msg stuff
             {
                 //our last text message was edited
-                if (histmsg.isText()) //same message, but with updated contents
+                if (histmsg.isValidLastMessage()) //same message, but with updated contents
                 {
                     onLastTextMsgUpdated(histmsg, idx);
                 }
@@ -2612,6 +2615,8 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //GUI must detach and free any resources associated with
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
+        CALL_DB(setHaveAllHistory, true);
+        mHaveAllHistory = true;
         deleteMessagesBefore(idx);
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {
@@ -3004,7 +3009,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         CALL_LISTENER(onUnreadChanged);
 
     //handle last text message
-    if (msg.isText())
+    if (msg.isValidLastMessage())
     {
         if ((mLastTextMsg.state() != LastTextMsgState::kHave) //we don't have any last-text-msg yet, just use any
         || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
@@ -3232,7 +3237,7 @@ bool Chat::findLastTextMsg()
         {
             assert(it->msg);
             auto& msg = *it->msg;
-            if (msg.isText())
+            if (msg.isValidLastMessage())
             {
                 mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
@@ -3247,7 +3252,7 @@ bool Chat::findLastTextMsg()
         for (Idx i=highnum(); i >= low; i--)
         {
             auto& msg = at(i);
-            if (msg.isText())
+            if (msg.isValidLastMessage())
             {
                 mLastTextMsg.assign(msg, i);
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");

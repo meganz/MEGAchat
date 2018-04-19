@@ -809,6 +809,32 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the current email address of the contact
+     *
+     * This function is useful to get the email address of users you are NOT contact with.
+     * Note that for any other user without contact relationship, this function will return NULL.
+     *
+     * You take the ownership of the returned value
+     *
+     * This function is useful to get the email address of users who participate in a groupchat with
+     * you but are not your contacts.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_EMAIL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the email address of the user
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void getUserEmail(long userhandle, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserEmail(userhandle, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Returns the current email address of the user
      *
      * This function is useful to get the email address of users you are contact with.
@@ -1488,6 +1514,18 @@ public class MegaChatApiJava {
     }
 
     /**
+     *  Returns message id of the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return Message id for the last-seen-by-us, or invalid handle if \c chatid is invalid or
+     * the user has not seen any message in that chat
+     */
+    public long getLastMessageSeenId(long chatid){
+        return megaChatApi.getLastMessageSeenId(chatid);
+    }
+
+    /**
      * Removes the unsent message from the queue
      *
      * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
@@ -1747,6 +1785,15 @@ public class MegaChatApiJava {
      */
     public MegaChatCall getChatCall(long chatId){
         return megaChatApi.getChatCall(chatId);
+    }
+
+    /**
+     * Mark as ignored the MegaChatCall associated with a chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void setIgnoredCall(long chatid){
+        megaChatApi.setIgnoredCall(chatid);
     }
 
     /**
