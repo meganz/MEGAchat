@@ -479,7 +479,7 @@ public:
 
     bool isValidLastMessage() const
     {
-        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment);
+        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment && type != kMsgInvalid);
     }
 
     /** @brief Convert attachment etc. special messages to text */
