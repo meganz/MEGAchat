@@ -305,7 +305,7 @@ public:
     virtual void handleMessage(Chat& chat, const StaticBuffer& msg) {}
     virtual void handleCallData(Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg) {}
     virtual void onShutdown() {}
-    virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
+    virtual void onClientLeftCall(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
     virtual void onDisconnect(chatd::Connection& conn) {}
 
     /**
@@ -1048,6 +1048,8 @@ public:
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     void clearHistory();
+    unsigned int callParticipants() const;
+    void removeCallParticipants();
 
 protected:
     void msgSubmit(Message* msg);

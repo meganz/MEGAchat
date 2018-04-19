@@ -1232,7 +1232,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 assert(mClient.mRtcHandler);
                 if (mClient.mRtcHandler)    // in case chatd broadcast this opcode, instead of send it to the endpoint
                 {
-                    mClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
+                    mClient.mRtcHandler->onClientLeftCall(chatid, userid, clientid);
                 }
 #endif
 
@@ -1535,6 +1535,16 @@ void Chat::clearHistory()
     mCrypto->onHistoryReload();
     mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
+}
+
+unsigned int Chat::callParticipants() const
+{
+    return mCallParticipants.size();
+}
+
+void Chat::removeCallParticipants()
+{
+    mCallParticipants.clear();
 }
 
 Message* Chat::getMsgByXid(Id msgxid)

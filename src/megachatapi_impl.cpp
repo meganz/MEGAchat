@@ -976,7 +976,11 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
-            call->answer(avFlags);
+            if (!call->answer(avFlags));
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);

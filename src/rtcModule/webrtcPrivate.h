@@ -77,17 +77,26 @@ public:
     void onRenegotiationNeeded() {}
     void onError() {}
     //====
+    static bool isTermRetriable(TermCode reason);
     friend class Call;
     friend class stats::Recorder; //needs access to mRtcConn
 };
 
 class Call: public ICall
 {
+public:
+    enum CallDataState: uint8_t
+    {
+        kCallReqNotRinging = 0,
+        kCallReqRinging = 1,
+        kJoin = 2,
+        kMute = 3
+    };
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
-    std::map<chatd::EndpointId, unsigned int> mSessRetriesNumber;
     std::map<chatd::EndpointId, time_t> mSessRetriesTime;
+    std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::string mName;
     megaHandle mCallOutTimer = 0;
@@ -111,7 +120,7 @@ protected:
     void handleBusy(RtMessage& packet);
     void getLocalStream(karere::AvFlags av, std::string& errors);
     void muteUnmute(karere::AvFlags what, bool state);
-    void onUserOffline(karere::Id userid, uint32_t clientid);
+    void onClientLeftCall(karere::Id userid, uint32_t clientid);
     /** Called by the remote media player when the first frame is about to be rendered,
      *  analogous to onMediaRecv in the js version
      */
@@ -137,7 +146,9 @@ protected:
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid);
     void sendInCallCommand();
-    bool sendCallData(bool ringing);
+    bool sendCallData(Call::CallDataState state);
+    void destroyIfNoSessionsOrRetries(TermCode reason);
+    bool hasNoSessionsOrPendingRetries() const;
     friend class RtcModule;
     friend class Session;
 public:
@@ -167,6 +178,13 @@ public:
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 20000
     };
+
+    enum {
+       kMaxCAllRecivers = 8,
+       kMaxCallAudioSenders = 10,
+       kMaxCallVideoSenders = 6
+    };
+
     int maxbr = 0;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
@@ -183,7 +201,7 @@ public:
     void onDisconnect(chatd::Connection& conn);
     void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
     void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
-    void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    void onClientLeftCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     void onShutdown();
 //Implementation of virtual methods of IRtcModule
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
@@ -196,6 +214,10 @@ public:
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
 //==
+    void updatePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
+    void removePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    void removeAllAvStates(karere::Id chatid);
+    void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
     ~RtcModule();
 protected:
     const char* mStaticIceSever;
@@ -207,6 +229,7 @@ protected:
     webrtc::FakeConstraints mPcConstraints;
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
+    std::map<karere::Id, std::map <chatd::EndpointId, karere::AvFlags> > mPeerAvStates;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);

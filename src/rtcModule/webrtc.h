@@ -109,7 +109,7 @@ enum TermCode: uint8_t
     kErrIceFail = 31,           // < Media connection could not be established, because webrtc was unable to traverse NAT.
     // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
     kErrSdp = 32,               // < error generating or setting SDP description
-    kErrUserOffline = 33,       // < we received a notification that that user went offline
+    kErrPeerOffline = 33,       // < we received a notification that that user went offline
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
     kErrorLast = 35,            // < Last enum indicating call termination due to error
