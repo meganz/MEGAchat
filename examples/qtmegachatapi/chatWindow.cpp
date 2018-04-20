@@ -308,9 +308,9 @@ megachat::MegaChatHandle ChatWindow::getMessageId(megachat::MegaChatMessage *msg
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-CallGui *ChatWindow::getCallGui() const
+std::set<CallGui *> *ChatWindow::getCallGui()
 {
-    return mCallGui;
+    return &callParticipantsGui;
 }
 
 void ChatWindow::setCallGui(CallGui *callGui)
@@ -643,11 +643,20 @@ void ChatWindow::onAudioCallBtn(bool)
 
 void ChatWindow::createCallGui(bool video)
 {
+    CallGui * callGui = NULL;
     auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
-    mCallGui = new CallGui(this, video);
-    layout->insertWidget(1, mCallGui, 1);
-    ui->mTitlebar->hide();
-    ui->mTextChatWidget->hide();
+
+    callGui = new CallGui(this, video, true);
+    this->callParticipantsGui.insert(callGui);
+
+    layout->insertWidget(0, callGui, 1);
+
+    callGui = new CallGui(this, video, false);
+    this->callParticipantsGui.insert(callGui);
+    layout->insertWidget(1, callGui, 1);
+
+    //ui->mTitlebar->hide();
+    //ui->mTextChatWidget->hide();
 }
 
 void ChatWindow::closeEvent(QCloseEvent *event)
@@ -673,7 +682,15 @@ void ChatWindow::onCallBtn(bool video)
 
 void ChatWindow::connectCall()
 {
-    mCallGui->connectCall();
+    std::set<CallGui *>::iterator it;
+    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
+    {
+        CallGui *call = *it;
+        if (!call->getCall())
+        {
+            call->connectCall();
+        }
+    }
 }
 
 void ChatWindow::hangCall()
@@ -683,12 +700,11 @@ void ChatWindow::hangCall()
 
 void ChatWindow::deleteCallGui()
 {
-    if (mCallGui)
+    std::set<CallGui *>::iterator it;
+    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
-        mCallGui->deleteLater();
-        mCallGui = NULL;
+        CallGui *call = *it;
+        call->deleteLater();
     }
-    ui->mTitlebar->show();
-    ui->mTextChatWidget->show();
 }
 #endif

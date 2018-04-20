@@ -55,13 +55,14 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
 #ifndef KARERE_DISABLE_WEBRTC
-        CallGui *getCallGui() const;
+        std::set<CallGui *> *getCallGui();
         void setCallGui(CallGui *callGui);
 #endif
     protected:
         Ui::ChatWindowUi *ui;
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *mCallGui;
+        std::set<CallGui *> callParticipantsGui;
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;

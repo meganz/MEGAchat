@@ -18,7 +18,7 @@ void RemoteCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid
     QImage *auxImg = CreateFrame(width, height, buffer, size);
     if(auxImg)
     {
-        this->mCallGui->ui->remoteRenderer->setStaticImage(auxImg);
-        this->mCallGui->ui->remoteRenderer->enableStaticImage();
+        this->mCallGui->ui->videoRenderer->setStaticImage(auxImg);
+        this->mCallGui->ui->videoRenderer->enableStaticImage();
     }
 }

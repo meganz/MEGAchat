@@ -104,23 +104,43 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            break;
         case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
            {
-               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
-               if ((auxChatWindow->getCallGui()) && !(auxChatWindow->getCallGui()->getCall()))
+               ChatWindow *auxChatWindow = chatItemWidget->getChatWindow();
+               CallGui *callGui = NULL;
+               std::set<CallGui *> *setOfCallGui = auxChatWindow->getCallGui();
+               std::set<CallGui *>::iterator it;
+
+               if (setOfCallGui->size() != 0)
                {
+                   //CHECK IF ITS IN PROGRESS
                    auxChatWindow->connectCall();
                }
 
-               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
+               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))  //CHANGE
                {
-                    CallGui *callGui = auxChatWindow->getCallGui();
-                    if(call->hasRemoteVideo())
+                    for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
                     {
-                        callGui->ui->remoteRenderer->disableStaticImage();
-                    }
-                    else
-                    {
-                        callGui->setAvatarOnRemote();
-                        callGui->ui->remoteRenderer->enableStaticImage();
+                        CallGui *callgui = *it;
+                        if (!callgui->isLocal())
+                        {
+                            if(call->hasRemoteVideo())
+                            {
+                                QMessageBox::critical(this, tr("HAS VIDEO"), tr("HAS VIDEO"));
+                            }
+                            else
+                            {
+                                QMessageBox::critical(this, tr("NO HAS VIDEO"), tr("NO HAS VIDEO"));
+                            }
+
+                            if(call->hasRemoteVideo())
+                            {
+                   //             callGui->ui->videoRenderer->disableStaticImage();
+                            }
+                            else
+                            {
+                   //             callGui->setAvatar();
+                   //             callGui->ui->videoRenderer->enableStaticImage();
+                            }
+                        }
                     }
                }
            }

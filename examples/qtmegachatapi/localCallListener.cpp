@@ -18,7 +18,7 @@ void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid,
     QImage *auxImg = CreateFrame(width, height, buffer, size);
     if(auxImg)
     {
-        this->mCallGui->ui->localRenderer->setStaticImage(auxImg);
-        this->mCallGui->ui->localRenderer->enableStaticImage();
+        this->mCallGui->ui->videoRenderer->setStaticImage(auxImg);
+        this->mCallGui->ui->videoRenderer->enableStaticImage();
     }
 }

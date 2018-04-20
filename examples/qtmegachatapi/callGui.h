@@ -24,10 +24,9 @@ class CallGui: public QWidget
         RemoteCallListener *remoteCallListener;
         LocalCallListener *localCallListener;
         bool mVideo;
-        void setAvatarOnRemote();
-        void setAvatarOnLocal();
+        bool mLocal;
+        void setAvatar();
         void drawAvatar(QImage &image, QChar letter, uint64_t userid);
-        void drawOwnAvatar(QImage &image);
         void drawPeerAvatar(QImage &image);
     public slots:
         void onHangCall(bool);
@@ -37,7 +36,7 @@ class CallGui: public QWidget
         void onAnswerCallBtn(bool);
     public:
         Ui::CallGui *ui;
-        CallGui(ChatWindow *parent, bool video);
+        CallGui(ChatWindow *parent, bool video, bool local);
         virtual ~ CallGui();
         void hangCall();
         void connectCall();
@@ -47,6 +46,7 @@ class CallGui: public QWidget
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
         virtual void onLocalMediaError(const std::string err);
         virtual void onVideoRecv();
+        bool isLocal();
 
     friend class RemoteCallListener;
     friend class LocalCallListener;
