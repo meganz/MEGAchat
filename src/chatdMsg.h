@@ -487,7 +487,9 @@ public:
 
     bool isValidLastMessage() const
     {
-        return ((!empty() || type == kMsgTruncate) && type != kMsgRevokeAttachment);
+        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+                && type != kMsgRevokeAttachment     // skip revokes
+                && type != kMsgInvalid);            // skip (still) encrypted messages
     }
 
     // conditions to consider unread messages should match the

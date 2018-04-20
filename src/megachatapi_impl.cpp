@@ -938,7 +938,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     Idx first = (lastSeenIdx != CHATD_IDX_INVALID) ? (lastSeenIdx + 1) : chat.lownum();
                     Idx last = chat.highnum();
                     int maxCount = 6;   // do not notify more than 6 messages per chat
-                    for (Idx i = first; (i <= last && maxCount > 0); i++)
+                    for (Idx i = last; (i >= first && maxCount > 0); i--)
                     {
                         auto& msg = chat.at(i);
                         if (msg.isValidUnread(mClient->myHandle()))

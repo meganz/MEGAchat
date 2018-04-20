@@ -43,6 +43,7 @@ void ChatItemWidget::invalidChatWindowHandle()
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
 {
     QString text = NULL;
+    std::string senderHandle;
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     megachat::MegaChatHandle lastMessageId = item->getLastMessageId();
     int lastMessageType = item->getLastMessageType();
@@ -51,26 +52,44 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
 
+    megachat::MegaChatHandle lastMessageSender = item->getLastMessageSender();
+    if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
+    {
+        senderHandle = "";
+    }
+    else
+    {
+        char *uh = mMainWin->mMegaApi->userHandleToBase64(lastMessageSender);
+        senderHandle.assign(uh);
+        delete uh;
+    }
+
     if (author)
     {
         mLastMsgAuthor.assign(author);
     }
     else
     {
-        const char *msgAuthor = getLastMessageSenderName(item->getLastMessageSender());
-        if (msgAuthor)
+        if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
         {
-            mLastMsgAuthor.assign(msgAuthor);
+            mLastMsgAuthor = "";
         }
         else
         {
-            mLastMsgAuthor = "Unknown participant";
-            mMegaChatApi->getUserFirstname(item->getLastMessageSender());
+            const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
+            if (msgAuthor)
+            {
+                mLastMsgAuthor.assign(msgAuthor);
+            }
+            else
+            {
+                mLastMsgAuthor = "Unknown participant";
+                mMegaChatApi->getUserFirstname(lastMessageSender);
+            }
+            delete msgAuthor;
         }
-        delete msgAuthor;
     }
 
-    const char *senderName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageSender());
     switch (lastMessageType)
     {
         case megachat::MegaChatMessage::TYPE_INVALID:
@@ -83,22 +102,43 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
 
         case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
         {
-            const char *targetName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+            std::string targetName;
+            if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
+            {
+                targetName = "";
+            }
+            else
+            {
+                char *uh = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+                targetName.assign(uh);
+                delete uh;
+            }
+
             bool removed = item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM;
-            lastMessage.append("User ").append(senderName)
+            lastMessage.append("User ").append(senderHandle)
                     .append(removed ? " removed" : " added")
                     .append(" user ").append(targetName);
-            delete [] targetName;
             break;
         }
         case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
         {
-            const char *targetName = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
-            const char *priv = megachat::MegaChatRoom::privToString(item->getLastMessagePriv());
-            lastMessage.append("User ").append(senderName)
+            std::string targetName;
+            std::string priv;
+            if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
+            {
+                targetName = "";
+                priv = "";
+            }
+            else
+            {
+                char *uh = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
+                targetName.assign(uh);
+                priv.assign(megachat::MegaChatRoom::privToString(item->getLastMessagePriv()));
+                delete uh;
+            }
+            lastMessage.append("User ").append(senderHandle)
                        .append(" set privilege of user ").append(targetName)
                        .append(" to ").append(priv);
-            delete [] targetName;
             break;
         }
         case megachat::MegaChatMessage::TYPE_TRUNCATE:
@@ -106,17 +146,17 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             break;
 
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
-            lastMessage.append("User ").append(senderName)
+            lastMessage.append("User ").append(senderHandle)
                        .append(" attached a contact: ").append(item->getLastMessage());
             break;
 
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
-            lastMessage.append("User ").append(senderName)
+            lastMessage.append("User ").append(senderHandle)
                        .append(" attached a node: ").append(item->getLastMessage());
             break;
 
         case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
-            lastMessage.append("User ").append(senderName)
+            lastMessage.append("User ").append(senderHandle)
                        .append(" set chat title: ").append(item->getLastMessage());
             break;
 
@@ -128,7 +168,6 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage = item->getLastMessage();
             break;
     }
-    delete [] senderName;
 
     if(item->getLastMessageId() != megachat::MEGACHAT_INVALID_HANDLE)
     {
