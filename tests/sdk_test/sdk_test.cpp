@@ -2538,13 +2538,13 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
     flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
     *flagRequestRichLink = false;
     flagRichLink = &mRichLinkFlag[a1];
-    *flagRichLink = false;
+    *flagRichLink = true;
     countRichLink = &mCountRichLink[a1];
     *countRichLink = 0;
     megaApi[a1]->shouldShowRichLinkWarning();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
     ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
-    ASSERT_CHAT_TEST(enableRichLink == (*flagRichLink), "Rich link enable/disable has not worked");
+    ASSERT_CHAT_TEST(*flagRichLink == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
 
     int counter = *countRichLink + 1;
     bool *flagCounterRichLink = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagCounterRichLink = false;
@@ -2561,6 +2561,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
     ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
     ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
     ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value");
+    ASSERT_CHAT_TEST(*flagRichLink == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
 
     delete [] primarySession;
     primarySession = NULL;
@@ -3223,7 +3224,7 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
     requestFlags[apiIndex][request->getType()] = true;
 }
 
-void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* requests)
+void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* /*requests*/)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
 
