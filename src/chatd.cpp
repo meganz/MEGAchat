@@ -3441,6 +3441,11 @@ bool Message::parseUrl(const std::string &url)
         return false;
     }
 
+    if (url.find("mega.co.nz/#!") != std::string::npos || url.find("mega.nz/#F!") != std::string::npos)
+    {
+        return false;
+    }
+
     std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9]+([-.]{1}[a-z0-9]+)*.[a-z]{2,5}(:[0-9]{1,5})?(.*)?$");
     return regex_match(url, regularExpresion);
 }
