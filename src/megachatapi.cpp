@@ -679,7 +679,7 @@ void MegaChatApi::setCatchException(bool enable)
 
 bool MegaChatApi::hasUrl(const char *text)
 {
-    MegaChatApiImpl::hasUrl(text);
+    return MegaChatApiImpl::hasUrl(text);
 }
 
 void MegaChatApi::addChatListener(MegaChatListener *listener)
