@@ -516,7 +516,7 @@ promise::Promise<void> Connection::retryPendingConnection()
             cancelTimeout(mEchoTimer, mClient.karereClient->appCtx);
             mEchoTimer = 0;
         }
-        CHATD_LOG_WARNING("Retrying pending connenction...");
+        CHATD_LOG_WARNING("Retrying pending connection...");
         return reconnect();
     }
     return promise::Error("No valid URL provided to retry pending connections");
