@@ -334,10 +334,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 }
 
-void RtcModule::onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv)
-{
-}
-
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {
