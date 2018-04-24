@@ -86,36 +86,49 @@ Client::Client(karere::Client *client, Id userId)
     mRichPrevAttrCbHandle = karereClient->userAttrCache().getAttr(mUserId, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
        [](::Buffer *buf, void* userp)
        {
+            Client *client = static_cast<Client*>(userp);
+            client->mRichLinkState = kRichLinkNotDefined;
+
+            // if user changed the option to do/don't generate rich links...
             if (buf && !buf->empty())
             {
-                Client *client = static_cast<Client*>(userp);
                 char tmp[2];
                 base64urldecode(buf->buf(), buf->size(), tmp, 2);
-                if (*tmp == '1')
+                switch(*tmp)
                 {
+                case '1':
                     client->mRichLinkState = kRichLinkEnabled;
-                    for (auto& chat: client->mChatForChatId)
-                    {
-                        chat.second->requestPendingRichLinks();
-                    }
-                }
-                else if (*tmp == '0')
-                {
+                    break;
+
+                case '0':
                     client->mRichLinkState = kRichLinkDisabled;
-                    for (auto& chat: client->mChatForChatId)
-                    {
-                        chat.second->removePendingRichLinks();
-                    }
-                }
-                else
-                {
-                    static_cast<Client*>(userp)->mRichLinkState = kRichLinkNotDefined;
-                    CHATD_LOG_WARNING("Unexpected value for user attribute USER_ATTR_RICH_PREVIEWS - key: 'num'");
+                    break;
+
+                default:
+                    CHATD_LOG_WARNING("Unexpected value for user attribute USER_ATTR_RICH_PREVIEWS - value: %c", *tmp);
+                    break;
                 }
             }
-            else
+
+            // proceed to prepare rich-links or to discard them
+            switch (client->mRichLinkState)
             {
-                static_cast<Client*>(userp)->mRichLinkState = kRichLinkNotDefined;
+            case kRichLinkEnabled:
+                for (auto& chat: client->mChatForChatId)
+                {
+                    chat.second->requestPendingRichLinks();
+                }
+                break;
+
+            case kRichLinkDisabled:
+                for (auto& chat: client->mChatForChatId)
+                {
+                    chat.second->removePendingRichLinks();
+                }
+                break;
+
+            case kRichLinkNotDefined:
+                break;
             }
        });
 }
@@ -173,7 +186,7 @@ void Client::sendEcho()
         conn.second->sendEcho();
     }
 }
-  
+
 void Client::setKeepaliveType(bool isInBackground)
 {
     mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
@@ -299,7 +312,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     string reason;
     if (preason)
         reason.assign(preason, reason_len);
-    
+
     onSocketClose(errcode, errtype, reason);
 }
 
@@ -427,7 +440,7 @@ Promise<void> Connection::reconnect()
             {
                 auto& chat = mClient.chats(chatid);
                 if (!chat.isDisabled())
-                    chat.setOnlineState(kChatStateConnecting);                
+                    chat.setOnlineState(kChatStateConnecting);
             }
 
 
@@ -618,7 +631,7 @@ bool Connection::sendBuf(Buffer&& buf)
 {
     if (!isLoggedIn() && !isConnected())
         return false;
-    
+
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
     buf.free();
     return rc;
@@ -922,7 +935,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             {
                 if (wptr.deleted())
                     return;
-                
+
                 CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
                 requestHistoryFromServer(-count);
             }, mClient.karereClient->appCtx);
@@ -1050,7 +1063,7 @@ void Connection::wsHandleMsgCb(char *data, size_t len)
     mTsLastRecv = time(NULL);
     execCommand(StaticBuffer(data, len));
 }
-    
+
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?
@@ -1775,7 +1788,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     {
         if (wptr.deleted())
             return;
-        
+
         msgSubmit(message);
 
     }, mClient.karereClient->appCtx);
@@ -1984,11 +1997,11 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     {
         if (wptr.deleted())
             return;
-        
+
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
 
     }, mClient.karereClient->appCtx);
-    
+
     return upd;
 }
 
