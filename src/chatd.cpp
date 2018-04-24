@@ -2528,6 +2528,8 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
     if (msg.type == Message::kMsgContainsMeta)
     {
         CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %d", serverReason);
+        CALL_DB(deleteItemFromSending, mSending.front().rowid);
+        mSending.pop_front();
         return;
     }
 
