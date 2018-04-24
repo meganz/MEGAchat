@@ -1759,13 +1759,14 @@ void Chat::removePendingRichLinks(Idx idx)
 void Chat::manageRichLinkMessage(Message &message)
 {
     std::string url;
-    if (Message::hasUrl(message.toText(), url) &&
-            mMsgsToUpdateWithRichLink.find(message.id()) == mMsgsToUpdateWithRichLink.end())
+    bool hasURL = Message::hasUrl(message.toText(), url);
+    bool isMsgQueued = (mMsgsToUpdateWithRichLink.find(message.id()) != mMsgsToUpdateWithRichLink.end());
+
+    if (!isMsgQueued && hasURL)
     {
         mMsgsToUpdateWithRichLink.insert(message.id());
     }
-    else if (!Message::hasUrl(message.toText(), url) &&
-            mMsgsToUpdateWithRichLink.find(message.id()) != mMsgsToUpdateWithRichLink.end())
+    else if (isMsgQueued && !hasURL)    // another edit removed the previous URL
     {
         mMsgsToUpdateWithRichLink.erase(message.id());
     }
