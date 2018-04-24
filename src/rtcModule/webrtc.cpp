@@ -512,6 +512,16 @@ void RtcModule::hangupAll(TermCode code)
     }
 }
 
+RtcModule::~RtcModule()
+{
+    if (!artc::isInitialized())
+        return;
+
+    RTCM_LOG_DEBUG("WebRTC stack cleaning up...");
+    artc::cleanup();
+    RTCM_LOG_DEBUG("WebRTC stack cleaned up");
+}
+
 void RtcModule::stopCallsTimers(int shard)
 {
     for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
