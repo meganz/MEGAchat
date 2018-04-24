@@ -196,7 +196,7 @@ public:
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
 //==
-    ~RtcModule();
+    virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;
