@@ -333,10 +333,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 }
 
-void RtcModule::onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv)
-{
-}
-
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {
@@ -510,6 +506,16 @@ void RtcModule::hangupAll(TermCode code)
 
         call->hangup(code);
     }
+}
+
+RtcModule::~RtcModule()
+{
+    if (!artc::isInitialized())
+        return;
+
+    RTCM_LOG_DEBUG("WebRTC stack cleaning up...");
+    artc::cleanup();
+    RTCM_LOG_DEBUG("WebRTC stack cleaned up");
 }
 
 void RtcModule::stopCallsTimers(int shard)

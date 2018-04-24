@@ -298,6 +298,7 @@ protected:
         karere::Id ownAnonId)
         : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
 public:
+    virtual ~IRtcModule() {}
     karere::Client& mClient;
 
     /** @brief Default video encoding parameters. */

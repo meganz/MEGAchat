@@ -170,22 +170,18 @@ public:
     int maxbr = 0;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
-    virtual void init();
     int setIceServers(const karere::ServerList& servers);
-    void onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv);
-    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
-    virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
-    virtual void hangupAll(TermCode reason);
-    virtual void stopCallsTimers(int shard);
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd
-    void onDisconnect(chatd::Connection& conn);
-    void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
-    void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
-    void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
-    void onShutdown();
+    virtual void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
+    virtual void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
+    virtual void onShutdown();
+    virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    virtual void onDisconnect(chatd::Connection& conn);
+    virtual void stopCallsTimers(int shard);
 //Implementation of virtual methods of IRtcModule
+    virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
     virtual void getVideoInDevices(std::vector<std::string>& devices) const;
     virtual bool selectVideoInDevice(const std::string& devname);
@@ -195,8 +191,11 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual void hangupAll(TermCode reason);
 //==
-    ~RtcModule();
+    virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;
