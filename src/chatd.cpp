@@ -3441,7 +3441,8 @@ bool Message::parseUrl(const std::string &url)
         return false;
     }
 
-    if (url.find("mega.co.nz/#!") != std::string::npos || url.find("mega.nz/#F!") != std::string::npos)
+    if (url.find("mega.co.nz/#!") != std::string::npos || url.find("mega.co.nz/#F!") != std::string::npos ||
+            url.find("mega.nz/#!") != std::string::npos || url.find("mega.nz/#F!") != std::string::npos)
     {
         return false;
     }
