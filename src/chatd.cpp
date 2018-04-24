@@ -99,13 +99,18 @@ Client::Client(karere::Client *client, Id userId)
                         chat.second->requestPendingRichLinks();
                     }
                 }
-                else
+                else if (*tmp == '0')
                 {
                     client->mRichLinkState = kRichLinkDisabled;
                     for (auto& chat: client->mChatForChatId)
                     {
                         chat.second->removePendingRichLinks();
                     }
+                }
+                else
+                {
+                    static_cast<Client*>(userp)->mRichLinkState = kRichLinkNotDefined;
+                    CHATD_LOG_WARNING("Unexpected value for user attribute USER_ATTR_RICH_PREVIEWS - key: 'num'");
                 }
             }
             else
