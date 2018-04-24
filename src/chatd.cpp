@@ -1726,11 +1726,10 @@ void Chat::removePendingRichLinks()
 
 void Chat::removePendingRichLinks(Idx idx)
 {
-    for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin();
-         it != mMsgsToUpdateWithRichLink.end();
-         it++)
+    for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin(); it != mMsgsToUpdateWithRichLink.end(); )
     {
         karere::Id msgid = *it;
+        it ++;
         Idx index = msgIndexFromId(msgid);
         if (index != CHATD_IDX_INVALID && index < idx)     // only confirmed messages have index
         {
