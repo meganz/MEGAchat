@@ -88,13 +88,29 @@ Client::Client(karere::Client *client, Id userId)
        {
             if (buf && !buf->empty())
             {
+                Client *client = static_cast<Client*>(userp);
                 char tmp[2];
                 base64urldecode(buf->buf(), buf->size(), tmp, 2);
-                static_cast<Client*>(userp)->mRichLinkEnable = (*tmp == '1');
+                if (*tmp == '1')
+                {
+                    client->mRichLinkState = kRichLinkEnabled;
+                    for (auto& chat: client->mChatForChatId)
+                    {
+                        chat.second->requestPendingRichLinks();
+                    }
+                }
+                else
+                {
+                    client->mRichLinkState = kRichLinkDisabled;
+                    for (auto& chat: client->mChatForChatId)
+                    {
+                        chat.second->removePendingRichLinks();
+                    }
+                }
             }
             else
             {
-                static_cast<Client*>(userp)->mRichLinkEnable = false;
+                static_cast<Client*>(userp)->mRichLinkState = kRichLinkNotDefined;
             }
        });
 }
@@ -191,9 +207,9 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-bool Client::isRichLinkEnable() const
+uint8_t Client::richLinkState() const
 {
-    return mRichLinkEnable;
+    return mRichLinkState;
 }
 
 void Chat::connect()
@@ -1660,6 +1676,7 @@ void Chat::requestRichLink(Message &message)
                 std::string updateText = header + textMessage + std::string("]}");
                 size_t size = updateText.size();
 
+                msg->type = Message::kMsgContainsMeta;
                 msgModify(*msg, updateText.c_str(), size, NULL);
             }
         })
@@ -1673,7 +1690,69 @@ void Chat::requestRichLink(Message &message)
     }
 }
 
+void Chat::requestPendingRichLinks()
+{
+    for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin();
+         it != mMsgsToUpdateWithRichLink.end();
+         it++)
+    {
+        karere::Id msgid = *it;
+        Idx index = msgIndexFromId(msgid);
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
+        {
+            Message *msg = findOrNull(index);
+            if (msg)
+            {
+                requestRichLink(*msg);
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+        else
+        {
+            CHATID_LOG_DEBUG("Failed to find message by id (id: %d)", msgid);
+        }
+    }
 
+    mMsgsToUpdateWithRichLink.clear();
+}
+
+void Chat::removePendingRichLinks()
+{
+    mMsgsToUpdateWithRichLink.clear();
+}
+
+void Chat::removePendingRichLinks(Idx idx)
+{
+    for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin();
+         it != mMsgsToUpdateWithRichLink.end();
+         it++)
+    {
+        karere::Id msgid = *it;
+        Idx index = msgIndexFromId(msgid);
+        if (index != CHATD_IDX_INVALID && index < idx)     // only confirmed messages have index
+        {
+            mMsgsToUpdateWithRichLink.erase(msgid);
+        }
+    }
+}
+
+void Chat::manageRichLinkMessage(Message &message)
+{
+    std::string url;
+    if (Message::hasUrl(message.toText(), url) &&
+            mMsgsToUpdateWithRichLink.find(message.id()) == mMsgsToUpdateWithRichLink.end())
+    {
+        mMsgsToUpdateWithRichLink.insert(message.id());
+    }
+    else if (!Message::hasUrl(message.toText(), url) &&
+            mMsgsToUpdateWithRichLink.find(message.id()) != mMsgsToUpdateWithRichLink.end())
+    {
+        mMsgsToUpdateWithRichLink.erase(message.id());
+    }
+}
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
@@ -1893,15 +1972,8 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
     } //end msg.isSending()
 
-
-    unsigned char type = msg.type;
-    if (msg.type == Message::kMsgContainsMeta)
-    {
-        type = Message::kMsgNormal;
-    }
-
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
-        msg.isSending(), msg.keyid, type, userp);
+        msg.isSending(), msg.keyid, msg.type, userp);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd]()
@@ -2376,9 +2448,13 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    if (mClient.isRichLinkEnable())
+    if (mClient.richLinkState() == Client::kRichLinkEnabled)
     {
         requestRichLink(*msg);
+    }
+    else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+    {
+        manageRichLinkMessage(*msg);
     }
 
     return idx;
@@ -2428,6 +2504,13 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
         errorMsg.append("'");
 
         throw std::runtime_error(errorMsg);
+    }
+
+    // Update with contains meta has been reject by server. We don't notify
+    if (msg.type == Message::kMsgContainsMeta)
+    {
+        CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %d", serverReason);
+        return;
     }
 
     /* Server reason:
@@ -2491,9 +2574,16 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             else
                 msg->type = msg->buf()[1];
         }
-        else if (msg->type == Message::kMsgNormal && msgUpdatedByMe && client().isRichLinkEnable())
+        else if (msg->type == Message::kMsgNormal && msgUpdatedByMe)
         {
-            requestRichLink(*msg);
+            if ( client().richLinkState() == Client::kRichLinkEnabled)
+            {
+                requestRichLink(*msg);
+            }
+            else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+            {
+                manageRichLinkMessage(*msg);
+            }
         }
 
         //update in db
@@ -2617,6 +2707,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         CALL_LISTENER(onHistoryTruncated, msg, idx);
         CALL_DB(setHaveAllHistory, true);
         mHaveAllHistory = true;
+        removePendingRichLinks(idx);
         deleteMessagesBefore(idx);
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {

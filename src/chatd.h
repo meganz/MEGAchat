@@ -633,6 +633,7 @@ protected:
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     uint32_t mLastMsgTs;
     bool mIsGroup;
+    std::set<karere::Id> mMsgsToUpdateWithRichLink;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -689,6 +690,10 @@ protected:
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
     void requestRichLink(Message &message);
+    void requestPendingRichLinks();
+    void removePendingRichLinks();
+    void removePendingRichLinks(Idx idx);
+    void manageRichLinkMessage(Message &message);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -1051,6 +1056,7 @@ public:
     bool isGroup() const;
     void clearHistory();
 
+
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1098,7 +1104,7 @@ protected:
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
-    bool mRichLinkEnable = false;
+    uint8_t mRichLinkState = kRichLinkNotDefined;
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
     Connection& chatidConn(karere::Id chatid)
@@ -1114,6 +1120,7 @@ protected:
     void sendEcho();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
+    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
     MyMegaApi *mApi;
@@ -1155,7 +1162,7 @@ public:
     /** Clean the timers set */
     void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
-    bool isRichLinkEnable() const;
+    uint8_t richLinkState() const;
     friend class Connection;
     friend class Chat;
 

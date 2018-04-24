@@ -389,7 +389,6 @@ void ChatMessage::saveMsgEdit(bool clicked)
         megachat::MegaChatMessage *message = megaChatApi->editMessage(mChatId, messageId, editedMsg.c_str());
         if (message)
         {
-            delete mMessage;
             setMessage(message);
             setMessageContent(message->getContent());
         }
