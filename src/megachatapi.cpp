@@ -1241,57 +1241,62 @@ bool MegaChatMessage::hasChanged(int) const
     return false;
 }
 
-int MegaChatMessage::containsMetaType() const
-{
-    return CONTAINS_META_INVALID;
-}
-
-const char *MegaChatMessage::getRichPreviewText() const
+const MegaChatContainsMeta *MegaChatMessage::getContainsMeta() const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getRichPreviewTitle() const
+MegaChatRichPreview *MegaChatRichPreview::copy() const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getRichPreviewDescription() const
+const char *MegaChatRichPreview::getText() const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getRichPreviewImage() const
+const char *MegaChatRichPreview::getTitle() const
 {
     return NULL;
 }
 
-unsigned int MegaChatMessage::getRichPreviewImageSize() const
+const char *MegaChatRichPreview::getDescription() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getImage() const
+{
+    return NULL;
+}
+
+unsigned int MegaChatRichPreview::getImageSize() const
 {
     return 0;
 }
 
-const char *MegaChatMessage::getRichPreviewImageFormat() const
+const char *MegaChatRichPreview::getImageFormat() const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getRichPreviewIcon() const
+const char *MegaChatRichPreview::getIcon() const
 {
     return NULL;
 }
 
-unsigned int MegaChatMessage::getRichPreviewIconSize() const
+unsigned int MegaChatRichPreview::getIconSize() const
 {
     return 0;
 }
 
-const char *MegaChatMessage::getRichPreviewIconFormat() const
+const char *MegaChatRichPreview::getIconFormat() const
 {
     return NULL;
 }
 
-const char *MegaChatMessage::getRichPreviewUrl() const
+const char *MegaChatRichPreview::getUrl() const
 {
     return NULL;
 }
@@ -1390,4 +1395,19 @@ bool MegaChatPresenceConfig::isSignalActivityRequired() const
 void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
 {
 
+}
+
+MegaChatContainsMeta *MegaChatContainsMeta::copy() const
+{
+    return NULL;
+}
+
+int MegaChatContainsMeta::getType() const
+{
+    return MegaChatContainsMeta::CONTAINS_META_INVALID;
+}
+
+const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
+{
+    return NULL;
 }

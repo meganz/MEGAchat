@@ -5340,24 +5340,26 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
     if (msg->getType() == TYPE_CONTAINS_META)
     {
-        const MegaChatMessagePrivate *msgPrivate = static_cast<const MegaChatMessagePrivate *>(msg);
-        const MegaChatContainsMeta *containsMeta = msgPrivate->getMetaContains();
-        if (containsMeta)
-        {
-            this->megaChatContainsMeta = containsMeta->copy();
-        }
-        else
-        {
-            API_LOG_ERROR("Invalid meta contained data");
-            assert(false);
-            this->megaChatContainsMeta = NULL;
-        }
+        this->mContainsMeta = getContainsMeta()->copy();
+//        const MegaChatMessagePrivate *msgPrivate = static_cast<const MegaChatMessagePrivate *>(msg);
+//        const MegaChatContainsMeta *containsMeta = msgPrivate->getMetaContains();
+//        if (containsMeta)
+//        {
+//            this->megaChatContainsMeta = containsMeta->copy();
+//        }
+//        else
+//        {
+//            API_LOG_ERROR("Invalid meta contained data");
+//            assert(false);
+//            this->megaChatContainsMeta = NULL;
+//        }
     }
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
     : megaChatUsers(NULL)
     , megaNodeList(NULL)
+    , mContainsMeta(NULL)
 {
     string tmp(msg.buf(), msg.size());
 
@@ -5412,7 +5414,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
-            megaChatContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
+            mContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
             break;
         }
         case MegaChatMessage::TYPE_NORMAL:
@@ -5428,7 +5430,7 @@ MegaChatMessagePrivate::~MegaChatMessagePrivate()
     delete [] msg;
     delete megaChatUsers;
     delete megaNodeList;
-    delete megaChatContainsMeta;
+    delete mContainsMeta;
 }
 
 MegaChatMessage *MegaChatMessagePrivate::copy() const
@@ -5535,126 +5537,6 @@ bool MegaChatMessagePrivate::hasChanged(int changeType) const
     return (changed & changeType);
 }
 
-int MegaChatMessagePrivate::containsMetaType() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta)
-    {
-        return megaChatContainsMeta->getType();
-    }
-
-    return CONTAINS_META_INVALID;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewText() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getText();
-    }
-
-    return NULL;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewTitle() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getTitle();
-    }
-
-    return NULL;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewDescription() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getDescription();
-    }
-
-    return NULL;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewImage() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getImage();
-    }
-
-    return NULL;
-}
-
-unsigned int MegaChatMessagePrivate::getRichPreviewImageSize() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getImageSize();
-    }
-
-    return 0;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewImageFormat() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getImageFormat();
-    }
-
-    return NULL;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewIcon() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getIcon();
-    }
-
-    return NULL;
-}
-
-unsigned int MegaChatMessagePrivate::getRichPreviewIconSize() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getIconSize();
-    }
-
-    return 0;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewIconFormat() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getIconFormat();
-    }
-
-    return NULL;
-}
-
-const char *MegaChatMessagePrivate::getRichPreviewUrl() const
-{
-    if (type == TYPE_CONTAINS_META && megaChatContainsMeta &&
-            megaChatContainsMeta->getType() == CONTAINS_META_RICH_PREVIEW && megaChatContainsMeta->getRichPreview())
-    {
-        return megaChatContainsMeta->getRichPreview()->getUrl();
-    }
-
-    return NULL;
-}
-
 void MegaChatMessagePrivate::setStatus(int status)
 {
     this->status = status;
@@ -5684,11 +5566,6 @@ void MegaChatMessagePrivate::setCode(int code)
 void MegaChatMessagePrivate::setAccess()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
-}
-
-const MegaChatContainsMeta *MegaChatMessagePrivate::getMetaContains() const
-{
-    return megaChatContainsMeta;
 }
 
 unsigned int MegaChatMessagePrivate::getUsersCount() const
@@ -5735,6 +5612,11 @@ const char *MegaChatMessagePrivate::getUserEmail(unsigned int index) const
 MegaNodeList *MegaChatMessagePrivate::getMegaNodeList() const
 {
     return megaNodeList;
+}
+
+const MegaChatContainsMeta *MegaChatMessagePrivate::getContainsMeta() const
+{
+    return mContainsMeta;
 }
 
 LoggerHandler::LoggerHandler()
@@ -6247,53 +6129,60 @@ const char *MegaChatAttachedUser::getName() const
     return mName.c_str();
 }
 
-MegaChatContainsMeta::MegaChatContainsMeta(const MegaChatRichPreview *richPreview)
-    : mRichPreview(richPreview), mType(MegaChatMessage::CONTAINS_META_RICH_PREVIEW)
-{
-}
-
-MegaChatContainsMeta::~MegaChatContainsMeta()
-{
-    delete mRichPreview;
-}
-
-int MegaChatContainsMeta::getType() const
+int MegaChatContainsMetaPrivate::getType() const
 {
     return mType;
 }
 
-const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
+const MegaChatRichPreview *MegaChatContainsMetaPrivate::getRichPreview() const
 {
     return mRichPreview;
 }
 
-MegaChatContainsMeta *MegaChatContainsMeta::copy() const
+void MegaChatContainsMetaPrivate::setType(int type)
 {
-    switch (mType)
-    {
-        case MegaChatMessage::CONTAINS_META_RICH_PREVIEW:
-        {
-            if (mRichPreview)
-            {
-                MegaChatRichPreview *richPreview = mRichPreview->copy();
-                return new MegaChatContainsMeta(richPreview);
-            }
-
-            break;
-        }
-        default:
-        {
-            return NULL;
-            break;
-        }
-    }
-
-    API_LOG_ERROR("Meta contained of type %d is NULL", mType);
-    assert(false);
-    return NULL;
+    mType = type;
 }
 
-MegaChatRichPreview::MegaChatRichPreview(const string &text, const string &title, const string &description,
+void MegaChatContainsMetaPrivate::setRichPreview(const MegaChatRichPreview *richPreview)
+{
+    mRichPreview = richPreview->copy();
+}
+
+MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsMeta *containsMeta)
+{
+    if (!containsMeta)
+    {
+        return;
+    }
+
+    this->mType = containsMeta->getType();
+    this->mRichPreview = containsMeta->getRichPreview() ? containsMeta->getRichPreview()->copy() : NULL;
+}
+
+MegaChatContainsMetaPrivate::~MegaChatContainsMetaPrivate()
+{
+    delete mRichPreview;
+}
+
+MegaChatContainsMeta *MegaChatContainsMetaPrivate::copy() const
+{
+    return new MegaChatContainsMetaPrivate(this);
+}
+
+MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const MegaChatRichPreview *richPreview)
+{
+    this->mText = richPreview->getText();
+    this->mTitle = richPreview->getTitle();
+    this->mDescription = richPreview->getDescription();
+    this->mImage.assign(richPreview->getImage(), richPreview->getImageSize());
+    this->mImagenFormat = richPreview->getImageFormat();
+    this->mIcon.assign(richPreview->getIcon(), richPreview->getIconSize());
+    this->mIconFormat = richPreview->getIconFormat();
+    this->mUrl = richPreview->getUrl();
+}
+
+MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const string &text, const string &title, const string &description,
                                          const string &image, const string &imageFormat, const string &icon,
                                          const string &iconFormat, const string &url)
     : mText(text), mTitle(title), mDescription(description)
@@ -6302,63 +6191,64 @@ MegaChatRichPreview::MegaChatRichPreview(const string &text, const string &title
 {
 }
 
-MegaChatRichPreview::~MegaChatRichPreview()
-{
-}
-
-const char *MegaChatRichPreview::getText() const
+const char *MegaChatRichPreviewPrivate::getText() const
 {
     return mText.c_str();
 }
 
-const char *MegaChatRichPreview::getTitle() const
+const char *MegaChatRichPreviewPrivate::getTitle() const
 {
     return mTitle.c_str();
 }
 
-const char *MegaChatRichPreview::getDescription() const
+const char *MegaChatRichPreviewPrivate::getDescription() const
 {
     return mDescription.c_str();
 }
 
-const char *MegaChatRichPreview::getImage() const
+const char *MegaChatRichPreviewPrivate::getImage() const
 {
-    return mImage.c_str();
+    return mImage.data();
 }
 
-int MegaChatRichPreview::getImageSize() const
+unsigned int MegaChatRichPreviewPrivate::getImageSize() const
 {
     return mImage.size();
 }
 
-const char *MegaChatRichPreview::getImageFormat() const
+const char *MegaChatRichPreviewPrivate::getImageFormat() const
 {
     return mIconFormat.c_str();
 }
 
-const char *MegaChatRichPreview::getIcon() const
+const char *MegaChatRichPreviewPrivate::getIcon() const
 {
-    return mIcon.c_str();
+    return mIcon.data();
 }
 
-int MegaChatRichPreview::getIconSize() const
+unsigned int MegaChatRichPreviewPrivate::getIconSize() const
 {
     return mIcon.size();
 }
 
-const char *MegaChatRichPreview::getIconFormat() const
+const char *MegaChatRichPreviewPrivate::getIconFormat() const
 {
     return mIconFormat.c_str();
 }
 
-const char *MegaChatRichPreview::getUrl() const
+const char *MegaChatRichPreviewPrivate::getUrl() const
 {
     return mUrl.c_str();
 }
 
-MegaChatRichPreview *MegaChatRichPreview::copy() const
+MegaChatRichPreview *MegaChatRichPreviewPrivate::copy() const
 {
-    return new MegaChatRichPreview(mText, mTitle, mDescription, mImage, mImagenFormat, mIcon, mIconFormat, mUrl);
+    return new MegaChatRichPreviewPrivate(this);
+}
+
+MegaChatRichPreviewPrivate::~MegaChatRichPreviewPrivate()
+{
+
 }
 
 std::vector<int32_t> DataTranslation::b_to_vector(const std::string& data)
@@ -6729,7 +6619,7 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             std::string metaContained = content;
             metaContained.erase(metaContained.begin(), metaContained.begin() + 2);
             const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(metaContained.c_str());
-            if (containsMeta->getType() == MegaChatMessagePrivate::CONTAINS_META_RICH_PREVIEW)
+            if (containsMeta->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
             {
                 messageContents = containsMeta->getRichPreview()->getText();
             }
@@ -6755,14 +6645,14 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json)
         return NULL;
     }
 
-    MegaChatContainsMeta *containsMeta = NULL;
+    MegaChatContainsMetaPrivate *containsMeta = new MegaChatContainsMetaPrivate();
     int type = (int)json[0];
     switch (type)
     {
-        case MegaChatMessagePrivate::CONTAINS_META_RICH_PREVIEW:
+        case MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
         {
-            MegaChatRichPreview *richPreview = parseRichPreview(&json[1]);
-            containsMeta = new MegaChatContainsMeta(richPreview);
+            containsMeta->setType(type);
+            containsMeta->setRichPreview(parseRichPreview(&json[1]));
             break;
         }
         default:
@@ -6855,7 +6745,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
         }
     }
 
-    MegaChatRichPreview *richPreview = new MegaChatRichPreview(textMessage, title, description, image, imageFormat, icon, iconFormat, url);
+    MegaChatRichPreview *richPreview = new MegaChatRichPreviewPrivate(textMessage, title, description, image, imageFormat, icon, iconFormat, url);
 
     return richPreview;
 }

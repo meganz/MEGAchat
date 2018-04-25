@@ -76,21 +76,23 @@ void ChatMessage::updateToolTip()
 void ChatMessage::showRichLinkData()
 {
     QString text = tr("[Contains-metadata msg]");
-    if (mMessage->containsMetaType() == megachat::MegaChatMessage::CONTAINS_META_RICH_PREVIEW)
+    const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
+    if (containsMeta && containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
     {
+        const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
         text.append(tr("\nSubtype: rich-link"))
             .append(tr("\nOriginal content: "))
-            .append(mMessage->getRichPreviewText())
+            .append(richPreview->getText())
             .append(tr("\nURL: "))
-            .append(mMessage->getRichPreviewUrl())
+            .append(richPreview->getUrl())
             .append(tr("\nTitle: "))
-            .append(mMessage->getRichPreviewTitle())
+            .append(richPreview->getTitle())
             .append(tr("\nDescription: "))
-            .append(mMessage->getRichPreviewDescription())
+            .append(richPreview->getDescription())
             .append(tr("\nHas icon: "))
-            .append(mMessage->getRichPreviewIcon() ? "yes" : "no")
+            .append(richPreview->getIcon() ? "yes" : "no")
             .append(tr("\nHas image: "))
-            .append(mMessage->getRichPreviewImage() ? "yes" : "no");
+            .append(richPreview->getImage() ? "yes" : "no");
     }
     ui->mMsgDisplay->setText(text);
     ui->mMsgDisplay->setStyleSheet("background-color: rgba(213,245,160,128)\n");
@@ -364,14 +366,16 @@ void ChatMessage::cancelMsgEdit(bool clicked)
 void ChatMessage::saveMsgEdit(bool clicked)
 {
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
-    std::string previousContent;
+    std::string previousContent = mMessage->getContent();
+
     if (mMessage->getType() == megachat::MegaChatMessage::TYPE_CONTAINS_META)
     {
-        previousContent = mMessage->getRichPreviewText();
-    }
-    else
-    {
-        previousContent = mMessage->getContent();
+        const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
+        if (containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+        {
+            const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
+            previousContent = richPreview->getText();
+        }
     }
 
     if(editedMsg != previousContent)
@@ -416,14 +420,19 @@ void ChatMessage::startEditingMsgWidget()
     layout->insertWidget(3, saveBtn);
 
     setLayout(layout);
+
+    std::string content = mMessage->getContent();
     if (mMessage->getType() == megachat::MegaChatMessage::TYPE_CONTAINS_META)
     {
-        mChatWindow->ui->mMessageEdit->setText(mMessage->getRichPreviewText());
+        const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
+        if (containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+        {
+            const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
+            content = richPreview->getText();
+        }
     }
-    else
-    {
-        mChatWindow->ui->mMessageEdit->setText(mMessage->getContent());
-    }
+
+    mChatWindow->ui->mMessageEdit->setText(content.c_str());
     mChatWindow->ui->mMessageEdit->moveCursor(QTextCursor::End);
 }
 

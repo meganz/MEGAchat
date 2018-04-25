@@ -586,6 +586,126 @@ public:
 
 };
 
+/**
+ * @brief This class store rich preview data
+ *
+ * This class contains the data for rich links.
+ */
+class MegaChatRichPreview
+{
+public:
+    virtual ~MegaChatRichPreview() {}
+    virtual MegaChatRichPreview *copy() const;
+
+    /**
+      * @brief Returns rich preview text
+      * @return Text from rich preview
+      */
+    virtual const char *getText() const;
+
+    /**
+      * @brief Returns rich preview title
+      * @return Title from rich preview
+      */
+    virtual const char *getTitle() const;
+
+    /**
+      * @brief Returns rich preview description
+      * @return Description from rich preview
+      */
+    virtual const char *getDescription() const;
+
+    /**
+      * @brief Returns rich preview image
+      * @return Image from rich preview
+      */
+    virtual const char *getImage() const;
+
+    /**
+      * @brief Returns rich preview image size
+      * @return Image size from rich preview
+      */
+    virtual unsigned int getImageSize() const;
+
+    /**
+      * @brief Returns rich preview image format
+      * @return Image format from rich preview
+      */
+    virtual const char *getImageFormat() const;
+
+    /**
+      * @brief Returns rich preview icon
+      * @return Icon from rich preview
+      */
+    virtual const char *getIcon() const;
+
+    /**
+      * @brief Returns rich preview icon size
+      * @return Icon size from rich preview
+      */
+    virtual unsigned int getIconSize() const;
+
+    /**
+      * @brief Returns rich preview icon format
+      * @return Icon format from rich preview
+      */
+    virtual const char *getIconFormat() const;
+
+    /**
+      * @brief Returns rich preview url
+      * @return Url from rich preview
+      */
+    virtual const char *getUrl() const;
+};
+
+/**
+ * @brief This class represents meta contained
+ *
+ * This class includes pointer to differents kind of meta contained, like MegaChatRichPreview.
+ *
+ * @see MegaChatMessage::containsMetaType()
+ */
+class MegaChatContainsMeta
+{
+public:
+    enum
+    {
+      CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
+      CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
+    };
+
+    virtual ~MegaChatContainsMeta() {}
+
+    virtual MegaChatContainsMeta *copy() const;
+
+    /**
+     * @brief Returns the type of meta contained
+     *
+     *  - MegaChatContainsMeta::CONTAINS_META_INVALID        = -1
+     * Unknown meta contained data in the message
+     *
+     *  - MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW   = 0
+     * Meta contained is from rich preview type
+     *
+     * @return Type from meta contained of the message
+     */
+    virtual int getType() const;
+
+    /**
+     * @brief Returns data about rich-links
+     *
+     * @note This function only returns a valid object in case the function
+     * \c MegaChatContainsMeta::getType returns MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW.
+     * Otherwise, it returns NULL.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatContainsMeta object is deleted.
+     *
+     * @return MegaChatRichPreview with details about rich-link.
+     */
+    virtual const MegaChatRichPreview *getRichPreview() const;
+};
+
 class MegaChatMessage
 {
 public:
@@ -615,12 +735,6 @@ public:
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 19,   /// User message including additional metadata (ie. rich-preview for links)
-    };
-
-    enum
-    {
-      CONTAINS_META_INVALID         = -1,   /// There isn't any meta contained or it's unknown
-      CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
     };
 
     enum
@@ -900,7 +1014,6 @@ public:
      */
     virtual MegaChatHandle getRowId() const;
 
-
     /**
      * @brief Returns a bit field with the changes of the message
      *
@@ -944,117 +1057,17 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief Returns the type of meta contained
+     * @brief Returns the meta contained
      *
-     *  - MegaChatMessage::CONTAINS_META_INVALID        = -1
-     * Any meta contained data in the message
+     * This function a valid value only if the type of the message is MegaChatMessage::TYPE_CONTAINS_META.
+     * Otherwise, it returns NULL.
      *
-     *  - MegaChatMessage::CONTAINS_META_RICH_PREVIEW   = 0
-     * Meta contained is from rich preview type
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatMessage object is deleted.
      *
-     * @return Type from meta contained of the message
+     * @return MegaChatContainsMeta with the details of meta contained
      */
-    virtual int containsMetaType() const;
-
-    /**
-      * @brief Returns rich preview text
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Text from rich preview
-      */
-    virtual const char *getRichPreviewText() const;
-
-    /**
-      * @brief Returns rich preview title
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Title from rich preview
-      */
-    virtual const char *getRichPreviewTitle() const;
-
-    /**
-      * @brief Returns rich preview description
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Description from rich preview
-      */
-    virtual const char *getRichPreviewDescription() const;
-
-    /**
-      * @brief Returns rich preview image
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Image from rich preview
-      */
-    virtual const char *getRichPreviewImage() const;
-
-    /**
-      * @brief Returns rich preview image size
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Image size from rich preview
-      */
-    virtual unsigned int getRichPreviewImageSize() const;
-
-    /**
-      * @brief Returns rich preview image format
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Image format from rich preview
-      */
-    virtual const char *getRichPreviewImageFormat() const;
-
-    /**
-      * @brief Returns rich preview icon
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Icon from rich preview
-      */
-    virtual const char *getRichPreviewIcon() const;
-
-    /**
-      * @brief Returns rich preview icon size
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Icon size from rich preview
-      */
-    virtual unsigned int getRichPreviewIconSize() const;
-
-    /**
-      * @brief Returns rich preview icon format
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Icon format from rich preview
-      */
-    virtual const char *getRichPreviewIconFormat() const;
-
-    /**
-      * @brief Returns rich preview url
-      *
-      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
-      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
-      *
-      * @return Url from rich preview
-      */
-    virtual const char *getRichPreviewUrl() const;
+    virtual const MegaChatContainsMeta *getContainsMeta() const;
 };
 
 /**
