@@ -1765,7 +1765,7 @@ void Chat::removePendingRichLinks(Idx idx)
         karere::Id msgid = *it;
         it++;
         Idx index = msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID && index < idx)     // only confirmed messages have index
+        if (index != CHATD_IDX_INVALID && index <= idx)     // only confirmed messages have index
         {
             mMsgsToUpdateWithRichLink.erase(msgid);
         }
