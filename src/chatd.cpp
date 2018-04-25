@@ -1747,7 +1747,7 @@ void Chat::removePendingRichLinks(Idx idx)
     for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin(); it != mMsgsToUpdateWithRichLink.end(); )
     {
         karere::Id msgid = *it;
-        it ++;
+        it++;
         Idx index = msgIndexFromId(msgid);
         if (index != CHATD_IDX_INVALID && index < idx)     // only confirmed messages have index
         {
@@ -1776,6 +1776,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
 {
     if (msglen > kMaxMsgSize)
     {
+        CHATID_LOG_WARNING("msgSubmit: Denying sending message because it's too long");
         return NULL;
     }
 
@@ -1970,6 +1971,12 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         CHATID_LOG_DEBUG("msgModify: Denying edit of msgid %s because message is too old", ID_CSTR(msg.id()));
         return nullptr;
     }
+    if (newlen > kMaxMsgSize)
+    {
+        CHATID_LOG_WARNING("msgModify: Denying edit of msgid %s because message is too long", ID_CSTR(msg.id()));
+        return nullptr;
+    }
+
     if (msg.isSending()) //update the not yet sent(or at least not yet confirmed) original as well, trying to avoid sending the original content
     {
         SendingItem* item = nullptr;
@@ -2524,7 +2531,7 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
         throw std::runtime_error(errorMsg);
     }
 
-    // Update with contains meta has been reject by server. We don't notify
+    // Update with contains meta has been rejected by server. We don't notify
     if (msg.type == Message::kMsgContainsMeta)
     {
         CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %d", serverReason);
@@ -2561,7 +2568,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
-    bool msgUpdatedByMe = false;
+    time_t updateTs = 0;
 
     if (cipherMsg->userid == client().userId())
     {
@@ -2580,11 +2587,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             it++;
             mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
-            msgUpdatedByMe = true;
+            updateTs = item.msg->updated;
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .then([this, msgUpdatedByMe](Message* msg)
+    .then([this, updateTs](Message* msg)
     {
         assert(!msg->isEncrypted());
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
@@ -2594,7 +2601,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             else
                 msg->type = msg->buf()[1];
         }
-        else if (msg->type == Message::kMsgNormal && msgUpdatedByMe)
+        else if (msg->type == Message::kMsgNormal && updateTs && (updateTs == msg->updated))
         {
             if ( client().richLinkState() == Client::kRichLinkEnabled)
             {
