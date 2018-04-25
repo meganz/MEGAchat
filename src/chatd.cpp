@@ -2568,7 +2568,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
-    bool msgUpdatedByMe = false;
+    time_t updateTs = 0;
 
     if (cipherMsg->userid == client().userId())
     {
@@ -2587,11 +2587,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             it++;
             mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
-            msgUpdatedByMe = true;
+            updateTs = item.msg->updated;
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .then([this, msgUpdatedByMe](Message* msg)
+    .then([this, updateTs](Message* msg)
     {
         assert(!msg->isEncrypted());
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
@@ -2601,7 +2601,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             else
                 msg->type = msg->buf()[1];
         }
-        else if (msg->type == Message::kMsgNormal && msgUpdatedByMe)
+        else if (msg->type == Message::kMsgNormal && updateTs && (updateTs == msg->updated))
         {
             if ( client().richLinkState() == Client::kRichLinkEnabled)
             {
