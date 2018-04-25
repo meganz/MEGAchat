@@ -1677,13 +1677,13 @@ void Chat::requestRichLink(Message &message)
         karere::Id msgId = message.id();
         uint16_t updated = message.updated;
         client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
-        .then([wptr, this, msgId, updated, text](ReqResult result)
+        .then([wptr, this, msgId, updated](ReqResult result)
         {
             if (wptr.deleted())
                 return;
 
             Idx messageIdx = msgIndexFromId(msgId);
-            Message *msg = findOrNull(messageIdx);
+            Message *msg = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
             if (msg && updated == msg->updated)
             {
                 std::string header;
@@ -1698,18 +1698,16 @@ void Chat::requestRichLink(Message &message)
                 msg->type = Message::kMsgContainsMeta;
                 if (!msgModify(*msg, updateText.c_str(), size, NULL))
                 {
-                    CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link");
+                    CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", msgId.toString());
                 }
             }
             else if (!msg)
             {
-                CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
-                                 " Message has been removed from memory");
+                CHATID_LOG_WARNING("requestRichLink: Message not found (%s)", msgId.toString());
             }
             else
             {
-                CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
-                                 " Message has been updated during rich link request");
+                CHATID_LOG_DEBUG("requestRichLink: Message has been updated during rich link request (%s)",msgId.toString());
             }
         })
         .fail([wptr, this](const promise::Error& err)
@@ -1763,7 +1761,8 @@ void Chat::removePendingRichLinks(Idx idx)
         karere::Id msgid = *it;
         it++;
         Idx index = msgIndexFromId(msgid);
-        if (index != CHATD_IDX_INVALID && index <= idx)     // only confirmed messages have index
+        assert(index != CHATD_IDX_INVALID);
+        if (index <= idx)
         {
             mMsgsToUpdateWithRichLink.erase(msgid);
         }
@@ -2616,6 +2615,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 msg->type = msg->buf()[1];
         }
         else if (msg->type == Message::kMsgNormal && updateTs && (updateTs == msg->updated))
+        // message could have been updated by another client earlier/later than our update's attempt
         {
             if ( client().richLinkState() == Client::kRichLinkEnabled)
             {

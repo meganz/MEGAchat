@@ -619,7 +619,7 @@ public:
 
     enum
     {
-      CONTAINS_META_INVALID         = -1,   /// There isn't any meta contained
+      CONTAINS_META_INVALID         = -1,   /// There isn't any meta contained or it's unknown
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
     };
 
@@ -959,8 +959,8 @@ public:
     /**
       * @brief Returns rich preview text
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Text from rich preview
       */
@@ -969,8 +969,8 @@ public:
     /**
       * @brief Returns rich preview title
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Title from rich preview
       */
@@ -979,8 +979,8 @@ public:
     /**
       * @brief Returns rich preview description
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Description from rich preview
       */
@@ -989,8 +989,8 @@ public:
     /**
       * @brief Returns rich preview image
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Image from rich preview
       */
@@ -999,8 +999,8 @@ public:
     /**
       * @brief Returns rich preview image size
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Image size from rich preview
       */
@@ -1009,8 +1009,8 @@ public:
     /**
       * @brief Returns rich preview image format
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Image format from rich preview
       */
@@ -1019,8 +1019,8 @@ public:
     /**
       * @brief Returns rich preview icon
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Icon from rich preview
       */
@@ -1029,8 +1029,8 @@ public:
     /**
       * @brief Returns rich preview icon size
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Icon size from rich preview
       */
@@ -1039,8 +1039,8 @@ public:
     /**
       * @brief Returns rich preview icon format
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Icon format from rich preview
       */
@@ -1049,8 +1049,8 @@ public:
     /**
       * @brief Returns rich preview url
       *
-      * This function only returns a valid value if message type = MegaChatMessage::TYPE_CONTAINS_META
-      * and contains meta type is from MegaChatMessage::CONTAINS_META_RICH_PREVIEW
+      * This function only returns a valid value if MegaChatMessage::containsMetaType returns
+      * the value MegaChatMessage::CONTAINS_META_RICH_PREVIEW.
       *
       * @return Url from rich preview
       */
