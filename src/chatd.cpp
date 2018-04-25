@@ -1683,7 +1683,14 @@ void Chat::requestRichLink(Message &message)
                 return;
 
             Message *msg = findOrNull(messageIdx);
-            if (msg && updated == msg->updated)
+            if (updated != msg->updated)
+            {
+                CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
+                                 " Message has been updated during rich link request");
+                return;
+            }
+
+            if (msg)
             {
                 std::string header;
                 std::string textMessage = result->getText();
@@ -1695,7 +1702,15 @@ void Chat::requestRichLink(Message &message)
                 size_t size = updateText.size();
 
                 msg->type = Message::kMsgContainsMeta;
-                msgModify(*msg, updateText.c_str(), size, NULL);
+                if (!msgModify(*msg, updateText.c_str(), size, NULL))
+                {
+                    CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link");
+                }
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
+                                 " Message has been removed from memory");
             }
         })
         .fail([wptr, this](const promise::Error& err)
