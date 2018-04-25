@@ -5340,19 +5340,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
     if (msg->getType() == TYPE_CONTAINS_META)
     {
-        this->mContainsMeta = getContainsMeta()->copy();
-//        const MegaChatMessagePrivate *msgPrivate = static_cast<const MegaChatMessagePrivate *>(msg);
-//        const MegaChatContainsMeta *containsMeta = msgPrivate->getMetaContains();
-//        if (containsMeta)
-//        {
-//            this->megaChatContainsMeta = containsMeta->copy();
-//        }
-//        else
-//        {
-//            API_LOG_ERROR("Invalid meta contained data");
-//            assert(false);
-//            this->megaChatContainsMeta = NULL;
-//        }
+        this->mContainsMeta = msg->getContainsMeta()->copy();
     }
 }
 
