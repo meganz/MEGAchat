@@ -1684,14 +1684,7 @@ void Chat::requestRichLink(Message &message)
 
             Idx messageIdx = msgIndexFromId(msgId);
             Message *msg = findOrNull(messageIdx);
-            if (updated != msg->updated)
-            {
-                CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
-                                 " Message has been updated during rich link request");
-                return;
-            }
-
-            if (msg)
+            if (msg && updated == msg->updated)
             {
                 std::string header;
                 std::string textMessage = result->getText();
@@ -1708,10 +1701,15 @@ void Chat::requestRichLink(Message &message)
                     CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link");
                 }
             }
-            else
+            else if (!msg)
             {
                 CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
                                  " Message has been removed from memory");
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("requestRichLink: Message can't be updated with the rich-link."
+                                 " Message has been updated during rich link request");
             }
         })
         .fail([wptr, this](const promise::Error& err)
