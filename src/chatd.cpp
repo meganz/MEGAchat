@@ -1674,14 +1674,15 @@ void Chat::requestRichLink(Message &message)
         }
 
         auto wptr = weakHandle();
-        Idx messageIdx = msgIndexFromId(message.id());
+        karere::Id msgId = message.id();
         uint16_t updated = message.updated;
         client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
-        .then([wptr, this, messageIdx, updated, text](ReqResult result)
+        .then([wptr, this, msgId, updated, text](ReqResult result)
         {
             if (wptr.deleted())
                 return;
 
+            Idx messageIdx = msgIndexFromId(msgId);
             Message *msg = findOrNull(messageIdx);
             if (updated != msg->updated)
             {
