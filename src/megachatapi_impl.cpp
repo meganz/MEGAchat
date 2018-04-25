@@ -5414,7 +5414,14 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
-            mContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
+             if (msg.toText().length() > 2)
+             {
+                 mContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
+             }
+             else
+             {
+                 mContainsMeta = new MegaChatContainsMetaPrivate();
+             }
             break;
         }
         case MegaChatMessage::TYPE_NORMAL:
@@ -6639,12 +6646,6 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
 
 const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json)
 {
-    size_t len = strlen(json);
-    if (len <= 2)
-    {
-        return NULL;
-    }
-
     MegaChatContainsMetaPrivate *containsMeta = new MegaChatContainsMetaPrivate();
     int type = (int)json[0];
     switch (type)
