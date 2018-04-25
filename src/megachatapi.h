@@ -2861,7 +2861,7 @@ public:
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMegaHandleList()- Returns the list of chatids of chats with messages to notify
+     * - MegaChatRequest::getMegaHandleList- Returns the list of chatids of chats with messages to notify
      * - MegaChatRequest::getMegaHandleListByChat- Returns the list of msgids to notify for a given chat
      *
      * You can get the MegaChatMessage object by using the function \c MegaChatApi::getMessage
