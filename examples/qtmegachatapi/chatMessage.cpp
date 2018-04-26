@@ -343,6 +343,14 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
         auto delAction = menu->addAction(tr("Delete message"));
         delAction->setData(QVariant::fromValue(this));
         connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
+        if (mMessage->getType() == MegaChatMessage::TYPE_CONTAINS_META
+                && mMessage->getContainsMeta()
+                && mMessage->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+        {
+            auto richAction = menu->addAction(tr("Remove rich link"));
+            richAction->setData(QVariant::fromValue(this));
+            connect(richAction, SIGNAL(triggered()), this, SLOT(onMessageRemoveLinkAction()));
+        }
         menu->popup(this->mapToGlobal(point));
    }
 }
@@ -355,6 +363,11 @@ void ChatMessage::onMessageDelAction()
 void ChatMessage::onMessageEditAction()
 {
     startEditingMsgWidget();
+}
+
+void ChatMessage::onMessageRemoveLinkAction()
+{
+    megaChatApi->removeRichLink(mChatId, mMessage->getMsgId());
 }
 
 void ChatMessage::cancelMsgEdit(bool clicked)

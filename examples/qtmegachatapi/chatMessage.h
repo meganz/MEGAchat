@@ -54,5 +54,6 @@ class ChatMessage: public QWidget
         void onMessageCtxMenu(const QPoint& point);
         void onMessageDelAction();
         void onMessageEditAction();
+        void onMessageRemoveLinkAction();
 };
 #endif // CHATMESSAGE_H
