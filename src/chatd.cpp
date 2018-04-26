@@ -1697,16 +1697,16 @@ void Chat::requestRichLink(Message &message)
 
                 if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
                 {
-                    CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", msgId.toString());
+                    CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", ID_CSTR(msgId));
                 }
             }
             else if (!msg)
             {
-                CHATID_LOG_WARNING("requestRichLink: Message not found (%s)", msgId.toString());
+                CHATID_LOG_WARNING("requestRichLink: Message not found (%s)", ID_CSTR(msgId));
             }
             else
             {
-                CHATID_LOG_DEBUG("requestRichLink: Message has been updated during rich link request (%s)",msgId.toString());
+                CHATID_LOG_DEBUG("requestRichLink: Message has been updated during rich link request (%s)", ID_CSTR(msgId));
             }
         })
         .fail([wptr, this](const promise::Error& err)
@@ -1725,7 +1725,7 @@ Message *Chat::removeRichLink(Message &message, const string& content)
     Message *msg = msgModify(message, content.c_str(), content.size(), NULL, Message::kMsgNormal);
     if (!msg)
     {
-        CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", message.id().toString());
+        CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", ID_CSTR(message.id()));
     }
     else
     {
