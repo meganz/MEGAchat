@@ -1695,8 +1695,7 @@ void Chat::requestRichLink(Message &message)
                 std::string updateText = header + textMessage + std::string("]}");
                 size_t size = updateText.size();
 
-                msg->type = Message::kMsgContainsMeta;
-                if (!msgModify(*msg, updateText.c_str(), size, NULL))
+                if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
                 {
                     CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", msgId.toString());
                 }
@@ -1976,7 +1975,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 }
 
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
-Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp)
+Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
     uint32_t age = time(NULL) - msg.ts;
     if (age > CHATD_MAX_EDIT_AGE)
@@ -2011,7 +2010,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     } //end msg.isSending()
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
-        msg.isSending(), msg.keyid, msg.type, userp);
+        msg.isSending(), msg.keyid, newtype, userp);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd]()

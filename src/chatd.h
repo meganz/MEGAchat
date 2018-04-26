@@ -948,7 +948,7 @@ public:
      * The user is responsible to clear any reference to a previous edit to avoid a
      * dangling pointer.
      */
-    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
+    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
 
     /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
       * It's possible that the exact count is not yet known, if the last seen message is not
