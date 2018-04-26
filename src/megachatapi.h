@@ -855,6 +855,11 @@ public:
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatMessage object is deleted.
      *
+     * @note If message is of type MegaChatMessage::TYPE_CONTAINS_META and the type of meta
+     * is MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW, for convenience this function
+     * will return the original content of the message, the same than
+     * MegaChatRichPreview::getText
+     *
      * @return Content of the message. If message was deleted, it returns NULL.
      */
     virtual const char *getContent() const;

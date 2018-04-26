@@ -5467,6 +5467,13 @@ int64_t MegaChatMessagePrivate::getTimestamp() const
 
 const char *MegaChatMessagePrivate::getContent() const
 {
+    // if message contains meta and is of rich-link type, return the original content
+    if (type == MegaChatMessage::TYPE_CONTAINS_META
+            && getContainsMeta()->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+    {
+        return getContainsMeta()->getRichPreview()->getText();
+
+    }
     return msg;
 }
 
@@ -6658,6 +6665,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
 {
     if (!json  || strcmp(json, "") == 0)
     {
+        API_LOG_ERROR("parseRichPreview: invalid JSon struct - JSon contains no data, only includes type of meta");
         return NULL;
     }
 
@@ -6669,7 +6677,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
     rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
     if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
     {
-        API_LOG_ERROR("Invalid JSon struct - find testMessage field");
+        API_LOG_ERROR("parseRichPreview: invalid JSon struct - \"textMessage\" field not found");
         return NULL;
     }
 
@@ -6678,7 +6686,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
     rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
     if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
     {
-        API_LOG_ERROR("Invalid JSon struct - find extra field");
+        API_LOG_ERROR("parseRichPreview: invalid JSon struct - \"extra\" field not found");
         return NULL;
     }
 

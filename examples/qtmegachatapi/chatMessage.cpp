@@ -367,17 +367,6 @@ void ChatMessage::saveMsgEdit(bool clicked)
 {
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
     std::string previousContent = mMessage->getContent();
-
-    if (mMessage->getType() == megachat::MegaChatMessage::TYPE_CONTAINS_META)
-    {
-        const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
-        if (containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
-        {
-            const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
-            previousContent = richPreview->getText();
-        }
-    }
-
     if(editedMsg != previousContent)
     {
         megachat::MegaChatHandle messageId;
