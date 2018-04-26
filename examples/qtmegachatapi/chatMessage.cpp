@@ -432,15 +432,6 @@ void ChatMessage::startEditingMsgWidget()
     setLayout(layout);
 
     std::string content = mMessage->getContent();
-    if (mMessage->getType() == megachat::MegaChatMessage::TYPE_CONTAINS_META)
-    {
-        const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
-        if (containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
-        {
-            const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
-            content = richPreview->getText();
-        }
-    }
 
     mChatWindow->ui->mMessageEdit->setText(content.c_str());
     mChatWindow->ui->mMessageEdit->moveCursor(QTextCursor::End);
