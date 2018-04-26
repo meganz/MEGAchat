@@ -950,6 +950,9 @@ public:
      */
     Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
 
+    /** Removes metadata from rich-link and converts the message to the original (normal) one */
+    Message *removeRichLink(Message &message, const std::string &content);
+
     /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
       * It's possible that the exact count is not yet known, if the last seen message is not
       * known by the client yet. In that case, the client knows the minumum count,

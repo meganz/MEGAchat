@@ -940,6 +940,7 @@ public:
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
+    MegaChatMessage *removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
     MegaChatHandle getLastMessageSeenId(MegaChatHandle chatid);

@@ -2839,6 +2839,19 @@ public:
     MegaChatMessage *deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
+     * @brief Remove an existing rich-link metadata
+     *
+     * This function will remove the metadata associated to the URL in the content of the message.
+     * The message will be edited and will be converted back to the MegaChatMessage::TYPE_NORMAL.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     *
+     * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old, not rich-link...)
+     */
+    MegaChatMessage *removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid);
+
+    /**
      * @brief Sets the last-seen-by-us pointer to the specified message
      *
      * The last-seen-by-us pointer is persisted in the account, so every client will

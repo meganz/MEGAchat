@@ -503,6 +503,11 @@ MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandl
     return pImpl->editMessage(chatid, msgid, NULL);
 }
 
+MegaChatMessage *MegaChatApi::removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->removeRichLink(chatid, msgid);
+}
+
 bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     return pImpl->setMessageSeen(chatid, msgid);

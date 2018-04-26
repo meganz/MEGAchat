@@ -1719,6 +1719,23 @@ void Chat::requestRichLink(Message &message)
     }
 }
 
+Message *Chat::removeRichLink(Message &message, const string& content)
+{
+
+    Message *msg = msgModify(message, content.c_str(), content.size(), NULL, Message::kMsgNormal);
+    if (!msg)
+    {
+        CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", message.id().toString());
+    }
+    else
+    {
+        // prevent to create a new rich-link upon acknowledge of update at onMsgUpdated()
+        msg->richLinkRemoved = true;
+    }
+
+    return msg;
+}
+
 void Chat::requestPendingRichLinks()
 {
     for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin();
@@ -2581,6 +2598,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
     time_t updateTs = 0;
+    bool richLinkRemoved = false;
 
     if (cipherMsg->userid == client().userId())
     {
@@ -2600,10 +2618,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
             updateTs = item.msg->updated;
+            richLinkRemoved = item.msg->richLinkRemoved;
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .then([this, updateTs](Message* msg)
+    .then([this, updateTs, richLinkRemoved](Message* msg)
     {
         assert(!msg->isEncrypted());
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
@@ -2612,18 +2631,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
                 msg->type = msg->buf()[1];
-        }
-        else if (msg->type == Message::kMsgNormal && updateTs && (updateTs == msg->updated))
-        // message could have been updated by another client earlier/later than our update's attempt
-        {
-            if ( client().richLinkState() == Client::kRichLinkEnabled)
-            {
-                requestRichLink(*msg);
-            }
-            else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
-            {
-                manageRichLinkMessage(*msg);
-            }
         }
 
         //update in db
@@ -2645,6 +2652,20 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
                 delete msg;
                 return;
+            }
+
+            if (!msg->empty() && msg->type == Message::kMsgNormal
+                             && !richLinkRemoved        // user have not requested to remove rich-link preview (generate it)
+                             && updateTs && (updateTs == msg->updated)) // message could have been updated by another client earlier/later than our update's attempt
+            {
+                if (client().richLinkState() == Client::kRichLinkEnabled)
+                {
+                    requestRichLink(*msg);
+                }
+                else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+                {
+                    manageRichLinkMessage(*msg);
+                }
             }
 
             //update in db

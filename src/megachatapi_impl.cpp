@@ -2453,6 +2453,48 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Message *originalMsg = findMessage(chatid, msgid);
+        if (!originalMsg || originalMsg->type != Message::kMsgContainsMeta)
+        {
+            sdkMutex.unlock();
+            return NULL;
+        }
+
+        const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(originalMsg->toText().c_str());
+        if (!containsMeta || containsMeta->getType() != MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+        {
+            delete containsMeta;
+            sdkMutex.unlock();
+            return NULL;
+        }
+
+        const char *msg = containsMeta->getRichPreview()->getText();
+        assert(msg);
+        string content = msg ? msg : "";
+
+        const Message *editedMsg = chatroom->chat().removeRichLink(*originalMsg, content);
+        if (editedMsg)
+        {
+            Idx index = chat.msgIndexFromId(msgid);
+            megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::kSending, index);
+        }
+
+        delete containsMeta;
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
+}
+
 bool MegaChatApiImpl::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     bool ret = false;

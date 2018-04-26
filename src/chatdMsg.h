@@ -410,6 +410,7 @@ public:
     std::vector<BackRefId> backRefs;
     mutable void* userp;
     mutable uint8_t userFlags = 0;
+    bool richLinkRemoved = 0;
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     uint8_t isEncrypted() const { return mIsEncrypted; }
