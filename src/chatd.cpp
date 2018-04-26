@@ -2633,8 +2633,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 msg->type = msg->buf()[1];
         }
 
-        //update in db
-        CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
@@ -2722,7 +2720,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             uint16_t delta = 0;
             CALL_DB(getMessageDelta, msg->id(), &delta);
 
-            if (delta != msg->updated)
+            if (delta < msg->updated)
             {
                 //update in db
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
