@@ -1072,7 +1072,8 @@ public:
     virtual int getType() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
 
-    void setRichPreview(const MegaChatRichPreview *richPreview);
+    // This function take the property from memory that it receives as parameter
+    void setRichPreview(MegaChatRichPreview *richPreview);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;

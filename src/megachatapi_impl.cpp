@@ -6180,12 +6180,12 @@ const MegaChatRichPreview *MegaChatContainsMetaPrivate::getRichPreview() const
     return mRichPreview;
 }
 
-void MegaChatContainsMetaPrivate::setRichPreview(const MegaChatRichPreview *richPreview)
+void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPreview)
 {
     if (richPreview)
     {
         mType = MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW;
-        mRichPreview = richPreview->copy();
+        mRichPreview = richPreview;
     }
     else
     {
