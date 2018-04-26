@@ -336,22 +336,30 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
    if (isMine() && !mMessage->isManagementMessage())
    {
-        QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
-        auto action = menu->addAction(tr("&Edit message"));
-        action->setData(QVariant::fromValue(this));
-        connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
-        auto delAction = menu->addAction(tr("Delete message"));
-        delAction->setData(QVariant::fromValue(this));
-        connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
-        if (mMessage->getType() == MegaChatMessage::TYPE_CONTAINS_META
-                && mMessage->getContainsMeta()
-                && mMessage->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
-        {
-            auto richAction = menu->addAction(tr("Remove rich link"));
-            richAction->setData(QVariant::fromValue(this));
-            connect(richAction, SIGNAL(triggered()), this, SLOT(onMessageRemoveLinkAction()));
-        }
-        menu->popup(this->mapToGlobal(point));
+       QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
+       if (mMessage->isEditable())
+       {
+           auto action = menu->addAction(tr("&Edit message"));
+           action->setData(QVariant::fromValue(this));
+           connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
+       }
+
+       if (mMessage->isDeletable())
+       {
+           auto delAction = menu->addAction(tr("Delete message"));
+           delAction->setData(QVariant::fromValue(this));
+           connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
+       }
+
+       if (mMessage->getType() == MegaChatMessage::TYPE_CONTAINS_META
+               && mMessage->getContainsMeta()
+               && mMessage->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+       {
+           auto richAction = menu->addAction(tr("Remove rich link"));
+           richAction->setData(QVariant::fromValue(this));
+           connect(richAction, SIGNAL(triggered()), this, SLOT(onMessageRemoveLinkAction()));
+       }
+       menu->popup(this->mapToGlobal(point));
    }
 }
 
