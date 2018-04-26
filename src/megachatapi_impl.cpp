@@ -6131,14 +6131,18 @@ const MegaChatRichPreview *MegaChatContainsMetaPrivate::getRichPreview() const
     return mRichPreview;
 }
 
-void MegaChatContainsMetaPrivate::setType(int type)
-{
-    mType = type;
-}
-
 void MegaChatContainsMetaPrivate::setRichPreview(const MegaChatRichPreview *richPreview)
 {
-    mRichPreview = richPreview->copy();
+    if (richPreview)
+    {
+        mType = MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW;
+        mRichPreview = richPreview->copy();
+    }
+    else
+    {
+        mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
+        mRichPreview = NULL;
+    }
 }
 
 MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsMeta *containsMeta)
@@ -6637,7 +6641,6 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json)
     {
         case MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
         {
-            containsMeta->setType(type);
             containsMeta->setRichPreview(parseRichPreview(&json[1]));
             break;
         }

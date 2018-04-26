@@ -1071,7 +1071,6 @@ public:
     virtual int getType() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
 
-    void setType(int type);
     void setRichPreview(const MegaChatRichPreview *richPreview);
 
 protected:
