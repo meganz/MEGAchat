@@ -980,7 +980,7 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
-        TYPE_LOAD_AUDIO_VIDEO_DEVICES,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1124,6 +1124,34 @@ public:
      * @return List of nodes in this request
      */
     virtual mega::MegaNodeList *getMegaNodeList();
+
+    /**
+     * @brief Returns the list of handles related to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::pushReceived - Returns the list of ids for unread messages in the chatid
+     *   (you can get the list of chatids from \c getMegaHandleList)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return mega::MegaHandleList of handles for a given chatid
+     */
+    virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
+
+    /**
+     * @brief Returns the list of handles related to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * This value is valid for these requests:
+     * - MegaChatApi::pushReceived - Returns the list of chatids with unread messages
+     *
+     * @return mega::MegaHandleList of handles for a given chatid
+     */
+    virtual mega::MegaHandleList *getMegaHandleList();
 
     /**
      * @brief Returns the type of parameter related to the request
@@ -2818,6 +2846,34 @@ public:
      * MegaChatApi::INIT_ERROR.
      */
     void saveCurrentState();
+
+    /**
+     * @brief Notify MEGAchat a push has been received
+     *
+     * This method should be called when the Android app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * for every chatroom and will provide to the app the list of unread messages that
+     * are suitable to create OS notifications.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaHandleList- Returns the list of chatids of chats with messages to notify
+     * - MegaChatRequest::getMegaHandleListByChat- Returns the list of msgids to notify for a given chat
+     *
+     * You can get the MegaChatMessage object by using the function \c MegaChatApi::getMessage
+     *
+     * @note A maximum of 6 messages per chat is returned by this function, regardless there might be
+     * more unread messages. This function only searchs among local messages known by client (already loaded
+     * from server and loaded in RAM). At least 32 messages are loaded in RAM for each chat.
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void pushReceived(bool beep, MegaChatRequestListener *listener = NULL);
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management

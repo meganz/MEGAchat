@@ -917,6 +917,60 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
+        }            
+        case MegaChatRequest::TYPE_PUSH_RECEIVED:
+        {
+            mClient->pushReceived()
+            .then([this, request]()
+            {
+                MegaHandleList *chatids = MegaHandleList::createInstance();
+
+                // for each chatroom, load all unread messages)
+                for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+                {
+                    MegaHandleList *msgids = MegaHandleList::createInstance();
+
+                    MegaChatHandle chatid = it->first;
+                    const Chat &chat = it->second->chat();
+                    Idx lastSeenIdx = chat.lastSeenIdx();
+
+                    // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
+                    Idx first = (lastSeenIdx != CHATD_IDX_INVALID) ? (lastSeenIdx + 1) : chat.lownum();
+                    Idx last = chat.highnum();
+                    int maxCount = 6;   // do not notify more than 6 messages per chat
+                    for (Idx i = last; (i >= first && maxCount > 0); i--)
+                    {
+                        auto& msg = chat.at(i);
+                        if (msg.isValidUnread(mClient->myHandle()))
+                        {
+                            maxCount--;
+                            msgids->addMegaHandle(msg.id());
+                        }
+                    }
+
+                    if (msgids->size())
+                    {
+                        chatids->addMegaHandle(chatid);
+                        request->setMegaHandleListByChat(chatid, msgids);
+                    }
+
+                    delete msgids;
+                }
+
+                request->setMegaHandleList(chatids);    // always a valid list, even if empty
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+                delete chatids;
+
+            })
+            .fail([this, request](const promise::Error& err)
+            {
+                API_LOG_ERROR("Failed to retrieve current state");
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
         }
 #ifndef KARERE_DISABLE_WEBRTC
         case MegaChatRequest::TYPE_START_CHAT_CALL:
@@ -1462,21 +1516,7 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
 
 void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
 {
-    // check if connected to all chats (and logged in)
-    bool allConnected = false;
-    if (newState == MegaChatApi::CHAT_CONNECTION_ONLINE)
-    {
-        allConnected = true;
-        ChatRoomList::iterator it;
-        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
-        {
-            if (it->second->isActive() && it->second->chat().onlineState() != chatd::kChatStateOnline)
-            {
-                allConnected = false;
-                break;
-            }
-        }
-    }
+    bool allConnected = (newState == MegaChatApi::CHAT_CONNECTION_ONLINE) ? mClient->chatd->areAllChatsLoggedIn() : false;
 
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
@@ -2556,6 +2596,14 @@ void MegaChatApiImpl::saveCurrentState()
     sdkMutex.unlock();
 }
 
+void MegaChatApiImpl::pushReceived(bool beep, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_PUSH_RECEIVED, listener);
+    request->setFlag(beep);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
@@ -3407,6 +3455,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->text = NULL;
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
+    this->mMegaHandleList = NULL;
 }
 
 MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
@@ -3415,6 +3464,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->peerList = NULL;
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
+    this->mMegaHandleList = NULL;
 
     this->type = request.getType();
     this->listener = request.getListener();
@@ -3429,6 +3479,15 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setText(request.getText());
     this->setMegaChatMessage(request.getMegaChatMessage());
     this->setMegaNodeList(request.getMegaNodeList());
+    this->setMegaHandleList(request.getMegaHandleList());
+    if (mMegaHandleList)
+    {
+        for (unsigned int i = 0; i < mMegaHandleList->size(); i++)
+        {
+            MegaChatHandle chatid = mMegaHandleList->get(i);
+            this->setMegaHandleListByChat(chatid, request.getMegaHandleListByChat(chatid));
+        }
+    }
 }
 
 MegaChatRequestPrivate::~MegaChatRequestPrivate()
@@ -3437,6 +3496,11 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
     delete [] text;
     delete mMessage;
     delete mMegaNodeList;
+    delete mMegaHandleList;
+    for (map<MegaChatHandle, MegaHandleList*>::iterator it = mMegaHandleListMap.begin(); it != mMegaHandleListMap.end(); it++)
+    {
+        delete it->second;
+    }
 }
 
 MegaChatRequest *MegaChatRequestPrivate::copy()
@@ -3478,6 +3542,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SIGNAL_ACTIVITY: return "SIGNAL_ACTIVITY";
         case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
+        case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
     }
     return "UNKNOWN";
 }
@@ -3614,9 +3679,46 @@ void MegaChatRequestPrivate::setMegaChatMessage(MegaChatMessage *message)
     mMessage = message ? message->copy() : NULL;
 }
 
+void MegaChatRequestPrivate::setMegaHandleList(MegaHandleList *handlelist)
+{
+    if (mMegaHandleList != NULL)
+    {
+        delete mMegaHandleList;
+    }
+
+    mMegaHandleList = handlelist ? handlelist->copy() : NULL;
+}
+
+void MegaChatRequestPrivate::setMegaHandleListByChat(MegaChatHandle chatid, MegaHandleList *handlelist)
+{
+    MegaHandleList *list = getMegaHandleListByChat(chatid);
+    if (list)
+    {
+        delete list;
+    }
+
+    mMegaHandleListMap[chatid] = handlelist ? handlelist->copy() : NULL;
+}
+
 MegaNodeList *MegaChatRequestPrivate::getMegaNodeList()
 {
     return mMegaNodeList;
+}
+
+MegaHandleList *MegaChatRequestPrivate::getMegaHandleListByChat(MegaChatHandle chatid)
+{
+    map<MegaChatHandle, MegaHandleList*>::iterator it = mMegaHandleListMap.find(chatid);
+    if (it != mMegaHandleListMap.end())
+    {
+        return it->second;
+    }
+
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequestPrivate::getMegaHandleList()
+{
+    return mMegaHandleList;
 }
 
 int MegaChatRequestPrivate::getParamType()

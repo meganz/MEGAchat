@@ -72,7 +72,8 @@ std::string encodeFirstName(const std::string& first);
           chats(new ChatRoomList(*this)),
           mMyName("\0", 1),
           mOwnPresence(Presence::kInvalid),
-          mPresencedClient(&api, this, *this, caps)
+          mPresencedClient(&api, this, *this, caps),
+          mSyncCount(-1)
 {
 }
 
@@ -297,6 +298,24 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     return mSessionReadyPromise;
 }
 
+void Client::onSyncReceived(Id chatid)
+{
+    if (mSyncCount <= 0)
+    {
+        KR_LOG_WARNING("Unexpected SYNC received for chat: %s", chatid.toString().c_str());
+        return;
+    }
+
+    mSyncCount--;
+    if (mSyncCount == 0 && mSyncTimer)
+    {
+        cancelTimeout(mSyncTimer, appCtx);
+        mSyncTimer = 0;
+
+        mSyncPromise.resolve();
+    }
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -324,6 +343,44 @@ void Client::saveDb()
         KR_LOG_ERROR("Error saving changes to local cache: %s", e.what());
         setInitState(kInitErrCorruptCache);
     }
+}
+
+promise::Promise<void> Client::pushReceived()
+{
+    // if already sent SYNCs or we are not logged in right now...
+    if (mSyncTimer || !chatd || !chatd->areAllChatsLoggedIn())
+    {
+        return mSyncPromise;
+        // promise will resolve once logged in for all chats or after receive all SYNCs back
+    }
+
+    auto wptr = weakHandle();
+    mSyncPromise = Promise<void>();
+    mSyncCount = 0;
+    mSyncTimer = karere::setTimeout([this, wptr]()
+    {
+        if (wptr.deleted())
+          return;
+
+        assert(mSyncCount != 0);
+        mSyncTimer = 0;
+        mSyncCount = -1;
+
+        chatd->retryPendingConnections();
+
+    }, chatd::kSyncTimeout, appCtx);
+
+    for (auto& item: *chats)
+    {
+        ChatRoom *chat = item.second;
+        if (!chat->chat().isDisabled())
+        {
+            mSyncCount++;
+            chat->sendSync();
+        }
+    }
+
+    return mSyncPromise;
 }
 
 void Client::loadContactListFromApi()
