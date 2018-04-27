@@ -558,7 +558,7 @@ void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char
 
         if (chatListItem->getLastMessageSender() == contactHandle)
         {
-            chatItemWidget->updateToolTip(mMegaChatApi->getChatListItem(it->first), firstname);
+            chatItemWidget->updateToolTip(chatListItem, firstname);
         }
 
         ChatWindow *chatWindow = chatItemWidget->getChatWindow();
