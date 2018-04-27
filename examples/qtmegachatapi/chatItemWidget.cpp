@@ -18,7 +18,9 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    int unreadCount = mMegaChatApi->getChatListItem(mChatId)->getUnreadCount();
+    MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(mChatId);
+    int unreadCount = chatListItem->getUnreadCount();
+    delete chatListItem;
     onUnreadCountChanged(unreadCount);
     ui->mName->setText(item->getTitle());
 
@@ -232,7 +234,6 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     delete chatRoom;
     delete chatId_64;
     delete auxLastMessageId_64;
-
 }
 
 const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle msgUserId)
