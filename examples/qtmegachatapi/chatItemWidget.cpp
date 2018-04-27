@@ -365,10 +365,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-    delete chatRoom;
 
     QMenu menu(this);
-    if(mMegaChatApi->getChatListItem(mChatId)->isGroup())
+    if(chatRoom->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
@@ -376,6 +375,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
         actTopic->setEnabled(canChangePrivs);
         connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
     }
+    delete chatRoom;
 
     auto actTruncate = menu.addAction(tr("Truncate chat"));
     actTruncate->setEnabled(canChangePrivs);
