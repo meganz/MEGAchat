@@ -194,13 +194,13 @@ void MainWindow::addActiveChats()
     MegaChatListItemList *chatList = this->mMegaChatApi->getActiveChatListItems();
     for (int i = 0; i < chatList->size(); i++)
     {
-        listofChats.push_back(Chat(chatList->get(i)->getChatId(), chatList->get(i)->getLastTimestamp()));
+        listofChats.push_back(Chat(chatList->get(i), chatList->get(i)->getLastTimestamp()));
     }
 
     listofChats.sort();
     for(Chat &chat : listofChats)
     {
-       addChat(mMegaChatApi->getChatListItem(chat.chatId));
+       addChat(chat.chatListItem);
     }
     delete chatList;
 }

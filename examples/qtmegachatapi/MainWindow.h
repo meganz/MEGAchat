@@ -13,11 +13,11 @@
 
 struct Chat
 {
-    megachat::MegaChatHandle chatId;
+    const megachat::MegaChatListItem *chatListItem;
     int64_t timestamp;
 
-    Chat(megachat::MegaChatHandle id, int64_t ts) :
-            chatId(id), timestamp(ts)
+    Chat(const megachat::MegaChatListItem *item, int64_t ts) :
+            chatListItem(item), timestamp(ts)
     {
     }
     bool operator <(const Chat & chatItem) const
