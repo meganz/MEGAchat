@@ -172,7 +172,7 @@ public:
     }
     inline const C*& operator[](int idx) const
     {
-        assert((idx >= 0) && (idx <= items.size()));
+        assert((idx >= 0) && (idx < items.size()));
         return items[idx];
     }
     inline C*& first()
