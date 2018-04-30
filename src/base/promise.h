@@ -188,10 +188,7 @@ public:
     {
         int cnt = other.count();
         checkCanAdd(cnt);
-        for (int i=0; i<cnt; i++)
-        {
-            items.push_back(other.items[i]);
-        }
+        items.insert(items.end(), other.items.begin(), other.items.end());
         other.clear();
     }
     void clear()
