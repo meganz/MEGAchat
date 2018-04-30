@@ -928,6 +928,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 // for each chatroom, load all unread messages)
                 for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                 {
+                    // remove this block when apps start showing inactive chats
+                    if (!it->second->isActive())
+                        continue;
+
                     MegaHandleList *msgids = MegaHandleList::createInstance();
 
                     MegaChatHandle chatid = it->first;
