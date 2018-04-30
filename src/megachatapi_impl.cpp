@@ -3082,11 +3082,6 @@ IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
     return this;
 }
 
-void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
-{
-    // it is notified to the app by the existing MegaApi
-}
-
 #ifndef KARERE_DISABLE_WEBRTC
 
 rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)

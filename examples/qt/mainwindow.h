@@ -61,7 +61,6 @@ public:
     virtual karere::IApp::ILoginDialog* createLoginDialog();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest &req);
 protected:
     karere::IApp::IContactListItem* addItem(bool front, karere::Contact* contact,
                 karere::GroupChatRoom* room);
