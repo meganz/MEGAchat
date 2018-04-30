@@ -4404,11 +4404,11 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
     {
         for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
         {
-            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApiImpl->getMessage(chatid, *itMsgId);
-            if (msg)
+            MegaChatMessagePrivate *msgUpdated = (MegaChatMessagePrivate *)chatApiImpl->getMessage(chatid, *itMsgId);
+            if (msgUpdated)
             {
-                msg->setAccess();
-                fireOnMessageUpdate(msg);
+                msgUpdated->setAccess();
+                fireOnMessageUpdate(msgUpdated);
             }
         }
         delete msgToUpdate;
