@@ -418,7 +418,8 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
     db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
 
-    mUserAttrCache.reset(new UserAttrCache(*this));
+    mUserAttrCache.reset(new UserAttrCache(*this));    
+    api.sdk.addGlobalListener(this);
 
     auto wptr = weakHandle();
     return loadOwnKeysFromApi()
@@ -535,7 +536,8 @@ void Client::initWithDbSession(const char* sid)
         }
         assert(db);
         assert(!mSid.empty());
-        mUserAttrCache.reset(new UserAttrCache(*this));
+        mUserAttrCache.reset(new UserAttrCache(*this));        
+        api.sdk.addGlobalListener(this);
 
         mMyHandle = getMyHandleFromDb();
         assert(mMyHandle);
@@ -586,8 +588,6 @@ Client::InitState Client::init(const char* sid)
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
     }
-
-    api.sdk.addGlobalListener(this);
 
     if (sid)
     {
