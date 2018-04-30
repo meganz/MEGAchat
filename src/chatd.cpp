@@ -1193,6 +1193,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 {
                     chat.onKeyReject();
                 }
+                else if (op == OP_HIST)
+                {
+                    chat.onHistReject();
+                }
                 else
                 {
                     chat.rejectGeneric(op, reason);
@@ -2342,6 +2346,14 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 void Chat::onKeyReject()
 {
     mCrypto->onKeyRejected();
+}
+
+void Chat::onHistReject()
+{
+    CHATID_LOG_WARNING("HIST was rejected, setting chat offline and disabling it");
+    mServerFetchState = kHistNotFetching;
+    setOnlineState(kChatStateOffline);
+    disable(true);
 }
 
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
