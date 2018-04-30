@@ -199,6 +199,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
+    void TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName);
 #endif
 
     unsigned mOKTests;

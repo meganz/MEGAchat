@@ -59,6 +59,79 @@ class MegaChatNotificationListener;
 class MegaChatListItem;
 
 /**
+ * @brief Provide information about a session
+ *
+ * A session is an object that represents webRTC comunication between two peers. A call contains none or
+ * several session and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
+ * the ownership of the object
+ *
+ * The states that a session has during its life time are:
+ * Outgoing call:
+ *  - SESSION_STATUS_INITIAL
+ *  - SESSION_STATUS_IN_PROGRESS
+ *  - SESSION_STATUS_DESTROYED
+ *  - SESSION_STATUS_INVALID
+ */
+class MegaChatSession
+{
+public:
+    enum
+    {
+        SESSION_STATUS_INITIAL = 0,
+        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
+        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
+        SESSION_STATUS_INVALID
+    };
+
+    virtual ~MegaChatSession();
+
+    /**
+     * @brief Creates a copy of this MegaChatSession object
+     *
+     * The resulting object is fully independent of the source MegaChatSession,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You are the owner of the returned object
+     *
+     * @return Copy of the MegaChatSession object
+     */
+    virtual MegaChatSession *copy();
+
+    /**
+     * @brief Returns the status of the session
+     *
+     * @return the session status
+     * Valid values are:
+     *  - SESSION_STATUS_INITIAL = 0
+     *  - SESSION_STATUS_IN_PROGRESS = 1
+     *  - SESSION_STATUS_DESTROYED = 2
+     */
+    virtual int getStatus() const;
+
+    /**
+     * @brief Returns the MegaChatHandle of the peer.
+     *
+     * @return MegaChatHandle of the peer.
+     */
+    virtual MegaChatHandle getPeerid() const;
+
+    /**
+     * @brief Return audio state for the session
+     *
+     * @return true if audio is enable, false if audio is disable
+     */
+    virtual bool hasAudio() const;
+
+    /**
+     * @brief Return video state for the session
+     *
+     * @return true if video is enable, false if video is disable
+     */
+    virtual bool hasVideo() const;
+};
+
+/**
  * @brief Provide information about a call
  *
  * A call can be obtained with the callback MegaChatCallListener::onChatCallUpdate where MegaChatApi has
@@ -94,14 +167,6 @@ public:
         CALL_STATUS_IN_PROGRESS,        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING,        ///
         CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
-    };
-
-    enum
-    {
-        SESSION_STATUS_INITIAL = 0,
-        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
-        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
-        SESSION_STATUS_NO_SESSION,         /// There are no session for that peer id
     };
 
     enum
@@ -180,28 +245,28 @@ public:
      *
      * @return true if audio is enable, false if audio is disable
      */
-    virtual bool hasLocalAudio();
+    virtual bool hasLocalAudio() const;
 
     /**
-     * @brief Return audio state for remote
+     * @brief Return audio state for initial call
      *
      * @return true if audio is enable, false if audio is disable
      */
-    virtual bool hasRemoteAudio();
+    virtual bool hasAudioInitialCall() const;
 
     /**
      * @brief Return video state for local
      *
      * @return true if video is enable, false if video is disable
      */
-    virtual bool hasLocalVideo();
+    virtual bool hasLocalVideo() const;
 
     /**
-     * @brief Return video state for remote
+     * @brief Return video state for initial call
      *
      * @return true if video is enable, false if video is disable
      */
-    virtual bool hasRemoteVideo();
+    virtual bool hasVideoInitialCall() const;
 
     /**
      * @brief Returns a bit field with the changes of the call
@@ -220,7 +285,8 @@ public:
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      *
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
      * Check MegaChatCall::getTemporaryError() value
@@ -229,7 +295,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      */
     virtual int getChanges() const;
 
@@ -252,7 +318,8 @@ public:
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
      *
      * - MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS  = 0x04
-     * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      *
      * - MegaChatCall::CHANGE_TYPE_TEMPORARY_ERROR  = 0x08
      * Check MegaChatCall::getTemporaryError() value
@@ -261,7 +328,7 @@ public:
      * Check MegaChatCall::isRinging() value
      *
      * - MegaChatCall::CHANGE_TYPE_SESSION_STATUS = 0x20
-     * @see MegaChatCall::getSessionStatus and MegaChatCall::getPeerSessionStatusChange values
+     * @see MegaChatCall::getMegaChatSession and MegaChatCall::getPeerSessionStatusChange values
      *
      * @return true if this call has an specific change
      */
@@ -337,19 +404,13 @@ public:
     virtual bool isRinging() const;
 
     /**
-     * @brief Returns the status of the session for a peer
+     * @brief Returns the session for a peer
      *
-     * Valid values:
-     *  - SESSION_STATUS_INITIAL
-     *  - SESSION_STATUS_IN_PROGRESS
-     *  - SESSION_STATUS_DESTROYED
-     *  - SESSION_STATUS_NO_SESSION
+     * If \c peerId has not any session in the call NULL will be returned
      *
-     * If \c peerId has not any session in the call SESSION_STATUS_NO_SESSION will be returned
-     *
-     * @return Session status for \c peerId
+     * @return Session for \c peerId
      */
-    virtual int getSessionStatus(MegaChatHandle peerId) const;
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
 
     /**
      * @brief Returns peer id which session status has changed

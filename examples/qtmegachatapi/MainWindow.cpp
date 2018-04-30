@@ -98,7 +98,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
               if(auxChatWindow->getCallGui()==NULL)
               {
-                 auxChatWindow->createCallGui(call->hasRemoteVideo());
+                 auxChatWindow->createCallGui(call->hasVideoInitialCall());
               }
            }
            break;
@@ -122,7 +122,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                         CallGui *callgui = *it;
                         if (!callgui->isLocal())
                         {
-                            if(call->hasRemoteVideo())
+                            if(call->hasVideoInitialCall())
                             {
                                 QMessageBox::critical(this, tr("HAS VIDEO"), tr("HAS VIDEO"));
                             }
@@ -131,7 +131,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                                 QMessageBox::critical(this, tr("NO HAS VIDEO"), tr("NO HAS VIDEO"));
                             }
 
-                            if(call->hasRemoteVideo())
+                            if(call->hasVideoInitialCall())
                             {
                    //             callGui->ui->videoRenderer->disableStaticImage();
                             }
