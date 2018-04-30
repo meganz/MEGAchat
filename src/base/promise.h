@@ -147,11 +147,6 @@ protected:
     std::vector<C*> items;
 public:
     CallbackList(){}
-    inline void checkCanAdd(int cnt = 0) const
-    {
-        if (items.size() + cnt >= items.max_size())
-            throw std::runtime_error(kNoMoreCallbacksMsg);
-    }
 /**
  * Takes ownership of callback, copies the promise.
  * Accepts the callback as a smart pointer of type SP.
@@ -161,7 +156,6 @@ public:
     template<class SP>
     inline void push(SP& cb)
     {
-        checkCanAdd();
         items.push_back(cb.release());
     }
 
@@ -186,8 +180,6 @@ public:
     }
     inline void addListMoveItems(CallbackList& other)
     {
-        int cnt = other.count();
-        checkCanAdd(cnt);
         items.insert(items.end(), other.items.begin(), other.items.end());
         other.clear();
     }
