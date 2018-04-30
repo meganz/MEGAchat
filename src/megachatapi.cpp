@@ -44,6 +44,35 @@ namespace karere
 using namespace mega;
 using namespace megachat;
 
+MegaChatSession::~MegaChatSession()
+{
+}
+
+MegaChatSession *MegaChatSession::copy()
+{
+    return NULL;
+}
+
+int MegaChatSession::getStatus() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatSession::getPeerid() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatSession::hasAudio() const
+{
+    return false;
+}
+
+bool MegaChatSession::hasVideo() const
+{
+    return false;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }
@@ -68,22 +97,22 @@ MegaChatHandle MegaChatCall::getId() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatCall::hasLocalAudio()
+bool MegaChatCall::hasLocalAudio() const
 {
     return false;
 }
 
-bool MegaChatCall::hasRemoteAudio()
+bool MegaChatCall::hasAudioInitialCall() const
 {
     return false;
 }
 
-bool MegaChatCall::hasLocalVideo()
+bool MegaChatCall::hasLocalVideo() const
 {
     return false;
 }
 
-bool MegaChatCall::hasRemoteVideo()
+bool MegaChatCall::hasVideoInitialCall() const
 {
     return false;
 }
@@ -133,9 +162,9 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
-int MegaChatCall::getSessionStatus(MegaChatHandle peerId) const
+MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle peerId)
 {
-    return SESSION_STATUS_NO_SESSION;
+    return NULL;
 }
 
 MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const

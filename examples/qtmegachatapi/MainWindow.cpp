@@ -98,7 +98,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
               if(auxChatWindow->getCallGui()==NULL)
               {
-                 auxChatWindow->createCallGui(call->hasRemoteVideo());
+                 auxChatWindow->createCallGui(call->hasVideoInitialCall());
               }
            }
            break;
@@ -113,7 +113,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
                {
                     CallGui *callGui = auxChatWindow->getCallGui();
-                    if(call->hasRemoteVideo())
+                    if (call->hasVideoInitialCall())
                     {
                         callGui->ui->remoteRenderer->disableStaticImage();
                     }
