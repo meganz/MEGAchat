@@ -183,7 +183,7 @@ bool Client::areAllChatsLoggedIn()
     for (map<Id, shared_ptr<Chat>>::iterator it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
     {
         Chat* chat = it->second.get();
-        if (chat->onlineState() != kChatStateOnline)
+        if (chat->onlineState() != kChatStateOnline && !chat->isDisabled())
         {
             allConnected = false;
             break;
