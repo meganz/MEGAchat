@@ -2351,6 +2351,7 @@ void Chat::onKeyReject()
 void Chat::onHistReject()
 {
     CHATID_LOG_WARNING("HIST was rejected, setting chat offline and disabling it");
+    assert(false);  // chatd should not REJECT a HIST, it indicates a more critical issue
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
     disable(true);
