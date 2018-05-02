@@ -714,6 +714,7 @@ void ChatWindow::deleteCallGui()
     auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
     layout->setSpacing(0);
     layout->setContentsMargins(0,0,0,0);
+    setChatTittle(mChatRoom->getTitle());
     ui->mTitlebar->show();
     ui->mTextChatWidget->show();
 }
