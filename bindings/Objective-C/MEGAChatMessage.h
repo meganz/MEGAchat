@@ -1,4 +1,7 @@
+
 #import <Foundation/Foundation.h>
+
+#import "MEGAChatContainsMeta.h"
 #import "MEGANodeList.h"
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageStatus) {
@@ -21,14 +24,14 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypeChatTitle         = 5,
     MEGAChatMessageTypeAttachment        = 16,
     MEGAChatMessageTypeRevokeAttachment  = 17, /// Obsolete
-    MEGAChatMessageTypeContact           = 18
+    MEGAChatMessageTypeContact           = 18,
+    MEGAChatMessageTypeContainsMeta      = 19
 };
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageChangeType) {
     MEGAChatMessageChangeTypeStatus  = 0x01,
     MEGAChatMessageChangeTypeContent = 0x02,
     MEGAChatMessageChangeTypeAccess  = 0x04  /// When the access to attached nodes has changed (obsolete)
-    
 };
 
 
@@ -62,6 +65,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageReason) {
 @property (readonly, nonatomic) NSUInteger usersCount;
 @property (readonly, nonatomic) MEGANodeList *nodeList;
 @property (readonly, nonatomic) uint64_t rowId;
+@property (readonly, nonatomic) MEGAChatContainsMeta *containsMeta;
 
 - (instancetype)clone;
 

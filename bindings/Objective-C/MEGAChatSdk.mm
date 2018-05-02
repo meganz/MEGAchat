@@ -915,4 +915,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     MegaChatApi::setCatchException(enable);
 }
 
++ (BOOL)hasUrl:(NSString *)text {
+    return MegaChatApi::hasUrl(text ? [text UTF8String] : NULL);
+}
+
 @end

@@ -259,4 +259,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 + (void)setCatchException:(BOOL)enable;
 
+#pragma mark - Rich links
+
++ (BOOL)hasUrl:(NSString *)text;
+
 @end
