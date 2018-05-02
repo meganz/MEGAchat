@@ -643,20 +643,23 @@ void ChatWindow::onAudioCallBtn(bool)
 
 void ChatWindow::createCallGui(bool video)
 {
-    CallGui * callGui = NULL;
-    auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
+    CallGui *callGui = NULL;
+    auto layout = qobject_cast <QBoxLayout*> (ui->mCentralWidget->layout());
+    layout->setSpacing(5);
+    layout->setContentsMargins(5,5,5,5);
 
+    //Local callGui
     callGui = new CallGui(this, video, true);
     this->callParticipantsGui.insert(callGui);
-
     layout->insertWidget(0, callGui, 1);
 
+    //Remote callGui
     callGui = new CallGui(this, video, false);
     this->callParticipantsGui.insert(callGui);
     layout->insertWidget(1, callGui, 1);
 
-    //ui->mTitlebar->hide();
-    //ui->mTextChatWidget->hide();
+    ui->mTitlebar->hide();
+    ui->mTextChatWidget->hide();
 }
 
 void ChatWindow::closeEvent(QCloseEvent *event)
@@ -706,5 +709,12 @@ void ChatWindow::deleteCallGui()
         CallGui *call = *it;
         call->deleteLater();
     }
+    callParticipantsGui.clear();
+
+    auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
+    layout->setSpacing(0);
+    layout->setContentsMargins(0,0,0,0);
+    ui->mTitlebar->show();
+    ui->mTextChatWidget->show();
 }
 #endif

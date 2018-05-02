@@ -96,7 +96,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
         case megachat::MegaChatCall::CALL_STATUS_RING_IN:
            {
               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
-              if(auxChatWindow->getCallGui()==NULL)
+              std::set<CallGui *> *setCallGui = auxChatWindow->getCallGui();
+
+              if (setCallGui->size() == 0)
               {
                  auxChatWindow->createCallGui(call->hasVideoInitialCall());
               }
@@ -111,11 +113,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
                if (setOfCallGui->size() != 0)
                {
-                   //CHECK IF ITS IN PROGRESS
                    auxChatWindow->connectCall();
                }
 
-               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))  //CHANGE
+               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
                {
                     for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
                     {
@@ -124,21 +125,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                         {
                             if(call->hasVideoInitialCall())
                             {
-                                QMessageBox::critical(this, tr("HAS VIDEO"), tr("HAS VIDEO"));
+                                //  callGui->ui->videoRenderer->disableStaticImage();
                             }
                             else
                             {
-                                QMessageBox::critical(this, tr("NO HAS VIDEO"), tr("NO HAS VIDEO"));
-                            }
-
-                            if(call->hasVideoInitialCall())
-                            {
-                   //             callGui->ui->videoRenderer->disableStaticImage();
-                            }
-                            else
-                            {
-                   //             callGui->setAvatar();
-                   //             callGui->ui->videoRenderer->enableStaticImage();
+                                //  callGui->setAvatar();
+                                //  callGui->ui->videoRenderer->enableStaticImage();
                             }
                         }
                     }
