@@ -183,7 +183,7 @@ bool Client::areAllChatsLoggedIn()
     for (map<Id, shared_ptr<Chat>>::iterator it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
     {
         Chat* chat = it->second.get();
-        if (chat->onlineState() != kChatStateOnline)
+        if (chat->onlineState() != kChatStateOnline && !chat->isDisabled())
         {
             allConnected = false;
             break;
@@ -1192,6 +1192,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 else if (op == OP_NEWKEY)
                 {
                     chat.onKeyReject();
+                }
+                else if (op == OP_HIST)
+                {
+                    chat.onHistReject();
                 }
                 else
                 {
@@ -2342,6 +2346,15 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 void Chat::onKeyReject()
 {
     mCrypto->onKeyRejected();
+}
+
+void Chat::onHistReject()
+{
+    CHATID_LOG_WARNING("HIST was rejected, setting chat offline and disabling it");
+    assert(false);  // chatd should not REJECT a HIST, it indicates a more critical issue
+    mServerFetchState = kHistNotFetching;
+    setOnlineState(kChatStateOffline);
+    disable(true);
 }
 
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
