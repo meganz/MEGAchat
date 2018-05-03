@@ -1643,6 +1643,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
+    chatroomListener->mConfirmedMessageHandle[a1] = MEGACHAT_INVALID_HANDLE;
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
@@ -3689,17 +3690,20 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     msgId[apiIndex].push_back(msg->getMsgId());
 
-    if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_STATUS)
     {
-        mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
-        msgConfirmed[apiIndex] = true;
-    }
-    else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
-    {
-        msgDelivered[apiIndex] = true;
+        if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+        {
+            mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
+            msgConfirmed[apiIndex] = true;
+        }
+        else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
+        {
+            msgDelivered[apiIndex] = true;
+        }
     }
 
-    if (msg->isEdited())
+    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_CONTENT && msg->isEdited())
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
@@ -3714,7 +3718,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
     {
         if (api == this->megaChatApi[i])
         {
