@@ -187,14 +187,13 @@ void MainWindow::addContacts()
 
 void MainWindow::addInactiveChats()
 {
-    std::list<Chat> *InactiveChatList = getLocalChatListItemsByStatus(chatInactiveStatus);
-    InactiveChatList->sort();
-    for (Chat &chat : (*InactiveChatList))
+    std::list<Chat> *inactiveChatList = getLocalChatListItemsByStatus(chatInactiveStatus);
+    inactiveChatList->sort();
+    for (Chat &chat : (*inactiveChatList))
     {
         addChat(chat.chatItem);
     }
-    InactiveChatList->clear();
-    delete InactiveChatList;
+    delete inactiveChatList;
 }
 
 void MainWindow::addActiveChats()
@@ -205,7 +204,6 @@ void MainWindow::addActiveChats()
     {
         addChat(chat.chatItem);
     }
-    activeChatList->clear();
     delete activeChatList;
 }
 
@@ -578,28 +576,23 @@ void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char
 
 void MainWindow::updateLocalChatListItems()
 {
-    if (mLocalChatListItems.size() != 0)
+    for (auto it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
     {
-        std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator it;
-        for (it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
-        {
-            const megachat::MegaChatListItem *auxItem = it->second;
-            mLocalChatListItems.erase(it);
-            delete auxItem;
-        }
+        delete it->second;
     }
+    mLocalChatListItems.clear();
 
     //Add all active chatListItems
-    MegaChatListItemList *chatList = this->mMegaChatApi->getActiveChatListItems();
-    for (int i = 0; i < chatList->size(); i++)
+    MegaChatListItemList *chatList = mMegaChatApi->getActiveChatListItems();
+    for (unsigned int i = 0; i < chatList->size(); i++)
     {
         addLocalChatListItem(chatList->get(i));
     }
     delete chatList;
 
     //Add inactive chatListItems
-    chatList = this->mMegaChatApi->getInactiveChatListItems();
-    for (int i = 0; i < chatList->size(); i++)
+    chatList = mMegaChatApi->getInactiveChatListItems();
+    for (unsigned int i = 0; i < chatList->size(); i++)
     {
         addLocalChatListItem(chatList->get(i));
     }
