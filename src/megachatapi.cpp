@@ -162,6 +162,11 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+MegaHandleList *MegaChatCall::getSessions() const
+{
+    return NULL;
+}
+
 MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle peerId)
 {
     return NULL;

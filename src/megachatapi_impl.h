@@ -203,6 +203,7 @@ public:
     virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
     virtual bool isRinging() const;
+    virtual mega::MegaHandleList *getSessions() const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
     virtual bool isIgnored() const;

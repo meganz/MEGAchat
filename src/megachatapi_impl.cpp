@@ -3888,6 +3888,18 @@ bool MegaChatCallPrivate::isRinging() const
     return ringing;
 }
 
+MegaHandleList *MegaChatCallPrivate::getSessions() const
+{
+    MegaHandleListPrivate *sessionList = new MegaHandleListPrivate();
+
+    for (auto it = sessions.begin(); it != sessions.end(); it++)
+    {
+        sessionList->addMegaHandle(it->first);
+    }
+
+    return sessionList;
+}
+
 MegaChatHandle MegaChatCallPrivate::getPeerSessionStatusChange() const
 {
     return peerId;

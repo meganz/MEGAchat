@@ -404,6 +404,17 @@ public:
     virtual bool isRinging() const;
 
     /**
+     * @brief Get a list with the ids of peers that they are participating in the call
+     *
+     * If there aren't any session at the call. An empty MegaHandleList will be returned
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of peers
+     */
+    virtual mega::MegaHandleList *getSessions() const;
+
+    /**
      * @brief Returns the session for a peer
      *
      * If \c peerId has not any session in the call NULL will be returned
