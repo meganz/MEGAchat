@@ -140,6 +140,10 @@ void MegaChatApiImpl::loop()
             break;
         }
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    rtcModule::globalCleanup();
+#endif
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
@@ -328,10 +332,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
             }
-
-#ifndef KARERE_DISABLE_WEBRTC
-            rtcModule::globalCleanup();
-#endif
 
             threadExit = 1;
             break;
