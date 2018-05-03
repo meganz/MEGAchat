@@ -32,7 +32,7 @@ typedef NS_ENUM (NSInteger, MEGAChatStatus) {
     MEGAChatStatusAway    = 2,
     MEGAChatStatusOnline  = 3,
     MEGAChatStatusBusy    = 4,
-    MEGAChatStatusInvalid = 0xFF
+    MEGAChatStatusInvalid = 15
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatSource) {
@@ -211,6 +211,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
+- (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
 - (void)saveCurrentState;
 
 #pragma mark - Audio and video calls

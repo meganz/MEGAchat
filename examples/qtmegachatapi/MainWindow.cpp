@@ -11,7 +11,7 @@
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
@@ -20,21 +20,29 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger) :
     inactiveChats = 0;
     ui->setupUi(this);
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
-    mMegaChatApi = NULL;
-    mMegaApi = NULL;
+    mMegaChatApi = megaChatApi;
+    mMegaApi = megaApi;
     megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     allItemsVisibility = false;
     mLogger = logger;
+    mChatSettings = new ChatSettings();
     qApp->installEventFilter(this);
+    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+#endif
 }
 
 MainWindow::~MainWindow()
 {
-    if (megaChatListenerDelegate)
-    {
-        delete megaChatListenerDelegate;
-    }
+    mMegaChatApi->removeChatListener(megaChatListenerDelegate);
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
+#endif
+    delete megaChatListenerDelegate;
+    delete megaChatCallListenerDelegate;
+    delete mChatSettings;
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
@@ -45,16 +53,81 @@ mega::MegaUserList * MainWindow::getUserContactList()
     return mMegaApi->getContacts();
 }
 
-void MainWindow::setMegaChatApi(megachat::MegaChatApi *megaChatApi)
+#ifndef KARERE_DISABLE_WEBRTC
+void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
 {
-    this->mMegaChatApi = megaChatApi;
-}
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
+    if(itWidgets == chatWidgets.end())
+    {
+        throw std::runtime_error("Incoming call from unknown contact");
+    }
 
-void MainWindow::setMegaApi(MegaApi *megaApi)
-{
-    this->mMegaApi = megaApi;
-}
+    ChatItemWidget *chatItemWidget = itWidgets->second;
+    MegaChatListItem *auxItem = mMegaChatApi->getChatListItem(call->getChatid());
+    const char *chatWindowTitle = auxItem->getTitle();
+    delete auxItem;
+    ChatWindow *auxChatWindow = NULL;
 
+    if (!chatItemWidget->getChatWindow())
+    {
+        megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(call->getChatid());
+        auxChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
+        chatItemWidget->setChatWindow(auxChatWindow);
+        auxChatWindow->show();
+        auxChatWindow->openChatRoom();
+        delete chatRoom;
+    }
+    else
+    {
+        auxChatWindow =chatItemWidget->getChatWindow();
+        auxChatWindow->show();
+        auxChatWindow->setWindowState(Qt::WindowActive);
+    }
+
+    switch(call->getStatus())
+    {
+        case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
+           {
+               ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
+               chatItemWidget->getChatWindow()->hangCall();
+               return;
+           }
+           break;
+        case megachat::MegaChatCall::CALL_STATUS_RING_IN:
+           {
+              ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
+              if(auxChatWindow->getCallGui()==NULL)
+              {
+                 auxChatWindow->createCallGui(call->hasRemoteVideo());
+              }
+           }
+           break;
+        case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+           {
+               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
+               if ((auxChatWindow->getCallGui()) && !(auxChatWindow->getCallGui()->getCall()))
+               {
+                   auxChatWindow->connectCall();
+               }
+
+               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
+               {
+                    CallGui *callGui = auxChatWindow->getCallGui();
+                    if(call->hasRemoteVideo())
+                    {
+                        callGui->ui->remoteRenderer->disableStaticImage();
+                    }
+                    else
+                    {
+                        callGui->setAvatarOnRemote();
+                        callGui->ui->remoteRenderer->enableStaticImage();
+                    }
+               }
+           }
+           break;
+    }
+}
+#endif
 void MainWindow::clearContactChatList()
 {
     ui->contactList->clear();
@@ -92,12 +165,10 @@ void MainWindow::addContacts()
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
-        const char *contactEmail = contact->getEmail();
         mega::MegaHandle userHandle = contact->getHandle();
-
         if (userHandle != this->mMegaChatApi->getMyUserHandle())
         {
-            if(contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
+            if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
             {
                 continue;
             }
@@ -158,7 +229,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
 void MainWindow::on_bSettings_clicked()
 {
-    ChatSettings *chatSettings = new ChatSettings(this);
+    #ifndef KARERE_DISABLE_WEBRTC
+        this->mMegaChatApi->loadAudioVideoDeviceList();
+    #endif
+}
+
+void MainWindow::createSettingsMenu()
+{
+    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this, mChatSettings);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
@@ -257,7 +335,7 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
 
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
     ChatItemWidget *chatItemWidget = new ChatItemWidget(this, mMegaChatApi, chatListItem);
-    chatItemWidget->updateToolTip(chatListItem);
+    chatItemWidget->updateToolTip(chatListItem, NULL);
     QListWidgetItem *item = new QListWidgetItem();
     chatItemWidget->setWidgetItem(item);
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
@@ -288,7 +366,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Last Message update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG):
                 {
-                    chatItemWidget->updateToolTip(item);
+                    chatItemWidget->updateToolTip(item, NULL);
                     break;
                 }
             //Unread count update
@@ -306,13 +384,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Own priv update
             case (megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV):
                 {
-                    chatItemWidget->updateToolTip(item);
+                    chatItemWidget->updateToolTip(item, NULL);
                     break;
                 }
             //Participants update
             case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
                 {
-                    chatItemWidget->updateToolTip(item);
+                    chatItemWidget->updateToolTip(item, NULL);
                     break;
                 }
             //The chatroom has been left by own user
@@ -379,6 +457,12 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         orderContactChatList(allItemsVisibility);
+        megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+        if (presenceConfig)
+        {
+            onChatPresenceConfigUpdate(mMegaChatApi, presenceConfig);
+        }
+        delete presenceConfig;
         return;
     }
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
@@ -463,6 +547,28 @@ void MainWindow::setNContacts(int nContacts)
     this->nContacts = nContacts;
 }
 
+
+void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char *firstname)
+{
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
+    for (it = chatWidgets.begin(); it != chatWidgets.end(); it++)
+    {
+        MegaChatListItem *chatListItem  = mMegaChatApi->getChatListItem(it->first);
+        ChatItemWidget *chatItemWidget = it->second;
+
+        if (chatListItem->getLastMessageSender() == contactHandle)
+        {
+            chatItemWidget->updateToolTip(mMegaChatApi->getChatListItem(it->first), firstname);
+        }
+
+        ChatWindow *chatWindow = chatItemWidget->getChatWindow();
+        if (chatWindow)
+        {
+            chatWindow->updateMessageFirstname(contactHandle, firstname);
+        }
+        delete chatListItem;
+    }
+}
 
 void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char * firstname)
 {

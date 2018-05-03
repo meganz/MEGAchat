@@ -31,7 +31,7 @@ protected:
     SdpKey mPeerSdpKey;
     artc::myPeerConnection<Session> mRtcConn;
     std::string mName;
-    ISessionHandler* mHandler;
+    ISessionHandler* mHandler = NULL;
     std::unique_ptr<stats::Recorder> mStatRecorder;
     megaHandle mSetupTimer = 0;
     time_t mTsIceConn = 0;
@@ -116,7 +116,7 @@ protected:
      *  analogous to onMediaRecv in the js version
      */
     void clearCallOutTimer();
-    void notifyNewSession(Session& sess);
+    void notifyCallStarting(Session& sess);
     void notifySessionConnected(Session& sess);
     void removeSession(Session& sess, TermCode reason);
     //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()

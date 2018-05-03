@@ -809,6 +809,32 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the current email address of the contact
+     *
+     * This function is useful to get the email address of users you are NOT contact with.
+     * Note that for any other user without contact relationship, this function will return NULL.
+     *
+     * You take the ownership of the returned value
+     *
+     * This function is useful to get the email address of users who participate in a groupchat with
+     * you but are not your contacts.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_EMAIL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the email address of the user
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void getUserEmail(long userhandle, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserEmail(userhandle, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Returns the current email address of the user
      *
      * This function is useful to get the email address of users you are contact with.
@@ -1488,6 +1514,18 @@ public class MegaChatApiJava {
     }
 
     /**
+     *  Returns message id of the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return Message id for the last-seen-by-us, or invalid handle if \c chatid is invalid or
+     * the user has not seen any message in that chat
+     */
+    public long getLastMessageSeenId(long chatid){
+        return megaChatApi.getLastMessageSeenId(chatid);
+    }
+
+    /**
      * Removes the unsent message from the queue
      *
      * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
@@ -1532,6 +1570,45 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void sendStopTypingNotification(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.sendStopTypingNotification(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void sendStopTypingNotification(long chatid){
+        megaChatApi.sendStopTypingNotification(chatid);
+    }
+
+    /**
      * Saves the current state
      *
      * The DB cache works with transactions. In order to prevent losing recent changes when the app
@@ -1543,6 +1620,43 @@ public class MegaChatApiJava {
      */
     public void saveCurrentState(){
             megaChatApi.saveCurrentState();
+    }
+
+    /**
+     * Notify MEGAchat a push has been received
+     *
+     * This method should be called when the Android app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * of every chatroom and will provide to the app the list of unread messages that
+     * are suitable to create OS notifications.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void pushReceived(boolean beep, MegaChatRequestListenerInterface listener){
+        megaChatApi.pushReceived(beep, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Notify MEGAchat a push has been received
+     *
+     * This method should be called when the Android app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * of every chatroom and will provide to the app the list of unread messages that
+     * are suitable to create OS notifications.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     */
+    public void pushReceived(boolean beep){
+        megaChatApi.pushReceived(beep);
     }
 
     // Call management
@@ -1708,6 +1822,15 @@ public class MegaChatApiJava {
      */
     public MegaChatCall getChatCall(long chatId){
         return megaChatApi.getChatCall(chatId);
+    }
+
+    /**
+     * Mark as ignored the MegaChatCall associated with a chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void setIgnoredCall(long chatid){
+        megaChatApi.setIgnoredCall(chatid);
     }
 
     /**

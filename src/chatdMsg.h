@@ -318,6 +318,14 @@ enum Opcode
       */
     OP_DELREACTION = 34,
 
+    /**
+      ** @brief <chatid>
+      *
+      * C->S: ping server to ensure client is up to date for the specified chatid
+      * S->C: response to the ping initiated by client
+      */
+    OP_SYNC = 38,
+
     OP_LAST = OP_DELREACTION
 };
 
@@ -350,7 +358,6 @@ public:
         kMsgRevokeAttachment  = 0x11,
         kMsgContact           = 0x12,
         kMsgContainsMeta      = 0x13
-
     };
     enum Status
     {
@@ -474,7 +481,24 @@ public:
                 && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
                 && (type == kMsgNormal                  // include normal messages
                     || type == kMsgAttachment           // include node-attachment messages
-                    || type == kMsgContact));           // include contact-attachment messages
+                    || type == kMsgContact              // include contact-attachment messages
+                    || type == kMsgContainsMeta));      // include containsMeta messages
+    }
+
+    bool isValidLastMessage() const
+    {
+        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+                && type != kMsgRevokeAttachment     // skip revokes
+                && type != kMsgInvalid);            // skip (still) encrypted messages
+    }
+
+    // conditions to consider unread messages should match the
+    // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
+    bool isValidUnread(karere::Id myHandle) const
+    {
+        return (userid != myHandle              // skip own messages
+                && !(updated && !size())        // skip deleted messages
+                && (isText()));                 // Only text messages
     }
 
     /** @brief Convert attachment etc. special messages to text */

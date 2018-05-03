@@ -133,6 +133,21 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+int MegaChatCall::getSessionStatus(MegaChatHandle peerId) const
+{
+    return SESSION_STATUS_NO_SESSION;
+}
+
+MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::isIgnored() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -498,6 +513,11 @@ MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
     return  pImpl->getLastMessageSeen(chatid);
 }
 
+MegaChatHandle MegaChatApi::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    return pImpl->getLastMessageSeenId(chatid);
+}
+
 void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId)
 {
     pImpl->removeUnsentMessage(chatid, rowId);
@@ -521,6 +541,11 @@ bool MegaChatApi::isMessageReceptionConfirmationActive() const
 void MegaChatApi::saveCurrentState()
 {
     pImpl->saveCurrentState();
+}
+
+void MegaChatApi::pushReceived(bool beep, MegaChatRequestListener *listener)
+{
+    pImpl->pushReceived(beep, listener);
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -593,6 +618,11 @@ void MegaChatApi::loadAudioVideoDeviceList(MegaChatRequestListener *listener)
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
 {
     return pImpl->getChatCall(chatid);
+}
+
+void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+{
+    pImpl->setIgnoredCall(chatid);
 }
 
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)
@@ -764,6 +794,16 @@ MegaChatMessage *MegaChatRequest::getMegaChatMessage()
 }
 
 MegaNodeList *MegaChatRequest::getMegaNodeList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
 {
     return NULL;
 }
@@ -1082,6 +1122,16 @@ bool MegaChatListItem::isActive() const
 }
 
 MegaChatHandle MegaChatListItem::getPeerHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+int MegaChatListItem::getLastMessagePriv() const
+{
+    return MegaChatRoom::PRIV_UNKNOWN;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
