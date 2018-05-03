@@ -663,14 +663,14 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
             case chatActiveStatus:
                 if (item->isActive())
                 {
-                    chatList->push_back(Chat(item, item->getLastTimestamp()));
+                    chatList->push_back(Chat(item));
                 }
                 break;
 
             case chatInactiveStatus:
                 if (!item->isActive())
                 {
-                    chatList->push_back(Chat(item, item->getLastTimestamp()));
+                    chatList->push_back(Chat(item));
                 }
                 break;
         }

@@ -17,15 +17,14 @@ const int chatInactiveStatus = 1;
 struct Chat
 {
     const megachat::MegaChatListItem *chatItem;
-    int64_t timestamp;
 
-    Chat(const megachat::MegaChatListItem *item, int64_t ts) :
-            chatItem(item), timestamp(ts)
+    Chat(const megachat::MegaChatListItem *item) :
+            chatItem(item)
     {
     }
     bool operator < (const Chat &item) const
     {
-        return timestamp < item.timestamp;
+        return this->chatItem->getLastTimestamp() < item.chatItem->getLastTimestamp();
     }
 };
 struct ChatComparator
