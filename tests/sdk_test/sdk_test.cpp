@@ -3467,7 +3467,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
     { 
         MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
-        ASSERT_CHAT_TEST(!session, "Invalid session for peer received at 'getMegaChatSession' change avflags");
+        ASSERT_CHAT_TEST(session != NULL, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Change at call: " << call->getPeerSessionStatusChange()
                   << "   Audio: " << session->hasAudio() << "    Video: " << session->hasVideo() << std::endl;
         mVideoRemote[apiIndex] = session->hasVideo();
@@ -3481,7 +3481,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
     {
         MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
-        ASSERT_CHAT_TEST(!session, "Invalid session for peer received at 'getMegaChatSession' change avflags");
+        ASSERT_CHAT_TEST(session != NULL, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Session peer: " << call->getPeerSessionStatusChange()
                   << "   State: " << session->getStatus() << std::endl;
     }
