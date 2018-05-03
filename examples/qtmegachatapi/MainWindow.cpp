@@ -194,13 +194,13 @@ void MainWindow::addActiveChats()
     MegaChatListItemList *chatList = this->mMegaChatApi->getActiveChatListItems();
     for (int i = 0; i < chatList->size(); i++)
     {
-        listofChats.push_back(Chat(chatList->get(i)->getChatId(), chatList->get(i)->getLastTimestamp()));
+        listofChats.push_back(Chat(chatList->get(i), chatList->get(i)->getLastTimestamp()));
     }
 
     listofChats.sort();
     for(Chat &chat : listofChats)
     {
-       addChat(mMegaChatApi->getChatListItem(chat.chatId));
+       addChat(chat.chatListItem);
     }
     delete chatList;
 }
@@ -558,7 +558,7 @@ void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char
 
         if (chatListItem->getLastMessageSender() == contactHandle)
         {
-            chatItemWidget->updateToolTip(mMegaChatApi->getChatListItem(it->first), firstname);
+            chatItemWidget->updateToolTip(chatListItem, firstname);
         }
 
         ChatWindow *chatWindow = chatItemWidget->getChatWindow();
