@@ -40,16 +40,13 @@ MainWindow::~MainWindow()
 #ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
 #endif
-    if (mLocalChatListItems.size() != 0)
+
+    for (auto it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
     {
-        std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator it;
-        for (it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
-        {
-            const megachat::MegaChatListItem *item = it->second;
-            mLocalChatListItems.erase(it);
-            delete item;
-        }
+        delete it->second;
     }
+    mLocalChatListItems.clear();
+
     delete megaChatListenerDelegate;
     delete megaChatCallListenerDelegate;
     delete mChatSettings;
