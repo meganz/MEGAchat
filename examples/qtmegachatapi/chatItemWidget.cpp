@@ -247,16 +247,11 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     {
         megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
         const char *msg = chatRoom->getPeerFirstnameByHandle(msgUserId);
-        if (msg)
+        size_t len = msg ? strlen(msg) : 0;
+        if (len)
         {
-            size_t len = strlen(msg);
-            if (len == 0)
-            {
-                return NULL;
-            }
-
             msgAuthor = new char[len];
-            strcpy(msgAuthor, msg);
+            strncpy(msgAuthor, msg, len);
         }
         delete chatRoom;
     }

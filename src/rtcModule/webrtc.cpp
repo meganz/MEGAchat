@@ -279,10 +279,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 }
 
-void RtcModule::onUserJoinLeave(karere::Id /*chatid*/, karere::Id /*userid*/, chatd::Priv /*priv*/)
-{
-}
-
 template <class... Args>
 void RtcModule::cmdEndpoint(uint8_t type, const RtMessage& info, Args... args)
 {
@@ -1264,13 +1260,14 @@ void Call::removeSession(Session& sess, TermCode reason)
     {
         SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sess.sessionId().toString().c_str());
         auto wptr = weakHandle();
-        auto peer = sess.mPeer;
-        marshallCall([wptr, this, peer]()
+        karere::Id peerid = sess.mPeer;
+        uint32_t clientid = sess.mPeerClient;
+        marshallCall([wptr, this, peerid, clientid]()
         {
             if (wptr.deleted())
                 return;
 
-            rejoin(peer);
+            rejoin(peerid, clientid);
 
         }, mManager.mClient.appCtx);
     }
@@ -1319,34 +1316,13 @@ bool Call::startOrJoin(AvFlags av)
 
     if (mIsJoiner)
     {
-        int audioSenders = static_cast<int>(av.audio());
-        int videoSender = static_cast<int>(av.video());
-        std::map <chatd::EndpointId, karere::AvFlags> roomAvState = mManager.mPeerAvStates[mChat.chatId()];
-
-        for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = roomAvState.begin(); it != roomAvState.end(); it++)
-        {
-            AvFlags flags = it->second;
-            audioSenders += static_cast<int>(flags.audio());
-            videoSender += static_cast<int>(flags.video());
-        }
-
-        if (av.audio() && audioSenders > RtcModule::kMaxCallAudioSenders)
-        {
-            uint8_t avValue = av.value();
-            av.set(avValue & !AvFlags::kAudio);
-        }
-
-        if (av.video() && videoSender > RtcModule::kMaxCallVideoSenders)
-        {
-            uint8_t avValue = av.value();
-            av.set(avValue & !AvFlags::kVideo);
-        }
-
-        getLocalStream(av, errors);
+        karere::AvFlags flags = validAvFlags(av);
+        getLocalStream(flags, errors);
         return join();
     }
     else
     {
+        manager().updatePeerAvState(mChat.chatId(), mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
         getLocalStream(av, errors);
         return broadcastCallReq();
     }
@@ -1395,14 +1371,14 @@ bool Call::join(Id userid)
     return true;
 }
 
-bool Call::rejoin(karere::Id userid)
+bool Call::rejoin(karere::Id userid, uint32_t clientid)
 {
     assert(mState == Call::kStateInProgress);
     // JOIN:
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
     // join a specific user (used when a session gets broken)
-    bool sent = cmd(RTCMD_JOIN, userid, 0, mId, mManager.mOwnAnonId);
+    bool sent = cmd(RTCMD_JOIN, userid, clientid, mId, mManager.mOwnAnonId);
     if (!sent)
     {
         asyncDestroy(TermCode::kErrNetSignalling, true);
@@ -1465,6 +1441,36 @@ bool Call::hasNoSessionsOrPendingRetries() const
     return mSessions.size() || mSessRetriesTime.size();
 }
 
+AvFlags Call::validAvFlags(AvFlags av)
+{
+    int audioSenders = static_cast<int>(av.audio());
+    int videoSender = static_cast<int>(av.video());
+    std::map <chatd::EndpointId, karere::AvFlags> roomAvState = mManager.mPeerAvStates[mChat.chatId()];
+
+    for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = roomAvState.begin(); it != roomAvState.end(); it++)
+    {
+        AvFlags flags = it->second;
+        audioSenders += static_cast<int>(flags.audio());
+        videoSender += static_cast<int>(flags.video());
+    }
+
+    if (av.audio() && audioSenders >= RtcModule::kMaxCallAudioSenders)
+    {
+        uint8_t avValue = av.value();
+        av.set(avValue & !AvFlags::kAudio);
+        SUB_LOG_WARNING("Can't enable audio, too many audio senders in call");
+    }
+
+    if (av.video() && videoSender >= RtcModule::kMaxCallVideoSenders)
+    {
+        uint8_t avValue = av.value();
+        av.set(avValue & !AvFlags::kVideo);
+        SUB_LOG_WARNING("Can't enable camera, too many video senders in call");
+    }
+
+    return av;
+}
+
 bool Call::answer(AvFlags av)
 {
     if (mState != Call::kStateRingIn)
@@ -1475,7 +1481,7 @@ bool Call::answer(AvFlags av)
     assert(mIsJoiner);
 
     unsigned int callParticipants = mChat.callParticipants() + 1;
-    if (callParticipants > RtcModule::kMaxCAllRecivers)
+    if (callParticipants > RtcModule::kMaxCallReceivers)
     {
         SUB_LOG_WARNING("answer: It's not possible join to the call, there are too many participants");
         return false;
@@ -1617,37 +1623,14 @@ AvFlags Call::muteUnmute(AvFlags av)
         return AvFlags(0);
     auto oldAv = mLocalStream->effectiveAv();
 
-    int audioSenders = static_cast<int>(av.audio());
-    int videoSender = static_cast<int>(av.video());
-    std::map <chatd::EndpointId, karere::AvFlags> roomAvState = mManager.mPeerAvStates[mChat.chatId()];
+    karere::AvFlags flags = validAvFlags(av);
 
-    for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = roomAvState.begin(); it != roomAvState.end(); it++)
-    {
-        AvFlags flags = it->second;
-        audioSenders += static_cast<int>(flags.audio());
-        videoSender += static_cast<int>(flags.video());
-    }
-
-    if (av.audio() && audioSenders > RtcModule::kMaxCallAudioSenders)
-    {
-        uint8_t avValue = av.value();
-        av.set(avValue & !AvFlags::kAudio);
-        SUB_LOG_WARNING("Can't unmute mic, too many audio senders in call");
-    }
-
-    if (av.video() && videoSender > RtcModule::kMaxCallVideoSenders)
-    {
-        uint8_t avValue = av.value();
-        av.set(avValue & !AvFlags::kVideo);
-        SUB_LOG_WARNING("Can't unmute camera, too many video senders in call");
-    }
-
-    if (av == oldAv)
+    if (flags == oldAv)
     {
         return oldAv;
     }
 
-    mLocalStream->setAv(av);
+    mLocalStream->setAv(flags);
     av = mLocalStream->effectiveAv();
     mLocalPlayer->enableVideo(av.video());
     if (oldAv != av)
@@ -1658,6 +1641,7 @@ AvFlags Call::muteUnmute(AvFlags av)
         }
     }
 
+    manager().updatePeerAvState(mChat.chatId(), mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
     sendCallData(CallDataState::kMute);
 
     return av;

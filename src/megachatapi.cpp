@@ -162,6 +162,11 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+MegaHandleList *MegaChatCall::getSessions() const
+{
+    return NULL;
+}
+
 MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle peerId)
 {
     return NULL;
@@ -572,6 +577,11 @@ void MegaChatApi::saveCurrentState()
     pImpl->saveCurrentState();
 }
 
+void MegaChatApi::pushReceived(bool beep, MegaChatRequestListener *listener)
+{
+    pImpl->pushReceived(beep, listener);
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -679,24 +689,24 @@ void MegaChatApi::removeChatCallListener(MegaChatCallListener *listener)
     pImpl->removeChatCallListener(listener);
 }
 
-void MegaChatApi::addChatLocalVideoListener(MegaChatVideoListener *listener)
+void MegaChatApi::addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->addChatLocalVideoListener(listener);
+    pImpl->addChatVideoListener(chatid, MEGACHAT_INVALID_HANDLE, listener);
 }
 
-void MegaChatApi::removeChatLocalVideoListener(MegaChatVideoListener *listener)
+void MegaChatApi::removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatLocalVideoListener(listener);
+    pImpl->removeChatVideoListener(chatid, MEGACHAT_INVALID_HANDLE, listener);
 }
 
-void MegaChatApi::addChatRemoteVideoListener(MegaChatVideoListener *listener)
+void MegaChatApi::addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener)
 {
-    pImpl->addChatRemoteVideoListener(listener);
+    pImpl->addChatVideoListener(chatid, peerid, listener);
 }
 
-void MegaChatApi::removeChatRemoteVideoListener(MegaChatVideoListener *listener)
+void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatRemoteVideoListener(listener);
+    pImpl->removeChatVideoListener(chatid, peerid, listener);
 }
 
 #endif
@@ -818,6 +828,16 @@ MegaChatMessage *MegaChatRequest::getMegaChatMessage()
 }
 
 MegaNodeList *MegaChatRequest::getMegaNodeList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
 {
     return NULL;
 }

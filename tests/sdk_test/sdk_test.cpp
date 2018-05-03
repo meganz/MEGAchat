@@ -1643,6 +1643,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
+    chatroomListener->mConfirmedMessageHandle[a1] = MEGACHAT_INVALID_HANDLE;
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
@@ -2143,10 +2144,12 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaChatHandle uh1 = megaChatApi[a1]->getMyUserHandle();
+    MegaChatHandle uh2 = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh2 == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
+        uh2 = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
     }
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
@@ -2173,10 +2176,10 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     mLocalVideoListener[a2] = new TestChatVideoListener("Local Account2");
     mRemoteVideoListener[a1] = new TestChatVideoListener("Remote Account1");
     mRemoteVideoListener[a2] = new TestChatVideoListener("Remote Account2");
-    megaChatApi[a1]->addChatLocalVideoListener(mLocalVideoListener[a1]);
-    megaChatApi[a1]->addChatRemoteVideoListener(mRemoteVideoListener[a1]);
-    megaChatApi[a2]->addChatLocalVideoListener(mLocalVideoListener[a2]);
-    megaChatApi[a2]->addChatRemoteVideoListener(mRemoteVideoListener[a2]);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
+    megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, mRemoteVideoListener[a1]);
+    megaChatApi[a2]->addChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
+    megaChatApi[a2]->addChatRemoteVideoListener(chatid, uh1, mRemoteVideoListener[a2]);
 
     // A calls B and B hangs up the call
     bool *flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
@@ -2201,7 +2204,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    ASSERT_CHAT_TEST(mVideoLocal[a1] == mVideoRemote[a2], "Video flags must have the same values at local account 1 and remote account 2");
+    MegaChatCall* call = megaChatApi[a1]->getChatCall(chatid);
+    ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
+    delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
@@ -2243,7 +2248,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    ASSERT_CHAT_TEST(mVideoLocal[a1] == mVideoRemote[a2], "Video flags must have the same values at local account 1 and remote account 2");
+    call = megaChatApi[a1]->getChatCall(chatid);
+    ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
+    delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
@@ -2288,7 +2295,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    ASSERT_CHAT_TEST(mVideoLocal[a1] == mVideoRemote[a2], "Video flags must have the same values at local account 1 and remote account 2");
+    call = megaChatApi[a1]->getChatCall(chatid);
+    ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
+    delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
@@ -2341,10 +2350,10 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
-    megaChatApi[a1]->removeChatLocalVideoListener(mLocalVideoListener[a1]);
-    megaChatApi[a1]->removeChatRemoteVideoListener(mRemoteVideoListener[a1]);
-    megaChatApi[a2]->removeChatLocalVideoListener(mLocalVideoListener[a2]);
-    megaChatApi[a2]->removeChatRemoteVideoListener(mRemoteVideoListener[a2]);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
+    megaChatApi[a1]->removeChatRemoteVideoListener(chatid, uh2, mRemoteVideoListener[a1]);
+    megaChatApi[a2]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
+    megaChatApi[a2]->removeChatRemoteVideoListener(chatid, uh1, mRemoteVideoListener[a2]);
 
     delete chatroomListener;
     chatroomListener = NULL;
@@ -2378,8 +2387,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaChatHandle uh = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh == MEGACHAT_INVALID_HANDLE)
+    MegaChatHandle uh2 = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+    if (uh2 == MEGACHAT_INVALID_HANDLE)
     {
         makeContact(a1, a2);
     }
@@ -2406,8 +2415,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     TestChatVideoListener localVideoListener("Local");
     TestChatVideoListener remoteVideoListener("Remote");
 
-    megaChatApi[a1]->addChatLocalVideoListener(&localVideoListener);
-    megaChatApi[a1]->addChatRemoteVideoListener(&remoteVideoListener);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     // Manual Test
     // Emit call
@@ -2446,6 +2455,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->removeChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -2454,6 +2465,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
@@ -2475,25 +2488,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     std::cout << "Call finished." << std::endl;
     sleep(5);
 
-    // Automatic test -> it is not working now, the answer call gets blocked
-//    bool *callSentRequest = &mCallRequestSent[a1]; *callSentRequest = false;
-//    bool *callReceivedAutomatic = &mCallReceived[a2]; *callReceivedAutomatic = false;
-//    mCallRequestSentId[a1] = MEGACHAT_INVALID_HANDLE;
-//    mIncomingCallId[a2] = MEGACHAT_INVALID_HANDLE;
-//    megaChatApi[a1]->startChatCall(chatid, true);
-//    ASSERT_CHAT_TEST(waitForResponse(callSentRequest), "Timeout expired for emit the call");
-//    ASSERT_CHAT_TEST(waitForResponse(callReceivedAutomatic), "Timeout expired for reciving the call");
-//    ASSERT_CHAT_TEST(mCallRequestSentId[a1] != MEGACHAT_INVALID_HANDLE, "Invalid call id from call emisor");
-//    ASSERT_CHAT_TEST(mIncomingCallId[a2] != MEGACHAT_INVALID_HANDLE, "Timeout expired fore reciving the call");
-//    ASSERT_CHAT_TEST(mIncomingCallId[a2] = mCallRequestSentId[a1], "Not same call id");
-
-//    bool *callAnswred = &mCallAnswered[a1]; *callAnswred = false;
-//    megaChatApi[a2]->answerChatCall(chatid, true);
-//    ASSERT_CHAT_TEST(waitForResponse(mCallAnswered), "Timeout expired for wait the answer");
-
-//    sleep(10);
-//    megaChatApi[a1]->hangChatCall(chatid);
-
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    megaChatApi[a1]->removeChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
 
@@ -2546,10 +2542,20 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
     TestChatVideoListener localVideoListener("Local");
-    TestChatVideoListener remoteVideoListener("Remote");
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    std::vector <TestChatVideoListener *> remoteVideoListeners;
+    std::vector <MegaChatHandle> peerHandles;
+    MegaChatRoom *chatRoom = megaChatApi[a1]->getChatRoom(chatid);
+    unsigned int peerCount = chatRoom->getPeerCount();
+    for (unsigned int i = 0; i < peerCount; i++)
+    {
+        peerHandles.push_back(chatRoom->getPeerHandle(i));
+        std::string name = std::string("Remote ") + std::to_string(i);
+        remoteVideoListeners.push_back(new TestChatVideoListener(name));
+        megaChatApi[a1]->addChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
+    }
 
-    megaChatApi[a1]->addChatLocalVideoListener(&localVideoListener);
-    megaChatApi[a1]->addChatRemoteVideoListener(&remoteVideoListener);
+    delete chatRoom;
 
     // Manual Test
     // Emit call
@@ -2576,11 +2582,13 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
-
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    for (unsigned int i = 0; i < peerHandles.size(); i++)
+    {
+        megaChatApi[a1]->removeChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
+    }
 
     sleep(20);
-
-
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -2589,13 +2597,28 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+    for (unsigned int i = 0; i < peerHandles.size(); i++)
+    {
+        megaChatApi[a1]->addChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
+    }
 
-    sleep(30);
+    sleep(40);
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
     sleep(5);
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+    for (unsigned int i = 0; i < peerHandles.size(); i++)
+    {
+        megaChatApi[a1]->removeChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
+    }
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    for (unsigned int i = 0; i < peerHandles.size(); i++)
+    {
+        TestChatVideoListener *videoListener = remoteVideoListeners[i];
+        delete videoListener;
+    }
 
     delete audioInDevices;
     audioInDevices = NULL;
@@ -3442,11 +3465,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
-    {
-        mVideoRemote[apiIndex] = call->hasVideoInitialCall();
+    { 
         MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
+        ASSERT_CHAT_TEST(!session, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Change at call: " << call->getPeerSessionStatusChange()
                   << "   Audio: " << session->hasAudio() << "    Video: " << session->hasVideo() << std::endl;
+        mVideoRemote[apiIndex] = session->hasVideo();
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
@@ -3457,7 +3481,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
     {
         MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
-
+        ASSERT_CHAT_TEST(!session, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Session peer: " << call->getPeerSessionStatusChange()
                   << "   State: " << session->getStatus() << std::endl;
     }
@@ -3673,17 +3697,20 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     msgId[apiIndex].push_back(msg->getMsgId());
 
-    if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_STATUS)
     {
-        mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
-        msgConfirmed[apiIndex] = true;
-    }
-    else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
-    {
-        msgDelivered[apiIndex] = true;
+        if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+        {
+            mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
+            msgConfirmed[apiIndex] = true;
+        }
+        else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
+        {
+            msgDelivered[apiIndex] = true;
+        }
     }
 
-    if (msg->isEdited())
+    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_CONTENT && msg->isEdited())
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
@@ -3698,7 +3725,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
     {
         if (api == this->megaChatApi[i])
         {

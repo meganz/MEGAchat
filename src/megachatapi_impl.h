@@ -67,6 +67,9 @@ typedef ::mega::LibeventWaiter MegaChatWaiter;
 namespace megachat
 {
     
+typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
+typedef std::map<MegaChatHandle, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+
 class MegaChatRequestPrivate : public MegaChatRequest
 {
 
@@ -90,6 +93,8 @@ public:
     virtual const char *getText() const;
     virtual MegaChatMessage *getMegaChatMessage();
     virtual mega::MegaNodeList *getMegaNodeList();
+    virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
+    virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
 
     void setTag(int tag);
@@ -104,6 +109,8 @@ public:
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
+    void setMegaHandleList(mega::MegaHandleList *handlelist);
+    void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
 
 protected:
@@ -121,6 +128,8 @@ protected:
     const char* text;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
+    mega::MegaHandleList *mMegaHandleList;
+    std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
     int mParamType;
 };
 
@@ -203,6 +212,7 @@ public:
     virtual int getTermCode() const;
     virtual bool isLocalTermCode() const;
     virtual bool isRinging() const;
+    virtual mega::MegaHandleList *getSessions() const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
     virtual bool isIgnored() const;
@@ -256,7 +266,7 @@ public:
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local);
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -274,7 +284,7 @@ protected:
     MegaChatApiImpl *chatApi;
     rtcModule::ICall *call;
     MegaChatHandle chatid;
-    bool local;
+    MegaChatHandle peerid;
 };
 
 #endif
@@ -804,8 +814,8 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::set<MegaChatCallListener *> callListeners;
-    std::set<MegaChatVideoListener *> localVideoListeners;
-    std::set<MegaChatVideoListener *> remoteVideoListeners;
+
+    std::map<MegaChatHandle, MegaChatPeerVideoListener_map> videoListeners;
 
     std::map<MegaChatHandle, MegaChatCallHandler*> callHandlers;
 
@@ -860,11 +870,9 @@ public:
     void removeChatNotificationListener(MegaChatNotificationListener *listener);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
+    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
+    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
 #endif
 
     // MegaChatRequestListener callbacks
@@ -878,8 +886,7 @@ public:
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
-    void fireOnChatLocalVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
+    void fireOnChatVideoData(MegaChatHandle chatid, MegaChatHandle peerid, int width, int height, char*buffer);
 #endif
 
     // MegaChatListener callbacks (specific ones)
@@ -969,6 +976,7 @@ public:
     void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
+    void pushReceived(bool beep, MegaChatRequestListener *listener = NULL);
 
 #ifndef KARERE_DISABLE_WEBRTC
 
@@ -1006,7 +1014,6 @@ public:
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
