@@ -2204,7 +2204,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    ASSERT_CHAT_TEST(mVideoLocal[a1] == mVideoRemote[a2], "Video flags must have the same values at local account 1 and remote account 2");
+    MegaChatCall* call = megaChatApi[a1]->getChatCall(chatid);
+    ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
+    delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
@@ -2246,7 +2248,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    ASSERT_CHAT_TEST(mVideoLocal[a1] == mVideoRemote[a2], "Video flags must have the same values at local account 1 and remote account 2");
+    call = megaChatApi[a1]->getChatCall(chatid);
+    ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
+    delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
@@ -2291,7 +2295,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    ASSERT_CHAT_TEST(mVideoLocal[a1] == mVideoRemote[a2], "Video flags must have the same values at local account 1 and remote account 2");
+    call = megaChatApi[a1]->getChatCall(chatid);
+    ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
+    delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
 
     sleep(5);
@@ -3459,11 +3465,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
-    {
-        mVideoRemote[apiIndex] = call->hasVideoInitialCall();
+    { 
         MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
+        ASSERT_CHAT_TEST(!session, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Change at call: " << call->getPeerSessionStatusChange()
                   << "   Audio: " << session->hasAudio() << "    Video: " << session->hasVideo() << std::endl;
+        mVideoRemote[apiIndex] = session->hasVideo();
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
@@ -3474,7 +3481,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
     {
         MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
-
+        ASSERT_CHAT_TEST(!session, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Session peer: " << call->getPeerSessionStatusChange()
                   << "   State: " << session->getStatus() << std::endl;
     }
