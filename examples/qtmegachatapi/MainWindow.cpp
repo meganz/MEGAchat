@@ -121,7 +121,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                     for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
                     {
                         CallGui *callgui = *it;
-                        if (!callgui->isLocal())
+                        if (callgui->getPeer() == megachat::MEGACHAT_INVALID_HANDLE)
                         {
                             if(call->hasVideoInitialCall())
                             {
@@ -138,6 +138,29 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            }
            break;
     }
+    //NEW SESSIONS
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
+    {
+       MegaChatHandle peerid = call->getPeerSessionStatusChange();
+       MegaChatSession *session = call->getMegaChatSession(peerid);
+       assert(session);
+       switch (session->getStatus())
+       {
+           case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
+                    QMessageBox::warning(this, tr("Group chat calls"), tr("New participant"));
+               break;
+
+           case MegaChatSession::SESSION_STATUS_DESTROYED:
+                    QMessageBox::warning(this, tr("Group chat calls"), tr("Participant leave call"));
+               break;
+
+           default:
+               break;
+       }
+    }
+
+
+
 }
 #endif
 void MainWindow::clearContactChatList()

@@ -9,10 +9,11 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-CallGui::CallGui(ChatWindow *parent, bool video, bool local)
+CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local)
     : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
-{
+{    
     ui->setupUi(this);
+    mPeerid = peerid;
     connect(ui->mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHangCall(bool)));
     connect(ui->mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui->mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
@@ -28,7 +29,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, bool local)
     setAvatar();
     ui->videoRenderer->enableStaticImage();
 
-    if (mLocal)
+    if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         ui->videoRenderer->setMirrored(true);
         ui->mFullScreenChk->hide();
@@ -50,10 +51,11 @@ CallGui::CallGui(ChatWindow *parent, bool video, bool local)
 
 void CallGui::connectCall()
 {
-    if (mLocal)
+    if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
+        //First we set call as class member and then we register locallistener
         setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
+        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
         ui->mAnswBtn->hide();
         if(!mVideo)
         {
@@ -61,17 +63,20 @@ void CallGui::connectCall()
             setAvatar();
             ui->videoRenderer->enableStaticImage();
         }
-    }
+    }    
+    //Maybe we will need to move this code when we receive a new session
     else
     {
-        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
-        setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
+     //   setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
+     //   remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, megachat::MEGACHAT_INVALID_HANDLE);
+
     }
+
 }
 
-bool CallGui::isLocal()
+MegaChatHandle CallGui::getPeer()
 {
-    return mLocal;
+    return mPeerid;
 }
 
 void CallGui::onAnswerCallBtn(bool)
@@ -166,7 +171,7 @@ void CallGui::onMuteMic(bool checked)
 
 void CallGui::onMuteCam(bool checked)
 {
-   if(mLocal)
+   if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
    {
         if (checked)
         {

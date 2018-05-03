@@ -649,14 +649,14 @@ void ChatWindow::createCallGui(bool video)
     layout->setContentsMargins(5,5,5,5);
 
     //Local callGui
-    callGui = new CallGui(this, video, true);
+    callGui = new CallGui(this, video, megachat::MEGACHAT_INVALID_HANDLE, true);
     this->callParticipantsGui.insert(callGui);
     layout->insertWidget(0, callGui, 1);
 
-    //Remote callGui
+    /*//Remote callGui
     callGui = new CallGui(this, video, false);
     this->callParticipantsGui.insert(callGui);
-    layout->insertWidget(1, callGui, 1);
+    layout->insertWidget(1, callGui, 1);*/
 
     ui->mTitlebar->hide();
     ui->mTextChatWidget->hide();

@@ -19,7 +19,8 @@ class CallGui: public QWidget
 {
     Q_OBJECT
     protected:
-        ChatWindow *mChatWindow;
+        MegaChatHandle mPeerid;
+        ChatWindow *mChatWindow;        
         megachat::MegaChatCall *mCall;
         RemoteCallListener *remoteCallListener;
         LocalCallListener *localCallListener;
@@ -36,7 +37,7 @@ class CallGui: public QWidget
         void onAnswerCallBtn(bool);
     public:
         Ui::CallGui *ui;
-        CallGui(ChatWindow *parent, bool video, bool local);
+        CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local);
         virtual ~ CallGui();
         void hangCall();
         void connectCall();
@@ -46,7 +47,7 @@ class CallGui: public QWidget
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
         virtual void onLocalMediaError(const std::string err);
         virtual void onVideoRecv();
-        bool isLocal();
+        MegaChatHandle getPeer();
 
     friend class RemoteCallListener;
     friend class LocalCallListener;
