@@ -38,7 +38,7 @@ CallGui::CallGui(ChatWindow *parent, bool video)
 
 void CallGui::connectCall()
 {
-    remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
+    //remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, callthis);
     localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
     setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
     ui->mAnswBtn->hide();

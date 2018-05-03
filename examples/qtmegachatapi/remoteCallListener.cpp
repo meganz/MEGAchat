@@ -2,15 +2,15 @@
 #include "callGui.h"
 #include <QImage>
 
-RemoteCallListener::RemoteCallListener(MegaChatApi *megaChatApi, CallGui *callGui):
-CallListener(megaChatApi,callGui)
+RemoteCallListener::RemoteCallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatHandle peerid):
+CallListener(megaChatApi,callGui, peerid)
 {
-    mMegaChatApi->addChatRemoteVideoListener(megaChatVideoListenerDelegate);
+    mMegaChatApi->addChatRemoteVideoListener(mCallGui->getCall()->getChatid(), mPeerid, megaChatVideoListenerDelegate);
 }
 
 RemoteCallListener::~RemoteCallListener()
 {
-    mMegaChatApi->removeChatRemoteVideoListener(megaChatVideoListenerDelegate);
+    mMegaChatApi->removeChatRemoteVideoListener(mCallGui->getCall()->getChatid(), mPeerid, megaChatVideoListenerDelegate);
 }
 
 void RemoteCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
