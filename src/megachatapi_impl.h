@@ -67,6 +67,9 @@ typedef ::mega::LibeventWaiter MegaChatWaiter;
 namespace megachat
 {
     
+typedef std::set<MegaChatVideoListener *> MegaChatVideoListener_set;
+typedef std::map<MegaChatHandle, MegaChatVideoListener_set> MegaChatPeerVideoListener_map;
+
 class MegaChatRequestPrivate : public MegaChatRequest
 {
 
@@ -257,7 +260,7 @@ public:
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local);
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -275,7 +278,7 @@ protected:
     MegaChatApiImpl *chatApi;
     rtcModule::ICall *call;
     MegaChatHandle chatid;
-    bool local;
+    MegaChatHandle peerid;
 };
 
 #endif
@@ -805,8 +808,8 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::set<MegaChatCallListener *> callListeners;
-    std::set<MegaChatVideoListener *> localVideoListeners;
-    std::set<MegaChatVideoListener *> remoteVideoListeners;
+
+    std::map<MegaChatHandle, MegaChatPeerVideoListener_map> videoListeners;
 
     std::map<MegaChatHandle, MegaChatCallHandler*> callHandlers;
 
@@ -861,11 +864,9 @@ public:
     void removeChatNotificationListener(MegaChatNotificationListener *listener);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
     void removeChatCallListener(MegaChatCallListener *listener);
+    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
+    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
 #endif
 
     // MegaChatRequestListener callbacks
@@ -879,8 +880,7 @@ public:
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatRemoteVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
-    void fireOnChatLocalVideoData(MegaChatHandle chatid, int width, int height, char*buffer);
+    void fireOnChatVideoData(MegaChatHandle chatid, MegaChatHandle peerid, int width, int height, char*buffer);
 #endif
 
     // MegaChatListener callbacks (specific ones)

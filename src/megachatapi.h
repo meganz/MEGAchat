@@ -3219,40 +3219,46 @@ public:
     void removeChatCallListener(MegaChatCallListener *listener);
 
     /**
-     * @brief Register a listener to receive video from local device
+     * @brief Register a listener to receive video from local device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatVideoListener that will receive local video
      */
-    void addChatLocalVideoListener(MegaChatVideoListener *listener);
+    void addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Object that is unregistered
      */
-    void removeChatLocalVideoListener(MegaChatVideoListener *listener);
+    void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Register a listener to receive video from remote device
+     * @brief Register a listener to receive video from remote device for an specific chat room and peer
      *
      * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param peerid MegaChatHandle that identifies the peer
      * @param listener MegaChatVideoListener that will receive remote video
      */
-    void addChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
      *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param peerid MegaChatHandle that identifies the peer
      * @param listener Object that is unregistered
      */
-    void removeChatRemoteVideoListener(MegaChatVideoListener *listener);
+    void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
 #endif
 
     static void setCatchException(bool enable);
