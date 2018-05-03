@@ -144,11 +144,12 @@ protected:
     void stopIncallPingTimer(bool endCall = true);
     bool broadcastCallReq();
     bool join(karere::Id userid=0);
-    bool rejoin(karere::Id userid);
+    bool rejoin(karere::Id userid, uint32_t clientid);
     void sendInCallCommand();
     bool sendCallData(Call::CallDataState state);
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
+    karere::AvFlags validAvFlags(karere::AvFlags av);
     friend class RtcModule;
     friend class Session;
 public:
@@ -180,7 +181,7 @@ public:
     };
 
     enum {
-       kMaxCAllRecivers = 8,
+       kMaxCallReceivers = 10,
        kMaxCallAudioSenders = 10,
        kMaxCallVideoSenders = 6
     };
