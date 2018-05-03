@@ -18,7 +18,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    int unreadCount = mMegaChatApi->getChatListItem(mChatId)->getUnreadCount();
+    int unreadCount = mMainWin->getLocalChatListItem(mChatId)->getUnreadCount();
     onUnreadCountChanged(unreadCount);
     ui->mName->setText(item->getTitle());
 
@@ -367,7 +367,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     delete chatRoom;
 
     QMenu menu(this);
-    if(mMegaChatApi->getChatListItem(mChatId)->isGroup())
+    if (mMainWin->getLocalChatListItem(mChatId)->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
