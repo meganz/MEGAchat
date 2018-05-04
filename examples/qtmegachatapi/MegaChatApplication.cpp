@@ -366,7 +366,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                 {
                     ChatItemWidget *chatItemWidget = itChats->second;
                     ChatWindow *chatWin = chatItemWidget->showChatWindow();
-                    chatWin->connectCall();
+                    chatWin->connectCall(megachat::MEGACHAT_INVALID_HANDLE);
                 }
             }
             break;

@@ -100,7 +100,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
               if (setCallGui->size() == 0)
               {
-                 auxChatWindow->createCallGui(call->hasVideoInitialCall());
+                 auxChatWindow->createCallGui(call->hasVideoInitialCall(), megachat::MEGACHAT_INVALID_HANDLE);
               }
            }
            break;
@@ -113,7 +113,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
                if (setOfCallGui->size() != 0)
                {
-                   auxChatWindow->connectCall();
+                   auxChatWindow->connectCall(megachat::MEGACHAT_INVALID_HANDLE);
                }
 
                if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
@@ -147,11 +147,16 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
        switch (session->getStatus())
        {
            case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
-                    QMessageBox::warning(this, tr("Group chat calls"), tr("New participant"));
+                {
+                    ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
+                    std::set<CallGui *> *setCallGui = auxChatWindow->getCallGui();
+                    auxChatWindow->createCallGui(call->hasVideoInitialCall(), peerid);
+                    auxChatWindow->connectCall(peerid);
+                 }
                break;
 
            case MegaChatSession::SESSION_STATUS_DESTROYED:
-                    QMessageBox::warning(this, tr("Group chat calls"), tr("Participant leave call"));
+                    auxChatWindow->destroyCallGui(peerid);
                break;
 
            default:

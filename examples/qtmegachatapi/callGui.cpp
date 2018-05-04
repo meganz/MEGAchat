@@ -54,7 +54,9 @@ void CallGui::connectCall()
     if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         //First we set call as class member and then we register locallistener
-        setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
+        MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+
+        setCall(auxCall);
         localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
         ui->mAnswBtn->hide();
         if(!mVideo)
@@ -67,11 +69,9 @@ void CallGui::connectCall()
     //Maybe we will need to move this code when we receive a new session
     else
     {
-     //   setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
-     //   remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, megachat::MEGACHAT_INVALID_HANDLE);
-
+        setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
+        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid);
     }
-
 }
 
 MegaChatHandle CallGui::getPeer()

@@ -44,7 +44,8 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void truncateChatUI();
-        void connectCall();
+        void connectCall(MegaChatHandle mPeerid);
+        void destroyCallGui(MegaChatHandle mPeerid);
         void hangCall();
         void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
@@ -92,7 +93,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
     protected slots:
 #ifndef KARERE_DISABLE_WEBRTC
         void closeEvent(QCloseEvent *event);
-        void createCallGui(bool);
+        void createCallGui(bool, MegaChatHandle peerid);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
