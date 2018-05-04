@@ -26,6 +26,7 @@ public class MegaChatApiJava {
     static Set<DelegateMegaChatRoomListener> activeChatRoomListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRoomListener>());
     static Set<DelegateMegaChatCallListener> activeChatCallListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatCallListener>());
     static Set<DelegateMegaChatVideoListener> activeChatVideoListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatVideoListener>());
+    static Set<DelegateMegaChatNotificationListener> activeChatNotificationListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatNotificationListener>());
 
     void runCallback(Runnable runnable) {
         runnable.run();
@@ -64,6 +65,42 @@ public class MegaChatApiJava {
     public void addChatRemoteVideoListener(MegaChatVideoListenerInterface listener)
     {
         megaChatApi.addChatRemoteVideoListener(createDelegateChatVideoListener(listener, true));
+    }
+
+    /**
+     * Register a listener to receive notifications
+     *
+     * You can use MegaChatApi::removeChatRequestListener to stop receiving events.
+     *
+     * @param listener Listener that will receive all events about requests
+     */
+    public void addChatNotificationListener(MegaChatNotificationListenerInterface listener){
+        megaChatApi.addChatNotificationListener(createDelegateChatNotificationListener(listener));
+    }
+
+    /**
+     * Unregister a MegaChatNotificationListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    public void removeChatNotificationListener(MegaChatNotificationListenerInterface listener){
+        ArrayList<DelegateMegaChatNotificationListener> listenersToRemove = new ArrayList<DelegateMegaChatNotificationListener>();
+        synchronized (activeChatNotificationListeners) {
+            Iterator<DelegateMegaChatNotificationListener> it = activeChatNotificationListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatNotificationListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i=0;i<listenersToRemove.size();i++){
+            megaChatApi.removeChatNotificationListener(listenersToRemove.get(i));
+        }
     }
 
     public void removeChatRequestListener(MegaChatRequestListenerInterface listener) {
@@ -269,6 +306,47 @@ public class MegaChatApiJava {
      */
     public void disconnect(MegaChatRequestListenerInterface listener){
         megaChatApi.disconnect(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current state of the connection
+     *
+     * It can be one of the following values:
+     *  - MegaChatApi::DISCONNECTED = 0
+     *  - MegaChatApi::CONNECTING   = 1
+     *  - MegaChatApi::CONNECTED    = 2
+     *
+     * @return The state of connection
+     */
+    public int getConnectionState(){
+        return megaChatApi.getConnectionState();
+    }
+
+    /**
+     * Returns the current state of the connection to chatd
+     *
+     * The possible values are:
+     *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
+     *  - MegaChatApi::CHAT_CONNECTION_IN_PROGRESS  = 1
+     *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
+     *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return The state of connection
+     */
+    public int getChatConnectionState(long chatid){
+        return  megaChatApi.getChatConnectionState(chatid);
+    }
+
+    /**
+     * Refresh DNS servers and retry pending connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void retryPendingConnections(MegaChatRequestListenerInterface listener){
+        megaChatApi.retryPendingConnections(createDelegateRequestListener(listener));
     }
 
     /**
@@ -728,6 +806,32 @@ public class MegaChatApiJava {
      */
     public void getUserLastname(long userhandle, MegaChatRequestListenerInterface listener){
         megaChatApi.getUserLastname(userhandle, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Returns the current email address of the contact
+     *
+     * This function is useful to get the email address of users you are NOT contact with.
+     * Note that for any other user without contact relationship, this function will return NULL.
+     *
+     * You take the ownership of the returned value
+     *
+     * This function is useful to get the email address of users who participate in a groupchat with
+     * you but are not your contacts.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_GET_EMAIL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the email address of the user
+     *
+     * @param userhandle Handle of the user whose name is requested.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void getUserEmail(long userhandle, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserEmail(userhandle, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1410,6 +1514,18 @@ public class MegaChatApiJava {
     }
 
     /**
+     *  Returns message id of the last-seen-by-us message
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     *
+     * @return Message id for the last-seen-by-us, or invalid handle if \c chatid is invalid or
+     * the user has not seen any message in that chat
+     */
+    public long getLastMessageSeenId(long chatid){
+        return megaChatApi.getLastMessageSeenId(chatid);
+    }
+
+    /**
      * Removes the unsent message from the queue
      *
      * Messages with status MegaChatMessage::STATUS_SENDING_MANUAL should be
@@ -1454,6 +1570,45 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void sendStopTypingNotification(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.sendStopTypingNotification(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Send a notification to the chatroom that the user has stopped typing
+     *
+     * This method has to be called when the text edit label is cleared
+     *
+     * Other peers in the chatroom will receive a notification via
+     * \c MegaChatRoomListener::onChatRoomUpdate with the change type
+     * \c MegaChatRoom::CHANGE_TYPE_USER_STOP_TYPING. \see MegaChatRoom::getUserTyping.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SEND_TYPING_NOTIF
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void sendStopTypingNotification(long chatid){
+        megaChatApi.sendStopTypingNotification(chatid);
+    }
+
+    /**
      * Saves the current state
      *
      * The DB cache works with transactions. In order to prevent losing recent changes when the app
@@ -1465,6 +1620,43 @@ public class MegaChatApiJava {
      */
     public void saveCurrentState(){
             megaChatApi.saveCurrentState();
+    }
+
+    /**
+     * Notify MEGAchat a push has been received
+     *
+     * This method should be called when the Android app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * of every chatroom and will provide to the app the list of unread messages that
+     * are suitable to create OS notifications.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void pushReceived(boolean beep, MegaChatRequestListenerInterface listener){
+        megaChatApi.pushReceived(beep, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Notify MEGAchat a push has been received
+     *
+     * This method should be called when the Android app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * of every chatroom and will provide to the app the list of unread messages that
+     * are suitable to create OS notifications.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     */
+    public void pushReceived(boolean beep){
+        megaChatApi.pushReceived(beep);
     }
 
     // Call management
@@ -1618,6 +1810,30 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Get the MegaChatCall associated with a chatRoom
+     *
+     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
+     * returned
+     *
+     * You take the ownership of the returned value
+     *
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     */
+    public MegaChatCall getChatCall(long chatId){
+        return megaChatApi.getChatCall(chatId);
+    }
+
+    /**
+     * Mark as ignored the MegaChatCall associated with a chatroom
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void setIgnoredCall(long chatid){
+        megaChatApi.setIgnoredCall(chatid);
+    }
+
+    /**
      * Get the MegaChatCall that has a specific handle
      *
      * You can get the handle of  a MegaChatCall using MegaChatCall::getId().
@@ -1632,18 +1848,33 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Get the MegaChatCall associated with a chatRoom
-     *
-     * If chatId is invalid or there isn't any MegaChatCall associated with the chatroom, NULL is
-     * returned
+     * Returns number of calls that there are at the system
+     * @return number of calls in the system
+     */
+    public int getNumCalls(){
+        return megaChatApi.getNumCalls();
+    }
+
+    /**
+     * Get MegaChatHandle list that contains chatrooms identifier where there is an active call
      *
      * You take the ownership of the returned value
      *
-     * @param chatId MegaChatHandle that identifies the chat room
-     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     * @return A list of handles with chatroom identifier where there is an active call
      */
-    public MegaChatCall getChatCall(long chatId){
-        return megaChatApi.getChatCall(chatId);
+    public MegaHandleList getChatCalls(){
+        return megaChatApi.getChatCalls();
+    }
+
+    /**
+     * Get a list with the ids of active calls
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of ids of active calls
+     */
+    public MegaHandleList getChatCallsIds(){
+        return megaChatApi.getChatCallsIds();
     }
 
     public static void setCatchException(boolean enable) {
@@ -1726,6 +1957,12 @@ public class MegaChatApiJava {
     private MegaChatVideoListener createDelegateChatVideoListener(MegaChatVideoListenerInterface listener, boolean remote) {
         DelegateMegaChatVideoListener delegateListener = new DelegateMegaChatVideoListener(this, listener, remote);
         activeChatVideoListeners.add(delegateListener);
+        return delegateListener;
+    }
+
+    private MegaChatNotificationListener createDelegateChatNotificationListener(MegaChatNotificationListenerInterface listener) {
+        DelegateMegaChatNotificationListener delegateListener = new DelegateMegaChatNotificationListener(this, listener);
+        activeChatNotificationListeners.add(delegateListener);
         return delegateListener;
     }
 

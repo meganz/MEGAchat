@@ -31,7 +31,7 @@ protected:
     SdpKey mPeerSdpKey;
     artc::myPeerConnection<Session> mRtcConn;
     std::string mName;
-    ISessionHandler* mHandler;
+    ISessionHandler* mHandler = NULL;
     std::unique_ptr<stats::Recorder> mStatRecorder;
     megaHandle mSetupTimer = 0;
     time_t mTsIceConn = 0;
@@ -59,7 +59,7 @@ protected:
     void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
-
+    std::string getDeviceInfo() const;
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
@@ -86,7 +86,8 @@ class Call: public ICall
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
-    std::map<chatd::EndpointId, int> mSessRetries;
+    std::map<chatd::EndpointId, unsigned int> mSessRetriesNumber;
+    std::map<chatd::EndpointId, time_t> mSessRetriesTime;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::string mName;
     megaHandle mCallOutTimer = 0;
@@ -97,6 +98,7 @@ protected:
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     megaHandle mDestroySessionTimer = 0;
+    unsigned int mTotalSessionRetry = 0;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -114,7 +116,7 @@ protected:
      *  analogous to onMediaRecv in the js version
      */
     void clearCallOutTimer();
-    void notifyNewSession(Session& sess);
+    void notifyCallStarting(Session& sess);
     void notifySessionConnected(Session& sess);
     void removeSession(Session& sess, TermCode reason);
     //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
@@ -130,9 +132,10 @@ protected:
     template <class... Args>
     bool cmdBroadcast(uint8_t type, Args... args);
     void startIncallPingTimer();
-    void stopIncallPingTimer();
+    void stopIncallPingTimer(bool endCall = true);
     bool broadcastCallReq();
     bool join(karere::Id userid=0);
+    bool rejoin(karere::Id userid);
     void sendInCallCommand();
     bool sendCallData(bool ringing);
     friend class RtcModule;
@@ -150,6 +153,7 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av);
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
+    void sendBusy();
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -166,22 +170,18 @@ public:
     int maxbr = 0;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
-    virtual promise::Promise<void> init(unsigned gelbTimeout);
-    promise::Promise<void> updateIceServers(unsigned timeoutMs);
-    int setIceServers(const karere::ServerList<karere::TurnServerInfo>& servers);
-    void onUserJoinLeave(karere::Id chatid, karere::Id userid, chatd::Priv priv);
-    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
-    virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
-    virtual void hangupAll(TermCode reason);
+    int setIceServers(const karere::ServerList& servers);
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd
-    void onDisconnect(chatd::Connection& conn);
-    void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
-    void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
-    void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
-    void onShutdown();
+    virtual void handleMessage(chatd::Chat& chat, const StaticBuffer& msg);
+    virtual void handleCallData(chatd::Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg);
+    virtual void onShutdown();
+    virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    virtual void onDisconnect(chatd::Connection& conn);
+    virtual void stopCallsTimers(int shard);
 //Implementation of virtual methods of IRtcModule
+    virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
     virtual void getVideoInDevices(std::vector<std::string>& devices) const;
     virtual bool selectVideoInDevice(const std::string& devname);
@@ -191,10 +191,14 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual void hangupAll(TermCode reason);
 //==
-    ~RtcModule();
+    virtual ~RtcModule() {}
 protected:
-    karere::FallbackServerProvider<karere::TurnServerInfo> mTurnServerProvider;
+    const char* mStaticIceSever;
+    karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     artc::DeviceManager mDeviceManager;
     artc::InputAudioDevice mAudioInput;
@@ -203,7 +207,6 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     IRtcCrypto& crypto() const { return *mCrypto; }
-    void msgCallRequest(RtMessage& packet);
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
     template <class... Args>

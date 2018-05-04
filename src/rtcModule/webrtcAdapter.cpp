@@ -114,11 +114,13 @@ void DeviceManager::enumInputDevices()
         webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info)
     {
+        RTCM_LOG_WARNING("Could not enumerate video devices. Using the default device.");
         mInputDevices.video.push_back(cricket::Device("default", "0"));
         return;
     }
 
     int numDevices = info->NumberOfDevices();
+    RTCM_LOG_WARNING("Enumerate input devices: %d found.", numDevices);
     auto& devices = mInputDevices.video;
     for (int i = 0; i < numDevices; ++i)
     {
@@ -127,9 +129,8 @@ void DeviceManager::enumInputDevices()
         char id[kSize] = {0};
         if (info->GetDeviceName(i, name, kSize, id, kSize) != -1)
         {
-            std::string sName = name;
-            std::transform(sName.begin(), sName.end(), sName.begin(), ::tolower);
-            if (sName.find("front") == std::string::npos)
+            std::string sId = id;
+            if (sId.find(":1") == std::string::npos)
             {
                 devices.push_back(cricket::Device(name, id));
             }
@@ -137,7 +138,14 @@ void DeviceManager::enumInputDevices()
             {
                 devices.insert(devices.begin(), cricket::Device(name, id));
             }
+            RTCM_LOG_WARNING("Video input device %d: '%s'", i+1, name);
         }
+    }
+
+    if (devices.size() == 0)
+    {
+        RTCM_LOG_WARNING("Not suitable input video devices were found. Default device added.");
+        devices.push_back(cricket::Device("default", "0"));
     }
 }
 

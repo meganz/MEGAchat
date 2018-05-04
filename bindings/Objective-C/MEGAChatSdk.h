@@ -7,6 +7,7 @@
 #import "MEGAChatPeerList.h"
 #import "MEGAChatListItemList.h"
 #import "MEGAChatPresenceConfig.h"
+#import "MEGAHandleList.h"
 #import "MEGAChatRequestDelegate.h"
 #import "MEGAChatLoggerDelegate.h"
 #import "MEGAChatRoomDelegate.h"
@@ -31,7 +32,7 @@ typedef NS_ENUM (NSInteger, MEGAChatStatus) {
     MEGAChatStatusAway    = 2,
     MEGAChatStatusOnline  = 3,
     MEGAChatStatusBusy    = 4,
-    MEGAChatStatusInvalid = 0xFF
+    MEGAChatStatusInvalid = 15
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatSource) {
@@ -80,6 +81,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)connect;
 
+- (void)connectInBackgroundWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)connectInBackground;
+
 - (void)disconnectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)disconnect;
 - (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
@@ -111,7 +115,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 #pragma mark - Add and remove delegates
 
 - (void)addChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
-- (void)removeChatRoomDelegate:(id<MEGAChatRoomDelegate>)delegate;
+- (void)removeChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -207,6 +211,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId;
 
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
+- (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
 - (void)saveCurrentState;
 
 #pragma mark - Audio and video calls
@@ -238,6 +243,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
+- (MEGAHandleList *)chatCalls;
+- (MEGAHandleList *)chatCallsIds;
 
 #endif
 

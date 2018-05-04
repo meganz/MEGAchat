@@ -17,7 +17,7 @@ static struct lws_protocols protocols[] =
     { NULL, NULL, 0, 0 } /* terminator */
 };
 
-LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx) : WebsocketsIO(mutex, ctx)
+LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
 {
     struct lws_context_creation_info info;
     memset( &info, 0, sizeof(info) );
@@ -29,6 +29,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
+    info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
     
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
@@ -39,6 +40,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, v
         WEBSOCKETS_LOG_ERROR("Fatal error: NULL or invalid waiter object");
         exit(0);
     }
+    eventloop = libuvWaiter->eventloop;
     lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
@@ -51,6 +53,56 @@ LibwebsocketsIO::~LibwebsocketsIO()
 void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 {    
 
+}
+
+static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
+{
+    string ipv4, ipv6;
+    std::function<void (int, string, string)>* func = (std::function<void (int, string, string)>*)req->data;
+    struct addrinfo *hp = res;
+    while (hp)
+    {
+        char straddr[INET6_ADDRSTRLEN];
+        straddr[0] = 0;
+
+        if (!ipv4.size() && hp->ai_family == AF_INET)
+        {
+            sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
+            if (straddr[0])
+            {
+                ipv4 = straddr;
+            }
+        }
+        else if (!ipv6.size() && hp->ai_family == AF_INET6)
+        {
+            sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
+            inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
+            if (straddr[0])
+            {
+                ipv6 = string("[") + straddr + "]";
+            }
+        }
+
+        if (ipv4.size() && ipv6.size())
+        {
+            break;
+        }
+
+        hp = hp->ai_next;
+    }
+
+    (*func)(status, ipv4, ipv6);
+    uv_freeaddrinfo(res);
+    delete func;
+    delete req;
+}
+
+bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, string, string)> f)
+{
+    uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
+    h->data = new std::function<void (int, string, string)>(f);
+    return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, NULL);
 }
 
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
@@ -336,7 +388,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 client->wsi = NULL;
                 lws_set_wsi_user(dwsi, NULL);
             }
-            client->wsCloseCb(0, 0, "", 0);
+            client->wsCloseCb(reason, 0, "closed", 7);
             break;
         }
             

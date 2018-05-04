@@ -1,12 +1,14 @@
 #import <Foundation/Foundation.h>
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
-    MEGAChatRoomChangeTypeStatus      = 0x01,
-    MEGAChatRoomChangeTypeUnreadCount = 0x02,
-    MEGAChatRoomChangeTypeParticipans = 0x04,
-    MEGAChatRoomChangeTypeTitle       = 0x08,
-    MEGAChatRoomChangeTypeUserTyping  = 0x10,
-    MEGAChatRoomChangeTypeClosed      = 0x20
+    MEGAChatRoomChangeTypeStatus         = 0x01,
+    MEGAChatRoomChangeTypeUnreadCount    = 0x02,
+    MEGAChatRoomChangeTypeParticipants   = 0x04,
+    MEGAChatRoomChangeTypeTitle          = 0x08,
+    MEGAChatRoomChangeTypeUserTyping     = 0x10,
+    MEGAChatRoomChangeTypeClosed         = 0x20,
+    MEGAChatRoomChangeTypeOwnPriv        = 0x40,
+    MEGAChatRoomChangeTypeUserStopTyping = 0x80
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {

@@ -7,7 +7,7 @@
 
 using namespace std;
 
-LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx) : WebsocketsIO(mutex, ctx)
+LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
 {
     ::mega::LibeventWaiter *libeventWaiter = dynamic_cast<::mega::LibeventWaiter *>(waiter);
     ws_global_init(&wscontext, libeventWaiter ? libeventWaiter->eventloop : services_get_event_loop(), NULL,
@@ -45,6 +45,30 @@ LibwsIO::~LibwsIO()
 void LibwsIO::addevents(::mega::Waiter* waiter, int)
 {
 
+}
+
+bool LibwsIO::wsResolveDNS(const char *hostname, std::function<void (int, std::string, std::string)> f)
+{
+    mApi.call(&::mega::MegaApi::queryDNS, hostname)
+    .then([f](ReqResult result)
+    {
+        string ipv4, ipv6;
+        string ip = result->getText();
+        if (ip.size() && ip[0] == '[')
+        {
+            ipv6 = ip;
+        }
+        else
+        {
+            ipv4 = ip;
+        }
+        f(0, ipv4, ipv6);
+    })
+    .fail([f](const promise::Error& err)
+    {       
+        f(err.code(), string(), string());
+    });
+    return 0;
 }
 
 WebsocketsClientImpl *LibwsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <set>
-#include "base64.h"
+#include "base64url.h"
 #include <buffer.h>
 
 namespace karere
@@ -18,6 +18,7 @@ public:
     Id(const uint64_t& from=0): val(from){}
     explicit Id(const char* b64, size_t len=0) { base64urldecode(b64, len?len:strlen(b64), &val, sizeof(val)); }
     bool operator==(const Id& other) const { return val == other.val; }
+    bool operator==(const uint64_t& aVal) const { return val == aVal; }
     Id& operator=(const Id& other) { val = other.val; return *this; }
     Id& operator=(const uint64_t& aVal) { val = aVal; return *this; }
     operator const uint64_t&() const { return val; }

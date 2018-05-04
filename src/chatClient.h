@@ -7,7 +7,6 @@
 #include <map>
 #include <type_traits>
 #include <retryHandler.h>
-#include <serverListProviderForwards.h>
 #include "userAttrCache.h"
 #include <db.h>
 #include "chatd.h"
@@ -16,8 +15,6 @@
 #include "net/websocketsIO.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
-
-namespace strophe { class Connection; }
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -85,7 +82,7 @@ public:
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual const std::string& titleString() const = 0;
+    virtual const char *titleString() const = 0;
 
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
@@ -120,13 +117,18 @@ public:
     /** @brief Whether we are currently member of the chatroom (for group
       * chats), or we are contacts with the peer (for 1on1 chats)
       */
-    bool isActive() const { return mOwnPriv != chatd::PRIV_NOTPRESENT; }
+    bool isActive() const { return mIsGroup ? (mOwnPriv != chatd::PRIV_NOTPRESENT) : true; }
 
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
 
     /** @brief send a notification to the chatroom that the user is typing. */
     virtual void sendTypingNotification() { mChat->sendTypingNotification(); }
+
+    /** @brief send a notification to the chatroom that the user has stopped typing. */
+    virtual void sendStopTypingNotification() { mChat->sendStopTypingNotification(); }
+
+    void sendSync() { mChat->sendSync(); }
 
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
@@ -145,6 +147,7 @@ public:
      * so, on removal, the app should take care to free it if needed.
      */
     void setAppChatHandler(IApp::IChatHandler* handler);
+
     /** @brief Removes the application-supplied chat event handler from the
      * room. It is up to the aplication to destroy it if needed.
      */
@@ -154,6 +157,8 @@ public:
      * constructed.
      */
     bool isInitializing() const { return mIsInitializing; }
+
+    bool hasChatHandler() const;
 
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
@@ -168,13 +173,11 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onExcludedFromRoom() {}
     virtual void onOnlineStateChange(chatd::ChatState state);
-    virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg)
-    {
-        KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, userid %s]: %s",
-            karere::Id(mChatid).toString().c_str(),
-            msg.id().toString().c_str(), msg.userid.toString().c_str(),
-            errmsg.c_str());
-    }
+    virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
+
+    virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
+    virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
+    virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
 
@@ -184,11 +187,11 @@ public:
 /** @brief Represents a 1on1 chatd chatroom */
 class PeerChatRoom: public ChatRoom
 {
-//  @cond PRIVATE
 protected:
     uint64_t mPeer;
     chatd::Priv mPeerPriv;
-    Contact& mContact;
+    std::string mEmail;
+    Contact *mContact;
     // mRoomGui must be the last member, since when we initialize it,
     // we call into the app and pass our this pointer, so all other members
     // must be initialized
@@ -198,27 +201,45 @@ protected:
     virtual bool syncWithApi(const mega::MegaTextChat& chat);
     bool syncPeerPriv(chatd::Priv priv);
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
+    static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
     virtual void connect();
+    UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
             chatd::Priv peerPriv, uint32_t ts);
-    PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room, Contact& contact);
+    PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
-    //@endcond
+
 public:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
     const uint64_t peer() const { return mPeer; }
     chatd::Priv peerPrivilege() const { return mPeerPriv; }
-    /** @brief The contact object representing the peer of the 1on1 chat */
-    Contact& contact() const { return mContact; }
+
+    /**
+     * @brief The contact object representing the peer of the 1on1 chat.
+     * @note Returns nullptr when the 1on1 chat is with a user who canceled the account
+     */
+    Contact *contact() const { return mContact; }
 
     /** @brief The screen name of the peer */
-    virtual const std::string& titleString() const;
+    virtual const char *titleString() const;
+
+    /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
+      * First byte indicate first name length
+      */
+    const std::string& completeTitleString() const;
+
+
+    /** @brief The screen email address of the peer */
+    virtual const std::string& email() const { return mEmail; }
+
+    void initContact(const uint64_t& peer);
+
 /** @cond PRIVATE */
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -325,7 +346,7 @@ public:
     bool hasTitle() const { return mHasTitle; }
 
     /** @brief The title of the chatroom */
-    virtual const std::string& titleString() const { return mTitleString; }
+    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief The 'presence' of the chatroom - it's actually the online state,
      * and can be only online or offline, depending on whether we are connected
@@ -617,7 +638,6 @@ public:
     SqliteDb db;
     std::unique_ptr<chatd::Client> chatd;
     MyMegaApi api;
-    unsigned mReconnectConnStateHandler = 0;
     IApp& app;
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
@@ -794,13 +814,19 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
-
+    void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
+
+    promise::Promise<void> pushReceived();
+    megaHandle mSyncTimer;                  // to wait for reception of SYNCs
+    int mSyncCount;                         // to track if all chats returned SYNC
+    promise::Promise<void> mSyncPromise;    // resolved only when up to date
+    void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
@@ -873,8 +899,8 @@ protected:
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
-    virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
+
     // MegaRequestListener interface
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 

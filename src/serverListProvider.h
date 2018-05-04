@@ -26,25 +26,6 @@ namespace karere
         varname = it_##name->value.Get##type();                                                     \
     }
 
-template <class S>
-void parseServerList(const rapidjson::Value& arr, std::vector<std::shared_ptr<S> >& servers);
-static inline const char* strOrEmpty(const char* str);
-
-struct HostPortServerInfo
-{
-    std::string host;
-    unsigned short port;
-    HostPortServerInfo(const rapidjson::Value& json)
-    {
-        SRVJSON_CHECK_GET_PROP(host, host, String);
-        int vPort;
-        SRVJSON_CHECK_GET_PROP(vPort, port, Int);
-        if (vPort < 0 || vPort > 65535)
-            throw std::runtime_error("HostPortServerInfo: Port "+std::to_string(vPort)+" is out of range");
-        port = vPort;
-    }
-};
-
 struct TurnServerInfo
 {
     std::string url;
@@ -71,279 +52,142 @@ struct TurnServerInfo
     }
 };
 
-/** A list of server info structures, defined by the class S */
-template <class S>
-using ServerList = std::vector<std::shared_ptr<S> >;
+// A list of TurnServerInfo structures
+using ServerList = std::vector<std::shared_ptr<TurnServerInfo> >;
 
 /** An abstract class that provides a list of servers (i.e. more than one). A single server info is
  * contained in the class S
  */
-template <class S>
-class ListProvider: public ServerList<S>
-{
-public: //must be protected, but because of a gcc bug, protected/private members cant be accessed from within a lambda
-    typedef ServerList<S> Base;
-    size_t mNextAssignIdx = 0;
-    bool needsUpdate() const { return ((mNextAssignIdx >= Base::size()) || Base::empty()); }
-};
-
-/** The frontend server provider API class - can provide a single or multile servers,
- * relying on a server data provider implemented by the class B
- */
-template <class B>
-class ServerProvider
+class ListProvider: public ServerList
 {
 protected:
-    std::unique_ptr<B> mBase;
-public:
-    ServerProvider(B* base): mBase(base){}
-    promise::Promise<std::shared_ptr<typename B::Server> > getServer(unsigned timeout=0, int maxretries=2)
+    bool parseServerList(const rapidjson::Value& arr)
     {
-        if (mBase->needsUpdate())
+        if (!arr.IsArray())
         {
-            return mBase->fetchServers(timeout, maxretries)
-            .then([this]() -> promise::Promise<std::shared_ptr<typename B::Server> >
+            KR_LOG_ERROR("Ice server list JSON is not an array");
+            return false;
+        }
+
+        std::vector<std::shared_ptr<karere::TurnServerInfo> > parsed;
+        for (auto it=arr.Begin(); it!=arr.End(); ++it)
+        {
+            if (!it->IsObject())
             {
-                if (mBase->needsUpdate())
-                    return promise::Error("No servers", 0x3e9a9e1b, 1);
-                else
-                    return mBase->at(mBase->mNextAssignIdx++);
-            });
+                KR_LOG_ERROR("Ice server info entry is not an object");
+                return false;
+            }
+
+            parsed.emplace_back(new karere::TurnServerInfo(*it));
         }
-        else
-        {
-            return mBase->at(mBase->mNextAssignIdx++);
-        }
-    }
-    std::shared_ptr<typename B::Server> lastServer()
-    {
-        auto nextIdx = mBase->mNextAssignIdx;
-        if (nextIdx <= 0)
-            return nullptr;
-        return mBase->at(nextIdx-1);
-    }
-    promise::Promise<ServerList<typename B::Server>*> getServers(unsigned timeout=0, int maxretries=2)
-    {
-        if (mBase->needsUpdate())
-        {
-            return mBase->fetchServers(timeout, maxretries)
-            .then([this]() -> promise::Promise<ServerList<typename B::Server>*>
-            {
-                if (mBase->needsUpdate())
-                    return promise::Error("No servers", 0x3e9a9e1b, 1);
-                mBase->mNextAssignIdx += mBase->size();
-                return mBase.get();
-            });
-        }
-        else
-        {
-            mBase->mNextAssignIdx += mBase->size();
-            return mBase.get();
-        }
+
+        this->swap(parsed);
+
+        return true;
     }
 };
 
-/** An implementation of a server data provider that gets the servers from a local, static list,
+/** An implementation of a list provider that gets the servers from a local, static list,
  *  possibly hardcoded
  */
-template <class S>
-class StaticProvider: public ListProvider<S>
+class StaticProvider: public ListProvider
 {
 protected:
 public:
-    typedef S Server;
     StaticProvider(const char* serversJson)
     {
         rapidjson::Document doc;
         doc.Parse(serversJson);
         if (doc.HasParseError())
         {
-            throw std::runtime_error("Error "+std::to_string(doc.GetParseError())+
-                "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
+            KR_LOG_ERROR("Error parse static ice-server: %d parsing json, at position %d",
+                           doc.GetParseError(),
+                           doc.GetErrorOffset());
         }
-        parseServerList(doc, *this);
-    }
-    promise::Promise<void> fetchServers(unsigned timeoutMs=0, unsigned maxRetries=0)
-    {
-        this->mNextAssignIdx = 0;
-        return promise::_Void();
+
+        if (!parseServerList(doc))
+        {
+            KR_LOG_ERROR("Error to extract server form static ice-server list");
+        }
+
     }
 };
 
-/** An implementation of a server data provider that gets the servers from the GeLB server */
-template <class S>
-class GelbProvider: public ListProvider<S>, public DeleteTrackable
+/** An implementation of a list provider that gets the servers from the GeLB server */
+class GelbProvider: public ListProvider, public DeleteTrackable
 {
 protected:
     MyMegaApi& mApi;
     std::string mService;
-    int64_t mMaxReuseOldServersAge;
-    int64_t mLastUpdateTs = 0;
     bool mBusy = false;
     promise::Promise<void> mOutputPromise;
-    void parseServersJson(const std::string& json);
-    promise::Promise<void> exec(unsigned timeoutMs, unsigned maxRetries);
-public:
-    typedef S Server;
-    promise::Promise<void> fetchServers(unsigned timeoutMs = 10000, unsigned maxRetries = 0);
-    GelbProvider(MyMegaApi& api, const char* service, int64_t maxReuseOldServersAge = 0);
-};
-    
-/** Another public API server provider that sits on top of one GeLB and one static providers.
- *  It tries first to get servers via GeLB and if it doesn't sucees, falls back to the static provider
- */
-template <class S>
-class FallbackServerProvider
-{
-protected:
-    ServerProvider<GelbProvider<S> > mGelbProvider;
-    ServerProvider<StaticProvider<S> > mStaticProvider;
-    std::string mService;
-public:
-    FallbackServerProvider(MyMegaApi& api, const char* service, const char* staticServers,
-        int64_t gelbMaxReuseAge=0)
-    :mGelbProvider(new GelbProvider<S>(api, service, gelbMaxReuseAge)),
-        mStaticProvider(new StaticProvider<S>(staticServers)), mService(service)
-    {}
-    promise::Promise<std::shared_ptr<S> > getServer(unsigned timeout=0, unsigned maxRetries=0)
+    bool parseServersJson(const std::string& json)
     {
-        return mGelbProvider.getServer(timeout, maxRetries)
-        .fail([this](const promise::Error& err)
+        rapidjson::Document doc;
+        doc.Parse<0>(json.c_str());
+        if (doc.HasParseError())
         {
-            KR_LOG_ERROR("Gelb request failed with error '%s', falling back to static server list", mService.c_str(), err.what());
-            return mStaticProvider.getServer();
-        });
-    }
-    std::shared_ptr<S> lastServer()
-    {
-        auto server = mGelbProvider.lastServer();
-        return server ? server : mStaticProvider.lastServer();
-    }
-    promise::Promise<ServerList<S>*> getServers(unsigned timeout = 0, int retryCount=2)
-    {
-        return mGelbProvider.getServers(timeout, retryCount)
-        .fail([this](const promise::Error& err)
-        {
-            KR_LOG_ERROR("Gelb request for '%s' failed with error '%s', falling back to static server list", mService.c_str(), err.what());
-            return mStaticProvider.getServers();
-        });
-    }
-
-    void abort()
-    {
-        mGelbProvider.abort();
-    }
-};
-
-template <class S>
-GelbProvider<S>::GelbProvider(MyMegaApi& api, const char* service, int64_t maxReuseOldServersAge)
-    : mApi(api), mService(service), mMaxReuseOldServersAge(maxReuseOldServersAge)
-{
-}
-    
-template <class S>
-promise::Promise<void> GelbProvider<S>::exec(unsigned timeoutMs, unsigned maxRetries)
-{
-    assert(!mBusy);
-    mBusy = true;
-    
-    return mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), timeoutMs, maxRetries)
-    .then([this](ReqResult result)
-        -> promise::Promise<void>
-    {
-        if (result->getNumber() != 200)
-        {
-            return promise::Error("Non-200 http response from GeLB server: "
-                                  +std::to_string(result->getNumber()), 0x3e9a9e1b, 1);
+            return false;
         }
-        if (!result->getTotalBytes() || !result->getText())
+        auto arr = doc.FindMember(mService.c_str());
+        if (arr == doc.MemberEnd())
         {
-            return promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
+            return false;
         }
 
-        mBusy = false;
-        std::string json((const char*)result->getText(), result->getTotalBytes());
-        parseServersJson(json);
-        this->mNextAssignIdx = 0; //notify about updated servers only if parse didn't throw
-        this->mLastUpdateTs = services_get_time_ms();
-        return promise::_Void();
-    })
-    .fail([this](const promise::Error& err)
-    {
-        mBusy = false;
-        return err;
-    });
-}
+        return parseServerList(arr->value);
+    }
 
-template <class S>
-promise::Promise<void> GelbProvider<S>::fetchServers(unsigned timeoutMs, unsigned maxRetries)
-{
-    if (mBusy)
+public:
+    promise::Promise<void> fetchServers()
     {
+        if (mBusy)
+        {
+            return mOutputPromise;
+        }
+
+        mBusy = true;
+
+        auto wptr = weakHandle();
+        mOutputPromise = mApi.call(&::mega::MegaApi::queryGeLB, mService.c_str(), 0, 0)
+        .then([wptr, this](ReqResult result)
+            -> promise::Promise<void>
+        {
+            if (wptr.deleted())
+                return promise::_Void();
+
+            if (result->getNumber() != 200)
+            {
+                return promise::Error("Non-200 http response from GeLB server: "
+                                      +std::to_string(result->getNumber()), 0x3e9a9e1b, 1);
+            }
+            if (!result->getTotalBytes() || !result->getText())
+            {
+                return promise::Error("Empty response from GeLB server", 0x3e9a9e1b, 1);
+            }
+
+            mBusy = false;
+            std::string json((const char*)result->getText(), result->getTotalBytes());
+            if (!parseServersJson(json))
+            {
+                return promise::Error("Data from GeLB server incorrect: " + json, 0x3e9a9e1b, 1);
+            }
+            return promise::_Void();
+        })
+        .fail([this](const promise::Error& err)
+        {
+            mBusy = false;
+            return err;
+        });
+
         return mOutputPromise;
     }
 
-    promise::Promise<void> pms = exec(timeoutMs, maxRetries);
-    mOutputPromise = pms
-    .fail([this](const promise::Error& err) -> promise::Promise<void>
+    GelbProvider(MyMegaApi& api, const char* service)
+        : mApi(api), mService(service)
     {
-        if (!this->mLastUpdateTs || ((services_get_time_ms() - mLastUpdateTs)/1000 > mMaxReuseOldServersAge))
-        {
-            return err;
-        }
-        this->mNextAssignIdx = 0;
-        KR_LOG_WARNING("Gelb client: error getting new servers, reusing not too old servers that we have from gelb");
-        return promise::_Void();
-    });
-    return mOutputPromise;
-}
-
-static inline const char* strOrEmpty(const char* str)
-{
-    if (!str)
-        return "";
-    else
-        return str;
-}
-
-template <class S>
-void GelbProvider<S>::parseServersJson(const std::string& json)
-{
-    rapidjson::Document doc;
-    doc.Parse<0>(json.c_str());
-    if (doc.HasParseError())
-    {
-        throw std::runtime_error(std::string("Error ")+std::to_string(doc.GetParseError())+
-            "parsing json, at position "+std::to_string(doc.GetErrorOffset()));
     }
-    auto arr = doc.FindMember(mService.c_str());
-    if (arr == doc.MemberEnd())
-        throw std::runtime_error("JSON received does not have a '"+mService+"' member");
-    try
-    {
-        parseServerList(arr->value, *this);
-    }
-    catch (std::exception& e)
-    {
-        KR_LOG_ERROR("Error parsing GeLB response: JSON dump:\n %s", json.c_str());
-        throw;
-    }
-}
-
-template <class S>
-void parseServerList(const rapidjson::Value& arr, std::vector<std::shared_ptr<S> >& servers)
-{
-    if (!arr.IsArray())
-        throw std::runtime_error("Server list JSON is not an array");
-    std::vector<std::shared_ptr<S> > parsed;
-    for (auto it=arr.Begin(); it!=arr.End(); ++it)
-    {
-        if (!it->IsObject())
-            throw std::runtime_error("Server info entry is not an object");
-        parsed.emplace_back(new S(*it));
-    }
-    servers.swap(parsed);
-}
+};
 }
 
 #endif

@@ -4,6 +4,7 @@
 #include <libwebsockets.h>
 #include <openssl/ssl.h>
 #include <iostream>
+#include <functional>
 
 #include "net/websocketsIO.h"
 
@@ -12,12 +13,15 @@ class LibwebsocketsIO : public WebsocketsIO
 {
 public:
     struct lws_context *wscontext;
-    LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, void *ctx);
+    uv_loop_t* eventloop;
+
+    LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     virtual ~LibwebsocketsIO();
     
     virtual void addevents(::mega::Waiter*, int);
     
 protected:
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int, std::string, std::string)> f);
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client);

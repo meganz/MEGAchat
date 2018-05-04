@@ -1,6 +1,8 @@
 #ifndef IAPP_H
 #define IAPP_H
-#include <webrtc.h>
+#ifndef KARERE_DISABLE_WEBRTC
+    #include <webrtc.h>
+#endif
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -200,7 +202,7 @@ public:
 
         /** @brief Called when the timestamp of the most-recent message has changed.
          * This happens when a new message is received, or when there were no locally
-         * kown messages and the first old message is received
+         * known messages and the first old message is received
          */
         virtual void onLastTsUpdated(uint32_t ts) {}
 
@@ -335,14 +337,6 @@ public:
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
-    /**
-     * @brief Called when an incoming contact request has been received.
-     *
-     *  To accept or decline the request, the GUI should call
-     * \c mega::MegaApi::replyContactRequest() with the \c req object
-     * @param req The mega SDK contact request object
-     */
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.
@@ -354,17 +348,15 @@ public:
      */
     virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
 #endif
-    /**
-     * @brief Called by karere when we become participants in a 1on1 or a group chat.
-     * @param room The chat room object.
-     */
-    virtual void notifyInvited(const ChatRoom& room) {}
 
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init
      * state and their meaning.
      */
     virtual void onInitStateChange(int newState) {}
+
+    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx) {}
+
     virtual ~IApp() {}
 };
 }

@@ -31,7 +31,7 @@
 // define the weak symbol for Logger to know where to create the log file
 namespace karere
 {
-    APP_ALWAYS_EXPORT std::string getAppDir() 
+    APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
             return "/data/data/mega.privacy.android.app"; 
@@ -133,6 +133,21 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+int MegaChatCall::getSessionStatus(MegaChatHandle peerId) const
+{
+    return SESSION_STATUS_NO_SESSION;
+}
+
+MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::isIgnored() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -141,6 +156,11 @@ MegaChatApi::MegaChatApi(MegaApi *megaApi)
 MegaChatApi::~MegaChatApi()
 {
     delete pImpl;
+}
+
+const char *MegaChatApi::getAppDir()
+{
+    return karere::getAppDir().c_str();
 }
 
 void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
@@ -493,6 +513,11 @@ MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
     return  pImpl->getLastMessageSeen(chatid);
 }
 
+MegaChatHandle MegaChatApi::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    return pImpl->getLastMessageSeenId(chatid);
+}
+
 void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId)
 {
     pImpl->removeUnsentMessage(chatid, rowId);
@@ -503,6 +528,11 @@ void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestL
     pImpl->sendTypingNotification(chatid, listener);
 }
 
+void MegaChatApi::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->sendStopTypingNotification(chatid, listener);
+}
+
 bool MegaChatApi::isMessageReceptionConfirmationActive() const
 {
     return pImpl->isMessageReceptionConfirmationActive();
@@ -511,6 +541,11 @@ bool MegaChatApi::isMessageReceptionConfirmationActive() const
 void MegaChatApi::saveCurrentState()
 {
     pImpl->saveCurrentState();
+}
+
+void MegaChatApi::pushReceived(bool beep, MegaChatRequestListener *listener)
+{
+    pImpl->pushReceived(beep, listener);
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -585,6 +620,11 @@ MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
     return pImpl->getChatCall(chatid);
 }
 
+void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+{
+    pImpl->setIgnoredCall(chatid);
+}
+
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)
 {
     return pImpl->getChatCallByCallId(callId);
@@ -593,6 +633,16 @@ MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)
 int MegaChatApi::getNumCalls()
 {
     return pImpl->getNumCalls();
+}
+
+MegaHandleList *MegaChatApi::getChatCalls()
+{
+    return pImpl->getChatCalls();
+}
+
+MegaHandleList *MegaChatApi::getChatCallsIds()
+{
+    return pImpl->getChatCallsIds();
 }
 
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
@@ -647,9 +697,9 @@ void MegaChatApi::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListene
     pImpl->addChatRoomListener(chatid, listener);
 }
 
-void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->removeChatRoomListener(listener);
+    pImpl->removeChatRoomListener(chatid, listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
@@ -660,6 +710,16 @@ void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
 void MegaChatApi::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     pImpl->removeChatRequestListener(listener);
+}
+
+void MegaChatApi::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->addChatNotificationListener(listener);
+}
+
+void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->removeChatNotificationListener(listener);
 }
 
 MegaChatRequest::~MegaChatRequest() { }
@@ -734,6 +794,16 @@ MegaChatMessage *MegaChatRequest::getMegaChatMessage()
 }
 
 MegaNodeList *MegaChatRequest::getMegaNodeList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
 {
     return NULL;
 }
@@ -1056,6 +1126,16 @@ MegaChatHandle MegaChatListItem::getPeerHandle() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+int MegaChatListItem::getLastMessagePriv() const
+{
+    return MegaChatRoom::PRIV_UNKNOWN;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {
 
@@ -1260,4 +1340,9 @@ bool MegaChatPresenceConfig::isPending() const
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
+}
+
+void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
+{
+
 }

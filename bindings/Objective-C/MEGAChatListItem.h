@@ -19,7 +19,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic) uint64_t chatId;
 @property (readonly, nonatomic) NSString *title;
 @property (readonly, nonatomic) MEGAChatListItemChangeType changes;
-@property (readonly, nonatomic) MEGAChatRoomPrivilege ownPrivilige;
+@property (readonly, nonatomic) MEGAChatRoomPrivilege ownPrivilege;
 @property (readonly, nonatomic) NSInteger unreadCount;
 @property (readonly, nonatomic, getter=isGroup) BOOL group;
 @property (readonly, nonatomic) uint64_t peerHandle;
@@ -29,6 +29,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic) MEGAChatMessageType lastMessageType;
 @property (readonly, nonatomic) uint64_t lastMessageSender;
 @property (readonly, nonatomic) NSDate *lastMessageDate;
+@property (readonly, nonatomic) MEGAChatMessageType lastMessagePriv;
+@property (readonly, nonatomic) uint64_t lastMessageHandle;
 
 - (instancetype)clone;
 

@@ -62,7 +62,9 @@ enum Opcode
       *    arrival time. updatedelta must be larger than the previous updatedelta, or
       *    the MSGUPD will fail. The keyid must not change.
       *
-      * S->C: A message was updated (always sent as MSGUPD).
+      * S->C: A message was updated (always sent as MSGUPD). The `ts_send` is
+      * zero for all updates, except when the type of message is a truncate. In that
+      * case, the `ts_send` overwrites the former ts and the `ts_update` is zero.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
       */
     OP_MSGUPD = 4,
@@ -259,6 +261,10 @@ enum Opcode
       *
       * C->S: register / keepalive participation in channel's call (max interval: 5 s)
       * S->C: notify all clients of someone having joined the call (sent immediately after a chatd connection is established)
+      *
+      * If there are less than two parties pinging INCALL in a 1:1 chat with CALLDATA having its connected flag set,
+      * the call is considered terminated, and an `ENDCALL` is broadcast.
+      * @note that chatd does not parse CALLDATA yet, so the above is not enforced (yet).
       */
     OP_INCALL = 28,
 
@@ -279,10 +285,12 @@ enum Opcode
     OP_KEEPALIVEAWAY = 30,
 
     /**
-      *@brief
+      * @brief <chatid> <userid> <clientid> <payload-Len> <payload>
       *
-      *     C->S: set/update call data (gets broadcast to all people in the chat)
-      *     S->C: notify call data changes (sent immediately after a chatd connection is established)
+      * C->S: set/update call data (gets broadcast to all people in the chat)
+      * S->C: notify call data changes (sent immediately after a chatd connection is established
+      *     and additionally after JOIN, for those unknown chatrooms at the moment the chatd connection is established
+      *
       */
     OP_CALLDATA = 31,
 
@@ -309,6 +317,14 @@ enum Opcode
       * User delete a reaction to message
       */
     OP_DELREACTION = 34,
+
+    /**
+      ** @brief <chatid>
+      *
+      * C->S: ping server to ensure client is up to date for the specified chatid
+      * S->C: response to the ping initiated by client
+      */
+    OP_SYNC = 38,
 
     OP_LAST = OP_DELREACTION
 };
@@ -340,8 +356,8 @@ public:
         kMsgUserFirst         = 0x10,
         kMsgAttachment        = 0x10,
         kMsgRevokeAttachment  = 0x11,
-        kMsgContact           = 0x12
-
+        kMsgContact           = 0x12,
+        kMsgContainsMeta      = 0x13
     };
     enum Status
     {
@@ -465,7 +481,24 @@ public:
                 && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
                 && (type == kMsgNormal                  // include normal messages
                     || type == kMsgAttachment           // include node-attachment messages
-                    || type == kMsgContact));           // include contact-attachment messages
+                    || type == kMsgContact              // include contact-attachment messages
+                    || type == kMsgContainsMeta));      // include containsMeta messages
+    }
+
+    bool isValidLastMessage() const
+    {
+        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+                && type != kMsgRevokeAttachment     // skip revokes
+                && type != kMsgInvalid);            // skip (still) encrypted messages
+    }
+
+    // conditions to consider unread messages should match the
+    // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
+    bool isValidUnread(karere::Id myHandle) const
+    {
+        return (userid != myHandle              // skip own messages
+                && !(updated && !size())        // skip deleted messages
+                && (isText()));                 // Only text messages
     }
 
     /** @brief Convert attachment etc. special messages to text */
@@ -484,6 +517,7 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
 protected:
     static const char* statusNames[];
     friend class Chat;
@@ -498,7 +532,7 @@ protected:
     : Buffer(reserve, payloadSize+1) { write(0, opcode); }
     Command(const char* data, size_t size): Buffer(data, size){}
 public:
-    enum { kBroadcastUserTyping = 1 };
+    enum { kBroadcastUserTyping = 1,  kBroadcastUserStopTyping = 2};
     Command(): Buffer(){}
     Command(Command&& other)
     : Buffer(std::forward<Buffer>(other))

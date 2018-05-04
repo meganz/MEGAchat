@@ -16,8 +16,8 @@ using namespace karere;
 namespace stats
 {
 
-StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string& aErrInfo)
-:sid(aSid), errInfo(aErrInfo)
+StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string& aErrInfo, const std::string& aDeviceInfo)
+:sid(aSid), errInfo(aErrInfo), deviceInfo(aDeviceInfo)
 {
     if (termCode & TermCode::kPeer)
         mTermReason = std::string("peer-")+termCodeToStr(static_cast<TermCode>(termCode & ~TermCode::kPeer));
@@ -29,7 +29,7 @@ EmptyStats::EmptyStats(const Session& sess, const std::string& aTermRsn)
 :mIsCaller(sess.isCaller()), mTermRsn(aTermRsn), mCallId(sess.call().id()){}
 
 Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
-    :mScanPeriod(scanPeriod), mMaxSamplePeriod(maxSamplePeriod),
+    :mScanPeriod(scanPeriod * 1000), mMaxSamplePeriod(maxSamplePeriod * 1000),
     mCurrSample(new Sample), mSession(sess), mStats(new RtcStats)
 {
     memset(mCurrSample.get(), 0, sizeof(Sample));
@@ -59,125 +59,145 @@ void Recorder::resetBwCalculators()
     mConnTxBwCalc.reset(&(mCurrSample->cstats.s));
 }
 
-void Recorder::BwCalculator::calculate(long periodMs, long newTotalBytes)
+int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
 {
-    long deltaBytes = newTotalBytes - mTotalBytes;
-    auto bps = mBwInfo->bps = ((float)(deltaBytes)*1000/128) / periodMs; //from bytes/s to kbits/s
+    int64_t numericalValue = 0;
+    const webrtc::StatsReport::Value *value = item->FindValue(name);
+    if (value)
+    {
+        if (value->type() == webrtc::StatsReport::Value::kInt)
+        {
+            numericalValue = value->int_val();
+        }
+        else if (value->type() == webrtc::StatsReport::Value::kInt64)
+        {
+            numericalValue = value->int64_val();
+        }
+        else
+        {
+            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
+            assert(false);
+        }
+    }
+
+    return numericalValue;
+}
+
+std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
+{
+    std::string stringValue;
+    const webrtc::StatsReport::Value *value = item->FindValue(name);
+    if (value)
+    {
+        stringValue = value->ToString();
+    }
+
+    return stringValue;
+}
+
+void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
+{
+    uint64_t deltaBytes = newTotalBytes - mTotalBytes;
+    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
     mTotalBytes = newTotalBytes;
     mBwInfo->bs += deltaBytes;
-    mBwInfo->abps = (mBwInfo->abps*4+bps)/5;
+    mBwInfo->abps = (mBwInfo->abps * 4+bps) / 5;
 }
 
 void Recorder::OnComplete(const webrtc::StatsReports& data)
 {
-    auto myData = std::make_shared<artc::MyStatsReports>(data);
-    marshallCall([this, myData]()
-    {
-        try
-        {
-            onStats(myData);
-        }
-        catch(std::exception& e)
-        {
-            KR_LOG_ERROR("Stats: %s", e.what());
-        }
-    }, mSession.mManager.mClient.appCtx);
+    onStats(data);
 }
 
-void dumpStats(const artc::MyStatsReports& data)
-{
-    printf("====================== Stats report received\n");
-    for (auto& item: data)
-    {
-        printf("%s:\n", item.typeStr.c_str());
-        for (auto& val: item)
-            printf("\t'%s' = '%s'\n", val.second->display_name(), val.second->ToString().c_str());
-    }
-}
+#define AVG(name, var) var = round((float)var + getLongValue(VALNAME(name), item)) / 2
 
-#define AVG(name, var) var = round((float)var + item.longVal(VALNAME(name))) / 2
-
-void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
+void Recorder::onStats(const webrtc::StatsReports &data)
 {
-//  dumpStats(*data);
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
-    for (auto& item: *data)
+    for (const webrtc::StatsReport* item: data)
     {
-        if (item.type == RPTYPE(Ssrc))
+        if (item->id()->type() == RPTYPE(Ssrc))
         {
             long width;
-            if (item.longVal(VALNAME(FrameWidthReceived), width)) //video rx
+            if (item->FindValue(VALNAME(FrameWidthReceived))) //video rx
             {
+                width = getLongValue(VALNAME(FrameWidthReceived), item);
                 auto& sample = mCurrSample->vstats.r;
-                mVideoRxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+                mVideoRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
                 AVG(FrameRateReceived, sample.fps);
                 AVG(CurrentDelayMs, sample.dly);
                 AVG(JitterBufferMs, sample.jtr);
-                sample.pl = item.longVal(VALNAME(PacketsLost));
+                sample.pl = getLongValue(VALNAME(PacketsLost), item);
 //              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
                 sample.width = width;
-                sample.height = item.longVal(VALNAME(FrameHeightReceived));
+                sample.height = getLongValue(VALNAME(FrameHeightReceived), item);
             }
-            else if (item.longVal(VALNAME(FrameWidthSent), width)) //video tx
+            else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
             {
+                width = getLongValue(VALNAME(FrameWidthSent), item);
                 auto& sample = mCurrSample->vstats.s;
                 AVG(Rtt, sample.rtt);
                 AVG(FrameRateSent, sample.fps);
                 AVG(FrameRateInput, sample.cfps);
-//              AVG(CaptureJitterMs, sample.cjtr); //no capture jitter stats anymore?
                 sample.width = width;
-                sample.height = item.longVal(VALNAME(FrameHeightSent));
+                sample.height = getLongValue(VALNAME(FrameHeightSent), item);
                 if (mStats->mConnInfo.mVcodec.empty())
-                    mStats->mConnInfo.mVcodec = item.strVal(VALNAME(CodecName));
+                {
+                    mStats->mConnInfo.mVcodec = getStringValue(VALNAME(CodecName), item);
+                }
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.lcpu = (item.strVal(VALNAME(CpuLimitedResolution)) == "true");
-                sample.lbw = (item.strVal(VALNAME(BandwidthLimitedResolution)) == "true");
-                mVideoTxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
+                sample.lcpu = getStringValue(VALNAME(CpuLimitedResolution), item) == "true";
+                sample.lbw = getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true";
+                mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
             }
-            else if (item.hasVal(VALNAME(AudioInputLevel))) //audio rx
+            else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
             {
-                mAudioRxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
-                AVG(Rtt, mCurrSample->astats.rtt);
+                mAudioRxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
+                if (item->FindValue(VALNAME(Rtt)))
+                {
+                    AVG(Rtt, mCurrSample->astats.rtt);
+                }
             }
-            else if (item.hasVal(VALNAME(AudioOutputLevel))) //audio tx
+            else if (item->FindValue(VALNAME(AudioOutputLevel))) //audio tx
             {
-                mAudioTxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
+                mAudioTxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
                 AVG(JitterReceived, mCurrSample->astats.jtr);
-                mCurrSample->astats.pl = item.longVal(VALNAME(PacketsLost));
+                mCurrSample->astats.pl = getLongValue(VALNAME(PacketsLost), item);
             }
         }
-        else if ((item.type == RPTYPE(CandidatePair)) && (item.strVal(VALNAME(ActiveConnection)) == "true"))
+        else if ((item->id()->type() == RPTYPE(CandidatePair)) && getStringValue(VALNAME(ActiveConnection), item) == "true")
         {
             if (!mHasConnInfo) //happens if peer is Firefox
             {
                 mHasConnInfo = true;
-                bool isRelay = (item.strVal(VALNAME(LocalCandidateType)) == "relay");
+                bool isRelay = getStringValue(VALNAME(LocalCandidateType), item) == "relay";
                 if (isRelay)
                 {
                     auto& rlySvr = mStats->mConnInfo.mRlySvr;
-                    rlySvr = item.strVal(VALNAME(LocalAddress));
+                    rlySvr = getStringValue(VALNAME(LocalAddress), item);
                     if (rlySvr.empty())
                         rlySvr = "<error getting relay server>";
                 }
-                mStats->mConnInfo.mCtype = item.strVal(VALNAME(RemoteCandidateType));
-                mStats->mConnInfo.mProto = item.strVal(VALNAME(TransportType));
+                mStats->mConnInfo.mCtype = getStringValue(VALNAME(RemoteCandidateType), item);
+                mStats->mConnInfo.mProto = getStringValue(VALNAME(TransportType), item);
             }
             auto& cstat = mCurrSample->cstats;
             AVG(Rtt, cstat.rtt);
-            mConnRxBwCalc.calculate(period, item.longVal(VALNAME(BytesReceived)));
-            mConnTxBwCalc.calculate(period, item.longVal(VALNAME(BytesSent)));
+            mConnRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
+            mConnTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
+
         }
-        else if (item.type == RPTYPE(Bwe))
+        else if (item->id()->type() == RPTYPE(Bwe))
         {
-            mCurrSample->vstats.r.bwav = round((float)item.longVal(VALNAME(AvailableReceiveBandwidth))/1024);
+            mCurrSample->vstats.r.bwav = round((float)getLongValue(VALNAME(AvailableReceiveBandwidth), item)/1024);
             auto& sample = mCurrSample->vstats.s;
-            sample.bwav = round((float)item.longVal(VALNAME(AvailableSendBandwidth))/1024);
-            sample.gbps = round((float)item.longVal(VALNAME(TransmitBitrate))/1024); //chrome returns it in bits/s, should be near our calculated bps
+            sample.bwav = round((float)getLongValue(VALNAME(AvailableSendBandwidth), item)/1024);
+            sample.gbps = round((float)getLongValue(VALNAME(TransmitBitrate), item)/1024); //chrome returns it in bits/s, should be near our calculated bps
             sample.gabps = (sample.gabps*4+sample.gbps)/5;
-            sample.targetEncBitrate = round((float)item.longVal(VALNAME(TargetEncBitrate))/1024);
+            sample.targetEncBitrate = round((float)getLongValue(VALNAME(TargetEncBitrate), item)/1024);
         }
     } //end item loop
     bool shouldAddSample = false;
@@ -201,7 +221,7 @@ void Recorder::onStats(const std::shared_ptr<artc::MyStatsReports>& data)
         auto d_auJtr = mCurrSample->astats.jtr - last.astats.jtr;
         if (d_auJtr < 0)
             d_auJtr = -d_auJtr;
-        auto d_ts = mCurrSample->ts-last.ts;
+        auto d_ts = mCurrSample->ts - last.ts;
         auto d_apl = mCurrSample->astats.pl - last.astats.pl;
         shouldAddSample =
             (mCurrSample->vstats.r.width != last.vstats.r.width)
@@ -232,29 +252,24 @@ void Recorder::start()
     assert(mSession.mRtcConn);
     mStats->mIsCaller = mSession.isCaller();
     mStats->mCallId = mSession.call().id();
+    mStats->mSessionId = mSession.sessionId();
     mStats->mOwnAnonId = mSession.call().manager().ownAnonId();
     mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
     mTimer = setInterval([this]()
     {
-        //mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
+        mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
     }, mScanPeriod, mSession.mManager.mClient.appCtx);
 }
 
-void Recorder::terminate(const std::string& termRsn)
+std::string Recorder::terminate(const StatSessInfo& info)
 {
     cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
     mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
-    mStats->mTermRsn = termRsn;
-    std::string json;
-    mStats->toJson(json);
-    printf("============== %s\n", json.c_str());
-}
-
-std::string Recorder::getStats(const StatSessInfo& info)
-{
+    mStats->mTermRsn = info.mTermReason;
+    mStats->mDeviceInfo = info.deviceInfo;
     std::string json;
     mStats->toJson(json);
     return json;
@@ -304,7 +319,8 @@ void RtcStats::toJson(std::string& json) const
 {
     json.reserve(10240);
     json ="{";
-    JSON_ADD_STR(cid, mCallId.toString());
+    JSON_ADD_STR(cid, mSessionId.toString());
+    JSON_ADD_STR(sid, mSessionId.toString());
     JSON_ADD_STR(caid, mIsCaller?mOwnAnonId.toString():mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId.toString():mOwnAnonId.toString());
     JSON_ADD_INT(isCaller, mIsCaller);
@@ -312,7 +328,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_INT(sper, mSper);
     JSON_ADD_INT(dur, round((float)mDur/1000));
     JSON_ADD_STR(termRsn, mTermRsn);
-    JSON_ADD_STR(bws, "n"); //TODO: Add platform info
+    JSON_ADD_STR(bws, mDeviceInfo); //TODO: Add platform info
 
     int isRelay = !mConnInfo.mRlySvr.empty();
     JSON_ADD_INT(rly, isRelay);

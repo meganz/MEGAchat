@@ -30,7 +30,7 @@
 #include <fstream>
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
-static const std::string USER_AGENT_DESCRIPTION  = "Tests for Karere SDK functionality";
+static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 
 static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
@@ -101,9 +101,6 @@ private:
     } \
     while(false) \
 
-
-class TestChatRoomListener;
-
 class MegaLoggerTest : public mega::MegaLogger,
         public megachat::MegaChatLogger {
 
@@ -136,6 +133,20 @@ private:
 };
 
 class TestChatRoomListener;
+
+#ifndef KARERE_DISABLE_WEBRTC
+class TestChatVideoListener : public megachat::MegaChatVideoListener
+{
+public:
+    TestChatVideoListener(const std::string& type);
+    virtual ~TestChatVideoListener();
+
+    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
+
+private:
+    std::string mType;
+};
+#endif
 
 class MegaChatApiTest :
         public mega::MegaListener,
@@ -187,6 +198,7 @@ public:
     void TEST_ChangeMyOwnName(unsigned int a1);    
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
+    void TEST_ManualCalls(unsigned int a1, unsigned int a2);
 #endif
 
     unsigned mOKTests;
@@ -283,13 +295,18 @@ private:
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallAnswered[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallEmisorId[NUM_ACCOUNTS];
-    bool mCallRequestSent[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mCallRequestSentId[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mIncomingCallId[NUM_ACCOUNTS];
-
-    megachat::MegaChatHandle mCallId[NUM_ACCOUNTS];
+    int mTerminationCode[NUM_ACCOUNTS];
+    bool mTerminationLocal[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
+    bool mPeerIsRinging[NUM_ACCOUNTS];
+    bool mVideoLocal[NUM_ACCOUNTS];
+    bool mVideoRemote[NUM_ACCOUNTS];
+    TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
+    TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+
 #endif
 
     static const std::string DEFAULT_PATH;
@@ -379,21 +396,6 @@ public:
 private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
-
-
-#ifndef KARERE_DISABLE_WEBRTC
-class TestChatVideoListener : public megachat::MegaChatVideoListener
-{
-public:
-    TestChatVideoListener(const std::string& type);
-    virtual ~TestChatVideoListener();
-
-    virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
-
-private:
-    std::string mType;
-};
-#endif
 
 #endif // CHATTEST_H
 

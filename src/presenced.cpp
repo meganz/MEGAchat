@@ -28,10 +28,9 @@ using namespace karere;
 namespace presenced
 {
 
-    Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps)
-{
-}
+Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
+: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps), usingipv6(false)
+{}
 
 promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
@@ -89,6 +88,8 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (oldState == kDisconnected)
         return;
+
+    usingipv6 = !usingipv6;
 
     if (oldState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
@@ -211,10 +212,9 @@ Client::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostmane...");
-
-            mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([wptr, this](ReqResult result)
+            PRESENCED_LOG_DEBUG("Resolving hostname...");
+            int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
+                         [wptr, this](int status, std::string ipv4, std::string ipv6)
             {
                 if (wptr.deleted())
                 {
@@ -227,39 +227,69 @@ Client::reconnect(const std::string& url)
                     return;
                 }
 
-                setConnState(kConnecting);
-                string ip = result->getText();
-                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure);
-                if (!rt)
+                if (status < 0)
                 {
-                    throw std::runtime_error("Websocket error on wsConnect (presenced)");
-                }
-            })
-            .fail([wptr, this](const promise::Error& err)
-            {
-                if (wptr.deleted())
-                {
-                    PRESENCED_LOG_DEBUG("DNS resolution failed, but presenced client was deleted. Error: %s", err.what());
-                    return;
-                }
-
-                if (err.type() == ERRTYPE_MEGASDK)
-                {
+                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
                     if (!mConnectPromise.done())
                     {
-                        mConnectPromise.reject(err.msg(), err.code(), err.type());
+                        mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
                     }
                     if (!mLoginPromise.done())
                     {
-                        mLoginPromise.reject(err.msg(), err.code(), err.type());
+                        mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
                     }
+                    return;
+                }
+
+                setConnState(kConnecting);
+                string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
+                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
+                      mUrl.host.c_str(),
+                      mUrl.port,
+                      mUrl.path.c_str(),
+                      mUrl.isSecure);
+                if (!rt)
+                {
+                    string otherip;
+                    if (ip == ipv6 && ipv4.size())
+                    {
+                        otherip = ipv4;
+                    }
+                    else if (ip == ipv4 && ipv6.size())
+                    {
+                        otherip = ipv6;
+                    }
+
+                    if (otherip.size())
+                    {
+                        CHATD_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
+                        if (wsConnect(karereClient->websocketIO, otherip.c_str(),
+                                      mUrl.host.c_str(),
+                                      mUrl.port,
+                                      mUrl.path.c_str(),
+                                      mUrl.isSecure))
+                        {
+                            return;
+                        }
+                    }
+
+                    onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
                 }
             });
+
+            if (status < 0)
+            {
+                PRESENCED_LOG_DEBUG("Sync DNS error in presenced. Error code: %d", status);
+                if (!mConnectPromise.done())
+                {
+                    mConnectPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
+                }
+                if (!mLoginPromise.done())
+                {
+                    mLoginPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
+                }
+            }
             
             return mConnectPromise
             .then([wptr, this]()
@@ -421,12 +451,36 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_ADDPEERS:
         {
-            snprintf(buf, bufsize, "ADDPEERS - %u peers", read<uint32_t>(1));
+            uint32_t numPeers = read<uint32_t>(1);
+            string tmpString;
+            tmpString.append("ADDPEERS - ");
+            tmpString.append(to_string(numPeers));
+            tmpString.append(" peer/s: ");
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(5+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
         case OP_DELPEERS:
         {
-            snprintf(buf, bufsize, "DELPEERS - %u peers", read<uint32_t>(1));
+            uint32_t numPeers = read<uint32_t>(1);
+            string tmpString;
+            tmpString.append("DELPEERS - ");
+            tmpString.append(to_string(numPeers));
+            tmpString.append(" peer/s: ");
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(5+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
         default:
@@ -546,7 +600,6 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_8(pres, 0);
                 READ_ID(userid, 1);
-                // READ_8(webrtc_capability, 7);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
                 CALL_LISTENER(onPresenceChange, userid, pres);
