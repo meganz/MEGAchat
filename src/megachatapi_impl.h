@@ -90,6 +90,8 @@ public:
     virtual const char *getText() const;
     virtual MegaChatMessage *getMegaChatMessage();
     virtual mega::MegaNodeList *getMegaNodeList();
+    virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
+    virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
 
     void setTag(int tag);
@@ -104,6 +106,8 @@ public:
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
+    void setMegaHandleList(mega::MegaHandleList *handlelist);
+    void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
 
 protected:
@@ -121,6 +125,8 @@ protected:
     const char* text;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
+    mega::MegaHandleList *mMegaHandleList;
+    std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
     int mParamType;
 };
 
@@ -961,6 +967,7 @@ public:
     void sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
+    void pushReceived(bool beep, MegaChatRequestListener *listener = NULL);
 
 #ifndef KARERE_DISABLE_WEBRTC
 

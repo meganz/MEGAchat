@@ -72,7 +72,8 @@ std::string encodeFirstName(const std::string& first);
           chats(new ChatRoomList(*this)),
           mMyName("\0", 1),
           mOwnPresence(Presence::kInvalid),
-          mPresencedClient(&api, this, *this, caps)
+          mPresencedClient(&api, this, *this, caps),
+          mSyncCount(-1)
 {
 }
 
@@ -297,6 +298,24 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     return mSessionReadyPromise;
 }
 
+void Client::onSyncReceived(Id chatid)
+{
+    if (mSyncCount <= 0)
+    {
+        KR_LOG_WARNING("Unexpected SYNC received for chat: %s", chatid.toString().c_str());
+        return;
+    }
+
+    mSyncCount--;
+    if (mSyncCount == 0 && mSyncTimer)
+    {
+        cancelTimeout(mSyncTimer, appCtx);
+        mSyncTimer = 0;
+
+        mSyncPromise.resolve();
+    }
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -324,6 +343,44 @@ void Client::saveDb()
         KR_LOG_ERROR("Error saving changes to local cache: %s", e.what());
         setInitState(kInitErrCorruptCache);
     }
+}
+
+promise::Promise<void> Client::pushReceived()
+{
+    // if already sent SYNCs or we are not logged in right now...
+    if (mSyncTimer || !chatd || !chatd->areAllChatsLoggedIn())
+    {
+        return mSyncPromise;
+        // promise will resolve once logged in for all chats or after receive all SYNCs back
+    }
+
+    auto wptr = weakHandle();
+    mSyncPromise = Promise<void>();
+    mSyncCount = 0;
+    mSyncTimer = karere::setTimeout([this, wptr]()
+    {
+        if (wptr.deleted())
+          return;
+
+        assert(mSyncCount != 0);
+        mSyncTimer = 0;
+        mSyncCount = -1;
+
+        chatd->retryPendingConnections();
+
+    }, chatd::kSyncTimeout, appCtx);
+
+    for (auto& item: *chats)
+    {
+        ChatRoom *chat = item.second;
+        if (!chat->chat().isDisabled())
+        {
+            mSyncCount++;
+            chat->sendSync();
+        }
+    }
+
+    return mSyncPromise;
 }
 
 void Client::loadContactListFromApi()
@@ -361,7 +418,8 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
     db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
 
-    mUserAttrCache.reset(new UserAttrCache(*this));
+    mUserAttrCache.reset(new UserAttrCache(*this));    
+    api.sdk.addGlobalListener(this);
 
     auto wptr = weakHandle();
     return loadOwnKeysFromApi()
@@ -478,7 +536,8 @@ void Client::initWithDbSession(const char* sid)
         }
         assert(db);
         assert(!mSid.empty());
-        mUserAttrCache.reset(new UserAttrCache(*this));
+        mUserAttrCache.reset(new UserAttrCache(*this));        
+        api.sdk.addGlobalListener(this);
 
         mMyHandle = getMyHandleFromDb();
         assert(mMyHandle);
@@ -529,8 +588,6 @@ Client::InitState Client::init(const char* sid)
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
     }
-
-    api.sdk.addGlobalListener(this);
 
     if (sid)
     {
@@ -2517,6 +2574,12 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             if (mOwnPriv != chatd::PRIV_NOTPRESENT)
             {
+                // if already connected, need to send a new JOIN to chatd
+                if (parent.client.connected())
+                {
+                    KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
+                    mChat->connect();
+                }
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
                 notifyRejoinedChat();
             }

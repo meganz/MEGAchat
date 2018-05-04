@@ -66,6 +66,8 @@ enum HistSource
 };
 /** Timeout to send SEEN (Milliseconds)**/
 enum { kSeenTimeout = 200 };
+/** Timeout to recv SYNC (Milliseconds)**/
+enum { kSyncTimeout = 2500 };
 enum { kProtocolVersion = 0x01 };
 enum { kMaxMsgSize = 120000 };  // (in bytes)
 
@@ -345,7 +347,7 @@ public:
 
 protected:
     bool usingipv6;
-    Client& mClient;
+    Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
@@ -404,6 +406,7 @@ public:
     void heartbeat();
 
     int shardNo() const;
+    promise::Promise<void> sendSync();
 };
 
 enum ServerHistFetchState
@@ -1048,6 +1051,7 @@ public:
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     void clearHistory();
+    void sendSync();
 
 protected:
     void msgSubmit(Message* msg);
@@ -1057,6 +1061,7 @@ protected:
     void onJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void onKeyReject();
+    void onHistReject();
     void rejectMsgupd(karere::Id id, uint8_t serverReason);
     void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
@@ -1092,7 +1097,7 @@ protected:
     std::map<karere::Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
- // set of seen timers
+/// set of seen timers
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
@@ -1153,6 +1158,9 @@ public:
     friend class Connection;
     friend class Chat;
 
+    bool areAllChatsLoggedIn();
+
+
     // Chatd Version:
     // - Version 1:
     // - Version 2:
@@ -1210,7 +1218,7 @@ public:
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
-    virtual Idx getPeerMsgCountAfterIdx(Idx idx) = 0;
+    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
     virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;

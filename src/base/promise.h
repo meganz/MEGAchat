@@ -66,7 +66,7 @@ struct FuncTraits <R(C::*)(Args...) const> { typedef R RetType; enum {nargs = si
 struct IVirtDtor
 {  virtual ~IVirtDtor() {}  };
 
-template <class T, int L>
+template <class T>
 class Promise;
 
 //Promise error class. We need it to be a refcounted object, because
@@ -128,7 +128,7 @@ public:
         return "Error: '"+get()->mMsg+"'\nType: "+
         std::to_string(get()->mType)+" Code: "+std::to_string(get()->mCode);
     }
-    template <class T, int L>
+    template <class T>
     friend class Promise;
 };
 
@@ -140,19 +140,13 @@ public:
     virtual ~PromiseBase(){}
 };
 
-template <int L, class C>
+template <class C>
 class CallbackList
 {
 protected:
-    C* items[L];
-    int mCount;
+    std::vector<C*> items;
 public:
-    CallbackList():mCount(0){}
-    inline void checkCanAdd(int cnt = 0) const
-    {
-        if (mCount + cnt >= L)
-            throw std::runtime_error(kNoMoreCallbacksMsg);
-    }
+    CallbackList(){}
 /**
  * Takes ownership of callback, copies the promise.
  * Accepts the callback as a smart pointer of type SP.
@@ -162,48 +156,52 @@ public:
     template<class SP>
     inline void push(SP& cb)
     {
-        checkCanAdd();
-        items[mCount++] = cb.release();
+        items.push_back(cb.release());
     }
 
     inline C*& operator[](int idx)
     {
-        assert((idx >= 0) && (idx <= mCount));
+        assert((idx >= 0) && (idx < items.size()));
         return items[idx];
     }
     inline const C*& operator[](int idx) const
     {
-        assert((idx >= 0) && (idx <= mCount));
+        assert((idx >= 0) && (idx < items.size()));
         return items[idx];
     }
     inline C*& first()
     {
-        assert(mCount > 0);
+        assert(!items.empty());
         return items[0];
     }
-    inline int count() const {return mCount;}
+    inline int count() const
+    {
+        return items.size();
+    }
     inline void addListMoveItems(CallbackList& other)
     {
-        int cnt = other.count();
-        checkCanAdd(cnt);
-        for (int i=0; i<cnt; i++)
-            items[mCount++] = other.items[i];
-        other.mCount = 0;
+        items.insert(items.end(), other.items.begin(), other.items.end());
+        other.clear();
     }
     void clear()
     {
         static_assert(std::is_base_of<IVirtDtor, C>::value, "Callback type must be inherited from IVirtDtor");
-        for (int i=0; i<mCount; i++)
-            delete ((IVirtDtor*)items[i]); //static_cast wont work here because there is no info that ICallback inherits from IVirtDtor
-        mCount = 0;
+        for (auto it = items.begin(); it != items.end(); it++)
+        {
+            delete ((IVirtDtor*)*it); //static_cast wont work here because there is no info that ICallback inherits from IVirtDtor
+        }
+        items.clear();
     }
-    ~CallbackList() {assert(mCount == 0);}
+    ~CallbackList()
+    {
+        assert(items.empty());
+    }
 };
 
 struct _Empty{};
 typedef _Empty Empty;
 
-template<typename T, int L=10>
+template<typename T>
 class Promise: public PromiseBase
 {
 public:
@@ -265,14 +263,14 @@ protected:
     {
         struct CbLists
         {
-            CallbackList<L, ISuccessCb> mSuccessCbs;
-            CallbackList<L, IFailCb> mFailCbs;
+            CallbackList<ISuccessCb> mSuccessCbs;
+            CallbackList<IFailCb> mFailCbs;
         };
         int mRefCount;
         CbLists* mCbs;
         ResolvedState mResolved;
         bool mPending;
-        Promise<T,L> mMaster;
+        Promise<T> mMaster;
         typename MaskVoid<typename std::remove_const<T>::type>::type mResult;
         Error mError;
         SharedObj()
@@ -349,10 +347,10 @@ protected:
             mSharedObj->ref();
         }
     }
-    inline CallbackList<L, ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
-    inline CallbackList<L, IFailCb>& failCbs() {return mSharedObj->cbs().mFailCbs;}
+    inline CallbackList<ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
+    inline CallbackList<IFailCb>& failCbs() {return mSharedObj->cbs().mFailCbs;}
     SharedObj* mSharedObj;
-    template <class FT,int FL> friend class Promise;
+    template <class FT> friend class Promise;
 public:
     typedef T Type;
     /** @brief Creates an uninitialized promise.

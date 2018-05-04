@@ -125,7 +125,6 @@ void MegaChatApplication::configureLogs()
 {
     std::string logPath = mAppDir + "/log.txt";
     mLogger = new MegaLoggerApplication(logPath.c_str());
-    mLogger->setLogConsole(true);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     MegaChatApi::setLoggerObject(mLogger);
@@ -135,13 +134,16 @@ void MegaChatApplication::configureLogs()
 
 void MegaChatApplication::addChats()
 {
-    MegaChatListItemList *chatList = mMegaChatApi->getChatListItems();
-    for (int i = 0; i < chatList->size(); i++)
+    mMainWin->updateLocalChatListItems();
+    std::list<Chat> *chatList = mMainWin->getLocalChatListItemsByStatus(chatActiveStatus);
+    for (Chat &chat : (*chatList))
     {
-        mMainWin->addChat(chatList->get(i));
+        const megachat::MegaChatListItem *item = chat.chatItem;
+        mMainWin->addChat(item);
     }
-    mMainWin->addChatListener();
+    chatList->clear();
     delete chatList;
+    mMainWin->addChatListener();
 }
 
 
@@ -336,9 +338,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                 }
 
                 this->mMegaChatApi->setChatTitle(handle, title.c_str());
-                const MegaChatListItem *chatListItem = this->mMegaChatApi->getChatListItem(handle);
+                const MegaChatListItem *chatListItem = mMainWin->getLocalChatListItem(handle);
                 mMainWin->addChat(chatListItem);
-                delete chatListItem;
              }
              break;
          case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
