@@ -1043,10 +1043,8 @@ public:
     virtual const char *getTitle() const;
     virtual const char *getDescription() const;
     virtual const char *getImage() const;
-    virtual unsigned int getImageSize() const;
     virtual const char *getImageFormat() const;
     virtual const char *getIcon() const;
-    virtual unsigned int getIconSize() const;
     virtual const char *getIconFormat() const;
     virtual const char *getUrl() const;
 
@@ -1055,7 +1053,7 @@ protected:
     std::string mTitle;
     std::string mDescription;
     std::string mImage;
-    std::string mImagenFormat;
+    std::string mImageFormat;
     std::string mIcon;
     std::string mIconFormat;
     std::string mUrl;

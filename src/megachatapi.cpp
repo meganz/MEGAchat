@@ -1276,11 +1276,6 @@ const char *MegaChatRichPreview::getImage() const
     return NULL;
 }
 
-unsigned int MegaChatRichPreview::getImageSize() const
-{
-    return 0;
-}
-
 const char *MegaChatRichPreview::getImageFormat() const
 {
     return NULL;
@@ -1289,11 +1284,6 @@ const char *MegaChatRichPreview::getImageFormat() const
 const char *MegaChatRichPreview::getIcon() const
 {
     return NULL;
-}
-
-unsigned int MegaChatRichPreview::getIconSize() const
-{
-    return 0;
 }
 
 const char *MegaChatRichPreview::getIconFormat() const

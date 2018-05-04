@@ -6225,9 +6225,9 @@ MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const MegaChatRichPreview
     this->mText = richPreview->getText();
     this->mTitle = richPreview->getTitle();
     this->mDescription = richPreview->getDescription();
-    this->mImage.assign(richPreview->getImage(), richPreview->getImageSize());
-    this->mImagenFormat = richPreview->getImageFormat();
-    this->mIcon.assign(richPreview->getIcon(), richPreview->getIconSize());
+    this->mImage = richPreview->getImage() ? richPreview->getImage() : "";
+    this->mImageFormat = richPreview->getImageFormat();
+    this->mIcon = richPreview->getIcon() ? richPreview->getIcon() : "";
     this->mIconFormat = richPreview->getIconFormat();
     this->mUrl = richPreview->getUrl();
 }
@@ -6236,7 +6236,7 @@ MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const string &text, const
                                          const string &image, const string &imageFormat, const string &icon,
                                          const string &iconFormat, const string &url)
     : mText(text), mTitle(title), mDescription(description)
-    , mImage(image), mImagenFormat(imageFormat), mIcon(icon)
+    , mImage(image), mImageFormat(imageFormat), mIcon(icon)
     , mIconFormat(iconFormat), mUrl(url)
 {
 }
@@ -6258,27 +6258,17 @@ const char *MegaChatRichPreviewPrivate::getDescription() const
 
 const char *MegaChatRichPreviewPrivate::getImage() const
 {
-    return mImage.data();
-}
-
-unsigned int MegaChatRichPreviewPrivate::getImageSize() const
-{
-    return mImage.size();
+    return mImage.size() ? mImage.c_str() : NULL;
 }
 
 const char *MegaChatRichPreviewPrivate::getImageFormat() const
 {
-    return mIconFormat.c_str();
+    return mImageFormat.c_str();
 }
 
 const char *MegaChatRichPreviewPrivate::getIcon() const
 {
-    return mIcon.data();
-}
-
-unsigned int MegaChatRichPreviewPrivate::getIconSize() const
-{
-    return mIcon.size();
+    return mIcon.size() ? mIcon.c_str() : NULL;
 }
 
 const char *MegaChatRichPreviewPrivate::getIconFormat() const

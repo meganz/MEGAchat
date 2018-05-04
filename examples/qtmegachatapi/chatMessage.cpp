@@ -90,9 +90,9 @@ void ChatMessage::showRichLinkData()
             .append(tr("\nDescription: "))
             .append(richPreview->getDescription())
             .append(tr("\nHas icon: "))
-            .append((richPreview->getIconSize() > 1) ? "yes" : "no")
+            .append(richPreview->getIcon() ? "yes" : "no")
             .append(tr("\nHas image: "))
-            .append((richPreview->getImageSize() > 1) ? "yes" : "no");
+            .append(richPreview->getImage() ? "yes" : "no");
     }
     ui->mMsgDisplay->setText(text);
     ui->mMsgDisplay->setStyleSheet("background-color: rgba(213,245,160,128)\n");

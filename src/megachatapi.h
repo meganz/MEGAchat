@@ -599,60 +599,80 @@ public:
 
     /**
       * @brief Returns rich preview text
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
       * @return Text from rich preview
       */
     virtual const char *getText() const;
 
     /**
       * @brief Returns rich preview title
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
       * @return Title from rich preview
       */
     virtual const char *getTitle() const;
 
     /**
       * @brief Returns rich preview description
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
       * @return Description from rich preview
       */
     virtual const char *getDescription() const;
 
     /**
       * @brief Returns rich preview image
-      * @return Image from rich preview
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Image from rich preview as a byte array encoded in Base64URL, or NULL if not available.
       */
     virtual const char *getImage() const;
 
     /**
-      * @brief Returns rich preview image size
-      * @return Image size from rich preview
-      */
-    virtual unsigned int getImageSize() const;
-
-    /**
       * @brief Returns rich preview image format
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
       * @return Image format from rich preview
       */
     virtual const char *getImageFormat() const;
 
     /**
       * @brief Returns rich preview icon
-      * @return Icon from rich preview
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Icon from rich preview as a byte array encoded in Base64URL, or NULL if not available.
       */
     virtual const char *getIcon() const;
 
     /**
-      * @brief Returns rich preview icon size
-      * @return Icon size from rich preview
-      */
-    virtual unsigned int getIconSize() const;
-
-    /**
       * @brief Returns rich preview icon format
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
       * @return Icon format from rich preview
       */
     virtual const char *getIconFormat() const;
 
     /**
       * @brief Returns rich preview url
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
       * @return Url from rich preview
       */
     virtual const char *getUrl() const;
