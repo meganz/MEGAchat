@@ -6770,7 +6770,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
             imageFormat = getImageFormat(imagePointer);
             imagePointer = imagePointer + imageFormat.size() + 1; // remove format.size() + ':'
             rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
-            icon = std::string(imagePointer, sizeImage);
+            image = std::string(imagePointer, sizeImage);
         }
 
         rapidjson::Value::ConstMemberIterator iteratorIcon = richPreview.FindMember("ic");
