@@ -1005,7 +1005,6 @@ public:
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif

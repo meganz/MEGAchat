@@ -2904,32 +2904,6 @@ Contact* ContactList::contactFromUserId(uint64_t userid) const
     return (it == end())? nullptr : it->second;
 }
 
-void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* reqs)
-{
-    if (!reqs)
-        return;
-
-    std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, copy]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        auto count = copy->size();
-        for (int i=0; i<count; i++)
-        {
-            auto& req = *copy->get(i);
-            if (req.isOutgoing())
-                continue;
-            if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
-                app.onIncomingContactRequest(req);
-        }
-    }, appCtx);
-}
-
 Contact::Contact(ContactList& clist, const uint64_t& userid,
                  const std::string& email, int visibility,
                  int64_t since, PeerChatRoom* room)

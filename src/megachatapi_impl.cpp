@@ -140,6 +140,10 @@ void MegaChatApiImpl::loop()
             break;
         }
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    rtcModule::globalCleanup();
+#endif
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
@@ -329,10 +333,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
             }
-
-#ifndef KARERE_DISABLE_WEBRTC
-            rtcModule::globalCleanup();
-#endif
 
             threadExit = 1;
             break;
@@ -3209,11 +3209,6 @@ IApp::IContactListHandler *MegaChatApiImpl::contactListHandler()
 IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
 {
     return this;
-}
-
-void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
-{
-    // it is notified to the app by the existing MegaApi
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
