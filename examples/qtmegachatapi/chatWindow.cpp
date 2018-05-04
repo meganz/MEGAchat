@@ -641,7 +641,7 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(bool video)
+void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
 {
     CallGui *callGui = NULL;
     auto layout = qobject_cast <QBoxLayout*> (ui->mCentralWidget->layout());
@@ -649,9 +649,16 @@ void ChatWindow::createCallGui(bool video)
     layout->setContentsMargins(5,5,5,5);
 
     //Local callGui
-    callGui = new CallGui(this, video, megachat::MEGACHAT_INVALID_HANDLE, true);
+    callGui = new CallGui(this, video, peerid, true);
     this->callParticipantsGui.insert(callGui);
-    layout->insertWidget(0, callGui, 1);
+
+    int index;
+    if (peerid == megachat::MEGACHAT_INVALID_HANDLE)
+        {index = 0;}
+    else
+        {index = callParticipantsGui.size()-1;}
+
+    layout->insertWidget(index, callGui, 1);
 
     /*//Remote callGui
     callGui = new CallGui(this, video, false);
@@ -674,25 +681,58 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-    if (mChatRoom->isGroup())
+    /*if (mChatRoom->isGroup())
     {
         QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
         return;
-    }
-    createCallGui(video);
-    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+    }*/
+
+   createCallGui(video, megachat::MEGACHAT_INVALID_HANDLE);
+
+   if (mChatRoom->isGroup())
+   {
+       //If is a group call we need to connect
+       connectCall(megachat::MEGACHAT_INVALID_HANDLE);
+   }
+   else
+   {
+       if(mMegaChatApi->getChatCall(mChatRoom->getChatId()) == NULL)
+       {
+            mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+       }
+   }
 }
 
-void ChatWindow::connectCall()
+void ChatWindow::connectCall(MegaChatHandle mPeerid)
 {
     std::set<CallGui *>::iterator it;
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
         CallGui *call = *it;
-        if (!call->getCall())
+        if (call->getPeer() == mPeerid)
         {
-            call->connectCall();
+            if (!call->getCall())
+            {
+                call->connectCall();
+                break;
+            }
         }
+    }
+}
+
+void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
+{
+    std::set<CallGui *>::iterator it;
+    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
+    {
+        CallGui *call = *it;
+        if (call->getPeer() == mPeerid)
+        {
+            call->deleteLater();
+            callParticipantsGui.erase(it);
+            break;
+        }
+
     }
 }
 
