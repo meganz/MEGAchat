@@ -197,12 +197,13 @@ void MainWindow::addContacts()
 
 void MainWindow::addArchivedChats()
 {
-    MegaChatListItemList *chatList = this->mMegaChatApi->getArchivedChatListItems();
-    for (int i = 0; i < chatList->size(); i++)
+    std::list<Chat> *archivedChatList = getLocalChatListItemsByStatus(chatArchivedStatus);
+    archivedChatList->sort();
+    for (Chat &chat : (*archivedChatList))
     {
-        addChat(chatList->get(i));
+        addChat(chat.chatItem);
     }
-    delete chatList;
+    delete archivedChatList;
 }
 
 void MainWindow::addInactiveChats()
@@ -732,7 +733,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
         switch (status)
         {
             case chatActiveStatus:
-                if (item->isActive())
+                if (item->isActive() && !item->isArchived())
                 {
                     chatList->push_back(Chat(item));
                 }
@@ -740,6 +741,13 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 
             case chatInactiveStatus:
                 if (!item->isActive())
+                {
+                    chatList->push_back(Chat(item));
+                }
+                break;
+
+            case chatArchivedStatus:
+                if (item->isArchived())
                 {
                     chatList->push_back(Chat(item));
                 }
@@ -756,7 +764,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
     itContacts = contactWidgets.find(contactHandle);
 
     if (itContacts != contactWidgets.end())
-    {                
+    {
         ContactItemWidget *contactItemWidget = itContacts->second;
         contactItemWidget->updateTitle(firstname);
     }

@@ -14,6 +14,7 @@
 
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
+const int chatArchivedStatus = 2;
 
 struct Chat
 {
