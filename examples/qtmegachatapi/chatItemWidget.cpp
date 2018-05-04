@@ -18,7 +18,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    int unreadCount = mMegaChatApi->getChatListItem(mChatId)->getUnreadCount();
+    int unreadCount = mMainWin->getLocalChatListItem(mChatId)->getUnreadCount();
     onUnreadCountChanged(unreadCount);
     ui->mName->setText(item->getTitle());
 
@@ -232,7 +232,6 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     delete chatRoom;
     delete chatId_64;
     delete auxLastMessageId_64;
-
 }
 
 const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle msgUserId)
@@ -364,10 +363,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-    delete chatRoom;
 
     QMenu menu(this);
-    if(mMegaChatApi->getChatListItem(mChatId)->isGroup())
+    if (mMainWin->getLocalChatListItem(mChatId)->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
@@ -375,6 +373,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
         actTopic->setEnabled(canChangePrivs);
         connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
     }
+    delete chatRoom;
 
     auto actTruncate = menu.addAction(tr("Truncate chat"));
     actTruncate->setEnabled(canChangePrivs);
