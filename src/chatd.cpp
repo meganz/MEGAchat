@@ -1682,6 +1682,13 @@ void Chat::requestRichLink(Message &message)
             if (wptr.deleted())
                 return;
 
+            const char *textMessage = result->getText();
+            if (!textMessage || (strlen(textMessage) == 0))
+            {
+                CHATID_LOG_ERROR("requestRichLink: API request succeed, but returned an empty metadata for: %s", result->getLink());
+                return;
+            }
+
             Idx messageIdx = msgIndexFromId(msgId);
             Message *msg = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
             if (msg && updated == msg->updated)
