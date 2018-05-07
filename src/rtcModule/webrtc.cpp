@@ -273,7 +273,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
     updatePeerAvState(chatid, userid, clientid, avFlagsRemote);
 
-    if (state == Call::CallDataState::kCallReqRinging)
+    if (state == Call::CallDataState::kCallReqRinging || mCalls.find(chatid) == mCalls.end())
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
     }
