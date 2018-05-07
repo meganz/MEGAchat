@@ -643,25 +643,37 @@ void ChatWindow::onAudioCallBtn(bool)
 
 void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
 {
+    int row = 0;
+    int col = 0;
     CallGui *callGui = NULL;
-    auto layout = qobject_cast <QBoxLayout*> (ui->mCentralWidget->layout());
-    layout->setSpacing(5);
-    layout->setContentsMargins(5,5,5,5);
+    auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
 
     //Local callGui
     callGui = new CallGui(this, video, peerid, true);
     this->callParticipantsGui.insert(callGui);
 
-    int index;
     if (peerid == megachat::MEGACHAT_INVALID_HANDLE)
-        {index = 0;}
+    {
+        //Only when we add our local call gui
+        ui->mCentralWidget->setStyleSheet("background-color:#000000");
+        col = 0;
+        row = 0+2;
+    }
     else
-        {index = callParticipantsGui.size()-1;}
+    {
+        //We insert the calls after titlebar and chat messages to avoid problems when we hang call
+        row = (int)((callParticipantsGui.size()-1)/2)+2;
+        col = ((callParticipantsGui.size())%2!=0)?0:1;
+    }
 
-    layout->insertWidget(index, callGui, 1);
+    callGui->setColumn(col);
+    callGui->setRow(row);
+    layout->addWidget(callGui,row,col);
     ui->mTitlebar->hide();
     ui->mTextChatWidget->hide();
 }
+
+
 
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
@@ -707,16 +719,18 @@ void ChatWindow::connectPeerCallGui(MegaChatHandle mPeerid)
 void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
 {
     std::set<CallGui *>::iterator it;
+    ui->mCentralWidget->setStyleSheet("background-color:#FFFFFF");
+    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
         CallGui *call = *it;
         if (call->getPeer() == mPeerid)
         {
             call->deleteLater();
+            layout->removeWidget(layout->itemAtPosition(call->getRow(), call->getColumn())->widget());
             callParticipantsGui.erase(it);
             break;
         }
-
     }
 }
 
@@ -727,19 +741,19 @@ void ChatWindow::hangCall()
 
 void ChatWindow::deleteCallGui()
 {
+    ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
     std::set<CallGui *>::iterator it;
+    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
         CallGui *call = *it;
+        layout->removeWidget(layout->itemAtPosition(call->getRow(), call->getColumn())->widget());
         call->deleteLater();
     }
     callParticipantsGui.clear();
-
-    auto layout = qobject_cast<QBoxLayout*>(ui->mCentralWidget->layout());
-    layout->setSpacing(0);
-    layout->setContentsMargins(0,0,0,0);
     setChatTittle(mChatRoom->getTitle());
-    ui->mTitlebar->show();
     ui->mTextChatWidget->show();
+    ui->mTitlebar->show();
+    ui->mTitlebar->setStyleSheet("background-color: #C1EFFF");
 }
 #endif

@@ -25,6 +25,8 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
     mLocal = local;
     mVideo = video;
     mCall = NULL;
+    mColumn = -1;
+    mRow = -1;
 
     setAvatar();
     ui->videoRenderer->enableStaticImage();
@@ -227,6 +229,26 @@ void CallGui::setCall(megachat::MegaChatCall *call)
     }
 
     mCall = call;
+}
+
+int CallGui::getColumn() const
+{
+    return mColumn;
+}
+
+void CallGui::setColumn(int column)
+{
+    mColumn = column;
+}
+
+int CallGui::getRow() const
+{
+    return mRow;
+}
+
+void CallGui::setRow(int row)
+{
+    mRow = row;
 }
 
 void CallGui::setAvatar()
