@@ -3175,6 +3175,17 @@ public:
      */
     mega::MegaHandleList *getChatCallsIds();
 
+    /**
+     * @brief Returns true if there is a call at chatroom with id \c chatid
+     *
+     * It's not necessary that getNumCalls returns > 0. Our call can be finished but others peers continue with
+     * the call.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return True if there is a call in a chatroom. False in other case
+     */
+    bool hasCallInChatRoom(MegaChatHandle chatid);
+
 #endif
 
     // Listeners

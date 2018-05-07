@@ -1005,7 +1005,15 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags avFlags(true, enableVideo);
 
             MegaChatCallHandler *handler = new MegaChatCallHandler(this);
-            chatroom->mediaCall(avFlags, *handler);
+            if (chatroom->chat().callParticipants()  == 0)
+            {
+                chatroom->mediaCall(avFlags, *handler);
+            }
+            else
+            {
+                chatroom->joinCall(avFlags, *handler);
+            }
+
             handler->getMegaChatCall()->setInitialAudioVideoFlags(avFlags);
             callHandlers[chatid] = handler;
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2885,6 +2893,21 @@ MegaHandleList *MegaChatApiImpl::getChatCallsIds()
 
     sdkMutex.unlock();
     return callList;
+}
+
+bool MegaChatApiImpl::hasCallInChatRoom(MegaChatHandle chatid)
+{
+    bool hasCall = false;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        hasCall = (chatroom->chat().callParticipants() > 0) ? true : false;
+    }
+
+    sdkMutex.unlock();
+    return hasCall;
 }
 
 void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)

@@ -679,6 +679,11 @@ MegaHandleList *MegaChatApi::getChatCallsIds()
     return pImpl->getChatCallsIds();
 }
 
+bool MegaChatApi::hasCallInChatRoom(MegaChatHandle chatid)
+{
+    return pImpl->hasCallInChatRoom(chatid);
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

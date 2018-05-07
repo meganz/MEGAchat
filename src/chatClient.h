@@ -165,6 +165,11 @@ public:
      *  @param av Whether to initially send video and/or audio
      */
     virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+
+    /** @brief Joins a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler);
 #endif
 
     //chatd::Listener implementation
