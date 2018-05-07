@@ -63,10 +63,6 @@ using namespace megachat;
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
-- (NSUInteger)imageSize {
-    return self.megaChatRichPreview ? (NSUInteger)self.megaChatRichPreview->getImageSize() : 0;
-}
-
 - (NSString *)imageFormat {
     if (!self.megaChatRichPreview) return nil;
     const char *ret = self.megaChatRichPreview->getImageFormat();
@@ -77,10 +73,6 @@ using namespace megachat;
     if (!self.megaChatRichPreview) return nil;
     const char *ret = self.megaChatRichPreview->getIcon();
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
-}
-
-- (NSUInteger)iconSize {
-    return self.megaChatRichPreview ? (NSUInteger)self.megaChatRichPreview->getIconSize() : 0;
 }
 
 - (NSString *)iconFormat {
