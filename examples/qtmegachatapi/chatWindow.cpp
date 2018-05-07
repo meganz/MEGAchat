@@ -659,12 +659,6 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
         {index = callParticipantsGui.size()-1;}
 
     layout->insertWidget(index, callGui, 1);
-
-    /*//Remote callGui
-    callGui = new CallGui(this, video, false);
-    this->callParticipantsGui.insert(callGui);
-    layout->insertWidget(1, callGui, 1);*/
-
     ui->mTitlebar->hide();
     ui->mTextChatWidget->hide();
 }
