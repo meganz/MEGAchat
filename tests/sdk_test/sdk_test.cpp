@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
+    EXECUTE_TEST(t.TEST_LeanMode(0), "TEST Lean mode");
 
 #ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
@@ -2113,6 +2114,76 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 
     delete [] newSession;
     newSession = NULL;
+}
+
+/**
+ * @brief TEST_LeanMode
+ *
+ * This test does the following:
+ * - Create new session and logout locally (keep opened session valid)
+ * - Initialize chat
+ * - Perform login to API
+ * - Connect to chatd/presenced
+ * - Retrieve messages
+ * - Perform fetchnodes to API
+ * - Retrieve messages
+ */
+void MegaChatApiTest::TEST_LeanMode(unsigned int accountIndex)
+{
+    // ___ Create a new session and logout___
+    char *session = login(accountIndex);
+    logout(accountIndex, false); // keeps session alive
+
+    // __Initialize chat and connect without fetchnodes (but login)___
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_OFFLINE_SESSION,
+                     "Wrong chat initialization state. Expected " + std::to_string(MegaChatApi::INIT_OFFLINE_SESSION) + "   Received: " + std::to_string(megaChatApi[accountIndex]->getInitState()));
+    // login (to request chatd/presenced URLs)
+    bool *flagLogin = &requestFlags[accountIndex][MegaRequest::TYPE_LOGIN]; *flagLogin = false;
+    megaApi[accountIndex]->fastLogin(session);
+    ASSERT_CHAT_TEST(waitForResponse(flagLogin), "Expired timeout for sdk fast login");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error sdk fast login. Error: " + std::to_string(lastError[accountIndex]));
+    // connect
+    bool *flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
+    megaChatApi[accountIndex]->connect();
+    ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+
+    // check there's a list of chats already available
+    MegaChatListItemList *list = megaChatApi[accountIndex]->getChatListItems();
+    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
+    MegaChatHandle chatid = list->get(0)->getChatId();
+    delete list; list = NULL;
+
+    // check history can be loaded
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
+    loadHistory(accountIndex, chatid, chatroomListener);
+    megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
+
+    // ___Fetchnodes___
+    bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
+    bool *flagFetchNodes = &requestFlags[accountIndex][MegaRequest::TYPE_FETCH_NODES]; *flagFetchNodes = false;
+    megaApi[accountIndex]->fetchNodes();
+    ASSERT_CHAT_TEST(waitForResponse(flagFetchNodes), "Expired timeout for fetch nodes");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Error fetch nodes. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    int initStateValue = megaChatApi[accountIndex]->getInitState();
+    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
+                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+
+    sleep(5);
+
+    // check there's a list of chats already available
+    list = megaChatApi[accountIndex]->getChatListItems();
+    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
+    delete list; list = NULL;
+
+    // check history can be loaded
+    chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
+    loadHistory(accountIndex, chatid, chatroomListener);
+    megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
+
 }
 
 #ifndef KARERE_DISABLE_WEBRTC

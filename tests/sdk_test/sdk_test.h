@@ -195,7 +195,8 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
-    void TEST_ChangeMyOwnName(unsigned int a1);    
+    void TEST_ChangeMyOwnName(unsigned int a1);
+    void TEST_LeanMode(unsigned int a1);
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
