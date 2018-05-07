@@ -548,6 +548,11 @@ void MegaChatApi::saveCurrentState()
     pImpl->saveCurrentState();
 }
 
+void MegaChatApi::pushReceived(bool beep, MegaChatRequestListener *listener)
+{
+    pImpl->pushReceived(beep, listener);
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaStringList *MegaChatApi::getChatAudioInDevices()
@@ -799,6 +804,16 @@ MegaChatMessage *MegaChatRequest::getMegaChatMessage()
 }
 
 MegaNodeList *MegaChatRequest::getMegaNodeList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
 {
     return NULL;
 }

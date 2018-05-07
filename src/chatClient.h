@@ -128,6 +128,8 @@ public:
     /** @brief send a notification to the chatroom that the user has stopped typing. */
     virtual void sendStopTypingNotification() { mChat->sendStopTypingNotification(); }
 
+    void sendSync() { mChat->sendSync(); }
+
     /** @brief The application-side event handler that receives events from
      * the chatd chatroom and events about title, online status and unread
      * message count change.
@@ -820,6 +822,12 @@ public:
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
 
+    promise::Promise<void> pushReceived();
+    megaHandle mSyncTimer;                  // to wait for reception of SYNCs
+    int mSyncCount;                         // to track if all chats returned SYNC
+    promise::Promise<void> mSyncPromise;    // resolved only when up to date
+    void onSyncReceived(karere::Id chatid); // called upon SYNC reception
+
 /** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
@@ -891,8 +899,8 @@ protected:
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);
     virtual void onUsersUpdate(mega::MegaApi*, mega::MegaUserList* users);
-    virtual void onContactRequestsUpdate(mega::MegaApi*, mega::MegaContactRequestList* reqs);
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
+
     // MegaRequestListener interface
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 

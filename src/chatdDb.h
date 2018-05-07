@@ -35,6 +35,7 @@ public:
         info.newestDbId = stmt2.uint64Col(0);
         if (!info.newestDbId)
         {
+            assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
             info.oldestDbId = 0;
         }
@@ -231,9 +232,9 @@ public:
         stmt << mChat.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
-    virtual chatd::Idx getPeerMsgCountAfterIdx(chatd::Idx idx)
+    virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
     {
-        // get the unread messages count --> conditions should match the ones in Chat::unreadMsgCount()
+        // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
         std::string sql = "select count(*) from history where (chatid = ?1)"
                 "and (userid != ?2) and ((type = ?3 || type >= ?4) and type != ?5 and type != ?6) and not (updated != 0 and length(data) = 0 )";
         if (idx != CHATD_IDX_INVALID)

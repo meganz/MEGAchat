@@ -337,14 +337,6 @@ public:
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
-    /**
-     * @brief Called when an incoming contact request has been received.
-     *
-     *  To accept or decline the request, the GUI should call
-     * \c mega::MegaApi::replyContactRequest() with the \c req object
-     * @param req The mega SDK contact request object
-     */
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req) = 0;
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.
