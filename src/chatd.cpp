@@ -3629,19 +3629,25 @@ bool Message::hasUrl(const string &text, string &url)
 
 bool Message::parseUrl(const std::string &url)
 {
-    if (url.find('.') == std::string::npos)
+    std::string urlToParse = url;
+    if (urlToParse.size() > 0 && urlToParse.at(urlToParse.size() - 1) == '.')
+    {
+        urlToParse.erase(urlToParse.size() - 1);
+    }
+
+    if (urlToParse.find('.') == std::string::npos)
     {
         return false;
     }
 
-    if (url.find("mega.co.nz/#!") != std::string::npos || url.find("mega.co.nz/#F!") != std::string::npos ||
-            url.find("mega.nz/#!") != std::string::npos || url.find("mega.nz/#F!") != std::string::npos)
+    if (urlToParse.find("mega.co.nz/#!") != std::string::npos || urlToParse.find("mega.co.nz/#F!") != std::string::npos ||
+            urlToParse.find("mega.nz/#!") != std::string::npos || urlToParse.find("mega.nz/#F!") != std::string::npos)
     {
         return false;
     }
 
     std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9A-Z]+([-.]{1}[a-z0-9A-Z]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?(.*)?$");
 
-    return regex_match(url, regularExpresion);
+    return regex_match(urlToParse, regularExpresion);
 }
 }
