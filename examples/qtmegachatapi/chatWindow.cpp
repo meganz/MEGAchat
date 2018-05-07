@@ -681,25 +681,15 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-    /*if (mChatRoom->isGroup())
-    {
-        QMessageBox::critical(this, "Call", "Nice try, but group audio and video calls are not implemented yet");
-        return;
-    }*/
-
    createCallGui(video, megachat::MEGACHAT_INVALID_HANDLE);
-
-   if (mChatRoom->isGroup())
+   MegaChatCall *auxCall = mMegaChatApi->getChatCall(mChatRoom->getChatId());
+   if(mMegaChatApi->getChatCall(mChatRoom->getChatId()) == NULL)
    {
-       //If is a group call we need to connect
-       connectPeerCallGui(megachat::MEGACHAT_INVALID_HANDLE);
+       mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
    }
    else
    {
-       if(mMegaChatApi->getChatCall(mChatRoom->getChatId()) == NULL)
-       {
-            mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
-       }
+       connectPeerCallGui(megachat::MEGACHAT_INVALID_HANDLE);
    }
 }
 
