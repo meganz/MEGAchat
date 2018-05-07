@@ -49,7 +49,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
     }
 }
 
-void CallGui::connectCall()
+void CallGui::connectPeerCallGui()
 {
     if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
     {

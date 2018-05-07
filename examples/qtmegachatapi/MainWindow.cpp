@@ -113,7 +113,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
                if (setOfCallGui->size() != 0)
                {
-                   auxChatWindow->connectCall(megachat::MEGACHAT_INVALID_HANDLE);
+                   auxChatWindow->connectPeerCallGui(megachat::MEGACHAT_INVALID_HANDLE);
                }
 
                if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
@@ -151,7 +151,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                     ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
                     std::set<CallGui *> *setCallGui = auxChatWindow->getCallGui();
                     auxChatWindow->createCallGui(call->hasVideoInitialCall(), peerid);
-                    auxChatWindow->connectCall(peerid);
+                    auxChatWindow->connectPeerCallGui(peerid);
                  }
                break;
 

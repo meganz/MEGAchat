@@ -692,7 +692,7 @@ void ChatWindow::onCallBtn(bool video)
    if (mChatRoom->isGroup())
    {
        //If is a group call we need to connect
-       connectCall(megachat::MEGACHAT_INVALID_HANDLE);
+       connectPeerCallGui(megachat::MEGACHAT_INVALID_HANDLE);
    }
    else
    {
@@ -703,7 +703,7 @@ void ChatWindow::onCallBtn(bool video)
    }
 }
 
-void ChatWindow::connectCall(MegaChatHandle mPeerid)
+void ChatWindow::connectPeerCallGui(MegaChatHandle mPeerid)
 {
     std::set<CallGui *>::iterator it;
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
@@ -713,7 +713,7 @@ void ChatWindow::connectCall(MegaChatHandle mPeerid)
         {
             if (!call->getCall())
             {
-                call->connectCall();
+                call->connectPeerCallGui();
                 break;
             }
         }
