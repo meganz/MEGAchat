@@ -1000,6 +1000,7 @@ public:
     int getNumCalls();
     mega::MegaHandleList *getChatCalls();
     mega::MegaHandleList *getChatCallsIds();
+    bool hasCallInChatRoom(MegaChatHandle chatid);
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
