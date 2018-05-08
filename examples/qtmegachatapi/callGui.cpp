@@ -247,9 +247,15 @@ void CallGui::onChatBtn(bool)
 {
     auto& txtChat = *mChatWindow->ui->mTextChatWidget;
     if (txtChat.isVisible())
+    {
+        txtChat.setStyleSheet("background-color: #000000");
         txtChat.hide();
+    }
     else
+    {
+        txtChat.setStyleSheet("background-color: #FFFFFF");
         txtChat.show();
+    }
 }
 
 void CallGui::onLocalStreamObtained(rtcModule::IVideoRenderer *& renderer)
