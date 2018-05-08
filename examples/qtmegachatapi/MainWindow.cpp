@@ -120,18 +120,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                {
                     for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
                     {
-                        CallGui *callgui = *it;
-                        if (callgui->getPeer() == megachat::MEGACHAT_INVALID_HANDLE)
+                        callGui = *it;
+                        MegaChatHandle peerid = call->getPeerSessionStatusChange();
+                        if (callGui->getPeer() == peerid)
                         {
-                            if(call->hasVideoInitialCall())
+                            MegaChatSession *session = call->getMegaChatSession(peerid);
+                            if(session->hasVideo())
                             {
-                                //  callGui->ui->videoRenderer->disableStaticImage();
+                                  callGui->ui->videoRenderer->disableStaticImage();
                             }
                             else
                             {
-                                //  callGui->setAvatar();
-                                //  callGui->ui->videoRenderer->enableStaticImage();
+                                  callGui->setAvatar();
+                                  callGui->ui->videoRenderer->enableStaticImage();
                             }
+                            break;
                         }
                     }
                }
@@ -163,9 +166,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
                break;
        }
     }
-
-
-
 }
 #endif
 void MainWindow::clearContactChatList()
@@ -616,7 +616,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
     itContacts = contactWidgets.find(contactHandle);
 
     if (itContacts != contactWidgets.end())
-    {                
+    {
         ContactItemWidget *contactItemWidget = itContacts->second;
         contactItemWidget->updateTitle(firstname);
     }

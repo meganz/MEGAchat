@@ -19,7 +19,7 @@ namespace rtcmodule
 class CallGui: public rtcModule::ICallHandler {};*/
 #endif
 
-const int callMaxParticipants = 7;
+const int callMaxParticipants = 9;
 const int widgetsFixed = 3;
 
 #define NMESSAGES_LOAD 16   // number of messages to load at every fetch

@@ -774,6 +774,14 @@ void ChatWindow::getCallPos(int index, int &row, int &col)
             row = 3;
             col = 1;
             break;
+        case 7:
+            row = 4;
+            col = 0;
+            break;
+        case 8:
+            row = 4;
+            col = 1;
+            break;
     }
     row += widgetsFixed;
 }
