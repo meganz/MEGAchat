@@ -19,6 +19,8 @@ namespace rtcmodule
 class CallGui: public rtcModule::ICallHandler {};*/
 #endif
 
+const int callMaxParticipants = 7;
+const int widgetsFixed = 3;
 
 #define NMESSAGES_LOAD 16   // number of messages to load at every fetch
 class ChatMessage;
@@ -78,6 +80,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        MegaChatHandle mFreeCallGui [8];
 
     private slots:
         void onMsgListRequestHistory();
@@ -94,6 +97,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 #ifndef KARERE_DISABLE_WEBRTC
         void closeEvent(QCloseEvent *event);
         void createCallGui(bool, MegaChatHandle peerid);
+        void getCallPos(int index, int &row, int &col);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();

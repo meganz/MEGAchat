@@ -26,8 +26,7 @@ class CallGui: public QWidget
         LocalCallListener *localCallListener;
         bool mVideo;
         bool mLocal;
-        int mColumn;
-        int mRow;
+        int mIndex;
         void setAvatar();
         void drawAvatar(QImage &image, QChar letter, uint64_t userid);
         void drawPeerAvatar(QImage &image);
@@ -56,10 +55,8 @@ class CallGui: public QWidget
     friend class MainWindow;
     megachat::MegaChatCall *getCall() const;
     void setCall(megachat::MegaChatCall *call);
-    int getColumn() const;
-    void setColumn(int column);
-    int getRow() const;
-    void setRow(int row);
+    int getIndex() const;
+    void setIndex(int index);
 };
 
 #endif // MAINWINDOW_H

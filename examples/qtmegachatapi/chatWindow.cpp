@@ -48,6 +48,11 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
     setAttribute(Qt::WA_DeleteOnClose);
 
+    for (int i = 0; i < callMaxParticipants; i ++)
+    {
+        mFreeCallGui[i] = megachat::MEGACHAT_INVALID_HANDLE;
+    }
+
     if (!mChatRoom->isActive())
     {
         ui->mMessageEdit->setEnabled(false);
@@ -645,35 +650,133 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
 {
     int row = 0;
     int col = 0;
+    int auxIndex = 0;
     CallGui *callGui = NULL;
     auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
 
     //Local callGui
     callGui = new CallGui(this, video, peerid, true);
-    this->callParticipantsGui.insert(callGui);
+    callParticipantsGui.insert(callGui);
+
 
     if (peerid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        //Only when we add our local call gui
         ui->mCentralWidget->setStyleSheet("background-color:#000000");
-        col = 0;
-        row = 0+2;
+        auxIndex = -1;
     }
     else
     {
-        //We insert the calls after titlebar and chat messages to avoid problems when we hang call
-        row = (int)((callParticipantsGui.size()-1)/2)+2;
-        col = ((callParticipantsGui.size())%2!=0)?0:1;
+        for (int i = 0; i < callMaxParticipants; i++)
+        {
+            if (mFreeCallGui[i] == megachat::MEGACHAT_INVALID_HANDLE)
+            {
+               mFreeCallGui[i] = peerid;
+               auxIndex = i;
+               break;
+            }
+        }
     }
-
-    callGui->setColumn(col);
-    callGui->setRow(row);
+    callGui->setIndex(auxIndex);
+    getCallPos(auxIndex, row, col);
     layout->addWidget(callGui,row,col);
     ui->mTitlebar->hide();
     ui->mTextChatWidget->hide();
 }
 
+void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
+{
+    int row = 0;
+    int col = 0;
+    int auxIndex = 0;
+    std::set<CallGui *>::iterator it;
+    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
+    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
+    {
+        CallGui *call = *it;
+        if (call->getPeer() == mPeerid)
+        {
+            auxIndex = call->getIndex();
+            getCallPos(auxIndex, row, col);
+            layout->removeWidget(layout->itemAtPosition(row, col)->widget());
+            call->deleteLater();
+            callParticipantsGui.erase(it);
+            if (auxIndex != -1)
+            {
+                mFreeCallGui[auxIndex] = megachat::MEGACHAT_INVALID_HANDLE;
+            }
+            break;
+        }
+    }
+}
 
+
+
+void ChatWindow::deleteCallGui()
+{
+    int row = 0;
+    int col = 0;
+    int auxIndex = 0;
+    ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
+    std::set<CallGui *>::iterator it;
+    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
+    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
+    {
+        CallGui *call = *it;
+        auxIndex = call->getIndex();
+        getCallPos(auxIndex, row, col);
+        layout->removeWidget(layout->itemAtPosition(row, col)->widget());
+        call->deleteLater();
+        if (auxIndex != -1)
+        {
+            mFreeCallGui[auxIndex] = megachat::MEGACHAT_INVALID_HANDLE;
+        }
+    }
+    callParticipantsGui.clear();
+    setChatTittle(mChatRoom->getTitle());
+    ui->mTextChatWidget->show();
+    ui->mTitlebar->show();
+    ui->mTitlebar->setStyleSheet("background-color: #C1EFFF");
+}
+
+void ChatWindow::getCallPos(int index, int &row, int &col)
+{
+    switch (index)
+    {
+        case -1:
+            row = 0;
+            col = 0;
+            break;
+        case 0:
+            row = 0;
+            col = 1;
+            break;
+        case 1:
+            row = 1;
+            col = 0;
+            break;
+        case 2:
+            row = 1;
+            col = 1;
+            break;
+        case 3:
+            row = 2;
+            col = 0;
+            break;
+        case 4:
+            row = 2;
+            col = 1;
+            break;
+        case 5:
+            row = 3;
+            col = 0;
+            break;
+        case 6:
+            row = 3;
+            col = 1;
+            break;
+    }
+    row += widgetsFixed;
+}
 
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
@@ -716,44 +819,8 @@ void ChatWindow::connectPeerCallGui(MegaChatHandle mPeerid)
     }
 }
 
-void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
-{
-    std::set<CallGui *>::iterator it;
-    ui->mCentralWidget->setStyleSheet("background-color:#FFFFFF");
-    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        if (call->getPeer() == mPeerid)
-        {
-            call->deleteLater();
-            layout->removeWidget(layout->itemAtPosition(call->getRow(), call->getColumn())->widget());
-            callParticipantsGui.erase(it);
-            break;
-        }
-    }
-}
-
 void ChatWindow::hangCall()
 {
     deleteCallGui();
-}
-
-void ChatWindow::deleteCallGui()
-{
-    ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
-    std::set<CallGui *>::iterator it;
-    auto layout = qobject_cast<QGridLayout*>(ui->mCentralWidget->layout());
-    for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
-    {
-        CallGui *call = *it;
-        layout->removeWidget(layout->itemAtPosition(call->getRow(), call->getColumn())->widget());
-        call->deleteLater();
-    }
-    callParticipantsGui.clear();
-    setChatTittle(mChatRoom->getTitle());
-    ui->mTextChatWidget->show();
-    ui->mTitlebar->show();
-    ui->mTitlebar->setStyleSheet("background-color: #C1EFFF");
 }
 #endif
