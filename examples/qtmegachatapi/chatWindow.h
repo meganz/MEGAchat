@@ -80,7 +80,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
-        MegaChatHandle mFreeCallGui [8];
+        MegaChatHandle mFreeCallGui [callMaxParticipants];
 
     private slots:
         void onMsgListRequestHistory();

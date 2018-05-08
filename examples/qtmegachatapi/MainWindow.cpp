@@ -161,9 +161,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
            case MegaChatSession::SESSION_STATUS_DESTROYED:
                     auxChatWindow->destroyCallGui(peerid);
                break;
-
-           default:
-               break;
        }
     }
 }

@@ -51,25 +51,22 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
 
 void CallGui::connectPeerCallGui()
 {
+    MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
     if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        //First we set call as class member and then we register locallistener
-        MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
-
         setCall(auxCall);
         localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
         ui->mAnswBtn->hide();
-        if(!mVideo)
+        if (!mVideo)
         {
             mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
             setAvatar();
             ui->videoRenderer->enableStaticImage();
         }
-    }    
-    //Maybe we will need to move this code when we receive a new session
+    }
     else
     {
-        setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
+        setCall(auxCall);
         remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid);
     }
 }
