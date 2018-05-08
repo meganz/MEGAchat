@@ -1438,7 +1438,7 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
 
 bool Call::hasNoSessionsOrPendingRetries() const
 {
-    return mSessions.size() || mSessRetriesTime.size();
+    return mSessions.empty() && mSessRetriesTime.empty();
 }
 
 AvFlags Call::validAvFlags(AvFlags av)
