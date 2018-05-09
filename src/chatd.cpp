@@ -3615,6 +3615,11 @@ bool Message::hasUrl(const string &text, string &url)
         }
 
         std::string partialTex = text.substr(position, nextPosition - position);
+        if (partialTex.size() > 0 && partialTex.at(partialTex.size() - 1) == '.')
+        {
+            partialTex.erase(partialTex.size() - 1);
+        }
+
         if (parseUrl(partialTex))
         {
             url = partialTex;
@@ -3629,15 +3634,24 @@ bool Message::hasUrl(const string &text, string &url)
 
 bool Message::parseUrl(const std::string &url)
 {
-    std::string urlToParse = url;
-    if (urlToParse.size() > 0 && urlToParse.at(urlToParse.size() - 1) == '.')
-    {
-        urlToParse.erase(urlToParse.size() - 1);
-    }
-
-    if (urlToParse.find('.') == std::string::npos)
+    if (url.find('.') == std::string::npos)
     {
         return false;
+    }
+
+    std::string urlToParse = url;
+    std::string::size_type position = urlToParse.find("://");
+    if (position != std::string::npos)
+    {
+        std::regex expresion("^(http://|https://)(.+)");
+        if (regex_match(urlToParse, expresion))
+        {
+            urlToParse = urlToParse.substr(position + 3);
+        }
+        else
+        {
+            return false;
+        }
     }
 
     if (urlToParse.find("mega.co.nz/#!") != std::string::npos || urlToParse.find("mega.co.nz/#F!") != std::string::npos ||
@@ -3646,7 +3660,7 @@ bool Message::parseUrl(const std::string &url)
         return false;
     }
 
-    std::regex regularExpresion("^(http://www.|https://www.|http://|https://)?[a-z0-9A-Z]+([-.]{1}[a-z0-9A-Z]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?(.*)?$");
+    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z]+([-.]{1}[a-z0-9A-Z]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?(.*)?$");
 
     return regex_match(urlToParse, regularExpresion);
 }
