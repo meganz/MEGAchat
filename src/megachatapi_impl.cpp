@@ -694,7 +694,7 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_PREVIEW_CHAT_LINK:
         {
-            string parsedLink =  request->getLink();
+            const string parsedLink = request->getLink();
 
             // link format: mega.nz/#chat_<public-handle><chat-key>
 

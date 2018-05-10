@@ -793,6 +793,11 @@ const char *MegaChatRequest::getText() const
     return NULL;
 }
 
+const char *MegaChatRequest::getLink() const
+{
+    return NULL;
+}
+
 MegaChatMessage *MegaChatRequest::getMegaChatMessage()
 {
     return NULL;
