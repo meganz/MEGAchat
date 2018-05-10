@@ -95,7 +95,8 @@ struct ErrorShared
 
 enum
 {
-    kErrorTypeGeneric = 1
+    kErrorTypeGeneric = 1,
+    kErrorAlreadyExists = -12
 };
 enum
 {

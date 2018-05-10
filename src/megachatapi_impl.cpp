@@ -692,6 +692,62 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_PREVIEW_CHAT_LINK:
+        {
+            const char *link = request->getText();
+            string parsedLink = link;
+
+            size_t pos = parsedLink.find("#chat_");
+            if (pos == string::npos)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (parsedLink.length() !=  pos + 6 + 8 + 25 + 1)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            pos += 7;
+            string phstr = parsedLink.substr(pos, 8);
+            MegaChatHandle ph = UNDEF;
+            Base64::atob(phstr.c_str(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
+
+            pos += 8;
+            string key;
+            string keystr = parsedLink.substr(pos);
+            Base64::atob(keystr, key);
+
+            if (ISUNDEF(ph) || key.length() != 16)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            mClient->openChatLink(ph, key)
+            .then([request, this, ph]()
+            {
+                MegaChatHandle openChatId = mClient->chatIdByPh(ph);
+                request->setChatHandle(openChatId);
+
+                auto itChat = mClient->chats->find(openChatId);
+                if (itChat != mClient->chats->end())
+                {
+                   request->setText(itChat->second->titleString());
+                }
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
         {
             MegaChatHandle uh = request->getUserHandle();
@@ -2113,6 +2169,14 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
     waiter->notify();
 }
 
+void MegaChatApiImpl::openChatLink(const char *link, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_PREVIEW_CHAT_LINK, listener);
+    request->setText(link);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {    
     if (!listener)
@@ -2141,11 +2205,17 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     if (chatroom)
     {
         chatroom->removeAppChatHandler();
-
         removeChatRoomListener(chatid, listener);
         removeChatRoomHandler(chatid);
+        if (chatroom->previewMode())
+        {
+            //TODO clear records related to this chat in cache
+            GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
+            mClient->eraseChatIdByPh(openChatRoom->publicHandle());
+            mClient->chats->erase(chatid);
+            delete chatroom;
+        }
     }
-
     sdkMutex.unlock();
 }
 

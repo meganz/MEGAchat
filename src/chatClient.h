@@ -77,6 +77,8 @@ protected:
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
 
 public:
+    virtual bool previewMode() const { return false; }
+    virtual bool openChat() const { return false; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     /** @endcond PRIVATE */
@@ -288,7 +290,6 @@ public:
         Presence presence() const { return mPresence; }
 
         promise::Promise<void> nameResolved() const;
-
         friend class GroupChatRoom;
     };
     /**
@@ -302,6 +303,10 @@ public:
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
+    uint64_t mPublicHandle;
+    bool mOpenChat;
+    bool mPreviewMode;
+
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
@@ -327,7 +332,7 @@ public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  const std::string& title);
+                  const std::string& title, bool aOpenChat = false);
     ~GroupChatRoom();
 public:
 //chatd::Listener
@@ -398,6 +403,12 @@ public:
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+    virtual bool previewMode() const;
+    void setPreviewMode(bool previewMode);
+    uint64_t publicHandle() const;
+    void setPublicHandle(const uint64_t &publicHandle);
+    virtual bool openChat() const;
+    void setOpenChat(bool openChat);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -569,6 +580,8 @@ protected:
     uint64_t mMyIdentity = 0; // seed for CLIENTID
     ConnState mConnState = kDisconnected;
     promise::Promise<void> mConnectPromise;
+    promise::Promise<void> mChatLinkReady;
+
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
     enum InitState: uint8_t
@@ -646,6 +659,8 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
     IApp::ILoginDialog::Handle mLoginDlg;
+    std::map <uint64_t, uint64_t> mPhToChatId;
+
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     presenced::Client& presenced() { return mPresencedClient; }
     bool contactsLoaded() const { return mContactsLoaded; }
@@ -701,6 +716,23 @@ public:
     promise::Promise<void> initWithNewSession(const char* sid, const std::string& scsn,
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
+
+    promise::Promise<void> openChatLink(megaHandle publicHandle, const std::string &key);
+
+    uint64_t chatIdByPh(uint64_t ph)
+    {
+        auto it = mPhToChatId.find(ph);
+        if (it != mPhToChatId.end())
+        {
+            return it->second;
+        }
+        return Id::inval();
+    }
+
+    void eraseChatIdByPh(uint64_t ph)
+    {
+        mPhToChatId.erase(ph);
+    }
 
     /**
      * @brief Initializes karere, opening or creating the local db cache

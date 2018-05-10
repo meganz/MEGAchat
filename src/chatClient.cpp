@@ -298,6 +298,45 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
     return mSessionReadyPromise;
 }
 
+
+promise::Promise<void> Client::openChatLink(megaHandle publicHandle, const std::string &key)
+{
+    auto wptr = weakHandle();
+    mChatLinkReady = Promise<void>();
+    std::string chatKey = key;
+    api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
+    .then([this, chatKey, wptr](ReqResult result)
+    {
+        if (wptr.deleted())
+          return;
+
+        Id chatId = result->getParentHandle();
+        if (chats->find(chatId) != chats->end())
+        {
+           mChatLinkReady.reject("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
+           return;
+        }
+
+        std::string title = result->getText();
+        Id ph = result->getNodeHandle();
+        std::string url = result->getLink();
+        int shard = result->getAccess();
+
+        //TODO Set strongvelope key and decrypt title
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true);
+        room->setPublicHandle(ph);
+        room->setPreviewMode(true);
+        mPhToChatId[ph] = chatId;
+        chats->emplace(chatId, (ChatRoom *)room);
+        mChatLinkReady.resolve();
+    })
+    .fail([this](const promise::Error& err)
+    {
+        mChatLinkReady.reject(err);
+    });
+    return mChatLinkReady;
+}
+
 void Client::onSyncReceived(Id chatid)
 {
     if (mSyncCount <= 0)
@@ -1490,9 +1529,9 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title, bool aOpenChat)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
-mHasTitle(!title.empty()), mRoomGui(nullptr)
+mHasTitle(!title.empty()), mRoomGui(nullptr), mOpenChat(aOpenChat)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -2446,6 +2485,36 @@ void GroupChatRoom::onUnreadChanged()
 }
 
 // return true if new peer, peer removed or peer's privilege updated
+bool GroupChatRoom::previewMode() const
+{
+    return mPreviewMode;
+}
+
+void GroupChatRoom::setPreviewMode(bool previewMode)
+{
+    mPreviewMode = previewMode;
+}
+
+uint64_t GroupChatRoom::publicHandle() const
+{
+    return mPublicHandle;
+}
+
+void GroupChatRoom::setPublicHandle(const uint64_t &publicHandle)
+{
+    mPublicHandle = publicHandle;
+}
+
+bool GroupChatRoom::openChat() const
+{
+    return mOpenChat;
+}
+
+void GroupChatRoom::setOpenChat(bool openChat)
+{
+    mOpenChat = openChat;
+}
+
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 {
     bool changed = false;

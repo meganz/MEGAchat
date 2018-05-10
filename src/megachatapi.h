@@ -981,7 +981,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
-        TOTAL_OF_REQUEST_TYPES
+        TOTAL_OF_REQUEST_TYPES, TYPE_PREVIEW_CHAT_LINK
     };
 
     enum {
@@ -2386,6 +2386,31 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows any user to preview an open chat without be part of.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PREVIEW_CHAT_LINK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
+     * - MegaChatError::ERROR_EXIST - If the chat link has been opened before in the current session
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
+     * MegaChatApi::openChatRoom to receive notifications related to this chat
+     *
+     * @param link Null-terminated character string with the open chat link
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void openChatLink(const char *link, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened
