@@ -694,29 +694,31 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_PREVIEW_CHAT_LINK:
         {
-            const char *link = request->getText();
-            string parsedLink = link;
+            string parsedLink =  request->getLink();
 
-            size_t pos = parsedLink.find("#chat_");
+            // link format: mega.nz/#chat_<public-handle><chat-key>
+
+            const string separator = "#chat_";
+            size_t pos = parsedLink.find(separator);
             if (pos == string::npos)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
+            pos += separator.length() + 1;
 
-            if (parsedLink.length() !=  pos + 6 + 8 + 25 + 1)
+            if (parsedLink.length() !=  pos + 8 + 25)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            pos += 7;
-            string phstr = parsedLink.substr(pos, 8);
+            string phstr = parsedLink.substr(pos, 8);   // 6 bytes in binary, 8 in B64url
             MegaChatHandle ph = UNDEF;
             Base64::atob(phstr.c_str(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
-
             pos += 8;
-            string key;
+
+            string key; // it's 16 bytes in binary, 25 in B64url
             string keystr = parsedLink.substr(pos);
             Base64::atob(keystr, key);
 
@@ -726,16 +728,36 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            MegaChatHandle chatid = mClient->chatIdByPh(ph);
+            if (!ISUNDEF(chatid))   // already opened or joined
+            {
+                ChatRoom *room = findChatRoom(chatid);
+                assert(room);
+                if (room->previewMode())    // already opened and not closed yet
+                {
+                    request->setChatHandle(room->chatid());
+                    request->setText(room->titleString());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                }
+                else    // already joined
+                {
+                    errorCode = MegaChatError::ERROR_EXIST;
+                }
+                break;
+            }
+
             mClient->openChatLink(ph, key)
             .then([request, this, ph]()
             {
                 MegaChatHandle openChatId = mClient->chatIdByPh(ph);
                 request->setChatHandle(openChatId);
 
-                auto itChat = mClient->chats->find(openChatId);
-                if (itChat != mClient->chats->end())
+                ChatRoom *room = findChatRoom(openChatId);
+                if (room)
                 {
-                   request->setText(itChat->second->titleString());
+                   request->setText(room->titleString());
                 }
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2172,7 +2194,7 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
 void MegaChatApiImpl::openChatLink(const char *link, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_PREVIEW_CHAT_LINK, listener);
-    request->setText(link);
+    request->setLink(link);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3522,6 +3544,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(int type, MegaChatRequestListener
     this->userHandle = MEGACHAT_INVALID_HANDLE;
     this->privilege = MegaChatPeerList::PRIV_UNKNOWN;
     this->text = NULL;
+    this->link = NULL;
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
     this->mMegaHandleList = NULL;
@@ -3546,6 +3569,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->setUserHandle(request.getUserHandle());
     this->setPrivilege(request.getPrivilege());
     this->setText(request.getText());
+    this->setLink(request.getLink());
     this->setMegaChatMessage(request.getMegaChatMessage());
     this->setMegaNodeList(request.getMegaNodeList());
     this->setMegaHandleList(request.getMegaHandleList());
@@ -3563,6 +3587,7 @@ MegaChatRequestPrivate::~MegaChatRequestPrivate()
 {
     delete peerList;
     delete [] text;
+    delete [] link;
     delete mMessage;
     delete mMegaNodeList;
     delete mMegaHandleList;
@@ -3612,6 +3637,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
+        case TYPE_PREVIEW_CHAT_LINK: return "PREVIEW_CHAT_LINK";
     }
     return "UNKNOWN";
 }
@@ -3671,6 +3697,11 @@ const char *MegaChatRequestPrivate::getText() const
     return text;
 }
 
+const char *MegaChatRequestPrivate::getLink() const
+{
+    return link;
+}
+
 MegaChatMessage *MegaChatRequestPrivate::getMegaChatMessage()
 {
     return mMessage;
@@ -3727,6 +3758,15 @@ void MegaChatRequestPrivate::setUserHandle(MegaChatHandle userhandle)
 void MegaChatRequestPrivate::setPrivilege(int priv)
 {
     this->privilege = priv;
+}
+
+void MegaChatRequestPrivate::setLink(const char *link)
+{
+    if(this->link)
+    {
+        delete [] this->link;
+    }
+    this->link = MegaApi::strdup(link);
 }
 
 void MegaChatRequestPrivate::setText(const char *text)

@@ -88,6 +88,7 @@ public:
     virtual MegaChatHandle getUserHandle();
     virtual int getPrivilege();
     virtual const char *getText() const;
+    virtual const char *getLink() const;
     virtual MegaChatMessage *getMegaChatMessage();
     virtual mega::MegaNodeList *getMegaNodeList();
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
@@ -103,6 +104,7 @@ public:
     void setChatHandle(MegaChatHandle chatid);
     void setUserHandle(MegaChatHandle userhandle);
     void setPrivilege(int priv);
+    void setLink(const char *link);
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
@@ -123,6 +125,7 @@ protected:
     MegaChatHandle userHandle;
     int privilege;
     const char* text;
+    const char* link;
     MegaChatMessage* mMessage;
     mega::MegaNodeList* mMegaNodeList;
     mega::MegaHandleList *mMegaHandleList;

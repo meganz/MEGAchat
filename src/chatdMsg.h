@@ -187,6 +187,7 @@ enum Opcode
     /**
       * @brief
       * S->C: Signal the final <keyid> for a newly allocated key.
+      * After a HIST, a keyid=0 is received.
       * Receive: <chatid> <keyxid> <keyid>
       */
     OP_NEWKEYID = 18,

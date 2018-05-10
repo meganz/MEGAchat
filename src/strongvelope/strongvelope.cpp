@@ -1106,7 +1106,7 @@ ProtocolHandler::updateSenderKey()
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser)
 {
-    // Users and send key may change while we are getting pubkeys of current
+    // Users and SendKey may change while we are getting pubkeys of current
     // users, so make a snapshot
     auto keyCmd = new KeyCommand(Id::null());
     SetOfIds users = *mParticipants;

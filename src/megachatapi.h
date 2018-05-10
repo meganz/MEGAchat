@@ -981,7 +981,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
-        TOTAL_OF_REQUEST_TYPES, TYPE_PREVIEW_CHAT_LINK
+        TYPE_PREVIEW_CHAT_LINK, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -1101,6 +1101,16 @@ public:
      * @return Text relative to this request
      */
     virtual const char *getText() const;
+
+    /**
+     * @brief Returns a link relative to this request
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return Link relative to this request
+     */
+    virtual const char *getLink() const;
 
     /**
      * @brief Returns a message contained on request
@@ -2388,16 +2398,16 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows any user to preview an open chat without be part of.
+     * @brief Allows any user to preview an open chat without be part of
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PREVIEW_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getText - Returns the title of the chat.
+     * - MegaChatRequest::getLink - Returns the title of the chat.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
      * - MegaChatError::ERROR_EXIST - If the chat link has been opened before in the current session
+     * or the user already participates in the chat.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
