@@ -2457,14 +2457,18 @@ public:
     /**
      * @brief Allows any user to preview an open chat without be part of
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_PREVIEW_CHAT_LINK
+     * This function loads the required data required to preview an openchat referenced by a
+     * chat-link. It returns the actual \c chatid and also the title, if any. If this request
+     * success, the caller can proceed as usual with \c MegaChatApi::openChatRoom to preview
+     * the chatroom in read-only mode.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the title of the chat.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
-     * - MegaChatError::ERROR_EXIST - If the chat link has been opened before in the current session
-     * or the user already participates in the chat.
+     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -2477,7 +2481,7 @@ public:
      * @param link Null-terminated character string with the open chat link
      * @param listener MegaChatRequestListener to track this request
      */
-    void openChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+    void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened

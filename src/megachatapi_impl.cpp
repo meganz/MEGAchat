@@ -693,7 +693,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_PREVIEW_CHAT_LINK:
+        case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
             const string parsedLink = request->getLink();
 
@@ -749,7 +749,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->openChatLink(ph, key)
+            mClient->loadChatLink(ph, key)
             .then([request, this, ph]()
             {
                 MegaChatHandle openChatId = mClient->chatIdByPh(ph);
@@ -2265,7 +2265,7 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
 
 void MegaChatApiImpl::openChatLink(const char *link, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_PREVIEW_CHAT_LINK, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
     request->setLink(link);
     requestQueue.push(request);
     waiter->notify();
@@ -3709,7 +3709,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_PREVIEW_CHAT_LINK: return "PREVIEW_CHAT_LINK";
+        case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
         case TYPE_EXPORT_CHAT_LINK: return "EXPORT_CHAT_LINK";
     }
     return "UNKNOWN";

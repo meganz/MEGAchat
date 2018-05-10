@@ -433,7 +433,7 @@ void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaCha
     pImpl->setChatTitle(chatid, title, listener);
 }
 
-void MegaChatApi::openChatLink(const char *link,MegaChatRequestListener *listener)
+void MegaChatApi::loadChatLink(const char *link,MegaChatRequestListener *listener)
 {
     pImpl->openChatLink(link, listener);
 }

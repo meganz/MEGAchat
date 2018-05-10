@@ -299,28 +299,27 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 }
 
 
-promise::Promise<void> Client::openChatLink(megaHandle publicHandle, const std::string &key)
+promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::string &key)
 {
     auto wptr = weakHandle();
-    mChatLinkReady = Promise<void>();
     std::string chatKey = key;
-    api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
-    .then([this, chatKey, wptr](ReqResult result)
+    return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
+    .then([this, chatKey, wptr](ReqResult result) -> promise::Promise<void>
     {
         if (wptr.deleted())
-          return;
+            return promise::_Void();
 
         Id chatId = result->getParentHandle();
         if (chats->find(chatId) != chats->end())
         {
-           mChatLinkReady.reject("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
-           return;
+            return promise::Error("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
         }
 
         std::string title = result->getText();
         Id ph = result->getNodeHandle();
         std::string url = result->getLink();
         int shard = result->getAccess();
+        // TODO: connect to chatd using the URL
 
         //TODO Set strongvelope key and decrypt title
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true);
@@ -328,13 +327,8 @@ promise::Promise<void> Client::openChatLink(megaHandle publicHandle, const std::
         room->setPreviewMode(true);
         mPhToChatId[ph] = chatId;
         chats->emplace(chatId, (ChatRoom *)room);
-        mChatLinkReady.resolve();
-    })
-    .fail([this](const promise::Error& err)
-    {
-        mChatLinkReady.reject(err);
+        return promise::_Void();
     });
-    return mChatLinkReady;
 }
 
 promise::Promise<void> Client::getPublicHandle(Id chatid)

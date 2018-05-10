@@ -584,7 +584,6 @@ protected:
     uint64_t mMyIdentity = 0; // seed for CLIENTID
     ConnState mConnState = kDisconnected;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mChatLinkReady;
 
 public:
     enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
@@ -722,7 +721,7 @@ public:
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
     // TODO: add documentation
-    promise::Promise<void> openChatLink(megaHandle publicHandle, const std::string &key);
+    promise::Promise<void> loadChatLink(megaHandle publicHandle, const std::string &key);
 
     // TODO: add documentation (this function may become obsolete if API add the ph to mcf)
     promise::Promise<void> getPublicHandle(karere::Id chatid);
