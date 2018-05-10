@@ -388,6 +388,11 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
     pImpl->createChat(group, peers, listener);
 }
 
+void MegaChatApi::createOpenChat(MegaChatPeerList *peers, MegaChatRequestListener *listener)
+{
+    pImpl->createOpenChat(peers, listener);
+}
+
 void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
 {
     pImpl->inviteToChat(chatid, uh, privilege, listener);

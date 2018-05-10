@@ -373,15 +373,16 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_CREATE_CHATROOM:
         {
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
-            if (!peersList || !peersList->size())   // refuse to create chats without participants
+            if (!peersList)   // force to provide a list, even without participants
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
+            bool openchat = request->getPrivilege();
             bool group = request->getFlag();
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
-            if (!userpriv)
+            if (!userpriv || (group && !openchat) || (!group && openchat))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -402,7 +403,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     peers.push_back(std::make_pair(userpriv->at(i).first, (Priv) userpriv->at(i).second));
                 }
 
-                mClient->createGroupChat(peers)
+                mClient->createGroupChat(peers, openchat)
                 .then([request,this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -2139,6 +2140,17 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(group);
+    request->setPrivilege(0);
+    request->setMegaChatPeerList(peerList);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::createOpenChat(MegaChatPeerList *peerList, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
+    request->setFlag(true);
+    request->setPrivilege(1);
     request->setMegaChatPeerList(peerList);
     requestQueue.push(request);
     waiter->notify();

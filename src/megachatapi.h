@@ -2219,6 +2219,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
@@ -2237,6 +2238,35 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates an open / public chatroom for multiple participants (groupchat)
+     *
+     * This function allows to create open chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::exportChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the open/public mode until a moderator calls \c MegaChatApi::closeOpenChat.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatLink.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::joinChatLink.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createOpenChat(MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Adds a user to an existing chat. To do this you must have the

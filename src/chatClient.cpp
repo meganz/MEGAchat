@@ -1344,14 +1344,26 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 }
 
 promise::Promise<karere::Id>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool openchat)
 {
     std::unique_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
     for (auto& peer: peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
     }
-    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get())
+
+    ApiPromise createChatPromise;
+    if (openchat)
+    {
+        // TODO: need to create `ct` with chat-key and pass it to MegaApi::createOpenChat()
+        createChatPromise = api.call(&mega::MegaApi::createOpenChat, sdkPeers.get());
+    }
+    else
+    {
+        createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get());
+    }
+
+    return createChatPromise
     .then([this](ReqResult result)->Promise<karere::Id>
     {
         auto& list = *result->getMegaTextChatList();
