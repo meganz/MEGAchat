@@ -364,6 +364,54 @@ public:
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
 
+    virtual void setOpenChat()
+    {
+        mDb.query(
+            "insert or replace into chat_vars(chatid, name, value) "
+            "values(?, 'open_chat', true)", mChat.chatId());
+        assertAffectedRowCount(1);
+    }
+
+    //Remove open_chat and preview_mode records related to the chatId
+    virtual void removeOpenChat()
+    {
+        mDb.query("delete from chat_vars where chatid = ?", mChat.chatId());
+        assertAffectedRowCount(1);
+    }
+
+    virtual bool openChat()
+    {
+        SqliteStmt stmt(mDb, "select value from history where chatid = ? and name=open_chat");
+        stmt << mChat.chatId();
+        return (stmt.step()) ? stmt.int64Col(0) : false;
+    }
+
+    virtual void setPreviewMode()
+    {
+        mDb.query(
+            "insert or replace into chat_vars(chatid, name, value) "
+            "values(?, 'preview_mode', true)", mChat.chatId());
+        assertAffectedRowCount(1);
+    }
+
+    virtual bool previewMode()
+    {
+        SqliteStmt stmt(mDb, "select value from history where chatid = ? and name=preview_mode");
+        stmt << mChat.chatId();
+        return (stmt.step()) ? stmt.int64Col(0) : false;
+    }
+
+    //Cleanup of all records related to the chatId in all DB tables that could contain any record
+    virtual void chatCleanup()
+    {
+        mDb.query("delete from chat_peers where chatid = ?", mChat.chatId());
+        mDb.query("delete from chat_vars where chatid = ?", mChat.chatId());
+        mDb.query("delete from chats where chatid = ?", mChat.chatId());
+        mDb.query("delete from history where chatid = ?", mChat.chatId());
+        mDb.query("delete from manual_sending where chatid = ?", mChat.chatId());
+        mDb.query("delete from sending where chatid = ?", mChat.chatId());
+    }
+
     virtual void clearHistory()
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
