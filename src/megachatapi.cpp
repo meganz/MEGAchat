@@ -393,6 +393,11 @@ void MegaChatApi::createOpenChat(MegaChatPeerList *peers, MegaChatRequestListene
     pImpl->createOpenChat(peers, listener);
 }
 
+void MegaChatApi::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->exportChatLink(chatid, listener);
+}
+
 void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
 {
     pImpl->inviteToChat(chatid, uh, privilege, listener);

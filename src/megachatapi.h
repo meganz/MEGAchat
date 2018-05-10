@@ -981,7 +981,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
-        TYPE_PREVIEW_CHAT_LINK, TOTAL_OF_REQUEST_TYPES
+        TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2267,6 +2267,33 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createOpenChat(MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Create a chat-link for an open chat
+     *
+     * This function allows moderators to create a public handle for openchats and returns
+     * a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createOpenChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_EXPORT_CHAT_LINK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
+     * chatroom is a private chatroom or a 1on1 room.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not an openchat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Adds a user to an existing chat. To do this you must have the

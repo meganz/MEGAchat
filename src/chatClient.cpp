@@ -337,6 +337,26 @@ promise::Promise<void> Client::openChatLink(megaHandle publicHandle, const std::
     return mChatLinkReady;
 }
 
+promise::Promise<void> Client::getPublicHandle(Id chatid)
+{
+    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
+    if (room->publicHandle() != Id::inval())
+    {
+        return promise::_Void();
+    }
+    else
+    {
+        auto wptr = weakHandle();
+
+        return api.call(&::mega::MegaApi::chatLinkCreate, chatid)
+        .then([this, room, wptr](ReqResult result) -> promise::Promise<void>
+        {
+            room->setPublicHandle(result->getParentHandle());
+            return promise::_Void();
+        });
+    }
+}
+
 void Client::onSyncReceived(Id chatid)
 {
     if (mSyncCount <= 0)
@@ -2525,6 +2545,16 @@ bool GroupChatRoom::openChat() const
 void GroupChatRoom::setOpenChat(bool openChat)
 {
     mOpenChat = openChat;
+}
+
+const char *GroupChatRoom::chatkey()
+{
+    if (!mOpenChat)
+    {
+        return NULL;
+    }
+
+    // TODO: access to strongvelope and get global-key
 }
 
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)

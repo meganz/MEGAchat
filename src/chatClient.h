@@ -297,7 +297,7 @@ public:
     typedef std::map<uint64_t, Member*> MemberMap;
 
     /** @cond PRIVATE */
-    protected:
+protected:
     MemberMap mPeers;
     bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
@@ -403,12 +403,16 @@ public:
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+
     virtual bool previewMode() const;
     void setPreviewMode(bool previewMode);
     uint64_t publicHandle() const;
     void setPublicHandle(const uint64_t &publicHandle);
     virtual bool openChat() const;
     void setOpenChat(bool openChat);
+
+    // ownership of returned value is kept by this object
+    const char *chatkey();
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -717,7 +721,11 @@ public:
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
+    // TODO: add documentation
     promise::Promise<void> openChatLink(megaHandle publicHandle, const std::string &key);
+
+    // TODO: add documentation (this function may become obsolete if API add the ph to mcf)
+    promise::Promise<void> getPublicHandle(karere::Id chatid);
 
     uint64_t chatIdByPh(uint64_t ph)
     {
