@@ -2468,7 +2468,8 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
-     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat
+     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat or has
+     * already been loaded
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:

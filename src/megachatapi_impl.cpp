@@ -730,22 +730,9 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatHandle chatid = mClient->chatIdByPh(ph);
-            if (!ISUNDEF(chatid))   // already opened or joined
+            if (!ISUNDEF(chatid))   // already loaded
             {
-                ChatRoom *room = findChatRoom(chatid);
-                assert(room);
-                if (room->previewMode())    // already opened and not closed yet
-                {
-                    request->setChatHandle(room->chatid());
-                    request->setText(room->titleString());
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                }
-                else    // already joined
-                {
-                    errorCode = MegaChatError::ERROR_EXIST;
-                }
+                errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
 
