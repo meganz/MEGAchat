@@ -364,6 +364,7 @@ public:
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
 
+    //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
     virtual void setChatVar (const char *name, bool value)
     {
         mDb.query(
@@ -372,6 +373,7 @@ public:
         assertAffectedRowCount(1);
     }
 
+    //Returns if chat var related to a chat exists and if have set an specific value
     virtual bool chatVar (const char *name, bool value)
     {
         SqliteStmt stmt(mDb,
@@ -382,6 +384,7 @@ public:
         return stmt.step();
     }
 
+    //Remove a chat var related to a chat
     virtual bool removeChatVar (const char *name)
     {
         SqliteStmt stmt(mDb,
