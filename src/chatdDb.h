@@ -368,37 +368,37 @@ public:
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'open_chat', true)", mChat.chatId());
+            "values(?, 'open_chat', 1)", mChat.chatId());
         assertAffectedRowCount(1);
     }
 
     //Remove open_chat and preview_mode records related to the chatId
     virtual void removeOpenChat()
     {
-        mDb.query("delete from chat_vars where chatid = ?", mChat.chatId());
-        assertAffectedRowCount(1);
+        mDb.query("delete from chat_vars where chatid = ? and name = 'open_chat'", mChat.chatId());
+        mDb.query("delete from chat_vars where chatid = ? and name = 'preview_mode'", mChat.chatId());
     }
 
     virtual bool openChat()
     {
-        SqliteStmt stmt(mDb, "select value from history where chatid = ? and name=open_chat");
+        SqliteStmt stmt(mDb, "select value from chat_vars where chatid = ? and name = 'open_chat'");
         stmt << mChat.chatId();
-        return (stmt.step()) ? stmt.int64Col(0) : false;
+        return (stmt.step()) ? true : false;
     }
 
     virtual void setPreviewMode()
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'preview_mode', true)", mChat.chatId());
+            "values(?, 'preview_mode', 1)", mChat.chatId());
         assertAffectedRowCount(1);
     }
 
     virtual bool previewMode()
     {
-        SqliteStmt stmt(mDb, "select value from history where chatid = ? and name=preview_mode");
+        SqliteStmt stmt(mDb, "select value from chat_vars where chatid = ? and name = 'preview_mode'");
         stmt << mChat.chatId();
-        return (stmt.step()) ? stmt.int64Col(0) : false;
+        return (stmt.step()) ? true : false;
     }
 
     //Cleanup of all records related to the chatId in all DB tables that could contain any record
@@ -410,6 +410,7 @@ public:
         mDb.query("delete from history where chatid = ?", mChat.chatId());
         mDb.query("delete from manual_sending where chatid = ?", mChat.chatId());
         mDb.query("delete from sending where chatid = ?", mChat.chatId());
+        mDb.query("delete from sendkeys where chatid = ?", mChat.chatId());
     }
 
     virtual void clearHistory()
