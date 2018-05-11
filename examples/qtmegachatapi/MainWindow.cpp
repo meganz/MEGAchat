@@ -86,7 +86,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
     switch(call->getStatus())
     {
-        case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
+        case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
            {
                ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
                chatItemWidget->getChatWindow()->hangCall();

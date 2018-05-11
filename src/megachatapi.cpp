@@ -177,6 +177,11 @@ MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+MegaHandleList *MegaChatCall::getParticipants() const
+{
+    return NULL;
+}
+
 bool MegaChatCall::isIgnored() const
 {
     return false;

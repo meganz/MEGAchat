@@ -153,6 +153,7 @@ public:
      * startCall/joinCall, events on that call may be generated before that, imposing the need
      * to obtain the ICall object earlier, via this callback.
      */
+    virtual ~ICallHandler(){}
     virtual void setCall(ICall* call)  = 0;
     virtual void onStateChange(uint8_t newState) {}
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
@@ -162,6 +163,10 @@ public:
     virtual void onRingOut(karere::Id peer) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
+
+    virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) = 0;
+    virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
+    virtual int callParticipants() = 0;
 };
 class IGlobalHandler
 {
@@ -171,6 +176,13 @@ public:
      * @return The call handler that will receive events about this call
      */
     virtual ICallHandler* onCallIncoming(ICall& call, karere::AvFlags av) = 0;
+
+    /** @brief A call is in progress at chatroom
+     * @param chatid The chatroom id
+     * @param callid The call id
+     * @return The call handler that will receive events about this call
+     */
+    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid) = 0;
 };
 
 class ISession: public karere::DeleteTrackable
@@ -353,10 +365,15 @@ public:
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual bool isCallInProgress() const = 0;
 
-    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual void hangupAll(TermCode reason) = 0;
-    virtual void removeAllAvStates(karere::Id chatid) = 0;
+    virtual void removeCall(karere::Id chatid) = 0;
+    virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler) = 0;
+    virtual ICallHandler* findCallHandler(karere::Id chatid) = 0;
+    virtual void removeCallHandler(karere::Id chatid) = 0;
+    virtual int callNumber() const = 0;
+    virtual std::vector<karere::Id> chatsWithCall() const = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

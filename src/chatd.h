@@ -1051,8 +1051,6 @@ public:
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
     void clearHistory();
-    unsigned int callParticipants() const;
-    void removeCallParticipants();
     void sendSync();
 
 protected:

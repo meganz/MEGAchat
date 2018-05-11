@@ -1413,9 +1413,9 @@ rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handl
     return parent.client.rtc->startCall(chatid(), av, handler);
 }
 
-rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler)
+rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
 {
-    return parent.client.rtc->joinCall(chatid(), av, handler);
+    return parent.client.rtc->joinCall(chatid(), av, handler, callid);
 }
 #endif
 
@@ -3054,6 +3054,11 @@ bool Client::isCallInProgress() const
 rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
 {
     return app.onIncomingCall(call, av);
+}
+
+rtcModule::ICallHandler *Client::onGroupCallActive(Id chatid, Id callid)
+{
+    return app.onGroupCallActive(chatid, callid);
 }
 #endif
 

@@ -159,14 +159,15 @@ class MegaChatCall
 public:
     enum
     {
-        CALL_STATUS_INITIAL = 0,        /// Initial state
-        CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
-        CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
-        CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,            /// Intermediate state, while connection is established
-        CALL_STATUS_IN_PROGRESS,        /// Call is established and there is a full communication
-        CALL_STATUS_TERMINATING,        ///
-        CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
+        CALL_STATUS_INITIAL = 0,                        /// Initial state
+        CALL_STATUS_HAS_LOCAL_STREAM,                   /// Call has obtained a local video-audio stream
+        CALL_STATUS_REQUEST_SENT,                       /// Call request has been sent to receiver
+        CALL_STATUS_RING_IN,                            /// Call is at incoming state, it has not been answered or rejected yet
+        CALL_STATUS_JOINING,                            /// Intermediate state, while connection is established
+        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
+        CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
+        CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
+        CALL_STATUS_USER_NO_PRESENT                     /// User is no present in the call (Group Calls)
     };
 
     enum
@@ -177,6 +178,7 @@ public:
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
         CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
         CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
+        CHANGE_TYPE_CALL_COMPOSITION = 0x40 /// Call composition has changed (User has added or removed from call)
     };
 
     enum
@@ -404,7 +406,7 @@ public:
     virtual bool isRinging() const;
 
     /**
-     * @brief Get a list with the ids of peers that they are participating in the call
+     * @brief Get a list with the ids of peers that they have a session with me
      *
      * If there aren't any session at the call. An empty MegaHandleList will be returned
      *
@@ -432,6 +434,18 @@ public:
      * @return Handle of the peer which session has changed its status
      */
     virtual MegaChatHandle getPeerSessionStatusChange() const;
+
+    /**
+     * @brief Get a list with the ids of peers that they are participanting in the call
+     *
+     * In a group call, we know the participants although we aren't in the call. It can't be different form
+     * MegaChatSession *getMegaChatSession
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of peers
+     */
+    virtual mega::MegaHandleList *getParticipants() const;
 
     /**
      * @brief Returns if call has been ignored

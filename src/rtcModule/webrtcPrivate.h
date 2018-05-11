@@ -210,13 +210,18 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
-    virtual void removeAllAvStates(karere::Id chatid);
+    virtual void removeCall(karere::Id chatid);
+    virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
+    virtual ICallHandler* findCallHandler(karere::Id chatid);
+    virtual void removeCallHandler(karere::Id chatid);
+    virtual int callNumber() const;
+    virtual std::vector<karere::Id> chatsWithCall() const;
 //==
-    void updatePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
+    void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void removePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
 
-    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
 //==
@@ -232,6 +237,7 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, std::map <chatd::EndpointId, karere::AvFlags> > mPeerAvStates;
+    std::map<karere::Id, ICallHandler *> mCallHandlers;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -239,7 +245,7 @@ protected:
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
     std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
-    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, bool isJoin);
+    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, bool isJoin, karere::Id callid = karere::Id::inval());
     template <class T> T random() const;
     template <class T> void random(T& result) const;
     //=== Implementation methods

@@ -347,6 +347,19 @@ public:
      * answer, do `call.answer()`, to reject, do `call.hangup()`
      */
     virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
+
+    /**
+     * @brief Called by karere when there is a group call active
+     *
+     * The app must create a rtcModule::ICallHandler to handle events related to
+     * that call.
+     *
+     * This callback is called when we connect to chatd and there is a call is in-progress
+     *
+     * @param chatid from chatroom where the call is active
+     * @param callid from call
+     */
+    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid,  karere::Id callId) = 0;
 #endif
 
     /** @brief Called when the karere::Client changes its initialization or termination state.

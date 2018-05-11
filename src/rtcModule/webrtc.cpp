@@ -271,7 +271,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     //bool ringing = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
-    updatePeerAvState(chatid, userid, clientid, avFlagsRemote);
+    updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
 
     if (state == Call::CallDataState::kCallReqRinging)
     {
@@ -390,8 +390,14 @@ void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 }
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
-    ICallHandler& handler, bool isJoin)
+    ICallHandler& handler, bool isJoin, Id callid)
 {
+    karere::Id id = callid;
+    if (!isJoin)
+    {
+        id = random<uint64_t>();
+    }
+
     auto& chat = mClient.chatd->chats(chatid);
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
@@ -400,7 +406,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         callIt->second->hangup();
         mCalls.erase(chatid);
     }
-    auto call = std::make_shared<Call>(*this, chat, random<uint64_t>(),
+    auto call = std::make_shared<Call>(*this, chat, id,
         chat.isGroup(), isJoin, &handler, 0, 0);
 
     mCalls[chatid] = call;
@@ -413,9 +419,9 @@ bool RtcModule::isCaptureActive() const
     return (mAudioInput || mVideoInput);
 }
 
-ICall& RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler& handler)
+ICall& RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler& handler, karere::Id callid)
 {
-    return *startOrJoinCall(chatid, av, handler, true);
+    return *startOrJoinCall(chatid, av, handler, true, callid);
 }
 ICall& RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler& handler)
 {
@@ -428,8 +434,23 @@ void RtcModule::onClientLeftCall(Id chatid, Id userid, uint32_t clientid)
     if (it != mCalls.end())
     {
         Call *call = it->second.get();
-        removePeerAvState(call->chat().chatId(), userid, clientid);
         call->onClientLeftCall(userid, clientid);
+    }
+
+    auto itHandler = mCallHandlers.find(chatid);
+    if (itHandler != mCallHandlers.end())
+    {
+        ICallHandler *callHandler = itHandler->second;
+        bool deleted = callHandler->removeParticipant(userid, clientid);
+        removePeerAvState(chatid, userid, clientid);
+        if (deleted)
+        {
+            removeCallHandler(chatid);
+        }
+    }
+    else
+    {
+        RTCM_LOG_DEBUG("onClientLeftCall: Try to remove a peer from a call and there isn't a call in the chatroom (%s)", chatid.toString().c_str());
     }
 }
 
@@ -507,21 +528,23 @@ bool RtcModule::isCallInProgress() const
     return callInProgress;
 }
 
-void RtcModule::updatePeerAvState(Id chatid, Id userid, uint32_t clientid, AvFlags av)
+void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clientid, AvFlags av)
 {
-    auto iterator = mPeerAvStates.find(chatid);
-    if (iterator != mPeerAvStates.end())
+    auto iterator = mCallHandlers.find(chatid);
+    if (iterator != mCallHandlers.end())
     {
-        chatd::EndpointId endPoint(userid, clientid);
-        iterator->second[endPoint] = av;
+        ICallHandler *callHandler = iterator->second;
+        callHandler->addParticipant(userid, clientid, av);
     }
     else
     {
-        chatd::EndpointId endPoint(userid, clientid);
-        std::map <chatd::EndpointId, karere::AvFlags> avMap;
-        avMap[endPoint] = av;
-        mPeerAvStates[chatid] = avMap;
+        ICallHandler *callHandler = mHandler.onGroupCallActive(chatid, callid);
+        addCallHandler(chatid, callHandler);
+        callHandler->addParticipant(userid, clientid, av);
     }
+
+    chatd::EndpointId endPoint(userid, clientid);
+    mPeerAvStates[chatid][endPoint] = av;
 }
 
 void RtcModule::removePeerAvState(Id chatid, Id userid, uint32_t clientid)
@@ -538,9 +561,68 @@ void RtcModule::removePeerAvState(Id chatid, Id userid, uint32_t clientid)
     }
 }
 
-void RtcModule::removeAllAvStates(Id chatid)
+void RtcModule::removeCall(Id chatid)
 {
+    auto callIterator = mCalls.find(chatid);
+    if (callIterator != mCalls.end())
+    {
+        removeCall(*callIterator->second.get());
+    }
+
+    auto handlerIterator = mCallHandlers.find(chatid);
+    if (handlerIterator != mCallHandlers.end())
+    {
+        ICallHandler *callHandler = handlerIterator->second;
+        mCallHandlers.erase(chatid);
+        delete callHandler;
+    }
+
     mPeerAvStates.erase(chatid);
+}
+
+void RtcModule::addCallHandler(Id chatid, ICallHandler *callHandler)
+{
+    auto handlerIterator = mCallHandlers.find(chatid);
+    if (handlerIterator != mCallHandlers.end())
+    {
+        ICallHandler *callHandler = handlerIterator->second;
+        mCallHandlers.erase(chatid);
+        delete callHandler;
+    }
+
+    mCallHandlers[chatid] = callHandler;
+}
+
+ICallHandler *RtcModule::findCallHandler(Id chatid)
+{
+    std::map<karere::Id, ICallHandler *>::iterator it = mCallHandlers.find(chatid);
+    if (it != mCallHandlers.end())
+    {
+        return it->second;
+    }
+
+    return NULL;
+}
+
+void RtcModule::removeCallHandler(Id chatid)
+{
+    mCallHandlers.erase(chatid);
+}
+
+int RtcModule::callNumber() const
+{
+    return mCallHandlers.size();
+}
+
+std::vector<Id> RtcModule::chatsWithCall() const
+{
+    std::vector<Id> chats;
+    for (auto it = mCallHandlers.begin(); it != mCallHandlers.end(); it++)
+    {
+        chats.push_back(it->first);
+    }
+
+    return chats;
 }
 
 void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, Id callid, AvFlags avFlagsRemote)
@@ -1314,6 +1396,7 @@ bool Call::startOrJoin(AvFlags av)
 {
     std::string errors;
 
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
     if (mIsJoiner)
     {
         karere::AvFlags flags = validAvFlags(av);
@@ -1322,7 +1405,6 @@ bool Call::startOrJoin(AvFlags av)
     }
     else
     {
-        manager().updatePeerAvState(mChat.chatId(), mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
         getLocalStream(av, errors);
         return broadcastCallReq();
     }
@@ -1479,8 +1561,8 @@ bool Call::answer(AvFlags av)
         return false;
     }
     assert(mIsJoiner);
-
-    unsigned int callParticipants = mChat.callParticipants() + 1;
+    assert(mHandler);
+    unsigned int callParticipants = mHandler ? mHandler->callParticipants() + 1 : 1;
     if (callParticipants > RtcModule::kMaxCallReceivers)
     {
         SUB_LOG_WARNING("answer: It's not possible join to the call, there are too many participants");
@@ -1641,7 +1723,7 @@ AvFlags Call::muteUnmute(AvFlags av)
         }
     }
 
-    manager().updatePeerAvState(mChat.chatId(), mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
     sendCallData(CallDataState::kMute);
 
     return av;

@@ -169,7 +169,7 @@ public:
     /** @brief Joins a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
      */
-    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler);
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
 #endif
 
     //chatd::Listener implementation
@@ -825,6 +825,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
+    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid);
 #endif
 
     promise::Promise<void> pushReceived();

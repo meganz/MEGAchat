@@ -219,10 +219,9 @@ void Chat::connect()
             std::string sUrl = url;
             mConnection.mUrl.parse(sUrl);
 
-            removeCallParticipants();
             if (mClient.karereClient->rtc)
             {
-                mClient.karereClient->rtc->removeAllAvStates(chatId());
+                mClient.karereClient->rtc->removeCall(chatId());
             }
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
@@ -1570,16 +1569,6 @@ void Chat::clearHistory()
     CALL_LISTENER(onHistoryReloaded);
 }
 
-unsigned int Chat::callParticipants() const
-{
-    return mCallParticipants.size();
-}
-
-void Chat::removeCallParticipants()
-{
-    mCallParticipants.clear();
-}
-
 void Chat::sendSync()
 {
     sendCommand(Command(OP_SYNC) + mChatId);
@@ -1619,12 +1608,14 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 void Chat::onInCall(karere::Id userid, uint32_t clientid)
 {
     mCallParticipants.emplace(userid, clientid);
+
 }
 
 void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
     EndpointId key(userid, clientid);
     mCallParticipants.erase(key);
+    mClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
 }
 
 void Chat::initChat()
