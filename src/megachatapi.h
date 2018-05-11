@@ -981,7 +981,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
-        TYPE_PREVIEW_CHAT_LINK, TOTAL_OF_REQUEST_TYPES
+        TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2219,6 +2219,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
@@ -2237,6 +2238,62 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Creates an open / public chatroom for multiple participants (groupchat)
+     *
+     * This function allows to create open chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::exportChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the open/public mode until a moderator calls \c MegaChatApi::closeOpenChat.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatLink.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::joinChatLink.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createOpenChat(MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Create a chat-link for an open chat
+     *
+     * This function allows moderators to create a public handle for openchats and returns
+     * a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createOpenChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_EXPORT_CHAT_LINK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
+     * chatroom is a private chatroom or a 1on1 room.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not an openchat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Adds a user to an existing chat. To do this you must have the
@@ -2400,14 +2457,18 @@ public:
     /**
      * @brief Allows any user to preview an open chat without be part of
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_PREVIEW_CHAT_LINK
+     * This function loads the required data required to preview an openchat referenced by a
+     * chat-link. It returns the actual \c chatid and also the title, if any. If this request
+     * success, the caller can proceed as usual with \c MegaChatApi::openChatRoom to preview
+     * the chatroom in read-only mode.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the title of the chat.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
-     * - MegaChatError::ERROR_EXIST - If the chat link has been opened before in the current session
-     * or the user already participates in the chat.
+     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -2420,7 +2481,7 @@ public:
      * @param link Null-terminated character string with the open chat link
      * @param listener MegaChatRequestListener to track this request
      */
-    void openChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+    void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened

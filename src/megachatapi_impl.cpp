@@ -373,15 +373,16 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_CREATE_CHATROOM:
         {
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
-            if (!peersList || !peersList->size())   // refuse to create chats without participants
+            if (!peersList)   // force to provide a list, even without participants
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
+            bool openchat = request->getPrivilege();
             bool group = request->getFlag();
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
-            if (!userpriv)
+            if (!userpriv || (group && !openchat) || (!group && openchat))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -402,7 +403,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     peers.push_back(std::make_pair(userpriv->at(i).first, (Priv) userpriv->at(i).second));
                 }
 
-                mClient->createGroupChat(peers)
+                mClient->createGroupChat(peers, openchat)
                 .then([request,this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -692,7 +693,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_PREVIEW_CHAT_LINK:
+        case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
             const string parsedLink = request->getLink();
 
@@ -748,7 +749,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->openChatLink(ph, key)
+            mClient->loadChatLink(ph, key)
             .then([request, this, ph]()
             {
                 MegaChatHandle openChatId = mClient->chatIdByPh(ph);
@@ -768,6 +769,58 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
+            break;
+        }
+        case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
+        {
+            MegaChatHandle chatid = request->getChatHandle();
+            ChatRoom *room = findChatRoom(chatid);
+            if (!room)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (room->ownPriv() != Priv::PRIV_OPER
+                    || !room->openChat()
+                    || !room->isGroup())
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            GroupChatRoom *groupchat = (GroupChatRoom *) room;
+
+            mClient->getPublicHandle(chatid)
+            // TODO: if groupchat instance doesn't have a public handle asociated, it should request
+            // one (MegaApi::chatLinkCreate()) and set it to the room
+            .then([request, this, groupchat]
+            {
+                // TODO: generate the link: #chat_<ph><key>
+
+                string phbin(groupchat->publicHandle(), MegaClient::CHATLINKHANDLE);
+                string phstr;
+                Base64::btoa(phbin, phstr);
+
+                string keybin(groupchat->chatkey());
+                string keystr;
+                Base64::btoa(keybin, keystr);
+
+                string link = "#chat_" + phstr + keystr;
+                request->setText(link.c_str());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                API_LOG_ERROR("Error exporting chat-link: %s", err.what());
+
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
+
             break;
         }
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
@@ -2139,7 +2192,26 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(group);
+    request->setPrivilege(0);
     request->setMegaChatPeerList(peerList);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::createOpenChat(MegaChatPeerList *peerList, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
+    request->setFlag(true);
+    request->setPrivilege(1);
+    request->setMegaChatPeerList(peerList);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_EXPORT_CHAT_LINK, listener);
+    request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2193,7 +2265,7 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
 
 void MegaChatApiImpl::openChatLink(const char *link, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_PREVIEW_CHAT_LINK, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
     request->setLink(link);
     requestQueue.push(request);
     waiter->notify();
@@ -3637,7 +3709,8 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_PERSIST: return "SET_PRESENCE_PERSIST";
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_PREVIEW_CHAT_LINK: return "PREVIEW_CHAT_LINK";
+        case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
+        case TYPE_EXPORT_CHAT_LINK: return "EXPORT_CHAT_LINK";
     }
     return "UNKNOWN";
 }

@@ -388,6 +388,16 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
     pImpl->createChat(group, peers, listener);
 }
 
+void MegaChatApi::createOpenChat(MegaChatPeerList *peers, MegaChatRequestListener *listener)
+{
+    pImpl->createOpenChat(peers, listener);
+}
+
+void MegaChatApi::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->exportChatLink(chatid, listener);
+}
+
 void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
 {
     pImpl->inviteToChat(chatid, uh, privilege, listener);
@@ -423,7 +433,7 @@ void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaCha
     pImpl->setChatTitle(chatid, title, listener);
 }
 
-void MegaChatApi::openChatLink(const char *link,MegaChatRequestListener *listener)
+void MegaChatApi::loadChatLink(const char *link,MegaChatRequestListener *listener)
 {
     pImpl->openChatLink(link, listener);
 }
