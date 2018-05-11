@@ -1231,11 +1231,9 @@ public:
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual bool haveAllHistory() = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
-    virtual void setOpenChat() = 0;
-    virtual void removeOpenChat() = 0;
-    virtual bool openChat() = 0;
-    virtual void setPreviewMode() = 0;
-    virtual bool previewMode() = 0;
+    virtual void setChatVar (const char *name, bool value) = 0;
+    virtual bool chatVar (const char *name, bool value) = 0;
+    virtual bool removeChatVar (const char *name) = 0;
     virtual void chatCleanup() = 0;
     virtual void clearHistory() = 0;
     virtual ~DbInterface(){}

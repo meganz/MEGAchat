@@ -364,41 +364,31 @@ public:
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
 
-    virtual void setOpenChat()
+    virtual void setChatVar (const char *name, bool value)
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'open_chat', 1)", mChat.chatId());
+            "values(?, ?, ?)", mChat.chatId(), name, value ? 1 : 0);
         assertAffectedRowCount(1);
     }
 
-    //Remove open_chat and preview_mode records related to the chatId
-    virtual void removeOpenChat()
+    virtual bool chatVar (const char *name, bool value)
     {
-        mDb.query("delete from chat_vars where chatid = ? and name = 'open_chat'", mChat.chatId());
-        mDb.query("delete from chat_vars where chatid = ? and name = 'preview_mode'", mChat.chatId());
+        SqliteStmt stmt(mDb,
+            "select value from chat_vars where chatid=? and name=? and value=?");
+        stmt << mChat.chatId()
+             << name
+             << value;
+        return stmt.step();
     }
 
-    virtual bool openChat()
+    virtual bool removeChatVar (const char *name)
     {
-        SqliteStmt stmt(mDb, "select value from chat_vars where chatid = ? and name = 'open_chat'");
-        stmt << mChat.chatId();
-        return (stmt.step()) ? true : false;
-    }
-
-    virtual void setPreviewMode()
-    {
-        mDb.query(
-            "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'preview_mode', 1)", mChat.chatId());
+        SqliteStmt stmt(mDb,
+            "delete from chat_vars where chatid = ? and name = ?");
+        stmt << mChat.chatId()
+             << name;
         assertAffectedRowCount(1);
-    }
-
-    virtual bool previewMode()
-    {
-        SqliteStmt stmt(mDb, "select value from chat_vars where chatid = ? and name = 'preview_mode'");
-        stmt << mChat.chatId();
-        return (stmt.step()) ? true : false;
     }
 
     //Cleanup of all records related to the chatId in all DB tables that could contain any record
