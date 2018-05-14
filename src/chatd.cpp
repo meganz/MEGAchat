@@ -944,7 +944,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
 
-    if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
+    if ((mHaveAllHistory = mDbInterface->chatVar("have_all_history")))
     {
         CHATID_LOG_DEBUG("All backward history of chat is available locally");
     }
@@ -1426,7 +1426,7 @@ void Chat::onFetchHistDone()
             //server returned zero messages
             assert((mDecryptOldHaltedAt == CHATD_IDX_INVALID) && (mDecryptNewHaltedAt == CHATD_IDX_INVALID));
             mHaveAllHistory = true;
-            CALL_DB(setHaveAllHistory, true);
+            CALL_DB(setChatVar, "have_all_history", true);
             CHATID_LOG_DEBUG("Start of history reached");
             //last text msg stuff
             if (mLastTextMsg.isFetching())
@@ -2594,7 +2594,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // since we have the truncate message in local history (otherwise chatd wouldn't have sent us
     // the truncate), now we know we have all history and what's the oldest msgid.
-    CALL_DB(setHaveAllHistory, true);
+    CALL_DB(setChatVar, "have_all_history", true);
     mHaveAllHistory = true;
     mOldestKnownMsgId = msg.id();
 

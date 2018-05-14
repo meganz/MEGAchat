@@ -329,20 +329,7 @@ public:
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
-    virtual void setHaveAllHistory(bool haveAllHistory)
-    {
-        mDb.query(
-            "insert or replace into chat_vars(chatid, name, value) "
-            "values(?, 'have_all_history', ?)", mChat.chatId(), haveAllHistory ? 1 : 0);
-        assertAffectedRowCount(1);
-    }
-    virtual bool haveAllHistory()
-    {
-        SqliteStmt stmt(mDb,
-            "select value from chat_vars where chatid=? and name='have_all_history' and value='1'");
-        stmt << mChat.chatId();
-        return stmt.step();
-    }
+
     virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
     {
         SqliteStmt stmt(mDb,
@@ -365,7 +352,7 @@ public:
     }
 
     //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
-    virtual void setChatVar (const char *name, bool value)
+    virtual void setChatVar(const char *name, bool value)
     {
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
@@ -373,25 +360,24 @@ public:
         assertAffectedRowCount(1);
     }
 
-    //Returns if chat var related to a chat exists and if have set an specific value
-    virtual bool chatVar (const char *name, bool value)
+    //Returns if chat var related to a chat exists
+    virtual bool chatVar(const char *name)
     {
         SqliteStmt stmt(mDb,
-            "select value from chat_vars where chatid=? and name=? and value=?");
+            "select value from chat_vars where chatid=? and name=? and value='1'");
         stmt << mChat.chatId()
-             << name
-             << value;
+             << name;
         return stmt.step();
     }
 
     //Remove a chat var related to a chat
-    virtual bool removeChatVar (const char *name)
+    virtual bool removeChatVar(const char *name)
     {
         SqliteStmt stmt(mDb,
             "delete from chat_vars where chatid = ? and name = ?");
         stmt << mChat.chatId()
              << name;
-        assertAffectedRowCount(1);
+        return stmt.step();
     }
 
     //Cleanup of all records related to the chatId in all DB tables that could contain any record
@@ -409,7 +395,7 @@ public:
     virtual void clearHistory()
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
-        setHaveAllHistory(false);
+        setChatVar("have_all_history", false);
     }
 };
 
