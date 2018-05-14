@@ -497,7 +497,7 @@ void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
     // Assemble message content.
     tlv.addRecord(TLV_TYPE_NONCE, encryptedMessage.nonce);
     tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(encryptedMessage.ciphertext, false));
-    Key<64> signature;
+    Signature signature;
     signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_FOLLOWUP,
                 encryptedMessage.key, signature);
     TlvWriter sigTlv;
@@ -1199,16 +1199,13 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
         key = mUnifiedKey;
     }
     assert(!key->empty());
-    auto blob = std::make_shared<Buffer>(512);
-    blob->clear();
-    blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
-    blob->append<uint8_t>(Message::kMsgChatTitle);
 
     auto wptr = weakHandle();
     return encryptKeyToAllParticipants(key, extraUser)
-    .then([this, wptr, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+    .then([this, wptr, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
     {
         wptr.throwIfDeleted();
+
         auto& key = result.second;
         chatd::Message msg(0, mOwnHandle, 0, 0, Buffer(data.c_str(), data.size()));
         msg.backRefId = chatd::Chat::generateRefId(this);
@@ -1216,16 +1213,23 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 
         chatd::KeyCommand& keyCmd = *result.first;
         assert(keyCmd.dataSize() >= 17);
+
         TlvWriter tlv;
         tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
         tlv.addRecord(TLV_TYPE_NONCE, enc.nonce);
         tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
         tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
-        Key<64> signature;
+
+        Signature signature;
         signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
             enc.key, signature);
         TlvWriter sigTlv;
         sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+
+        auto blob = std::make_shared<Buffer>(512);
+        blob->clear();
+        blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
+        blob->append<uint8_t>(Message::kMsgChatTitle);
         blob->append(sigTlv);
         blob->append(tlv);
         return blob;

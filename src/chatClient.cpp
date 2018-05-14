@@ -1358,7 +1358,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 }
 
 promise::Promise<karere::Id>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool openchat)
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat)
 {
     SetOfIds users;
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
@@ -1370,7 +1370,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     auto wptr = getDelTracker();
     ApiPromise createChatPromise;
-    if (openchat)
+    if (publicchat)
     {
         std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),

@@ -2240,15 +2240,15 @@ public:
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Creates an open / public chatroom for multiple participants (groupchat)
+     * @brief Creates an public chatroom for multiple participants (groupchat)
      *
-     * This function allows to create open chats, where the moderator can create chat links to share
+     * This function allows to create public chats, where the moderator can create chat links to share
      * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
      * moderator can create/get a public handle for the chatroom and generate a URL by using
      * \c MegaChatApi::exportChatLink. The chat-link can be deleted at any time by any moderator
      * by using \c MegaChatApi::removeChatLink.
      *
-     * The chatroom remains in the open/public mode until a moderator calls \c MegaChatApi::closeOpenChat.
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::closeOpenChat.
      *
      * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatLink.
      * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::joinChatLink.
@@ -2266,15 +2266,15 @@ public:
      * @param peers MegaChatPeerList including other users and their privilege level
      * @param listener MegaChatRequestListener to track this request
      */
-    void createOpenChat(MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+    void createPublicChat(MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Create a chat-link for an open chat
+     * @brief Create a chat-link for an public chat
      *
-     * This function allows moderators to create a public handle for openchats and returns
+     * This function allows moderators to create a public handle for public chats and returns
      * a chat-link that any user can use to preview or join the chatroom.
      *
-     * @see \c MegaChatApi::createOpenChat for more details.
+     * @see \c MegaChatApi::createPublicChat for more details.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_EXPORT_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2288,7 +2288,7 @@ public:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
      * chatroom is a private chatroom or a 1on1 room.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chat is not an openchat
+     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2455,9 +2455,9 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows any user to preview an open chat without be part of
+     * @brief Allows any user to preview an public chat without be part of
      *
-     * This function loads the required data required to preview an openchat referenced by a
+     * This function loads the required data required to preview an public chat referenced by a
      * chat-link. It returns the actual \c chatid and also the title, if any. If this request
      * success, the caller can proceed as usual with \c MegaChatApi::openChatRoom to preview
      * the chatroom in read-only mode.
@@ -2479,7 +2479,7 @@ public:
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
      *
-     * @param link Null-terminated character string with the open chat link
+     * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request
      */
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);

@@ -158,6 +158,9 @@ public:
 };
 typedef Key<16> SendKey;
 typedef Key<32> EcKey;
+typedef Key<768> RsaKey;
+typedef Key<16> UnifiedKey;
+typedef Key<64> Signature;
 
 class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
@@ -248,7 +251,7 @@ protected:
     EcKey myPrivCu25519;
     EcKey myPrivEd25519;
     EcKey myPubEd25519;
-    Key<768> myPrivRsaKey;
+    RsaKey myPrivRsaKey;
     karere::UserAttrCache& mUserAttrCache;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
     SqliteDb& mDb;
@@ -277,8 +280,8 @@ protected:
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
-    ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
-        const StaticBuffer& PrivEd25519,
+    ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
+        const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, void *ctx);
 

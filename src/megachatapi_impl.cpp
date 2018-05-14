@@ -379,10 +379,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            bool openchat = request->getPrivilege();
+            bool publicChat = request->getPrivilege();
             bool group = request->getFlag();
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
-            if (!userpriv || (group && !openchat) || (!group && openchat))
+            if (!userpriv || (group && !publicChat) || (!group && publicChat))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -403,7 +403,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     peers.push_back(std::make_pair(userpriv->at(i).first, (Priv) userpriv->at(i).second));
                 }
 
-                mClient->createGroupChat(peers, openchat)
+                mClient->createGroupChat(peers, publicChat)
                 .then([request,this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -739,10 +739,10 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->loadChatLink(ph, key)
             .then([request, this, ph]()
             {
-                MegaChatHandle openChatId = mClient->chatIdByPh(ph);
-                request->setChatHandle(openChatId);
+                MegaChatHandle loadedChatId = mClient->chatIdByPh(ph);
+                request->setChatHandle(loadedChatId);
 
-                ChatRoom *room = findChatRoom(openChatId);
+                ChatRoom *room = findChatRoom(loadedChatId);
                 if (room)
                 {
                    request->setText(room->titleString());
@@ -2185,7 +2185,7 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
     waiter->notify();
 }
 
-void MegaChatApiImpl::createOpenChat(MegaChatPeerList *peerList, MegaChatRequestListener *listener)
+void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(true);
@@ -2250,7 +2250,7 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
     waiter->notify();
 }
 
-void MegaChatApiImpl::openChatLink(const char *link, MegaChatRequestListener *listener)
+void MegaChatApiImpl::loadChatLink(const char *link, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
     request->setLink(link);
