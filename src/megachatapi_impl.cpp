@@ -769,7 +769,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             if (room->ownPriv() != Priv::PRIV_OPER
-                    || !room->openChat()
+                    || !room->publicChat()
                     || !room->isGroup())
             {
                 errorCode = MegaChatError::ERROR_ACCESS;

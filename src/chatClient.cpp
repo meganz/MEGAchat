@@ -1555,9 +1555,9 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title, bool aOpenChat)
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title, bool aPublicChat)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
-mHasTitle(!title.empty()), mRoomGui(nullptr), mOpenChat(aOpenChat)
+mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -2531,19 +2531,19 @@ void GroupChatRoom::setPublicHandle(const uint64_t &publicHandle)
     mPublicHandle = publicHandle;
 }
 
-bool GroupChatRoom::openChat() const
+bool GroupChatRoom::publicChat() const
 {
-    return mOpenChat;
+    return mPublicChat;
 }
 
-void GroupChatRoom::setOpenChat(bool openChat)
+void GroupChatRoom::setPublicChat(bool publicChat)
 {
-    mOpenChat = openChat;
+    mPublicChat = publicChat;
 }
 
 const char *GroupChatRoom::chatkey()
 {
-    if (!mOpenChat)
+    if (!mPublicChat)
     {
         return NULL;
     }

@@ -78,7 +78,7 @@ protected:
 
 public:
     virtual bool previewMode() const { return false; }
-    virtual bool openChat() const { return false; }
+    virtual bool publicChat() const { return false; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     /** @endcond PRIVATE */
@@ -304,7 +304,7 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
     uint64_t mPublicHandle;
-    bool mOpenChat;
+    bool mPublicChat;
     bool mPreviewMode;
 
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
@@ -332,7 +332,7 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  const std::string& title, bool aOpenChat = false);
+                  const std::string& title, bool aPublicChat = false);
     ~GroupChatRoom();
 public:
 //chatd::Listener
@@ -408,8 +408,8 @@ public:
     void setPreviewMode(bool previewMode);
     uint64_t publicHandle() const;
     void setPublicHandle(const uint64_t &publicHandle);
-    virtual bool openChat() const;
-    void setOpenChat(bool openChat);
+    virtual bool publicChat() const;
+    void setPublicChat(bool publicChat);
 
     // ownership of returned value is kept by this object
     const char *chatkey();
