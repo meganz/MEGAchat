@@ -1360,17 +1360,32 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 promise::Promise<karere::Id>
 Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool openchat)
 {
-    std::unique_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
+    SetOfIds users;
+    std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
     for (auto& peer: peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
+        users.insert(peer.first);
     }
 
+    auto wptr = getDelTracker();
     ApiPromise createChatPromise;
     if (openchat)
     {
-        // TODO: need to create `ct` with chat-key and pass it to MegaApi::createOpenChat()
-        createChatPromise = api.call(&mega::MegaApi::createOpenChat, sdkPeers.get());
+        std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
+                StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
+                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), appCtx));
+        crypto->setUsers(&users);
+
+        createChatPromise = crypto->createUnifiedKey()
+        .then([wptr, this, sdkPeers](std::shared_ptr<Buffer> buf) -> ApiPromise
+        {
+            std::string keybin(buf->buf(), buf->size());
+            std::string keystr;
+            ::mega::Base64::btoa(keybin, keystr);
+
+            return api.call(&mega::MegaApi::createOpenChat, sdkPeers.get());//, keystr.c_str());
+        });
     }
     else
     {
@@ -1378,14 +1393,19 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     }
 
     return createChatPromise
-    .then([this](ReqResult result)->Promise<karere::Id>
+    .then([this, wptr](ReqResult result) -> Promise<karere::Id>
     {
+        if (wptr.deleted())
+            return promise::Error("Chat created successfully, but instance was removed");
+
         auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
-            throw std::runtime_error("Empty chat list returned from API");
+            return promise::Error("Empty chat list returned from API");
+
         auto room = chats->addRoom(*list.get(0));
         if (!room || !room->isGroup())
             return promise::Error("API created incorrect group");
+
         room->connect();
         return karere::Id(room->chatid());
     });

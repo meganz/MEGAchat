@@ -264,6 +264,8 @@ protected:
     bool mParticipantsChanged = true;
     bool mIsDestroying = false;
     unsigned int mCacheVersion = 0;
+    std::shared_ptr<UnifiedKey> mUnifiedKey;
+
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
@@ -349,6 +351,9 @@ public:
     //====
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
+
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    createUnifiedKey();
 };
 }
 namespace chatd

@@ -675,6 +675,56 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
     }
 }
 
+promise::Promise<std::shared_ptr<Buffer>> ProtocolHandler::createUnifiedKey()
+{
+    // initialize a new key
+    mUnifiedKey.reset(new UnifiedKey);
+    mUnifiedKey->setDataSize(AES::BLOCKSIZE);
+    randombytes_buf(mUnifiedKey->ubuf(), AES::BLOCKSIZE);
+
+    // encrypt key to all participants
+    std::shared_ptr<Buffer> keys;
+    std::vector<Promise<void>> promises;
+    promises.reserve(mParticipants->size());
+    for (SetOfIds::iterator it = mParticipants->begin(); it != mParticipants->end(); it++)
+    {
+        karere::Id user = *it;
+        promise::Promise<void> pms = encryptKeyTo(mUnifiedKey, user)
+        .then([keys, user](const std::shared_ptr<Buffer>& key)
+        {
+            size_t keylen = key->size();
+            keys->append<uint64_t>(user);
+            keys->append<uint16_t>(keylen);
+            keys->append(key->buf(), keylen);
+        });
+        promises.push_back(pms);
+    }
+
+    auto wptr = weakHandle();
+    return promise::when(promises)
+    .then([this, keys, wptr]()
+    {
+        wptr.throwIfDeleted();
+
+        TlvWriter tlv;
+        tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
+        tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keys->buf(), keys->size()));
+
+        Signature signature;
+        signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle, *mUnifiedKey, signature);
+        TlvWriter sigTlv;
+        sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+
+        std::shared_ptr<Buffer> blob = std::make_shared<Buffer>(512);
+        blob->clear();
+        blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
+        blob->append<uint8_t>(Message::kMsgChatTitle);
+        blob->append(sigTlv);
+        blob->append(tlv);
+        return blob;
+    });
+}
+
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 {
     assert(!myPrivRsaKey.empty());

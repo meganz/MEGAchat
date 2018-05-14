@@ -134,6 +134,9 @@ public:
     virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
 
+    virtual promise::Promise<std::shared_ptr<Buffer>>
+    createUnifiedKey() = 0;
+
     virtual void onHistoryReload() = 0;
 
     /**
