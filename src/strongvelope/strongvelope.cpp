@@ -1187,8 +1187,17 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 {
-    auto key = std::make_shared<SendKey>();
-    randombytes_buf(key->buf(), key->bufSize());
+    std::shared_ptr<SendKey> key;
+
+    if (mChatMode == CHAT_MODE_PRIVATE)
+    {
+        key = std::make_shared<SendKey>();
+        randombytes_buf(key->buf(), key->bufSize());
+    }
+    else    // public mode
+    {
+        key = mUnifiedKey;
+    }
     assert(!key->empty());
     auto blob = std::make_shared<Buffer>(512);
     blob->clear();

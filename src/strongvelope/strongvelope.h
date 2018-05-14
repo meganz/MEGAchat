@@ -205,6 +205,12 @@ enum
     SVCRYPTO_SEND_KEY_SIZE = 16,
 };
 
+enum
+{
+    CHAT_MODE_PRIVATE = 0,
+    CHAT_MODE_PUBLIC = 1
+};
+
 /** @brief Encrypts and holds an encrypted message and its attributes - key and
  *  nonce */
 struct EncryptedMessage
@@ -264,6 +270,8 @@ protected:
     bool mParticipantsChanged = true;
     bool mIsDestroying = false;
     unsigned int mCacheVersion = 0;
+
+    unsigned int mChatMode = CHAT_MODE_PRIVATE;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
 
 public:
