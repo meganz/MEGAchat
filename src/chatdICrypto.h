@@ -137,6 +137,8 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>>
     createUnifiedKey() = 0;
 
+    virtual void setUnifiedKey(const std::string &key) = 0;
+
     virtual void onHistoryReload() = 0;
 
     /**

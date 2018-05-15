@@ -365,6 +365,7 @@ public:
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
     createUnifiedKey();
+    virtual void setUnifiedKey(const std::string &key);
 };
 }
 namespace chatd
