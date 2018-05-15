@@ -2248,7 +2248,7 @@ public:
      * \c MegaChatApi::exportChatLink. The chat-link can be deleted at any time by any moderator
      * by using \c MegaChatApi::removeChatLink.
      *
-     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::closeOpenChat.
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::closePublicChat.
      *
      * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatLink.
      * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::joinChatLink.
