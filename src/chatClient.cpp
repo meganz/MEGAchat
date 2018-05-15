@@ -1383,8 +1383,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
             std::string keybin(buf->buf(), buf->size());
             std::string keystr;
             ::mega::Base64::btoa(keybin, keystr);
-
-            return api.call(&mega::MegaApi::createOpenChat, sdkPeers.get());//, keystr.c_str());
+            return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), keystr.c_str());
         });
     }
     else
