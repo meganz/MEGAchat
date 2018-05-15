@@ -330,34 +330,32 @@ bool Connection::sendKeepalive(uint8_t opcode)
     return sendBuf(Command(opcode));
 }
 
-bool Connection::sendEcho()
+void Connection::sendEcho()
 {
     if (mEchoTimer) // one is already sent
-        return true;
+        return;
 
     CHATD_LOG_DEBUG("shard %d: send ECHO", mShardNo);
-    if (sendBuf(Command(OP_ECHO)))
+    sendBuf(Command(OP_ECHO));
+
+    auto wptr = weakHandle();
+    mEchoTimer = setTimeout([this, wptr]()
     {
-        auto wptr = weakHandle();
-        mEchoTimer = setTimeout([this, wptr]()
-        {
-            if (wptr.deleted())
-                return;
+        if (wptr.deleted())
+            return;
 
-            mEchoTimer = 0;
+        mEchoTimer = 0;
 
-            CHATD_LOG_DEBUG("Echo response not received in %d secs for shard %d. Reconnecting...", kEchoTimeout, mShardNo);
+        CHATD_LOG_DEBUG("Echo response not received in %d secs for shard %d. Reconnecting...", kEchoTimeout, mShardNo);
 
-            mState = kStateDisconnected;
-            mHeartbeatEnabled = false;
-            reconnect();
+        mState = kStateDisconnected;
+        mHeartbeatEnabled = false;
+        reconnect();
 
-        }, kEchoTimeout * 1000, mChatdClient.karereClient->appCtx);
+    }, kEchoTimeout * 1000, mChatdClient.karereClient->appCtx);
 
-        return true;
-    }
+    return;
 
-    return false;
 }
 
 Promise<void> Connection::reconnect()
