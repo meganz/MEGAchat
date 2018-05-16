@@ -319,15 +319,15 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
         Id ph = result->getNodeHandle();
         std::string url = result->getLink();
         int shard = result->getAccess();
-        // TODO: connect to chatd using the URL
-
-        //Decrypt chat title
+        // TODO: decrypt chat title and connect to chatd using the URL
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true);
         room->setPublicHandle(ph);
         room->setPreviewMode(true);
 
-        //Set unified chat key in strongvelope
-        room->chat().crypto()->setUnifiedKey(chatKey);
+        //Convert unified chat key to binary (16 Bytes) and set in strongvelope
+        std::string keybin;
+        mega::Base64::atob(chatKey, keybin);
+        room->chat().crypto()->setUnifiedKey(keybin);
         mPhToChatId[ph] = chatId;
         chats->emplace(chatId, (ChatRoom *)room);
         return promise::_Void();
