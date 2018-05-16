@@ -386,7 +386,7 @@ protected:
     bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
-    bool sendEcho();
+    void sendEcho();
     friend class Client;
     friend class Chat;
 public:
