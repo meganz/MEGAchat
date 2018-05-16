@@ -727,7 +727,7 @@ promise::Promise<std::shared_ptr<Buffer>> ProtocolHandler::createUnifiedKey()
 
 void ProtocolHandler::setUnifiedKey(const std::string &key)
 {
-    mUnifiedKey.reset(new UnifiedKey(key.c_str(), key.size()));
+    mUnifiedKey.reset(new UnifiedKey(key.data(), key.size()));
 }
 
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
