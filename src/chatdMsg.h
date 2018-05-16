@@ -361,14 +361,14 @@ public:
     };
     enum Status
     {
-        kSending, //< Message has not been sent or is not yet confirmed by the server
-        kSendingManual, //< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
-        kServerReceived, //< Message confirmed by server, but not yet delivered to recepient(s)
-        kServerRejected, //< Message is rejected by server for some reason (editing too old message for example)
-        kDelivered, //< Peer confirmed message receipt. Used only for 1on1 chats
+        kSending, ///< Message has not been sent or is not yet confirmed by the server
+        kSendingManual, ///< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        kServerReceived, ///< Message confirmed by server, but not yet delivered to recepient(s)
+        kServerRejected, ///< Message is rejected by server for some reason (editing too old message for example)
+        kDelivered, ///< Peer confirmed message receipt. Used only for 1on1 chats
         kLastOwnMessageStatus = kDelivered, //if a status is <= this, we created the msg, oherwise not
-        kNotSeen, //< User hasn't read this message yet
-        kSeen //< User has read this message
+        kNotSeen, ///< User hasn't read this message yet
+        kSeen ///< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
     /** @brief Info recorder in a management message.
