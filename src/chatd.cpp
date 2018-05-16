@@ -335,9 +335,6 @@ void Connection::sendEcho()
     if (mEchoTimer) // one is already sent
         return;
 
-    CHATD_LOG_DEBUG("shard %d: send ECHO", mShardNo);
-    sendBuf(Command(OP_ECHO));
-
     auto wptr = weakHandle();
     mEchoTimer = setTimeout([this, wptr]()
     {
@@ -354,8 +351,8 @@ void Connection::sendEcho()
 
     }, kEchoTimeout * 1000, mChatdClient.karereClient->appCtx);
 
-    return;
-
+    CHATD_LOG_DEBUG("shard %d: send ECHO", mShardNo);
+    sendBuf(Command(OP_ECHO));
 }
 
 Promise<void> Connection::reconnect()
