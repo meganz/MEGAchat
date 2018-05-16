@@ -442,7 +442,6 @@ void RtcModule::onClientLeftCall(Id chatid, Id userid, uint32_t clientid)
     {
         ICallHandler *callHandler = itHandler->second;
         bool deleted = callHandler->removeParticipant(userid, clientid);
-        removePeerAvState(chatid, userid, clientid);
         if (deleted)
         {
             removeCallHandler(chatid);
@@ -542,23 +541,6 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
         addCallHandler(chatid, callHandler);
         callHandler->addParticipant(userid, clientid, av);
     }
-
-    chatd::EndpointId endPoint(userid, clientid);
-    mPeerAvStates[chatid][endPoint] = av;
-}
-
-void RtcModule::removePeerAvState(Id chatid, Id userid, uint32_t clientid)
-{
-    auto iterator = mPeerAvStates.find(chatid);
-    if (iterator != mPeerAvStates.end())
-    {
-        chatd::EndpointId endPoint(userid, clientid);
-        iterator->second.erase(endPoint);
-    }
-    else
-    {
-        RTCM_LOG_WARNING("removePeerAvState: Try to remove AV flags from chat without call");
-    }
 }
 
 void RtcModule::removeCall(Id chatid)
@@ -576,8 +558,6 @@ void RtcModule::removeCall(Id chatid)
         mCallHandlers.erase(chatid);
         delete callHandler;
     }
-
-    mPeerAvStates.erase(chatid);
 }
 
 void RtcModule::addCallHandler(Id chatid, ICallHandler *callHandler)
@@ -1399,8 +1379,7 @@ bool Call::startOrJoin(AvFlags av)
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
     if (mIsJoiner)
     {
-        karere::AvFlags flags = validAvFlags(av);
-        getLocalStream(flags, errors);
+        getLocalStream(av, errors);
         return join();
     }
     else
@@ -1521,36 +1500,6 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
 bool Call::hasNoSessionsOrPendingRetries() const
 {
     return mSessions.empty() && mSessRetriesTime.empty();
-}
-
-AvFlags Call::validAvFlags(AvFlags av)
-{
-    int audioSenders = static_cast<int>(av.audio());
-    int videoSender = static_cast<int>(av.video());
-    std::map <chatd::EndpointId, karere::AvFlags> roomAvState = mManager.mPeerAvStates[mChat.chatId()];
-
-    for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = roomAvState.begin(); it != roomAvState.end(); it++)
-    {
-        AvFlags flags = it->second;
-        audioSenders += static_cast<int>(flags.audio());
-        videoSender += static_cast<int>(flags.video());
-    }
-
-    if (av.audio() && audioSenders >= RtcModule::kMaxCallAudioSenders)
-    {
-        uint8_t avValue = av.value();
-        av.set(avValue & !AvFlags::kAudio);
-        SUB_LOG_WARNING("Can't enable audio, too many audio senders in call");
-    }
-
-    if (av.video() && videoSender >= RtcModule::kMaxCallVideoSenders)
-    {
-        uint8_t avValue = av.value();
-        av.set(avValue & !AvFlags::kVideo);
-        SUB_LOG_WARNING("Can't enable camera, too many video senders in call");
-    }
-
-    return av;
 }
 
 bool Call::answer(AvFlags av)
@@ -1705,14 +1654,12 @@ AvFlags Call::muteUnmute(AvFlags av)
         return AvFlags(0);
     auto oldAv = mLocalStream->effectiveAv();
 
-    karere::AvFlags flags = validAvFlags(av);
-
-    if (flags == oldAv)
+    if (av == oldAv)
     {
         return oldAv;
     }
 
-    mLocalStream->setAv(flags);
+    mLocalStream->setAv(av);
     av = mLocalStream->effectiveAv();
     mLocalPlayer->enableVideo(av.video());
     if (oldAv != av)

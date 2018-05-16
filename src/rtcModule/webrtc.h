@@ -310,6 +310,12 @@ protected:
         karere::Id ownAnonId)
         : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
 public:
+    enum {
+       kMaxCallReceivers = 10,
+       kMaxCallAudioSenders = 10,
+       kMaxCallVideoSenders = 6
+    };
+
     virtual ~IRtcModule() {}
     karere::Client& mClient;
 

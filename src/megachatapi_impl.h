@@ -238,6 +238,7 @@ public:
     bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool removeParticipant(karere::Id userid, uint32_t clientid);
     int getCallParticipants();
+    karere::AvFlags adjustAvFlagsToRestriction(karere::AvFlags av);
 
 protected:
     MegaChatHandle chatid;
