@@ -102,10 +102,10 @@ public:
     virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
 
     /** @brief A history message has been received, as a result of getHistory().
-     * @param The index of the message in the history buffer
-     * @param The message itself
+     * @param idx The index of the message in the history buffer
+     * @param msg The message itself
      * @param status The 'seen' status of the message
-     * @param isFromDb The message can be received from the server, or from the app's local
+     * @param isLocal The message can be received from the server, or from the app's local
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
     virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isLocal){}
@@ -132,7 +132,7 @@ public:
     /**
      * @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
      * @param msg The edited message
-     * @param oriIsSending - whether the original message has been sent or not
+     * @param oriMsgIsSending - whether the original message has been sent or not
      * yet sent (on the send queue).
      * @note The calls to \c onUnsentMsgLoaded() and \c onUnsentEditLoaded()
      * are done in the order of the corresponding events (send, edit)
@@ -265,7 +265,7 @@ public:
      * is typing a message. Normally the app should have a timer that
      * is reset each time a typing notification is received. When the timer
      * expires or stop typing is received, it should hide the notification GUI.
-     * @param user The user that is typing. The app can use the user attrib
+     * @param userid The user that is typing. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
@@ -274,7 +274,7 @@ public:
      * @brief onUserStopTyping Called when a signal is received that a peer
      * has stopped to type a message. When this message arrives, notification GUI
      * has to be removed.
-     * @param user The user that has stop to type. The app can use the user attrib
+     * @param userid The user that has stop to type. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
     virtual void onUserStopTyping(karere::Id userid) {}

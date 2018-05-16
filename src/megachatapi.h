@@ -1384,11 +1384,6 @@ public:
      * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
      * - MegaChatApi::LOG_LEVEL_MAX     = 6
      *
-     * @param source Location where this log was generated
-     *
-     * For logs generated inside the SDK, this will contain the source file and the line of code.
-     * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
-     *
      * @param message Log message
      *
      * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
@@ -2483,7 +2478,7 @@ public:
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param rowId Manual sending queue id of the message
+     * @param rowid Manual sending queue id of the message
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
@@ -2712,7 +2707,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msgid MegaChatHandle that identifies the message
      * @param msg New content of the message
-     * @param msglen New length of the message
      *
      * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
      */
@@ -3489,7 +3483,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns PRIV_UNKNOWN.
      *
-     * @param Handle of the peer whose privilege is requested.
+     * @param userhandle Handle of the peer whose privilege is requested.
      * @return Privilege level of the chat peer with the handle specified.
      * Valid values are:
      * - MegaChatPeerList::PRIV_UNKNOWN = -2
@@ -3505,7 +3499,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Firstname of the chat peer with the handle specified.
      */
     virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
@@ -3515,7 +3509,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
      */
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
@@ -3527,7 +3521,7 @@ public:
      *
      * You take the ownership of the returned value. Use delete [] value
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Fullname of the chat peer with the handle specified.
      */
     virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
@@ -3537,7 +3531,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
-     * @param Handle of the peer whose email is requested.
+     * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
      */
     virtual const char *getPeerEmailByHandle(MegaChatHandle userhandle) const;
