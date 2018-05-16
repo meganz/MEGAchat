@@ -3615,15 +3615,19 @@ bool Message::hasUrl(const string &text, string &url)
         }
 
         std::string partialTex = text.substr(position, nextPosition - position);
-        if (partialTex.size() > 0 && partialTex.at(partialTex.size() - 1) == '.')
+        if (partialTex.size() > 0)
         {
-            partialTex.erase(partialTex.size() - 1);
-        }
+            char lastChar = partialTex.at(partialTex.size() - 1);
+            if (lastChar == '.' || lastChar == '\n' || lastChar == '\r')
+            {
+                partialTex.erase(partialTex.size() - 1);
+            }
 
-        if (parseUrl(partialTex))
-        {
-            url = partialTex;
-            return true;
+            if (parseUrl(partialTex))
+            {
+                url = partialTex;
+                return true;
+            }
         }
 
         position = nextPosition + 1;
