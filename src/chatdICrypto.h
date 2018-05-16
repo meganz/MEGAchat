@@ -139,6 +139,8 @@ public:
 
     virtual void setUnifiedKey(const std::string &key) = 0;
 
+    virtual bool hasTitle(const std::string &data) = 0;
+
     virtual void onHistoryReload() = 0;
 
     /**

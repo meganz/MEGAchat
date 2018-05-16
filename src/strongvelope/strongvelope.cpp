@@ -797,6 +797,16 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     return msg;
 }
 
+bool ProtocolHandler::hasTitle(const std::string &data)
+{
+    Buffer copy(data.data(), data.size());
+    auto msg = std::make_shared<chatd::Message>(
+        karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
+
+    auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+    return !parsedMsg->payload.empty();
+}
+
 promise::Promise<std::string>
 ProtocolHandler::decryptChatTitle(const Buffer& data)
 {
