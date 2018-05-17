@@ -40,6 +40,7 @@ public:
     virtual bool wsSendMessage(char *msg, size_t len);
     virtual void wsDisconnect(bool immediate);
     virtual bool wsIsConnected();
+    virtual const char *wsStrError(int status);
 };
 
 #endif /* libwsIO_h */

@@ -249,6 +249,11 @@ bool LibwebsocketsClient::wsIsConnected()
     return wsi != NULL;
 }
 
+const char *LibwebsocketsClient::wsStrError(int status)
+{
+    return uv_strerror(status);
+}
+
 const char *LibwebsocketsClient::getOutputBuffer()
 {
     return sendbuffer.size() ? sendbuffer.data() + LWS_PRE : NULL;

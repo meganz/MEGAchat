@@ -244,3 +244,8 @@ bool LibwsClient::wsIsConnected()
     return mWebSocket;
 }
 
+const char *LibwsClient::wsStrError(int status)
+{
+    return "";
+}
+

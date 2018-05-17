@@ -423,14 +423,16 @@ Promise<void> Connection::reconnect()
 
                 if (status < 0)
                 {
-                   CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d (%s)", status, uv_strerror(status));
+                   const char *str = wsStrError(status);
+                   CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d (%s)", status, str);
+                   string errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo)+" ("+str+")";
                    if (!mConnectPromise.done())
                    {
-                       mConnectPromise.reject("Async DNS error in chatd for shard "+std::to_string(mShardNo), status, kErrorTypeGeneric);
+                       mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
                    }
                    if (!mLoginPromise.done())
                    {
-                       mLoginPromise.reject("Async DNS error in chatd for shard "+std::to_string(mShardNo), status, kErrorTypeGeneric);
+                       mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                    }
                    return;
                 }
@@ -481,15 +483,16 @@ Promise<void> Connection::reconnect()
 
             if (status < 0)
             {
-                CHATDS_LOG_DEBUG("Sync DNS error in chatd. Error code: %d (%s)", status, uv_strerror(status));
+                const char *str = wsStrError(status);
+                CHATDS_LOG_DEBUG("Sync DNS error in chatd. Error code: %d (%s)", status, str);
+                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo)+" ("+str+")";
                 if (!mConnectPromise.done())
                 {
-                    mConnectPromise.reject("Sync DNS error in chatd", status, kErrorTypeGeneric);
+                    mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
-
                 if (!mLoginPromise.done())
                 {
-                    mLoginPromise.reject("Sync DNS error in chatd", status, kErrorTypeGeneric);
+                    mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
             }
 

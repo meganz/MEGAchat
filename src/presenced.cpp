@@ -229,14 +229,17 @@ Client::reconnect(const std::string& url)
 
                 if (status < 0)
                 {
-                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
+                    const char *str = wsStrError(status);
+                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d (%s)", status, str);
+                    string errStr("Sync DNS error in presenced (");
+                    errStr.append(str).append(")");
                     if (!mConnectPromise.done())
                     {
-                        mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+                        mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
                     }
                     if (!mLoginPromise.done())
                     {
-                        mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+                        mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                     }
                     return;
                 }
@@ -280,14 +283,17 @@ Client::reconnect(const std::string& url)
 
             if (status < 0)
             {
-                PRESENCED_LOG_DEBUG("Sync DNS error in presenced. Error code: %d", status);
+                const char *str = wsStrError(status);
+                PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d (%s)", status, str);
+                string errStr("Sync DNS error in presenced (");
+                errStr.append(str).append(")");
                 if (!mConnectPromise.done())
                 {
-                    mConnectPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
+                    mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
                 if (!mLoginPromise.done())
                 {
-                    mLoginPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
+                    mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
             }
             
