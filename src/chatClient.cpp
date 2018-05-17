@@ -551,7 +551,7 @@ void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
     case ::mega::MegaEvent::EVENT_DISCONNECT:
     {
         if (connState() == kConnecting || connState() == kConnected)
-        {            
+        {
 #ifndef KARERE_DISABLE_WEBRTC
             if (rtc && rtc->isCallInProgress())
             {
@@ -2083,7 +2083,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         mMemberNamesResolved = promise::when(promises)
         .then([wptr, this]()
         {
-            wptr.throwIfDeleted();
+            if (wptr.deleted())
+                return;
+
             if (!mHasTitle)
             {
                 clearTitle();
@@ -2101,30 +2103,30 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     initWithChatd();
     auto wptr = getDelTracker();
     chat().crypto()->extractUnifiedKeyFromCt(ct)
-    .then([wptr, this, parent](const std::string& unifiedKey)
+    .then([wptr, this](const std::string& unifiedKey)
     {
-        wptr.throwIfDeleted();
-        auto dbAux = parent.client.db;
+        if (wptr.deleted())
+            return;
+
+        auto dbAux = this->parent.client.db;
         dbAux.query(
-            "insert or replace into chat_vars(chatid, name, value, peer_priv, "
-            "own_priv, ts_created) values(?,'unified_key',?)",
-            mChatid, unifiedKey);
+            "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+            " values(?,'unified_key',?)",
+            this->mChatid, unifiedKey);
     })
     .fail([wptr, this](const promise::Error& err)
     {
-        wptr.throwIfDeleted();
-        KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n%s\n.", karere::Id(chatid()).toString().c_str(), err.what());
-        //TODO treat case when obtain unifiedKey fails
+        if (wptr.deleted())
+            return;
+
+        KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n%s\n.", karere::Id(this->mChatid).toString().c_str(), err.what());
+        //Disable chat when we can't obtain unifiedKey
+        this->mChat->disable(true);
     });
 
     //save to db
     auto db = parent.client.db;
     db.query("delete from chat_peers where chatid=?", mChatid);
-
-    db.query(
-        "insert or replace into chat_vars(chatid, name, value, peer_priv, "
-        "own_priv, ts_created) values(?,'unified_key',NULL)",
-        mChatid);
 
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
