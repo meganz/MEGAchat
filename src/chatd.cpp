@@ -1715,8 +1715,8 @@ void Chat::requestRichLink(Message &message)
             if (wptr.deleted())
                 return;
 
-            const char *textMessage = result->getText();
-            if (!textMessage || (strlen(textMessage) == 0))
+            const char *requestText = result->getText();
+            if (!requestText || (strlen(requestText) == 0))
             {
                 CHATID_LOG_ERROR("requestRichLink: API request succeed, but returned an empty metadata for: %s", result->getLink());
                 return;
@@ -1727,13 +1727,28 @@ void Chat::requestRichLink(Message &message)
             if (msg && updated == msg->updated)
             {
                 std::string header;
-                std::string textMessage = result->getText();
+                std::string text = requestText;
+                std::string originalMessage = msg->toText();
+                std::string textMessage;
+                for (std::string::size_type i = 0; i < originalMessage.size(); i++)
+                {
+                    if (originalMessage[i] != '\n')
+                    {
+                        textMessage.push_back(originalMessage[i]);
+                    }
+                    else
+                    {
+                        textMessage.push_back('\\');
+                        textMessage.push_back('n');
+                    }
+                }
+
                 header.insert(header.begin(), 0x0);
                 header.insert(header.begin(), Message::kMsgContainsMeta);
                 header.insert(header.begin(), 0x0);
-                header = header + std::string("{\"textMessage\":\"") + msg->toText() + std::string("\",\"extra\":[");
-                std::string updateText = header + textMessage + std::string("]}");
-                size_t size = updateText.size();
+                header = header + std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
+                std::string updateText = header + text + std::string("]}");
+                std::string::size_type size = updateText.size();
 
                 if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
                 {
