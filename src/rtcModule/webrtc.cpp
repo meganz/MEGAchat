@@ -929,7 +929,7 @@ void Call::msgJoin(RtMessage& packet)
         {
             setState(Call::kStateInProgress);
             // Send OP_CALLDATA with call inProgress
-            sendCallData(false);
+            sendCallData(kCallDataInProgress);
         }
         // create session to this peer
         auto sess = std::make_shared<Session>(*this, packet);
@@ -1029,6 +1029,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     }
 
     mTermCode = code;
+    mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
 
@@ -1038,6 +1039,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         if (!mIsGroup) //TODO: Maybe do it also for group calls
         {
             cmdBroadcast(RTCMD_CALL_TERMINATE, code);
+            sendCallData(kCallDataCodeEnded);
         }
         // if we initiate the call termination, we must initiate the
         // session termination handshake
@@ -1091,7 +1093,7 @@ bool Call::broadcastCallReq()
         return false;
     }
     assert(mState == Call::kStateHasLocalStream);
-    if (!sendCallData(true))
+    if (!sendCallData(kCallDataRinging))
     {
         return false;
     }
@@ -1313,9 +1315,13 @@ void Call::sendInCallCommand()
     }
 }
 
-bool Call::sendCallData(bool ringing)
+bool Call::sendCallData(int state)
 {
     uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t);
+    if (mState == kStateTerminating)
+    {
+         payLoadLen += sizeof(uint8_t);
+    }
 
     karere::Id userid = mManager.mClient.myHandle();
     uint32_t clientid = mChat.connection().clientId();
@@ -1324,8 +1330,12 @@ bool Call::sendCallData(bool ringing)
     command.write<uint32_t>(17, clientid);
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(23, mId);
-    command.write<uint8_t>(31, ringing);
+    command.write<uint8_t>(31, state);
     command.write<uint8_t>(32, sentAv().value());
+    if (mState == kStateTerminating)
+    {
+        command.write<uint8_t>(33, convertTermCodeToCallDataCode());
+    }
 
     if (!mChat.sendCommand(std::move(command)))
     {
@@ -1341,6 +1351,49 @@ bool Call::sendCallData(bool ringing)
     }
 
     return true;
+}
+
+uint8_t Call::convertTermCodeToCallDataCode()
+{
+    uint8_t code;
+    switch (mTermCode) {
+    case kUserHangup:
+        switch (mPredestroyState) {
+        case kStateRingIn:
+            code = kCallDataCodeMissed;
+            break;
+        case kStateReqSent:
+            code = kCallDataCodeAborted;
+        default:
+            code = kCallDataCodeEnded;
+            break;
+        }
+        break;
+    case kCallRejected:
+        code = kCallDataCodeRejected;
+        break;
+    case kAnsElsewhere:
+        code = kCallDataCodeHandleElseWhere;
+        break;
+    case kAnswerTimeout:
+        code = isJoiner() ? code = kCallDataCodeMissed : kCallDataCodeTimeout;
+        break;
+    case kRingOutTimeout:
+        code = kCallDataCodeTimeout;
+        break;
+    case kAppTerminating:
+        code = kCallDataCodeEnded;
+        break;
+    case kBusy:
+        assert(!isJoiner());
+        code = kCallDataCodeRejected;
+        break;
+    default:
+        code = kCallDataCodeFailed;
+        break;
+    }
+
+    return code;
 }
 
 bool Call::answer(AvFlags av)

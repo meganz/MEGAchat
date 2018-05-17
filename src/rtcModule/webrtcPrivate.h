@@ -83,6 +83,30 @@ public:
 
 class Call: public ICall
 {
+    enum
+    {
+        kCallDataInProgress     = 0,
+        kCallDataRinging        = 1,
+        kCallDataEnd            = 2
+    };
+
+    enum
+    {
+        kCallDataCodeInitialised                = 0,
+        kCallDataCodeWaitingResponseOutGoing    = 10,
+        kCallDataCodeWaitingResponseIncoming    = 20,
+        kCallDataCodeStarting                   = 25,
+        kCallDataCodeStarted                    = 30,
+        kCallDataCodeEnded                      = 40,
+        kCallDataCodeHandleElseWhere            = 45,
+        kCallDataCodeRejected                   = 50,
+        kCallDataCodeAborted                    = 55,
+        kCallDataCodeFailed                     = 60,
+        kCallDataCodeMissed                     = 70,
+        kCallDataCodeTimeout                    = 80,
+
+    };
+
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
@@ -99,6 +123,7 @@ protected:
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
+    uint8_t mPredestroyState;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -137,7 +162,8 @@ protected:
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid);
     void sendInCallCommand();
-    bool sendCallData(bool ringing);
+    bool sendCallData(int state);
+    uint8_t convertTermCodeToCallDataCode();
     friend class RtcModule;
     friend class Session;
 public:
