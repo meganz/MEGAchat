@@ -1730,6 +1730,7 @@ void Chat::requestRichLink(Message &message)
                 std::string text = requestText;
                 std::string originalMessage = msg->toText();
                 std::string textMessage;
+                textMessage.reserve(originalMessage.size());
                 for (std::string::size_type i = 0; i < originalMessage.size(); i++)
                 {
                     char character = originalMessage[i];
