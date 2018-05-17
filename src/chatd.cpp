@@ -3630,10 +3630,26 @@ bool Message::hasUrl(const string &text, string &url)
     std::string::size_type position = 0;
     while (position < text.size())
     {
-        std::string::size_type nextPosition = text.find(' ', position);
-        if (nextPosition == std::string::npos)
+        std::string::size_type nextPositionSpace = text.find(' ', position);
+        std::string::size_type nextPositionN = text.find('\n', position);
+        std::string::size_type nextPositionR = text.find('\r', position);
+        nextPositionSpace = (nextPositionSpace != std::string::npos) ? nextPositionSpace : text.size();
+        nextPositionN = (nextPositionN != std::string::npos) ? nextPositionN : text.size();
+        nextPositionR = (nextPositionR != std::string::npos) ? nextPositionR : text.size();
+
+        std::string::size_type nextPosition;
+
+        if (nextPositionSpace <= nextPositionN && nextPositionSpace <= nextPositionR)
         {
-            nextPosition = text.size();
+            nextPosition = nextPositionSpace;
+        }
+        else if (nextPositionN < nextPositionR)
+        {
+            nextPosition = nextPositionN;
+        }
+        else
+        {
+            nextPosition = nextPositionR;
         }
 
         std::string partialTex = text.substr(position, nextPosition - position);
