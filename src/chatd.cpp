@@ -269,7 +269,7 @@ Connection::Connection(Client& client, int shardNo)
 
 void Connection::wsConnectCb()
 {
-    CHATDS_LOG_DEBUG("Chatd connected to shard %d", mShardNo);
+    CHATDS_LOG_DEBUG("Chatd connected");
     mState = kStateConnected;
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
@@ -286,7 +286,7 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
-    CHATDS_LOG_WARNING("Socket close on connection to shard %d. Reason: %s", mShardNo, reason.c_str());
+    CHATDS_LOG_WARNING("Socket close. Reason: %s", reason.c_str());
     mHeartbeatEnabled = false;
     auto oldState = mState;
     mState = kStateDisconnected;
@@ -331,7 +331,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
 bool Connection::sendKeepalive(uint8_t opcode)
 {
-    CHATDS_LOG_DEBUG("shard %d: send %s", mShardNo, Command::opcodeToStr(opcode));
+    CHATDS_LOG_DEBUG("send %s", Command::opcodeToStr(opcode));
     return sendBuf(Command(opcode));
 }
 
@@ -348,7 +348,7 @@ void Connection::sendEcho()
 
         mEchoTimer = 0;
 
-        CHATDS_LOG_DEBUG("Echo response not received in %d secs for shard %d. Reconnecting...", kEchoTimeout, mShardNo);
+        CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
 
         mState = kStateDisconnected;
         mHeartbeatEnabled = false;
@@ -356,7 +356,7 @@ void Connection::sendEcho()
 
     }, kEchoTimeout * 1000, mChatdClient.karereClient->appCtx);
 
-    CHATDS_LOG_DEBUG("send ECHO", mShardNo);
+    CHATDS_LOG_DEBUG("send ECHO");
     sendBuf(Command(OP_ECHO));
 }
 
@@ -370,7 +370,7 @@ Promise<void> Connection::reconnect()
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
 
         if (!mUrl.isValid())
-            throw std::runtime_error("Current URL is not valid");
+            throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
 
         mState = kStateResolving;
 
@@ -426,11 +426,11 @@ Promise<void> Connection::reconnect()
                    CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d (%s)", status, uv_strerror(status));
                    if (!mConnectPromise.done())
                    {
-                       mConnectPromise.reject("Async DNS error in chatd", status, kErrorTypeGeneric);
+                       mConnectPromise.reject("Async DNS error in chatd for shard "+std::to_string(mShardNo), status, kErrorTypeGeneric);
                    }
                    if (!mLoginPromise.done())
                    {
-                       mLoginPromise.reject("Async DNS error in chatd", status, kErrorTypeGeneric);
+                       mLoginPromise.reject("Async DNS error in chatd for shard "+std::to_string(mShardNo), status, kErrorTypeGeneric);
                    }
                    return;
                 }
@@ -602,7 +602,7 @@ bool Connection::sendBuf(Buffer&& buf)
 
 bool Connection::sendCommand(Command&& cmd)
 {
-    CHATDS_LOG_DEBUG("send %s\n", cmd.toString().c_str());
+    CHATDS_LOG_DEBUG("send %s", cmd.toString().c_str());
     bool result = sendBuf(std::move(cmd));
     if (!result)
         CHATDS_LOG_DEBUG("Can't send, we are offline");
@@ -611,7 +611,7 @@ bool Connection::sendCommand(Command&& cmd)
 
 bool Chat::sendCommand(Command&& cmd)
 {
-    CHATID_LOG_DEBUG("send %s\n", cmd.toString().c_str());
+    CHATID_LOG_DEBUG("send %s", cmd.toString().c_str());
     bool result = mConnection.sendBuf(std::move(cmd));
     if (!result)
         CHATID_LOG_DEBUG("  Can't send, we are offline");
@@ -621,7 +621,7 @@ bool Chat::sendCommand(Command&& cmd)
 bool Chat::sendCommand(const Command& cmd)
 {
     Buffer buf(cmd.buf(), cmd.dataSize());
-    CHATID_LOG_DEBUG("send %s\n", cmd.toString().c_str());
+    CHATID_LOG_DEBUG("send %s", cmd.toString().c_str());
     auto result = mConnection.sendBuf(std::move(buf));
     if (!result)
         CHATID_LOG_DEBUG("  Can't send, we are offline");
