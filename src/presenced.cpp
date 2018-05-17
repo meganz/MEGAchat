@@ -263,7 +263,7 @@ Client::reconnect(const std::string& url)
 
                     if (otherip.size())
                     {
-                        CHATD_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
+                        PRESENCED_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
                         if (wsConnect(karereClient->websocketIO, otherip.c_str(),
                                       mUrl.host.c_str(),
                                       mUrl.port,
