@@ -141,6 +141,8 @@ public:
 
     virtual bool hasTitle(const std::string &data) = 0;
 
+    virtual promise::Promise<std::string> extractUnifiedKeyFromCt(const std::string &data) = 0;
+
     virtual void onHistoryReload() = 0;
 
     /**

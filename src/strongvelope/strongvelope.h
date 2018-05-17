@@ -186,6 +186,7 @@ struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::Dele
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
+    promise::Promise<std::string> extractUnifiedKeyFromCt(chatd::Message *msg);
 };
 
 
@@ -367,6 +368,7 @@ public:
     createUnifiedKey();
     virtual void setUnifiedKey(const std::string &key);
     virtual bool hasTitle(const std::string &data);
+    virtual promise::Promise<std::string> extractUnifiedKeyFromCt(const std::string &data);
 };
 }
 namespace chatd

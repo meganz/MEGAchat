@@ -2054,10 +2054,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)
 {
-    auto title = aChat.getTitle();
-    if (title && title[0])
+    auto ct = aChat.getTitle();
+    if (ct && ct[0])
     {
-        mEncryptedTitle = title;
+        mEncryptedTitle = ct;
         mHasTitle = true;
     }
     else
@@ -2098,9 +2098,34 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         }
     }
 
+    initWithChatd();
+    auto wptr = getDelTracker();
+    chat().crypto()->extractUnifiedKeyFromCt(ct)
+    .then([wptr, this, parent](const std::string& unifiedKey)
+    {
+        wptr.throwIfDeleted();
+        auto dbAux = parent.client.db;
+        dbAux.query(
+            "insert or replace into chat_vars(chatid, name, value, peer_priv, "
+            "own_priv, ts_created) values(?,'unified_key',?)",
+            mChatid, unifiedKey);
+    })
+    .fail([wptr, this](const promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n%s\n.", karere::Id(chatid()).toString().c_str(), err.what());
+        //TODO treat case when obtain unifiedKey fails
+    });
+
     //save to db
     auto db = parent.client.db;
     db.query("delete from chat_peers where chatid=?", mChatid);
+
+    db.query(
+        "insert or replace into chat_vars(chatid, name, value, peer_priv, "
+        "own_priv, ts_created) values(?,'unified_key',NULL)",
+        mChatid);
+
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
         "own_priv, ts_created) values(?,?,-1,0,?,?)",
@@ -2114,7 +2139,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.reset().clearBind();
     }
 
-    initWithChatd();
     mRoomGui = addAppItem();
     mIsInitializing = false;
 }

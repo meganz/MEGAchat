@@ -808,6 +808,66 @@ bool ProtocolHandler::hasTitle(const std::string &data)
 }
 
 promise::Promise<std::string>
+ProtocolHandler::extractUnifiedKeyFromCt(const std::string &data)
+{
+    try
+    {
+        Buffer copy(data.data(), data.size());
+        auto msg = std::make_shared<chatd::Message>(
+            karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
+
+        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+        parsedMsg->extractUnifiedKeyFromCt(msg.get())
+        // warning: parsedMsg must be kept alive when .then() is executed, so we
+        // capture the shared pointer to it. Msg also must be kept alive, as
+        // the promise returns it
+        .then([msg, parsedMsg](std::string key)
+        {
+            return key;
+        });
+    }
+    catch(std::exception& e)
+    {
+        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
+    }
+}
+
+promise::Promise<std::string>
+ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
+{
+    const char* pos = encryptedKey.buf();
+    const char* end = encryptedKey.buf()+encryptedKey.dataSize();
+    karere::Id receiver;
+
+    //pick the version that is encrypted for us
+    while (pos < end)
+    {
+        receiver = Buffer::alignSafeRead<uint64_t>(pos);
+        pos+=8;
+        uint16_t keylen = *(uint16_t*)(pos);
+        pos+=2;
+        if (receiver == mProtoHandler.ownHandle())
+            break;
+        pos+=keylen;
+    }
+
+    if (pos >= end)
+        throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+    if (end-pos < 16)
+        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
+    auto buf = std::make_shared<Buffer>(16);
+    buf->assign(pos, 16);
+    auto wptr = weakHandle();
+    return mProtoHandler.decryptKey(buf, msg->userid, receiver)
+    .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
+    {
+        wptr.throwIfDeleted();
+        return key->toString();
+    });
+}
+
+
+promise::Promise<std::string>
 ProtocolHandler::decryptChatTitle(const Buffer& data)
 {
     try
