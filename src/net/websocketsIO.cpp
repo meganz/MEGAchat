@@ -178,14 +178,3 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
 
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
-
-const char *WebsocketsClient::wsStrError(int status)
-{
-    if (!ctx)
-    {
-        return "";
-    }
-
-    assert (thread_id == pthread_self());
-    return ctx->wsStrError(status);
-}

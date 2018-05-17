@@ -56,7 +56,6 @@ public:
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
-    const char *wsStrError(int status);
 
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
@@ -81,8 +80,6 @@ public:
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
     virtual bool wsIsConnected() = 0;
-
-    virtual const char *wsStrError(int status) = 0;
 };
 
 #endif /* websocketsIO_h */

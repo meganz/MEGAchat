@@ -229,10 +229,8 @@ Client::reconnect(const std::string& url)
 
                 if (status < 0)
                 {
-                    const char *str = wsStrError(status);
-                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d (%s)", status, str);
-                    string errStr("Sync DNS error in presenced (");
-                    errStr.append(str).append(")");
+                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
+                    string errStr = "Async DNS error in presenced. Error code: "+std::to_string(status);
                     if (!mConnectPromise.done())
                     {
                         mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
@@ -283,10 +281,8 @@ Client::reconnect(const std::string& url)
 
             if (status < 0)
             {
-                const char *str = wsStrError(status);
-                PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d (%s)", status, str);
-                string errStr("Sync DNS error in presenced (");
-                errStr.append(str).append(")");
+                PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d", status);
+                string errStr = "Sync DNS error in presenced. Error code: "+std::to_string(status);
                 if (!mConnectPromise.done())
                 {
                     mConnectPromise.reject(errStr, status, kErrorTypeGeneric);

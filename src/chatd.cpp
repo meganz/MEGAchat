@@ -423,9 +423,8 @@ Promise<void> Connection::reconnect()
 
                 if (status < 0)
                 {
-                   const char *str = wsStrError(status);
-                   CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d (%s)", status, str);
-                   string errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo)+" ("+str+")";
+                   CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d", status);
+                   string errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
                    if (!mConnectPromise.done())
                    {
                        mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
@@ -483,9 +482,8 @@ Promise<void> Connection::reconnect()
 
             if (status < 0)
             {
-                const char *str = wsStrError(status);
-                CHATDS_LOG_DEBUG("Sync DNS error in chatd. Error code: %d (%s)", status, str);
-                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo)+" ("+str+")";
+                CHATDS_LOG_DEBUG("Sync DNS error in chatd. Error code: %d", status);
+                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
                 if (!mConnectPromise.done())
                 {
                     mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
