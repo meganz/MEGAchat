@@ -1627,17 +1627,6 @@ void GroupChatRoom::initWithChatd()
     createChatdChat(users);
 }
 
-void GroupChatRoom::setChatdChatUsers()
-{
-    karere::SetOfIds users;
-    users.insert(parent.client.myHandle());
-    for (auto& peer: mPeers)
-    {
-        users.insert(peer.first);
-    }
-    mChat->crypto()->setUsers(&users);
-}
-
 void GroupChatRoom::connect()
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
