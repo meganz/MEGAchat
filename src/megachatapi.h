@@ -3623,11 +3623,20 @@ public:
     virtual bool isGroup() const;
 
     /**
-     * @brief getTitle Returns the title of the chat, if any.
+     * @brief Returns the title of the chat
+     *
+     * In case the chatroom has not a customized title, it will be created using the
+     * names of participants.
      *
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns true if the chatroom has a customized title
+     * @return True if custom title was set
+     */
+    virtual bool hasCustomTitle() const;
 
     /**
      * @brief Returns the number of unread messages for the chatroom
