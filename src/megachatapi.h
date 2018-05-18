@@ -406,9 +406,9 @@ public:
     virtual bool isRinging() const;
 
     /**
-     * @brief Get a list with the ids of peers that they have a session with me
+     * @brief Get a list with the ids of peers that have a session with me
      *
-     * If there aren't any session at the call. An empty MegaHandleList will be returned
+     * If there aren't any session at the call, an empty MegaHandleList will be returned.
      *
      * You take the ownership of the returned value.
      *
@@ -436,10 +436,11 @@ public:
     virtual MegaChatHandle getPeerSessionStatusChange() const;
 
     /**
-     * @brief Get a list with the ids of peers that they are participanting in the call
+     * @brief Get a list with the ids of peers they are participating in the call
      *
-     * In a group call, we know the participants although we aren't in the call. It can't be different form
-     * MegaChatSession *getMegaChatSession
+     * In a group call, this function returns the list of active participants,
+     * regardless your own user participates or not. In consequence,
+     * the list can differ from the one returned by MegaChatCall::getSessions
      *
      * You take the ownership of the returned value.
      *
