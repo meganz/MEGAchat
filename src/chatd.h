@@ -697,6 +697,7 @@ public:
     unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
     /** @brief users The current set of users in the chatroom */
     const karere::SetOfIds& users() const { return mUsers; }
+    void setUsers(const karere::SetOfIds& users) { mUsers = users; }
     ~Chat();
     /** @brief The chatid of this chat */
     karere::Id chatId() const { return mChatId; }

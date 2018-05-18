@@ -1602,6 +1602,13 @@ mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat)
 
     notifyTitleChanged();
     initWithChatd();
+    SqliteStmt auxstmt(parent.client.db, "select chatid, name, value from chat_vars where chatid=? and name='unified_key'");
+    auxstmt << mChatid;
+    if(auxstmt.step())
+    {
+       chat().crypto()->setUnifiedKey(auxstmt.stringCol(2));
+    }
+
     mRoomGui = addAppItem();
     mIsInitializing = false;
 }
@@ -1615,6 +1622,22 @@ void GroupChatRoom::initWithChatd()
         users.insert(peer.first);
     }
     createChatdChat(users);
+}
+
+void GroupChatRoom::setChatdChatUsers()
+{
+    karere::SetOfIds users;
+    users.insert(parent.client.myHandle());
+    for (auto& peer: mPeers)
+    {
+        users.insert(peer.first);
+    }
+    mChat->setUsers(users);
+
+    if (!mPublicChat)
+    {
+        mChat->crypto()->setUsers(&users);
+    }
 }
 
 void GroupChatRoom::connect()
@@ -2054,11 +2077,30 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)
 {
+    initWithChatd();
+
     auto ct = aChat.getTitle();
+    bool hasCt;
     if (ct && ct[0])
     {
-        mEncryptedTitle = ct;
-        mHasTitle = true;
+        hasCt = true;
+    }
+    else
+    {
+        hasCt = false;
+    }
+
+    if (hasCt)
+     {
+        if (chat().crypto()->hasTitle(ct))
+        {
+            mEncryptedTitle = ct;
+            mHasTitle = true;
+        }
+        else
+        {
+            mHasTitle = false;
+        }
     }
     else
     {
@@ -2086,6 +2128,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             if (wptr.deleted())
                 return;
 
+            setChatdChatUsers();
             if (!mHasTitle)
             {
                 clearTitle();
@@ -2100,29 +2143,31 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         }
     }
 
-    initWithChatd();
-    auto wptr = getDelTracker();
-    chat().crypto()->extractUnifiedKeyFromCt(ct)
-    .then([wptr, this](const std::string& unifiedKey)
+    if (hasCt) //TODO Is necessary to check if is open chat?
     {
-        if (wptr.deleted())
-            return;
+        auto wptr = getDelTracker();
+        chat().crypto()->extractUnifiedKeyFromCt(ct)
+        .then([wptr, this](const std::string& unifiedKey)
+        {
+            if (wptr.deleted())
+                return;
 
-        auto dbAux = this->parent.client.db;
-        dbAux.query(
-            "insert or replace into chat_vars(chatid, name, value, peer_priv)"
-            " values(?,'unified_key',?)",
-            this->mChatid, unifiedKey);
-    })
-    .fail([wptr, this](const promise::Error& err)
-    {
-        if (wptr.deleted())
-            return;
+            auto dbAux = this->parent.client.db;
+            dbAux.query(
+                "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+                " values(?,'unified_key',?)",
+                this->mChatid, unifiedKey);
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            if (wptr.deleted())
+                return;
 
-        KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n%s\n.", karere::Id(this->mChatid).toString().c_str(), err.what());
-        //Disable chat when we can't obtain unifiedKey
-        this->mChat->disable(true);
-    });
+            KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n%s\n.", karere::Id(this->mChatid).toString().c_str(), err.what());
+            //Disable chat when we can't obtain unifiedKey
+            this->mChat->disable(true);
+        });
+    }
 
     //save to db
     auto db = parent.client.db;

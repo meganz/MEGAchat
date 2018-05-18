@@ -322,6 +322,7 @@ protected:
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
     void initWithChatd();
+    void setChatdChatUsers();
     void setRemoved();
     virtual void connect();
     promise::Promise<void> memberNamesResolved() const;
