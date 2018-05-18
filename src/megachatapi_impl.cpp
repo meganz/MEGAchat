@@ -4682,6 +4682,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
+    this->mHasCustomTitle = chat->hasCustomTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();
     this->changed = chat->getChanges();
@@ -4695,6 +4696,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->title = chat.titleString();
+    this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
     this->unreadCount = chat.chat().unreadMsgCount();
     this->active = chat.isActive();
     this->uh = MEGACHAT_INVALID_HANDLE;
@@ -4908,6 +4910,11 @@ bool MegaChatRoomPrivate::isGroup() const
 const char *MegaChatRoomPrivate::getTitle() const
 {
     return title.c_str();
+}
+
+bool MegaChatRoomPrivate::hasCustomTitle() const
+{
+    return mHasCustomTitle;
 }
 
 bool MegaChatRoomPrivate::isActive() const
