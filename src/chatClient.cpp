@@ -1633,11 +1633,7 @@ void GroupChatRoom::setChatdChatUsers()
         users.insert(peer.first);
     }
     mChat->setUsers(users);
-
-    if (!mPublicChat)
-    {
-        mChat->crypto()->setUsers(&users);
-    }
+    mChat->crypto()->setUsers(&users);
 }
 
 void GroupChatRoom::connect()

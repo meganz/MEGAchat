@@ -1382,6 +1382,8 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     assert(users);
     mParticipants = users;
     mParticipantsChanged = true;
+
+    if (this->mChatMode == CHAT_MODE_PRIVATE)
     resetSendKey(); //just in case
 
     //pre-fetch user attributes
