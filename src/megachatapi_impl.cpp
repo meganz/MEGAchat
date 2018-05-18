@@ -1011,8 +1011,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
                 assert(chatCall);
                 avFlags = chatCall->adjustAvFlagsToRestriction(avFlags);
-                karere::Id callid = chatCall ? chatCall->getId() : MEGACHAT_INVALID_HANDLE;
-                chatroom->joinCall(avFlags, *handler, callid);
+                chatroom->joinCall(avFlags, *handler, chatCall->getId());
             }
             else
             {
