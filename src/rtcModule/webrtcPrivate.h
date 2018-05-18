@@ -103,8 +103,7 @@ class Call: public ICall
         kCallDataCodeAborted                    = 55,
         kCallDataCodeFailed                     = 60,
         kCallDataCodeMissed                     = 70,
-        kCallDataCodeTimeout                    = 80,
-
+        kCallDataCodeTimeout                    = 80
     };
 
 protected:
