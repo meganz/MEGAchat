@@ -695,35 +695,35 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
-            const string parsedLink = request->getLink();
+            string parsedLink = request->getLink();
 
-            // link format: mega.nz/#chat_<public-handle><chat-key>
+            // link format: mega.nz/c/<public-handle>#<chat-key>
 
-            const string separator = "#chat_";
+            //TODO
+            string separator = "c/";
             size_t pos = parsedLink.find(separator);
             if (pos == string::npos)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-            pos += separator.length() + 1;
+            pos += separator.length();
 
-            if (parsedLink.length() !=  pos + 8 + 25)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            //We get the substring "<public-handle>#<chat-key>"
+            parsedLink = parsedLink.substr(pos);
+            separator = "#";
+            pos = parsedLink.find(separator);
 
-            string phstr = parsedLink.substr(pos, 8);   // 6 bytes in binary, 8 in B64url
+            string phstr = parsedLink.substr(0, pos-1);   // 6 bytes in binary, 8 in B64url
             MegaChatHandle ph = UNDEF;
             Base64::atob(phstr.c_str(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
-            pos += 8;
 
             string key; // it's 16 bytes in binary, 25 in B64url
-            string keystr = parsedLink.substr(pos);
+            string keystr = parsedLink.substr(pos+1);
             Base64::atob(keystr, key);
 
-            if (ISUNDEF(ph) || key.length() != 16)
+            //Check that ph and uk have right size
+            if (ISUNDEF(ph) || key.size() != 16 || phstr.size() != 6)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -779,12 +779,8 @@ void MegaChatApiImpl::sendPendingRequests()
             GroupChatRoom *groupchat = (GroupChatRoom *) room;
 
             mClient->getPublicHandle(chatid)
-            // TODO: if groupchat instance doesn't have a public handle asociated, it should request
-            // one (MegaApi::chatLinkCreate()) and set it to the room
             .then([request, this, groupchat]
             {
-                // TODO: generate the link: #chat_<ph><key>
-
                 string phbin(groupchat->publicHandle(), MegaClient::CHATLINKHANDLE);
                 string phstr;
                 Base64::btoa(phbin, phstr);
@@ -793,7 +789,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 string keystr;
                 Base64::btoa(keybin, keystr);
 
-                string link = "#chat_" + phstr + keystr;
+                string link = "c/" + phstr + "#" + keystr;
                 request->setText(link.c_str());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -806,8 +802,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-
-
             break;
         }
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
