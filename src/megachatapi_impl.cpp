@@ -2847,7 +2847,7 @@ MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
     }
     else
     {
-        API_LOG_ERROR("MegaChatApiImpl::getChatCall - There aren't any call at this chatroom");
+        API_LOG_ERROR("MegaChatApiImpl::getChatCall - There aren't any calls at this chatroom");
     }
 
     sdkMutex.unlock();
@@ -2884,15 +2884,15 @@ MegaChatCall *MegaChatApiImpl::getChatCallByCallId(MegaChatHandle callId)
 
 int MegaChatApiImpl::getNumCalls()
 {
-    int callsNumber = 0;
+    int numCalls = 0;
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
-        callsNumber = mClient->rtc->callNumber();
+        numCalls = mClient->rtc->numCalls();
     }
     sdkMutex.unlock();
 
-    return callsNumber;
+    return numCalls;
 }
 
 MegaHandleList *MegaChatApiImpl::getChatCalls()
@@ -2902,10 +2902,10 @@ MegaHandleList *MegaChatApiImpl::getChatCalls()
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
-        std::vector<karere::Id> calls = mClient->rtc->chatsWithCall();
-        for (unsigned int i = 0; i < calls.size(); i++)
+        std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
+        for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            callList->addMegaHandle(calls[i]);
+            callList->addMegaHandle(chatids[i]);
         }
     }
 
@@ -2919,10 +2919,10 @@ MegaHandleList *MegaChatApiImpl::getChatCallsIds()
 
     sdkMutex.lock();
 
-    MegaHandleList *calls = getChatCalls();
-    for (unsigned int i = 0; i < calls->size(); i++)
+    MegaHandleList *chatids = getChatCalls();
+    for (unsigned int i = 0; i < chatids->size(); i++)
     {
-        karere::Id chatId = calls->get(i);
+        karere::Id chatId = chatids->get(i);
         MegaChatCall *call = getChatCall(chatId);
         if (call)
         {
@@ -2931,7 +2931,7 @@ MegaHandleList *MegaChatApiImpl::getChatCallsIds()
         }
     }
 
-    delete calls;
+    delete chatids;
 
     sdkMutex.unlock();
     return callList;
@@ -2961,7 +2961,6 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
     sdkMutex.lock();
     callListeners.insert(listener);
     sdkMutex.unlock();
-
 }
 
 #endif
