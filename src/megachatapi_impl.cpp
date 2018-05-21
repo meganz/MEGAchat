@@ -705,7 +705,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
-            pos += separator.length() + 1;
+            pos += separator.length();
 
             //We get the substring "<public-handle>#<chat-key>"
             parsedLink = parsedLink.substr(pos);
