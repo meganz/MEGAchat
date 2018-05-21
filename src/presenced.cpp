@@ -230,13 +230,14 @@ Client::reconnect(const std::string& url)
                 if (status < 0)
                 {
                     PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
+                    string errStr = "Async DNS error in presenced. Error code: "+std::to_string(status);
                     if (!mConnectPromise.done())
                     {
-                        mConnectPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+                        mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
                     }
                     if (!mLoginPromise.done())
                     {
-                        mLoginPromise.reject("Async DNS error in presenced", status, kErrorTypeGeneric);
+                        mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                     }
                     return;
                 }
@@ -263,7 +264,7 @@ Client::reconnect(const std::string& url)
 
                     if (otherip.size())
                     {
-                        CHATD_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
+                        PRESENCED_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
                         if (wsConnect(karereClient->websocketIO, otherip.c_str(),
                                       mUrl.host.c_str(),
                                       mUrl.port,
@@ -280,14 +281,15 @@ Client::reconnect(const std::string& url)
 
             if (status < 0)
             {
-                PRESENCED_LOG_DEBUG("Sync DNS error in presenced. Error code: %d", status);
+                PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d", status);
+                string errStr = "Sync DNS error in presenced. Error code: "+std::to_string(status);
                 if (!mConnectPromise.done())
                 {
-                    mConnectPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
+                    mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
                 if (!mLoginPromise.done())
                 {
-                    mLoginPromise.reject("Sync DNS error in presenced", status, kErrorTypeGeneric);
+                    mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
             }
             
