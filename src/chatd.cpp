@@ -3107,12 +3107,12 @@ void Chat::setOnlineState(ChatState state)
 
         if (!mClient.karereClient->mSyncPromise.done())
         {
-            mClient.karereClient->mSyncPromise.resolve();
             if (mClient.karereClient->mSyncTimer)
             {
                 cancelTimeout(mClient.karereClient->mSyncTimer, mClient.karereClient->appCtx);
                 mClient.karereClient->mSyncTimer = 0;
             }
+            mClient.karereClient->mSyncPromise.resolve();
         }
     }
 }
