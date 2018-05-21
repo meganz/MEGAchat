@@ -62,25 +62,25 @@ class MegaChatListItem;
  * @brief Provide information about a session
  *
  * A session is an object that represents webRTC comunication between two peers. A call contains none or
- * several session and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
- * the ownership of the object
+ * several sessions and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
+ * the ownership of the object.
  *
  * The states that a session has during its life time are:
  * Outgoing call:
+ *  - SESSION_STATUS_INVALID
  *  - SESSION_STATUS_INITIAL
  *  - SESSION_STATUS_IN_PROGRESS
  *  - SESSION_STATUS_DESTROYED
- *  - SESSION_STATUS_INVALID
  */
 class MegaChatSession
 {
 public:
     enum
     {
-        SESSION_STATUS_INITIAL = 0,
-        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
-        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
-        SESSION_STATUS_INVALID
+        SESSION_STATUS_INVALID = 0xFF,
+        SESSION_STATUS_INITIAL = 0,         /// Session is being negotiated between peers
+        SESSION_STATUS_IN_PROGRESS,         /// Session is established and there is communication between peers
+        SESSION_STATUS_DESTROYED            /// Session is finished and resources can be released
     };
 
     virtual ~MegaChatSession();
@@ -178,7 +178,7 @@ public:
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
         CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
         CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
-        CHANGE_TYPE_CALL_COMPOSITION = 0x40 /// Call composition has changed (User has added or removed from call)
+        CHANGE_TYPE_CALL_COMPOSITION = 0x40 /// Call composition has changed (User added or removed from call)
     };
 
     enum
@@ -414,7 +414,7 @@ public:
     /**
      * @brief Get a list with the ids of peers that have a session with me
      *
-     * If there aren't any session at the call, an empty MegaHandleList will be returned.
+     * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
      *
      * You take the ownership of the returned value.
      *
@@ -442,7 +442,7 @@ public:
     virtual MegaChatHandle getPeerSessionStatusChange() const;
 
     /**
-     * @brief Get a list with the ids of peers they are participating in the call
+     * @brief Get a list with the ids of peers that are participating in the call
      *
      * In a group call, this function returns the list of active participants,
      * regardless your own user participates or not. In consequence,
