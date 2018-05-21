@@ -319,15 +319,14 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
         Id ph = result->getNodeHandle();
         std::string url = result->getLink();
         int shard = result->getAccess();
-        // TODO: decrypt chat title and connect to chatd using the URL
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true);
-        room->setPublicHandle(ph);
-        room->setPreviewMode(true);
 
         //Convert unified chat key to binary (16 Bytes) and set in strongvelope
         std::string keybin;
         mega::Base64::atob(chatKey, keybin);
-        room->chat().crypto()->setUnifiedKey(keybin);
+
+        //TODO: connect to chatd using the URL
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true, ph, true, keybin);
+
         mPhToChatId[ph] = chatId;
         chats->emplace(chatId, (ChatRoom *)room);
         return promise::_Void();
@@ -337,11 +336,6 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
 promise::Promise<void> Client::getPublicHandle(Id chatid)
 {
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
-    if (room->publicHandle() != Id::inval())
-    {
-        return promise::_Void();
-    }
-    else
 //TODO TBD if API send actionpackets for ph changes
 //    if (room->publicHandle() != Id::inval())
 //    {
@@ -1582,10 +1576,11 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
     return list ? list->addGroupChatItem(*this) : nullptr;
 }
 
+//Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title, bool aPublicChat)
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title, const std::string& unifiedKey)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
-mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat)
+mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
@@ -1608,14 +1603,85 @@ mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat)
 
     notifyTitleChanged();
     initWithChatd();
-    if (mPublicChat)
+
+    if (unifiedKey.empty())
     {
-        SqliteStmt auxstmt(parent.client.db, "select chatid, name, value from chat_vars where chatid=? and name='unified_key'");
-        auxstmt << mChatid;
-        if(auxstmt.step())
+        KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+        mChat->disable(true);
+    }
+    else
+    {
+        mPublicChat = true;
+        chat().crypto()->setUnifiedKey(unifiedKey);
+    }
+
+    mRoomGui = addAppItem();
+    mIsInitializing = false;
+}
+
+//Load chatLink
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title,
+    bool aPublicChat, const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey)
+:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
+mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat),
+mPublicHandle(publicHandle), mPreviewMode(previewMode)
+{
+    initWithChatd();
+    mChat->crypto()->setUnifiedKey(unifiedKey);
+
+    auto ct = title.data();
+    bool hasCt = (ct && ct[0]);
+    if (hasCt && chat().crypto()->hasTitle(ct))
+     {
+        mEncryptedTitle = ct;
+        mHasTitle = true;
+    }
+    else
+    {
+        mHasTitle = false;
+    }
+
+    //save to db
+    auto db = parent.client.db;
+    db.query("delete from chat_peers where chatid=?", mChatid);
+
+    db.query(
+        "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+        " values(?,'unified_key',?)",
+        this->mChatid, unifiedKey);
+
+    db.query(
+        "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+        " values(?,'preview_mode','1')",
+        this->mChatid);
+
+    db.query(
+        "insert or replace into chats(chatid, shard, peer, peer_priv, "
+        "own_priv, ts_created) values(?,?,-1,0,?,?)",
+        mChatid, mShardNo, mOwnPriv, mCreationTs);
+
+    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
+    for (auto& m: mPeers)
+    {
+        stmt << mChatid << m.first << m.second->mPriv;
+        stmt.step();
+        stmt.reset().clearBind();
+    }
+
+    // Show timestamp as title if chat doesn't have topic
+    if (!mHasTitle)
+    {
+        clearTitle();
+    }
+    else
+    {
+        decryptTitle()
+        .fail([this](const promise::Error& err)
         {
-           chat().crypto()->setUnifiedKey(auxstmt.stringCol(2));
-        }
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom constructor called in Client::loadChatLink. Error: %s", err.what());
+            this->clearTitle();
+        });
     }
 
     mRoomGui = addAppItem();
@@ -1904,7 +1970,16 @@ void ChatRoomList::loadFromDb()
         if (peer != uint64_t(-1))
             room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6));
+        {
+            SqliteStmt auxstmt(client.db, "select chatid, name, value from chat_vars where chatid=? and name ='unified_key'");
+            auxstmt << chatid;
+            std::string unifiedKey = std::string();
+            if(stmt.step())
+            {
+                unifiedKey = stmt.stringCol(2);
+            }
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), unifiedKey);
+        }
         emplace(chatid, room);
     }
 }
@@ -2066,6 +2141,7 @@ ChatRoomList::~ChatRoomList()
         delete room.second;
 }
 
+//Create chat or receive an invitation
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)

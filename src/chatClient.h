@@ -330,9 +330,15 @@ protected:
     friend class Member;
     friend class Client;
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
+
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  const std::string& title, bool aPublicChat = false);
+                  const std::string& title, const std::string &unifiedKey);
+
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+                      unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                      const std::string& title, bool aPublicChat,
+                      const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey);
     ~GroupChatRoom();
 public:
 //chatd::Listener
