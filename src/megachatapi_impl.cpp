@@ -3062,30 +3062,7 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
     }
 
     videoMutex.lock();
-    std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator it = videoListeners.find(chatid);
-    if (it == videoListeners.end())
-    {
-        MegaChatVideoListener_set videoListener;
-        videoListener.insert(listener);
-        MegaChatPeerVideoListener_map peerVideoListener;
-        peerVideoListener[peerid] = videoListener;
-        videoListeners[chatid] = peerVideoListener;
-    }
-    else
-    {
-        MegaChatPeerVideoListener_map::iterator peerVideoIterator = it->second.find(peerid);
-        if (peerVideoIterator == it->second.end())
-        {
-            MegaChatVideoListener_set videoListener;
-            videoListener.insert(listener);
-            it->second.insert(std::pair<MegaChatHandle, MegaChatVideoListener_set>(peerid, videoListener));
-        }
-        else
-        {
-            peerVideoIterator->second.insert(listener);
-        }
-    }
-
+    videoListeners[chatid][peerid].insert(listener);
     videoMutex.unlock();
 }
 
@@ -3097,34 +3074,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
     }
 
     videoMutex.lock();
-    std::map<MegaChatHandle, MegaChatPeerVideoListener_map>::iterator it = videoListeners.find(chatid);
-    if (it != videoListeners.end())
-    {
-        MegaChatPeerVideoListener_map::iterator peerVideoIterator = it->second.find(peerid);
-        if (peerVideoIterator != it->second.end())
-        {
-            peerVideoIterator->second.erase(listener);
-            if (peerVideoIterator->second.empty())
-            {
-                it->second.erase(peerid);
-                if (videoListeners[chatid].empty())
-                {
-                    videoListeners.erase(chatid);
-                }
-            }
-        }
-        else
-        {
-            API_LOG_WARNING("Try to remove a listener from a peer without any listener");
-            assert(false);
-        }
-    }
-    else
-    {
-        API_LOG_WARNING("Try to remove a listener from a chat without any listener");
-        assert(false);
-    }
-
+    videoListeners[chatid][peerid].erase(listener);
     videoMutex.unlock();
 }
 
