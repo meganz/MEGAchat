@@ -1253,14 +1253,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATD_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mChatdClient.chats(chatid).onEndCall(userid, clientid);
-#ifndef KARERE_DISABLE_WEBRTC
-                assert(mChatdClient.mRtcHandler);
-                if (mChatdClient.mRtcHandler)    // in case chatd broadcast this opcode, instead of send it to the endpoint
-                {
-                    mChatdClient.mRtcHandler->onClientLeftCall(chatid, userid, clientid);
-                }
-#endif
-
                 break;
             }
             case OP_CALLDATA:
@@ -1608,14 +1600,20 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 void Chat::onInCall(karere::Id userid, uint32_t clientid)
 {
     mCallParticipants.emplace(userid, clientid);
-
 }
 
 void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
     EndpointId key(userid, clientid);
     mCallParticipants.erase(key);
-    mClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
+
+#ifndef KARERE_DISABLE_WEBRTC
+    assert(mClient.mRtcHandler);
+    if (mClient.mRtcHandler)
+    {
+        mClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
+    }
+#endif
 }
 
 void Chat::initChat()
