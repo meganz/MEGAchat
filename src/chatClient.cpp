@@ -342,6 +342,12 @@ promise::Promise<void> Client::getPublicHandle(Id chatid)
         return promise::_Void();
     }
     else
+//TODO TBD if API send actionpackets for ph changes
+//    if (room->publicHandle() != Id::inval())
+//    {
+//        return promise::_Void();
+//    }
+//    else
     {
         auto wptr = weakHandle();
 
