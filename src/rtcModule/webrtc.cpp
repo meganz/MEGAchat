@@ -589,7 +589,7 @@ void RtcModule::removeCallHandler(Id chatid)
     mCallHandlers.erase(chatid);
 }
 
-int RtcModule::callNumber() const
+int RtcModule::numCalls() const
 {
     return mCallHandlers.size();
 }

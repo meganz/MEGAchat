@@ -207,7 +207,7 @@ public:
     virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
     virtual ICallHandler* findCallHandler(karere::Id chatid);
     virtual void removeCallHandler(karere::Id chatid);
-    virtual int callNumber() const;
+    virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);

@@ -1031,9 +1031,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 handler = new MegaChatCallHandler(this);
                 mClient->rtc->addCallHandler(chatid, handler);
                 chatroom->mediaCall(avFlags, *handler);
+                handler->getMegaChatCall()->setInitialAudioVideoFlags(avFlags);
             }
 
-            handler->getMegaChatCall()->setInitialAudioVideoFlags(avFlags);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             break;
