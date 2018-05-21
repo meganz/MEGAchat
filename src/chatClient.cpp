@@ -1604,14 +1604,9 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     notifyTitleChanged();
     initWithChatd();
 
-    if (unifiedKey.empty())
+    mPublicChat = !unifiedKey.empty();
+    if (mPublicChat)
     {
-        KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
-        mChat->disable(true);
-    }
-    else
-    {
-        mPublicChat = true;
         chat().crypto()->setUnifiedKey(unifiedKey);
     }
 
@@ -1647,12 +1642,12 @@ mPublicHandle(publicHandle), mPreviewMode(previewMode)
     db.query("delete from chat_peers where chatid=?", mChatid);
 
     db.query(
-        "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+        "insert or replace into chat_vars(chatid, name, value)"
         " values(?,'unified_key',?)",
         this->mChatid, unifiedKey);
 
     db.query(
-        "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+        "insert or replace into chat_vars(chatid, name, value)"
         " values(?,'preview_mode','1')",
         this->mChatid);
 
@@ -1971,12 +1966,12 @@ void ChatRoomList::loadFromDb()
             room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
         else
         {
-            SqliteStmt auxstmt(client.db, "select chatid, name, value from chat_vars where chatid=? and name ='unified_key'");
+            SqliteStmt auxstmt(client.db, "select value from chat_vars where chatid=? and name ='unified_key'");
             auxstmt << chatid;
-            std::string unifiedKey = std::string();
-            if(stmt.step())
+            std::string unifiedKey;
+            if(auxstmt.step())
             {
-                unifiedKey = stmt.stringCol(2);
+                unifiedKey = auxstmt.stringCol(2);
             }
             room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), unifiedKey);
         }
@@ -2205,7 +2200,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
                 return;
 
             this->parent.client.db.query(
-                "insert or replace into chat_vars(chatid, name, value, peer_priv)"
+                "insert or replace into chat_vars(chatid, name, value)"
                 " values(?,'unified_key',?)",
                 this->mChatid, unifiedKey);
         })

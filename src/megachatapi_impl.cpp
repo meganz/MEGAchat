@@ -697,9 +697,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             string parsedLink = request->getLink();
 
-            // link format: mega.nz/c/<public-handle>#<chat-key>
-
-            //TODO
+            //link format: https://mega.nz/c/<public-handle>#<chat-key>
             string separator = "c/";
             size_t pos = parsedLink.find(separator);
             if (pos == string::npos)
@@ -714,12 +712,20 @@ void MegaChatApiImpl::sendPendingRequests()
             separator = "#";
             pos = parsedLink.find(separator);
 
-            string phstr = parsedLink.substr(0, pos-1);   // 6 bytes in binary, 8 in B64url
+            if (pos == string::npos
+                || pos != 8
+                || (parsedLink.size() - pos - 1) != 25)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            string phstr = parsedLink.substr(0, pos);   // 6 bytes in binary, 8 in B64url
             MegaChatHandle ph = UNDEF;
             Base64::atob(phstr.c_str(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
 
             string key; // it's 16 bytes in binary, 25 in B64url
-            string keystr = parsedLink.substr(pos+1);
+            string keystr = parsedLink.substr(pos + 1);
             Base64::atob(keystr, key);
 
             //Check that ph and uk have right size
