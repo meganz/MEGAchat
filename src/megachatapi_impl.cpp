@@ -1010,7 +1010,20 @@ void MegaChatApiImpl::sendPendingRequests()
                 assert(handler->callParticipants() > 0);
                 MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
                 assert(chatCall);
-                avFlags = chatCall->adjustAvFlagsToRestriction(avFlags);
+
+                MegaHandleList *peers = handler->getMegaChatCall()->getParticipants();
+                if (peers->size() >= rtcModule::IRtcModule::kMaxCallReceivers)
+                {
+                    API_LOG_ERROR("Cannot join the call because it reached the maximum number of participants");
+                    errorCode = MegaChatError::ERROR_ARGS;
+                    break;
+                }
+                delete peers;
+
+                if (chatCall->adjustAvFlagsToRestriction(avFlags))
+                {
+                    request->setFlag(avFlags.video());
+                }
                 chatroom->joinCall(avFlags, *handler, chatCall->getId());
             }
             else
@@ -1047,10 +1060,22 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            MegaHandleList *peers = handler->getMegaChatCall()->getParticipants();
+            if (peers->size() >= rtcModule::IRtcModule::kMaxCallReceivers)
+            {
+                API_LOG_ERROR("Cannot join the call because it reached the maximum number of participants");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+            delete peers;
+
             karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
             MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
             assert(chatCall);
-            avFlags = chatCall->adjustAvFlagsToRestriction(avFlags);
+            if (chatCall->adjustAvFlagsToRestriction(avFlags))
+            {
+                request->setFlag(avFlags.video());
+            }
             if (!call->answer(avFlags))
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
@@ -1145,7 +1170,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            newFlags = chatCall->adjustAvFlagsToRestriction(newFlags);
+            if (chatCall->adjustAvFlagsToRestriction(newFlags))
+            {
+                API_LOG_ERROR("Cannot enable the A/V because the call doesn't have available A/V slots");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
             karere::AvFlags avFlags = call->muteUnmute(newFlags);
             chatCall->setLocalAudioVideoFlags(avFlags);
             API_LOG_INFO("Local audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
@@ -4316,16 +4346,18 @@ int MegaChatCallPrivate::getCallParticipants()
     return participants.size();
 }
 
-AvFlags MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags av)
+bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
 {
+    bool changed = false;
+
     int audioSenders = static_cast<int>(av.audio());
-    int videoSender = static_cast<int>(av.video());
+    int videoSenders = static_cast<int>(av.video());
 
     for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = participants.begin(); it != participants.end(); it++)
     {
         AvFlags flags = it->second;
         audioSenders += static_cast<int>(flags.audio());
-        videoSender += static_cast<int>(flags.video());
+        videoSenders += static_cast<int>(flags.video());
     }
 
     if (av.audio() && audioSenders >= rtcModule::IRtcModule::kMaxCallAudioSenders)
@@ -4333,16 +4365,18 @@ AvFlags MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags av)
         uint8_t avValue = av.value();
         av.set(avValue & !(bool)AvFlags::kAudio);
         API_LOG_WARNING("Can't enable audio, too many audio senders in call");
+        changed = true;
     }
 
-    if (av.video() && videoSender >= rtcModule::IRtcModule::kMaxCallVideoSenders)
+    if (av.video() && videoSenders >= rtcModule::IRtcModule::kMaxCallVideoSenders)
     {
         uint8_t avValue = av.value();
         av.set(avValue & !(bool)AvFlags::kVideo);
         API_LOG_WARNING("Can't enable camera, too many video senders in call");
+        changed = true;
     }
 
-    return av;
+    return changed;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid)

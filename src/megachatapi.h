@@ -3025,6 +3025,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -3040,6 +3043,9 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
