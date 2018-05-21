@@ -795,7 +795,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 string keystr;
                 Base64::btoa(keybin, keystr);
 
-                string link = "c/" + phstr + "#" + keystr;
+                string link = "https://mega.nz/c/" + phstr + "#" + keystr;
                 request->setText(link.c_str());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
