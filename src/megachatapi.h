@@ -252,6 +252,9 @@ public:
     /**
      * @brief Return audio state for initial call
      *
+     * The initial flags used to start the call. They are not valid if
+     * you missed the call in ringing state.
+     *
      * @return true if audio is enable, false if audio is disable
      */
     virtual bool hasAudioInitialCall() const;
@@ -265,6 +268,9 @@ public:
 
     /**
      * @brief Return video state for initial call
+     *
+     * The initial flags used to start the call. They are not valid if
+     * you missed the call in ringing state.
      *
      * @return true if video is enable, false if video is disable
      */
