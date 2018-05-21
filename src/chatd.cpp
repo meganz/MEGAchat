@@ -1305,7 +1305,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             case OP_ECHO:
             {
-                CHATDS_LOG_DEBUG("recv ECHO", mShardNo);
+                CHATDS_LOG_DEBUG("recv ECHO");
                 if (mEchoTimer)
                 {
                     CHATDS_LOG_DEBUG("Socket is still alive");
