@@ -3128,9 +3128,12 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
 {
     bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    bool *flagMyNameReceived = &requestFlags[accountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagMyNameReceived = false;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
     ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagMyNameReceived), "Expired timeout to get last Name after change");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK to get lastname. Error: " + std::to_string(lastError[accountIndex]));
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
