@@ -932,7 +932,7 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
-    void chatLinkClose(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 

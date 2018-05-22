@@ -773,7 +773,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->chatLinkClose(chatid)
+            mClient->closeChatLink(chatid)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2280,7 +2280,7 @@ void MegaChatApiImpl::loadChatLink(const char *link, MegaChatRequestListener *li
     waiter->notify();
 }
 
-void MegaChatApiImpl::chatLinkClose(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_CLOSE, listener);
     request->setChatHandle(chatid);

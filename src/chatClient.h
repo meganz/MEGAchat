@@ -731,7 +731,7 @@ public:
     promise::Promise<void> loadChatLink(megaHandle publicHandle, const std::string &key);
 
     // TODO: add documentation
-    promise::Promise<void> chatLinkClose(karere::Id chatid);
+    promise::Promise<void> closeChatLink(karere::Id chatid);
 
     // TODO: add documentation (this function may become obsolete if API add the ph to mcf)
     promise::Promise<void> getPublicHandle(karere::Id chatid);

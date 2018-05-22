@@ -2488,7 +2488,7 @@ public:
     /**TODO
      *
      */
-    void chatLinkClose(MegaChatHandle chatid, MegaChatRequestListener *listener);
+    void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener);
 
     /**
      * @brief This method should be called when a chat is opened

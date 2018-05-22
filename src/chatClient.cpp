@@ -333,7 +333,7 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
     });
 }
 
-promise::Promise<void> Client::chatLinkClose(karere::Id chatid)
+promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 {
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
     auto wptr = weakHandle();
