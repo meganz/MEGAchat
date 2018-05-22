@@ -3075,6 +3075,17 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
 
     videoMutex.lock();
     videoListeners[chatid][peerid].erase(listener);
+
+    if (videoListeners[chatid][peerid].empty())
+    {
+        videoListeners[chatid].erase(peerid);
+    }
+
+    if (videoListeners[chatid].empty())
+    {
+        videoListeners.erase(chatid);
+    }
+
     videoMutex.unlock();
 }
 
