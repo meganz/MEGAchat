@@ -2668,6 +2668,13 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
     if (isNew)
     {
+        auto it = mIdToIndexMap.find(message->id());
+        if (it != mIdToIndexMap.end())  // message already received
+        {
+            CHATID_LOG_WARNING("Ignoring duplicated NEWMSG: msgid %s, idx %d", ID_CSTR(it->first), it->second);
+            return it->second;
+        }
+
         push_forward(message);
         idx = highnum();
         if (!mOldestKnownMsgId)
