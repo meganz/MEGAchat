@@ -2105,8 +2105,8 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     //Name comes back to old value.
     changeLastName(a1, myAccountLastName);
 
-    ASSERT_CHAT_TEST(newLastName == finalLastName, "Failed to change fullname (checked from memory) Name stablised: " + newLastName + " Name in memory" + finalLastName);
-    ASSERT_CHAT_TEST(lastNameAfterLogout == finalLastName, "Failed to change fullname (checked from DB) Name stablised: " + finalLastName + " Name in memory" + lastNameAfterLogout);
+    ASSERT_CHAT_TEST(newLastName == finalLastName, "Failed to change fullname (checked from memory) Name established: " + newLastName + " Name in memory" + finalLastName);
+    ASSERT_CHAT_TEST(lastNameAfterLogout == finalLastName, "Failed to change fullname (checked from DB) Name established: " + finalLastName + " Name in DB" + lastNameAfterLogout);
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
