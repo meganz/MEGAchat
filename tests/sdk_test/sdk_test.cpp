@@ -502,7 +502,7 @@ const char* MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     buffer << ", ownPriv: " << item->getOwnPrivilege();
     buffer << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
     buffer << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
-    buffer << ", lastTs: " << item->getLastTimestamp() << endl;
+    buffer << ", lastTs: " << item->getLastTimestamp();
 
     return MegaApi::strdup(buffer.str().c_str());
 }

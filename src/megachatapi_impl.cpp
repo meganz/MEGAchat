@@ -939,7 +939,12 @@ void MegaChatApiImpl::sendPendingRequests()
                     Idx lastSeenIdx = chat.lastSeenIdx();
 
                     // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
-                    Idx first = (lastSeenIdx != CHATD_IDX_INVALID) ? (lastSeenIdx + 1) : chat.lownum();
+                    Idx first = chat.lownum();
+                    if (lastSeenIdx != CHATD_IDX_INVALID        // message is known locally
+                            && chat.findOrNull(lastSeenIdx))    // message is loaded in RAM
+                    {
+                        first = lastSeenIdx + 1;
+                    }
                     Idx last = chat.highnum();
                     int maxCount = 6;   // do not notify more than 6 messages per chat
                     for (Idx i = last; (i >= first && maxCount > 0); i--)
