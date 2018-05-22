@@ -2081,10 +2081,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     changeLastName(a1, newLastName);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastName;
+    std::string finalLastName;
     if (nameFromApi)
     {
-        finishLastName = nameFromApi;
+        finalLastName = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2094,10 +2094,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     char *newSession = login(a1, sessionPrimary);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastNameAfterLogout;
+    std::string lastNameAfterLogout;
     if (nameFromApi)
     {
-        finishLastNameAfterLogout = nameFromApi;
+        lastNameAfterLogout = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
