@@ -2456,6 +2456,40 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     });
 }
 
+promise::Promise<void> GroupChatRoom::joinChatLink()
+{
+    auto wptr = getDelTracker();
+    karere::Id userid (parent.client.chatd->userId());
+    promise::Promise<std::string> pms = mHasTitle
+        ? chat().crypto()->encryptChatTitle(mTitleString, userid)
+          .then([](const std::shared_ptr<Buffer>& buf)
+          {
+               return base64urlencode(buf->buf(), buf->dataSize());
+          })
+        : promise::Promise<std::string>(std::string());
+
+    return pms
+    .then([this, wptr](const std::string& title)
+    {
+        wptr.throwIfDeleted();
+        return parent.client.api.call(&mega::MegaApi::chatLinkJoin, mPublicHandle,
+            title.empty() ? nullptr: title.c_str());
+    })
+    .then([this, wptr, userid](ReqResult)
+    {
+        wptr.throwIfDeleted();
+        addMember(userid, chatd::PRIV_FULL, true)
+        .then([wptr, this]()
+        {
+            wptr.throwIfDeleted();
+            if (!mHasTitle)
+            {
+                makeTitleFromMemberNames();
+            }
+        });
+    });
+}
+
 bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
 {
     if (chat.getShard() != mShardNo)

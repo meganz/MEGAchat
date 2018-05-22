@@ -491,6 +491,48 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+
+        case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
+        {
+            handle chatid = request->getChatHandle();
+
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (!chatroom->isGroup()
+                || !chatroom->publicChat()
+                || !chatroom->previewMode())   // Join only for public group chats in preview mode
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            ((GroupChatRoom *)chatroom)->joinChatLink()
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                API_LOG_ERROR("Error joining user to public group chat: %s", err.what());
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
+            break;
+        }
+
         case MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS:
         {
             handle chatid = request->getChatHandle();
@@ -2231,6 +2273,14 @@ void MegaChatApiImpl::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int
     request->setChatHandle(chatid);
     request->setUserHandle(uh);
     request->setPrivilege(privilege);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_JOIN, listener);
+    request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
 }

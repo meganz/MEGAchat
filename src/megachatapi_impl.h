@@ -927,6 +927,7 @@ public:
     void createPublicChat(MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+    void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void updateChatPermissions(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);

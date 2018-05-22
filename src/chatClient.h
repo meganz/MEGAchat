@@ -408,6 +408,11 @@ public:
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
+    /** TODO
+     *
+     */
+    promise::Promise<void> joinChatLink();
+
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
 

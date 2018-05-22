@@ -982,7 +982,8 @@ public:
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
         TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK,
-        TYPE_CHAT_LINK_CLOSE, TOTAL_OF_REQUEST_TYPES
+        TYPE_CHAT_LINK_CLOSE, TYPE_CHAT_LINK_JOIN,
+        TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2320,6 +2321,12 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief TODO documentation
+     *
+     */
+    void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener);
 
     /**
      * @brief Remove another user from a chat. To remove a user you need to have the

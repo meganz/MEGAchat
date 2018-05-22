@@ -403,6 +403,11 @@ void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int pri
     pImpl->inviteToChat(chatid, uh, privilege, listener);
 }
 
+void MegaChatApi::joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->joinChatLink(chatid, listener);
+}
+
 void MegaChatApi::removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener)
 {
     pImpl->removeFromChat(chatid, uh, listener);
