@@ -367,8 +367,11 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>>
     createUnifiedKey();
     virtual void setUnifiedKey(const std::string &key);
+    virtual void resetUnifiedKey();
     virtual bool hasTitle(const std::string &data);
     virtual promise::Promise<std::string> extractUnifiedKeyFromCt(const std::string &data);
+    unsigned int getChatMode() const;
+    void setChatMode(unsigned int chatMode);
 };
 }
 namespace chatd

@@ -438,6 +438,11 @@ void MegaChatApi::loadChatLink(const char *link,MegaChatRequestListener *listene
     pImpl->loadChatLink(link, listener);
 }
 
+void MegaChatApi::chatLinkClose(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->chatLinkClose(chatid, listener);
+}
+
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);

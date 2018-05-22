@@ -310,6 +310,7 @@ protected:
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
+    void setChatPrivateMode();
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
@@ -728,6 +729,9 @@ public:
 
     // TODO: add documentation
     promise::Promise<void> loadChatLink(megaHandle publicHandle, const std::string &key);
+
+    // TODO: add documentation
+    promise::Promise<void> chatLinkClose(karere::Id chatid);
 
     // TODO: add documentation (this function may become obsolete if API add the ph to mcf)
     promise::Promise<void> getPublicHandle(karere::Id chatid);

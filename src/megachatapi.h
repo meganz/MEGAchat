@@ -981,7 +981,8 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
-        TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK, TOTAL_OF_REQUEST_TYPES
+        TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK,
+        TYPE_CHAT_LINK_CLOSE, TOTAL_OF_REQUEST_TYPES
     };
 
     enum {
@@ -2483,6 +2484,11 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+
+    /**TODO
+     *
+     */
+    void chatLinkClose(MegaChatHandle chatid, MegaChatRequestListener *listener);
 
     /**
      * @brief This method should be called when a chat is opened

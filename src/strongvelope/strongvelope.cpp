@@ -444,6 +444,16 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     }
 }
 
+unsigned int ProtocolHandler::getChatMode() const
+{
+    return mChatMode;
+}
+
+void ProtocolHandler::setChatMode(unsigned int chatMode)
+{
+    mChatMode = chatMode;
+}
+
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519,
     const StaticBuffer& privEd25519,
@@ -728,6 +738,11 @@ promise::Promise<std::shared_ptr<Buffer>> ProtocolHandler::createUnifiedKey()
 void ProtocolHandler::setUnifiedKey(const std::string &key)
 {
     mUnifiedKey.reset(new UnifiedKey(key.data(), key.size()));
+}
+
+void ProtocolHandler::resetUnifiedKey()
+{
+    mUnifiedKey.reset();
 }
 
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)

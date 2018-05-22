@@ -333,6 +333,21 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
     });
 }
 
+promise::Promise<void> Client::chatLinkClose(karere::Id chatid)
+{
+    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
+    auto wptr = weakHandle();
+    return api.call(&::mega::MegaApi::chatLinkClose, chatid)
+    .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
+    {
+        if (wptr.deleted())
+            return promise::_Void();
+
+        room->setChatPrivateMode();
+        return promise::_Void();
+    });
+}
+
 promise::Promise<void> Client::getPublicHandle(Id chatid)
 {
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
@@ -2764,6 +2779,12 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
 
+    if (!chat.isPublicChat() &&
+       (chat.isPublicChat() != mPublicChat))
+    {
+        this->setChatPrivateMode();
+    }
+
     auto title = chat.getTitle();
     if (title && title[0])
     {
@@ -2824,6 +2845,30 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     }
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
     return true;
+}
+
+void GroupChatRoom::setChatPrivateMode()
+{
+    if (mPreviewMode)
+    {
+        mPreviewMode = false;
+        mPublicChat = false;
+        removeAppChatHandler();
+        return;
+    }
+
+    //Update chatRoom
+    mPublicChat = false;
+    mPublicHandle = Id::inval();
+
+    //Update strongvelope
+    chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PRIVATE);
+    chat().crypto()->resetUnifiedKey();
+    chat().crypto()->resetSendKey();
+
+    //Update cache
+    auto db = parent.client.db;
+    db.query("delete from chat_vars where chatid=? and name='unified_key'", mChatid);
 }
 
 UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs)

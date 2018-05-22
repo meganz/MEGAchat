@@ -764,6 +764,28 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
+        case MegaChatRequest::TYPE_CHAT_LINK_CLOSE:
+        {
+            MegaChatHandle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            mClient->chatLinkClose(chatid)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+            break;
+        }
         case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
         {
             MegaChatHandle chatid = request->getChatHandle();
@@ -2254,6 +2276,14 @@ void MegaChatApiImpl::loadChatLink(const char *link, MegaChatRequestListener *li
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
     request->setLink(link);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::chatLinkClose(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_CLOSE, listener);
+    request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
 }
