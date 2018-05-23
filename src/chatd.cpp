@@ -2175,7 +2175,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
-    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + dbInfo.newestDbId);
+    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + at(highnum()).id());
 }
 
 Client::~Client()
@@ -2668,6 +2668,13 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
 
     if (isNew)
     {
+        auto it = mIdToIndexMap.find(message->id());
+        if (it != mIdToIndexMap.end())  // message already received
+        {
+            CHATID_LOG_WARNING("Ignoring duplicated NEWMSG: msgid %s, idx %d", ID_CSTR(it->first), it->second);
+            return it->second;
+        }
+
         push_forward(message);
         idx = highnum();
         if (!mOldestKnownMsgId)
@@ -2886,7 +2893,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-
 
         if (mClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mClient.mUserId) && // message is not ours
