@@ -2944,7 +2944,7 @@ bool MegaChatApiImpl::hasCallInChatRoom(MegaChatHandle chatid)
 
     if (mClient && mClient->rtc)
     {
-        hasCall = (mClient->rtc->findCallHandler(chatid)) ? true : false;
+        hasCall = mClient->rtc->findCallHandler(chatid);
     }
 
     sdkMutex.unlock();
