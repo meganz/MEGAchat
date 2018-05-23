@@ -3220,10 +3220,10 @@ MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)
     return callHandler;
 }
 
-void MegaChatApiImpl::removeChatCallHandler(MegaChatHandle chatid)
+void MegaChatApiImpl::removeCall(MegaChatHandle chatid)
 {
     sdkMutex.lock();
-    mClient->rtc->removeCallHandler(chatid);
+    mClient->rtc->removeCall(chatid);
     sdkMutex.unlock();
 }
 
@@ -3929,7 +3929,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid)
     status = CALL_STATUS_USER_NO_PRESENT;
     this->chatid = chatid;
     this->callid = callid;
-    // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
+    // localAVFlags are invalid until state change to rtcModule::ICall::KStateHasLocalStream
     localAVFlags = karere::AvFlags(false, false);
     initialAVFlags = karere::AvFlags(false, false);
     initialTs = 0;
@@ -6161,8 +6161,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
 
 void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const string &/*msg*/)
 {
-    assert(chatCall != NULL);
-    bool destroy = true;
+    assert(chatCall);
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
     call = NULL;
     if (chatCall != NULL)
@@ -6171,7 +6170,6 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
         mega::MegaHandleList *participants = chatCall->getParticipants();
         if (participants && participants->size() > 0)
         {
-            destroy = false;
             chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
@@ -6179,6 +6177,7 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
+            megaChatApi->removeCall(chatid);
         }
 
         delete participants;
@@ -6186,16 +6185,9 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
     else
     {
         API_LOG_ERROR("MegaChatCallHandler::onDestroy - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
+        delete this;    // should not happen but, just-in-case, avoid the memory leak
     }
 
-    if (destroy)
-    {
-        if (megaChatApi->findChatCallHandler(chatid) == this)
-        {
-            megaChatApi->removeChatCallHandler(chatCall->getChatid());
-        }
-        delete this;
-    }
 }
 
 rtcModule::ISessionHandler *MegaChatCallHandler::onNewSession(rtcModule::ISession &sess)
@@ -6310,7 +6302,6 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
             delete participants;
-            delete this;
             return true;
         }
 

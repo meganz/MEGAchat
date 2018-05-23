@@ -375,9 +375,9 @@ public:
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual void hangupAll(TermCode reason) = 0;
     virtual void removeCall(karere::Id chatid) = 0;
+    /// RtcModule takes the ownership of the callHandler.
     virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler) = 0;
     virtual ICallHandler* findCallHandler(karere::Id chatid) = 0;
-    virtual void removeCallHandler(karere::Id chatid) = 0;
     virtual int numCalls() const = 0;
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
 };

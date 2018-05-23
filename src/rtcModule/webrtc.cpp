@@ -434,18 +434,17 @@ void RtcModule::onClientLeftCall(Id chatid, Id userid, uint32_t clientid)
     auto it = mCalls.find(chatid);
     if (it != mCalls.end())
     {
-        Call *call = it->second.get();
-        call->onClientLeftCall(userid, clientid);
+        it->second->onClientLeftCall(userid, clientid);
     }
 
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
     {
         ICallHandler *callHandler = itHandler->second;
-        bool deleted = callHandler->removeParticipant(userid, clientid);
-        if (deleted)
+        bool isCallEmpty = callHandler->removeParticipant(userid, clientid);
+        if (isCallEmpty)
         {
-            removeCallHandler(chatid);
+            removeCall(chatid);
         }
     }
     else
@@ -549,7 +548,7 @@ void RtcModule::removeCall(Id chatid)
     auto callIterator = mCalls.find(chatid);
     if (callIterator != mCalls.end())
     {
-        removeCall(*callIterator->second.get());
+        removeCall(*callIterator->second);
     }
 
     auto handlerIterator = mCallHandlers.find(chatid);
@@ -583,11 +582,6 @@ ICallHandler *RtcModule::findCallHandler(Id chatid)
     }
 
     return NULL;
-}
-
-void RtcModule::removeCallHandler(Id chatid)
-{
-    mCallHandlers.erase(chatid);
 }
 
 int RtcModule::numCalls() const
