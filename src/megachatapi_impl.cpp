@@ -3811,18 +3811,13 @@ void MegaChatRequestPrivate::setParamType(int paramType)
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &session)
+    : state(convertSessionState(session.getState())), peerid(session.peer()), av(session.receivedAv())
 {
-    state = convertSessionState(session.getState());
-    peerid = session.peer();
-    av = session.receivedAv();
 }
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
+    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo())
 {
-    this->state = session.getStatus();
-    this->peerid = session.getPeerid();
-    karere::AvFlags flags(session.hasAudio(), session.hasVideo());
-    this->av = flags;
 }
 
 MegaChatSessionPrivate::~MegaChatSessionPrivate()
@@ -4090,9 +4085,10 @@ MegaChatHandle MegaChatCallPrivate::getPeerSessionStatusChange() const
 
 MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerId)
 {
-    if (sessions.find(peerId) != sessions.end())
+    auto it = sessions.find(peerId);
+    if (it != sessions.end())
     {
-        return sessions[peerId];
+        return it->second;
     }
 
     return NULL;
