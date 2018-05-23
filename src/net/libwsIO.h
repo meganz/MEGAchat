@@ -15,6 +15,10 @@ public:
     virtual ~LibwsIO();
     
     virtual void addevents(::mega::Waiter*, int);
+    virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion);
+    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipversion);
+    virtual void removeCachedIpFromUrl(const std::string &url);
+
 
 protected:
     ws_base_s wscontext;

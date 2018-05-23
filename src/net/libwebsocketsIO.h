@@ -8,6 +8,12 @@
 
 #include "net/websocketsIO.h"
 
+enum ipVersion
+{
+    kIpv4 = 0,
+    kIpv6 = 1
+};
+
 // Websockets network layer implementation based on libwebsocket
 class LibwebsocketsIO : public WebsocketsIO
 {
@@ -17,10 +23,15 @@ public:
 
     LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     virtual ~LibwebsocketsIO();
-    
     virtual void addevents(::mega::Waiter*, int);
-    
+    virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion);
+    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion);
+    virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion);
+
+
 protected:
+    std::map<std::string, std::string> mCachedIpv4;
+    std::map<std::string, std::string> mCachedIpv6;
     virtual bool wsResolveDNS(const char *hostname, std::function<void(int, std::string, std::string)> f);
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,

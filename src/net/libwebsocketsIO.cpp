@@ -55,6 +55,52 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 }
 
+std::string LibwebsocketsIO::getCachedIpFromUrl(const std::string &url, int ipversion)
+{
+    std::map<std::string, std::string>::iterator it;
+    if (ipversion == kIpv4)
+    {
+        it = this->mCachedIpv4.find(url);
+        if (it != mCachedIpv4.end())
+        {
+            return it->second;
+        }
+    }
+    else
+    {
+        it = this->mCachedIpv6.find(url);
+        if (it != mCachedIpv6.end())
+        {
+            return it->second;
+        }
+    }
+    return std::string();
+}
+
+void LibwebsocketsIO::addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion)
+{
+    if (ipVersion == kIpv4)
+    {
+        mCachedIpv4.insert(std::pair<std::string, std::string>(url, ip));
+    }
+    else
+    {
+        mCachedIpv6.insert(std::pair<std::string, std::string>(url, ip));
+    }
+}
+
+void LibwebsocketsIO::removeCachedIpFromUrl(const std::string &url, int ipVersion)
+{
+    if (ipVersion == kIpv4)
+    {
+        mCachedIpv4.erase(url);
+    }
+    else
+    {
+        mCachedIpv6.erase(url);
+    }
+}
+
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
     string ipv4, ipv6;
