@@ -3187,19 +3187,18 @@ MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &dev
 
 void MegaChatApiImpl::cleanCallHandlerMap()
 {
+    sdkMutex.lock();
+
     if (mClient && mClient->rtc)
     {
-        sdkMutex.lock();
-        MegaHandleList *callList = getChatCalls();
-        for (unsigned int i = 0; i < callList->size(); i++)
+        std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
+        for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            karere::Id chatid = callList->get(i);
-            mClient->rtc->removeCall(chatid);
+            mClient->rtc->removeCall(chatids[i]);
         }
-
-        delete callList;
-        sdkMutex.unlock();
     }
+
+    sdkMutex.unlock();
 }
 
 MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)
