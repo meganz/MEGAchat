@@ -2081,10 +2081,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     changeLastName(a1, newLastName);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastName;
+    std::string finalLastName;
     if (nameFromApi)
     {
-        finishLastName = nameFromApi;
+        finalLastName = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2094,10 +2094,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     char *newSession = login(a1, sessionPrimary);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastNameAfterLogout;
+    std::string lastNameAfterLogout;
     if (nameFromApi)
     {
-        finishLastNameAfterLogout = nameFromApi;
+        lastNameAfterLogout = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2105,8 +2105,8 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     //Name comes back to old value.
     changeLastName(a1, myAccountLastName);
 
-    ASSERT_CHAT_TEST(newLastName == finishLastName, "Failed to change fullname (checked from memory)");
-    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Failed to change fullname (checked from DB)");
+    ASSERT_CHAT_TEST(newLastName == finalLastName, "Failed to change fullname (checked from memory) Name established: " + newLastName + " Name in memory" + finalLastName);
+    ASSERT_CHAT_TEST(lastNameAfterLogout == finalLastName, "Failed to change fullname (checked from DB) Name established: " + finalLastName + " Name in DB" + lastNameAfterLogout);
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -3128,9 +3128,12 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
 {
     bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    bool *flagMyNameReceived = &requestFlags[accountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagMyNameReceived = false;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
+    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagMyNameReceived), "Expired timeout to get last name after own change (" + std::to_string(maxTimeout) + " seconds)");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK to get lastname. Error: " + std::to_string(lastError[accountIndex]));
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
