@@ -1008,19 +1008,15 @@ void MegaChatApiImpl::sendPendingRequests()
             if (handler)
             {
                 assert(handler->callParticipants() > 0);
-                MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
-                assert(chatCall);
-
-                MegaHandleList *peers = handler->getMegaChatCall()->getParticipants();
-                if (peers->size() >= rtcModule::IRtcModule::kMaxCallReceivers)
+                if (handler->callParticipants() >= rtcModule::IRtcModule::kMaxCallReceivers)
                 {
                     API_LOG_ERROR("Cannot join the call because it reached the maximum number of participants");
                     errorCode = MegaChatError::ERROR_ARGS;
-                    delete peers;
                     break;
                 }
-                delete peers;
 
+                MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
+                assert(chatCall);
                 if (chatCall->adjustAvFlagsToRestriction(avFlags))
                 {
                     request->setFlag(avFlags.video());
@@ -1061,15 +1057,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            MegaHandleList *peers = handler->getMegaChatCall()->getParticipants();
-            if (peers->size() >= rtcModule::IRtcModule::kMaxCallReceivers)
+            if (handler->callParticipants() >= rtcModule::IRtcModule::kMaxCallReceivers)
             {
                 API_LOG_ERROR("Cannot join the call because it reached the maximum number of participants");
                 errorCode = MegaChatError::ERROR_ARGS;
-                delete peers;
                 break;
             }
-            delete peers;
 
             karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
             MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
