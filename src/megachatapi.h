@@ -427,6 +427,10 @@ public:
      *
      * If \c peerId has not any session in the call NULL will be returned
      *
+     * The MegaChatCall retains the ownership of the returned MegaChatSession. It will be only
+     * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
+     * use MegaChatSession::copy
+     *
      * @return Session for \c peerId
      */
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
@@ -3179,7 +3183,8 @@ public:
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
 
     /**
-     * @brief Returns number of calls that there are at the system
+     * @brief Returns number of calls that are currently active
+     * @note You may not participate in all those calls.
      * @return number of calls in the system
      */
     int getNumCalls();
@@ -3205,8 +3210,7 @@ public:
     /**
      * @brief Returns true if there is a call at chatroom with id \c chatid
      *
-     * It's not necessary that getNumCalls returns > 0. Our call can be finished but others peers continue with
-     * the call.
+     * @note It's not necessary that we participate in the call, but other participants do.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return True if there is a call in a chatroom. False in other case
