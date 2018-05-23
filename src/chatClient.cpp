@@ -2813,8 +2813,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     UserPrivMap membs;
     changed |= syncMembers(apiMembersToMap(chat, membs));
 
-    if (!chat.isPublicChat() &&
-       (chat.isPublicChat() != mPublicChat))
+    if (!chat.isPublicChat() && mPublicChat)
     {
         this->setChatPrivateMode();
     }
