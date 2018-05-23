@@ -1016,6 +1016,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     API_LOG_ERROR("Cannot join the call because it reached the maximum number of participants");
                     errorCode = MegaChatError::ERROR_ARGS;
+                    delete peers;
                     break;
                 }
                 delete peers;
@@ -1065,6 +1066,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Cannot join the call because it reached the maximum number of participants");
                 errorCode = MegaChatError::ERROR_ARGS;
+                delete peers;
                 break;
             }
             delete peers;
