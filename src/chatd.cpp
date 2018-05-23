@@ -219,10 +219,6 @@ void Chat::connect()
             std::string sUrl = url;
             mConnection.mUrl.parse(sUrl);
 
-            if (mClient.karereClient->rtc)
-            {
-                mClient.karereClient->rtc->removeCall(chatId());
-            }
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
             {
@@ -300,6 +296,13 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     {
         auto& chat = mChatdClient.chats(chatid);
         chat.onDisconnect();
+
+#ifndef KARERE_DISABLE_WEBRTC
+        if (mChatdClient.karereClient->rtc)
+        {
+            mChatdClient.karereClient->rtc->removeCall(chatid);
+        }
+#endif
     }
 
     if (oldState == kStateDisconnected)
