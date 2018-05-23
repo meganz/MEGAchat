@@ -60,6 +60,7 @@ protected:
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
+    void sdpSetVideoBw(std::string& sdp, int maxbr);
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
@@ -179,7 +180,9 @@ public:
         kSessSetupTimeout = 20000
     };
 
-    int maxbr = 0;
+    //TODO: set valid values
+    int maxBr = 1000;
+    int maxGroupBr = 1000;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);
