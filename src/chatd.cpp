@@ -1087,7 +1087,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(userid), keyid, ts, updated);
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
-                msg->setEncrypted(1);
+                msg->setEncrypted(Message::kEncryptedPending);
                 Chat& chat = mChatdClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
@@ -2686,7 +2686,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         {
             //history message older than the oldest we have
             assert(isFetchingFromServer());
-            assert(message->isEncrypted() == 1);
+            assert(message->isPendingToDecrypt());
             mLastServerHistFetchCount++;
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
@@ -2727,7 +2727,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     }
     else
     {
-        assert(msg.isEncrypted() == 1); //no decrypt attempt was made
+        assert(msg.isPendingToDecrypt()); //no decrypt attempt was made
     }
 
     try
@@ -2741,7 +2741,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             mDecryptOldHaltedAt, idx);
     }
 
-    if (at(idx).isEncrypted() != 1)
+    if (!at(idx).isPendingToDecrypt())
     {
         CHATID_LOG_DEBUG("handleLegacyKeys already decrypted msg %s, bailing out", ID_CSTR(msg.id()));
         return true;
@@ -2785,8 +2785,8 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         {
             return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
         }
+        assert(message->isPendingToDecrypt());
 
-        assert(message->isEncrypted() == 1);
         message->setEncrypted(2);
         if ((err.type() != SVCRYPTO_ERRTYPE) ||
             (err.code() != SVCRYPTO_ENOKEY))
@@ -2882,7 +2882,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto msgid = msg.id();
     if (!isLocal)
     {
-        assert(msg.isEncrypted() != 1); //either decrypted or error
+        assert(!msg.isPendingToDecrypt()); //either decrypted or error
         if (!msg.empty() && msg.type == Message::kMsgNormal && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)

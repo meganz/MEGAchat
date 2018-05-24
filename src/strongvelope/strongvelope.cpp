@@ -125,7 +125,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
     std::string cleartext = aesCTRDecrypt(std::string(payload.buf(), payload.dataSize()),
         key, derivedNonce);
     parsePayload(StaticBuffer(cleartext, false), outMsg);
-    outMsg.setEncrypted(0);
+    outMsg.setEncrypted(Message::kNotEncrypted);
 }
 
 /**
@@ -738,7 +738,7 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     Message* msg, const SendKey& key)
 {
     parsedMsg->symmetricDecrypt(key, *msg);
-    msg->setEncrypted(0);
+    msg->setEncrypted(Message::kNotEncrypted);
     return msg;
 }
 
@@ -785,12 +785,12 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         case Message::kMsgPrivChange:
         {
             msg->createMgmtInfo(*parsedMsg);
-            msg->setEncrypted(0);
+            msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
         case Message::kMsgTruncate:
         {
-            msg->setEncrypted(0);
+            msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
         case Message::kMsgChatTitle:
@@ -817,7 +817,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // deleted message
         if (message->empty())
         {
-            message->setEncrypted(0);
+            message->setEncrypted(Message::kNotEncrypted);
             return Promise<Message*>(message);
         }
 
@@ -1212,7 +1212,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         }
 
         symmetricDecrypt(*key, *msg);
-        msg->setEncrypted(0);
+        msg->setEncrypted(Message::kNotEncrypted);
         return msg;
     });
 }

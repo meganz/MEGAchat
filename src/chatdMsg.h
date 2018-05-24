@@ -371,6 +371,14 @@ public:
         kSeen //< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
+
+    enum { kNotEncrypted        = 0,    /// Message already decrypted
+           kEncryptedPending    = 1,    /// Message pending to be decrypted (transient)
+           kEncryptedNoKey      = 2,    /// Key not found for the message (permanent failure)
+           kEncryptedSignature  = 3,    /// Signature verification failure (permanent failure)
+           kEncryptedMalformed  = 4     /// Malformed/corrupted data in the message (permanent failure)
+    };
+
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -406,7 +414,7 @@ private:
     karere::Id mId;
     bool mIdIsXid = false;
 protected:
-    uint8_t mIsEncrypted = 0; //0 = not encrypted, 1 = encrypted, 2 = encrypted, there was a decrypt error
+    uint8_t mIsEncrypted = kNotEncrypted;
     uint8_t mFlags = 0;
 public:
     karere::Id userid;
@@ -421,6 +429,7 @@ public:
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     uint8_t isEncrypted() const { return mIsEncrypted; }
+    bool isPendingToDecrypt() const { return (mIsEncrypted == kEncryptedPending); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
