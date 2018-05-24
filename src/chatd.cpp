@@ -2472,8 +2472,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 msg->type = msg->buf()[1];
         }
 
-        //update in db
-        CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
