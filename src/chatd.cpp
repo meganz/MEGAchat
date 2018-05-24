@@ -2422,6 +2422,45 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
+    .fail([this, cipherMsg](const promise::Error& err) -> promise::Promise<Message*>
+    {
+        assert(cipherMsg->isPendingToDecrypt());
+
+        int type = err.type();
+        switch (type)
+        {
+            case SVCRYPTO_EEXPIRED:
+                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+
+            case SVCRYPTO_ENOMSG:
+                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+
+            case SVCRYPTO_ENOKEY:
+                //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
+                assert(mClient.chats(mChatId).isGroup());
+                CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedNoKey);
+                break;
+
+            case SVCRYPTO_ESIGNATURE:
+                CHATID_LOG_ERROR("Signature verification failure for message: %s", ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedSignature);
+                break;
+
+            case SVCRYPTO_ENOTYPE:
+                CHATID_LOG_WARNING("Unknown type of management message: %d (msgid: %s)", cipherMsg->type, ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedNoType);
+                break;
+
+            case SVCRYPTO_EMALFORMED:
+            default:
+                CHATID_LOG_ERROR("Malformed message: %s", ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedMalformed);
+                break;
+        }
+
+        return cipherMsg;
+    })
     .then([this](Message* msg)
     {
         assert(!msg->isEncrypted());
@@ -2522,11 +2561,15 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+
+            //if (err.type() == SVCRYPTO_ENOMSG)
+                //TODO: If a message could be deleted individually, decryption process should be restarted again
+                // It isn't a possibilty with actual implementation
         }
         else
         {
-            CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
-                ID_CSTR(cipherMsg->id()), err.what());
+            CHATID_LOG_WARNING("Message %s can't be decrypted: Failure type %s (%d)",
+                               ID_CSTR(cipherMsg->id()), err.what(), err.type());
         }
     });
 }
@@ -2784,7 +2827,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
+    pms.fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
     {
         assert(message->isPendingToDecrypt());
 
