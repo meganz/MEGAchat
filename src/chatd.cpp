@@ -2570,6 +2570,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             CHATID_LOG_WARNING("Message %s can't be decrypted: Failure type %s (%d)",
                                ID_CSTR(cipherMsg->id()), err.what(), err.type());
+            delete cipherMsg;
         }
     });
 }
