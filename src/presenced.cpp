@@ -360,6 +360,11 @@ bool Client::sendKeepalive(time_t now)
     return sendCommand(Command(OP_KEEPALIVE));
 }
 
+void Client::cleanIpCache()
+{
+    this->cleanCachedIp(karereClient->websocketIO);
+}
+
 void Client::heartbeat()
 {
     // if a heartbeat is received but we are already offline...

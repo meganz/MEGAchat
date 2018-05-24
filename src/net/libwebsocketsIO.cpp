@@ -108,6 +108,15 @@ void LibwebsocketsIO::removeCachedIpFromUrl(const std::string &url, int ipVersio
     mutex->unlock();
 }
 
+
+void LibwebsocketsIO::cleanCachedIp()
+{
+    mutex->lock();
+    mCachedIpv4.clear();
+    mCachedIpv6.clear();
+    mutex->unlock();
+}
+
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
     string ipv4, ipv6;

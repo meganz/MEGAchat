@@ -302,6 +302,7 @@ public:
     bool isOnline() const { return (mConnState >= kConnected); }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
+    void cleanIpCache();
 
     /** @brief Enables or disables autoaway
      * @param timeout The timeout in seconds after which the presence will be

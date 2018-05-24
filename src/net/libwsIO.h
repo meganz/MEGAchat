@@ -17,7 +17,8 @@ public:
     virtual void addevents(::mega::Waiter*, int);
     virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion);
     virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipversion);
-    virtual void removeCachedIpFromUrl(const std::string &url);
+    virtual void removeCachedIpFromUrl(const std::string &url, int ipversion);
+    virtual void cleanCachedIp();
 
 
 protected:

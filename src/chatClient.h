@@ -846,6 +846,7 @@ protected:
     std::string mPresencedUrl;
     UserAttrCache::Handle mOwnNameAttrHandle;
     megaHandle mHeartbeatTimer = 0;
+    megaHandle mCachedIpTimer = 0;
     std::string mLastScsn;
     void heartbeat();
     InitState mInitState = kInitCreated;

@@ -22,6 +22,7 @@ public:
     virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion);
     virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion);
     virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion);
+    virtual void cleanCachedIp();
 
 
 protected:

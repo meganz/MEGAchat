@@ -32,6 +32,7 @@ protected:
     virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion) = 0;
     virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion) = 0;
     virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion) = 0;
+    virtual void cleanCachedIp() = 0;
 
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
@@ -64,7 +65,7 @@ public:
     virtual std::string getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipversion);
     virtual void addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ip, int ipVersion);
     virtual void removeCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipVersion);
-
+    virtual void cleanCachedIp(WebsocketsIO *websocketIO);
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;

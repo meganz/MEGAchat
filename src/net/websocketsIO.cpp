@@ -107,6 +107,11 @@ void WebsocketsClient::removeCachedIpFromUrl(WebsocketsIO *websocketIO, const st
     websocketIO->removeCachedIpFromUrl(url, ipVersion);
 }
 
+void WebsocketsClient::cleanCachedIp(WebsocketsIO *websocketIO)
+{
+    websocketIO->cleanCachedIp();
+}
+
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
 {
     thread_id = pthread_self();
