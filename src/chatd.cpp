@@ -2781,26 +2781,41 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     auto message = &msg;
     pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
     {
-        if (err.type() == SVCRYPTO_ENOMSG)
-        {
-            return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
-        }
         assert(message->isPendingToDecrypt());
 
-        message->setEncrypted(2);
-        if ((err.type() != SVCRYPTO_ERRTYPE) ||
-            (err.code() != SVCRYPTO_ENOKEY))
+        int type = err.type();
+        switch (type)
         {
-            CHATID_LOG_ERROR(
-                "Unrecoverable decrypt error at message %s(idx %d):'%s'\n"
-                "Message will not be decrypted", ID_CSTR(message->id()), idx, err.toString().c_str());
+            case SVCRYPTO_EEXPIRED:
+                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+
+            case SVCRYPTO_ENOMSG:
+                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+
+            case SVCRYPTO_ENOKEY:
+                //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
+                assert(mClient.chats(mChatId).isGroup());
+                CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedNoKey);
+                break;
+
+            case SVCRYPTO_ESIGNATURE:
+                CHATID_LOG_ERROR("Signature verification failure for message: %s", ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedSignature);
+                break;
+
+            case SVCRYPTO_ENOTYPE:
+                CHATID_LOG_WARNING("Unknown type of management message: %d (msgid: %s)", message->type, ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedNoType);
+                break;
+
+            case SVCRYPTO_EMALFORMED:
+            default:
+                CHATID_LOG_ERROR("Malformed message: %s", ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedMalformed);
+                break;
         }
-        else
-        {
-            //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-            //TODO: assert chatroom is not 1on1
-            CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
-        }
+
         return message;
     })
     .then([this, isNew, isLocal, idx](Message* message)
@@ -2863,9 +2878,12 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
     })
     .fail([this](const promise::Error& err)
     {
-        //TODO: If a message could be deleted individually, decryption process should be restarted again
-        // It isn't a possibilty with acutal implementation
         CHATID_LOG_WARNING("Message can't be decrypted: Fail type (%d) - %s", err.type(), err.what());
+
+//        if (err.type() == SVCRYPTO_ENOMSG)
+            //TODO: If a message could be deleted individually, decryption process should be restarted again
+            // It isn't a possibilty with actual implementation
+
     });
 
     return false; //decrypt was not done immediately

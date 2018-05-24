@@ -376,7 +376,10 @@ public:
            kEncryptedPending    = 1,    /// Message pending to be decrypted (transient)
            kEncryptedNoKey      = 2,    /// Key not found for the message (permanent failure)
            kEncryptedSignature  = 3,    /// Signature verification failure (permanent failure)
-           kEncryptedMalformed  = 4     /// Malformed/corrupted data in the message (permanent failure)
+           kEncryptedMalformed  = 4,    /// Malformed/corrupted data in the message (permanent failure)
+           kEncryptedNoType     = 5     /// Management message of unknown type (transient, not supported by the app yet)
+           // if type of management message is unknown, it would be stored encrypted and will not be decrypted
+           // even if the library adds support to the new type (unless the message is reloaded from server)
     };
 
     /** @brief Info recorder in a management message.

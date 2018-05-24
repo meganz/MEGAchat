@@ -799,7 +799,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         default:
             return promise::Error("Unknown management message type "+
-                std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ERRTYPE);
+                std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);
     }
 }
 
@@ -835,14 +835,14 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             {
                 return promise::Error("Invalid management message. msgid: "+message->id().toString()+
                                       " userid: "+message->userid.toString()+
-                                      " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_ERRTYPE);
+                                      " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
             }
         }
         else if (message->keyid == 0 || message->userid == API_USER)
         {
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
-                                  " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_ERRTYPE);
+                                  " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
         }
 
         // Get keyid
@@ -884,7 +884,10 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         return promise::when(symPms, edPms)
         .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
-            wptr.throwIfDeleted();
+            if (wptr.deleted())
+            {
+                return promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+            }
 
             if (cacheVersion != mCacheVersion)
             {
@@ -894,7 +897,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
-                                      message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+                                      message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
             if (isLegacy)
@@ -909,7 +912,8 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     }
     catch(std::runtime_error& e)
     {
-        return promise::Error(e.what());
+        // ParsedMessage ctor throws if unexpected format, unknown/missing TLVs, etc.
+        return promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
     }
 }
 
@@ -1037,7 +1041,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
         else
         {
             return promise::Error("Key with id "+std::to_string(ukid.key)+
-            " from user "+ukid.user.toString()+" not found", SVCRYPTO_ENOKEY, SVCRYPTO_ERRTYPE);
+            " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
         }
     }
     auto& entry = kit->second;
