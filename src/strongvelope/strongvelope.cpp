@@ -825,18 +825,9 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
         message->type = parsedMsg->type;
 
-        if (message->isManagementMessage())
+        if (message->userid == API_USER && message->keyid == 0)
         {
-            if (message->userid == API_USER && message->keyid == 0)
-            {
-                return handleManagementMessage(parsedMsg, message);
-            }
-            else
-            {
-                return promise::Error("Invalid management message. msgid: "+message->id().toString()+
-                                      " userid: "+message->userid.toString()+
-                                      " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
-            }
+            return handleManagementMessage(parsedMsg, message);
         }
         else if (message->keyid == 0 || message->userid == API_USER)
         {
