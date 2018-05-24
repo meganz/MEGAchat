@@ -605,6 +605,7 @@ public:
 
     // Types of message
     enum {
+        TYPE_UNKNOWN                = -1,   /// Unknown type of message (apps should hide them)
         TYPE_INVALID                = 0,    /// Invalid type
         TYPE_NORMAL                 = 1,    /// Regular text message
         TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
