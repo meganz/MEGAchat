@@ -2739,6 +2739,8 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         CHATID_LOG_WARNING("handleLegacyKeys threw error: %s\n"
             "Queued messages for decrypt: %d - %d. Ignoring", e.what(),
             mDecryptOldHaltedAt, idx);
+        msg.setEncrypted(Message::kEncryptedNoKey);
+        return true;
     }
 
     if (!at(idx).isPendingToDecrypt())
