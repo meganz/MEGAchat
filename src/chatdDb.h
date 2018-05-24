@@ -139,9 +139,9 @@ public:
         }
 #endif
         mDb.query("insert into history"
-            "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
+            "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid, is_encrypted) "
             "values(?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
-            msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
+            msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId, msg.isEncrypted());
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
@@ -152,8 +152,8 @@ public:
         }
         else    // "updated" instead of "ts"
         {
-            mDb.query("update history set type = ?, data = ?, updated = ?, userid = ? where chatid = ? and msgid = ?",
-                msg.type, msg, msg.updated, msg.userid, mChat.chatId(), msgid);
+            mDb.query("update history set type = ?, data = ?, updated = ?, userid = ?, is_encrypted = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.updated, msg.userid, msg.isEncrypted(), mChat.chatId(), msgid);
         }
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
@@ -197,7 +197,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated from history "
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history "
             "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mChat.chatId() << idx << count;
         int i = 0;
@@ -223,6 +223,7 @@ public:
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
                 false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
+            msg->setEncrypted(stmt.intCol(9));
             messages.push_back(msg);
         }
     }
