@@ -194,7 +194,6 @@ Client::reconnect(const std::string& url)
                 return promise::Error("No valid URL provided and current URL is not valid");
         }
 
-        setConnState(kResolving);
         auto wptr = weakHandle();
         return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
         {
@@ -210,27 +209,125 @@ Client::reconnect(const std::string& url)
             disconnect();
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
+            setConnState(kConnecting);
 
-            setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostname...");
-            int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, this](int status, std::string ipv4, std::string ipv6)
+            bool resCon = false;
+            int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
+            std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
+            if (!auxIp.empty())
             {
-                if (wptr.deleted())
+                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
+                resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
+                    mUrl.host.c_str(),
+                    mUrl.port,
+                    mUrl.path.c_str(),
+                    mUrl.isSecure);
+            }
+
+            if (!resCon)
+            {
+                proto = usingipv6 ? WebsocketsIO::kIpv4 : WebsocketsIO::kIpv6;
+                std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
+                if (!auxIp.empty())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
-                    return;
+                    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
+                    resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
+                        mUrl.host.c_str(),
+                        mUrl.port,
+                        mUrl.path.c_str(),
+                        mUrl.isSecure);
                 }
-                if (mConnState != kResolving)
+            }
+
+            if (!resCon)
+            {
+                setConnState(kResolving);
+                PRESENCED_LOG_DEBUG("Resolving hostname...");
+                removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
+                removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
+                int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
+                             [wptr, this](int status, std::string ipv4, std::string ipv6)
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
-                    return;
-                }
+                    if (wptr.deleted())
+                    {
+                        PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                        return;
+                    }
+                    if (mConnState != kResolving)
+                    {
+                        PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                        return;
+                    }
+
+                    if (status < 0)
+                    {
+                        PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
+                        string errStr = "Async DNS error in presenced. Error code: "+std::to_string(status);
+                        if (!mConnectPromise.done())
+                        {
+                            mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
+                        }
+                        if (!mLoginPromise.done())
+                        {
+                            mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
+                        }
+                        return;
+                    }
+
+                    setConnState(kConnecting);
+                    string ip;
+                    if (usingipv6 && ipv6.size())
+                    {
+                        ip = ipv6;
+                        addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, ip, WebsocketsIO::kIpv6);
+                    }
+                    else
+                    {
+                        ip = ipv4;
+                        addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, ip, WebsocketsIO::kIpv4);
+                    }
+
+                    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
+                    bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
+                          mUrl.host.c_str(),
+                          mUrl.port,
+                          mUrl.path.c_str(),
+                          mUrl.isSecure);
+                    if (!rt)
+                    {
+                        string otherip;
+                        if (ip == ipv6 && ipv4.size())
+                        {
+                            otherip = ipv4;
+                            addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, otherip, WebsocketsIO::kIpv4);
+                        }
+                        else if (ip == ipv4 && ipv6.size())
+                        {
+                            otherip = ipv6;
+                            addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, otherip, WebsocketsIO::kIpv6);
+                        }
+
+                        if (otherip.size())
+                        {
+                            PRESENCED_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
+                            if (wsConnect(karereClient->websocketIO, otherip.c_str(),
+                                          mUrl.host.c_str(),
+                                          mUrl.port,
+                                          mUrl.path.c_str(),
+                                          mUrl.isSecure))
+                            {
+                                return;
+                            }
+                        }
+
+                        onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
+                    }
+                });
 
                 if (status < 0)
                 {
-                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", status);
-                    string errStr = "Async DNS error in presenced. Error code: "+std::to_string(status);
+                    PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d", status);
+                    string errStr = "Sync DNS error in presenced. Error code: "+std::to_string(status);
                     if (!mConnectPromise.done())
                     {
                         mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
@@ -239,60 +336,8 @@ Client::reconnect(const std::string& url)
                     {
                         mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                     }
-                    return;
-                }
-
-                setConnState(kConnecting);
-                string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
-                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
-                      mUrl.host.c_str(),
-                      mUrl.port,
-                      mUrl.path.c_str(),
-                      mUrl.isSecure);
-                if (!rt)
-                {
-                    string otherip;
-                    if (ip == ipv6 && ipv4.size())
-                    {
-                        otherip = ipv4;
-                    }
-                    else if (ip == ipv4 && ipv6.size())
-                    {
-                        otherip = ipv6;
-                    }
-
-                    if (otherip.size())
-                    {
-                        PRESENCED_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
-                        if (wsConnect(karereClient->websocketIO, otherip.c_str(),
-                                      mUrl.host.c_str(),
-                                      mUrl.port,
-                                      mUrl.path.c_str(),
-                                      mUrl.isSecure))
-                        {
-                            return;
-                        }
-                    }
-
-                    onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
-                }
-            });
-
-            if (status < 0)
-            {
-                PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d", status);
-                string errStr = "Sync DNS error in presenced. Error code: "+std::to_string(status);
-                if (!mConnectPromise.done())
-                {
-                    mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
-                }
-                if (!mLoginPromise.done())
-                {
-                    mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
                 }
             }
-            
             return mConnectPromise
             .then([wptr, this]()
             {

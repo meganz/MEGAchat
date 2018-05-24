@@ -57,13 +57,15 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 std::string LibwebsocketsIO::getCachedIpFromUrl(const std::string &url, int ipversion)
 {
+    mutex->lock();
+    std::string ip;
     std::map<std::string, std::string>::iterator it;
     if (ipversion == kIpv4)
     {
         it = this->mCachedIpv4.find(url);
         if (it != mCachedIpv4.end())
         {
-            return it->second;
+            ip = it->second;
         }
     }
     else
@@ -71,14 +73,16 @@ std::string LibwebsocketsIO::getCachedIpFromUrl(const std::string &url, int ipve
         it = this->mCachedIpv6.find(url);
         if (it != mCachedIpv6.end())
         {
-            return it->second;
+            ip = it->second;
         }
     }
-    return std::string();
+    mutex->unlock();
+    return ip;
 }
 
 void LibwebsocketsIO::addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion)
 {
+    mutex->lock();
     if (ipVersion == kIpv4)
     {
         mCachedIpv4.insert(std::pair<std::string, std::string>(url, ip));
@@ -87,10 +91,12 @@ void LibwebsocketsIO::addCachedIpFromUrl(const std::string &url, const std::stri
     {
         mCachedIpv6.insert(std::pair<std::string, std::string>(url, ip));
     }
+    mutex->unlock();
 }
 
 void LibwebsocketsIO::removeCachedIpFromUrl(const std::string &url, int ipVersion)
 {
+    mutex->lock();
     if (ipVersion == kIpv4)
     {
         mCachedIpv4.erase(url);
@@ -99,6 +105,7 @@ void LibwebsocketsIO::removeCachedIpFromUrl(const std::string &url, int ipVersio
     {
         mCachedIpv6.erase(url);
     }
+    mutex->unlock();
 }
 
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
