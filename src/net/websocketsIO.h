@@ -20,6 +20,7 @@ class WebsocketsClientImpl;
 class WebsocketsIO : public mega::EventTrigger
 {
 public:
+    enum ipVersion { kIpv4 = 0, kIpv6 = 1 };
     WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
     
@@ -27,7 +28,11 @@ protected:
     ::mega::Mutex *mutex;
     MyMegaApi mApi;
     void *appCtx;
-    
+
+    virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion) = 0;
+    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion) = 0;
+    virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion) = 0;
+
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
     virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::string ipv4, std::string ipv6)> f) = 0;
@@ -56,6 +61,9 @@ public:
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual std::string getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipversion);
+    virtual void addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ip, int ipVersion);
+    virtual void removeCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipVersion);
 
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;

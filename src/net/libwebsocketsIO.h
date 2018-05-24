@@ -8,11 +8,6 @@
 
 #include "net/websocketsIO.h"
 
-enum ipVersion
-{
-    kIpv4 = 0,
-    kIpv6 = 1
-};
 
 // Websockets network layer implementation based on libwebsocket
 class LibwebsocketsIO : public WebsocketsIO

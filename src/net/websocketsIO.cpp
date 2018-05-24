@@ -92,6 +92,21 @@ bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostn
     return websocketIO->wsResolveDNS(hostname, f);
 }
 
+std::string WebsocketsClient::getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipversion)
+{
+    return websocketIO->getCachedIpFromUrl(url, ipversion);
+}
+
+void WebsocketsClient::addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ip, int ipVersion)
+{
+    websocketIO->addCachedIpFromUrl(url, ip, ipVersion);
+}
+
+void WebsocketsClient::removeCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipVersion)
+{
+    websocketIO->removeCachedIpFromUrl(url, ipVersion);
+}
+
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
 {
     thread_id = pthread_self();
