@@ -2925,14 +2925,21 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([this](const promise::Error& err)
+    .fail([this, message](const promise::Error& err)
     {
-        CHATID_LOG_WARNING("Message can't be decrypted: Fail type (%d) - %s", err.type(), err.what());
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
 
-//        if (err.type() == SVCRYPTO_ENOMSG)
-            //TODO: If a message could be deleted individually, decryption process should be restarted again
-            // It isn't a possibilty with actual implementation
-
+            //if (err.type() == SVCRYPTO_ENOMSG)
+                //TODO: If a message could be deleted individually, decryption process should be restarted again
+                // It isn't a possibilty with actual implementation
+        }
+        else
+        {
+            CHATID_LOG_WARNING("Message %s can't be decrypted: Failure type %s (%d)",
+                               ID_CSTR(message->id()), err.what(), err.type());
+        }
     });
 
     return false; //decrypt was not done immediately
