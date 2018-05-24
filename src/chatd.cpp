@@ -2721,9 +2721,12 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 {
     if (isLocal)
     {
-        assert(!msg.isEncrypted());
-        msgIncomingAfterDecrypt(isNew, true, msg, idx);
-        return true;
+        if (msg.isEncrypted() != Message::kEncryptedNoType)
+        {
+            msgIncomingAfterDecrypt(isNew, true, msg, idx);
+            return true;
+        }
+        // else --> unknown management msg, try to decode it again
     }
     else
     {
@@ -2743,9 +2746,9 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         return true;
     }
 
-    if (!at(idx).isPendingToDecrypt())
+    if (!msg.isPendingToDecrypt() && msg.isEncrypted() != Message::kEncryptedNoType)
     {
-        CHATID_LOG_DEBUG("handleLegacyKeys already decrypted msg %s, bailing out", ID_CSTR(msg.id()));
+        CHATID_LOG_DEBUG("Message already decrypted or undecryptable: %s, bailing out", ID_CSTR(msg.id()));
         return true;
     }
 
