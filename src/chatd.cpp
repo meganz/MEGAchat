@@ -452,6 +452,7 @@ Promise<void> Connection::reconnect()
                     setTimestamp (mChatdClient.karereClient->websocketIO, karere::timestampMs());
                     cleanCachedIp(mChatdClient.karereClient->websocketIO);
                 }
+                else
                 {
                     removeCachedIpFromUrl(mChatdClient.karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
                     removeCachedIpFromUrl(mChatdClient.karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);

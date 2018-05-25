@@ -259,6 +259,7 @@ Client::reconnect(const std::string& url)
                     setTimestamp (karereClient->websocketIO, karere::timestampMs());
                     cleanCachedIp(karereClient->websocketIO);
                 }
+                else
                 {
                     removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
                     removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
