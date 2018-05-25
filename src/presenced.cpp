@@ -219,21 +219,9 @@ Client::reconnect(const std::string& url)
             }
 
             bool resCon = false;
-            int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
-            std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
-            if (!auxIp.empty() && !expiredCache)
+            if (!expiredCache)
             {
-                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
-                resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
-                    mUrl.host.c_str(),
-                    mUrl.port,
-                    mUrl.path.c_str(),
-                    mUrl.isSecure);
-            }
-
-            if (!resCon && !expiredCache)
-            {
-                proto = usingipv6 ? WebsocketsIO::kIpv4 : WebsocketsIO::kIpv6;
+                int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
                 std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
                 if (!auxIp.empty())
                 {
@@ -243,6 +231,21 @@ Client::reconnect(const std::string& url)
                         mUrl.port,
                         mUrl.path.c_str(),
                         mUrl.isSecure);
+                }
+
+                if (!resCon)
+                {
+                    proto = usingipv6 ? WebsocketsIO::kIpv4 : WebsocketsIO::kIpv6;
+                    std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
+                    if (!auxIp.empty())
+                    {
+                        PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
+                        resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
+                            mUrl.host.c_str(),
+                            mUrl.port,
+                            mUrl.path.c_str(),
+                            mUrl.isSecure);
+                    }
                 }
             }
 
