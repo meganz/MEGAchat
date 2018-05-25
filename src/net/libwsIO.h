@@ -19,7 +19,8 @@ public:
     virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipversion);
     virtual void removeCachedIpFromUrl(const std::string &url, int ipversion);
     virtual void cleanCachedIp();
-
+    virtual int64_t getTimestamp();
+    virtual void setTimestamp(int64_t ts);
 
 protected:
     ws_base_s wscontext;

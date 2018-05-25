@@ -211,10 +211,17 @@ Client::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
             setConnState(kConnecting);
 
+            int64_t auxts = getTimestamp (karereClient->websocketIO);
+            bool expiredCache = false;
+            if ((karere::timestampMs() - auxts) > 3600000)
+            {
+               expiredCache = true;
+            }
+
             bool resCon = false;
             int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
             std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
-            if (!auxIp.empty())
+            if (!auxIp.empty() && !expiredCache)
             {
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
                 resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
@@ -224,7 +231,7 @@ Client::reconnect(const std::string& url)
                     mUrl.isSecure);
             }
 
-            if (!resCon)
+            if (!resCon && !expiredCache)
             {
                 proto = usingipv6 ? WebsocketsIO::kIpv4 : WebsocketsIO::kIpv6;
                 std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
@@ -243,8 +250,17 @@ Client::reconnect(const std::string& url)
             {
                 setConnState(kResolving);
                 PRESENCED_LOG_DEBUG("Resolving hostname...");
-                removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
-                removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
+
+                if (expiredCache)
+                {
+                    setTimestamp (karereClient->websocketIO, karere::timestampMs());
+                    cleanCachedIp(karereClient->websocketIO);
+                }
+                {
+                    removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
+                    removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
+                }
+
                 int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
                              [wptr, this](int status, std::string ipv4, std::string ipv6)
                 {

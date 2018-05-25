@@ -55,6 +55,22 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 }
 
+int64_t LibwebsocketsIO::getTimestamp()
+{
+    int64_t auxts = 0;
+    mutex->lock();
+    auxts = this->ts;
+    mutex->unlock();
+    return auxts;
+}
+
+void LibwebsocketsIO::setTimestamp(int64_t ts)
+{
+    mutex->lock();
+    this->ts = ts;
+    mutex->unlock();
+}
+
 std::string LibwebsocketsIO::getCachedIpFromUrl(const std::string &url, int ipversion)
 {
     mutex->lock();

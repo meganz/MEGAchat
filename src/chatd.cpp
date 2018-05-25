@@ -404,6 +404,13 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);                
             }
 
+            int64_t auxts = getTimestamp (mChatdClient.karereClient->websocketIO);
+            bool expiredCache = false;
+            if ((karere::timestampMs() - auxts) > 3600000)
+            {
+               expiredCache = true;
+            }
+
             bool resCon = false;
             int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
             std::string auxIp = getCachedIpFromUrl (mChatdClient.karereClient->websocketIO, mUrl.path, proto);
@@ -417,7 +424,7 @@ Promise<void> Connection::reconnect()
                     mUrl.isSecure);
             }
 
-            if (!resCon)
+            if (!resCon && !expiredCache)
             {
                 proto = usingipv6 ? WebsocketsIO::kIpv4 : WebsocketsIO::kIpv6;
                 std::string auxIp = getCachedIpFromUrl (mChatdClient.karereClient->websocketIO, mUrl.path, proto);
@@ -432,12 +439,20 @@ Promise<void> Connection::reconnect()
                 }
             }
 
-            if (!resCon)
+            if (!resCon && !expiredCache)
             {
                 mState = kStateResolving;
                 CHATDS_LOG_DEBUG("Resolving hostname...");
-                removeCachedIpFromUrl(mChatdClient.karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
-                removeCachedIpFromUrl(mChatdClient.karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
+
+                if (expiredCache)
+                {
+                    setTimestamp (mChatdClient.karereClient->websocketIO, karere::timestampMs());
+                    cleanCachedIp(mChatdClient.karereClient->websocketIO);
+                }
+                {
+                    removeCachedIpFromUrl(mChatdClient.karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
+                    removeCachedIpFromUrl(mChatdClient.karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
+                }
                 int status = wsResolveDNS(mChatdClient.karereClient->websocketIO, mUrl.host.c_str(),
                              [wptr, this](int status, std::string ipv4, std::string ipv6)
                 {

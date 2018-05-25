@@ -23,7 +23,8 @@ public:
     virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion);
     virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion);
     virtual void cleanCachedIp();
-
+    virtual int64_t getTimestamp();
+    virtual void setTimestamp(int64_t ts);
 
 protected:
     std::map<std::string, std::string> mCachedIpv4;

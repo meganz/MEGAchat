@@ -28,11 +28,13 @@ protected:
     ::mega::Mutex *mutex;
     MyMegaApi mApi;
     void *appCtx;
-
+    int64_t ts;
     virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion) = 0;
     virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion) = 0;
     virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion) = 0;
     virtual void cleanCachedIp() = 0;
+    virtual int64_t getTimestamp() = 0;
+    virtual void setTimestamp(int64_t ts) = 0;
 
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
@@ -69,6 +71,8 @@ public:
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
+    virtual int64_t getTimestamp(WebsocketsIO *websocketIO);
+    virtual void setTimestamp(WebsocketsIO *websocketIO, int64_t ts);
 };
 
 

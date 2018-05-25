@@ -210,12 +210,6 @@ Client::~Client()
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
     }
-
-    if (mCachedIpTimer)
-    {
-        karere::cancelInterval(mCachedIpTimer, appCtx);
-        mCachedIpTimer = 0;
-    }
 }
 
 promise::Promise<void> Client::retryPendingConnections()
@@ -933,17 +927,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         heartbeat();
     }, 10000, appCtx);
 
-
-    assert(!mCachedIpTimer);
-    mCachedIpTimer = karere::setInterval([this, wptr]()
-    {
-        if (wptr.deleted() || !mCachedIpTimer)
-        {
-            return;
-        }
-        mPresencedClient.cleanIpCache();
-    }, 3600000, appCtx);
-
     return pms;
 }
 
@@ -963,13 +946,6 @@ void Client::disconnect()
     {
         karere::cancelInterval(mHeartbeatTimer, appCtx);
         mHeartbeatTimer = 0;
-    }
-
-    // stop clean Ip's cache
-    if (mCachedIpTimer)
-    {
-        karere::cancelInterval(mCachedIpTimer, appCtx);
-        mCachedIpTimer = 0;
     }
 
     // disconnect from chatd shards and presenced

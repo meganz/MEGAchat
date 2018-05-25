@@ -5,6 +5,7 @@ WebsocketsIO::WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void 
 {
     this->mutex = mutex;
     this->appCtx = ctx;
+    this->ts = 0;
 }
 
 WebsocketsIO::~WebsocketsIO()
@@ -110,6 +111,16 @@ void WebsocketsClient::removeCachedIpFromUrl(WebsocketsIO *websocketIO, const st
 void WebsocketsClient::cleanCachedIp(WebsocketsIO *websocketIO)
 {
     websocketIO->cleanCachedIp();
+}
+
+int64_t WebsocketsClient::getTimestamp(WebsocketsIO *websocketIO)
+{
+    return websocketIO->getTimestamp();
+}
+
+void WebsocketsClient::setTimestamp(WebsocketsIO *websocketIO, int64_t ts)
+{
+    websocketIO->setTimestamp(ts);
 }
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
