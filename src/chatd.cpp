@@ -414,7 +414,7 @@ Promise<void> Connection::reconnect()
             bool resCon = false;
             int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
             std::string auxIp = getCachedIpFromUrl (mChatdClient.karereClient->websocketIO, mUrl.path, proto);
-            if (!auxIp.empty())
+            if (!auxIp.empty() && !expiredCache)
             {
                 PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
                 resCon = wsConnect(mChatdClient.karereClient->websocketIO, auxIp.c_str(),
@@ -439,7 +439,7 @@ Promise<void> Connection::reconnect()
                 }
             }
 
-            if (!resCon && !expiredCache)
+            if (!resCon)
             {
                 mState = kStateResolving;
                 CHATDS_LOG_DEBUG("Resolving hostname...");
