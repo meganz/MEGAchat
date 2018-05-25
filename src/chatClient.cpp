@@ -926,7 +926,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
         heartbeat();
     }, 10000, appCtx);
-
     return pms;
 }
 
