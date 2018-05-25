@@ -346,7 +346,7 @@ public:
          };
 
 protected:
-    bool usingipv6;
+    bool usingipv6 = false;
     Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;

@@ -41,7 +41,6 @@ using namespace chatd;
 
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
-const karere::Id API_USER("gTxFhlOd_LQ");
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
                        Id recipient=Id::null());
 
@@ -776,6 +775,7 @@ void ProtocolHandler::onHistoryReload()
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
+    msg->managementType = true;
     msg->userid = parsedMsg->sender;
     msg->clear();
 
@@ -825,11 +825,14 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
         message->type = parsedMsg->type;
 
-        if (message->userid == API_USER && message->keyid == 0)
+        // if message comes from API and uses keyid=0, it's a management message
+        if (message->userid == karere::Id::COMMANDER() && message->keyid == 0)
         {
             return handleManagementMessage(parsedMsg, message);
         }
-        else if (message->keyid == 0 || message->userid == API_USER)
+
+        // check tampering of management messages
+        if (message->keyid == 0 || message->userid == karere::Id::COMMANDER())
         {
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+

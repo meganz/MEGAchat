@@ -425,6 +425,7 @@ public:
     uint16_t updated;
     uint32_t keyid;
     unsigned char type;
+    bool managementType = false;   // true for management messages (cannot deduce from type if unknown)
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
@@ -433,6 +434,8 @@ public:
     bool isSending() const { return mIdIsXid; }
     uint8_t isEncrypted() const { return mIsEncrypted; }
     bool isPendingToDecrypt() const { return (mIsEncrypted == kEncryptedPending); }
+    // true if message is valid, but permanently undecryptable (not transient like unknown types or keyid not found)
+    bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
@@ -486,7 +489,17 @@ public:
     std::string managementInfoToString() const; //implementation is in strongelope.cpp, as the management info is created there
 
     /** @brief Returns whether this message is a management message. */
-    bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
+    bool isManagementMessage() const
+    {
+        return managementType;
+    }
+    bool isManagementMessageKnownType()
+    {
+        return (managementType
+                && type >= Message::kMsgManagementLowest
+                && type <= Message::kMsgManagementHighest);
+    }
+
     bool isText() const
     {
         return (!empty()                                // skip deleted messages
@@ -501,7 +514,9 @@ public:
     {
         return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
                 && type != kMsgRevokeAttachment     // skip revokes
-                && type != kMsgInvalid);            // skip (still) encrypted messages
+                && type != kMsgInvalid              // skip (still) encrypted messages
+                && (!mIsEncrypted                   // include decrypted messages
+                    || isUndecryptable()));         // or undecryptable messages due to permantent error
     }
 
     // conditions to consider unread messages should match the
