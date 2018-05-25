@@ -73,8 +73,8 @@ void LibwebsocketsIO::setTimestamp(int64_t ts)
 
 std::string LibwebsocketsIO::getCachedIpFromUrl(const std::string &url, int ipversion)
 {
-    mutex->lock();
     std::string ip;
+    mutex->lock();
     std::map<std::string, std::string>::iterator it;
     if (ipversion == kIpv4)
     {
