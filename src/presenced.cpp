@@ -213,7 +213,7 @@ Client::reconnect(const std::string& url)
 
             int64_t auxts = getTimestamp(karereClient->websocketIO);
             bool expiredCache = false;
-            bool result;
+            bool result = false;
 
             WebsocketsIO::pair_ip_struct* pairIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path);
             if ((karere::timestampMs() - auxts) > 3600000)
@@ -223,16 +223,17 @@ Client::reconnect(const std::string& url)
                cleanCachedIp(karereClient->websocketIO);
             }
 
-            if (!expiredCache && pairIp)
+            if (pairIp)
             {
-                tryConnect(pairIp);
+                result = tryConnect(pairIp);
                 delete pairIp;
-                if (!result)
+                if (!result && !expiredCache)
                 {
                     onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
                 }
             }
-            else
+
+            if (expiredCache && !result)
             {
                 delete pairIp;
                 setConnState(kResolving);
