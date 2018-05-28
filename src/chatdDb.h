@@ -140,7 +140,7 @@ public:
 #endif
         mDb.query("insert into history"
             "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid, is_encrypted) "
-            "values(?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
+            "values(?,?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
             msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId, msg.isEncrypted());
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
