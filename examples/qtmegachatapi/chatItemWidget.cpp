@@ -164,6 +164,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage.append("metadata: ").append(item->getLastMessage());
             break;
 
+        case megachat::MegaChatMessage::TYPE_CALL_ENDED:
+            lastMessage.append("end call: ");
+            break;
+
         default:
             lastMessage = item->getLastMessage();
             break;

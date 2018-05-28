@@ -210,6 +210,15 @@ std::string ChatMessage::managementInfoToString() const
         delete chatRoom;
         return ret;
     }
+    case megachat::MegaChatMessage::TYPE_CALL_ENDED:
+    {
+        ret.append("User ").append(userHandle_64)
+           .append(" call duration: ")
+           .append(std::to_string(mMessage->getDuration()))
+           .append( " TermCode: ")
+           .append(std::to_string(mMessage->getTermCode()));
+        return ret;
+    }
     default:
         ret.append("Management message with unknown type: ")
            .append(std::to_string(mMessage->getType()));
