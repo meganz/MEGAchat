@@ -250,11 +250,20 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     if (isLegacy)
     {
         offset = 1;
+        managementInfo = std::unique_ptr<chatd::Message::ManagementInfo>(new chatd::Message::ManagementInfo());
     }
     else
     {
         offset = 2;
         type = binaryMessage.read<uint8_t>(1);
+        if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+        {
+            managementInfo = std::unique_ptr<chatd::Message::ManagementInfo>(new chatd::Message::ManagementInfo());
+        }
+        else if (type == chatd::Message::kMsgCallEnd)
+        {
+            callEndedInfo = std::unique_ptr<chatd::Message::CallEndedInfo>(new chatd::Message::CallEndedInfo());
+        }
     }
     TlvParser tlv(binaryMessage, offset, isLegacy);
     TlvRecord record(binaryMessage);
@@ -284,18 +293,28 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_INC_PARTICIPANT:
             {
-                if (target || privilege != PRIV_INVALID)
-                    throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
-                privilege = chatd::PRIV_NOCHANGE;
-                target = record.read<uint64_t>();
+                if (type == chatd::Message::kMsgCallEnd)
+                {
+                    assert(callEndedInfo);
+                    callEndedInfo->participant.push_back(record.read<uint64_t>());
+                }
+                else
+                {
+                    assert(managementInfo);
+                    if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
+                        throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
+                    managementInfo->privilege = chatd::PRIV_NOCHANGE;
+                    managementInfo->target = record.read<uint64_t>();
+                }
                 break;
             }
             case TLV_TYPE_EXC_PARTICIPANT:
             {
-                if (target || privilege != PRIV_INVALID)
+                assert(managementInfo);
+                if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                     throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
-                privilege = chatd::PRIV_NOTPRESENT;
-                target = record.read<uint64_t>();
+                managementInfo->privilege = chatd::PRIV_NOTPRESENT;
+                managementInfo->target = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_INVITOR:
@@ -305,7 +324,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_PRIVILEGE:
             {
-                privilege = (chatd::Priv)record.read<uint8_t>();
+                assert(managementInfo);
+                managementInfo->privilege = (chatd::Priv)record.read<uint8_t>();
                 break;
             }
             case TLV_TYPE_KEYBLOB:
@@ -316,10 +336,11 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             //legacy key stuff
             case TLV_TYPE_RECIPIENT:
             {
-                if (target)
+                assert(managementInfo);
+                if (managementInfo->target)
                     throw std::runtime_error("Already had one RECIPIENT tlv record");
                 record.validateDataLen(8);
-                target = binaryMessage.read<uint64_t>(record.dataOffset);
+                managementInfo->target = binaryMessage.read<uint64_t>(record.dataOffset);
                 break;
             }
             case TLV_TYPE_KEYS:
@@ -611,10 +632,11 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
     {
         if (parsedMsg->encryptedKey.dataSize() % AES::BLOCKSIZE)
             throw std::runtime_error("legacyDecryptKeys: invalid aes-encrypted key size");
-        assert(parsedMsg->target);
+        assert(parsedMsg->managementInfo);
+        assert(parsedMsg->managementInfo->target);
         assert(parsedMsg->sender);
         Id otherParty = (parsedMsg->sender == mOwnHandle)
-            ? parsedMsg->target
+            ? parsedMsg->managementInfo->target
             : parsedMsg->sender;
         auto wptr = weakHandle();
         return computeSymmetricKey(otherParty)
@@ -622,7 +644,7 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
         {
             wptr.throwIfDeleted();
             Key<32> iv;
-            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->target);
+            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->managementInfo->target);
             iv.setDataSize(AES::BLOCKSIZE);
 
             // decrypt key
@@ -784,7 +806,8 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         case Message::kMsgAlterParticipants:
         case Message::kMsgPrivChange:
         {
-            msg->createMgmtInfo(*parsedMsg);
+            assert(parsedMsg->managementInfo);
+            msg->createMgmtInfo(*(parsedMsg->managementInfo));
             msg->setEncrypted(0);
             return msg;
         }
@@ -796,6 +819,17 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         case Message::kMsgChatTitle:
         {
             return parsedMsg->decryptChatTitle(msg, true);
+        }
+        case Message::kMsgCallEnd:
+        {
+            assert(parsedMsg->callEndedInfo);
+            parsedMsg->callEndedInfo->callid = parsedMsg->payload.read<uint64_t>(0);
+            parsedMsg->callEndedInfo->termCode= parsedMsg->payload.read<uint8_t>(8);
+            parsedMsg->callEndedInfo->duration = parsedMsg->payload.read<uint32_t>(9);
+
+            msg->createCallEndedInfo(*(parsedMsg->callEndedInfo));
+            msg->setEncrypted(0);
+            return msg;
         }
         default:
             return promise::Error("Unknown management message type "+

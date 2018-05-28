@@ -677,6 +677,10 @@ public:
     virtual const char *getUserName(unsigned int index) const;
     virtual const char *getUserEmail(unsigned int index) const;
     virtual mega::MegaNodeList *getMegaNodeList() const;
+    virtual mega::MegaHandleList *getMegaHandleList() const;
+    virtual int getDuration() const;
+    virtual int getTermCode() const;
+
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -707,6 +711,7 @@ private:
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
+    mega::MegaHandleList* megaHandleList;
 };
 
 //Thread safe request queue

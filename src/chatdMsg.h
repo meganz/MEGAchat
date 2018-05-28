@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
+#include <string.h>
 #include "karereId.h"
 
 enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
@@ -352,7 +353,8 @@ public:
         kMsgTruncate          = 0x03,
         kMsgPrivChange        = 0x04,
         kMsgChatTitle         = 0x05,
-        kMsgManagementHighest = 0x05,
+        kMsgCallEnd           = 0x06,
+        kMsgManagementHighest = 0x06,
         kMsgUserFirst         = 0x10,
         kMsgAttachment        = 0x10,
         kMsgRevokeAttachment  = 0x11,
@@ -399,6 +401,39 @@ public:
          * - added - the value of \c PRIV_NOCHANGE
          */
         Priv privilege = PRIV_INVALID;
+    };
+
+    class CallEndedInfo
+    {
+        public:
+        karere::Id callid;
+        uint8_t termCode = 0;
+        uint32_t duration = 0;
+        std::vector<karere::Id> participant;
+
+        static CallEndedInfo fromBuffer(const char *buffer)
+        {
+            CallEndedInfo info;
+            unsigned int position = 0;
+            memcpy(&info.callid, &buffer[position], sizeof(info.callid));
+            position += sizeof(info.callid);
+            memcpy(&info.duration, &buffer[position], sizeof(info.duration));
+            position += sizeof(info.duration);
+            memcpy(&info.termCode, &buffer[position], sizeof(info.termCode));
+            position += sizeof(info.termCode);
+            size_t size;
+            memcpy(&size, &buffer[position], sizeof(size));
+            position += sizeof(size);
+            for (size_t i = 0; i < size; i++)
+            {
+                karere::Id id;
+                memcpy(&id, &buffer[position], sizeof(karere::Id));
+                position += sizeof(karere::Id);
+                info.participant.push_back(id);
+            }
+
+            return info;
+        }
     };
 
 private:
@@ -454,6 +489,20 @@ public:
         assert(empty());
         append(&src, sizeof(src));
         return *reinterpret_cast<ManagementInfo*>(buf());
+    }
+
+    void createCallEndedInfo(const CallEndedInfo& src)
+    {
+        assert(empty());
+        append(&src.callid, sizeof(src.callid));
+        append(&src.duration, sizeof(src.duration));
+        append(&src.termCode, sizeof(src.termCode));
+        size_t size = src.participant.size();
+        append(&size, sizeof(size));
+        for (size_t i = 0; i < size; i++)
+        {
+            append(&src.participant[i], sizeof(src.participant[i]));
+        }
     }
 
     static const char* statusToStr(unsigned status)
