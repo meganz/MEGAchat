@@ -92,19 +92,14 @@ class Call: public ICall
 
     enum
     {
-        kCallDataCodeInitialised                = 0,
-        kCallDataCodeWaitingResponseOutGoing    = 10,
-        kCallDataCodeWaitingResponseIncoming    = 20,
-        kCallDataCodeStarting                   = 25,
-        kCallDataCodeStarted                    = 30,
-        kCallDataCodeEnded                      = 40,
-        kCallDataCodeHandleElseWhere            = 45,
-        kCallDataCodeRejected                   = 50,
-        kCallDataCodeAborted                    = 55,
-        kCallDataCodeFailed                     = 60,
-        kCallDataCodeMissed                     = 70,
-        kCallDataCodeTimeout                    = 80
+        kCallDataReasonEnded        = 0x01,
+        kCallDataReasonRejected     = 0x02,
+        kCallDataReasonNoAnswer     = 0x03,
+        kCallDataReasonFailed       = 0x04,
+        kCallDataReasonCancelled    = 0x05
     };
+
+
 
 protected:
     static const StateDesc sStateDesc;

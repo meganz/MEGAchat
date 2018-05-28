@@ -1036,14 +1036,32 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
-        if (!mIsGroup) //TODO: Maybe do it also for group calls
+        if (code != TermCode::kAnsElsewhere && !mIsGroup)  //TODO: Maybe do it also for group calls
         {
-            cmdBroadcast(RTCMD_CALL_TERMINATE, code);
-            sendCallData(kCallDataCodeEnded);
+            sendCallData(kCallDataEnd);
         }
-        // if we initiate the call termination, we must initiate the
-        // session termination handshake
-        pms = gracefullyTerminateAllSessions(code);
+
+        switch (mPredestroyState)
+        {
+        case kStateReqSent:
+            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            pms = promise::_Void();
+            break;
+        case kStateRingIn:
+            cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, code);
+            pms = promise::_Void();
+            break;
+        default:
+            if (!mIsGroup)
+            {
+                cmdBroadcast(RTCMD_CALL_TERMINATE, code);
+            }
+
+            // if we initiate the call termination, we must initiate the
+            // session termination handshake
+            pms = gracefullyTerminateAllSessions(code);
+            break;
+        }
     }
     else
     {
@@ -1318,7 +1336,7 @@ void Call::sendInCallCommand()
 bool Call::sendCallData(int state)
 {
     uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t);
-    if (mState == kStateTerminating)
+    if (state == kCallDataEnd)
     {
          payLoadLen += sizeof(uint8_t);
     }
@@ -1332,7 +1350,7 @@ bool Call::sendCallData(int state)
     command.write<uint64_t>(23, mId);
     command.write<uint8_t>(31, state);
     command.write<uint8_t>(32, sentAv().value());
-    if (mState == kStateTerminating)
+    if (state == kCallDataEnd)
     {
         command.write<uint8_t>(33, convertTermCodeToCallDataCode());
     }
@@ -1360,36 +1378,47 @@ uint8_t Call::convertTermCodeToCallDataCode()
     case kUserHangup:
         switch (mPredestroyState) {
         case kStateRingIn:
-            code = kCallDataCodeMissed;
-            break;
         case kStateReqSent:
-            code = kCallDataCodeAborted;
+            code = kCallDataReasonCancelled;
+            break;
+        case kStateInProgress:
+            code = kCallDataReasonEnded;
+            break;
         default:
-            code = kCallDataCodeEnded;
+            code = kCallDataReasonFailed;
             break;
         }
         break;
     case kCallRejected:
-        code = kCallDataCodeRejected;
+        code = kCallDataReasonRejected;
         break;
     case kAnsElsewhere:
-        code = kCallDataCodeHandleElseWhere;
+        SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
+        assert(false);
         break;
     case kAnswerTimeout:
-        code = isJoiner() ? code = kCallDataCodeMissed : kCallDataCodeTimeout;
-        break;
     case kRingOutTimeout:
-        code = kCallDataCodeTimeout;
+        code = kCallDataReasonNoAnswer;
         break;
     case kAppTerminating:
-        code = kCallDataCodeEnded;
+        code = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
         break;
     case kBusy:
         assert(!isJoiner());
-        code = kCallDataCodeRejected;
+        code = kCallDataReasonRejected;
         break;
     default:
-        code = kCallDataCodeFailed;
+        if (isTermError(mTermCode))
+        {
+            code = kCallDataReasonFailed;
+        }
+        else
+        {
+            SUB_LOG_ERROR("termCodeToHistCallEndedCode: Don't know how to translate term code %s, returning FAILED",
+                          termCodeToStr(mTermCode));
+
+            code = kCallDataReasonFailed;
+        }
         break;
     }
 
@@ -1420,8 +1449,8 @@ void Call::hangup(TermCode reason)
         {
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
         }
-        cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
-        destroy(reason, false);
+
+        destroy(reason, true);
         return;
     case kStateRingIn:
         if (reason == TermCode::kInvalid)
@@ -1438,8 +1467,7 @@ void Call::hangup(TermCode reason)
             assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
         }
         assert(mSessions.empty());
-        cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, reason);
-        destroy(reason, false);
+        destroy(reason, true);
         return;
     case kStateJoining:
     case kStateInProgress:
