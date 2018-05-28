@@ -412,8 +412,6 @@ Promise<void> Connection::reconnect()
             if ((karere::timestampMs() - auxts) > 3600000)
             {
                expiredCache = true;
-               setTimestamp (mChatdClient.karereClient->websocketIO, karere::timestampMs());
-               cleanCachedIp(mChatdClient.karereClient->websocketIO);
             }
 
             if (pairIp)
@@ -428,6 +426,8 @@ Promise<void> Connection::reconnect()
 
             if (expiredCache && !result)
             {
+                setTimestamp (mChatdClient.karereClient->websocketIO, karere::timestampMs());
+                cleanCachedIp(mChatdClient.karereClient->websocketIO);
                 delete pairIp;
                 mState = kStateResolving;
                 CHATDS_LOG_DEBUG("Resolving hostname...");

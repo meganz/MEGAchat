@@ -219,8 +219,6 @@ Client::reconnect(const std::string& url)
             if ((karere::timestampMs() - auxts) > 3600000)
             {
                expiredCache = true;
-               setTimestamp (karereClient->websocketIO, karere::timestampMs());
-               cleanCachedIp(karereClient->websocketIO);
             }
 
             if (pairIp)
@@ -235,6 +233,8 @@ Client::reconnect(const std::string& url)
 
             if (expiredCache && !result)
             {
+                setTimestamp (karereClient->websocketIO, karere::timestampMs());
+                cleanCachedIp(karereClient->websocketIO);
                 delete pairIp;
                 setConnState(kResolving);
                 PRESENCED_LOG_DEBUG("Resolving hostname...");
