@@ -20,6 +20,13 @@ class WebsocketsClientImpl;
 class WebsocketsIO : public mega::EventTrigger
 {
 public:
+    typedef struct pair_ip_struct
+    {
+        std::string ipv4;
+        std::string ipv6;
+    };
+
+    enum { urlRetries = 2 };
     enum ipVersion { kIpv4 = 0, kIpv6 = 1 };
     WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
@@ -29,9 +36,8 @@ protected:
     MyMegaApi mApi;
     void *appCtx;
     int64_t ts;
-    virtual std::string getCachedIpFromUrl(const std::string &url, int ipversion) = 0;
-    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion) = 0;
-    virtual void removeCachedIpFromUrl(const std::string &url, int ipVersion) = 0;
+    virtual WebsocketsIO::pair_ip_struct* getCachedIpFromUrl(const std::string &url) = 0;
+    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ipv4, const std::string &ipv6) = 0;
     virtual void cleanCachedIp() = 0;
     virtual int64_t getTimestamp() = 0;
     virtual void setTimestamp(int64_t ts) = 0;
@@ -64,9 +70,8 @@ public:
     void wsDisconnect(bool immediate);
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
-    virtual std::string getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipversion);
-    virtual void addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ip, int ipVersion);
-    virtual void removeCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipVersion);
+    virtual WebsocketsIO::pair_ip_struct* getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url);
+    virtual void addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ipv4, const std::string &ipv6);
     virtual void cleanCachedIp(WebsocketsIO *websocketIO);
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;

@@ -375,6 +375,7 @@ protected:
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
+    bool tryConnect(WebsocketsIO::pair_ip_struct *pairIp);
     void disconnect();
     void notifyLoggedIn();
 // Destroys the buffer content

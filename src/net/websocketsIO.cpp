@@ -93,19 +93,14 @@ bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostn
     return websocketIO->wsResolveDNS(hostname, f);
 }
 
-std::string WebsocketsClient::getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipversion)
+WebsocketsIO::pair_ip_struct* WebsocketsClient::getCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url)
 {
-    return websocketIO->getCachedIpFromUrl(url, ipversion);
+    return websocketIO->getCachedIpFromUrl(url);
 }
 
-void WebsocketsClient::addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ip, int ipVersion)
+void WebsocketsClient::addCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
-    websocketIO->addCachedIpFromUrl(url, ip, ipVersion);
-}
-
-void WebsocketsClient::removeCachedIpFromUrl(WebsocketsIO *websocketIO, const std::string &url, int ipVersion)
-{
-    websocketIO->removeCachedIpFromUrl(url, ipVersion);
+    websocketIO->addCachedIpFromUrl(url, ipv4, ipv6);
 }
 
 void WebsocketsClient::cleanCachedIp(WebsocketsIO *websocketIO)

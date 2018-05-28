@@ -211,62 +211,34 @@ Client::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
             setConnState(kConnecting);
 
-            int64_t auxts = getTimestamp (karereClient->websocketIO);
+            int64_t auxts = getTimestamp(karereClient->websocketIO);
             bool expiredCache = false;
+            bool result;
+
+            WebsocketsIO::pair_ip_struct* pairIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path);
             if ((karere::timestampMs() - auxts) > 3600000)
             {
                expiredCache = true;
+               setTimestamp (karereClient->websocketIO, karere::timestampMs());
+               cleanCachedIp(karereClient->websocketIO);
             }
 
-            bool resCon = false;
-            if (!expiredCache)
+            if (!expiredCache && pairIp)
             {
-                int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
-                std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
-                if (!auxIp.empty())
+                tryConnect(pairIp);
+                delete pairIp;
+                if (!result)
                 {
-                    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
-                    resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
-                        mUrl.host.c_str(),
-                        mUrl.port,
-                        mUrl.path.c_str(),
-                        mUrl.isSecure);
-                }
-
-                if (!resCon)
-                {
-                    proto = usingipv6 ? WebsocketsIO::kIpv4 : WebsocketsIO::kIpv6;
-                    std::string auxIp = getCachedIpFromUrl (karereClient->websocketIO, mUrl.path, proto);
-                    if (!auxIp.empty())
-                    {
-                        PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxIp.c_str());
-                        resCon = wsConnect(karereClient->websocketIO, auxIp.c_str(),
-                            mUrl.host.c_str(),
-                            mUrl.port,
-                            mUrl.path.c_str(),
-                            mUrl.isSecure);
-                    }
+                    onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
                 }
             }
-
-            if (!resCon)
+            else
             {
+                delete pairIp;
                 setConnState(kResolving);
                 PRESENCED_LOG_DEBUG("Resolving hostname...");
-
-                if (expiredCache)
-                {
-                    setTimestamp (karereClient->websocketIO, karere::timestampMs());
-                    cleanCachedIp(karereClient->websocketIO);
-                }
-                else
-                {
-                    removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv4);
-                    removeCachedIpFromUrl(karereClient->websocketIO, mUrl.path, WebsocketsIO::kIpv6);
-                }
-
                 int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
-                             [wptr, this](int status, std::string ipv4, std::string ipv6)
+                             [wptr, this, &pairIp](int status, std::string ipv4, std::string ipv6)
                 {
                     if (wptr.deleted())
                     {
@@ -294,53 +266,16 @@ Client::reconnect(const std::string& url)
                         return;
                     }
 
-                    setConnState(kConnecting);
-                    string ip;
-                    if (usingipv6 && ipv6.size())
+                    pairIp = new WebsocketsIO::pair_ip_struct {ipv4, ipv6};
+                    addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, ipv4, ipv6);
+                    if (pairIp)
                     {
-                        ip = ipv6;
-                        addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, ip, WebsocketsIO::kIpv6);
-                    }
-                    else
-                    {
-                        ip = ipv4;
-                        addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, ip, WebsocketsIO::kIpv4);
-                    }
-
-                    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                    bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure);
-                    if (!rt)
-                    {
-                        string otherip;
-                        if (ip == ipv6 && ipv4.size())
+                        bool result = tryConnect(pairIp);
+                        delete pairIp;
+                        if (!result)
                         {
-                            otherip = ipv4;
-                            addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, otherip, WebsocketsIO::kIpv4);
+                            onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
                         }
-                        else if (ip == ipv4 && ipv6.size())
-                        {
-                            otherip = ipv6;
-                            addCachedIpFromUrl(karereClient->websocketIO, mUrl.path, otherip, WebsocketsIO::kIpv6);
-                        }
-
-                        if (otherip.size())
-                        {
-                            PRESENCED_LOG_DEBUG("Connection to presenced failed. Retrying using the IP: %s", otherip.c_str());
-                            if (wsConnect(karereClient->websocketIO, otherip.c_str(),
-                                          mUrl.host.c_str(),
-                                          mUrl.port,
-                                          mUrl.path.c_str(),
-                                          mUrl.isSecure))
-                            {
-                                return;
-                            }
-                        }
-
-                        onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
                     }
                 });
 
@@ -373,7 +308,28 @@ Client::reconnect(const std::string& url)
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
-    
+
+bool Client::tryConnect(WebsocketsIO::pair_ip_struct *pairIp)
+{
+    int proto = usingipv6 ? WebsocketsIO::kIpv6 : WebsocketsIO::kIpv4;
+    setConnState(kConnecting);
+    for (int i = 0; i < WebsocketsIO::urlRetries; i++)
+    {
+        const char *auxip = (proto == WebsocketsIO::kIpv6) ?pairIp->ipv6.c_str() :pairIp->ipv4.c_str();
+        PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", auxip);
+        if (wsConnect(karereClient->websocketIO, auxip,
+                      mUrl.host.c_str(),
+                      mUrl.port,
+                      mUrl.path.c_str(),
+                      mUrl.isSecure))
+        {
+            return true;
+        }
+        proto = !proto;
+    }
+    return false;
+}
+
 bool Client::sendKeepalive(time_t now)
 {
     mTsLastPingSent = now ? now : time(NULL);

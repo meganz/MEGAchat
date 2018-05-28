@@ -65,58 +65,29 @@ void LibwebsocketsIO::setTimestamp(int64_t ts)
     this->ts = ts;
 }
 
-std::string LibwebsocketsIO::getCachedIpFromUrl(const std::string &url, int ipversion)
+WebsocketsIO::pair_ip_struct* LibwebsocketsIO::getCachedIpFromUrl(const std::string &url)
 {
-    std::string ip;
-    std::map<std::string, std::string>::iterator it;
-    if (ipversion == kIpv4)
+    pair_ip_struct* pairIp = NULL;
+    std::map<std::string, pair_ip_struct>::iterator it;
+    it = this->mCachedIp.find(url);
+    if (it != mCachedIp.end())
     {
-        it = this->mCachedIpv4.find(url);
-        if (it != mCachedIpv4.end())
-        {
-            ip = it->second;
-        }
+        pairIp = new pair_ip_struct {it->second.ipv4, it->second.ipv6};
     }
-    else
-    {
-        it = this->mCachedIpv6.find(url);
-        if (it != mCachedIpv6.end())
-        {
-            ip = it->second;
-        }
-    }
-    return ip;
+    return pairIp;
 }
 
-void LibwebsocketsIO::addCachedIpFromUrl(const std::string &url, const std::string &ip, int ipVersion)
+void LibwebsocketsIO::addCachedIpFromUrl(const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
-    if (ipVersion == kIpv4)
-    {
-        mCachedIpv4.insert(std::pair<std::string, std::string>(url, ip));
-    }
-    else
-    {
-        mCachedIpv6.insert(std::pair<std::string, std::string>(url, ip));
-    }
+    pair_ip_struct pairIp;
+    pairIp.ipv4 = ipv4;
+    pairIp.ipv6 = ipv6;
+    mCachedIp.insert(std::pair<std::string, pair_ip_struct>(url, pairIp));
 }
-
-void LibwebsocketsIO::removeCachedIpFromUrl(const std::string &url, int ipVersion)
-{
-    if (ipVersion == kIpv4)
-    {
-        mCachedIpv4.erase(url);
-    }
-    else
-    {
-        mCachedIpv6.erase(url);
-    }
-}
-
 
 void LibwebsocketsIO::cleanCachedIp()
 {
-    mCachedIpv4.clear();
-    mCachedIpv6.clear();
+    mCachedIp.clear();
 }
 
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
