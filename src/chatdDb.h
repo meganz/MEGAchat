@@ -237,16 +237,22 @@ public:
     {
         // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
         std::string sql = "select count(*) from history where (chatid = ?1)"
-                "and (userid != ?2) and ((type = ?3 || type >= ?4) and type != ?5 and type != ?6) and not (updated != 0 and length(data) = 0 )";
+                "and (userid != ?2)"
+                "and not (updated != 0 and length(data) = 0)"
+                "and (is_encrypted = ?3 || is_encrypted = ?4 || is_encrypted = ?5)"
+                "and (type = ?6 || type = ?7 || type = ?8 || type = ?9)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
         stmt << mChat.chatId() << mChat.client().userId()   // skip own messages
-             << chatd::Message::kMsgNormal                  // include normal messages
-             << chatd::Message::kMsgUserFirst               // exclude management messages
-             << chatd::Message::kMsgRevokeAttachment        // exclude revoke messages
-             << chatd::Message::kMsgInvalid;                // exclude (still) encrypted messages (theorically, they should not be stored in DB)
+             << chatd::Message::kNotEncrypted               // include decrypted messages
+             << chatd::Message::kEncryptedMalformed         // include encrypted messages due to malformed payload
+             << chatd::Message::kEncryptedSignature         // include encrypted messages due to invalid signature
+             << chatd::Message::kMsgNormal                  // include only known type of messages
+             << chatd::Message::kMsgAttachment
+             << chatd::Message::kMsgContact
+             << chatd::Message::kMsgContainsMeta;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");

@@ -418,7 +418,6 @@ private:
     bool mIdIsXid = false;
 protected:
     uint8_t mIsEncrypted = kNotEncrypted;
-    uint8_t mFlags = 0;
 public:
     karere::Id userid;
     uint32_t ts;
@@ -499,33 +498,29 @@ public:
                 && type >= Message::kMsgManagementLowest
                 && type <= Message::kMsgManagementHighest);
     }
-
-    bool isText() const
-    {
-        return (!empty()                                // skip deleted messages
-                && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
-                && (type == kMsgNormal                  // include normal messages
-                    || type == kMsgAttachment           // include node-attachment messages
-                    || type == kMsgContact              // include contact-attachment messages
-                    || type == kMsgContainsMeta));      // include containsMeta messages
-    }
-
+    bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
+    bool isDeleted() const { return (updated && !size()); } // returns false for truncate (update = 0)
     bool isValidLastMessage() const
     {
-        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+        return (!isDeleted()                        // skip deleted messages (keep truncates)
                 && type != kMsgRevokeAttachment     // skip revokes
                 && type != kMsgInvalid              // skip (still) encrypted messages
                 && (!mIsEncrypted                   // include decrypted messages
                     || isUndecryptable()));         // or undecryptable messages due to permantent error
     }
-
     // conditions to consider unread messages should match the
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
     bool isValidUnread(karere::Id myHandle) const
     {
-        return (userid != myHandle              // skip own messages
-                && !(updated && !size())        // skip deleted messages
-                && (isText()));                 // Only text messages
+        return (!isOwnMessage(myHandle)             // exclude own messages
+                && !isDeleted()                     // exclude deleted messages
+                && (!mIsEncrypted                   // include decrypted messages
+                    || isUndecryptable())           // or undecryptable messages due to permantent error
+                && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
+                    || type == kMsgAttachment
+                    || type == kMsgContact
+                    || type == kMsgContainsMeta)
+                );
     }
 
     /** @brief Convert attachment etc. special messages to text */
