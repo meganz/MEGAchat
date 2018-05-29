@@ -831,6 +831,14 @@ HistSource Chat::getHistory(unsigned count)
             for (Idx i = mNextHistFetchIdx; i > fetchEnd; i--)
             {
                 auto& msg = at(i);
+                if (msg.isPendingToDecrypt())
+                {
+                    assert(false);
+                    CHATID_LOG_WARNING("Skipping the load of a message still encrypted. "
+                                       "msgid: %s idx: %d", ID_CSTR(msg.id()), i);
+                    continue;
+                }
+
                 CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
             }
             countSoFar = mNextHistFetchIdx - fetchEnd;
@@ -2321,7 +2329,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
 void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
-    if (keyxid != 0xffffffff)
+    if (keyxid != CHATD_KEYID_UNCONFIRMED)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
     }
@@ -2769,7 +2777,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             msgIncomingAfterDecrypt(isNew, true, msg, idx);
             return true;
         }
-        // else --> unknown management msg, try to decode it again
+        // else --> unknown management msg type, we may want to try to decode it again
     }
     else
     {
