@@ -15,6 +15,11 @@ public:
     virtual ~LibwsIO();
     
     virtual void addevents(::mega::Waiter*, int);
+    virtual WebsocketsIO::pair_ip_struct* getCachedIpFromUrl(const std::string &url);
+    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    virtual void cleanCachedIp();
+    virtual int64_t getTimestamp();
+    virtual void setTimestamp(int64_t ts);
 
 protected:
     ws_base_s wscontext;

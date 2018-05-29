@@ -55,6 +55,41 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 }
 
+int64_t LibwebsocketsIO::getTimestamp()
+{
+    return this->ts;
+}
+
+void LibwebsocketsIO::setTimestamp(int64_t ts)
+{
+    this->ts = ts;
+}
+
+WebsocketsIO::pair_ip_struct* LibwebsocketsIO::getCachedIpFromUrl(const std::string &url)
+{
+    pair_ip_struct* pairIp = NULL;
+    std::map<std::string, pair_ip_struct>::iterator it;
+    it = this->mCachedIp.find(url);
+    if (it != mCachedIp.end())
+    {
+        pairIp = new pair_ip_struct {it->second.ipv4, it->second.ipv6};
+    }
+    return pairIp;
+}
+
+void LibwebsocketsIO::addCachedIpFromUrl(const std::string &url, const std::string &ipv4, const std::string &ipv6)
+{
+    pair_ip_struct pairIp;
+    pairIp.ipv4 = ipv4;
+    pairIp.ipv6 = ipv6;
+    mCachedIp.insert(std::pair<std::string, pair_ip_struct>(url, pairIp));
+}
+
+void LibwebsocketsIO::cleanCachedIp()
+{
+    mCachedIp.clear();
+}
+
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
     string ipv4, ipv6;

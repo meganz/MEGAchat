@@ -8,6 +8,8 @@
 
 #include "net/websocketsIO.h"
 
+
+
 // Websockets network layer implementation based on libwebsocket
 class LibwebsocketsIO : public WebsocketsIO
 {
@@ -17,10 +19,17 @@ public:
 
     LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     virtual ~LibwebsocketsIO();
-    
     virtual void addevents(::mega::Waiter*, int);
-    
+    virtual WebsocketsIO::pair_ip_struct* getCachedIpFromUrl(const std::string &url);
+    virtual void addCachedIpFromUrl(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    virtual void cleanCachedIp();
+    virtual int64_t getTimestamp();
+    virtual void setTimestamp(int64_t ts);
+
 protected:
+    std::map<std::string, pair_ip_struct> mCachedIp;
+    std::map<std::string, std::string> mCachedIpv4;
+    std::map<std::string, std::string> mCachedIpv6;
     virtual bool wsResolveDNS(const char *hostname, std::function<void(int, std::string, std::string)> f);
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
