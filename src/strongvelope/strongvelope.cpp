@@ -775,7 +775,6 @@ void ProtocolHandler::onHistoryReload()
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
-    msg->managementType = true;
     msg->userid = parsedMsg->sender;
     msg->clear();
 

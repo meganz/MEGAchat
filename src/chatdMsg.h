@@ -424,7 +424,6 @@ public:
     uint16_t updated;
     uint32_t keyid;
     unsigned char type;
-    bool managementType = false;   // true for management messages (cannot deduce from type if unknown)
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
@@ -490,11 +489,11 @@ public:
     /** @brief Returns whether this message is a management message. */
     bool isManagementMessage() const
     {
-        return managementType;
+        return (keyid == 0) && !isSending();    // msgs in sending status use keyid=CHATD_KEYID_INVALID (0)
     }
     bool isManagementMessageKnownType()
     {
-        return (managementType
+        return (isManagementMessage()
                 && type >= Message::kMsgManagementLowest
                 && type <= Message::kMsgManagementHighest);
     }
