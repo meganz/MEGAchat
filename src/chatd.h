@@ -1162,10 +1162,12 @@ public:
 
 
     // Chatd Version:
+    // - Version 0: initial version
     // - Version 1:
+    //  * Add commands CALLDATA and REJECT
     // - Version 2:
-    //  * Add commands CALL_DATA and REJECT
-    static const unsigned chatdVersion;
+    //  * Add call-logging messages
+    static const unsigned chatdVersion = 2;
 };
 
 static inline const char* connStateToStr(Connection::State state)

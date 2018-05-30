@@ -82,8 +82,6 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 
-const unsigned Client::chatdVersion = 2;
-
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
 {
@@ -223,6 +221,7 @@ void Chat::connect()
 
             std::string sUrl = url;
             mConnection.mUrl.parse(sUrl);
+            mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
@@ -440,16 +439,10 @@ Promise<void> Connection::reconnect()
                 string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
                 CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
 
-                std::string urlPath = mUrl.path;
-                if (Client::chatdVersion >= 2)
-                {
-                    urlPath.append("/1");
-                }
-
                 bool rt = wsConnect(mChatdClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
-                          urlPath.c_str(),
+                          mUrl.path.c_str(),
                           mUrl.isSecure);
                 if (!rt)
                 {
@@ -469,7 +462,7 @@ Promise<void> Connection::reconnect()
                         if (wsConnect(mChatdClient.karereClient->websocketIO, otherip.c_str(),
                                                   mUrl.host.c_str(),
                                                   mUrl.port,
-                                                  urlPath.c_str(),
+                                                  mUrl.path.c_str(),
                                                   mUrl.isSecure))
                         {
                             return;
