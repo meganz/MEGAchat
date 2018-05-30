@@ -388,6 +388,11 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
     pImpl->createChat(group, peers, listener);
 }
 
+void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
+{
+    pImpl->createChat(group, peers, title, listener);
+}
+
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
     pImpl->createPublicChat(peers, title, listener);

@@ -2242,6 +2242,42 @@ public:
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Creates a chat for one or more participants, allowing you to specify their
+     * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
+     *
+     * There are two types of chat: permanent an group. A permanent chat is between two people, and
+     * participants can not leave it.
+     *
+     * The creator of the chat will have moderator level privilege and should not be included in the
+     * list of peers.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * to be a group chat.
+     *
+     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * exists with that person, then this call will return the information for the existing chat, rather
+     * than a new chat.
+     *
+     * @param group Flag to indicate if the chat is a group chat or not
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void createChat(bool group, MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Creates an public chatroom for multiple participants (groupchat)
      *
      * This function allows to create public chats, where the moderator can create chat links to share

@@ -2261,6 +2261,17 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
     waiter->notify();
 }
 
+void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
+    request->setFlag(group);
+    request->setPrivilege(0);
+    request->setMegaChatPeerList(peerList);
+    request->setText(title);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
