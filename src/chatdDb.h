@@ -239,8 +239,8 @@ public:
         std::string sql = "select count(*) from history where (chatid = ?1)"
                 "and (userid != ?2)"
                 "and not (updated != 0 and length(data) = 0)"
-                "and (is_encrypted = ?3 || is_encrypted = ?4 || is_encrypted = ?5)"
-                "and (type = ?6 || type = ?7 || type = ?8 || type = ?9)";
+                "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
+                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
