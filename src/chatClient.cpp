@@ -1401,7 +1401,8 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
             std::string keybin(buf->buf(), buf->size());
             std::string keystr;
             ::mega::Base64::btoa(keybin, keystr);
-            return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), keystr.c_str());
+            return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), nullptr, keystr.c_str());
+            //TODO add title
         });
     }
     else
@@ -2439,7 +2440,8 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     {
         wptr.throwIfDeleted();
         return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
-            title.empty() ? nullptr: title.c_str());
+            title.empty() ? nullptr: title.c_str(), nullptr);
+            //TODO add unified key
     })
     .then([this, wptr, userid, priv](ReqResult)
     {
@@ -2473,7 +2475,8 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
     {
         wptr.throwIfDeleted();
         return parent.client.api.call(&mega::MegaApi::chatLinkJoin, mPublicHandle,
-            title.empty() ? nullptr: title.c_str());
+            title.empty() ? nullptr: title.c_str(), nullptr);
+            //TODO add unified key
     })
     .then([this, wptr, userid](ReqResult)
     {
