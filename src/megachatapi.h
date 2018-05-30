@@ -640,6 +640,15 @@ public:
         REASON_NO_CHANGES           = 6     /// Edited message has the same content than original message
     };
 
+    enum
+    {
+        DECRYPTING          = 1,        /// Message pending to be decrypted
+        INVALID_KEY         = 2,        /// Key not found for the message (permanent failure)
+        INVALID_SIGNATURE   = 3,        /// Signature verification failure (permanent failure)
+        INVALID_FORMAT      = 4,        /// Malformed/corrupted data in the message (permanent failure)
+        INVALID_TYPE        = 5         /// Management message of unknown type (transient, not supported by the app yet)
+    };
+
     virtual ~MegaChatMessage() {}
     virtual MegaChatMessage *copy() const;
 
@@ -716,7 +725,9 @@ public:
      * @brief Returns the type of message.
      *
      * Valid values are:
-     *  - TYPE_INVALID: Invalid type
+     *  - TYPE_INVALID: Invalid type. In those cases, the MegaChatMessage::getCode can take the following values:
+     *      * INVALID_FORMAT
+     *      * INVALID_SIGNATURE
      *  - TYPE_NORMAL: Regular text message
      *  - TYPE_ALTER_PARTICIPANTS: Management message indicating the participants in the chat have changed
      *  - TYPE_TRUNCATE: Management message indicating the history of the chat has been truncated
@@ -725,6 +736,10 @@ public:
      *  - TYPE_ATTACHMENT: User message including info about a shared node
      *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
      *  - TYPE_CONTACT: User message including info about a contact
+     *  - TYPE_UNKNOWN: Unknown message, should be ignored/hidden. The MegaChatMessage::getCode can take the following values:
+     *      * INVALID_TYPE
+     *      * INVALID_KEYID
+     *      * DECRYPTING
      *
      * @return Returns the Type of message.
      */

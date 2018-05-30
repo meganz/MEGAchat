@@ -5525,12 +5525,13 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     case Message::kEncryptedPending:    // transient, app will receive update once decrypted
     case Message::kEncryptedNoKey:
     case Message::kEncryptedNoType:
-        this->type = MegaChatMessage::TYPE_UNKNOWN; // --> hide them
+        this->code = encryptionState;
+        this->type = MegaChatMessage::TYPE_UNKNOWN; // --> ignore/hide them
         break;
     case Message::kEncryptedMalformed:
     case Message::kEncryptedSignature:
-        code = encryptionState;
-        this->type = MegaChatMessage::TYPE_INVALID; // --> show them as warning
+        this->code = encryptionState;
+        this->type = MegaChatMessage::TYPE_INVALID; // --> show a warning
         break;
     case Message::kNotEncrypted:
         break;
