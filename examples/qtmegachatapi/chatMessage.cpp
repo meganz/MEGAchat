@@ -91,6 +91,16 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 setMessageContent(msg->getContent());
                 break;
             }
+            case megachat::MegaChatMessage::TYPE_INVALID:
+            {
+                setMessageContent("Invalid Type: - (ERROR)");
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_UNKNOWN:
+            {
+                setMessageContent("Unkown Type - (HIDE)");
+                break;
+            }
         }
     }
     else
