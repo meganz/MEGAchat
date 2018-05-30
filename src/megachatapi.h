@@ -2260,15 +2260,18 @@ public:
      * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
      * - MegaChatRequest::getPrivilege - Returns one (public mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
      *
      * @param peers MegaChatPeerList including other users and their privilege level
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
      * @param listener MegaChatRequestListener to track this request
      */
-    void createPublicChat(MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);
+    void createPublicChat(MegaChatPeerList *peers, const char *title = NULL, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Create a chat-link for an public chat

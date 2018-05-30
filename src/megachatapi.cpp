@@ -388,9 +388,9 @@ void MegaChatApi::createChat(bool group, MegaChatPeerList *peers, MegaChatReques
     pImpl->createChat(group, peers, listener);
 }
 
-void MegaChatApi::createPublicChat(MegaChatPeerList *peers, MegaChatRequestListener *listener)
+void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
 {
-    pImpl->createPublicChat(peers, listener);
+    pImpl->createPublicChat(peers, title, listener);
 }
 
 void MegaChatApi::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)

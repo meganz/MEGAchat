@@ -1376,7 +1376,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 }
 
 promise::Promise<karere::Id>
-Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat)
+Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title)
 {
     SetOfIds users;
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());

@@ -397,13 +397,14 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (group)
             {
+                const char *title = request->getText();
                 vector<std::pair<handle, Priv>> peers;
                 for (unsigned int i = 0; i < userpriv->size(); i++)
                 {
                     peers.push_back(std::make_pair(userpriv->at(i).first, (Priv) userpriv->at(i).second));
                 }
 
-                mClient->createGroupChat(peers, publicChat)
+                mClient->createGroupChat(peers, publicChat, title)
                 .then([request,this](Id chatid)
                 {
                     request->setChatHandle(chatid);
@@ -2260,12 +2261,13 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
     waiter->notify();
 }
 
-void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, MegaChatRequestListener *listener)
+void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CREATE_CHATROOM, listener);
     request->setFlag(true);
     request->setPrivilege(1);
     request->setMegaChatPeerList(peerList);
+    request->setText(title);
     requestQueue.push(request);
     waiter->notify();
 }
