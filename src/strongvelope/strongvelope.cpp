@@ -745,6 +745,11 @@ void ProtocolHandler::resetUnifiedKey()
     mUnifiedKey.reset();
 }
 
+std::string ProtocolHandler::getUnifiedKey()
+{
+    return mUnifiedKey->toString();
+}
+
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 {
     assert(!myPrivRsaKey.empty());
