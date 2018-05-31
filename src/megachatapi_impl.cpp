@@ -231,12 +231,12 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
             mClient->retryPendingConnections()
-                    .then([this, request]()
+            .then([this, request]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-                    .fail([this, request](const promise::Error& e)
+            .fail([this, request](const promise::Error& e)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -2170,7 +2170,7 @@ int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
         case kHistSourceRam:
         case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
         case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
-        case kHistSourceServerOffline: ret = MegaChatApi::SOURCE_ERROR; break;
+        case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
         default:
             API_LOG_ERROR("Unknown source of messages at loadMessages()");
             break;

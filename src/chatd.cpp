@@ -241,7 +241,7 @@ void Chat::connect()
         });
 
     }
-    else if (mConnection.isConnected() || mConnection.isLoggedIn())
+    else if (mConnection.isConnected())
     {
         login();
     }
@@ -254,6 +254,12 @@ void Chat::disconnect()
 
 void Chat::login()
 {
+    assert(mConnection.isConnected());
+    mUserDump.clear();
+    setOnlineState(kChatStateJoining);
+    // In both cases (join/joinrangehist), don't block history messages being sent to app
+    mServerOldHistCbEnabled = false;
+
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
@@ -308,11 +314,12 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     usingipv6 = !usingipv6;
 
-    if (oldState < kStateLoggedIn) //tell retry controller that the connect attempt failed
+    if (oldState < kStateConnected) //tell retry controller that the connect attempt failed
     {
-        CHATDS_LOG_DEBUG("Socket close and state is not kStateLoggedIn (but %s), start retry controller", connStateToStr(oldState));
+        CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
         assert(!mLoginPromise.succeeded());
+        assert(!mConnectPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
@@ -405,7 +412,6 @@ Promise<void> Connection::reconnect()
                 if (!chat.isDisabled())
                     chat.setOnlineState(kChatStateConnecting);                
             }
-
 
             int status = wsResolveDNS(mChatdClient.karereClient->websocketIO, mUrl.host.c_str(),
                          [wptr, this](int status, std::string ipv4, std::string ipv6)
@@ -587,7 +593,7 @@ void Client::heartbeat()
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isLoggedIn() && !isConnected())
+    if (!isConnected())
         return false;
     
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
@@ -762,15 +768,9 @@ promise::Promise<void> Connection::rejoinExistingChats()
 // send JOIN
 void Chat::join()
 {
-//We don't have any local history, otherwise joinRangeHist() would be called instead of this
-//Reset handshake state, as we may be reconnecting
-    assert(mConnection.isConnected() || mConnection.isLoggedIn());
-    mUserDump.clear();
-    setOnlineState(kChatStateJoining);
+    //We don't have any local history, otherwise joinRangeHist() would be called instead of this
+    //Reset handshake state, as we may be reconnecting
     mServerFetchState = kHistNotFetching;
-    //we don't have local history, so mHistSendSource may be None or Server.
-    //In both cases this will not block history messages being sent to app
-    mServerOldHistCbEnabled = false;
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
@@ -853,9 +853,9 @@ HistSource Chat::getHistory(unsigned count)
         CALL_LISTENER(onHistoryDone, source);
         return source;
     }
-    if (nextSource == kHistSourceDb)
+    if (nextSource == kHistSourceDb || nextSource == kHistSourceServerOffline)
     {
-        CALL_LISTENER(onHistoryDone, kHistSourceDb);
+        CALL_LISTENER(onHistoryDone, nextSource);
     }
     return nextSource;
 }
@@ -882,8 +882,8 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
         }
         else
         {
-            if (!mConnection.isLoggedIn())
-                return kHistSourceServerOffline;
+            if (mOnlineState != kChatStateOnline)
+                return kHistSourceNotLoggedIn;
 
             auto wptr = weakHandle();
             marshallCall([wptr, this, count]()
@@ -2115,7 +2115,7 @@ void Chat::flushOutputQueue(bool fromStart)
 //the crypto module would get out of sync with the I/O sequence, which means
 //that it must have been reset/freshly initialized, and we have to skip
 //the NEWKEYID responses for the keys we flush from the output queue
-    if(mEncryptionHalted || !mConnection.isLoggedIn())
+    if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
         return;
 
     if (fromStart)
@@ -2168,11 +2168,7 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(mConnection.isConnected() || mConnection.isLoggedIn());
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
-    mUserDump.clear();
-    setOnlineState(kChatStateJoining);
-    mServerOldHistCbEnabled = false;
     mServerFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
@@ -3130,9 +3126,12 @@ void Connection::notifyLoggedIn()
 {
     if (mLoginPromise.done())
         return;
-    mState = kStateLoggedIn;
+
     assert(mConnectPromise.succeeded());
-    mLoginPromise.resolve();
+    if (mChatdClient.areAllChatsLoggedIn())
+    {
+        mLoginPromise.resolve();
+    }
 }
 
 void Chat::onJoinComplete()
