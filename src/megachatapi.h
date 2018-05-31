@@ -917,7 +917,10 @@ public:
     /**
      * @brief Return a list with handles
      *
-     * Used for multiple purpose.
+     * The SDK retains the ownership of the returned value.It will be valid until
+     * the MegaChatMessage object is deleted.
+     *
+     * It can be used for multiple purpose.
      * Only valid for:
      *  - MegaChatMessage::TYPE_CALL_ENDED
      *
