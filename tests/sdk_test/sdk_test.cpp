@@ -1643,6 +1643,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
+    chatroomListener->mConfirmedMessageHandle[a1] = MEGACHAT_INVALID_HANDLE;
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
@@ -2080,10 +2081,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     changeLastName(a1, newLastName);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastName;
+    std::string finalLastName;
     if (nameFromApi)
     {
-        finishLastName = nameFromApi;
+        finalLastName = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2093,10 +2094,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     char *newSession = login(a1, sessionPrimary);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastNameAfterLogout;
+    std::string lastNameAfterLogout;
     if (nameFromApi)
     {
-        finishLastNameAfterLogout = nameFromApi;
+        lastNameAfterLogout = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2104,8 +2105,8 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     //Name comes back to old value.
     changeLastName(a1, myAccountLastName);
 
-    ASSERT_CHAT_TEST(newLastName == finishLastName, "Failed to change fullname (checked from memory)");
-    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Failed to change fullname (checked from DB)");
+    ASSERT_CHAT_TEST(newLastName == finalLastName, "Failed to change fullname (checked from memory) Name established: " + newLastName + " Name in memory" + finalLastName);
+    ASSERT_CHAT_TEST(lastNameAfterLogout == finalLastName, "Failed to change fullname (checked from DB) Name established: " + finalLastName + " Name in DB" + lastNameAfterLogout);
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -3127,9 +3128,12 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
 {
     bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    bool *flagMyNameReceived = &requestFlags[accountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagMyNameReceived = false;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
+    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagMyNameReceived), "Expired timeout to get last name after own change (" + std::to_string(maxTimeout) + " seconds)");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK to get lastname. Error: " + std::to_string(lastError[accountIndex]));
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
@@ -3564,17 +3568,20 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 
     msgId[apiIndex].push_back(msg->getMsgId());
 
-    if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_STATUS)
     {
-        mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
-        msgConfirmed[apiIndex] = true;
-    }
-    else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
-    {
-        msgDelivered[apiIndex] = true;
+        if (msg->getStatus() == MegaChatMessage::STATUS_SERVER_RECEIVED)
+        {
+            mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
+            msgConfirmed[apiIndex] = true;
+        }
+        else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
+        {
+            msgDelivered[apiIndex] = true;
+        }
     }
 
-    if (msg->isEdited())
+    if (msg->getChanges() == MegaChatMessage::CHANGE_TYPE_CONTENT && msg->isEdited())
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
@@ -3589,7 +3596,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
 unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
     {
         if (api == this->megaChatApi[i])
         {

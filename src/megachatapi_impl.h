@@ -586,6 +586,7 @@ public:
     virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
+    virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
 
     virtual int getChanges() const;
@@ -613,6 +614,7 @@ private:
     std::vector<std::string> peerEmails;
     bool group;
     bool active;
+    bool mHasCustomTitle;
 
     std::string title;
     int unreadCount;
@@ -987,7 +989,6 @@ public:
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onIncomingContactRequest(const mega::MegaContactRequest& req);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif

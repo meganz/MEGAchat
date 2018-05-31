@@ -140,6 +140,10 @@ void MegaChatApiImpl::loop()
             break;
         }
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    rtcModule::globalCleanup();
+#endif
 }
 
 void MegaChatApiImpl::megaApiPostMessage(void* msg, void* ctx)
@@ -328,10 +332,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
             }
-
-#ifndef KARERE_DISABLE_WEBRTC
-            rtcModule::globalCleanup();
-#endif
 
             threadExit = 1;
             break;
@@ -3086,11 +3086,6 @@ IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
     return this;
 }
 
-void MegaChatApiImpl::onIncomingContactRequest(const MegaContactRequest &req)
-{
-    // it is notified to the app by the existing MegaApi
-}
-
 #ifndef KARERE_DISABLE_WEBRTC
 
 rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)
@@ -4408,11 +4403,11 @@ void MegaChatRoomHandler::onMessageConfirmed(Id msgxid, const Message &msg, Idx 
     {
         for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
         {
-            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)chatApiImpl->getMessage(chatid, *itMsgId);
-            if (msg)
+            MegaChatMessagePrivate *msgUpdated = (MegaChatMessagePrivate *)chatApiImpl->getMessage(chatid, *itMsgId);
+            if (msgUpdated)
             {
-                msg->setAccess();
-                fireOnMessageUpdate(msg);
+                msgUpdated->setAccess();
+                fireOnMessageUpdate(msgUpdated);
             }
         }
         delete msgToUpdate;
@@ -4687,6 +4682,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->title = chat->getTitle();
+    this->mHasCustomTitle = chat->hasCustomTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();
     this->changed = chat->getChanges();
@@ -4700,6 +4696,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->title = chat.titleString();
+    this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
     this->unreadCount = chat.chat().unreadMsgCount();
     this->active = chat.isActive();
     this->uh = MEGACHAT_INVALID_HANDLE;
@@ -4913,6 +4910,11 @@ bool MegaChatRoomPrivate::isGroup() const
 const char *MegaChatRoomPrivate::getTitle() const
 {
     return title.c_str();
+}
+
+bool MegaChatRoomPrivate::hasCustomTitle() const
+{
+    return mHasCustomTitle;
 }
 
 bool MegaChatRoomPrivate::isActive() const

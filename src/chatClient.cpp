@@ -418,7 +418,8 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
     db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
 
-    mUserAttrCache.reset(new UserAttrCache(*this));
+    mUserAttrCache.reset(new UserAttrCache(*this));    
+    api.sdk.addGlobalListener(this);
 
     auto wptr = weakHandle();
     return loadOwnKeysFromApi()
@@ -535,7 +536,8 @@ void Client::initWithDbSession(const char* sid)
         }
         assert(db);
         assert(!mSid.empty());
-        mUserAttrCache.reset(new UserAttrCache(*this));
+        mUserAttrCache.reset(new UserAttrCache(*this));        
+        api.sdk.addGlobalListener(this);
 
         mMyHandle = getMyHandleFromDb();
         assert(mMyHandle);
@@ -586,8 +588,6 @@ Client::InitState Client::init(const char* sid)
         KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
         return kInitErrAlready;
     }
-
-    api.sdk.addGlobalListener(this);
 
     if (sid)
     {
@@ -2853,32 +2853,6 @@ Contact* ContactList::contactFromUserId(uint64_t userid) const
 {
     auto it = find(userid);
     return (it == end())? nullptr : it->second;
-}
-
-void Client::onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* reqs)
-{
-    if (!reqs)
-        return;
-
-    std::shared_ptr<mega::MegaContactRequestList> copy(reqs->copy());
-    auto wptr = weakHandle();
-    marshallCall([wptr, this, copy]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        auto count = copy->size();
-        for (int i=0; i<count; i++)
-        {
-            auto& req = *copy->get(i);
-            if (req.isOutgoing())
-                continue;
-            if (req.getStatus() == mega::MegaContactRequest::STATUS_UNRESOLVED)
-                app.onIncomingContactRequest(req);
-        }
-    }, appCtx);
 }
 
 Contact::Contact(ContactList& clist, const uint64_t& userid,
