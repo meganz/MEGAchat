@@ -161,12 +161,22 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             break;
 
         case megachat::MegaChatMessage::TYPE_CONTAINS_META: // fall-through
-            lastMessage.append("metadata: ").append(item->getLastMessage());
+            lastMessage.append("Metadata: ").append(item->getLastMessage());
             break;
 
         case megachat::MegaChatMessage::TYPE_CALL_ENDED:
-            lastMessage.append("end call: ");
+        {
+            QString qstring(item->getLastMessage());
+            QStringList stringList = qstring.split(0x01);
+            assert(stringList.size() >= 2);
+            lastMessage.append("Call started by: ")
+                       .append(senderHandle)
+                       .append(" Durration: ")
+                       .append(stringList.at(0).toStdString())
+                       .append("  TermCode: ")
+                       .append(stringList.at(1).toStdString());
             break;
+        }
 
         default:
             lastMessage = item->getLastMessage();
