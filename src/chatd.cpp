@@ -82,8 +82,6 @@ namespace chatd
 // the message buffer can grow in two directions and is always contiguous, i.e. there are no "holes"
 // there is no guarantee as to ordering
 
-const unsigned Client::chatdVersion = 2;
-
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
 {
@@ -116,6 +114,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     if (!url.empty())
     {
         conn->mUrl.parse(url);
+        conn->mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
     }
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
@@ -223,6 +222,7 @@ void Chat::connect()
 
             std::string sUrl = url;
             mConnection.mUrl.parse(sUrl);
+            mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
@@ -270,7 +270,7 @@ void Chat::login()
 }
 
 Connection::Connection(Client& client, int shardNo)
-: mChatdClient(client), mShardNo(shardNo), usingipv6(false)
+: mChatdClient(client), mShardNo(shardNo)
 {}
 
 void Connection::wsConnectCb()
@@ -446,16 +446,10 @@ Promise<void> Connection::reconnect()
                 string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
                 CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
 
-                std::string urlPath = mUrl.path;
-                if (Client::chatdVersion >= 2)
-                {
-                    urlPath.append("/1");
-                }
-
                 bool rt = wsConnect(mChatdClient.karereClient->websocketIO, ip.c_str(),
                           mUrl.host.c_str(),
                           mUrl.port,
-                          urlPath.c_str(),
+                          mUrl.path.c_str(),
                           mUrl.isSecure);
                 if (!rt)
                 {
@@ -475,7 +469,7 @@ Promise<void> Connection::reconnect()
                         if (wsConnect(mChatdClient.karereClient->websocketIO, otherip.c_str(),
                                                   mUrl.host.c_str(),
                                                   mUrl.port,
-                                                  urlPath.c_str(),
+                                                  mUrl.path.c_str(),
                                                   mUrl.isSecure))
                         {
                             return;
@@ -831,6 +825,14 @@ HistSource Chat::getHistory(unsigned count)
             for (Idx i = mNextHistFetchIdx; i > fetchEnd; i--)
             {
                 auto& msg = at(i);
+                if (msg.isPendingToDecrypt())
+                {
+                    assert(false);
+                    CHATID_LOG_WARNING("Skipping the load of a message still encrypted. "
+                                       "msgid: %s idx: %d", ID_CSTR(msg.id()), i);
+                    continue;
+                }
+
                 CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
             }
             countSoFar = mNextHistFetchIdx - fetchEnd;
@@ -900,7 +902,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 void Chat::requestHistoryFromServer(int32_t count)
 {
     // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
-    assert(mConnection.isConnected() || mConnection.isLoggedIn());
+    assert(mConnection.isConnected());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer
@@ -1087,7 +1089,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ID_CSTR(userid), keyid, ts, updated);
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
-                msg->setEncrypted(1);
+                msg->setEncrypted(Message::kEncryptedPending);
                 Chat& chat = mChatdClient.chats(chatid);
                 if (opcode == OP_MSGUPD)
                 {
@@ -2317,7 +2319,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
 void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
-    if (keyxid != 0xffffffff)
+    if (keyxid != CHATD_KEYID_UNCONFIRMED)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
     }
@@ -2418,9 +2420,48 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
+    .fail([this, cipherMsg](const promise::Error& err) -> promise::Promise<Message*>
+    {
+        assert(cipherMsg->isPendingToDecrypt());
+
+        int type = err.type();
+        switch (type)
+        {
+            case SVCRYPTO_EEXPIRED:
+                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+
+            case SVCRYPTO_ENOMSG:
+                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+
+            case SVCRYPTO_ENOKEY:
+                //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
+                assert(mClient.chats(mChatId).isGroup());
+                CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedNoKey);
+                break;
+
+            case SVCRYPTO_ESIGNATURE:
+                CHATID_LOG_ERROR("Signature verification failure for message: %s", ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedSignature);
+                break;
+
+            case SVCRYPTO_ENOTYPE:
+                CHATID_LOG_WARNING("Unknown type of management message: %d (msgid: %s)", cipherMsg->type, ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedNoType);
+                break;
+
+            case SVCRYPTO_EMALFORMED:
+            default:
+                CHATID_LOG_ERROR("Malformed message: %s", ID_CSTR(cipherMsg->id()));
+                cipherMsg->setEncrypted(Message::kEncryptedMalformed);
+                break;
+        }
+
+        return cipherMsg;
+    })
     .then([this](Message* msg)
     {
-        assert(!msg->isEncrypted());
+        assert(!msg->isPendingToDecrypt()); //either decrypted or error
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
         {
             if (msg->dataSize() < 2)
@@ -2429,8 +2470,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 msg->type = msg->buf()[1];
         }
 
-        //update in db
-        CALL_DB(updateMsgInHistory, msg->id(), *msg);
         //update in memory, if loaded
         auto msgit = mIdToIndexMap.find(msg->id());
         Idx idx;
@@ -2458,6 +2497,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             histmsg.updated = msg->updated;
             histmsg.type = msg->type;
             histmsg.userid = msg->userid;
+            histmsg.setEncrypted(msg->isEncrypted());
             if (msg->type == Message::kMsgTruncate)
             {
                 histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
@@ -2518,11 +2558,16 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         if (err.type() == SVCRYPTO_ENOMSG)
         {
             CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+
+            //if (err.type() == SVCRYPTO_ENOMSG)
+                //TODO: If a message could be deleted individually, decryption process should be restarted again
+                // It isn't a possibilty with actual implementation
         }
         else
         {
-            CHATID_LOG_ERROR("Error decrypting edit of message %s: %s",
-                ID_CSTR(cipherMsg->id()), err.what());
+            CHATID_LOG_WARNING("Message %s can't be decrypted: Failure type %s (%d)",
+                               ID_CSTR(cipherMsg->id()), err.what(), err.type());
+            delete cipherMsg;
         }
     });
 }
@@ -2682,7 +2727,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
         {
             //history message older than the oldest we have
             assert(isFetchingFromServer());
-            assert(message->isEncrypted() == 1);
+            assert(message->isPendingToDecrypt());
             mLastServerHistFetchCount++;
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
@@ -2717,13 +2762,16 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 {
     if (isLocal)
     {
-        assert(!msg.isEncrypted());
-        msgIncomingAfterDecrypt(isNew, true, msg, idx);
-        return true;
+        if (msg.isEncrypted() != Message::kEncryptedNoType)
+        {
+            msgIncomingAfterDecrypt(isNew, true, msg, idx);
+            return true;
+        }
+        // else --> unknown management msg type, we may want to try to decode it again
     }
     else
     {
-        assert(msg.isEncrypted() == 1); //no decrypt attempt was made
+        assert(msg.isPendingToDecrypt()); //no decrypt attempt was made
     }
 
     try
@@ -2735,11 +2783,13 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         CHATID_LOG_WARNING("handleLegacyKeys threw error: %s\n"
             "Queued messages for decrypt: %d - %d. Ignoring", e.what(),
             mDecryptOldHaltedAt, idx);
+        msg.setEncrypted(Message::kEncryptedNoKey);
+        return true;
     }
 
-    if (at(idx).isEncrypted() != 1)
+    if (!msg.isPendingToDecrypt() && msg.isEncrypted() != Message::kEncryptedNoType)
     {
-        CHATID_LOG_DEBUG("handleLegacyKeys already decrypted msg %s, bailing out", ID_CSTR(msg.id()));
+        CHATID_LOG_DEBUG("Message already decrypted or undecryptable: %s, bailing out", ID_CSTR(msg.id()));
         return true;
     }
 
@@ -2775,28 +2825,43 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message, idx](const promise::Error& err) -> promise::Promise<Message*>
+    pms.fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
     {
-        if (err.type() == SVCRYPTO_ENOMSG)
+        assert(message->isPendingToDecrypt());
+
+        int type = err.type();
+        switch (type)
         {
-            return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+            case SVCRYPTO_EEXPIRED:
+                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+
+            case SVCRYPTO_ENOMSG:
+                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+
+            case SVCRYPTO_ENOKEY:
+                //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
+                assert(mClient.chats(mChatId).isGroup());
+                CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedNoKey);
+                break;
+
+            case SVCRYPTO_ESIGNATURE:
+                CHATID_LOG_ERROR("Signature verification failure for message: %s", ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedSignature);
+                break;
+
+            case SVCRYPTO_ENOTYPE:
+                CHATID_LOG_WARNING("Unknown type of management message: %d (msgid: %s)", message->type, ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedNoType);
+                break;
+
+            case SVCRYPTO_EMALFORMED:
+            default:
+                CHATID_LOG_ERROR("Malformed message: %s", ID_CSTR(message->id()));
+                message->setEncrypted(Message::kEncryptedMalformed);
+                break;
         }
 
-        assert(message->isEncrypted() == 1);
-        message->setEncrypted(2);
-        if ((err.type() != SVCRYPTO_ERRTYPE) ||
-            (err.code() != SVCRYPTO_ENOKEY))
-        {
-            CHATID_LOG_ERROR(
-                "Unrecoverable decrypt error at message %s(idx %d):'%s'\n"
-                "Message will not be decrypted", ID_CSTR(message->id()), idx, err.toString().c_str());
-        }
-        else
-        {
-            //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-            //TODO: assert chatroom is not 1on1
-            CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
-        }
         return message;
     })
     .then([this, isNew, isLocal, idx](Message* message)
@@ -2857,11 +2922,21 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([this](const promise::Error& err)
+    .fail([this, message](const promise::Error& err)
     {
-        //TODO: If a message could be deleted individually, decryption process should be restarted again
-        // It isn't a possibilty with acutal implementation
-        CHATID_LOG_WARNING("Message can't be decrypted: Fail type (%d) - %s", err.type(), err.what());
+        if (err.type() == SVCRYPTO_ENOMSG)
+        {
+            CHATID_LOG_WARNING("Msg has been deleted during decryption process");
+
+            //if (err.type() == SVCRYPTO_ENOMSG)
+                //TODO: If a message could be deleted individually, decryption process should be restarted again
+                // It isn't a possibilty with actual implementation
+        }
+        else
+        {
+            CHATID_LOG_WARNING("Message %s can't be decrypted: Failure type %s (%d)",
+                               ID_CSTR(message->id()), err.what(), err.type());
+        }
     });
 
     return false; //decrypt was not done immediately
@@ -2878,7 +2953,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto msgid = msg.id();
     if (!isLocal)
     {
-        assert(msg.isEncrypted() != 1); //either decrypted or error
+        assert(!msg.isPendingToDecrypt()); //either decrypted or error
         if (!msg.empty() && msg.type == Message::kMsgNormal && (*msg.buf() == 0)) //'special' message - attachment etc
         {
             if (msg.dataSize() < 2)

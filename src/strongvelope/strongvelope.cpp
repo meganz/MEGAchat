@@ -41,7 +41,6 @@ using namespace chatd;
 
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
-const karere::Id API_USER("gTxFhlOd_LQ");
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
                        Id recipient=Id::null());
 
@@ -125,7 +124,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
     std::string cleartext = aesCTRDecrypt(std::string(payload.buf(), payload.dataSize()),
         key, derivedNonce);
     parsePayload(StaticBuffer(cleartext, false), outMsg);
-    outMsg.setEncrypted(0);
+    outMsg.setEncrypted(Message::kNotEncrypted);
 }
 
 /**
@@ -738,7 +737,7 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     Message* msg, const SendKey& key)
 {
     parsedMsg->symmetricDecrypt(key, *msg);
-    msg->setEncrypted(0);
+    msg->setEncrypted(Message::kNotEncrypted);
     return msg;
 }
 
@@ -785,12 +784,12 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         case Message::kMsgPrivChange:
         {
             msg->createMgmtInfo(*parsedMsg);
-            msg->setEncrypted(0);
+            msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
         case Message::kMsgTruncate:
         {
-            msg->setEncrypted(0);
+            msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
         case Message::kMsgChatTitle:
@@ -799,7 +798,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         default:
             return promise::Error("Unknown management message type "+
-                std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ERRTYPE);
+                std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);
     }
 }
 
@@ -817,7 +816,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // deleted message
         if (message->empty())
         {
-            message->setEncrypted(0);
+            message->setEncrypted(Message::kNotEncrypted);
             return Promise<Message*>(message);
         }
 
@@ -825,24 +824,18 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
         message->type = parsedMsg->type;
 
-        if (message->isManagementMessage())
+        // if message comes from API and uses keyid=0, it's a management message
+        if (message->userid == karere::Id::COMMANDER() && message->keyid == 0)
         {
-            if (message->userid == API_USER && message->keyid == 0)
-            {
-                return handleManagementMessage(parsedMsg, message);
-            }
-            else
-            {
-                return promise::Error("Invalid management message. msgid: "+message->id().toString()+
-                                      " userid: "+message->userid.toString()+
-                                      " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_ERRTYPE);
-            }
+            return handleManagementMessage(parsedMsg, message);
         }
-        else if (message->keyid == 0 || message->userid == API_USER)
+
+        // check tampering of management messages
+        if (message->keyid == 0 || message->userid == karere::Id::COMMANDER())
         {
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
-                                  " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_ERRTYPE);
+                                  " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
         }
 
         // Get keyid
@@ -884,7 +877,10 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         return promise::when(symPms, edPms)
         .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
-            wptr.throwIfDeleted();
+            if (wptr.deleted())
+            {
+                return promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+            }
 
             if (cacheVersion != mCacheVersion)
             {
@@ -894,7 +890,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
-                                      message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+                                      message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
             if (isLegacy)
@@ -909,7 +905,8 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     }
     catch(std::runtime_error& e)
     {
-        return promise::Error(e.what());
+        // ParsedMessage ctor throws if unexpected format, unknown/missing TLVs, etc.
+        return promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
     }
 }
 
@@ -1037,7 +1034,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
         else
         {
             return promise::Error("Key with id "+std::to_string(ukid.key)+
-            " from user "+ukid.user.toString()+" not found", SVCRYPTO_ENOKEY, SVCRYPTO_ERRTYPE);
+            " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
         }
     }
     auto& entry = kit->second;
@@ -1212,7 +1209,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         }
 
         symmetricDecrypt(*key, *msg);
-        msg->setEncrypted(0);
+        msg->setEncrypted(Message::kNotEncrypted);
         return msg;
     });
 }

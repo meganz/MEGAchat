@@ -5506,12 +5506,35 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 this->msg = MegaApi::strdup(linkName.c_str());
                 this->type = MegaChatMessage::TYPE_NORMAL;
             }
+            break;
         }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
-        default:
             break;
+        default:
+        {
+            this->type = MegaChatMessage::TYPE_UNKNOWN;
+            break;
+        }
+    }
+
+    int encryptionState = msg.isEncrypted();
+    switch (encryptionState)
+    {
+    case Message::kEncryptedPending:    // transient, app will receive update once decrypted
+    case Message::kEncryptedNoKey:
+    case Message::kEncryptedNoType:
+        this->code = encryptionState;
+        this->type = MegaChatMessage::TYPE_UNKNOWN; // --> ignore/hide them
+        break;
+    case Message::kEncryptedMalformed:
+    case Message::kEncryptedSignature:
+        this->code = encryptionState;
+        this->type = MegaChatMessage::TYPE_INVALID; // --> show a warning
+        break;
+    case Message::kNotEncrypted:
+        break;
     }
 }
 
@@ -5590,10 +5613,8 @@ bool MegaChatMessagePrivate::isDeletable() const
 
 bool MegaChatMessagePrivate::isManagementMessage() const
 {
-    return (type == TYPE_ALTER_PARTICIPANTS ||
-            type == TYPE_PRIV_CHANGE ||
-            type == TYPE_TRUNCATE ||
-            type == TYPE_CHAT_TITLE);
+    return (type >= TYPE_LOWEST_MANAGEMENT
+            && type <= TYPE_HIGHEST_MANAGEMENT);
 }
 
 MegaChatHandle MegaChatMessagePrivate::getHandleOfAction() const
