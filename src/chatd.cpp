@@ -114,6 +114,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     if (!url.empty())
     {
         conn->mUrl.parse(url);
+        conn->mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
     }
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
