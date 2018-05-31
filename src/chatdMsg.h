@@ -655,7 +655,13 @@ static inline std::string& operator+(std::string&& str, karere::Id id)
 }
 
 enum ChatState
-{kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
+{
+    kChatStateOffline = 0,
+    kChatStateConnecting,       // connecting to chatd (resolve DNS, open socket...)
+    kChatStateJoining,          // connection to chatd is established, logging in
+    kChatStateOnline            // login completed (HISTDONE received for JOIN/JOINRANGEHIST)
+};
+
 static inline const char* chatStateToStr(unsigned state)
 {
     static const char* chatStates[] =
