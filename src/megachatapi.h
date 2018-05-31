@@ -605,13 +605,16 @@ public:
 
     // Types of message
     enum {
+        TYPE_UNKNOWN                = -1,   /// Unknown type of message (apps should hide them)
         TYPE_INVALID                = 0,    /// Invalid type
         TYPE_NORMAL                 = 1,    /// Regular text message
+        TYPE_LOWEST_MANAGEMENT      = 2,
         TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
         TYPE_TRUNCATE               = 3,    /// Management message indicating the history of the chat has been truncated
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
+        TYPE_HIGHEST_MANAGEMENT     = 6,
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
@@ -645,6 +648,15 @@ public:
         END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
         END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
         END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller
+    };
+
+    enum
+    {
+        DECRYPTING          = 1,        /// Message pending to be decrypted
+        INVALID_KEY         = 2,        /// Key not found for the message (permanent failure)
+        INVALID_SIGNATURE   = 3,        /// Signature verification failure (permanent failure)
+        INVALID_FORMAT      = 4,        /// Malformed/corrupted data in the message (permanent failure)
+        INVALID_TYPE        = 5         /// Management message of unknown type (transient, not supported by the app yet)
     };
 
     virtual ~MegaChatMessage() {}
@@ -723,7 +735,9 @@ public:
      * @brief Returns the type of message.
      *
      * Valid values are:
-     *  - TYPE_INVALID: Invalid type
+     *  - TYPE_INVALID: Invalid type. In those cases, the MegaChatMessage::getCode can take the following values:
+     *      * INVALID_FORMAT
+     *      * INVALID_SIGNATURE
      *  - TYPE_NORMAL: Regular text message
      *  - TYPE_ALTER_PARTICIPANTS: Management message indicating the participants in the chat have changed
      *  - TYPE_TRUNCATE: Management message indicating the history of the chat has been truncated
@@ -732,6 +746,10 @@ public:
      *  - TYPE_ATTACHMENT: User message including info about a shared node
      *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
      *  - TYPE_CONTACT: User message including info about a contact
+     *  - TYPE_UNKNOWN: Unknown message, should be ignored/hidden. The MegaChatMessage::getCode can take the following values:
+     *      * INVALID_TYPE
+     *      * INVALID_KEYID
+     *      * DECRYPTING
      *
      * @return Returns the Type of message.
      */
@@ -2482,7 +2500,7 @@ public:
      * @param count The number of requested messages to load.
      *
      * @return Return the source of the messages that is going to be fetched. The possible values are:
-     *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are offline
+     *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are not logged in yet
      *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even int the server)
      *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
      *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
@@ -3676,11 +3694,20 @@ public:
     virtual bool isGroup() const;
 
     /**
-     * @brief getTitle Returns the title of the chat, if any.
+     * @brief Returns the title of the chat
+     *
+     * In case the chatroom has not a customized title, it will be created using the
+     * names of participants.
      *
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns true if the chatroom has a customized title
+     * @return True if custom title was set
+     */
+    virtual bool hasCustomTitle() const;
 
     /**
      * @brief Returns the number of unread messages for the chatroom
