@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
-#include <string.h>
 #include "karereId.h"
 
 enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
