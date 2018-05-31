@@ -2475,7 +2475,7 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
     {
         wptr.throwIfDeleted();
         return parent.client.api.call(&mega::MegaApi::chatLinkJoin, mPublicHandle,
-            title.empty() ? nullptr: title.c_str(), chat().crypto()->getUnifiedKey().c_str());
+            chat().crypto()->getUnifiedKey().c_str());
     })
     .then([this, wptr, userid](ReqResult)
     {
