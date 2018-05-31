@@ -2461,7 +2461,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
     })
     .then([this](Message* msg)
     {
-        assert(!msg.isPendingToDecrypt()); //either decrypted or error
+        assert(!msg->isPendingToDecrypt()); //either decrypted or error
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
         {
             if (msg->dataSize() < 2)
