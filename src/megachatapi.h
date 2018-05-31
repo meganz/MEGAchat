@@ -920,7 +920,7 @@ public:
      * The SDK retains the ownership of the returned value.It will be valid until
      * the MegaChatMessage object is deleted.
      *
-     * It can be used for multiple purpose.
+     * It can be used for different purposes.
      * Valid for:
      *  - MegaChatMessage::TYPE_CALL_ENDED
      *   It will be empty if termCode is not END_CALL_REASON_ENDED either END_CALL_REASON_FAILED
@@ -940,7 +940,7 @@ public:
     virtual int getDuration() const;
 
     /**
-     * @brief Return termination code for call
+     * @brief Return the termination code of the call
      *
      * This funcion returns a valid value for:
      *  - MegaChatMessage::TYPE_CALL_ENDED
@@ -3409,7 +3409,7 @@ public:
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
      *  - MegaChatMessage::TYPE_PRIV_CHANGE: empty string
      *  - MegaChatMessage::TYPE_CALL_ENDED: string set separated by ASCII character '0x01'
-     *      Struct: duration(seconds)'0x01'termCode'0x01'participants1'0x01'participants2'0x01'...
+     *      Structure: duration(seconds)'0x01'termCode'0x01'participants1'0x01'participants2'0x01'...
      *      duration and termCode are numbers coded in ASCII, participants are handles in base64 format.
      *      Valid TermCode are:
      *          + END_CALL_REASON_ENDED
@@ -3418,7 +3418,7 @@ public:
      *          + END_CALL_REASON_FAILED
      *          + END_CALL_REASON_CANCELLED
      *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED
-     *      any participant will be added
+     *      any participant won't be added
      *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
