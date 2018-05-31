@@ -851,9 +851,9 @@ HistSource Chat::getHistory(unsigned count)
         CALL_LISTENER(onHistoryDone, source);
         return source;
     }
-    if (nextSource == kHistSourceDb)
+    if (nextSource == kHistSourceDb || nextSource == kHistSourceServerOffline)
     {
-        CALL_LISTENER(onHistoryDone, kHistSourceDb);
+        CALL_LISTENER(onHistoryDone, nextSource);
     }
     return nextSource;
 }
