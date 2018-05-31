@@ -3408,7 +3408,7 @@ public:
      *  - MegaChatMessage::TYPE_TRUNCATE: empty string
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
      *  - MegaChatMessage::TYPE_PRIV_CHANGE: empty string
-     *  - MegaChatMessage::TYPE_CALL_ENDED: string set separed by ASCII character '0x01'
+     *  - MegaChatMessage::TYPE_CALL_ENDED: string set separated by ASCII character '0x01'
      *      Struct: duration(seconds)'0x01'termCode'0x01'participants1'0x01'participants2'0x01'...
      *      duration and termCode are numbers coded in ASCII, participants are handles in base64 format.
      *      Valid TermCode are:
