@@ -2765,9 +2765,46 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         if (msg.isEncrypted() != Message::kEncryptedNoType)
         {
             msgIncomingAfterDecrypt(isNew, true, msg, idx);
-            return true;
         }
-        // else --> unknown management msg type, we may want to try to decode it again
+        else    // --> unknown management msg type, we may want to try to decode it again
+        {
+            Message *message = &msg;
+            mCrypto->msgDecrypt(message)
+            .fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
+            {
+                assert(message->isEncrypted() == Message::kEncryptedNoType);
+                int type = err.type();
+                switch (type)
+                {
+                    case SVCRYPTO_EEXPIRED:
+                        return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+
+                    case SVCRYPTO_ENOTYPE:
+                        CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed (not yet supported): %d (msgid: %s)", message->type, ID_CSTR(message->id()));
+                        break;
+
+                    default:
+                        CHATID_LOG_ERROR("Retry to decrypt type of management message failed. Malformed message: %s", ID_CSTR(message->id()));
+                        message->setEncrypted(Message::kEncryptedMalformed);
+                        break;
+                }
+                return message;
+            })
+            .then([this, isNew, idx](Message* message)
+            {
+                if (message->isEncrypted() != Message::kEncryptedNoType)
+                {
+                    CALL_DB(updateMsgInHistory, message->id(), *message);   // update 'data' & 'is_encrypted'
+                }
+                msgIncomingAfterDecrypt(isNew, true, *message, idx);
+            })
+            .fail([this, message](const promise::Error& err)
+            {
+                CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
+                                   ID_CSTR(message->id()), err.what(), err.type());
+            });
+        }
+        return true;    // decrypt was not done immediately, but none checks the returned value in this codepath
     }
     else
     {
