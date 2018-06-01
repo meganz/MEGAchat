@@ -797,8 +797,13 @@ void ProtocolHandler::onHistoryReload()
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
-    msg->userid = parsedMsg->sender;
-    msg->clear();
+    if (msg->isManagementMessageKnownType())
+    {
+        msg->userid = parsedMsg->sender;
+        msg->clear();
+    }
+    // else --> it's important to not clear the message, so future executions can
+    // retry to decode it in case the new type is supported
 
     switch(parsedMsg->type)
     {
@@ -1208,7 +1213,6 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
-    msg->userid = sender;
     const char* pos = encryptedKey.buf();
     const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
