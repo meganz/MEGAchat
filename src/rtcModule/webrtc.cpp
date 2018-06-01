@@ -265,13 +265,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    // PayLoad: <callid> <ringing> <AV flags>
+    // PayLoad: <callid> <state> <AV flags> [if (state == kCallDataEnd) <termCode>]
     karere::Id callid = msg.read<karere::Id>(0);
-    bool ringing = msg.read<uint8_t>(sizeof(karere::Id));
+    uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
     // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
-    if (!ringing)
+    if (state != Call::kCallDataRinging || chat.isGroup())
     {
         RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state in Progress");
         return;
