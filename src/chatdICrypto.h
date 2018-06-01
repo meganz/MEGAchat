@@ -132,6 +132,9 @@ public:
     encryptChatTitle(const std::string& data, uint64_t extraUser=0) = 0;
 
     virtual promise::Promise<std::string>
+    encryptUnifiedKeyForAllParticipants() = 0;
+
+    virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
 
     virtual promise::Promise<std::shared_ptr<Buffer>>

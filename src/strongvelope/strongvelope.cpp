@@ -1331,6 +1331,24 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
     });
 }
 
+promise::Promise<std::string>
+ProtocolHandler::encryptUnifiedKeyForAllParticipants()
+{
+    std::shared_ptr<SendKey> key = mUnifiedKey;
+    assert(!key->empty());
+    auto wptr = weakHandle();
+
+    return encryptKeyToAllParticipants(key, NULL)
+    .then([this, wptr](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+    {
+        wptr.throwIfDeleted();
+        chatd::KeyCommand& keyCmd = *result.first;
+        assert(keyCmd.dataSize() >= 17);
+        std::string keyResult (keyCmd.buf()+17);
+        return keyResult;
+    });
+}
+
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
