@@ -495,12 +495,11 @@ public:
     /** @brief Allocated a ManagementInfo structure in the message's buffer,
      * and writes the contents of the provided structure. The message contents
      * *must* be empty when the method is called.
-     * @returns A reference to the newly created and filled ManagementInfo structure */
-    ManagementInfo& createMgmtInfo(const ManagementInfo& src)
+     */
+    void createMgmtInfo(const ManagementInfo& src)
     {
         assert(empty());
         append(&src, sizeof(src));
-        return *reinterpret_cast<ManagementInfo*>(buf());
     }
 
     void createCallEndedInfo(const CallEndedInfo& src)
