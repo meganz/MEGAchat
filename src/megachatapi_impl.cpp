@@ -4241,11 +4241,11 @@ void MegaChatCallPrivate::setIgnoredCall(bool ignored)
 
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &sess)
 {
-    if (sessions.find(sess.peer()) != sessions.end())
+    auto it = sessions.find(sess.peer());
+    if (it != sessions.end())
     {
-        MegaChatSession *session = sessions[sess.peer()];
-        delete session;
         API_LOG_WARNING("addSession: this peer (%d) has a session. Removing it", sess.peer().val);
+        delete it->second;
     }
 
     MegaChatSessionPrivate *session = new MegaChatSessionPrivate(sess);
@@ -4258,8 +4258,7 @@ void MegaChatCallPrivate::removeSession(Id peerid)
     std::map<karere::Id, MegaChatSession *>::iterator it = sessions.find(peerid);
     if (it != sessions.end())
     {
-        MegaChatSession *session = it->second;;
-        delete session;
+        delete it->second;
         sessions.erase(it);
     }
     else
@@ -6229,9 +6228,9 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
 
 rtcModule::ISessionHandler *MegaChatCallHandler::onNewSession(rtcModule::ISession &sess)
 {
-    MegaChatSessionPrivate *session = chatCall->addSession(sess);
+    MegaChatSessionPrivate *megaChatSession = chatCall->addSession(sess);
 
-    return new MegaChatSessionHandler(megaChatApi, this, *session, sess);
+    return new MegaChatSessionHandler(megaChatApi, this, megaChatSession, sess);
 }
 
 void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rendererOut)
@@ -6244,7 +6243,7 @@ void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rend
             delete localVideoReceiver;
         }
 
-        rendererOut = new MegaChatVideoReceiver(megaChatApi, call, MEGACHAT_INVALID_HANDLE);
+        rendererOut = new MegaChatVideoReceiver(megaChatApi, call);
         localVideoReceiver = rendererOut;
     }
     else
@@ -6370,13 +6369,13 @@ void MegaChatCallHandler::setCallNotPresent(Id chatid, Id callid)
     chatCall = new MegaChatCallPrivate(chatid, callid);
 }
 
-MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, MegaChatSessionPrivate &megaChatSession, rtcModule::ISession &session)
+MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler *callHandler, MegaChatSessionPrivate *megaChatSession, rtcModule::ISession &session)
 {
     this->megaChatApi = megaChatApi;
     this->callHandler = callHandler;
     this->session = &session;
     this->remoteVideoRender = NULL;
-    this->megaChatSession = &megaChatSession;
+    this->megaChatSession = megaChatSession;
 }
 
 MegaChatSessionHandler::~MegaChatSessionHandler()

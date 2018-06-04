@@ -266,10 +266,9 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    // PayLoad: <callid> <ringing> <AV flags>
+    // PayLoad: <callid> <state> <AV flags>
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
-    //bool ringing = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
     updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
@@ -401,7 +400,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     {
         RTCM_LOG_WARNING("There is already a call in this chatroom, destroying it");
         callIt->second->hangup();
-        mCalls.erase(chatid);
+        mCalls.erase(callIt);
     }
     auto call = std::make_shared<Call>(*this, chat, id,
         chat.isGroup(), callid.isValid(), &handler, 0, 0);
@@ -427,17 +426,16 @@ ICall& RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler& handler
 
 void RtcModule::onClientLeftCall(Id chatid, Id userid, uint32_t clientid)
 {
-    auto it = mCalls.find(chatid);
-    if (it != mCalls.end())
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
     {
-        it->second->onClientLeftCall(userid, clientid);
+        itCall->second->onClientLeftCall(userid, clientid);
     }
 
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
     {
-        ICallHandler *callHandler = itHandler->second;
-        bool isCallEmpty = callHandler->removeParticipant(userid, clientid);
+        bool isCallEmpty = itHandler->second->removeParticipant(userid, clientid);
         if (isCallEmpty)
         {
             removeCall(chatid);
@@ -525,45 +523,45 @@ bool RtcModule::isCallInProgress() const
 
 void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clientid, AvFlags av)
 {
-    auto iterator = mCallHandlers.find(chatid);
-    if (iterator != mCallHandlers.end())
+    ICallHandler *callHandler = NULL;
+
+    auto it = mCallHandlers.find(chatid);
+    if (it != mCallHandlers.end())  // already known call, update flags
     {
-        ICallHandler *callHandler = iterator->second;
-        callHandler->addParticipant(userid, clientid, av);
+        callHandler = it->second;
     }
-    else
+    else    // unknown call, create call handler and set flags
     {
-        ICallHandler *callHandler = mHandler.onGroupCallActive(chatid, callid);
+        callHandler = mHandler.onGroupCallActive(chatid, callid);
         addCallHandler(chatid, callHandler);
-        callHandler->addParticipant(userid, clientid, av);
     }
+
+    callHandler->addParticipant(userid, clientid, av);
 }
 
 void RtcModule::removeCall(Id chatid)
 {
-    auto callIterator = mCalls.find(chatid);
-    if (callIterator != mCalls.end())
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
     {
-        removeCall(*callIterator->second);
+        removeCall(*itCall->second);
     }
 
-    auto handlerIterator = mCallHandlers.find(chatid);
-    if (handlerIterator != mCallHandlers.end())
+    auto itHandler = mCallHandlers.find(chatid);
+    if (itHandler != mCallHandlers.end())
     {
-        ICallHandler *callHandler = handlerIterator->second;
-        mCallHandlers.erase(chatid);
-        delete callHandler;
+        delete itHandler->second;
+        mCallHandlers.erase(itHandler);
     }
 }
 
 void RtcModule::addCallHandler(Id chatid, ICallHandler *callHandler)
 {
-    auto handlerIterator = mCallHandlers.find(chatid);
-    if (handlerIterator != mCallHandlers.end())
+    auto it = mCallHandlers.find(chatid);
+    if (it != mCallHandlers.end())
     {
-        ICallHandler *callHandler = handlerIterator->second;
-        mCallHandlers.erase(chatid);
-        delete callHandler;
+        delete it->second;
+        mCallHandlers.erase(it);
     }
 
     mCallHandlers[chatid] = callHandler;
@@ -571,7 +569,7 @@ void RtcModule::addCallHandler(Id chatid, ICallHandler *callHandler)
 
 ICallHandler *RtcModule::findCallHandler(Id chatid)
 {
-    std::map<karere::Id, ICallHandler *>::iterator it = mCallHandlers.find(chatid);
+    auto it = mCallHandlers.find(chatid);
     if (it != mCallHandlers.end())
     {
         return it->second;
@@ -604,8 +602,8 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     if (!mCalls.empty() && !chat.isGroup())
     {
         // Two calls at same time in same chat
-        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatid);
-        if (iteratorCall != mCalls.end())
+        auto itCall = mCalls.find(chatid);
+        if (itCall != mCalls.end())
         {
             Call *existingCall = iteratorCall->second.get();
             if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
@@ -627,7 +625,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             avFlags = existingCall->sentAv();
             answerAutomatic = true;
             existingCall->hangup();
-            mCalls.erase(chatid);
+            mCalls.erase(itCall);
         }
     }
 

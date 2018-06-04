@@ -275,7 +275,8 @@ public:
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid);
+    // no peerid --> local video from own user
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid = MEGACHAT_INVALID_HANDLE);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -524,7 +525,7 @@ private:
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
 {
 public:
-    MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, MegaChatSessionPrivate &megaChatSession, rtcModule::ISession &session);
+    MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, MegaChatSessionPrivate *megaChatSession, rtcModule::ISession &session);
     virtual ~MegaChatSessionHandler();
     virtual void onSessStateChange(uint8_t newState);
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
