@@ -4099,6 +4099,11 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerId)
     return NULL;
 }
 
+int MegaChatCallPrivate::getNumParticipants() const
+{
+    return sessions.size();
+}
+
 MegaHandleList *MegaChatCallPrivate::getParticipants() const
 {
     MegaHandleListPrivate *participantsList = new MegaHandleListPrivate();

@@ -216,6 +216,7 @@ public:
     virtual mega::MegaHandleList *getSessions() const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
+    virtual int getNumParticipants() const;
     virtual mega::MegaHandleList *getParticipants() const;
     virtual bool isIgnored() const;
 

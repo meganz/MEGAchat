@@ -182,6 +182,11 @@ MegaHandleList *MegaChatCall::getParticipants() const
     return NULL;
 }
 
+int MegaChatCall::getNumParticipants() const
+{
+    return 0;
+}
+
 bool MegaChatCall::isIgnored() const
 {
     return false;

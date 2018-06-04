@@ -459,6 +459,16 @@ public:
     virtual mega::MegaHandleList *getParticipants() const;
 
     /**
+     * @brief Get the number of peers participating in the call
+     *
+     * In a group call, this function returns the number of active participants,
+     * regardless your own user participates or not.
+     *
+     * @return Number of active participants in the call
+     */
+    virtual int getNumParticipants() const;
+
+    /**
      * @brief Returns if call has been ignored
      *
      * @return True if the call has been ignored, false otherwise.
