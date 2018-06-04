@@ -391,13 +391,9 @@ void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 }
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
-    ICallHandler& handler, bool isJoin, Id callid)
+    ICallHandler& handler, Id callid)
 {
-    karere::Id id = callid;
-    if (!isJoin)
-    {
-        id = random<uint64_t>();
-    }
+    karere::Id id = callid.isValid() ? callid : (karere::Id)random<uint64_t>();
 
     auto& chat = mClient.chatd->chats(chatid);
     auto callIt = mCalls.find(chatid);
@@ -408,7 +404,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
         mCalls.erase(chatid);
     }
     auto call = std::make_shared<Call>(*this, chat, id,
-        chat.isGroup(), isJoin, &handler, 0, 0);
+        chat.isGroup(), callid.isValid(), &handler, 0, 0);
 
     mCalls[chatid] = call;
     handler.setCall(call.get());
@@ -422,11 +418,11 @@ bool RtcModule::isCaptureActive() const
 
 ICall& RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler& handler, karere::Id callid)
 {
-    return *startOrJoinCall(chatid, av, handler, true, callid);
+    return *startOrJoinCall(chatid, av, handler, callid);
 }
 ICall& RtcModule::startCall(karere::Id chatid, AvFlags av, ICallHandler& handler)
 {
-    return *startOrJoinCall(chatid, av, handler, false);
+    return *startOrJoinCall(chatid, av, handler);
 }
 
 void RtcModule::onClientLeftCall(Id chatid, Id userid, uint32_t clientid)

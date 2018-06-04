@@ -238,7 +238,8 @@ protected:
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
     std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
-    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, bool isJoin, karere::Id callid = karere::Id::inval());
+    // no callid provided --> start call
+    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid = karere::Id::inval());
     template <class T> T random() const;
     template <class T> void random(T& result) const;
     //=== Implementation methods
