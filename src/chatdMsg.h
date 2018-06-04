@@ -431,10 +431,10 @@ public:
             position += sizeof(info.duration);
             memcpy(&info.termCode, &buffer[position], sizeof(info.termCode));
             position += sizeof(info.termCode);
-            size_t size;
-            memcpy(&size, &buffer[position], sizeof(size));
-            position += sizeof(size);
-            for (size_t i = 0; i < size; i++)
+            size_t numParticipants;
+            memcpy(&numParticipants, &buffer[position], sizeof(numParticipants));
+            position += sizeof(numParticipants);
+            for (size_t i = 0; i < numParticipants; i++)
             {
                 karere::Id id;
                 memcpy(&id, &buffer[position], sizeof(karere::Id));
@@ -508,9 +508,9 @@ public:
         append(&src.callid, sizeof(src.callid));
         append(&src.duration, sizeof(src.duration));
         append(&src.termCode, sizeof(src.termCode));
-        size_t size = src.participant.size();
-        append(&size, sizeof(size));
-        for (size_t i = 0; i < size; i++)
+        size_t numParticipants = src.participant.size();
+        append(&numParticipants, sizeof(numParticipants));
+        for (size_t i = 0; i < numParticipants; i++)
         {
             append(&src.participant[i], sizeof(src.participant[i]));
         }
