@@ -371,6 +371,17 @@ public:
         kSeen //< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
+
+    enum { kNotEncrypted        = 0,    /// Message already decrypted
+           kEncryptedPending    = 1,    /// Message pending to be decrypted (transient)
+           kEncryptedNoKey      = 2,    /// Key not found for the message (permanent failure)
+           kEncryptedSignature  = 3,    /// Signature verification failure (permanent failure)
+           kEncryptedMalformed  = 4,    /// Malformed/corrupted data in the message (permanent failure)
+           kEncryptedNoType     = 5     /// Management message of unknown type (transient, not supported by the app yet)
+           // if type of management message is unknown, it would be stored encrypted and will not be decrypted
+           // even if the library adds support to the new type (unless the message is reloaded from server)
+    };
+
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -406,8 +417,7 @@ private:
     karere::Id mId;
     bool mIdIsXid = false;
 protected:
-    uint8_t mIsEncrypted = 0; //0 = not encrypted, 1 = encrypted, 2 = encrypted, there was a decrypt error
-    uint8_t mFlags = 0;
+    uint8_t mIsEncrypted = kNotEncrypted;
 public:
     karere::Id userid;
     uint32_t ts;
@@ -422,6 +432,9 @@ public:
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     uint8_t isEncrypted() const { return mIsEncrypted; }
+    bool isPendingToDecrypt() const { return (mIsEncrypted == kEncryptedPending); }
+    // true if message is valid, but permanently undecryptable (not transient like unknown types or keyid not found)
+    bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
@@ -475,31 +488,39 @@ public:
     std::string managementInfoToString() const; //implementation is in strongelope.cpp, as the management info is created there
 
     /** @brief Returns whether this message is a management message. */
-    bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
-    bool isText() const
+    bool isManagementMessage() const
     {
-        return (!empty()                                // skip deleted messages
-                && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
-                && (type == kMsgNormal                  // include normal messages
-                    || type == kMsgAttachment           // include node-attachment messages
-                    || type == kMsgContact              // include contact-attachment messages
-                    || type == kMsgContainsMeta));      // include containsMeta messages
+        return (keyid == 0) && !isSending();    // msgs in sending status use keyid=CHATD_KEYID_INVALID (0)
     }
-
+    bool isManagementMessageKnownType()
+    {
+        return (isManagementMessage()
+                && type >= Message::kMsgManagementLowest
+                && type <= Message::kMsgManagementHighest);
+    }
+    bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
+    bool isDeleted() const { return (updated && !size()); } // returns false for truncate (update = 0)
     bool isValidLastMessage() const
     {
-        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+        return (!isDeleted()                        // skip deleted messages (keep truncates)
                 && type != kMsgRevokeAttachment     // skip revokes
-                && type != kMsgInvalid);            // skip (still) encrypted messages
+                && type != kMsgInvalid              // skip (still) encrypted messages
+                && (!mIsEncrypted                   // include decrypted messages
+                    || isUndecryptable()));         // or undecryptable messages due to permantent error
     }
-
     // conditions to consider unread messages should match the
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
     bool isValidUnread(karere::Id myHandle) const
     {
-        return (userid != myHandle              // skip own messages
-                && !(updated && !size())        // skip deleted messages
-                && (isText()));                 // Only text messages
+        return (!isOwnMessage(myHandle)             // exclude own messages
+                && !isDeleted()                     // exclude deleted messages
+                && (!mIsEncrypted                   // include decrypted messages
+                    || isUndecryptable())           // or undecryptable messages due to permantent error
+                && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
+                    || type == kMsgAttachment
+                    || type == kMsgContact
+                    || type == kMsgContainsMeta)
+                );
     }
 
     /** @brief Convert attachment etc. special messages to text */
@@ -659,7 +680,13 @@ static inline std::string& operator+(std::string&& str, karere::Id id)
 }
 
 enum ChatState
-{kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
+{
+    kChatStateOffline = 0,
+    kChatStateConnecting,       // connecting to chatd (resolve DNS, open socket...)
+    kChatStateJoining,          // connection to chatd is established, logging in
+    kChatStateOnline            // login completed (HISTDONE received for JOIN/JOINRANGEHIST)
+};
+
 static inline const char* chatStateToStr(unsigned state)
 {
     static const char* chatStates[] =

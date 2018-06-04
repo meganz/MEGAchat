@@ -231,12 +231,12 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
             mClient->retryPendingConnections()
-                    .then([this, request]()
+            .then([this, request]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-                    .fail([this, request](const promise::Error& e)
+            .fail([this, request](const promise::Error& e)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -939,7 +939,12 @@ void MegaChatApiImpl::sendPendingRequests()
                     Idx lastSeenIdx = chat.lastSeenIdx();
 
                     // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
-                    Idx first = (lastSeenIdx != CHATD_IDX_INVALID) ? (lastSeenIdx + 1) : chat.lownum();
+                    Idx first = chat.lownum();
+                    if (lastSeenIdx != CHATD_IDX_INVALID        // message is known locally
+                            && chat.findOrNull(lastSeenIdx))    // message is loaded in RAM
+                    {
+                        first = lastSeenIdx + 1;
+                    }
                     Idx last = chat.highnum();
                     int maxCount = 6;   // do not notify more than 6 messages per chat
                     for (Idx i = last; (i >= first && maxCount > 0); i--)
@@ -2171,7 +2176,7 @@ int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
         case kHistSourceRam:
         case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
         case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
-        case kHistSourceServerOffline: ret = MegaChatApi::SOURCE_ERROR; break;
+        case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
         default:
             API_LOG_ERROR("Unknown source of messages at loadMessages()");
             break;
@@ -5557,13 +5562,35 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
              {
                  mContainsMeta = new MegaChatContainsMetaPrivate();
              }
-            break;
+             break;
         }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
-        default:
             break;
+        default:
+        {
+            this->type = MegaChatMessage::TYPE_UNKNOWN;
+            break;
+        }
+    }
+
+    int encryptionState = msg.isEncrypted();
+    switch (encryptionState)
+    {
+    case Message::kEncryptedPending:    // transient, app will receive update once decrypted
+    case Message::kEncryptedNoKey:
+    case Message::kEncryptedNoType:
+        this->code = encryptionState;
+        this->type = MegaChatMessage::TYPE_UNKNOWN; // --> ignore/hide them
+        break;
+    case Message::kEncryptedMalformed:
+    case Message::kEncryptedSignature:
+        this->code = encryptionState;
+        this->type = MegaChatMessage::TYPE_INVALID; // --> show a warning
+        break;
+    case Message::kNotEncrypted:
+        break;
     }
 }
 
@@ -5650,10 +5677,8 @@ bool MegaChatMessagePrivate::isDeletable() const
 
 bool MegaChatMessagePrivate::isManagementMessage() const
 {
-    return (type == TYPE_ALTER_PARTICIPANTS ||
-            type == TYPE_PRIV_CHANGE ||
-            type == TYPE_TRUNCATE ||
-            type == TYPE_CHAT_TITLE);
+    return (type >= TYPE_LOWEST_MANAGEMENT
+            && type <= TYPE_HIGHEST_MANAGEMENT);
 }
 
 MegaChatHandle MegaChatMessagePrivate::getHandleOfAction() const

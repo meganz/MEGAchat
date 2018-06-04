@@ -204,6 +204,40 @@ void ChatMessage::updateContent()
                 showRichLinkData();
                 break;
             }
+            case megachat::MegaChatMessage::TYPE_INVALID:
+            {
+                int errorCode = mMessage->getCode();
+                std::string content = "Invalid message [warn]: - (";
+                if (errorCode == MegaChatMessage::INVALID_SIGNATURE)
+                    content.append("invalid signature");
+                else if (errorCode == MegaChatMessage::INVALID_FORMAT)
+                    content.append("malformed");
+                else
+                    content.append(std::to_string(errorCode));
+                content.append(")\nContent: ");
+                if (mMessage->getContent())
+                    content.append(mMessage->getContent());
+                setMessageContent(content.c_str());
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_UNKNOWN:
+            {
+                int errorCode = mMessage->getCode();
+                std::string content = "Unknown type [hide]: - (";
+                if (errorCode == MegaChatMessage::INVALID_KEY)
+                    content.append("invalid key");
+                else if (errorCode == MegaChatMessage::DECRYPTING)
+                    content.append("decrypting");
+                else if (errorCode == MegaChatMessage::INVALID_TYPE)
+                    content.append("invalid type");
+                else
+                    content.append(std::to_string(errorCode));
+                content.append(")\nContent: ");
+                if (mMessage->getContent())
+                    content.append(mMessage->getContent());
+                setMessageContent(content.c_str());
+                break;
+            }
         }
     }
     else

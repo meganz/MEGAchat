@@ -63,7 +63,7 @@ enum HistSource
     kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
     kHistSourceDb = 2, //<History is being retrieved from the local DB
     kHistSourceServer = 3, //< History is being retrieved from the server
-    kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
+    kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
 };
 /** Timeout to send SEEN (Milliseconds)**/
 enum { kSeenTimeout = 200 };
@@ -340,14 +340,14 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected};
     enum {
         kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
         kEchoTimeout = 1    // echo to check connection is alive when back to foreground
          };
 
 protected:
-    bool usingipv6;
+    bool usingipv6 = false;
     Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
@@ -364,10 +364,6 @@ protected:
     bool isConnected() const
     {
         return mState == kStateConnected;
-    }
-    bool isLoggedIn() const
-    {
-        return mState == kStateLoggedIn;
     }
     
     virtual void wsConnectCb();
@@ -1178,10 +1174,12 @@ public:
 
 
     // Chatd Version:
+    // - Version 0: initial version
     // - Version 1:
+    //  * Add commands CALLDATA and REJECT
     // - Version 2:
-    //  * Add commands CALL_DATA and REJECT
-    static const unsigned chatdVersion;
+    //  * Add call-logging messages
+    static const unsigned chatdVersion = 2;
 };
 
 static inline const char* connStateToStr(Connection::State state)
@@ -1191,7 +1189,6 @@ static inline const char* connStateToStr(Connection::State state)
     case Connection::State::kStateDisconnected: return "Disconnected";
     case Connection::State::kStateConnecting: return "Connecting";
     case Connection::State::kStateConnected: return "Connected";
-    case Connection::State::kStateLoggedIn: return "Logged-in";
     case Connection::State::kStateNew: return "New";
     case Connection::State::kStateFetchingUrl: return "Fetching URL";
     default: return "(invalid)";

@@ -92,6 +92,11 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
         hp = hp->ai_next;
     }
 
+    if (status < 0)
+    {
+        WEBSOCKETS_LOG_ERROR("Failed to resolve DNS. Reason: %s (%d)", uv_strerror(status), status);
+    }
+
     (*func)(status, ipv4, ipv6);
     uv_freeaddrinfo(res);
     delete func;
