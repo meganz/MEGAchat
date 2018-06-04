@@ -3138,6 +3138,12 @@ void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string last
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
     ASSERT_CHAT_TEST(waitForResponse(flagMyNameReceived), "Expired timeout to get last name after own change (" + std::to_string(maxTimeout) + " seconds)");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK to get lastname. Error: " + std::to_string(lastError[accountIndex]));
+
+    // This sleep is necessary to allow execute the two listeners (MegaChatApi and MegaChatApiTest) for
+    // MegaRequest::TYPE_GET_ATTR_USER before exit from this function.
+    // In other case, we could ask for the name to MegaChatApi before this will be established
+    // because MegachatApiTest listener is called before than MegaChatApi listener
+    sleep(1);
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
