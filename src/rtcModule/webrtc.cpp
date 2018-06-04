@@ -599,13 +599,13 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     karere::Id chatid = chat.chatId();
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
-    if (!mCalls.empty() && !chat.isGroup())
+    if (!chat.isGroup())
     {
-        // Two calls at same time in same chat
         auto itCall = mCalls.find(chatid);
         if (itCall != mCalls.end())
         {
-            Call *existingCall = iteratorCall->second.get();
+            // Two calls at same time in same chat (1on1) --> resolution of concurrent calls
+            shared_ptr<Call> existingCall = itCall->second;
             if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
             {
                 if (clientid != existingCall->callerClient())
