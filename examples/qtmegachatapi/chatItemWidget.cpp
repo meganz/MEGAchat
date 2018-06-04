@@ -171,9 +171,9 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             assert(stringList.size() >= 2);
             lastMessage.append("Call started by: ")
                        .append(senderHandle)
-                       .append(" Durration: ")
+                       .append(" Duration: ")
                        .append(stringList.at(0).toStdString())
-                       .append("  TermCode: ")
+                       .append("secs TermCode: ")
                        .append(stringList.at(1).toStdString());
             break;
         }

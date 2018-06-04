@@ -259,7 +259,7 @@ std::string ChatMessage::managementInfoToString() const
 
         ret.append("\nDuration: ")
            .append(std::to_string(mMessage->getDuration()))
-           .append( "secs TermCode: ")
+           .append("secs TermCode: ")
            .append(std::to_string(mMessage->getTermCode()));
         return ret;
     }
