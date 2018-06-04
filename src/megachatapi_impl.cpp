@@ -5176,17 +5176,20 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
 
             case MegaChatMessage::TYPE_CALL_ENDED:
             {
-                Message::CallEndedInfo callEndedInfo = Message::CallEndedInfo::fromBuffer(msg->contents().data());
-                this->lastMsg = std::to_string(callEndedInfo.duration);
-                this->lastMsg.push_back(0x01);
-                this->lastMsg += std::to_string(callEndedInfo.termCode);
-                for (unsigned int i = 0; i < callEndedInfo.participant.size(); i++)
+                Message::CallEndedInfo *callEndedInfo = Message::CallEndedInfo::fromBuffer(msg->contents().data(), msg->contents().size());
+                if (callEndedInfo)
                 {
+                    this->lastMsg = std::to_string(callEndedInfo->duration);
                     this->lastMsg.push_back(0x01);
-                    karere::Id id(callEndedInfo.participant[i]);
-                    this->lastMsg += id.toString();
+                    this->lastMsg += std::to_string(callEndedInfo->termCode);
+                    for (unsigned int i = 0; i < callEndedInfo->participants.size(); i++)
+                    {
+                        this->lastMsg.push_back(0x01);
+                        karere::Id id(callEndedInfo->participants[i]);
+                        this->lastMsg += id.toString();
+                    }
+                    delete callEndedInfo;
                 }
-
                 break;
             }
 
@@ -5529,15 +5532,18 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_CALL_ENDED:
         {
             megaHandleList = new MegaHandleListPrivate();
-            Message::CallEndedInfo callEndInfo = Message::CallEndedInfo::fromBuffer(msg.buf());
-            for (size_t i = 0; i < callEndInfo.participant.size(); i++)
+            Message::CallEndedInfo *callEndInfo = Message::CallEndedInfo::fromBuffer(msg.buf(), msg.size());
+            if (callEndInfo)
             {
-                megaHandleList->addMegaHandle(callEndInfo.participant[i]);
+                for (size_t i = 0; i < callEndInfo->participants.size(); i++)
+                {
+                    megaHandleList->addMegaHandle(callEndInfo->participants[i]);
+                }
+
+                priv = callEndInfo->duration;
+                code = callEndInfo->termCode;
+                delete callEndInfo;
             }
-
-            priv = callEndInfo.duration;
-            code = callEndInfo.termCode;
-
             break;
         }
         case MegaChatMessage::TYPE_NORMAL:

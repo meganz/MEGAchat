@@ -419,27 +419,45 @@ public:
         karere::Id callid;
         uint8_t termCode = 0;
         uint32_t duration = 0;
-        std::vector<karere::Id> participant;
+        std::vector<karere::Id> participants;
 
-        static CallEndedInfo fromBuffer(const char *buffer)
+        static CallEndedInfo *fromBuffer(const char *buffer, size_t len)
         {
-            CallEndedInfo info;
-            unsigned int position = 0;
-            memcpy(&info.callid, &buffer[position], sizeof(info.callid));
-            position += sizeof(info.callid);
-            memcpy(&info.duration, &buffer[position], sizeof(info.duration));
-            position += sizeof(info.duration);
-            memcpy(&info.termCode, &buffer[position], sizeof(info.termCode));
-            position += sizeof(info.termCode);
+            CallEndedInfo *info = new CallEndedInfo;
             size_t numParticipants;
-            memcpy(&numParticipants, &buffer[position], sizeof(numParticipants));
-            position += sizeof(numParticipants);
+            unsigned int lenCallid = sizeof (info->callid);
+            unsigned int lenDuration = sizeof (info->duration);
+            unsigned int lenTermCode = sizeof (info->termCode);
+            unsigned int lenNumParticipants = sizeof (numParticipants);
+            unsigned int lenId = sizeof (karere::Id);
+
+            if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
+            {
+                return NULL;
+            }
+
+            unsigned int position = 0;
+            memcpy(&info->callid, &buffer[position], lenCallid);
+            position += lenCallid;
+            memcpy(&info->duration, &buffer[position], lenDuration);
+            position += lenDuration;
+            memcpy(&info->termCode, &buffer[position], lenTermCode);
+            position += lenTermCode;
+            memcpy(&numParticipants, &buffer[position], lenNumParticipants);
+            position += lenNumParticipants;
+
+            if (len < (position + (lenId * numParticipants)))
+            {
+                delete info;
+                return NULL;
+            }
+
             for (size_t i = 0; i < numParticipants; i++)
             {
                 karere::Id id;
-                memcpy(&id, &buffer[position], sizeof(karere::Id));
-                position += sizeof(karere::Id);
-                info.participant.push_back(id);
+                memcpy(&id, &buffer[position], lenId);
+                position += lenId;
+                info->participants.push_back(id);
             }
 
             return info;
@@ -508,11 +526,11 @@ public:
         append(&src.callid, sizeof(src.callid));
         append(&src.duration, sizeof(src.duration));
         append(&src.termCode, sizeof(src.termCode));
-        size_t numParticipants = src.participant.size();
+        size_t numParticipants = src.participants.size();
         append(&numParticipants, sizeof(numParticipants));
         for (size_t i = 0; i < numParticipants; i++)
         {
-            append(&src.participant[i], sizeof(src.participant[i]));
+            append(&src.participants[i], sizeof(src.participants[i]));
         }
     }
 
@@ -520,7 +538,6 @@ public:
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
-    void generateRefId();
     StaticBuffer backrefBuf() const
     {
         return backRefs.empty()
