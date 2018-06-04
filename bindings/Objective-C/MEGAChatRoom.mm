@@ -77,6 +77,10 @@ using namespace megachat;
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
+- (BOOL)hasCustomTitle {
+    return self.megaChatRoom ? self.megaChatRoom->hasCustomTitle() : NO;
+}
+
 - (MEGAChatRoomChangeType)changes {
     return (MEGAChatRoomChangeType) ( self.megaChatRoom ? self.megaChatRoom->getChanges() : 0x00);
 }

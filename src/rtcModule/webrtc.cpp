@@ -1276,8 +1276,7 @@ void Call::stopIncallPingTimer(bool endCall)
 
     if (endCall)
     {
-        mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() +
-            mManager.mClient.myHandle() + mChat.connection().clientId());
+        mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() + uint64_t(0) + uint32_t(0));
     }
 }
 
@@ -1446,7 +1445,7 @@ bool Call::rejoin(karere::Id userid, uint32_t clientid)
 
 void Call::sendInCallCommand()
 {
-    if (!mChat.sendCommand(Command(OP_INCALL) + mChat.chatId() + mManager.mClient.myHandle() + mChat.connection().clientId()))
+    if (!mChat.sendCommand(Command(OP_INCALL) + mChat.chatId() + uint64_t(0) + uint32_t(0)))
     {
         asyncDestroy(TermCode::kErrNetSignalling, true);
     }
@@ -1459,8 +1458,8 @@ bool Call::sendCallData(CallDataState state)
     karere::Id userid = mManager.mClient.myHandle();
     uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
-    command.write<uint64_t>(9, userid);
-    command.write<uint32_t>(17, clientid);
+    command.write<uint64_t>(9, 0);
+    command.write<uint32_t>(17, 0);
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(23, mId);
     command.write<uint8_t>(31, state);

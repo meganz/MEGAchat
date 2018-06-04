@@ -243,4 +243,3 @@ bool LibwsClient::wsIsConnected()
 {
     return mWebSocket;
 }
-

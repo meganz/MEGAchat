@@ -628,6 +628,7 @@ public:
     virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
+    virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
 
     virtual int getChanges() const;
@@ -655,6 +656,7 @@ private:
     std::vector<std::string> peerEmails;
     bool group;
     bool active;
+    bool mHasCustomTitle;
 
     std::string title;
     int unreadCount;

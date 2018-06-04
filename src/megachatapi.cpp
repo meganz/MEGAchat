@@ -994,6 +994,11 @@ const char *MegaChatRoom::getTitle() const
     return NULL;
 }
 
+bool MegaChatRoom::hasCustomTitle() const
+{
+    return false;
+}
+
 int MegaChatRoom::getChanges() const
 {
     return 0;

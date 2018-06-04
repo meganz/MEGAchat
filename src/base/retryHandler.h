@@ -404,7 +404,7 @@ static inline void _emptyCancelFunc(){}
  * Internally it instantiates a RetryController instance and manages its lifetime
  * (by setting autoDestroy() and making the instance destroy itself after finishing).
  * The paramaters of this function are forwarder to the RetryController constructor.
- * @param The promise-returning (lambda) function to call. This function must take
+ * @param cancelFunc The promise-returning (lambda) function to call. This function must take
  * no arguments.
  * @param maxSingleWaitTime - the maximum time in [ms] to wait between attempts. Default is 30 sec
  * @param maxRetries - the maximum number of attempts between giving up and rejecting
