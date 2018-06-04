@@ -731,21 +731,24 @@ void Call::handleMessage(RtMessage& packet)
     {
         sessIt->second->handleMessage(packet);
     }
-    else
+    else    // new session
     {
         if (packet.type == RTCMD_SESS_TERMINATE)
         {
             TermCode reason = static_cast<TermCode>(data.read<uint8_t>(8));
             chatd::EndpointId endPointId(packet.clientid, packet.userid);
-            if (!Session::isTermRetriable(reason) && mSessRetriesTime.find(endPointId) != mSessRetriesTime.end())
+
+            auto itRetriesTime = mSessRetriesTime.find(endPointId);
+            if (!Session::isTermRetriable(reason) && itRetriesTime != mSessRetriesTime.end())
             {
-                mSessRetriesTime.erase(endPointId);
-                std::map<chatd::EndpointId, megaHandle>::iterator itSessionRetries = mSessRetries.find(endPointId);
-                if (itSessionRetries != mSessRetries.end())
+                mSessRetriesTime.erase(itRetriesTime);
+
+                auto itRetries = mSessRetries.find(endPointId);
+                if (itRetries != mSessRetries.end())
                 {
-                    megaHandle timerHandle = mSessRetries[endPointId];
+                    megaHandle timerHandle = itRetries->second;
                     cancelTimeout(timerHandle, mManager.mClient.appCtx);
-                    mSessRetries.erase(endPointId);
+                    mSessRetries.erase(itRetries);
                 }
 
                 SUB_LOG_DEBUG("Peer terminates session willingfully, but have scheduled a retry because of error. Aborting retry");
@@ -1015,12 +1018,13 @@ void Call::msgSession(RtMessage& packet)
 
     EndpointId endpointId(sess->mPeer, sess->mPeerClient);
     mSessRetriesTime.erase(endpointId);
-    std::map<chatd::EndpointId, megaHandle>::iterator itSessionRetries = mSessRetries.find(endpointId);
+
+    auto itSessionRetries = mSessRetries.find(endpointId);
     if (itSessionRetries != mSessRetries.end())
     {
-        megaHandle timerHandle = mSessRetries[endpointId];
+        megaHandle timerHandle = itSessionRetries->second;
         cancelTimeout(timerHandle, mManager.mClient.appCtx);
-        mSessRetries.erase(endpointId);
+        mSessRetries.erase(itSessionRetries);
     }
 }
 
@@ -1058,12 +1062,12 @@ void Call::msgJoin(RtMessage& packet)
 
         EndpointId endpointId(sess->mPeer, sess->mPeerClient);
         mSessRetriesTime.erase(endpointId);
-        std::map<chatd::EndpointId, megaHandle>::iterator itSessionRetries = mSessRetries.find(endpointId);
+        auto itSessionRetries = mSessRetries.find(endpointId);
         if (itSessionRetries != mSessRetries.end())
         {
-            megaHandle timerHandle = mSessRetries[endpointId];
+            megaHandle timerHandle = itSessionRetries->second;
             cancelTimeout(timerHandle, mManager.mClient.appCtx);
-            mSessRetries.erase(endpointId);
+            mSessRetries.erase(itSessionRetries);
         }
     }
     else
@@ -1298,13 +1302,11 @@ void Call::removeSession(Session& sess, TermCode reason)
     if (itSessionRetry != mSessRetries.end())
     {
         SUB_LOG_DEBUG("removeSession: Trying to remove a session for which there is a scheduled retry, the retry should not be there");
-        megaHandle timerHandle = mSessRetries[endpointId];
+        megaHandle timerHandle = itSessionRetry->second;
         cancelTimeout(timerHandle, mManager.mClient.appCtx);
-        mSessRetries[endpointId] = 0;
+        mSessRetries.erase(itSessionRetry);
         assert(false);
     }
-
-    mSessRetriesTime[endpointId] = time(NULL);
 
     if (!sess.isCaller())
     {
@@ -1329,12 +1331,14 @@ void Call::removeSession(Session& sess, TermCode reason)
 
     // set a timeout for the session recovery
     auto wptr = weakHandle();
+    mSessRetriesTime[endpointId] = time(NULL);
     mSessRetries[endpointId] = setTimeout([this, wptr, endpointId]()
     {
         if (wptr.deleted())
             return;
 
-        if (mSessRetriesTime.find(endpointId) == mSessRetriesTime.end())
+        auto itRetriesTime = mSessRetriesTime.find(endpointId);
+        if (itRetriesTime == mSessRetriesTime.end())
         {
             SUB_LOG_DEBUG("removeSession: Timeout for session reconnect but session retry has been deleted");
             mSessRetries.erase(endpointId);
@@ -1342,7 +1346,7 @@ void Call::removeSession(Session& sess, TermCode reason)
             return;
         }
 
-        mSessRetriesTime.erase(endpointId);
+        mSessRetriesTime.erase(itRetriesTime);
         mSessRetries.erase(endpointId);
 
         if (mState >= kStateTerminating) // call already terminating
