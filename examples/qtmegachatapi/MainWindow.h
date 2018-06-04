@@ -11,23 +11,25 @@
 #include "megaLoggerApplication.h"
 #include "QTMegaChatCallListener.h"
 
+const int chatActiveStatus   = 0;
+const int chatInactiveStatus = 1;
+
 struct Chat
 {
-    megachat::MegaChatHandle chatId;
-    int64_t timestamp;
+    const megachat::MegaChatListItem *chatItem;
 
-    Chat(megachat::MegaChatHandle id, int64_t ts) :
-            chatId(id), timestamp(ts)
+    Chat(const megachat::MegaChatListItem *item) :
+            chatItem(item)
     {
     }
-    bool operator <(const Chat & chatItem) const
+    bool operator < (const Chat &item) const
     {
-        return timestamp < chatItem.timestamp;
+        return this->chatItem->getLastTimestamp() < item.chatItem->getLastTimestamp();
     }
 };
 struct ChatComparator
 {
-    bool operator ()(const Chat & chat1, const Chat & chat2)
+    bool operator () (const Chat &chat1, const Chat &chat2)
     {
          return chat1 < chat2;
     }
@@ -65,6 +67,15 @@ class MainWindow :
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
+        //This class retains the ownership of the returned value
+        const megachat::MegaChatListItem *getLocalChatListItem(megachat::MegaChatHandle chatId);
+        //You take the ownership of the returned value
+        std::list<Chat> *getLocalChatListItemsByStatus(int status);
+        //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
+        void addLocalChatListItem(const megachat::MegaChatListItem *item);
+        void updateLocalChatListItems();
+        void updateLocalChatListItem(megachat::MegaChatListItem *item);
+        void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
@@ -90,6 +101,7 @@ class MainWindow :
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
+        std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;

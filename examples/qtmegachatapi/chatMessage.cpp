@@ -91,6 +91,40 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 setMessageContent(msg->getContent());
                 break;
             }
+            case megachat::MegaChatMessage::TYPE_INVALID:
+            {
+                int errorCode = msg->getCode();
+                std::string content = "Invalid message [warn]: - (";
+                if (errorCode == MegaChatMessage::INVALID_SIGNATURE)
+                    content.append("invalid signature");
+                else if (errorCode == MegaChatMessage::INVALID_FORMAT)
+                    content.append("malformed");
+                else
+                    content.append(std::to_string(errorCode));
+                content.append(")\nContent: ");
+                if (msg->getContent())
+                    content.append(msg->getContent());
+                setMessageContent(content.c_str());
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_UNKNOWN:
+            {
+                int errorCode = msg->getCode();
+                std::string content = "Unknown type [hide]: - (";
+                if (errorCode == MegaChatMessage::INVALID_KEY)
+                    content.append("invalid key");
+                else if (errorCode == MegaChatMessage::DECRYPTING)
+                    content.append("decrypting");
+                else if (errorCode == MegaChatMessage::INVALID_TYPE)
+                    content.append("invalid type");
+                else
+                    content.append(std::to_string(errorCode));
+                content.append(")\nContent: ");
+                if (msg->getContent())
+                    content.append(msg->getContent());
+                setMessageContent(content.c_str());
+                break;
+            }
         }
     }
     else
@@ -190,9 +224,7 @@ std::string ChatMessage::managementInfoToString() const
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
         ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
-
-        item->updateToolTip(this->megaChatApi->getChatListItem(mChatId), NULL);
-
+        item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
         ret.append("Chat history was truncated by user ").append(userHandle_64);
         return ret;
     }

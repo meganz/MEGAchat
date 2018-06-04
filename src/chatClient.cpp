@@ -2561,13 +2561,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         if (mOwnPriv != chatd::PRIV_NOTPRESENT)
         {
-            // if already connected, need to send a new JOIN to chatd
-            if (parent.client.connected())
-            {
-                KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
-                mChat->connect();
-            }
-
             KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
             notifyRejoinedChat();
         }
