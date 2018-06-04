@@ -4244,7 +4244,7 @@ MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &ses
     auto it = sessions.find(sess.peer());
     if (it != sessions.end())
     {
-        API_LOG_WARNING("addSession: this peer (%d) has a session. Removing it", sess.peer().val);
+        API_LOG_WARNING("addSession: this peer (%s) already has a session. Removing it...", sess.peer().toString().c_str());
         delete it->second;
     }
 
@@ -4263,7 +4263,7 @@ void MegaChatCallPrivate::removeSession(Id peerid)
     }
     else
     {
-        API_LOG_ERROR("removeSession: Try to remove a session that doesn't exist (peer: %d)", peerid.val);
+        API_LOG_ERROR("removeSession: Try to remove a session that doesn't exist (peer: %s)", peerid.toString().c_str());
     }
 }
 
@@ -4279,13 +4279,13 @@ bool MegaChatCallPrivate::addOrUpdateParticipant(Id userid, uint32_t clientid, A
 
     chatd::EndpointId endPointId(userid, clientid);
     std::map<chatd::EndpointId, karere::AvFlags>::iterator it = participants.find(endPointId);
-    if (it == participants.end())
+    if (it == participants.end())   // new participant
     {
         changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
         notify = true;
         participants[endPointId] = flags;
     }
-    else
+    else    // existing participant --> just update flags
     {
         it->second = flags;
     }
@@ -6142,8 +6142,8 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %d --> %d",
                      karere::Id(chatCall->getChatid()).toString().c_str(),
                      karere::Id(chatCall->getId()).toString().c_str(),
-                     chatCall->getStatus(),
-                     newState);
+                     rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1
+                     rtcModule::ICall::stateToStr(newState));
 
         int state = 0;
         switch(newState)
@@ -6240,6 +6240,7 @@ void MegaChatCallHandler::onLocalStreamObtained(rtcModule::IVideoRenderer *&rend
     {
         if (localVideoReceiver != NULL)
         {
+            API_LOG_WARNING("MegaChatCallHandler::onLocalStreamObtained - A local video receiver already exists for this MegaChatCallPrivate");
             delete localVideoReceiver;
         }
 
