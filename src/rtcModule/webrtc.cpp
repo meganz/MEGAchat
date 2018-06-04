@@ -265,15 +265,21 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
+    if (chat.isGroup())
+    {
+        RTCM_LOG_DEBUG("handleCallData: CALLDATA received for a groupcall. Ignoring...");
+        return;
+    }
+
     // PayLoad: <callid> <state> <AV flags> [if (state == kCallDataEnd) <termCode>]
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
-    // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
-    if (state != Call::kCallDataRinging || chat.isGroup())
+    // If receive a OP_CALLDATA with ringing false --> ignore
+    if (state != Call::kCallDataRinging)
     {
-        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state in Progress");
+        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state \"ringing\"");
         return;
     }
 
