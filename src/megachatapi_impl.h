@@ -253,7 +253,7 @@ protected:
     std::map<MegaChatHandle, int> sessionStatus;
     std::map<karere::Id, MegaChatSession *> sessions;
     std::map<chatd::EndpointId, karere::AvFlags> participants;
-    MegaChatHandle peerId;
+    MegaChatHandle peerId;  // to identify the updated session
 
     int termCode;
     bool ignored;

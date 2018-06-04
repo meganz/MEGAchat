@@ -4245,11 +4245,12 @@ MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &ses
 
 void MegaChatCallPrivate::removeSession(Id peerid)
 {
-    if (sessions.find(peerid) != sessions.end())
+    std::map<karere::Id, MegaChatSession *>::iterator it = sessions.find(peerid);
+    if (it != sessions.end())
     {
-        MegaChatSession *session = sessions[peerid];
+        MegaChatSession *session = it->second;;
         delete session;
-        sessions.erase(peerid);
+        sessions.erase(it);
     }
     else
     {
@@ -4265,25 +4266,33 @@ void MegaChatCallPrivate::sessionUpdated(Id peerid, uint8_t changeType)
 
 bool MegaChatCallPrivate::addOrUpdateParticipant(Id userid, uint32_t clientid, AvFlags flags)
 {
-    chatd::EndpointId endPointId(userid, clientid);
     bool notify = false;
-    if (participants.find(endPointId) == participants.end())
+
+    chatd::EndpointId endPointId(userid, clientid);
+    std::map<chatd::EndpointId, karere::AvFlags>::iterator it = participants.find(endPointId);
+    if (it == participants.end())
     {
         changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
         notify = true;
+        participants[endPointId] = flags;
+    }
+    else
+    {
+        it->second = flags;
     }
 
-    participants[endPointId] = flags;
     return notify;
 }
 
 bool MegaChatCallPrivate::removeParticipant(Id userid, uint32_t clientid)
 {
     bool notify = false;
+
     chatd::EndpointId endPointId(userid, clientid);
-    if (participants.find(endPointId) != participants.end())
+    std::map<chatd::EndpointId, karere::AvFlags>::iterator it = participants.find(endPointId);
+    if (it != participants.end())
     {
-        participants.erase(endPointId);
+        participants.erase(it);
         changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
         notify = true;
     }
