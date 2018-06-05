@@ -1486,7 +1486,6 @@ void Call::destroyIfNoSessionsOrRetries(TermCode reason)
         SUB_LOG_DEBUG("Everybody left, terminating call");
         destroy(reason, false, "Everybody left");
     }
-
 }
 
 bool Call::hasNoSessionsOrPendingRetries() const
@@ -1503,13 +1502,11 @@ bool Call::answer(AvFlags av)
     }
     assert(mIsJoiner);
     assert(mHandler);
-    unsigned int callParticipants = mHandler ? mHandler->callParticipants() + 1 : 1;
-    if (callParticipants > RtcModule::kMaxCallReceivers)
+    if (mHandler->callParticipants() >= RtcModule::kMaxCallReceivers)
     {
         SUB_LOG_WARNING("answer: It's not possible join to the call, there are too many participants");
         return false;
     }
-
 
     return startOrJoin(av);
 }
@@ -1533,6 +1530,7 @@ void Call::hangup(TermCode reason)
         cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
         destroy(reason, false);
         return;
+
     case kStateRingIn:
         if (reason == TermCode::kInvalid)
         {
@@ -1551,10 +1549,10 @@ void Call::hangup(TermCode reason)
         cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, reason);
         destroy(reason, false);
         return;
+
     case kStateJoining:
     case kStateInProgress:
     case kStateHasLocalStream:
-         // TODO: For group calls, check if the sender is the call host and only then destroy the call
         if (reason == TermCode::kInvalid)
         {
             reason = TermCode::kUserHangup;
@@ -1563,17 +1561,19 @@ void Call::hangup(TermCode reason)
         {
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAppTerminating || isTermError(reason));
         }
-
         break;
+
     case kStateTerminating:
     case kStateDestroyed:
         SUB_LOG_DEBUG("hangup: Call already terminating/terminated");
         return;
+
     default:
         reason = TermCode::kUserHangup;
         SUB_LOG_WARNING("Don't know what term code to send in state %s", stateStr());
         break;
     }
+
     // in any state, we just have to send CALL_TERMINATE and that's all
     destroy(reason, true);
 }
@@ -1644,22 +1644,19 @@ AvFlags Call::muteUnmute(AvFlags av)
 {
     if (!mLocalStream)
         return AvFlags(0);
-    auto oldAv = mLocalStream->effectiveAv();
 
+    AvFlags oldAv = mLocalStream->effectiveAv();
+    mLocalStream->setAv(av);
+    av = mLocalStream->effectiveAv();
     if (av == oldAv)
     {
         return oldAv;
     }
 
-    mLocalStream->setAv(av);
-    av = mLocalStream->effectiveAv();
     mLocalPlayer->enableVideo(av.video());
-    if (oldAv != av)
+    for (auto& item: mSessions)
     {
-        for (auto& item: mSessions)
-        {
-            item.second->sendAv(av);
-        }
+        item.second->sendAv(av);
     }
 
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
@@ -2432,7 +2429,7 @@ void Session::mungeSdp(std::string& sdp)
 {
     try
     {
-        auto& maxbr = mCall.chat().isGroup() ? mCall.mManager.maxBr : mCall.manager().maxGroupBr;
+        auto& maxbr = mCall.chat().isGroup() ? mCall.mManager.maxBr : mCall.mManager.maxGroupBr;
         if (maxbr)
         {
             SUB_LOG_WARNING("mungeSdp: Limiting peer's send video send bitrate to %d kbps", maxbr);
