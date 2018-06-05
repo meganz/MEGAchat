@@ -307,7 +307,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 }
                 else
                 {
-                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_INC_PARTICIPANT: This message type is not ready to receive this TLV");
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_INC_PARTICIPANT: This message type is not ready to receive this record");
                 }
                 break;
             }
@@ -323,9 +323,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 }
                 else
                 {
-                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_EXC_PARTICIPANT: This message type is not ready to receive this TLV");
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_EXC_PARTICIPANT: This message type is not ready to receive this record");
                 }
-
                 break;
             }
             case TLV_TYPE_INVITOR:
@@ -342,9 +341,8 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 }
                 else
                 {
-                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_PRIVILEGE: This message type is not ready to receive this TLV");
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_PRIVILEGE: This message type is not ready to receive this record");
                 }
-
                 break;
             }
             case TLV_TYPE_KEYBLOB:
@@ -355,10 +353,10 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             //legacy key stuff
             case TLV_TYPE_RECIPIENT:
             {
-                assert(managementInfo);
                 if (!managementInfo)
                 {
-                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_RECIPIENT: This message type is not ready to receive this TLV");
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_RECIPIENT: This message type is not ready to receive this record");
+                    assert(false);
                     break;
                 }
 
