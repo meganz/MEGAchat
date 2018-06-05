@@ -265,15 +265,21 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
+    if (chat.isGroup())
+    {
+        RTCM_LOG_DEBUG("handleCallData: CALLDATA received for a groupcall. Ignoring...");
+        return;
+    }
+
     // PayLoad: <callid> <state> <AV flags> [if (state == kCallDataEnd) <termCode>]
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
-    // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
-    if (state != Call::kCallDataRinging || chat.isGroup())
+    // If receive a OP_CALLDATA with ringing false --> ignore
+    if (state != Call::kCallDataRinging)
     {
-        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state in Progress");
+        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state \"ringing\"");
         return;
     }
 
@@ -1373,52 +1379,60 @@ bool Call::sendCallData(int state)
 uint8_t Call::convertTermCodeToCallDataCode()
 {
     uint8_t code;
-    switch (mTermCode) {
-    case kUserHangup:
-        switch (mPredestroyState) {
-        case kStateRingIn:
-        case kStateReqSent:
-            code = kCallDataReasonCancelled;
-            break;
-        case kStateInProgress:
-            code = kCallDataReasonEnded;
-            break;
-        default:
-            code = kCallDataReasonFailed;
-            break;
-        }
-        break;
-    case kCallRejected:
-        code = kCallDataReasonRejected;
-        break;
-    case kAnsElsewhere:
-        SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
-        assert(false);
-        break;
-    case kAnswerTimeout:
-    case kRingOutTimeout:
-        code = kCallDataReasonNoAnswer;
-        break;
-    case kAppTerminating:
-        code = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
-        break;
-    case kBusy:
-        assert(!isJoiner());
-        code = kCallDataReasonRejected;
-        break;
-    default:
-        if (isTermError(mTermCode))
+    switch (mTermCode)
+    {
+        case kUserHangup:
         {
-            code = kCallDataReasonFailed;
-        }
-        else
-        {
-            SUB_LOG_ERROR("termCodeToHistCallEndedCode: Don't know how to translate term code %s, returning FAILED",
-                          termCodeToStr(mTermCode));
+            switch (mPredestroyState)
+            {
+                case kStateRingIn:
+                    assert(false);  // it should be kCallRejected
+                case kStateReqSent:
+                    code = kCallDataReasonCancelled;
+                    break;
 
-            code = kCallDataReasonFailed;
+                case kStateInProgress:
+                    code = kCallDataReasonEnded;
+                    break;
+
+                default:
+                    code = kCallDataReasonFailed;
+                    break;
+            }
+            break;
         }
-        break;
+
+        case kCallRejected:
+            code = kCallDataReasonRejected;
+            break;
+
+        case kAnsElsewhere:
+            SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
+            assert(false);
+            break;
+
+        case kAnswerTimeout:
+        case kRingOutTimeout:
+            code = kCallDataReasonNoAnswer;
+            break;
+
+        case kAppTerminating:
+            code = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            break;
+
+        case kBusy:
+            assert(!isJoiner());
+            code = kCallDataReasonRejected;
+            break;
+
+        default:
+            if (!isTermError(mTermCode))
+            {
+                SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
+                              termCodeToStr(mTermCode));
+            }
+            code = kCallDataReasonFailed;
+            break;
     }
 
     return code;

@@ -257,11 +257,11 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
         type = binaryMessage.read<uint8_t>(1);
         if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
         {
-            managementInfo = std::unique_ptr<chatd::Message::ManagementInfo>(new chatd::Message::ManagementInfo());
+            managementInfo.reset(new chatd::Message::ManagementInfo());
         }
         else if (type == chatd::Message::kMsgCallEnd)
         {
-            callEndedInfo = std::unique_ptr<chatd::Message::CallEndedInfo>(new chatd::Message::CallEndedInfo());
+            callEndedInfo.reset(new chatd::Message::CallEndedInfo());
         }
     }
     TlvParser tlv(binaryMessage, offset, isLegacy);
@@ -295,7 +295,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 if (type == chatd::Message::kMsgCallEnd)
                 {
                     assert(callEndedInfo);
-                    callEndedInfo->participant.push_back(record.read<uint64_t>());
+                    callEndedInfo->participants.push_back(record.read<uint64_t>());
                 }
                 else if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
                 {

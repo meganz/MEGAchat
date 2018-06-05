@@ -923,7 +923,7 @@ public:
      * It can be used for different purposes.
      * Valid for:
      *  - MegaChatMessage::TYPE_CALL_ENDED
-     *   It will be empty if termCode is not END_CALL_REASON_ENDED either END_CALL_REASON_FAILED
+     *   It will be empty if MegaChatMessage::getTermCode is not END_CALL_REASON_ENDED either END_CALL_REASON_FAILED
      *
      * @return list with MegaHandle
      */
@@ -945,7 +945,7 @@ public:
      * This funcion returns a valid value for:
      *  - MegaChatMessage::TYPE_CALL_ENDED
      *
-     * Possible values for termination code are:
+     * The possible values for termination codes are the following:
      *  - END_CALL_REASON_ENDED       = 1
      *  - END_CALL_REASON_REJECTED    = 2
      *  - END_CALL_REASON_NO_ANSWER   = 3
