@@ -1847,6 +1847,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
  * This test does the following:
  * - Send a message with an attach contact to chatroom
  * + Receive message
+ *
+ * + Forward the contact message
+ * - Receive message
  * Check if message type is TYPE_CONTACT_ATTACHMENT and contact email received is equal to account2 email
  */
 void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
