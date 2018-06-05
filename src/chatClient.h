@@ -823,7 +823,7 @@ public:
 #endif
 
     promise::Promise<void> pushReceived();
-    megaHandle mSyncTimer;                  // to wait for reception of SYNCs
+    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
     int mSyncCount;                         // to track if all chats returned SYNC
     promise::Promise<void> mSyncPromise;    // resolved only when up to date
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
