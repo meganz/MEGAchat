@@ -335,14 +335,16 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_PRIVILEGE:
             {
-                assert(managementInfo);
-                if (!managementInfo)
+                if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+                {
+                    assert(managementInfo);
+                    managementInfo->privilege = (chatd::Priv)record.read<uint8_t>();
+                }
+                else
                 {
                     KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_PRIVILEGE: This message type is not ready to receive this TLV");
-                    break;
                 }
 
-                managementInfo->privilege = (chatd::Priv)record.read<uint8_t>();
                 break;
             }
             case TLV_TYPE_KEYBLOB:
