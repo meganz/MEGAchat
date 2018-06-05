@@ -633,7 +633,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
                                                              true, nullptr, userid, clientid));
     assert(ret.second);
     auto& call = ret.first->second;
-    call->mHandler = mHandler.onCallIncoming(*call, avFlagsRemote);
+    call->mHandler = mHandler.onIncomingCall(*call, avFlagsRemote);
     assert(call->mHandler);
     assert(call->state() == Call::kStateRingIn);
     sendCommand(chat, OP_RTMSG_ENDPOINT, RTCMD_CALL_RINGING, chatid, userid, clientid, callid);

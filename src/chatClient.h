@@ -555,8 +555,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalHandler,
-              public ::mega::MegaGlobalListener,
+class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
               public karere::DeleteTrackable
@@ -824,8 +823,6 @@ public:
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
-    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid);
 #endif
 
     promise::Promise<void> pushReceived();

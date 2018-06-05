@@ -893,7 +893,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
@@ -3042,18 +3042,6 @@ bool Client::isCallInProgress() const
 
     return callInProgress;
 }
-
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
-{
-    return app.onIncomingCall(call, av);
-}
-
-rtcModule::ICallHandler *Client::onGroupCallActive(Id chatid, Id callid)
-{
-    return app.onGroupCallActive(chatid, callid);
-}
-#endif
 
 std::string encodeFirstName(const std::string& first)
 {

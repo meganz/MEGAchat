@@ -175,7 +175,7 @@ public:
      * @param call The incoming call
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onCallIncoming(ICall& call, karere::AvFlags av) = 0;
+    virtual ICallHandler* onIncomingCall(ICall& call, karere::AvFlags av) = 0;
 
     /** @brief A call is in progress at chatroom
      * @param chatid The chatroom id

@@ -18,7 +18,7 @@ class Contact;
  * @brief The karere chat application class that the app needs to
  * implement in order to receive (mostly GUI) events.
  */
-class IApp
+class IApp : public rtcModule::IGlobalHandler
 {
 public:
 
@@ -333,31 +333,6 @@ public:
      * blinking
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
-
-#ifndef KARERE_DISABLE_WEBRTC
-    /**
-     * @brief Called by karere when there is an incoming call.
-     *
-     * The app must create a rtcModule::ICallHandler to handle events related to
-     * that call.
-     * @param call The \c rtcModule::ICall instance that represents the call. To
-     * answer, do `call.answer()`, to reject, do `call.hangup()`
-     */
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
-
-    /**
-     * @brief Called by karere when there is a group call active
-     *
-     * The app must create a rtcModule::ICallHandler to handle events related to
-     * that call.
-     *
-     * This callback is called when we connect to chatd and there is a call is in-progress
-     *
-     * @param chatid from chatroom where the call is active
-     * @param callid from call
-     */
-    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid,  karere::Id callId) = 0;
-#endif
 
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init
