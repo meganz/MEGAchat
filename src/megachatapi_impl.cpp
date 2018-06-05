@@ -6459,7 +6459,7 @@ void MegaChatSessionHandler::onRemoteStreamRemoved()
 void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldAv)
 {
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-    megaChatSession->setAvFlags(session->receivedAv());
+    megaChatSession->setAvFlags(av);
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS);
     API_LOG_INFO("Remote audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
                  Id(chatCall->getChatid()).toString().c_str(),
