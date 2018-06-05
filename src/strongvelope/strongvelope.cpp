@@ -297,35 +297,35 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                     assert(callEndedInfo);
                     callEndedInfo->participant.push_back(record.read<uint64_t>());
                 }
-                else
+                else if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
                 {
                     assert(managementInfo);
-                    if (!managementInfo)
-                    {
-                        KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_INC_PARTICIPANT: This message type is not ready to receive this TLV");
-                        break;
-                    }
-
                     if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                         throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
                     managementInfo->privilege = chatd::PRIV_NOCHANGE;
                     managementInfo->target = record.read<uint64_t>();
                 }
+                else
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_INC_PARTICIPANT: This message type is not ready to receive this TLV");
+                }
                 break;
             }
             case TLV_TYPE_EXC_PARTICIPANT:
             {
-                assert(managementInfo);
-                if (!managementInfo)
+                if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+                {
+                    assert(managementInfo);
+                    if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
+                        throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
+                    managementInfo->privilege = chatd::PRIV_NOTPRESENT;
+                    managementInfo->target = record.read<uint64_t>();
+                }
+                else
                 {
                     KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_EXC_PARTICIPANT: This message type is not ready to receive this TLV");
-                    break;
                 }
 
-                if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
-                    throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
-                managementInfo->privilege = chatd::PRIV_NOTPRESENT;
-                managementInfo->target = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_INVITOR:
