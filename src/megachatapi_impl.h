@@ -682,6 +682,9 @@ public:
     virtual const char *getUserEmail(unsigned int index) const;
     virtual mega::MegaNodeList *getMegaNodeList() const;
     virtual const MegaChatContainsMeta *getContainsMeta() const;
+    virtual mega::MegaHandleList *getMegaHandleList() const;
+    virtual int getDuration() const;
+    virtual int getTermCode() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -710,9 +713,10 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
-    std::vector<MegaChatAttachedUser>* megaChatUsers = NULL;
-    mega::MegaNodeList* megaNodeList = NULL;
-    const MegaChatContainsMeta* mContainsMeta = NULL;
+    std::vector<MegaChatAttachedUser> *megaChatUsers = NULL;
+    mega::MegaNodeList *megaNodeList = NULL;
+    mega::MegaHandleList *megaHandleList = NULL;
+    const MegaChatContainsMeta *mContainsMeta = NULL;
 };
 
 //Thread safe request queue

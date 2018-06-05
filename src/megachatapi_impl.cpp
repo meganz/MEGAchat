@@ -5224,6 +5224,25 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 this->lastMsg = msg->contents();
                 break;
 
+            case MegaChatMessage::TYPE_CALL_ENDED:
+            {
+                Message::CallEndedInfo *callEndedInfo = Message::CallEndedInfo::fromBuffer(msg->contents().data(), msg->contents().size());
+                if (callEndedInfo)
+                {
+                    this->lastMsg = std::to_string(callEndedInfo->duration);
+                    this->lastMsg.push_back(0x01);
+                    this->lastMsg += std::to_string(callEndedInfo->termCode);
+                    for (unsigned int i = 0; i < callEndedInfo->participants.size(); i++)
+                    {
+                        this->lastMsg.push_back(0x01);
+                        karere::Id id(callEndedInfo->participants[i]);
+                        this->lastMsg += id.toString();
+                    }
+                    delete callEndedInfo;
+                }
+                break;
+            }
+
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
             case MegaChatMessage::TYPE_TRUNCATE:    // no content at all
             default:
@@ -5459,7 +5478,6 @@ MegaChatPeerListItemHandler::MegaChatPeerListItemHandler(MegaChatApiImpl &chatAp
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
-    : megaChatUsers(NULL)
 {
     this->msg = MegaApi::strdup(msg->getContent());
     this->uh = msg->getUserHandle();
@@ -5477,6 +5495,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->code = msg->getCode();
     this->rowId = msg->getRowId();
     this->megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
+    this->megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
 
     if (msg->getUsersCount() != 0)
     {
@@ -5497,9 +5516,6 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 }
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
-    : megaChatUsers(NULL)
-    , megaNodeList(NULL)
-    , mContainsMeta(NULL)
 {
     string tmp(msg.buf(), msg.size());
 
@@ -5564,6 +5580,23 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
              }
              break;
         }
+        case MegaChatMessage::TYPE_CALL_ENDED:
+        {
+            megaHandleList = new MegaHandleListPrivate();
+            Message::CallEndedInfo *callEndInfo = Message::CallEndedInfo::fromBuffer(msg.buf(), msg.size());
+            if (callEndInfo)
+            {
+                for (size_t i = 0; i < callEndInfo->participants.size(); i++)
+                {
+                    megaHandleList->addMegaHandle(callEndInfo->participants[i]);
+                }
+
+                priv = callEndInfo->duration;
+                code = callEndInfo->termCode;
+                delete callEndInfo;
+            }
+            break;
+        }
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
@@ -5600,6 +5633,7 @@ MegaChatMessagePrivate::~MegaChatMessagePrivate()
     delete megaChatUsers;
     delete megaNodeList;
     delete mContainsMeta;
+    delete megaHandleList;
 }
 
 MegaChatMessage *MegaChatMessagePrivate::copy() const
@@ -5791,6 +5825,21 @@ MegaNodeList *MegaChatMessagePrivate::getMegaNodeList() const
 const MegaChatContainsMeta *MegaChatMessagePrivate::getContainsMeta() const
 {
     return mContainsMeta;
+}
+
+MegaHandleList *MegaChatMessagePrivate::getMegaHandleList() const
+{
+    return megaHandleList;
+}
+
+int MegaChatMessagePrivate::getDuration() const
+{
+    return priv;
+}
+
+int MegaChatMessagePrivate::getTermCode() const
+{
+    return code;
 }
 
 LoggerHandler::LoggerHandler()

@@ -352,7 +352,8 @@ public:
         kMsgTruncate          = 0x03,
         kMsgPrivChange        = 0x04,
         kMsgChatTitle         = 0x05,
-        kMsgManagementHighest = 0x05,
+        kMsgCallEnd           = 0x06,
+        kMsgManagementHighest = 0x06,
         kMsgUserFirst         = 0x10,
         kMsgAttachment        = 0x10,
         kMsgRevokeAttachment  = 0x11,
@@ -412,6 +413,57 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    class CallEndedInfo
+    {
+        public:
+        karere::Id callid;
+        uint8_t termCode = 0;
+        uint32_t duration = 0;
+        std::vector<karere::Id> participants;
+
+        static CallEndedInfo *fromBuffer(const char *buffer, size_t len)
+        {
+            CallEndedInfo *info = new CallEndedInfo;
+            size_t numParticipants;
+            unsigned int lenCallid = sizeof (info->callid);
+            unsigned int lenDuration = sizeof (info->duration);
+            unsigned int lenTermCode = sizeof (info->termCode);
+            unsigned int lenNumParticipants = sizeof (numParticipants);
+            unsigned int lenId = sizeof (karere::Id);
+
+            if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
+            {
+                return NULL;
+            }
+
+            unsigned int position = 0;
+            memcpy(&info->callid, &buffer[position], lenCallid);
+            position += lenCallid;
+            memcpy(&info->duration, &buffer[position], lenDuration);
+            position += lenDuration;
+            memcpy(&info->termCode, &buffer[position], lenTermCode);
+            position += lenTermCode;
+            memcpy(&numParticipants, &buffer[position], lenNumParticipants);
+            position += lenNumParticipants;
+
+            if (len < (position + (lenId * numParticipants)))
+            {
+                delete info;
+                return NULL;
+            }
+
+            for (size_t i = 0; i < numParticipants; i++)
+            {
+                karere::Id id;
+                memcpy(&id, &buffer[position], lenId);
+                position += lenId;
+                info->participants.push_back(id);
+            }
+
+            return info;
+        }
+    };
+
 private:
 //avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
     karere::Id mId;
@@ -462,19 +514,31 @@ public:
     /** @brief Allocated a ManagementInfo structure in the message's buffer,
      * and writes the contents of the provided structure. The message contents
      * *must* be empty when the method is called.
-     * @returns A reference to the newly created and filled ManagementInfo structure */
-    ManagementInfo& createMgmtInfo(const ManagementInfo& src)
+     */
+    void createMgmtInfo(const ManagementInfo& src)
     {
         assert(empty());
         append(&src, sizeof(src));
-        return *reinterpret_cast<ManagementInfo*>(buf());
+    }
+
+    void createCallEndedInfo(const CallEndedInfo& src)
+    {
+        assert(empty());
+        append(&src.callid, sizeof(src.callid));
+        append(&src.duration, sizeof(src.duration));
+        append(&src.termCode, sizeof(src.termCode));
+        size_t numParticipants = src.participants.size();
+        append(&numParticipants, sizeof(numParticipants));
+        for (size_t i = 0; i < numParticipants; i++)
+        {
+            append(&src.participants[i], sizeof(src.participants[i]));
+        }
     }
 
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
-    void generateRefId();
     StaticBuffer backrefBuf() const
     {
         return backRefs.empty()

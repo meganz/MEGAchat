@@ -753,7 +753,8 @@ public:
         TYPE_TRUNCATE               = 3,    /// Management message indicating the history of the chat has been truncated
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
-        TYPE_HIGHEST_MANAGEMENT     = 5,
+        TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
+        TYPE_HIGHEST_MANAGEMENT     = 6,
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
@@ -774,6 +775,15 @@ public:
         REASON_GENERAL_REJECT       = 3,    /// chatd rejected the message, for unknown reason
         REASON_NO_WRITE_ACCESS      = 4,    /// Read-only privilege or not belong to the chatroom
         REASON_NO_CHANGES           = 6     /// Edited message has the same content than original message
+    };
+
+    enum
+    {
+        END_CALL_REASON_ENDED       = 1,    /// Call finished normally
+        END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
+        END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
+        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller
     };
 
     enum
@@ -1040,9 +1050,52 @@ public:
 
     /**
      * @brief Return a list with all MegaNode attached to the message
+     *
      * @return list with MegaNode
      */
     virtual mega::MegaNodeList *getMegaNodeList() const;
+
+    /**
+     * @brief Return a list with handles
+     *
+     * The SDK retains the ownership of the returned value.It will be valid until
+     * the MegaChatMessage object is deleted.
+     *
+     * It can be used for different purposes.
+     * Valid for:
+     *  - MegaChatMessage::TYPE_CALL_ENDED
+     *   It will be empty if MegaChatMessage::getTermCode is not END_CALL_REASON_ENDED either END_CALL_REASON_FAILED
+     *
+     * @return list with MegaHandle
+     */
+    virtual mega::MegaHandleList *getMegaHandleList() const;
+
+    /**
+     * @brief Return call duration in seconds
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_CALL_ENDED
+     *
+     * @return Call duration
+     */
+    virtual int getDuration() const;
+
+    /**
+     * @brief Return the termination code of the call
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_CALL_ENDED
+     *
+     * The possible values for termination codes are the following:
+     *  - END_CALL_REASON_ENDED       = 1
+     *  - END_CALL_REASON_REJECTED    = 2
+     *  - END_CALL_REASON_NO_ANSWER   = 3
+     *  - END_CALL_REASON_FAILED      = 4
+     *  - END_CALL_REASON_CANCELLED   = 5
+     *
+     * @return Call termination code
+     */
+    virtual int getTermCode() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *
@@ -3529,6 +3582,17 @@ public:
      *  - MegaChatMessage::TYPE_TRUNCATE: empty string
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
      *  - MegaChatMessage::TYPE_PRIV_CHANGE: empty string
+     *  - MegaChatMessage::TYPE_CALL_ENDED: string set separated by ASCII character '0x01'
+     *      Structure: duration(seconds)'0x01'termCode'0x01'participants1'0x01'participants2'0x01'...
+     *      duration and termCode are numbers coded in ASCII, participants are handles in base64 format.
+     *      Valid TermCode are:
+     *          + END_CALL_REASON_ENDED
+     *          + END_CALL_REASON_REJECTED
+     *          + END_CALL_REASON_NO_ANSWER
+     *          + END_CALL_REASON_FAILED
+     *          + END_CALL_REASON_CANCELLED
+     *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED
+     *      any participant won't be added
      *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,

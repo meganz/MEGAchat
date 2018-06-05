@@ -1351,6 +1351,21 @@ MegaNodeList *MegaChatMessage::getMegaNodeList() const
     return NULL;
 }
 
+MegaHandleList *MegaChatMessage::getMegaHandleList() const
+{
+    return NULL;
+}
+
+int MegaChatMessage::getDuration() const
+{
+    return 0;
+}
+
+int MegaChatMessage::getTermCode() const
+{
+    return 0;
+}
+
 void MegaChatLogger::log(int , const char *)
 {
 

@@ -161,7 +161,7 @@ typedef Key<32> EcKey;
 
 class ProtocolHandler;
 /** Class to parse an encrypted message and store its attributes and content */
-struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::DeleteTrackable
+struct ParsedMessage: public karere::DeleteTrackable
 {
     ProtocolHandler& mProtoHandler;
     uint8_t protocolVersion;
@@ -183,6 +183,8 @@ struct ParsedMessage: public chatd::Message::ManagementInfo, public karere::Dele
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
+    std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
+    std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
 };
 
 
