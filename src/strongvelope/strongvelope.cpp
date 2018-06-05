@@ -300,6 +300,12 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 else
                 {
                     assert(managementInfo);
+                    if (!managementInfo)
+                    {
+                        KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_INC_PARTICIPANT: This message type is not ready to receive this TLV");
+                        break;
+                    }
+
                     if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                         throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
                     managementInfo->privilege = chatd::PRIV_NOCHANGE;
@@ -310,6 +316,12 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             case TLV_TYPE_EXC_PARTICIPANT:
             {
                 assert(managementInfo);
+                if (!managementInfo)
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_EXC_PARTICIPANT: This message type is not ready to receive this TLV");
+                    break;
+                }
+
                 if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                     throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
                 managementInfo->privilege = chatd::PRIV_NOTPRESENT;
@@ -324,6 +336,12 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             case TLV_TYPE_PRIVILEGE:
             {
                 assert(managementInfo);
+                if (!managementInfo)
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_PRIVILEGE: This message type is not ready to receive this TLV");
+                    break;
+                }
+
                 managementInfo->privilege = (chatd::Priv)record.read<uint8_t>();
                 break;
             }
@@ -336,6 +354,12 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             case TLV_TYPE_RECIPIENT:
             {
                 assert(managementInfo);
+                if (!managementInfo)
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_RECIPIENT: This message type is not ready to receive this TLV");
+                    break;
+                }
+
                 if (managementInfo->target)
                     throw std::runtime_error("Already had one RECIPIENT tlv record");
                 record.validateDataLen(8);
