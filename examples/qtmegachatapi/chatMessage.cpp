@@ -244,6 +244,25 @@ std::string ChatMessage::managementInfoToString() const
         delete chatRoom;
         return ret;
     }
+    case megachat::MegaChatMessage::TYPE_CALL_ENDED:
+    {
+        ret.append("User ").append(userHandle_64)
+           .append(" start a call with: ");
+
+        mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
+        for (unsigned int i = 0; i < handleList->size(); i++)
+        {
+            char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
+            ret.append(participant_64).append(" ");
+            delete participant_64;
+        }
+
+        ret.append("\nDuration: ")
+           .append(std::to_string(mMessage->getDuration()))
+           .append("secs TermCode: ")
+           .append(std::to_string(mMessage->getTermCode()));
+        return ret;
+    }
     default:
         ret.append("Management message with unknown type: ")
            .append(std::to_string(mMessage->getType()));
