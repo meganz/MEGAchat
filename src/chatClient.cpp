@@ -3264,7 +3264,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_OPER);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers)
+    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
         auto& list = *result->getMegaTextChatList();
