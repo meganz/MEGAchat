@@ -283,6 +283,11 @@ void MegaChatApi::setBackgroundStatus(bool background, MegaChatRequestListener *
     pImpl->setBackgroundStatus(background, listener);
 }
 
+bool MegaChatApi::getBackgroundStatus()
+{
+    return pImpl->getBackgroundStatus();
+}
+
 void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     pImpl->getUserFirstname(userhandle, listener);

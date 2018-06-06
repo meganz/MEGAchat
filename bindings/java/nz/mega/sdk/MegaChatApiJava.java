@@ -766,6 +766,15 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the background status established in MEGAchat
+     *
+     * @return True if background status was set.
+     */
+    public boolean getBackgroundStatus(){
+        return megaChatApi.getBackgroundStatus();
+    }
+
+    /**
      * Returns the current firstname of the user
      *
      * This function is useful to get the firstname of users who participated in a groupchat with

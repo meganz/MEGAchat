@@ -1754,6 +1754,19 @@ void MegaChatApiImpl::setBackgroundStatus(bool background, MegaChatRequestListen
     waiter->notify();
 }
 
+bool MegaChatApiImpl::getBackgroundStatus()
+{
+    bool status = false;
+
+    sdkMutex.lock();
+
+    status = mClient ? mClient->chatd->keepaliveType() : false;
+
+    sdkMutex.unlock();
+
+    return status;
+}
+
 void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_FIRSTNAME, listener);
