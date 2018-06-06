@@ -167,10 +167,11 @@ void Client::cancelTimers()
 
 void Client::notifyUserActive()
 {
-    sendEcho();
-
     if (mKeepaliveType == OP_KEEPALIVE)
         return;
+
+    sendEcho();
+
     mKeepaliveType = OP_KEEPALIVE;
     sendKeepalive();
 }
