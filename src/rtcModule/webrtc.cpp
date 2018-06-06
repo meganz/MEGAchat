@@ -687,8 +687,6 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
         mState = kStateRingIn;
         mCallerUser = callerUser;
         mCallerClient = callerClient;
-        assert(mCallerUser);
-        assert(mCallerClient);
     }
     else
     {
