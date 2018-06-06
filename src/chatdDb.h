@@ -139,9 +139,9 @@ public:
         }
 #endif
         mDb.query("insert into history"
-            "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid) "
-            "values(?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
-            msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId);
+            "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid, is_encrypted) "
+            "values(?,?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
+            msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId, msg.isEncrypted());
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
@@ -152,8 +152,8 @@ public:
         }
         else    // "updated" instead of "ts"
         {
-            mDb.query("update history set type = ?, data = ?, updated = ?, userid = ? where chatid = ? and msgid = ?",
-                msg.type, msg, msg.updated, msg.userid, mChat.chatId(), msgid);
+            mDb.query("update history set type = ?, data = ?, updated = ?, userid = ?, is_encrypted = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.updated, msg.userid, msg.isEncrypted(), mChat.chatId(), msgid);
         }
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
@@ -197,7 +197,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated from history "
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history "
             "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
         stmt << mChat.chatId() << idx << count;
         int i = 0;
@@ -223,6 +223,7 @@ public:
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
                 false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
+            msg->setEncrypted(stmt.intCol(9));
             messages.push_back(msg);
         }
     }
@@ -236,16 +237,22 @@ public:
     {
         // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
         std::string sql = "select count(*) from history where (chatid = ?1)"
-                "and (userid != ?2) and ((type = ?3 || type >= ?4) and type != ?5 and type != ?6) and not (updated != 0 and length(data) = 0 )";
+                "and (userid != ?2)"
+                "and not (updated != 0 and length(data) = 0)"
+                "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
+                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
         stmt << mChat.chatId() << mChat.client().userId()   // skip own messages
-             << chatd::Message::kMsgNormal                  // include normal messages
-             << chatd::Message::kMsgUserFirst               // exclude management messages
-             << chatd::Message::kMsgRevokeAttachment        // exclude revoke messages
-             << chatd::Message::kMsgInvalid;                // exclude (still) encrypted messages (theorically, they should not be stored in DB)
+             << chatd::Message::kNotEncrypted               // include decrypted messages
+             << chatd::Message::kEncryptedMalformed         // include encrypted messages due to malformed payload
+             << chatd::Message::kEncryptedSignature         // include encrypted messages due to invalid signature
+             << chatd::Message::kMsgNormal                  // include only known type of messages
+             << chatd::Message::kMsgAttachment
+             << chatd::Message::kMsgContact
+             << chatd::Message::kMsgContainsMeta;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");

@@ -187,6 +187,7 @@ class MegaChatCallPrivate : public MegaChatCall
 {
 public:
     MegaChatCallPrivate(const rtcModule::ICall& call);
+    MegaChatCallPrivate(karere::Id chatid, karere::Id callid);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate();
@@ -215,6 +216,8 @@ public:
     virtual mega::MegaHandleList *getSessions() const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
+    virtual int getNumParticipants() const;
+    virtual mega::MegaHandleList *getParticipants() const;
     virtual bool isIgnored() const;
 
     void setStatus(int status);
@@ -233,6 +236,11 @@ public:
     void removeSession(karere::Id peerid);
     void sessionUpdated(karere::Id peerid, uint8_t changeType);
 
+    bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
+    bool removeParticipant(karere::Id userid, uint32_t clientid);
+    int getCallParticipants();
+    bool adjustAvFlagsToRestriction(karere::AvFlags &av);
+
 protected:
     MegaChatHandle chatid;
     int status;
@@ -245,7 +253,8 @@ protected:
     std::string temporaryError;
     std::map<MegaChatHandle, int> sessionStatus;
     std::map<karere::Id, MegaChatSession *> sessions;
-    MegaChatHandle peerId;
+    std::map<chatd::EndpointId, karere::AvFlags> participants;
+    MegaChatHandle peerId;  // to identify the updated session
 
     int termCode;
     bool ignored;
@@ -266,7 +275,8 @@ public:
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid);
+    // no peerid --> local video from own user
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid = MEGACHAT_INVALID_HANDLE);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -498,8 +508,12 @@ public:
     virtual void onRingOut(karere::Id peer);
     virtual void onCallStarting();
     virtual void onCallStarted();
+    virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
+    virtual bool removeParticipant(karere::Id userid, uint32_t clientid);
+    virtual int callParticipants();
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
+    void setCallNotPresent(karere::Id chatid, karere::Id callid);
 private:
     MegaChatApiImpl *megaChatApi;
     rtcModule::ICall *call;
@@ -511,7 +525,7 @@ private:
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
 {
 public:
-    MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, MegaChatSessionPrivate &megaChatSession, rtcModule::ISession &session);
+    MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler* callHandler, MegaChatSessionPrivate *megaChatSession, rtcModule::ISession &session);
     virtual ~MegaChatSessionHandler();
     virtual void onSessStateChange(uint8_t newState);
     virtual void onSessDestroy(rtcModule::TermCode reason, bool byPeer, const std::string& msg);
@@ -616,6 +630,7 @@ public:
     virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
     virtual const char *getTitle() const;
+    virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
 
     virtual int getChanges() const;
@@ -643,6 +658,7 @@ private:
     std::vector<std::string> peerEmails;
     bool group;
     bool active;
+    bool mHasCustomTitle;
 
     std::string title;
     int unreadCount;
@@ -707,6 +723,10 @@ public:
     virtual const char *getUserName(unsigned int index) const;
     virtual const char *getUserEmail(unsigned int index) const;
     virtual mega::MegaNodeList *getMegaNodeList() const;
+    virtual mega::MegaHandleList *getMegaHandleList() const;
+    virtual int getDuration() const;
+    virtual int getTermCode() const;
+
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -737,6 +757,7 @@ private:
     int code;               // generic field for additional information (ie. the reason of manual sending)
     std::vector<MegaChatAttachedUser>* megaChatUsers;
     mega::MegaNodeList* megaNodeList;
+    mega::MegaHandleList* megaHandleList;
 };
 
 //Thread safe request queue
@@ -814,10 +835,7 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::set<MegaChatCallListener *> callListeners;
-
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> videoListeners;
-
-    std::map<MegaChatHandle, MegaChatCallHandler*> callHandlers;
 
     mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
     void cleanCallHandlerMap();
@@ -852,7 +870,7 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     MegaChatCallHandler *findChatCallHandler(MegaChatHandle chatid);
-    void removeChatCallHandler(MegaChatHandle chatid);
+    void removeCall(MegaChatHandle chatid);
 #endif
 
     static void setCatchException(bool enable);
@@ -1015,11 +1033,12 @@ public:
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-#ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
-#endif
     virtual void onInitStateChange(int newState);
     virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
+#ifndef KARERE_DISABLE_WEBRTC
+    virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
+    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid);
+#endif
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);

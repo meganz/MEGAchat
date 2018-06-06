@@ -18,7 +18,7 @@ class Contact;
  * @brief The karere chat application class that the app needs to
  * implement in order to receive (mostly GUI) events.
  */
-class IApp
+class IApp : public rtcModule::IGlobalHandler
 {
 public:
 
@@ -193,10 +193,7 @@ public:
          * This means that either a new message has been received, or the last
          * message of existing history was just fetched (this is the first message
          * received when fetching history, because it is fetched from newest to oldest).
-         * @param type The message type, as in chatd::Message::type
-         * @param contents The contents of the message. May contain binary data
-         * @param ts The message timestamp, as in chatd::Message::ts
-         * @param userid Id of the sender of the message
+         * @param msg Contains the properties of the last text message
          */
         virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg) {}
 
@@ -336,18 +333,6 @@ public:
      * blinking
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
-
-#ifndef KARERE_DISABLE_WEBRTC
-    /**
-     * @brief Called by karere when there is an incoming call.
-     *
-     * The app must create a rtcModule::ICallHandler to handle events related to
-     * that call.
-     * @param call The \c rtcModule::ICall instance that represents the call. To
-     * answer, do `call.answer()`, to reject, do `call.hangup()`
-     */
-    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
-#endif
 
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init

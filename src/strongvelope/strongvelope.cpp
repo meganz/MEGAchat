@@ -41,7 +41,6 @@ using namespace chatd;
 
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
-const karere::Id API_USER("gTxFhlOd_LQ");
 void deriveNonceSecret(const StaticBuffer& masterNonce, const StaticBuffer &result,
                        Id recipient=Id::null());
 
@@ -125,7 +124,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
     std::string cleartext = aesCTRDecrypt(std::string(payload.buf(), payload.dataSize()),
         key, derivedNonce);
     parsePayload(StaticBuffer(cleartext, false), outMsg);
-    outMsg.setEncrypted(0);
+    outMsg.setEncrypted(Message::kNotEncrypted);
 }
 
 /**
@@ -250,11 +249,20 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
     if (isLegacy)
     {
         offset = 1;
+        managementInfo = std::unique_ptr<chatd::Message::ManagementInfo>(new chatd::Message::ManagementInfo());
     }
     else
     {
         offset = 2;
         type = binaryMessage.read<uint8_t>(1);
+        if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+        {
+            managementInfo.reset(new chatd::Message::ManagementInfo());
+        }
+        else if (type == chatd::Message::kMsgCallEnd)
+        {
+            callEndedInfo.reset(new chatd::Message::CallEndedInfo());
+        }
     }
     TlvParser tlv(binaryMessage, offset, isLegacy);
     TlvRecord record(binaryMessage);
@@ -284,18 +292,39 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_INC_PARTICIPANT:
             {
-                if (target || privilege != PRIV_INVALID)
-                    throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
-                privilege = chatd::PRIV_NOCHANGE;
-                target = record.read<uint64_t>();
+                if (type == chatd::Message::kMsgCallEnd)
+                {
+                    assert(callEndedInfo);
+                    callEndedInfo->participants.push_back(record.read<uint64_t>());
+                }
+                else if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+                {
+                    assert(managementInfo);
+                    if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
+                        throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
+                    managementInfo->privilege = chatd::PRIV_NOCHANGE;
+                    managementInfo->target = record.read<uint64_t>();
+                }
+                else
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_INC_PARTICIPANT: This message type is not ready to receive this record");
+                }
                 break;
             }
             case TLV_TYPE_EXC_PARTICIPANT:
             {
-                if (target || privilege != PRIV_INVALID)
-                    throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
-                privilege = chatd::PRIV_NOTPRESENT;
-                target = record.read<uint64_t>();
+                if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+                {
+                    assert(managementInfo);
+                    if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
+                        throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
+                    managementInfo->privilege = chatd::PRIV_NOTPRESENT;
+                    managementInfo->target = record.read<uint64_t>();
+                }
+                else
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_EXC_PARTICIPANT: This message type is not ready to receive this record");
+                }
                 break;
             }
             case TLV_TYPE_INVITOR:
@@ -305,7 +334,15 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_PRIVILEGE:
             {
-                privilege = (chatd::Priv)record.read<uint8_t>();
+                if (type == chatd::Message::kMsgAlterParticipants || type == chatd::Message::kMsgPrivChange)
+                {
+                    assert(managementInfo);
+                    managementInfo->privilege = (chatd::Priv)record.read<uint8_t>();
+                }
+                else
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_PRIVILEGE: This message type is not ready to receive this record");
+                }
                 break;
             }
             case TLV_TYPE_KEYBLOB:
@@ -316,10 +353,17 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             //legacy key stuff
             case TLV_TYPE_RECIPIENT:
             {
-                if (target)
+                if (!managementInfo)
+                {
+                    KARERE_LOG_ERROR(krLogChannel_strongvelope, "TLV_TYPE_RECIPIENT: This message type is not ready to receive this record");
+                    assert(false);
+                    break;
+                }
+
+                if (managementInfo->target)
                     throw std::runtime_error("Already had one RECIPIENT tlv record");
                 record.validateDataLen(8);
-                target = binaryMessage.read<uint64_t>(record.dataOffset);
+                managementInfo->target = binaryMessage.read<uint64_t>(record.dataOffset);
                 break;
             }
             case TLV_TYPE_KEYS:
@@ -611,10 +655,11 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
     {
         if (parsedMsg->encryptedKey.dataSize() % AES::BLOCKSIZE)
             throw std::runtime_error("legacyDecryptKeys: invalid aes-encrypted key size");
-        assert(parsedMsg->target);
+        assert(parsedMsg->managementInfo);
+        assert(parsedMsg->managementInfo->target);
         assert(parsedMsg->sender);
         Id otherParty = (parsedMsg->sender == mOwnHandle)
-            ? parsedMsg->target
+            ? parsedMsg->managementInfo->target
             : parsedMsg->sender;
         auto wptr = weakHandle();
         return computeSymmetricKey(otherParty)
@@ -622,7 +667,7 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
         {
             wptr.throwIfDeleted();
             Key<32> iv;
-            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->target);
+            deriveNonceSecret(parsedMsg->nonce, iv, parsedMsg->managementInfo->target);
             iv.setDataSize(AES::BLOCKSIZE);
 
             // decrypt key
@@ -738,7 +783,7 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     Message* msg, const SendKey& key)
 {
     parsedMsg->symmetricDecrypt(key, *msg);
-    msg->setEncrypted(0);
+    msg->setEncrypted(Message::kNotEncrypted);
     return msg;
 }
 
@@ -776,30 +821,48 @@ void ProtocolHandler::onHistoryReload()
 promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, Message* msg)
 {
-    msg->userid = parsedMsg->sender;
-    msg->clear();
+    if (msg->isManagementMessageKnownType())
+    {
+        msg->userid = parsedMsg->sender;
+        msg->clear();
+    }
+    // else --> it's important to not clear the message, so future executions can
+    // retry to decode it in case the new type is supported
 
     switch(parsedMsg->type)
     {
         case Message::kMsgAlterParticipants:
         case Message::kMsgPrivChange:
         {
-            msg->createMgmtInfo(*parsedMsg);
-            msg->setEncrypted(0);
+            assert(parsedMsg->managementInfo);
+            msg->createMgmtInfo(*(parsedMsg->managementInfo));
+            msg->setEncrypted(Message::kNotEncrypted);
+
             return msg;
         }
         case Message::kMsgTruncate:
         {
-            msg->setEncrypted(0);
+            msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
         case Message::kMsgChatTitle:
         {
             return parsedMsg->decryptChatTitle(msg, true);
         }
+        case Message::kMsgCallEnd:
+        {
+            assert(parsedMsg->callEndedInfo);
+            parsedMsg->callEndedInfo->callid = parsedMsg->payload.read<uint64_t>(0);
+            parsedMsg->callEndedInfo->termCode= parsedMsg->payload.read<uint8_t>(8);
+            parsedMsg->callEndedInfo->duration = parsedMsg->payload.read<uint32_t>(9);
+
+            msg->createCallEndedInfo(*(parsedMsg->callEndedInfo));
+            msg->setEncrypted(Message::kNotEncrypted);
+            return msg;
+        }
         default:
             return promise::Error("Unknown management message type "+
-                std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ERRTYPE);
+                std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);
     }
 }
 
@@ -817,7 +880,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // deleted message
         if (message->empty())
         {
-            message->setEncrypted(0);
+            message->setEncrypted(Message::kNotEncrypted);
             return Promise<Message*>(message);
         }
 
@@ -825,24 +888,18 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
         message->type = parsedMsg->type;
 
-        if (message->isManagementMessage())
+        // if message comes from API and uses keyid=0, it's a management message
+        if (message->userid == karere::Id::COMMANDER() && message->keyid == 0)
         {
-            if (message->userid == API_USER && message->keyid == 0)
-            {
-                return handleManagementMessage(parsedMsg, message);
-            }
-            else
-            {
-                return promise::Error("Invalid management message. msgid: "+message->id().toString()+
-                                      " userid: "+message->userid.toString()+
-                                      " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_ERRTYPE);
-            }
+            return handleManagementMessage(parsedMsg, message);
         }
-        else if (message->keyid == 0 || message->userid == API_USER)
+
+        // check tampering of management messages
+        if (message->keyid == 0 || message->userid == karere::Id::COMMANDER())
         {
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
-                                  " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_ERRTYPE);
+                                  " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
         }
 
         // Get keyid
@@ -884,7 +941,10 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         return promise::when(symPms, edPms)
         .then([this, wptr, message, parsedMsg, ctx, isLegacy, keyid, cacheVersion]() ->promise::Promise<Message*>
         {
-            wptr.throwIfDeleted();
+            if (wptr.deleted())
+            {
+                return promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+            }
 
             if (cacheVersion != mCacheVersion)
             {
@@ -894,7 +954,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
-                                      message->id().toString(), EINVAL, SVCRYPTO_ERRTYPE);
+                                      message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
             if (isLegacy)
@@ -909,7 +969,8 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     }
     catch(std::runtime_error& e)
     {
-        return promise::Error(e.what());
+        // ParsedMessage ctor throws if unexpected format, unknown/missing TLVs, etc.
+        return promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
     }
 }
 
@@ -1037,7 +1098,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
         else
         {
             return promise::Error("Key with id "+std::to_string(ukid.key)+
-            " from user "+ukid.user.toString()+" not found", SVCRYPTO_ENOKEY, SVCRYPTO_ERRTYPE);
+            " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
         }
     }
     auto& entry = kit->second;
@@ -1176,7 +1237,6 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
-    msg->userid = sender;
     const char* pos = encryptedKey.buf();
     const char* end = encryptedKey.buf()+encryptedKey.dataSize();
     karere::Id receiver;
@@ -1212,7 +1272,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         }
 
         symmetricDecrypt(*key, *msg);
-        msg->setEncrypted(0);
+        msg->setEncrypted(Message::kNotEncrypted);
         return msg;
     });
 }

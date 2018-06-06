@@ -502,7 +502,7 @@ const char* MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
     buffer << ", ownPriv: " << item->getOwnPrivilege();
     buffer << ", unread: " << item->getUnreadCount() << ", changes: " << item->getChanges();
     buffer << ", lastMsg: " << item->getLastMessage() << ", lastMsgType: " << item->getLastMessageType();
-    buffer << ", lastTs: " << item->getLastTimestamp() << endl;
+    buffer << ", lastTs: " << item->getLastTimestamp();
 
     return MegaApi::strdup(buffer.str().c_str());
 }
@@ -2081,10 +2081,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     changeLastName(a1, newLastName);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastName;
+    std::string finalLastName;
     if (nameFromApi)
     {
-        finishLastName = nameFromApi;
+        finalLastName = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2094,10 +2094,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     char *newSession = login(a1, sessionPrimary);
 
     nameFromApi = megaChatApi[a1]->getMyLastname();
-    std::string finishLastNameAfterLogout;
+    std::string lastNameAfterLogout;
     if (nameFromApi)
     {
-        finishLastNameAfterLogout = nameFromApi;
+        lastNameAfterLogout = nameFromApi;
         delete [] nameFromApi;
         nameFromApi = NULL;
     }
@@ -2105,8 +2105,12 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     //Name comes back to old value.
     changeLastName(a1, myAccountLastName);
 
-    ASSERT_CHAT_TEST(newLastName == finishLastName, "Failed to change fullname (checked from memory)");
-    ASSERT_CHAT_TEST(finishLastNameAfterLogout == finishLastName, "Failed to change fullname (checked from DB)");
+    ASSERT_CHAT_TEST(newLastName == finalLastName,
+                     "Failed to change fullname (checked from memory) Name established: \""
+                     + newLastName + "\" Name in memory: \"" + finalLastName + "\"");
+    ASSERT_CHAT_TEST(lastNameAfterLogout == finalLastName,
+                     "Failed to change fullname (checked from DB) Name established: \""
+                     + finalLastName + "\" Name in DB: \"" + lastNameAfterLogout + "\"");
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
@@ -2172,10 +2176,10 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded1), "Timeout expired for load audio video devices in account 2");
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to load Devide list account 2: " + std::to_string(lastErrorChat[a2]));
 
-    mLocalVideoListener[a1] = new TestChatVideoListener("Local Account1");
-    mLocalVideoListener[a2] = new TestChatVideoListener("Local Account2");
-    mRemoteVideoListener[a1] = new TestChatVideoListener("Remote Account1");
-    mRemoteVideoListener[a2] = new TestChatVideoListener("Remote Account2");
+    mLocalVideoListener[a1] = new TestChatVideoListener();
+    mLocalVideoListener[a2] = new TestChatVideoListener();
+    mRemoteVideoListener[a1] = new TestChatVideoListener();
+    mRemoteVideoListener[a2] = new TestChatVideoListener();
     megaChatApi[a1]->addChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
     megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, mRemoteVideoListener[a1]);
     megaChatApi[a2]->addChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
@@ -2412,8 +2416,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
     mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
-    TestChatVideoListener localVideoListener("Local");
-    TestChatVideoListener remoteVideoListener("Remote");
+    TestChatVideoListener localVideoListener;
+    TestChatVideoListener remoteVideoListener;
 
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
     megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
@@ -2507,6 +2511,22 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
 }
 
+/**
+ * @brief TEST_Calls
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * - A starts a calls with B
+ * + B answers the call in another client
+ * - A hangs the call
+ *
+ * + B starts a call with A in another client
+ * - A receive the call and answers it
+ * - A hangs the call
+ */
 void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName)
 {
     char *primarySession = login(a1);
@@ -2541,7 +2561,7 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
     mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
-    TestChatVideoListener localVideoListener("Local");
+    TestChatVideoListener localVideoListener;
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
     std::vector <TestChatVideoListener *> remoteVideoListeners;
     std::vector <MegaChatHandle> peerHandles;
@@ -2550,15 +2570,18 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     for (unsigned int i = 0; i < peerCount; i++)
     {
         peerHandles.push_back(chatRoom->getPeerHandle(i));
-        std::string name = std::string("Remote ") + std::to_string(i);
-        remoteVideoListeners.push_back(new TestChatVideoListener(name));
+        remoteVideoListeners.push_back(new TestChatVideoListener());
         megaChatApi[a1]->addChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
     }
 
     delete chatRoom;
 
-    // Manual Test
-    // Emit call
+
+    // ---- MANUAL TEST ----
+
+
+    // Start call
+
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagRequest = false;
     std::cerr << "Start Call" << std::endl;
     megaChatApi[a1]->startChatCall(chatid, true);
@@ -2567,30 +2590,35 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
     ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
 
+    std::cout << "Waiting for the other peer to answer the call..." << std::endl;
     sleep(60);
 
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
-    ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCallByChatId");
+    ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCall (by chatid)");
 
     MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
-    ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall");
+    ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall (by callid)");
+
+    delete chatCall;    chatCall = NULL;
+    delete chatCall2;   chatCall2 = NULL;
 
     bool *callDestroyed= &mCallDestroyed[a1]; *callDestroyed = false;
-    sleep(5);
     std::cerr << "Finish Call" << std::endl;
-    sleep(2);
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
     for (unsigned int i = 0; i < peerHandles.size(); i++)
     {
         megaChatApi[a1]->removeChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
     }
 
-    sleep(20);
 
     // Receive call
+
+    std::cout << "Waiting for the other peer to start a call..." << std::endl;
+    sleep(20);
+
     std::cout << "Ready to receive calls..." << std::endl;
     bool *callReceived = &mCallReceived[a1]; *callReceived = false;
     mChatIdRingInCall[a1] = MEGACHAT_INVALID_HANDLE;
@@ -2603,22 +2631,17 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
         megaChatApi[a1]->addChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
     }
 
-    sleep(40);
+    sleep(40);  // wait to receive some traffic
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
-    sleep(5);
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
     for (unsigned int i = 0; i < peerHandles.size(); i++)
     {
         megaChatApi[a1]->removeChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
+        delete remoteVideoListeners[i];
     }
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
-    for (unsigned int i = 0; i < peerHandles.size(); i++)
-    {
-        TestChatVideoListener *videoListener = remoteVideoListeners[i];
-        delete videoListener;
-    }
 
     delete audioInDevices;
     audioInDevices = NULL;
@@ -3248,9 +3271,18 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
 {
     bool *flagMyName = &requestFlags[accountIndex][MegaRequest::TYPE_SET_ATTR_USER]; *flagMyName = false;
+    bool *flagMyNameReceived = &requestFlags[accountIndex][MegaRequest::TYPE_GET_ATTR_USER]; *flagMyNameReceived = false;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after ");
+    ASSERT_CHAT_TEST(waitForResponse(flagMyName), "User attribute retrieval not finished after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK request to change lastname. Error: " + std::to_string(lastError[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(flagMyNameReceived), "Expired timeout to get last name after own change (" + std::to_string(maxTimeout) + " seconds)");
+    ASSERT_CHAT_TEST(!lastError[accountIndex], "Failed SDK to get lastname. Error: " + std::to_string(lastError[accountIndex]));
+
+    // This sleep is necessary to allow execute the two listeners (MegaChatApi and MegaChatApiTest) for
+    // MegaRequest::TYPE_GET_ATTR_USER before exit from this function.
+    // In other case, we could ask for the name to MegaChatApi before this will be established
+    // because MegachatApiTest listener is called before than MegaChatApi listener
+    sleep(1);
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
@@ -3446,7 +3478,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             mCallIdRequestSent[apiIndex] = call->getId();
             break;
 
-        case MegaChatCall::CALL_STATUS_TERMINATING:
+        case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             mTerminationCode[apiIndex] = call->getTermCode();
             mTerminationLocal[apiIndex] = (bool)call->isLocalTermCode();
             break;
@@ -3489,8 +3521,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     LOG_debug << "On chat call change state ";
 }
 
-TestChatVideoListener::TestChatVideoListener(const string &type)
-    : mType(type)
+TestChatVideoListener::TestChatVideoListener()
 {
 }
 

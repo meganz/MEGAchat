@@ -169,7 +169,7 @@ public:
     /** @brief Joins a webrtc call in the chatroom
      *  @param av Whether to initially send video and/or audio
      */
-    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler);
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
 #endif
 
     //chatd::Listener implementation
@@ -555,8 +555,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalHandler,
-              public ::mega::MegaGlobalListener,
+class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
               public karere::DeleteTrackable
@@ -824,11 +823,10 @@ public:
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<rtcModule::IRtcModule> rtc;
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
 
     promise::Promise<void> pushReceived();
-    megaHandle mSyncTimer;                  // to wait for reception of SYNCs
+    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
     int mSyncCount;                         // to track if all chats returned SYNC
     promise::Promise<void> mSyncPromise;    // resolved only when up to date
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception

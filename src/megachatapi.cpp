@@ -177,6 +177,16 @@ MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+MegaHandleList *MegaChatCall::getParticipants() const
+{
+    return NULL;
+}
+
+int MegaChatCall::getNumParticipants() const
+{
+    return 0;
+}
+
 bool MegaChatCall::isIgnored() const
 {
     return false;
@@ -989,6 +999,11 @@ const char *MegaChatRoom::getTitle() const
     return NULL;
 }
 
+bool MegaChatRoom::hasCustomTitle() const
+{
+    return false;
+}
+
 int MegaChatRoom::getChanges() const
 {
     return 0;
@@ -1323,6 +1338,21 @@ const char *MegaChatMessage::getUserEmail(unsigned int) const
 MegaNodeList *MegaChatMessage::getMegaNodeList() const
 {
     return NULL;
+}
+
+MegaHandleList *MegaChatMessage::getMegaHandleList() const
+{
+    return NULL;
+}
+
+int MegaChatMessage::getDuration() const
+{
+    return 0;
+}
+
+int MegaChatMessage::getTermCode() const
+{
+    return 0;
 }
 
 void MegaChatLogger::log(int , const char *)

@@ -202,6 +202,8 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             else
             {
+                // TODO: reuse the ChatMessage::updateContent() from rich-links branch
+                // to update the content accordingly, like it's now done in the ctor.
                chatMessage->setMessageContent(msg->getContent());
                if (msg->isEdited())
                {

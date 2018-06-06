@@ -893,7 +893,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
@@ -1413,9 +1413,9 @@ rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handl
     return parent.client.rtc->startCall(chatid(), av, handler);
 }
 
-rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler)
+rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
 {
-    return parent.client.rtc->joinCall(chatid(), av, handler);
+    return parent.client.rtc->joinCall(chatid(), av, handler, callid);
 }
 #endif
 
@@ -2561,13 +2561,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         if (mOwnPriv != chatd::PRIV_NOTPRESENT)
         {
-            // if already connected, need to send a new JOIN to chatd
-            if (parent.client.connected())
-            {
-                KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
-                mChat->connect();
-            }
-
             KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
             notifyRejoinedChat();
         }
@@ -3049,13 +3042,6 @@ bool Client::isCallInProgress() const
 
     return callInProgress;
 }
-
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
-{
-    return app.onIncomingCall(call, av);
-}
-#endif
 
 std::string encodeFirstName(const std::string& first)
 {

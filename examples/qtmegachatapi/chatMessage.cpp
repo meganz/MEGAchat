@@ -91,6 +91,40 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 setMessageContent(msg->getContent());
                 break;
             }
+            case megachat::MegaChatMessage::TYPE_INVALID:
+            {
+                int errorCode = msg->getCode();
+                std::string content = "Invalid message [warn]: - (";
+                if (errorCode == MegaChatMessage::INVALID_SIGNATURE)
+                    content.append("invalid signature");
+                else if (errorCode == MegaChatMessage::INVALID_FORMAT)
+                    content.append("malformed");
+                else
+                    content.append(std::to_string(errorCode));
+                content.append(")\nContent: ");
+                if (msg->getContent())
+                    content.append(msg->getContent());
+                setMessageContent(content.c_str());
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_UNKNOWN:
+            {
+                int errorCode = msg->getCode();
+                std::string content = "Unknown type [hide]: - (";
+                if (errorCode == MegaChatMessage::INVALID_KEY)
+                    content.append("invalid key");
+                else if (errorCode == MegaChatMessage::DECRYPTING)
+                    content.append("decrypting");
+                else if (errorCode == MegaChatMessage::INVALID_TYPE)
+                    content.append("invalid type");
+                else
+                    content.append(std::to_string(errorCode));
+                content.append(")\nContent: ");
+                if (msg->getContent())
+                    content.append(msg->getContent());
+                setMessageContent(content.c_str());
+                break;
+            }
         }
     }
     else
@@ -190,9 +224,7 @@ std::string ChatMessage::managementInfoToString() const
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
         ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
-
-        item->updateToolTip(this->megaChatApi->getChatListItem(mChatId), NULL);
-
+        item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
         ret.append("Chat history was truncated by user ").append(userHandle_64);
         return ret;
     }
@@ -210,6 +242,25 @@ std::string ChatMessage::managementInfoToString() const
            .append(" set chat title to '")
            .append(chatRoom->getTitle())+='\'';
         delete chatRoom;
+        return ret;
+    }
+    case megachat::MegaChatMessage::TYPE_CALL_ENDED:
+    {
+        ret.append("User ").append(userHandle_64)
+           .append(" start a call with: ");
+
+        mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
+        for (unsigned int i = 0; i < handleList->size(); i++)
+        {
+            char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
+            ret.append(participant_64).append(" ");
+            delete participant_64;
+        }
+
+        ret.append("\nDuration: ")
+           .append(std::to_string(mMessage->getDuration()))
+           .append("secs TermCode: ")
+           .append(std::to_string(mMessage->getTermCode()));
         return ret;
     }
     default:

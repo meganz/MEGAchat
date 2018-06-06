@@ -62,25 +62,25 @@ class MegaChatListItem;
  * @brief Provide information about a session
  *
  * A session is an object that represents webRTC comunication between two peers. A call contains none or
- * several session and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
- * the ownership of the object
+ * several sessions and it can be obtained with MegaChatCall::getMegaChatSession. MegaChatCall has
+ * the ownership of the object.
  *
  * The states that a session has during its life time are:
  * Outgoing call:
+ *  - SESSION_STATUS_INVALID
  *  - SESSION_STATUS_INITIAL
  *  - SESSION_STATUS_IN_PROGRESS
  *  - SESSION_STATUS_DESTROYED
- *  - SESSION_STATUS_INVALID
  */
 class MegaChatSession
 {
 public:
     enum
     {
-        SESSION_STATUS_INITIAL = 0,
-        SESSION_STATUS_IN_PROGRESS,        /// Session is established and there is communication between peers
-        SESSION_STATUS_DESTROYED,          /// Session is finished and resources can be released
-        SESSION_STATUS_INVALID
+        SESSION_STATUS_INVALID = 0xFF,
+        SESSION_STATUS_INITIAL = 0,         /// Session is being negotiated between peers
+        SESSION_STATUS_IN_PROGRESS,         /// Session is established and there is communication between peers
+        SESSION_STATUS_DESTROYED            /// Session is finished and resources can be released
     };
 
     virtual ~MegaChatSession();
@@ -159,14 +159,15 @@ class MegaChatCall
 public:
     enum
     {
-        CALL_STATUS_INITIAL = 0,        /// Initial state
-        CALL_STATUS_HAS_LOCAL_STREAM,   /// Call has obtained a local video-audio stream
-        CALL_STATUS_REQUEST_SENT,       /// Call request has been sent to receiver
-        CALL_STATUS_RING_IN,            /// Call is at incoming state, it has not been answered or rejected yet
-        CALL_STATUS_JOINING,            /// Intermediate state, while connection is established
-        CALL_STATUS_IN_PROGRESS,        /// Call is established and there is a full communication
-        CALL_STATUS_TERMINATING,        ///
-        CALL_STATUS_DESTROYED,          /// Call is finished and resources can be released
+        CALL_STATUS_INITIAL = 0,                        /// Initial state
+        CALL_STATUS_HAS_LOCAL_STREAM,                   /// Call has obtained a local video-audio stream
+        CALL_STATUS_REQUEST_SENT,                       /// Call request has been sent to receiver
+        CALL_STATUS_RING_IN,                            /// Call is at incoming state, it has not been answered or rejected yet
+        CALL_STATUS_JOINING,                            /// Intermediate state, while connection is established
+        CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
+        CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
+        CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
+        CALL_STATUS_USER_NO_PRESENT                     /// User is no present in the call (Group Calls)
     };
 
     enum
@@ -177,6 +178,7 @@ public:
         CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
         CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
         CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
+        CHANGE_TYPE_CALL_COMPOSITION = 0x40 /// Call composition has changed (User added or removed from call)
     };
 
     enum
@@ -250,6 +252,9 @@ public:
     /**
      * @brief Return audio state for initial call
      *
+     * The initial flags used to start the call. They are not valid if
+     * you missed the call in ringing state.
+     *
      * @return true if audio is enable, false if audio is disable
      */
     virtual bool hasAudioInitialCall() const;
@@ -263,6 +268,9 @@ public:
 
     /**
      * @brief Return video state for initial call
+     *
+     * The initial flags used to start the call. They are not valid if
+     * you missed the call in ringing state.
      *
      * @return true if video is enable, false if video is disable
      */
@@ -404,9 +412,9 @@ public:
     virtual bool isRinging() const;
 
     /**
-     * @brief Get a list with the ids of peers that they are participating in the call
+     * @brief Get a list with the ids of peers that have a session with me
      *
-     * If there aren't any session at the call. An empty MegaHandleList will be returned
+     * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
      *
      * You take the ownership of the returned value.
      *
@@ -418,6 +426,10 @@ public:
      * @brief Returns the session for a peer
      *
      * If \c peerId has not any session in the call NULL will be returned
+     *
+     * The MegaChatCall retains the ownership of the returned MegaChatSession. It will be only
+     * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
+     * use MegaChatSession::copy
      *
      * @return Session for \c peerId
      */
@@ -432,6 +444,29 @@ public:
      * @return Handle of the peer which session has changed its status
      */
     virtual MegaChatHandle getPeerSessionStatusChange() const;
+
+    /**
+     * @brief Get a list with the ids of peers that are participating in the call
+     *
+     * In a group call, this function returns the list of active participants,
+     * regardless your own user participates or not. In consequence,
+     * the list can differ from the one returned by MegaChatCall::getSessions
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of peers
+     */
+    virtual mega::MegaHandleList *getParticipants() const;
+
+    /**
+     * @brief Get the number of peers participating in the call
+     *
+     * In a group call, this function returns the number of active participants,
+     * regardless your own user participates or not.
+     *
+     * @return Number of active participants in the call
+     */
+    virtual int getNumParticipants() const;
 
     /**
      * @brief Returns if call has been ignored
@@ -677,12 +712,16 @@ public:
 
     // Types of message
     enum {
+        TYPE_UNKNOWN                = -1,   /// Unknown type of message (apps should hide them)
         TYPE_INVALID                = 0,    /// Invalid type
         TYPE_NORMAL                 = 1,    /// Regular text message
+        TYPE_LOWEST_MANAGEMENT      = 2,
         TYPE_ALTER_PARTICIPANTS     = 2,    /// Management message indicating the participants in the chat have changed
         TYPE_TRUNCATE               = 3,    /// Management message indicating the history of the chat has been truncated
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
+        TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
+        TYPE_HIGHEST_MANAGEMENT     = 6,
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
@@ -707,6 +746,24 @@ public:
         REASON_GENERAL_REJECT       = 3,    /// chatd rejected the message, for unknown reason
         REASON_NO_WRITE_ACCESS      = 4,    /// Read-only privilege or not belong to the chatroom
         REASON_NO_CHANGES           = 6     /// Edited message has the same content than original message
+    };
+
+    enum
+    {
+        END_CALL_REASON_ENDED       = 1,    /// Call finished normally
+        END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
+        END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
+        END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
+        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller
+    };
+
+    enum
+    {
+        DECRYPTING          = 1,        /// Message pending to be decrypted
+        INVALID_KEY         = 2,        /// Key not found for the message (permanent failure)
+        INVALID_SIGNATURE   = 3,        /// Signature verification failure (permanent failure)
+        INVALID_FORMAT      = 4,        /// Malformed/corrupted data in the message (permanent failure)
+        INVALID_TYPE        = 5         /// Management message of unknown type (transient, not supported by the app yet)
     };
 
     virtual ~MegaChatMessage() {}
@@ -785,7 +842,9 @@ public:
      * @brief Returns the type of message.
      *
      * Valid values are:
-     *  - TYPE_INVALID: Invalid type
+     *  - TYPE_INVALID: Invalid type. In those cases, the MegaChatMessage::getCode can take the following values:
+     *      * INVALID_FORMAT
+     *      * INVALID_SIGNATURE
      *  - TYPE_NORMAL: Regular text message
      *  - TYPE_ALTER_PARTICIPANTS: Management message indicating the participants in the chat have changed
      *  - TYPE_TRUNCATE: Management message indicating the history of the chat has been truncated
@@ -794,6 +853,10 @@ public:
      *  - TYPE_ATTACHMENT: User message including info about a shared node
      *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
      *  - TYPE_CONTACT: User message including info about a contact
+     *  - TYPE_UNKNOWN: Unknown message, should be ignored/hidden. The MegaChatMessage::getCode can take the following values:
+     *      * INVALID_TYPE
+     *      * INVALID_KEYID
+     *      * DECRYPTING
      *
      * @return Returns the Type of message.
      */
@@ -953,9 +1016,52 @@ public:
 
     /**
      * @brief Return a list with all MegaNode attached to the message
+     *
      * @return list with MegaNode
      */
     virtual mega::MegaNodeList *getMegaNodeList() const;
+
+    /**
+     * @brief Return a list with handles
+     *
+     * The SDK retains the ownership of the returned value.It will be valid until
+     * the MegaChatMessage object is deleted.
+     *
+     * It can be used for different purposes.
+     * Valid for:
+     *  - MegaChatMessage::TYPE_CALL_ENDED
+     *   It will be empty if MegaChatMessage::getTermCode is not END_CALL_REASON_ENDED either END_CALL_REASON_FAILED
+     *
+     * @return list with MegaHandle
+     */
+    virtual mega::MegaHandleList *getMegaHandleList() const;
+
+    /**
+     * @brief Return call duration in seconds
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_CALL_ENDED
+     *
+     * @return Call duration
+     */
+    virtual int getDuration() const;
+
+    /**
+     * @brief Return the termination code of the call
+     *
+     * This funcion returns a valid value for:
+     *  - MegaChatMessage::TYPE_CALL_ENDED
+     *
+     * The possible values for termination codes are the following:
+     *  - END_CALL_REASON_ENDED       = 1
+     *  - END_CALL_REASON_REJECTED    = 2
+     *  - END_CALL_REASON_NO_ANSWER   = 3
+     *  - END_CALL_REASON_FAILED      = 4
+     *  - END_CALL_REASON_CANCELLED   = 5
+     *
+     * @return Call termination code
+     */
+    virtual int getTermCode() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *
@@ -1455,11 +1561,6 @@ public:
      * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
      * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
      * - MegaChatApi::LOG_LEVEL_MAX     = 6
-     *
-     * @param source Location where this log was generated
-     *
-     * For logs generated inside the SDK, this will contain the source file and the line of code.
-     * The SDK retains the ownership of this string, it won't be valid after this funtion returns.
      *
      * @param message Log message
      *
@@ -2510,7 +2611,7 @@ public:
      * @param count The number of requested messages to load.
      *
      * @return Return the source of the messages that is going to be fetched. The possible values are:
-     *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are offline
+     *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are not logged in yet
      *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even int the server)
      *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
      *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
@@ -2555,7 +2656,7 @@ public:
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param rowId Manual sending queue id of the message
+     * @param rowid Manual sending queue id of the message
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
@@ -2784,7 +2885,6 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param msgid MegaChatHandle that identifies the message
      * @param msg New content of the message
-     * @param msglen New length of the message
      *
      * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old)
      */
@@ -3004,6 +3104,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -3019,6 +3122,9 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3152,7 +3258,8 @@ public:
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
 
     /**
-     * @brief Returns number of calls that there are at the system
+     * @brief Returns number of calls that are currently active
+     * @note You may not participate in all those calls.
      * @return number of calls in the system
      */
     int getNumCalls();
@@ -3178,8 +3285,7 @@ public:
     /**
      * @brief Returns true if there is a call at chatroom with id \c chatid
      *
-     * It's not necessary that getNumCalls returns > 0. Our call can be finished but others peers continue with
-     * the call.
+     * @note It's not necessary that we participate in the call, but other participants do.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return True if there is a call in a chatroom. False in other case
@@ -3432,6 +3538,17 @@ public:
      *  - MegaChatMessage::TYPE_TRUNCATE: empty string
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
      *  - MegaChatMessage::TYPE_PRIV_CHANGE: empty string
+     *  - MegaChatMessage::TYPE_CALL_ENDED: string set separated by ASCII character '0x01'
+     *      Structure: duration(seconds)'0x01'termCode'0x01'participants1'0x01'participants2'0x01'...
+     *      duration and termCode are numbers coded in ASCII, participants are handles in base64 format.
+     *      Valid TermCode are:
+     *          + END_CALL_REASON_ENDED
+     *          + END_CALL_REASON_REJECTED
+     *          + END_CALL_REASON_NO_ANSWER
+     *          + END_CALL_REASON_FAILED
+     *          + END_CALL_REASON_CANCELLED
+     *      If termCode is END_CALL_REASON_REJECTED, END_CALL_REASON_NO_ANSWER, END_CALL_REASON_CANCELLED
+     *      any participant won't be added
      *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatListItem object is deleted. If you want to save the MegaChatMessage,
@@ -3578,7 +3695,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns PRIV_UNKNOWN.
      *
-     * @param Handle of the peer whose privilege is requested.
+     * @param userhandle Handle of the peer whose privilege is requested.
      * @return Privilege level of the chat peer with the handle specified.
      * Valid values are:
      * - MegaChatPeerList::PRIV_UNKNOWN = -2
@@ -3594,7 +3711,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Firstname of the chat peer with the handle specified.
      */
     virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
@@ -3604,7 +3721,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Lastname of the chat peer with the handle specified.
      */
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
@@ -3616,7 +3733,7 @@ public:
      *
      * You take the ownership of the returned value. Use delete [] value
      *
-     * @param Handle of the peer whose name is requested.
+     * @param userhandle Handle of the peer whose name is requested.
      * @return Fullname of the chat peer with the handle specified.
      */
     virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
@@ -3626,7 +3743,7 @@ public:
      *
      * If the user doesn't participate in this MegaChatRoom, this function returns NULL.
      *
-     * @param Handle of the peer whose email is requested.
+     * @param userhandle Handle of the peer whose email is requested.
      * @return Email address of the chat peer with the handle specified.
      */
     virtual const char *getPeerEmailByHandle(MegaChatHandle userhandle) const;
@@ -3718,11 +3835,20 @@ public:
     virtual bool isGroup() const;
 
     /**
-     * @brief getTitle Returns the title of the chat, if any.
+     * @brief Returns the title of the chat
+     *
+     * In case the chatroom has not a customized title, it will be created using the
+     * names of participants.
      *
      * @return The title of the chat as a null-terminated char array.
      */
     virtual const char *getTitle() const;
+
+    /**
+     * @brief Returns true if the chatroom has a customized title
+     * @return True if custom title was set
+     */
+    virtual bool hasCustomTitle() const;
 
     /**
      * @brief Returns the number of unread messages for the chatroom

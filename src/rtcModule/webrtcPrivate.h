@@ -60,6 +60,7 @@ protected:
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
+    void sdpSetVideoBw(std::string& sdp, int maxbr);
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
@@ -84,14 +85,24 @@ public:
 
 class Call: public ICall
 {
-public:
-    enum CallDataState: uint8_t
+    enum CallDataState
     {
-        kCallReqNotRinging = 0,
-        kCallReqRinging = 1,
-        kJoin = 2,
-        kMute = 3
+        kCallDataInProgress     = 0,
+        kCallDataRinging        = 1,
+        kCallDataEnd            = 2,
+        kCallDataJoin           = 3,
+        kCallDataMute           = 4
     };
+
+    enum
+    {
+        kCallDataReasonEnded        = 0x01, /// normal hangup of on-going call
+        kCallDataReasonRejected     = 0x02, /// incoming call was rejected by callee
+        kCallDataReasonNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
+        kCallDataReasonFailed       = 0x04, /// on-going call failed
+        kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+    };
+
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
@@ -108,6 +119,7 @@ protected:
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
+    uint8_t mPredestroyState;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -149,7 +161,7 @@ protected:
     bool sendCallData(Call::CallDataState state);
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
-    karere::AvFlags validAvFlags(karere::AvFlags av);
+    uint8_t convertTermCodeToCallDataCode();
     friend class RtcModule;
     friend class Session;
 public:
@@ -180,13 +192,9 @@ public:
         kSessSetupTimeout = 20000
     };
 
-    enum {
-       kMaxCallReceivers = 10,
-       kMaxCallAudioSenders = 10,
-       kMaxCallVideoSenders = 6
-    };
-
-    int maxbr = 0;
+    //TODO: set valid values
+    int maxBr = 1000;
+    int maxGroupBr = 1000;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);
@@ -210,13 +218,16 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
-    virtual void removeAllAvStates(karere::Id chatid);
+    virtual void removeCall(karere::Id chatid);
+    virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
+    virtual ICallHandler* findCallHandler(karere::Id chatid);
+    virtual int numCalls() const;
+    virtual std::vector<karere::Id> chatsWithCall() const;
 //==
-    void updatePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
-    void removePeerAvState(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
 
-    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
 //==
@@ -231,7 +242,7 @@ protected:
     webrtc::FakeConstraints mPcConstraints;
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
-    std::map<karere::Id, std::map <chatd::EndpointId, karere::AvFlags> > mPeerAvStates;
+    std::map<karere::Id, ICallHandler *> mCallHandlers;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -239,7 +250,8 @@ protected:
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
     std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
-    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, bool isJoin);
+    // no callid provided --> start call
+    std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid = karere::Id::inval());
     template <class T> T random() const;
     template <class T> void random(T& result) const;
     //=== Implementation methods

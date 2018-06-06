@@ -138,13 +138,10 @@ class TestChatRoomListener;
 class TestChatVideoListener : public megachat::MegaChatVideoListener
 {
 public:
-    TestChatVideoListener(const std::string& type = "");
+    TestChatVideoListener();
     virtual ~TestChatVideoListener();
 
     virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
-
-private:
-    std::string mType;
 };
 #endif
 
