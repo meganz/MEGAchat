@@ -260,57 +260,18 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
 void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t clientid, const StaticBuffer &msg)
 {
     // this is the only command that is not handled by an existing call
-    if (userid == mClient.myHandle())
-    {
-        RTCM_LOG_DEBUG("Ignoring call request from another client of our user");
-        return;
-    }
-
     // PayLoad: <callid> <state> <AV flags> [if (state == kCallDataEnd) <termCode>]
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
+    if (userid == chat.client().karereClient->myHandle()
+        && clientid == chat.connection().clientId())
+    {
+        RTCM_LOG_WARNING("Ignoring CALLDATA sent back to sender");
+    }
+
     updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-    // If receive a OP_CALLDATA with ringing false --> ignore
-    if (state != Call::CallDataState::kCallDataRinging)
-    {
-        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state \"ringing\"");
-        return;
-    }
-
-    AvFlags avFlags(false, false);
-    bool answerAutomatic = false;
-    if (!mCalls.empty() && !chat.isGroup())
-    {
-        // Two calls at same time in same chat
-        std::map<karere::Id, std::shared_ptr<Call>>::iterator iteratorCall = mCalls.find(chatid);
-        if (iteratorCall != mCalls.end())
-        {
-            Call *existingCall = iteratorCall->second.get();
-            if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
-            {
-                if (clientid != existingCall->callerClient())
-                {
-                    RTCM_LOG_DEBUG("handleCallData: Receive a CALLDATA with other call in progress");
-                    existingCall->sendBusy();
-                }
-                return;
-            }
-            else if (mClient.myHandle() > userid)
-            {
-                RTCM_LOG_DEBUG("handleCallData: Waiting for the other peer hangup its incoming call and answer our call");
-                return;
-            }
-
-            // hang up existing call and answer automatically incoming call
-            avFlags = existingCall->sentAv();
-            answerAutomatic = true;
-            existingCall->hangup();
-            mCalls.erase(chatid);
-        }
-    }
-
     if (state == Call::CallDataState::kCallDataRinging)
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
@@ -637,35 +598,34 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     karere::Id chatid = chat.chatId();
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
-    if (!chat.isGroup())
-    {
-        auto itCall = mCalls.find(chatid);
-        if (itCall != mCalls.end())
-        {
-            // Two calls at same time in same chat (1on1) --> resolution of concurrent calls
-            shared_ptr<Call> existingCall = itCall->second;
-            if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
-            {
-                if (clientid != existingCall->callerClient())
-                {
-                    RTCM_LOG_DEBUG("hadleCallDataRequest: Receive a CALLDATA with other call in progress");
-                    existingCall->sendBusy();
-                }
-                return;
-            }
-            else if (mClient.myHandle() > userid)
-            {
-                RTCM_LOG_DEBUG("hadleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
-                return;
-            }
 
-            // hang up existing call and answer automatically incoming call
-            avFlags = existingCall->sentAv();
-            answerAutomatic = true;
-            existingCall->hangup();
-            mCalls.erase(itCall);
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
+    {
+        // Two calls at same time in same chat --> resolution of concurrent calls
+        shared_ptr<Call> existingCall = itCall->second;
+        if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
+        {
+            if (clientid != existingCall->callerClient())
+            {
+                RTCM_LOG_DEBUG("hadleCallDataRequest: Receive a CALLDATA with other call in progress");
+                existingCall->sendBusy();
+            }
+            return;
         }
+        else if (mClient.myHandle() > userid)
+        {
+            RTCM_LOG_DEBUG("hadleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
+            return;
+        }
+
+        // hang up existing call and answer automatically incoming call
+        avFlags = existingCall->sentAv();
+        answerAutomatic = true;
+        existingCall->hangup();
+        mCalls.erase(itCall);
     }
+
 
     auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, chat.isGroup(),
                                                              true, nullptr, userid, clientid));
@@ -1203,11 +1163,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
-        if (code != TermCode::kAnsElsewhere && !mIsGroup)  //TODO: Maybe do it also for group calls
-        {
-            sendCallData(CallDataState::kCallDataEnd);
-        }
-
         switch (mPredestroyState)
         {
         case kStateReqSent:
@@ -1241,6 +1196,16 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     {
         if (wptr.deleted())
             return;
+
+        if (mPredestroyState != Call::kStateRingIn && code != TermCode::kBusy)
+        {
+            sendCallData(CallDataState::kCallDataEnd);
+        }
+        else
+        {
+            SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy and call state is ringing");
+        }
+
         assert(mSessions.empty());
         stopIncallPingTimer();
         mLocalPlayer.reset();
@@ -1292,7 +1257,7 @@ bool Call::broadcastCallReq()
         if (wptr.deleted() || mState != Call::kStateReqSent)
             return;
 
-        hangup(TermCode::kRingOutTimeout);
+        destroy(TermCode::kRingOutTimeout, true);
     }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
     return true;
 }
@@ -1665,14 +1630,9 @@ void Call::hangup(TermCode reason)
         {
             reason = TermCode::kCallRejected;
         }
-        else if (reason == TermCode::kBusy)
-        {
-            reason = TermCode::kBusy;
-        }
         else
         {
-            reason = TermCode::kInvalid; //silence warning about uninitialized
-            assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
+            assert(reason == TermCode::kCallRejected && "Hangup reason can only be undefined or kCallRejected when hanging up call in state kRingIn");
         }
         assert(mSessions.empty());
         destroy(reason, true);
