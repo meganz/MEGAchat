@@ -227,7 +227,7 @@ void Chat::connect()
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
             {
-                CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+                CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
             });
         });
 
@@ -237,7 +237,7 @@ void Chat::connect()
         mConnection.reconnect()
         .fail([this](const promise::Error& err)
         {
-            CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+            CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
         });
 
     }
@@ -344,6 +344,9 @@ bool Connection::sendKeepalive(uint8_t opcode)
 
 void Connection::sendEcho()
 {
+    if (!mUrl.isValid())    // the connection is not ready yet (i.e. initialization in offline-mode)
+        return;
+
     if (mEchoTimer) // one is already sent
         return;
 
