@@ -131,13 +131,13 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>>
     encryptChatTitle(const std::string& data, uint64_t extraUser=0) = 0;
 
-    virtual promise::Promise<std::string>
+    virtual promise::Promise<chatd::KeyCommand*>
     encryptUnifiedKeyForAllParticipants() = 0;
 
     virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
 
-    virtual promise::Promise<std::shared_ptr<Buffer>>
+    virtual void
     createUnifiedKey() = 0;
 
     virtual void setUnifiedKey(const std::string &key) = 0;
