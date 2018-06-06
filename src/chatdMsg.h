@@ -6,7 +6,11 @@
 #include <buffer.h>
 #include "karereId.h"
 
-enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
+enum
+{
+    CHATD_KEYID_INVALID = 0,                // used when no keyid is set
+    CHATD_KEYID_UNCONFIRMED = 0xffffffff    // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
+};
 
 namespace chatd
 {
@@ -178,7 +182,7 @@ enum Opcode
       * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
       * Receive: <chatid> <keyid> <payload>
       *
-      * Keep <keyxid> as constant as possible (e.g. 0xffffffff).
+      * Keep <keyxid> as constant as possible. Valid range: [0xFFFF0001 - 0xFFFFFFFF]
       * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor
       * ( userid, keyid ) are unique!
       */

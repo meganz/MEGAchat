@@ -195,6 +195,11 @@ bool Client::areAllChatsLoggedIn()
         }
     }
 
+    if (allConnected)
+    {
+        CHATD_LOG_DEBUG("We are now logged in to all chats");
+    }
+
     return allConnected;
 }
 
@@ -405,7 +410,7 @@ Promise<void> Connection::reconnect()
             mLoginPromise = Promise<void>();
 
             mState = kStateResolving;
-            CHATDS_LOG_DEBUG("Resolving hostname...");
+            CHATDS_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
             for (auto& chatid: mChatIds)
             {
@@ -1953,7 +1958,7 @@ void Chat::onLastSeen(Id msgid)
     {
         if (mLastSeenIdx == CHATD_IDX_INVALID)  // don't have a previous idx yet --> initialization
         {
-            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(mLastSeenId));
+            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 

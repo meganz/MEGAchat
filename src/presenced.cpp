@@ -212,7 +212,8 @@ Client::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostname...");
+            PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
+
             int status = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
                          [wptr, this](int status, std::string ipv4, std::string ipv6)
             {
