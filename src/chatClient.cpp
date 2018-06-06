@@ -1378,6 +1378,7 @@ void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
 promise::Promise<karere::Id>
 Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title)
 {
+    const Id myhandle = myHandle();
     SetOfIds users;
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
     for (auto& peer: peers)
@@ -1390,24 +1391,33 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     ApiPromise createChatPromise;
     if (publicchat)
     {
+        //Add own user to strongvelope set of users to encrypt unified key for us
+        users.insert(myhandle);
+
         std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
                 StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), appCtx));
-        crypto->setUsers(&users);
 
-        createChatPromise = crypto->createUnifiedKey()
-        .then([wptr, this, sdkPeers](std::shared_ptr<Buffer> buf) -> ApiPromise
+        crypto->setUsers(&users);
+        crypto->createUnifiedKey();
+        crypto->encryptUnifiedKeyForAllParticipants()
+        .then([wptr, this, sdkPeers, title, myhandle](chatd::KeyCommand *kCommand) -> ApiPromise
         {
-            std::string keybin(buf->buf(), buf->size());
-            std::string keystr;
-            ::mega::Base64::btoa(keybin, keystr);
-            return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), nullptr, keystr.c_str());
-            //TODO add title
+            mega::MegaUserKeyMap userKeyMap;
+            for (int i = 0; i < sdkPeers->size(); i++)
+            {
+                mega::MegaHandle peerHandle = sdkPeers->getPeerHandle(i);
+                userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(peerHandle, kCommand->getKeyByUserId(peerHandle)));
+            }
+
+            //Add own unified key to map
+            userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(myhandle, kCommand->getKeyByUserId(myhandle)));
+            return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), &userKeyMap, title);
         });
     }
     else
     {
-        createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get());
+        createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), title);
     }
 
     return createChatPromise
