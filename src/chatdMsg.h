@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
+#include <memory>
 #include "karereId.h"
 
 enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
@@ -593,6 +594,36 @@ public:
         append<uint64_t>(userid.val).append<uint16_t>(keylen);
         append(keydata, keylen);
     }
+
+    const char* getKeyByUserId (karere::Id userId)
+    {
+        karere::Id receiver;
+        const char *pos = buf() + 17;
+        const char *end = buf() + dataSize();
+
+        //Pick the version of the unified key encrypted for us
+        while (pos < end)
+        {
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos+=8;
+            uint16_t keylen = *(uint16_t*)(pos);
+            pos+=2;
+            if (receiver == userId)
+                break;
+            pos+=keylen;
+        }
+
+        if (pos >= end)
+            throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+        if (end-pos < 16)
+            throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
+
+        auto buf = std::make_shared<Buffer>(16);
+
+        buf->assign(pos, 16);
+        buf->buf();
+    }
+
     bool hasKeys() const { return dataSize() > 17; }
     void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
     virtual std::string toString() const;
