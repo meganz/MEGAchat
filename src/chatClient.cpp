@@ -2440,8 +2440,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     {
         wptr.throwIfDeleted();
         return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
-            title.empty() ? nullptr: title.c_str(), nullptr);
-            //TODO add unified key
+            chat().crypto()->getUnifiedKey().c_str(), title.empty() ? nullptr: title.c_str());
     })
     .then([this, wptr, userid, priv](ReqResult)
     {
