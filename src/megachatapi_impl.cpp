@@ -3860,6 +3860,7 @@ uint8_t MegaChatSessionPrivate::convertSessionState(uint8_t state)
     uint8_t sessionState = MegaChatSession::SESSION_STATUS_INVALID;
     switch (state)
     {
+        case rtcModule::ISession::kStateInitial:
         case rtcModule::ISession::kStateWaitSdpOffer:
         case rtcModule::ISession::kStateWaitSdpAnswer:
         case rtcModule::ISession::kStateWaitLocalSdpAnswer:
