@@ -1847,6 +1847,9 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
  * This test does the following:
  * - Send a message with an attach contact to chatroom
  * + Receive message
+ *
+ * + Forward the contact message
+ * - Receive message
  * Check if message type is TYPE_CONTACT_ATTACHMENT and contact email received is equal to account2 email
  */
 void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
@@ -1910,9 +1913,36 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
         ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
     }
 
+    flagConfirmed = &chatroomListener->msgConfirmed[a2]; *flagConfirmed = false;
+    flagReceived = &chatroomListener->msgContactReceived[a1]; *flagReceived = false;
+    flagDelivered = &chatroomListener->msgDelivered[a2]; *flagDelivered = false;
+    chatroomListener->clearMessages(a1);
+    chatroomListener->clearMessages(a2);
+
+    MegaChatMessage *messageForwared = megaChatApi[a2]->forwardContact(chatid, msgId0, chatid);
+    ASSERT_CHAT_TEST(messageForwared, "Failed to forward a contact message");
+    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
+    MegaChatHandle msgId1 = chatroomListener->mConfirmedMessageHandle[a2];
+    ASSERT_CHAT_TEST(msgId1 != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
+
+    ASSERT_CHAT_TEST(waitForResponse(flagReceived), "Timeout expired for receiving message by target user");    // for reception
+    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId1), "Wrong message id at destination");
+    MegaChatMessage *msgReceived1 = megaChatApi[a2]->getMessage(chatid, msgId1);   // message should be already received, so in RAM
+    ASSERT_CHAT_TEST(msgReceived1, "Failed to get message by id");
+
+    ASSERT_CHAT_TEST(msgReceived1->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT, "Wrong type of message. Type: " + std::to_string(msgReceived1->getType()));
+    ASSERT_CHAT_TEST(msgReceived1->getUsersCount() == 1, "Wrong number of users in message. Count: " + std::to_string(msgReceived1->getUsersCount()));
+    ASSERT_CHAT_TEST(strcmp(msgReceived1->getUserEmail(0), mAccounts[a2].getEmail().c_str()) == 0, "Wrong email address in message. Address: " + std::string(msgReceived1->getUserEmail(0)));
+
+    // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
+    if (megaChatApi[a2]->isMessageReceptionConfirmationActive()
+            && !megaChatApi[a2]->getChatRoom(chatid)->isGroup())
+    {
+        ASSERT_CHAT_TEST(waitForResponse(flagDelivered), "Timeout expired for receiving delivery notification");    // for delivery
+    }
+
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
-
 
     delete contactList;
     contactList = NULL;
