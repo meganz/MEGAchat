@@ -2625,7 +2625,7 @@ public:
      *
      * @param sourceChatid MegaChatHandle that identifies the chat room where the source message is
      * @param msgid MegaChatHandle that identifies the message that is going to be forwarded
-     * @param targetChatId MegaChatHandle that identifies the chat room where the message is going to be forwared
+     * @param targetChatId MegaChatHandle that identifies the chat room where the message is going to be forwarded
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
