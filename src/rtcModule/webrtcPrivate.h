@@ -85,14 +85,24 @@ public:
 
 class Call: public ICall
 {
-public:
-    enum CallDataState: uint8_t
+    enum CallDataState
     {
-        kCallReqNotRinging = 0,
-        kCallReqRinging = 1,
-        kJoin = 2,
-        kMute = 3
+        kCallDataInProgress     = 0,
+        kCallDataRinging        = 1,
+        kCallDataEnd            = 2,
+        kCallDataJoin           = 3,
+        kCallDataMute           = 4
     };
+
+    enum
+    {
+        kCallDataReasonEnded        = 0x01, /// normal hangup of on-going call
+        kCallDataReasonRejected     = 0x02, /// incoming call was rejected by callee
+        kCallDataReasonNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
+        kCallDataReasonFailed       = 0x04, /// on-going call failed
+        kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+    };
+
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
@@ -109,6 +119,7 @@ protected:
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
+    uint8_t mPredestroyState;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -150,6 +161,7 @@ protected:
     bool sendCallData(Call::CallDataState state);
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
+    uint8_t convertTermCodeToCallDataCode();
     friend class RtcModule;
     friend class Session;
 public:
