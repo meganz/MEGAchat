@@ -18,7 +18,6 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
     connect(ui->mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui->mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
     connect(ui->mMuteCamChk, SIGNAL(clicked(bool)), this, SLOT(onMuteCam(bool)));
-    connect(ui->mFullScreenChk, SIGNAL(clicked(bool)), this, SLOT(onFullScreenChk(bool)));
     connect(ui->mAnswBtn, SIGNAL(clicked(bool)), this, SLOT(onAnswerCallBtn(bool)));
     localCallListener = NULL;
     remoteCallListener = NULL;
@@ -53,8 +52,8 @@ void CallGui::connectPeerCallGui()
 {
     MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
     if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
+    setCall(auxCall);
     {
-        setCall(auxCall);
         localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
         ui->mAnswBtn->hide();
         if (!mVideo)
@@ -66,7 +65,6 @@ void CallGui::connectPeerCallGui()
     }
     else
     {
-        setCall(auxCall);
         remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid);
     }
 }
