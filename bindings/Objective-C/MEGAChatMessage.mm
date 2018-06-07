@@ -1,5 +1,9 @@
+
 #import "MEGAChatMessage.h"
+
 #import "megachatapi.h"
+
+#import "MEGAChatContainsMeta+init.h"
 #import "MEGANodeList+init.h"
 #import "MEGASdk.h"
 
@@ -140,6 +144,10 @@ using namespace megachat;
     return self.megaChatMessage ? self.megaChatMessage->getRowId() : MEGACHAT_INVALID_HANDLE;
 }
 
+- (MEGAChatContainsMeta *)containsMeta {
+    return self.megaChatMessage ? [[MEGAChatContainsMeta alloc] initWithMegaChatContainsMeta:self.megaChatMessage->getContainsMeta()->copy() cMemoryOwn:YES] : nil;
+}
+
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType {
     return self.megaChatMessage ? self.megaChatMessage->hasChanged((int)changeType) : NO;
 }
@@ -241,6 +249,8 @@ using namespace megachat;
         case MEGAChatMessageTypeContact:
             result = @"Contact";
             break;
+        case MEGAChatMessageTypeContainsMeta:
+            result = @"Contains meta";
             
         default:
             result = @"Default";

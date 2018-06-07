@@ -646,6 +646,8 @@ private:
 };
 
 class MegaChatAttachedUser;
+class MegaChatRichPreviewPrivate;
+class MegaChatContainsMetaPrivate;
 
 class MegaChatMessagePrivate : public MegaChatMessage
 {
@@ -679,10 +681,10 @@ public:
     virtual const char *getUserName(unsigned int index) const;
     virtual const char *getUserEmail(unsigned int index) const;
     virtual mega::MegaNodeList *getMegaNodeList() const;
+    virtual const MegaChatContainsMeta *getContainsMeta() const;
     virtual mega::MegaHandleList *getMegaHandleList() const;
     virtual int getDuration() const;
     virtual int getTermCode() const;
-
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -711,9 +713,10 @@ private:
     bool deleted;
     int priv;               // certain messages need additional info, like priv changes
     int code;               // generic field for additional information (ie. the reason of manual sending)
-    std::vector<MegaChatAttachedUser>* megaChatUsers;
-    mega::MegaNodeList* megaNodeList;
-    mega::MegaHandleList* megaHandleList;
+    std::vector<MegaChatAttachedUser> *megaChatUsers = NULL;
+    mega::MegaNodeList *megaNodeList = NULL;
+    mega::MegaHandleList *megaHandleList = NULL;
+    const MegaChatContainsMeta *mContainsMeta = NULL;
 };
 
 //Thread safe request queue
@@ -833,6 +836,7 @@ public:
 #endif
 
     static void setCatchException(bool enable);
+    static bool hasUrl(const char* text);
 
     // ============= Listeners ================
 
@@ -950,6 +954,7 @@ public:
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
+    MegaChatMessage *removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
     MegaChatHandle getLastMessageSeenId(MegaChatHandle chatid);
@@ -1037,6 +1042,56 @@ protected:
     std::string mName;
 };
 
+class MegaChatRichPreviewPrivate : public MegaChatRichPreview
+{
+public:
+    MegaChatRichPreviewPrivate(const MegaChatRichPreview *richPreview);
+    MegaChatRichPreviewPrivate(const std::string &text, const std::string &title, const std::string &description,
+                        const std::string &image, const std::string &imageFormat, const std::string &icon,
+                        const std::string &iconFormat, const std::string &url);
+
+    virtual MegaChatRichPreview *copy() const;
+    virtual ~MegaChatRichPreviewPrivate();
+
+    virtual const char *getText() const;
+    virtual const char *getTitle() const;
+    virtual const char *getDescription() const;
+    virtual const char *getImage() const;
+    virtual const char *getImageFormat() const;
+    virtual const char *getIcon() const;
+    virtual const char *getIconFormat() const;
+    virtual const char *getUrl() const;
+
+protected:
+    std::string mText;
+    std::string mTitle;
+    std::string mDescription;
+    std::string mImage;
+    std::string mImageFormat;
+    std::string mIcon;
+    std::string mIconFormat;
+    std::string mUrl;
+};
+
+class MegaChatContainsMetaPrivate : public MegaChatContainsMeta
+{
+public:
+    MegaChatContainsMetaPrivate(const MegaChatContainsMeta *containsMeta = NULL);
+    virtual ~MegaChatContainsMetaPrivate();
+
+    virtual MegaChatContainsMeta *copy() const;
+
+    virtual int getType() const;
+    virtual const MegaChatRichPreview *getRichPreview() const;
+
+    // This function take the property from memory that it receives as parameter
+    void setRichPreview(MegaChatRichPreview *richPreview);
+
+protected:
+    int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
+    MegaChatRichPreview *mRichPreview = NULL;
+};
+
 class DataTranslation
 {
 public:
@@ -1077,8 +1132,11 @@ public:
      * by ASCII character '0x01'
      */
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-    static std::string parseContainsMeta(const char* json);
-    static std::string parseRichPreview(const char* json);
+    static const MegaChatContainsMeta *parseContainsMeta(const char* json);
+    static MegaChatRichPreview *parseRichPreview(const char* json);
+
+private:
+    static std::string getImageFormat(const char* imagen);
 };
 
 }

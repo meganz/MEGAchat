@@ -484,6 +484,7 @@ public:
     std::vector<BackRefId> backRefs;
     mutable void* userp;
     mutable uint8_t userFlags = 0;
+    bool richLinkRemoved = 0;
     karere::Id id() const { return mId; }
     bool isSending() const { return mIdIsXid; }
     uint8_t isEncrypted() const { return mIsEncrypted; }
@@ -606,6 +607,9 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
+    static bool hasUrl(const std::string &text, std::string &url);
+    static bool parseUrl(const std::string &url);
 
 protected:
     static const char* statusNames[];
