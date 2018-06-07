@@ -1760,7 +1760,7 @@ bool MegaChatApiImpl::getBackgroundStatus()
 
     sdkMutex.lock();
 
-    status = mClient ? mClient->chatd->keepaliveType() : false;
+    status = (mClient && mClient->chatd) ? mClient->chatd->keepaliveType() : false;
 
     sdkMutex.unlock();
 
