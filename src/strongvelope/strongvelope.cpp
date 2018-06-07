@@ -473,6 +473,28 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     }
 }
 
+ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
+    const StaticBuffer& privCu25519,
+    const StaticBuffer& privEd25519,
+    const StaticBuffer& privRsa,
+    karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, int chatMode, void *ctx)
+: chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
+ myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
+ mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode)
+{
+    getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
+    if (this->mChatMode == CHAT_MODE_PRIVATE)
+    {
+        loadKeysFromDb();
+        auto var = getenv("KRCHAT_FORCE_RSA");
+        if (var)
+        {
+            mForceRsa = true;
+            STRONGVELOPE_LOG_WARNING("KRCHAT_FORCE_RSA env var detected, will force RSA for key encryption");
+        }
+    }
+}
+
 unsigned int ProtocolHandler::getCacheVersion() const
 {
     return mCacheVersion;

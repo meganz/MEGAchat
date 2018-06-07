@@ -286,6 +286,12 @@ public:
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, void *ctx);
 
+
+    ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
+        const StaticBuffer& privEd25519,
+        const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
+        SqliteDb& db, karere::Id aChatId, int chatMode, void *ctx);
+
     unsigned int getCacheVersion() const;
 protected:
     void loadKeysFromDb();
