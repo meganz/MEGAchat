@@ -1399,7 +1399,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
         crypto->setUsers(&users);
         crypto->createUnifiedKey();
-        crypto->encryptUnifiedKeyForAllParticipants()
+        createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
         .then([wptr, this, sdkPeers, title, myhandle](chatd::KeyCommand *kCommand) -> ApiPromise
         {
             mega::MegaUserKeyMap userKeyMap;
