@@ -2407,6 +2407,45 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId)
+{
+    if (!mClient || sourceChatid == MEGACHAT_INVALID_HANDLE || msgid == MEGACHAT_INVALID_HANDLE || targetChatId == MEGACHAT_INVALID_HANDLE)
+    {
+        return NULL;
+    }
+
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroomTarget = findChatRoom(targetChatId);
+    ChatRoom *chatroomSource = findChatRoom(sourceChatid);
+    if (chatroomSource && chatroomTarget)
+    {
+        chatd::Chat &chat = chatroomSource->chat();
+        Idx idx =  chat.msgIndexFromId(msgid);
+        chatd::Message *msg = chatroomSource->chat().findOrNull(idx);
+        if (msg && msg->type == chatd::Message::kMsgContact)
+        {
+            std::string contactMsg;
+            unsigned char zero = 0x0;
+            unsigned char contactType = Message::kMsgContact;
+            contactMsg.push_back(zero);
+            contactMsg.push_back(contactType);
+            contactMsg.append(msg->toText());
+            Message *m = chatroomTarget->chat().msgSubmit(contactMsg.c_str(), contactMsg.length(), Message::kMsgContact, NULL);
+            if (!m)
+            {
+                sdkMutex.unlock();
+                return NULL;
+            }
+            megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+        }
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
+}
+
 void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);

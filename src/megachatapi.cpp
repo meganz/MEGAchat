@@ -285,7 +285,7 @@ void MegaChatApi::setBackgroundStatus(bool background, MegaChatRequestListener *
 
 bool MegaChatApi::getBackgroundStatus()
 {
-    pImpl->getBackgroundStatus();
+    return pImpl->getBackgroundStatus();
 }
 
 void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
@@ -465,7 +465,12 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
 
 MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
-   return pImpl->attachContacts(chatid, handles);
+    return pImpl->attachContacts(chatid, handles);
+}
+
+MegaChatMessage *MegaChatApi::forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId)
+{
+    return pImpl->forwardContact(sourceChatid, msgid, targetChatId);
 }
 
 void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
