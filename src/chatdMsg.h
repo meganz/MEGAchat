@@ -614,14 +614,14 @@ public:
         }
 
         if (pos >= end)
-            throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+            throw std::runtime_error("Error getting a version of the encryption key encrypted to us");
         if (end-pos < 16)
             throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
 
         auto buf = std::make_shared<Buffer>(16);
 
         buf->assign(pos, 16);
-        buf->buf();
+        return buf->buf();
     }
 
     bool hasKeys() const { return dataSize() > 17; }
