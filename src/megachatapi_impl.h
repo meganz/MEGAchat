@@ -904,7 +904,7 @@ public:
 
     int getUserOnlineStatus(MegaChatHandle userhandle);
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
-    bool getBackgroundStatus();
+    int getBackgroundStatus();
 
     void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);

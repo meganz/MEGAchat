@@ -1970,9 +1970,13 @@ public:
      * background. The app should define its status in order to receive notifications
      * from server when the app is in background.
      *
+     * This function doesn't have any effect until MEGAchat is fully initialized. It means that
+     * MegaChatApi::getInitState returns the value MegaChatApi::INIT_OFFLINE_SESSION or
+     * MegaChatApi::INIT_ONLINE_SESSION.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getfLAG - Returns the background status
+     * - MegaChatRequest::getFlag - Returns the value of 1st parameter
      *
      * @param status True if the the app is in background, false if in foreground.
      */
@@ -1981,9 +1985,13 @@ public:
     /**
      * @brief Returns the background status established in MEGAchat
      *
-     * @return True if background status was set.
+     * This function will return -1 when MEGAchat is not fully initialized. It requires that
+     * MegaChatApi::getInitState returns the value MegaChatApi::INIT_OFFLINE_SESSION or
+     * MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * @return 0 for foreground, 1 for background, -1 if not fully initialized
      */
-    bool getBackgroundStatus();
+    int getBackgroundStatus();
 
     /**
      * @brief Returns the current firstname of the user
