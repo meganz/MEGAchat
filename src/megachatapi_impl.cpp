@@ -5236,7 +5236,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 {
                     this->lastMsg = std::to_string(callEndedInfo->duration);
                     this->lastMsg.push_back(0x01);
-                    this->lastMsg += std::to_string(callEndedInfo->termCode);
+                    this->lastMsg += std::to_string(static_cast<uint32_t>(callEndedInfo->termCode));
                     for (unsigned int i = 0; i < callEndedInfo->participants.size(); i++)
                     {
                         this->lastMsg.push_back(0x01);
