@@ -28,7 +28,7 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
     setAvatar();
     ui->videoRenderer->enableStaticImage();
 
-    if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
     {
         ui->videoRenderer->setMirrored(true);
         ui->mFullScreenChk->hide();
@@ -51,8 +51,8 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
 void CallGui::connectPeerCallGui()
 {
     MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
-    if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
     setCall(auxCall);
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
     {
         localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
         ui->mAnswBtn->hide();
@@ -166,7 +166,7 @@ void CallGui::onMuteMic(bool checked)
 
 void CallGui::onMuteCam(bool checked)
 {
-   if (mPeerid == megachat::MEGACHAT_INVALID_HANDLE)
+   if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
    {
         if (checked)
         {

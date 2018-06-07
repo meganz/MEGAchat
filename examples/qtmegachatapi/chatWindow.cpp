@@ -660,8 +660,7 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
     callGui = new CallGui(this, video, peerid, true);
     callParticipantsGui.insert(callGui);
 
-
-    if (peerid == megachat::MEGACHAT_INVALID_HANDLE)
+    if (peerid == mMegaChatApi->getMyUserHandle())
     {
         ui->mCentralWidget->setStyleSheet("background-color:#000000");
         auxIndex = -1;
@@ -710,8 +709,6 @@ void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
         }
     }
 }
-
-
 
 void ChatWindow::deleteCallGui()
 {
@@ -802,15 +799,12 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-   createCallGui(video, megachat::MEGACHAT_INVALID_HANDLE);
+   createCallGui(video, mMegaChatApi->getMyUserHandle());
    MegaChatCall *auxCall = mMegaChatApi->getChatCall(mChatRoom->getChatId());
-   if(mMegaChatApi->getChatCall(mChatRoom->getChatId()) == NULL)
+   if(auxCall == NULL || (auxCall && auxCall->getStatus() == megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT))
    {
        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
-   }
-   else
-   {
-       connectPeerCallGui(megachat::MEGACHAT_INVALID_HANDLE);
+       delete auxCall;
    }
 }
 
