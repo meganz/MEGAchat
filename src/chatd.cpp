@@ -2279,7 +2279,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     // set final keyid
     assert(mCrypto->currentKeyId() != CHATD_KEYID_INVALID);
     assert(mCrypto->currentKeyId() != CHATD_KEYID_UNCONFIRMED);
-    msg->keyid = mCrypto->currentKeyId();
+    assert(msg->keyid == mCrypto->currentKeyId());
 
     // add message to history
     push_forward(msg);
@@ -2332,12 +2332,20 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
     }
+
     if (mSending.empty())
     {
         CHATID_LOG_ERROR("keyConfirm: Sending queue is empty");
         return;
     }
+
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+
+    for (auto it = mSending.begin(); it != mSending.end(); it++)
+    {
+        it->msg->keyid = keyid;
+        CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
+    }
 }
 
 void Chat::onKeyReject()
