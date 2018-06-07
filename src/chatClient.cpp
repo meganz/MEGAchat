@@ -1393,10 +1393,9 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     {
         //Add own user to strongvelope set of users to encrypt unified key for us
         users.insert(myhandle);
-
         std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), appCtx));
+                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), strongvelope::CHAT_MODE_PUBLIC, appCtx));
 
         crypto->setUsers(&users);
         crypto->createUnifiedKey();
