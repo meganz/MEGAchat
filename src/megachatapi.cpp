@@ -283,7 +283,7 @@ void MegaChatApi::setBackgroundStatus(bool background, MegaChatRequestListener *
     pImpl->setBackgroundStatus(background, listener);
 }
 
-bool MegaChatApi::getBackgroundStatus()
+int MegaChatApi::getBackgroundStatus()
 {
     return pImpl->getBackgroundStatus();
 }

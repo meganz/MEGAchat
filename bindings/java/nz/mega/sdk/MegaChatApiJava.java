@@ -770,7 +770,7 @@ public class MegaChatApiJava {
      *
      * @return True if background status was set.
      */
-    public boolean getBackgroundStatus(){
+    public int getBackgroundStatus(){
         return megaChatApi.getBackgroundStatus();
     }
 

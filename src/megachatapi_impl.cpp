@@ -1754,13 +1754,16 @@ void MegaChatApiImpl::setBackgroundStatus(bool background, MegaChatRequestListen
     waiter->notify();
 }
 
-bool MegaChatApiImpl::getBackgroundStatus()
+int MegaChatApiImpl::getBackgroundStatus()
 {
-    bool status = false;
+    int status = -1;
 
     sdkMutex.lock();
 
-    status = mClient ? mClient->chatd->keepaliveType() : false;
+    if (mClient && mClient->chatd)
+    {
+        status = (mClient->chatd->keepaliveType() == chatd::OP_KEEPALIVE) ? 0 : 1;
+    }
 
     sdkMutex.unlock();
 
