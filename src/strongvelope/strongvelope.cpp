@@ -1314,12 +1314,11 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 promise::Promise<chatd::KeyCommand*>
 ProtocolHandler::encryptUnifiedKeyForAllParticipants()
 {
-    std::shared_ptr<SendKey> key = mUnifiedKey;
-    assert(!key->empty());
+    assert(!mUnifiedKey->empty());
     auto wptr = weakHandle();
 
-    return encryptKeyToAllParticipants(key, NULL)
-    .then([this, wptr](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+    return encryptKeyToAllParticipants(mUnifiedKey)
+    .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
     {
         wptr.throwIfDeleted();
         chatd::KeyCommand *keyCmd = result.first;
