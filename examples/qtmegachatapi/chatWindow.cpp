@@ -814,13 +814,13 @@ void ChatWindow::onCallBtn(bool video)
    }
 }
 
-void ChatWindow::connectPeerCallGui(MegaChatHandle mPeerid)
+void ChatWindow::connectPeerCallGui(MegaChatHandle peerid)
 {
     std::set<CallGui *>::iterator it;
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
         CallGui *call = *it;
-        if (call->getPeer() == mPeerid)
+        if (call->getPeer() == peerid)
         {
             if (!call->getCall())
             {

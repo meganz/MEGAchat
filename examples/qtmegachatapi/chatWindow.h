@@ -46,7 +46,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void truncateChatUI();
-        void connectPeerCallGui(MegaChatHandle mPeerid);
+        void connectPeerCallGui(MegaChatHandle peerid);
         void destroyCallGui(MegaChatHandle mPeerid);
         void hangCall();
         void setChatTittle(const char *title);
