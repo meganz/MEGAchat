@@ -3720,6 +3720,7 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     this->mMessage = NULL;
     this->mMegaNodeList = NULL;
     this->mMegaHandleList = NULL;
+    this->link = NULL;
 
     this->type = request.getType();
     this->listener = request.getListener();
