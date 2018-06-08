@@ -595,7 +595,7 @@ public:
         append(keydata, keylen);
     }
 
-    const char* getKeyByUserId (karere::Id userId)
+    std::shared_ptr<Buffer> getKeyByUserId (karere::Id userId)
     {
         karere::Id receiver;
         const char *pos = buf() + 17;
@@ -619,9 +619,8 @@ public:
             throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
 
         auto buf = std::make_shared<Buffer>(16);
-
         buf->assign(pos, 16);
-        return buf->buf();
+        return buf;
     }
 
     bool hasKeys() const { return dataSize() > 17; }

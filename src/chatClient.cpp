@@ -1380,6 +1380,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 {
     const Id myhandle = myHandle();
     SetOfIds users;
+    auto wptr = getDelTracker();
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
     for (auto& peer: peers)
     {
@@ -1387,55 +1388,64 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         users.insert(peer.first);
     }
 
-    auto wptr = getDelTracker();
-    ApiPromise createChatPromise;
-    if (publicchat)
-    {
-        //Add own user to strongvelope set of users to encrypt unified key for us
-        users.insert(myhandle);
-        std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
-                StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), strongvelope::CHAT_MODE_PUBLIC, appCtx));
+    //Add own user to strongvelope set of users to encrypt unified key for us
+    users.insert(myhandle);
+    std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
+            StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
+            StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), strongvelope::CHAT_MODE_PUBLIC, appCtx));
 
-        crypto->setUsers(&users);
-        crypto->createUnifiedKey();
-        createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-        .then([wptr, this, sdkPeers, title, myhandle](chatd::KeyCommand *kCommand) -> ApiPromise
+    crypto->setUsers(&users);
+    crypto->createUnifiedKey();
+
+    return crypto->encryptChatTitle(title)
+    .then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& buf)
+     {
+
+        auto titleB64 = base64urlencode(buf->buf(), buf->dataSize());
+        ApiPromise createChatPromise;
+        if (publicchat)
         {
-            mega::MegaUserKeyMap userKeyMap;
-            for (int i = 0; i < sdkPeers->size(); i++)
+            createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
+            .then([wptr, this, sdkPeers, titleB64, myhandle](chatd::KeyCommand *kCommand) -> ApiPromise
             {
-                mega::MegaHandle peerHandle = sdkPeers->getPeerHandle(i);
-                userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(peerHandle, kCommand->getKeyByUserId(peerHandle)));
-            }
+                mega::MegaUserKeyMap userKeyMap;
+                for (int i = 0; i < sdkPeers->size(); i++)
+                {
+                    mega::MegaHandle peerHandle = sdkPeers->getPeerHandle(i);
+                    auto enckey = kCommand->getKeyByUserId(peerHandle);
+                    auto enckeyB64 = base64urlencode(enckey->buf(), enckey->dataSize());
+                    userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(peerHandle, enckeyB64));
+                }
 
-            //Add own unified key to map
-            userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(myhandle, kCommand->getKeyByUserId(myhandle)));
-            return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), &userKeyMap, title);
+                auto ownenckey = kCommand->getKeyByUserId(myhandle);
+                auto ownenckeyB64 = base64urlencode(ownenckey->buf(), ownenckey->dataSize());
+                userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(myhandle, ownenckeyB64));
+                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), &userKeyMap, titleB64.c_str());
+            });
+        }
+        else
+        {
+            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), titleB64.c_str());
+        }
+
+        return createChatPromise
+        .then([this, wptr](ReqResult result) -> Promise<karere::Id>
+        {
+            if (wptr.deleted())
+                return promise::Error("Chat created successfully, but instance was removed");
+
+            auto& list = *result->getMegaTextChatList();
+            if (list.size() < 1)
+                return promise::Error("Empty chat list returned from API");
+
+            auto room = chats->addRoom(*list.get(0));
+            if (!room || !room->isGroup())
+                return promise::Error("API created incorrect group");
+
+            room->connect();
+            return karere::Id(room->chatid());
         });
-    }
-    else
-    {
-        createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), title);
-    }
-
-    return createChatPromise
-    .then([this, wptr](ReqResult result) -> Promise<karere::Id>
-    {
-        if (wptr.deleted())
-            return promise::Error("Chat created successfully, but instance was removed");
-
-        auto& list = *result->getMegaTextChatList();
-        if (list.size() < 1)
-            return promise::Error("Empty chat list returned from API");
-
-        auto room = chats->addRoom(*list.get(0));
-        if (!room || !room->isGroup())
-            return promise::Error("API created incorrect group");
-
-        room->connect();
-        return karere::Id(room->chatid());
-    });
+     });
 }
 
 promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
