@@ -2452,8 +2452,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                assert(mClient.chats(mChatId).isGroup());
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(cipherMsg->id()));
+                assert(mClient.chats(mChatId).isGroup());
+                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 cipherMsg->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
@@ -2894,8 +2895,9 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                assert(mClient.chats(mChatId).isGroup());
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
+                assert(mClient.chats(mChatId).isGroup());
+                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 message->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
