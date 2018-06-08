@@ -150,6 +150,10 @@ public:
 
     virtual void setChatMode(unsigned int chatMode) = 0;
 
+    virtual void setUnifiedSender(karere::Id unifiedSender) = 0;
+
+    virtual karere::Id getUnifiedSender() = 0;
+
     virtual void onHistoryReload() = 0;
 
     /**

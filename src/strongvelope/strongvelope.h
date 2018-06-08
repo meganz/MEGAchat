@@ -277,6 +277,7 @@ protected:
 
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
+    karere::Id mUnifiedSender;
 
 public:
     karere::Id chatid;
@@ -371,11 +372,12 @@ public:
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
 
-    virtual void
-    createUnifiedKey();
+    virtual void createUnifiedKey();
     virtual void setUnifiedKey(const std::string &key);
     virtual std::string getUnifiedKey();
     virtual void resetUnifiedKey();
+    virtual void setUnifiedSender(karere::Id unifiedSender);
+    virtual karere::Id getUnifiedSender();
     unsigned int getChatMode() const;
     void setChatMode(unsigned int chatMode);
 };

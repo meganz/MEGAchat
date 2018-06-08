@@ -461,7 +461,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
+ mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mUnifiedSender((uint64_t)0)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -480,7 +480,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, int chatMode, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode)
+ mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode), mUnifiedSender((uint64_t)0)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     if (this->mChatMode == CHAT_MODE_PRIVATE)
@@ -705,6 +705,16 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
         memcpy(result->buf(), buf.buf(), AES::BLOCKSIZE);
         return result;
     }
+}
+
+void ProtocolHandler::setUnifiedSender(karere::Id unifiedSender)
+{
+    this->mUnifiedSender = unifiedSender;
+}
+
+karere::Id ProtocolHandler::getUnifiedSender()
+{
+    return this->mUnifiedSender;
 }
 
 void ProtocolHandler::createUnifiedKey()
