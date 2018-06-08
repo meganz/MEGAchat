@@ -105,6 +105,8 @@ MEGAIO_IMPEXP int services_hstore_remove_handle(unsigned short type, megaHandle 
 //==
 MEGAIO_IMPEXP int64_t services_get_time_ms();
 
+extern std::recursive_mutex timerMutex;
+
 #ifdef __cplusplus
 }
 #endif

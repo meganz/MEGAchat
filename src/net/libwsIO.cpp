@@ -1,5 +1,7 @@
 #include "net/libwsIO.h"
+#if !defined(_WIN32) || !defined(_MSC_VER)
 #include <arpa/inet.h>
+#endif
 #include <libws_log.h>
 #include "base/gcmpp.h"
 
@@ -25,7 +27,7 @@ LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *
             ws_event_callback(bev, events, userp);
         }, NULL);
     },
-    [](int fd, short events, void* userp)
+    [](evutil_socket_t fd, short events, void* userp)
     {
         karere::marshallCall([events, userp]()
         {
@@ -195,7 +197,7 @@ void LibwsClient::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, voi
                          
 bool LibwsClient::wsSendMessage(char *msg, size_t len)
 {
-    assert (mWebSocket);
+//    assert (mWebSocket);
     
     if (!mWebSocket)
     {

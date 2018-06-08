@@ -32,7 +32,7 @@
 #include <megaapi_impl.h>
 
 #ifndef KARERE_DISABLE_WEBRTC
-#include <rtcModule/webrtc.h>
+#include "rtcModule/webrtc.h"
 #include <IVideoRenderer.h>
 #endif
 
@@ -41,8 +41,6 @@
 #include <sdkApi.h>
 #include <karereCommon.h>
 #include <logger.h>
-
-#include "net/websocketsIO.h"
 
 #include <stdint.h>
 

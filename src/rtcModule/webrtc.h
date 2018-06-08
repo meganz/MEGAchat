@@ -37,7 +37,7 @@ typedef uint8_t TermCode;
 #else
 
 #include "karereCommon.h" //for AvFlags
-#include <karereId.h>
+#include "../karereId.h"
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
 

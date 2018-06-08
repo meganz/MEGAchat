@@ -25,7 +25,6 @@
 #include "gcmpp.h"
 #include <memory>
 #include <assert.h>
-extern std::recursive_mutex timerMutex;
 
 namespace karere
 {

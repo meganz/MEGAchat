@@ -5,7 +5,12 @@
 #include <unordered_map>
 #include <assert.h>
 #include "cservices-thread.h"
+
+#if defined(_WIN32) && defined(_MSC_VER)
+#include <time.h>
+#else
 #include <sys/time.h>
+#endif
 
 extern "C"
 {
