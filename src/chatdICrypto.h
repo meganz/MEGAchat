@@ -146,13 +146,9 @@ public:
 
     virtual void resetUnifiedKey() = 0;
 
-    virtual bool hasTitle(const std::string &data) = 0;
-
     virtual unsigned int getChatMode() const = 0;
 
     virtual void setChatMode(unsigned int chatMode) = 0;
-
-    virtual promise::Promise<std::string> extractUnifiedKeyFromCt(const std::string &data) = 0;
 
     virtual void onHistoryReload() = 0;
 

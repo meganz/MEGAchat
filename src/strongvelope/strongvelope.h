@@ -376,8 +376,6 @@ public:
     virtual void setUnifiedKey(const std::string &key);
     virtual std::string getUnifiedKey();
     virtual void resetUnifiedKey();
-    virtual bool hasTitle(const std::string &data);
-    virtual promise::Promise<std::string> extractUnifiedKeyFromCt(const std::string &data);
     unsigned int getChatMode() const;
     void setChatMode(unsigned int chatMode);
 };

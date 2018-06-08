@@ -1662,7 +1662,7 @@ mPublicHandle(publicHandle), mPreviewMode(previewMode)
 
     auto ct = title.data();
     bool hasCt = (ct && ct[0]);
-    if (hasCt && chat().crypto()->hasTitle(ct))
+    if (hasCt)
      {
         mEncryptedTitle = ct;
         mHasTitle = true;
@@ -2194,7 +2194,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     auto ct = aChat.getTitle();
     bool hasCt = (ct && ct[0]);
-    if (hasCt && chat().crypto()->hasTitle(ct))
+    if (hasCt)
     {
         mEncryptedTitle = ct;
         mHasTitle = true;
@@ -2225,29 +2225,21 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         }
     }
 
-    if (hasCt && mPublicChat)
+    if (mPublicChat)
     {
-        auto wptr = getDelTracker();
-        chat().crypto()->extractUnifiedKeyFromCt(ct)
-        .then([wptr, this](const std::string& unifiedKey)
+        const char *auxKey = aChat.getUnifiedKey();
+        if (auxKey)
         {
-            if (wptr.deleted())
-                return;
-
             this->parent.client.db.query(
                 "insert or replace into chat_vars(chatid, name, value)"
                 " values(?,'unified_key',?)",
-                this->mChatid, unifiedKey);
-        })
-        .fail([wptr, this](const promise::Error& err)
+                this->mChatid, auxKey);
+        }
+        else
         {
-            if (wptr.deleted())
-                return;
-
-            KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n%s\n.", Id(this->mChatid).toString().c_str(), err.what());
-            //Disable chat when we can't obtain unifiedKey
+            KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
             this->mChat->disable(true);
-        });
+        }
     }
 
     //save to db

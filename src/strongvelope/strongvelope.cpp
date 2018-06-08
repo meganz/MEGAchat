@@ -797,41 +797,6 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     return msg;
 }
 
-bool ProtocolHandler::hasTitle(const std::string &data)
-{
-    Buffer copy(data.data(), data.size());
-    auto msg = std::make_shared<chatd::Message>(
-        karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
-
-    auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-    return !parsedMsg->payload.empty();
-}
-
-promise::Promise<std::string>
-ProtocolHandler::extractUnifiedKeyFromCt(const std::string &data)
-{
-    try
-    {
-        Buffer copy(data.data(), data.size());
-        auto msg = std::make_shared<chatd::Message>(
-            karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
-
-        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-        parsedMsg->extractUnifiedKeyFromCt(msg.get())
-        // warning: parsedMsg must be kept alive when .then() is executed, so we
-        // capture the shared pointer to it. Msg also must be kept alive, as
-        // the promise returns it
-        .then([msg, parsedMsg](std::string key)
-        {
-            return key;
-        });
-    }
-    catch(std::exception& e)
-    {
-        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
-    }
-}
-
 promise::Promise<std::string>
 ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
 {
