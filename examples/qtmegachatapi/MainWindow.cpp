@@ -106,7 +106,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
                 if (setCallGui->size() == 0)
                 {
-                    auxChatWindow->createCallGui(call->hasVideoInitialCall(), megachat::MEGACHAT_INVALID_HANDLE);
+                    auxChatWindow->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle());
                 }
                 break;
             }
