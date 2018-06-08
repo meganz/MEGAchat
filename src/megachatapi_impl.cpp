@@ -1076,6 +1076,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 request->setFlag(avFlags.video());
             }
+
             if (!call->answer(avFlags))
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
