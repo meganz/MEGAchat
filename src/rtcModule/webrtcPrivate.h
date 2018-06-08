@@ -162,6 +162,7 @@ protected:
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
+    bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
     friend class RtcModule;
     friend class Session;
 public:

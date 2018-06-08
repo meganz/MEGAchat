@@ -1012,16 +1012,7 @@ void Call::msgSession(RtMessage& packet)
     notifyCallStarting(*sess);
     sess->sendOffer();
 
-    EndpointId endpointId(sess->mPeer, sess->mPeerClient);
-    mSessRetriesTime.erase(endpointId);
-
-    auto itSessionRetries = mSessRetries.find(endpointId);
-    if (itSessionRetries != mSessRetries.end())
-    {
-        megaHandle timerHandle = itSessionRetries->second;
-        cancelTimeout(timerHandle, mManager.mClient.appCtx);
-        mSessRetries.erase(itSessionRetries);
-    }
+    cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
 }
 
 void Call::notifyCallStarting(Session& sess)
@@ -1056,15 +1047,7 @@ void Call::msgJoin(RtMessage& packet)
         sess->createRtcConn();
         sess->sendCmdSession(packet);
 
-        EndpointId endpointId(sess->mPeer, sess->mPeerClient);
-        mSessRetriesTime.erase(endpointId);
-        auto itSessionRetries = mSessRetries.find(endpointId);
-        if (itSessionRetries != mSessRetries.end())
-        {
-            megaHandle timerHandle = itSessionRetries->second;
-            cancelTimeout(timerHandle, mManager.mClient.appCtx);
-            mSessRetries.erase(itSessionRetries);
-        }
+        cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
     }
     else
     {
@@ -1318,15 +1301,10 @@ void Call::removeSession(Session& sess, TermCode reason)
     // set the call's state to kTerminating. If that is not set, then it's only the session
     // that terminates for a reason that is not fatal to the call,
     // and can try re-establishing the session
-
     EndpointId endpointId(sess.mPeer, sess.mPeerClient);
-    auto itSessionRetry = mSessRetries.find(endpointId);
-    if (itSessionRetry != mSessRetries.end())
+    if (cancelSessionRetryTimer(sess.mPeer, sess.mPeerClient))
     {
         SUB_LOG_DEBUG("removeSession: Trying to remove a session for which there is a scheduled retry, the retry should not be there");
-        megaHandle timerHandle = itSessionRetry->second;
-        cancelTimeout(timerHandle, mManager.mClient.appCtx);
-        mSessRetries.erase(itSessionRetry);
         assert(false);
     }
 
@@ -1583,6 +1561,21 @@ uint8_t Call::convertTermCodeToCallDataCode()
     }
 
     return code;
+}
+
+bool Call::cancelSessionRetryTimer(karere::Id userid, uint32_t clientid)
+{
+    EndpointId endpointId(userid, clientid);
+    auto itSessionRetry = mSessRetries.find(endpointId);
+    if (itSessionRetry != mSessRetries.end())
+    {
+        megaHandle timerHandle = itSessionRetry->second;
+        cancelTimeout(timerHandle, mManager.mClient.appCtx);
+        mSessRetries.erase(itSessionRetry);
+        return true;
+    }
+
+    return false;
 }
 
 bool Call::answer(AvFlags av)
