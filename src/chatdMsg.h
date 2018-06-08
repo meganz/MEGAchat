@@ -9,7 +9,7 @@
 enum
 {
     CHATD_KEYID_INVALID = 0,                // used when no keyid is set
-    CHATD_KEYID_UNCONFIRMED = 0xffffffff    // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
+    CHATD_KEYID_UNCONFIRMED = 0xfffffffe    // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
 };
 
 namespace chatd
