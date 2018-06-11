@@ -235,3 +235,14 @@ void DNScache::connectDone(std::string &url, std::string &ip)
         }
     }
 }
+
+time_t DNScache::age(std::string &url)
+{
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        return it->second.resolveTs;
+    }
+
+    return 0;
+}

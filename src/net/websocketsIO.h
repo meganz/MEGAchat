@@ -24,15 +24,16 @@ public:
     void clear(std::string &url);
     bool get(std::string &url, std::string &ipv4, std::string &ipv6);
     void connectDone(std::string &url, std::string &ip);
+    time_t age(std::string &url);
 
 private:
     struct DNSrecord
     {
         std::string ipv4;
         std::string ipv6;
-        time_t resolveTs = 0;
-        time_t connectIpv4Ts = 0;
-        time_t connectIpv6Ts = 0;
+        time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
+        time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
+        time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
     };
 
     std::map<std::string, DNSrecord> mRecords;
