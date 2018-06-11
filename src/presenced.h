@@ -260,7 +260,8 @@ protected:
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
-    bool usingipv6;
+    bool usingipv6; // ip version to try first (both are tried)
+    std::string mTargetIp;
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
@@ -312,6 +313,7 @@ public:
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
+    void doConnect();
     promise::Promise<void> retryPendingConnection();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
