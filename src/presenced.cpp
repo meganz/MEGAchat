@@ -60,7 +60,7 @@ void Client::pushPeers()
 void Client::wsConnectCb()
 {
     PRESENCED_LOG_DEBUG("Presenced connected to %s", mTargetIp.c_str());
-    karereClient->websocketIO->mDnsCache.connectDone(mUrl.host, mTargetIp);
+    mDNScache.connectDone(mUrl.host, mTargetIp);
     setConnState(kConnected);
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
@@ -217,7 +217,7 @@ Client::reconnect(const std::string& url)
             mLoginPromise = Promise<void>();
 
             string ipv4, ipv6;
-            bool cachedIPs = karereClient->websocketIO->mDnsCache.get(mUrl.host, ipv4, ipv6);
+            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
 
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
@@ -247,7 +247,7 @@ Client::reconnect(const std::string& url)
                 }
 
                 // update DNS cache
-                bool match = karereClient->websocketIO->mDnsCache.set(mUrl.host, ipv4, ipv6);
+                bool match = mDNScache.set(mUrl.host, ipv4, ipv6);
 
                 if (!cachedIPs) // connect required DNS lookup
                 {
@@ -370,7 +370,7 @@ void Client::disconnect()
 void Client::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = karereClient->websocketIO->mDnsCache.get(mUrl.host, ipv4, ipv6);
+    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
