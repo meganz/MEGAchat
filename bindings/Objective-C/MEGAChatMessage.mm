@@ -5,6 +5,7 @@
 
 #import "MEGAChatContainsMeta+init.h"
 #import "MEGANodeList+init.h"
+#import "MEGAHandleList+init.h"
 #import "MEGASdk.h"
 
 using namespace megachat;
@@ -138,6 +139,18 @@ using namespace megachat;
 
 - (MEGANodeList *)nodeList {
     return self.megaChatMessage ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)handleList {
+    return self.megaChatMessage ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatMessage->getMegaHandleList() cMemoryOwn:YES] : nil;
+}
+
+- (NSInteger)duration {
+    return self.megaChatMessage ? self.megaChatMessage->getDuration() : 0;
+}
+
+- (MEGAChatMessageEndCallReason)termCode {
+    return (MEGAChatMessageEndCallReason) (self.megaChatMessage ? self.megaChatMessage->getTermCode() : 0);
 }
 
 - (uint64_t)rowId {

@@ -3,6 +3,7 @@
 
 #import "MEGAChatContainsMeta.h"
 #import "MEGANodeList.h"
+#import "MEGAHandleList.h"
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageStatus) {
     MEGAChatMessageStatusUnknown        = -1,
@@ -16,12 +17,14 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageStatus) {
 };
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
+    MEGAChatMessageTypeUnknown           = -1,
     MEGAChatMessageTypeInvalid           = 0,
     MEGAChatMessageTypeNormal            = 1,
     MEGAChatMessageTypeAlterParticipants = 2,
     MEGAChatMessageTypeTruncate          = 3,
     MEGAChatMessageTypePrivilegeChange   = 4,
     MEGAChatMessageTypeChatTitle         = 5,
+    MEGAChatMessageTypeCallEnded         = 6,
     MEGAChatMessageTypeAttachment        = 16,
     MEGAChatMessageTypeRevokeAttachment  = 17, /// Obsolete
     MEGAChatMessageTypeContact           = 18,
@@ -34,13 +37,20 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageChangeType) {
     MEGAChatMessageChangeTypeAccess  = 0x04  /// When the access to attached nodes has changed (obsolete)
 };
 
-
 typedef NS_ENUM(NSInteger, MEGAChatMessageReason) {
     MEGAChatMessageReasonPeersChanged  = 1,
     MEGAChatMessageReasonTooOld        = 2,
     MEGAChatMessageReasonGeneralReject = 3,
     MEGAChatMessageReasonNoWriteAccess = 4,
     MEGAChatMessageReasonNoChanges     = 6
+};
+
+typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
+    MEGAChatMessageEndCallReasonEnded = 1,
+    MEGAChatMessageEndCallReasonRejected = 2,
+    MEGAChatMessageEndCallReasonNoAnswer = 3,
+    MEGAChatMessageEndCallReasonFailed = 4,
+    MEGAChatMessageEndCallReasonCancelled = 5
 };
 
 @interface MEGAChatMessage : NSObject
@@ -64,6 +74,9 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageReason) {
 @property (readonly, nonatomic) MEGAChatMessageReason code;
 @property (readonly, nonatomic) NSUInteger usersCount;
 @property (readonly, nonatomic) MEGANodeList *nodeList;
+@property (readonly, nonatomic) MEGAHandleList *handleList;
+@property (readonly, nonatomic) NSInteger duration;
+@property (readonly, nonatomic) MEGAChatMessageEndCallReason termCode;
 @property (readonly, nonatomic) uint64_t rowId;
 @property (readonly, nonatomic) MEGAChatContainsMeta *containsMeta;
 
