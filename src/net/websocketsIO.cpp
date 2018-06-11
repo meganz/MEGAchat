@@ -229,7 +229,7 @@ void DNScache::connectDone(std::string &url, std::string &ip)
         {
             it->second.connectIpv4Ts = time(NULL);
         }
-        else (ip == it->second.ipv6)
+        else if (ip == it->second.ipv6)
         {
             it->second.connectIpv6Ts = time(NULL);
         }

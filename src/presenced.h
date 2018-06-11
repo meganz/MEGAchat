@@ -254,14 +254,15 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Client *karereClient;
-    karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
     promise::Promise<void> mConnectPromise;
     promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
+    karere::Url mUrl;
     bool usingipv6; // ip version to try first (both are tried)
     std::string mTargetIp;
+    DNScache &mDNScache;
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;

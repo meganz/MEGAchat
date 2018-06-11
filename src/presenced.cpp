@@ -29,7 +29,8 @@ namespace presenced
 {
 
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps), usingipv6(false)
+: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps), usingipv6(false),
+  mDNScache(karereClient->websocketIO->mDnsCache)
 {}
 
 promise::Promise<void>
@@ -196,6 +197,8 @@ Client::reconnect(const std::string& url)
             if (!mUrl.isValid())
                 return promise::Error("No valid URL provided and current URL is not valid");
         }
+
+        setConnState(kResolving);
 
         auto wptr = weakHandle();
         return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
