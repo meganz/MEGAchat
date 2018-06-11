@@ -16,12 +16,36 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+class DNScache
+{
+public:
+    DNScache() {}
+    bool set(std::string &url, std::string &ipv4, std::string &ipv6);   // true if changed
+    void clear(std::string &url);
+    bool get(std::string &url, std::string &ipv4, std::string &ipv6);
+    void connectDone(std::string &url, std::string &ip);
+
+private:
+    struct DNSrecord
+    {
+        std::string ipv4;
+        std::string ipv6;
+        time_t resolveTs = 0;
+        time_t connectIpv4Ts = 0;
+        time_t connectIpv6Ts = 0;
+    };
+
+    std::map<std::string, DNSrecord> mRecords;
+};
+
 // Generic websockets network layer
 class WebsocketsIO : public mega::EventTrigger
 {
 public:
     WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
+
+    DNScache mDnsCache;
     
 protected:
     ::mega::Mutex *mutex;

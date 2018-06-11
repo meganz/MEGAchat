@@ -178,3 +178,60 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
 
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
+
+bool DNScache::set(std::string &url, std::string &ipv4, std::string &ipv6)
+{
+    auto it = mRecords.find(url);
+    bool exists = (it != mRecords.end());
+
+    bool match = (exists
+                  && (ipv4 == it->second.ipv4)
+                  && (ipv6 == it->second.ipv6));
+
+    if (!match)
+    {
+        DNSrecord record;
+        record.ipv4 = ipv4;
+        record.ipv6 = ipv6;
+        record.resolveTs = time(NULL);
+
+        mRecords[url] = record;
+    }
+
+    return match;
+}
+
+void DNScache::clear(std::string &url)
+{
+    mRecords.erase(url);
+}
+
+bool DNScache::get(std::string &url, std::string &ipv4, std::string &ipv6)
+{
+    auto it = mRecords.find(url);
+    if (it == mRecords.end())
+    {
+        return false;
+    }
+
+    ipv4 = it->second.ipv4;
+    ipv6 = it->second.ipv6;
+
+    return true;
+}
+
+void DNScache::connectDone(std::string &url, std::string &ip)
+{
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        if (ip == it->second.ipv4)
+        {
+            it->second.connectIpv4Ts = time(NULL);
+        }
+        else (ip == it->second.ipv6)
+        {
+            it->second.connectIpv6Ts = time(NULL);
+        }
+    }
+}
