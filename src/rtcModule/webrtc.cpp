@@ -1383,8 +1383,7 @@ bool Call::sendCallData(int state)
 
 uint8_t Call::convertTermCodeToCallDataCode()
 {
-    uint8_t code;
-    switch (mTermCode)
+    uint8_t codeToChatd;
     switch (mTermCode & TermCode::kInvalid)
     {
         case kUserHangup:
@@ -1394,22 +1393,22 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 case kStateRingIn:
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
-                    code = kCallDataReasonCancelled;
+                    codeToChatd = kCallDataReasonCancelled;
                     break;
 
                 case kStateInProgress:
-                    code = kCallDataReasonEnded;
+                    codeToChatd = kCallDataReasonEnded;
                     break;
 
                 default:
-                    code = kCallDataReasonFailed;
+                    codeToChatd = kCallDataReasonFailed;
                     break;
             }
             break;
         }
 
         case kCallRejected:
-            code = kCallDataReasonRejected;
+            codeToChatd = kCallDataReasonRejected;
             break;
 
         case kAnsElsewhere:
@@ -1419,16 +1418,16 @@ uint8_t Call::convertTermCodeToCallDataCode()
 
         case kAnswerTimeout:
         case kRingOutTimeout:
-            code = kCallDataReasonNoAnswer;
+            codeToChatd = kCallDataReasonNoAnswer;
             break;
 
         case kAppTerminating:
-            code = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            codeToChatd = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
             break;
 
         case kBusy:
             assert(!isJoiner());
-            code = kCallDataReasonRejected;
+            codeToChatd = kCallDataReasonRejected;
             break;
 
         default:
@@ -1437,11 +1436,10 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
                               termCodeToStr(mTermCode));
             }
-            code = kCallDataReasonFailed;
+            codeToChatd = kCallDataReasonFailed;
             break;
     }
 
-    return code;
 }
 
 bool Call::answer(AvFlags av)
