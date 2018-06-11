@@ -1440,6 +1440,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
             break;
     }
 
+    return codeToChatd;
 }
 
 bool Call::answer(AvFlags av)
