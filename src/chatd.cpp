@@ -540,8 +540,8 @@ Promise<void> Connection::reconnect()
                     mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
                 }
             }
-
-            if (cachedIPs)
+            else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
+            // no network connetion, so it's futile to attempt to connect
             {
                 doConnect();
             }
