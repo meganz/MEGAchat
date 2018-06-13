@@ -1039,14 +1039,18 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     setState(Call::kStateTerminating);
     clearCallOutTimer();
 
+    if (mPredestroyState != Call::kStateRingIn && code != TermCode::kBusy)
+    {
+        sendCallData(kCallDataEnd);
+    }
+    else
+    {
+        SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy or call state is ringing");
+    }
+
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
-        if (code != TermCode::kAnsElsewhere && !mIsGroup)  //TODO: Maybe do it also for group calls
-        {
-            sendCallData(kCallDataEnd);
-        }
-
         switch (mPredestroyState)
         {
         case kStateReqSent:
@@ -1080,11 +1084,12 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     {
         if (wptr.deleted())
             return;
+
         assert(mSessions.empty());
         stopIncallPingTimer();
         mLocalPlayer.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & 0x7f),
+        FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
         mManager.removeCall(*this);
     });
@@ -1378,8 +1383,8 @@ bool Call::sendCallData(int state)
 
 uint8_t Call::convertTermCodeToCallDataCode()
 {
-    uint8_t code;
-    switch (mTermCode)
+    uint8_t codeToChatd;
+    switch (mTermCode & ~TermCode::kPeer)
     {
         case kUserHangup:
         {
@@ -1388,22 +1393,22 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 case kStateRingIn:
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
-                    code = kCallDataReasonCancelled;
+                    codeToChatd = kCallDataReasonCancelled;
                     break;
 
                 case kStateInProgress:
-                    code = kCallDataReasonEnded;
+                    codeToChatd = kCallDataReasonEnded;
                     break;
 
                 default:
-                    code = kCallDataReasonFailed;
+                    codeToChatd = kCallDataReasonFailed;
                     break;
             }
             break;
         }
 
         case kCallRejected:
-            code = kCallDataReasonRejected;
+            codeToChatd = kCallDataReasonRejected;
             break;
 
         case kAnsElsewhere:
@@ -1413,16 +1418,16 @@ uint8_t Call::convertTermCodeToCallDataCode()
 
         case kAnswerTimeout:
         case kRingOutTimeout:
-            code = kCallDataReasonNoAnswer;
+            codeToChatd = kCallDataReasonNoAnswer;
             break;
 
         case kAppTerminating:
-            code = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            codeToChatd = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
             break;
 
         case kBusy:
             assert(!isJoiner());
-            code = kCallDataReasonRejected;
+            codeToChatd = kCallDataReasonRejected;
             break;
 
         default:
@@ -1431,11 +1436,11 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
                               termCodeToStr(mTermCode));
             }
-            code = kCallDataReasonFailed;
+            codeToChatd = kCallDataReasonFailed;
             break;
     }
 
-    return code;
+    return codeToChatd;
 }
 
 bool Call::answer(AvFlags av)

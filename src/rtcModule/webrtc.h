@@ -121,7 +121,7 @@ enum TermCode: uint8_t
 
 static inline bool isTermError(TermCode code)
 {
-    int errorCode = code & 0x7f;
+    int errorCode = code & ~TermCode::kPeer;
     return (errorCode >= TermCode::kErrorFirst) && (errorCode <= TermCode::kErrorLast);
 }
 
