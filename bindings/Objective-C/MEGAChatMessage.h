@@ -91,5 +91,6 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
 + (NSString *)stringForStatus:(MEGAChatMessageStatus)status;
 + (NSString *)stringForType:(MEGAChatMessageType)type;
 + (NSString *)stringForCode:(MEGAChatMessageReason)code;
++ (NSString *)stringForEndCallReason:(MEGAChatMessageEndCallReason)reason;
 
 @end
