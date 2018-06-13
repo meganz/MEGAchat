@@ -223,7 +223,7 @@ Client::reconnect(const std::string& url)
             PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
             int statusDNS = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this](int statusDNS, std::string ipv4, std::string ipv6)
+                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -246,21 +246,31 @@ Client::reconnect(const std::string& url)
                     return;
                 }
 
-                // update DNS cache
-                bool match = mDNScache.set(mUrl.host, ipv4, ipv6);
-
                 if (!cachedIPs) // connect required DNS lookup
                 {
                     PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+
+                    mDNScache.set(mUrl.host, ipsv4.at(0), ipsv6.at(0));
                     doConnect();
                     return;
                 }
+
+
+                string ipv4, ipv6;
+                mDNScache.get(mUrl.host, ipv4, ipv6);
+                bool match = ((std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())
+                        && (std::find(ipsv6.begin(), ipsv6.end(), ipv6) != ipsv6.end()));
+
                 if (match)
                 {
                     PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
                 else
                 {
+                    // update DNS cache
+                    bool ret = mDNScache.set(mUrl.host, ipv4, ipv6);
+                    assert(!ret);
+
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                 }

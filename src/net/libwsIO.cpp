@@ -47,7 +47,7 @@ void LibwsIO::addevents(::mega::Waiter* waiter, int)
 
 }
 
-bool LibwsIO::wsResolveDNS(const char *hostname, std::function<void (int, std::string, std::string)> f)
+bool LibwsIO::wsResolveDNS(const char *hostname, std::function<void (int, std::vector<std::string>&, std::vector<std::string>&)> f)
 {
     mApi.call(&::mega::MegaApi::queryDNS, hostname)
     .then([f](ReqResult result)

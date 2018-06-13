@@ -87,7 +87,7 @@ WebsocketsClient::~WebsocketsClient()
     ctx = NULL;
 }
 
-bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, std::string, std::string)> f)
+bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, std::vector<std::string>&, std::vector<std::string>&)> f)
 {
     return websocketIO->wsResolveDNS(hostname, f);
 }
