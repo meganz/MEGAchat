@@ -30,7 +30,9 @@
 #include <mega.h>
 #include <megaapi.h>
 #include <db.h>
-//#include <codecvt>   // deprecated
+#ifndef _MSC_VER
+#include <codecvt>   // deprecated
+#endif
 #include <locale>
 #include <karereCommon.h>
 
@@ -430,16 +432,18 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
         STRONGVELOPE_LOG_DEBUG("Empty message payload");
         return;
     }
+#ifndef _MSC_VER
     // codecvt is deprecated
-    //std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert("parsePayload: Error doing utf8/16 conversion");
-    //std::u16string u16 = convert.from_bytes(data.buf(), data.buf()+data.dataSize());
-    //size_t len = u16.size();
-
+    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert("parsePayload: Error doing utf8/16 conversion");
+    std::u16string u16 = convert.from_bytes(data.buf(), data.buf()+data.dataSize());
+    size_t len = u16.size();
+#else
     std::string inpututf8(data.buf(), data.buf() + data.dataSize());
     std::string outpututf8;
     ::mega::MegaApi::utf8ToUtf16(inpututf8.c_str(), &outpututf8);
     std::u16string u16((char16_t*)outpututf8.data(), outpututf8.size() / 2);
     size_t len = u16.size();
+#endif
 
     if(len < 10)
         throw std::runtime_error("parsePayload: payload is less than backrefs minimum size");
