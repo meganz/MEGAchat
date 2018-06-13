@@ -173,6 +173,36 @@ bool RtcModule::selectDevice(const std::string& devname,
     }
 }
 
+void RtcModule::updateConstraints(RtcModule::Resolution resolution)
+{
+    switch (resolution)
+    {
+        case Resolution::hd:
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 1080);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 576);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 1920);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 1024);
+            break;
+
+        case Resolution::low:
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 288);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 240);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 352);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 320);
+            break;
+
+        case Resolution::vga:
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
+            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
+            break;
+
+        default:
+            break;
+    }
+}
+
 bool RtcModule::selectAudioInDevice(const string &devname)
 {
     return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
@@ -315,7 +345,7 @@ void RtcModule::removeCall(Call& call)
     mCalls.erase(chatid);
 }
 std::shared_ptr<artc::LocalStreamHandle>
-RtcModule::getLocalStream(AvFlags av, std::string& errors)
+RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution)
 {
     const auto& devices = mDeviceManager.inputDevices();
     if (devices.video.empty() || mVideoInDeviceName.empty())
@@ -332,6 +362,8 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors)
             errors.append("Configured video input device '").append(mVideoInDeviceName)
                   .append("' not present, using default device\n");
         }
+
+        updateConstraints(resolution);
         auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
 
         mVideoInput = mDeviceManager.getUserVideo(opts);
@@ -775,7 +807,8 @@ void Call::setState(uint8_t newState)
 void Call::getLocalStream(AvFlags av, std::string& errors)
 {
     // getLocalStream currently never fails - if there is error, stream is a string with the error message
-    mLocalStream = mManager.getLocalStream(av, errors);
+    RtcModule::Resolution resolution = chat().isGroup() ? RtcModule::Resolution::low : RtcModule::Resolution::notDefined;
+    mLocalStream = mManager.getLocalStream(av, errors, resolution);
     if (!errors.empty())
     {
         SUB_LOG_WARNING("There were some errors getting local stream: %s", errors.c_str());

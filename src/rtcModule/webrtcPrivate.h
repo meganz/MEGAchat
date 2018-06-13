@@ -192,6 +192,14 @@ public:
         kSessSetupTimeout = 20000
     };
 
+    enum Resolution
+    {
+        hd = 0,
+        low,
+        vga,
+        notDefined
+    };
+
     //TODO: set valid values
     int maxBr = 1000;
     int maxGroupBr = 1000;
@@ -249,7 +257,7 @@ protected:
     template <class... Args>
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
-    std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
+    std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors, Resolution resolution);
     // no callid provided --> start call
     std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid = karere::Id::inval());
     template <class T> T random() const;
@@ -259,6 +267,8 @@ protected:
     const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);
     bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
                       std::string& selected);
+
+    void updateConstraints(Resolution resolution);
     friend class Call;
     friend class Session;
 public:
