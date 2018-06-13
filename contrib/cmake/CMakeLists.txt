@@ -8,7 +8,7 @@ project(karere)
 set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdparty")
 
 # this line points to the MEGA SDK repo that you want to build MEGAChat against
-include(${CMAKE_CURRENT_LIST_DIR}/../../../sdk2/contrib/cmake/CMakeLists.txt)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../sdk/contrib/cmake/CMakeLists.txt)
 
 set(KarereDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 

@@ -46,6 +46,52 @@ namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
 
+
+
+struct ConsoleLock
+{
+    static std::mutex outputlock;
+    std::ostream& os;
+    bool locking = false;
+    inline ConsoleLock(std::ostream& o)
+        : os(o), locking(true)
+    {
+        outputlock.lock();
+    }
+    ConsoleLock(ConsoleLock&& o)
+        : os(o.os), locking(o.locking)
+    {
+        o.locking = false;
+    }
+    ~ConsoleLock()
+    {
+        if (locking)
+        {
+            outputlock.unlock();
+        }
+    }
+
+    template<class T>
+    ostream& operator<<(T&& arg)
+    {
+        return os << std::forward<T>(arg);
+    }
+};
+
+std::mutex ConsoleLock::outputlock;
+
+ConsoleLock conlock(std::ostream& o)
+{
+    // Returns a temporary object that has locked a mutex.  The temporary's destructor will unlock the object.
+    // So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
+    // (as the temporary's destructor will run at the end of the outermost enclosing expression).
+    // Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
+    return ConsoleLock(o);
+}
+
+
+
+
 // convert string to handle
 c::MegaChatHandle s_ch(const string& s)
 {
@@ -62,11 +108,11 @@ bool check_err(const char* opName, m::MegaError* e)
 {
     if (e)
     {
-        cout << opName << (e->getErrorCode() == m::API_OK ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
+        conlock(cout) << opName << (e->getErrorCode() == m::API_OK ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
     }
     else
     {
-        cout << opName << " finished with unknown status" << endl;
+        conlock(cout) << opName << " finished with unknown status" << endl;
     }
     return e && e->getErrorCode() == m::API_OK;
 }
@@ -75,11 +121,11 @@ bool check_err(const char* opName, c::MegaChatError* e)
 {
     if (e)
     {
-        cout << opName << (e->getErrorCode() == c::MegaChatError::ERROR_OK ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
+        conlock(cout) << opName << (e->getErrorCode() == c::MegaChatError::ERROR_OK ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
     }
     else
     {
-        cout << opName << " finished with unknown status" << endl;
+        conlock(cout) << opName << " finished with unknown status" << endl;
     }
     return e && e->getErrorCode() == c::MegaChatError::ERROR_OK;
 }
@@ -121,9 +167,9 @@ static void setprompt(prompttype p)
     }
     else
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         pw_buf_pos = 0;
 #if defined(WIN32) && defined(NO_READLINE)
+        auto cl = conlock(cout);
         static_cast<m::WinConsole*>(console.get())->updateInputPrompt(prompts[p]);
 #else
         cout << prompts[p] << flush;
@@ -154,7 +200,7 @@ struct CLCListener : public c::MegaChatListener
 {
     void onChatInitStateUpdate(c::MegaChatApi* api, int newState) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
+        auto cl = conlock(cout);
         cout << "Status update : ";
         switch (newState)
         {
@@ -209,14 +255,12 @@ public:
         }
         else
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-
             switch (request->getType())
             {
             case c::MegaChatRequest::TYPE_CONNECT:
                 if (check_err("Connect", e))
                 {
-                    cout << "Connection state " << api->getConnectionState() << endl;
+                    conlock(cout) << "Connection state " << api->getConnectionState() << endl;
                 }
                 break;
 
@@ -229,21 +273,21 @@ public:
             case c::MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY:
                 if (check_err("SetAutoAway", e))
                 {
-                    cout << " autoaway: " << request->getFlag() << " timeout: " << request->getNumber() << endl;
+                    conlock(cout) << " autoaway: " << request->getFlag() << " timeout: " << request->getNumber() << endl;
                 }
                 break;
 
             case c::MegaChatRequest::TYPE_SET_PRESENCE_PERSIST:
                 if (check_err("SetPresencePersist", e))
                 {
-                    cout << " persist: " << request->getFlag() << endl;
+                    conlock(cout) << " persist: " << request->getFlag() << endl;
                 }
                 break;
 
             case c::MegaChatRequest::TYPE_SET_BACKGROUND_STATUS:
                 if (check_err("SetBackgroundStatus", e))
                 {
-                    cout << " background: " << request->getFlag() << endl;
+                    conlock(cout) << " background: " << request->getFlag() << endl;
                 }
                 break;
 
@@ -298,8 +342,7 @@ public:
 
     void onUsersUpdate(m::MegaApi* api, m::MegaUserList *users) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "User list updated:  " << (users ? users->size() : -1) << endl;
+        conlock(cout) << "User list updated:  " << (users ? users->size() : -1) << endl;
         if (users)
         {
             for (int i = 0; i < users->size(); ++i)
@@ -309,6 +352,7 @@ public:
                     auto changebits = m->getChanges();
                     if (changebits)
                     {
+                        auto cl = conlock(cout);
                         cout << "user " << ch_s(m->getHandle()) << " changes:";
                         if (changebits & m::MegaUser::CHANGE_TYPE_AUTHRING) cout << " AUTHRING";
                         if (changebits & m::MegaUser::CHANGE_TYPE_LSTINT) cout << " LSTINT";
@@ -335,27 +379,23 @@ public:
 
     void onNodesUpdate(m::MegaApi* api, m::MegaNodeList *nodes) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
+        conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
     }
 
     void onAccountUpdate(m::MegaApi *api) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Account updated" << endl;
+        conlock(cout) << "Account updated" << endl;
     }
 
     void onContactRequestsUpdate(m::MegaApi* api, m::MegaContactRequestList* requests) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Contact requests list updated:  " << (requests ? requests->size() : -1) << endl;
+        conlock(cout) << "Contact requests list updated:  " << (requests ? requests->size() : -1) << endl;
     }
 
     void onReloadNeeded(m::MegaApi* api) override
     {
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << "Reload needed!  Submitting fetchNodes request";
+            conlock(cout) << "Reload needed!  Submitting fetchNodes request" << endl;
         }
         api->fetchNodes();
     }
@@ -374,14 +414,12 @@ public:
 
     void onGlobalSyncStateChanged(m::MegaApi* api) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Sync state changed";
+        conlock(cout) << "Sync state changed";
     }
 
     void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Chats updated:  " << (chats ? chats->size() : -1) << endl;
+        conlock(cout) << "Chats updated:  " << (chats ? chats->size() : -1) << endl;
     }
 
     const char* eventName(int i)
@@ -399,8 +437,7 @@ public:
 
     void onEvent(m::MegaApi* api, m::MegaEvent *e) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Event: " << (e ? eventName(e->getType()) : "(null)") << endl;
+        conlock(cout) << "Event: " << (e ? eventName(e->getType()) : "(null)") << endl;
     }
 
 };
@@ -420,7 +457,7 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
     case m::MegaRequest::TYPE_LOGIN:
         if (check_err("Login", e))
         {
-            cout << "Loading Account with fetchNodes..." << endl;
+            conlock(cout) << "Loading Account with fetchNodes..." << endl;
             guard.unlock();
             api->fetchNodes();
         }
@@ -429,7 +466,7 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
     case m::MegaRequest::TYPE_FETCH_NODES:
         if (check_err("FetchNodes", e))
         {
-            cout << "Connecting to chat servers" << endl;
+            conlock(cout) << "Connecting to chat servers" << endl;
             guard.unlock();
             g_chatApi->connect(&g_chatListener);
         }
@@ -447,6 +484,8 @@ bool g_detailHigh = false;
 
 void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* loadorreceive)
 {
+    auto cl = conlock(cout);
+
     if (!msg)
     {
         cout << "Room " << ch_s(room) << " - end of " << loadorreceive << " messages" << endl;
@@ -550,32 +589,27 @@ struct CLCRoomListener : public c::MegaChatRoomListener
 
     void onChatRoomUpdate(c::MegaChatApi* api, c::MegaChatRoom *chat) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Room " << ch_s(chat->getChatId()) << " updated" << endl;
+        conlock(cout) << "Room " << ch_s(chat->getChatId()) << " updated" << endl;
     }
 
     void onMessageLoaded(c::MegaChatApi* api, c::MegaChatMessage *msg) override
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         reportMessage(room, msg, "loaded");
     }
 
     virtual void onMessageReceived(c::MegaChatApi* api, c::MegaChatMessage *msg)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         reportMessage(room, msg, "received");
     }
 
     virtual void onMessageUpdate(c::MegaChatApi* api, c::MegaChatMessage *msg)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         reportMessage(room, msg, "updated");
     }
 
     virtual void onHistoryReloaded(c::MegaChatApi* api, c::MegaChatRoom *chat)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Room " << room << " notification that room " << chat->getChatId() << " is reloading" << endl;
+        conlock(cout) << "Room " << room << " notification that room " << chat->getChatId() << " is reloading" << endl;
     }
 };
 
@@ -608,8 +642,7 @@ void exec_login(ac::ACState& s)
         {
             // full account login
             {
-                std::lock_guard<std::mutex> guard(g_outputMutex);
-                cout << "Initiating login attempt..." << endl;
+                conlock(cout) << "Initiating login attempt..." << endl;
             }
             g_megaApi->login(s.words[1].s.c_str(), s.words[2].s.c_str());
         }
@@ -625,29 +658,26 @@ void exec_login(ac::ACState& s)
             file >> session;
             if (file.is_open() && session.size())
             {
-                cout << "Resuming session..." << endl;
+                conlock(cout) << "Resuming session..." << endl;
                 return g_megaApi->fastLogin(session.c_str());
             }
-            cout << "Failed to get a valid session id from file " << filename << endl;
+            conlock(cout) << "Failed to get a valid session id from file " << filename << endl;
         }
         else if (s.words.size() == 2 && s.words[1].s.size() < sizeof session * 4 / 3)
         {
             {
-                std::lock_guard<std::mutex> guard(g_outputMutex);
-                cout << "Resuming session..." << endl;
+                conlock(cout) << "Resuming session..." << endl;
             }
             g_megaApi->fastLogin(s.words[1].s.c_str());
         }
         else
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << s.selectedSyntax << endl;
+            conlock(cout) << s.selectedSyntax << endl;
         }
     }
     else
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Already logged in. Please log out first." << endl;
+        conlock(cout) << "Already logged in. Please log out first." << endl;
     }
 }
 
@@ -662,26 +692,22 @@ void exec_session(ac::ACState& s)
             ofstream file(filename.c_str());
             if (file.fail() || !file.is_open())
             {
-                std::lock_guard<std::mutex> guard(g_outputMutex);
-                cout << "could not open file: " << filename << endl;
+                conlock(cout) << "could not open file: " << filename << endl;
             }
             else
             {
                 file << session.get();
-                std::lock_guard<std::mutex> guard(g_outputMutex);
-                cout << "Your (secret) session is saved in file '" << filename << "'" << endl;
+                conlock(cout) << "Your (secret) session is saved in file '" << filename << "'" << endl;
             }
         }
         else
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << "Your (secret) session is: " << session.get() << endl;
+            conlock(cout) << "Your (secret) session is: " << session.get() << endl;
         }
     }
     else 
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Not logged in." << endl;
+        conlock(cout) << "Not logged in." << endl;
     }
 }
 
@@ -695,8 +721,7 @@ void exec_setonlinestatus(ac::ACState& s)
     else if (s.words[1].s == "busy")  status = c::MegaChatApi::STATUS_BUSY;
     else
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << s.selectedSyntax << endl;
+        conlock(cout) << s.selectedSyntax << endl;
         return;
     }
     g_chatApi->setOnlineStatus(status, &g_chatListener);
@@ -739,7 +764,7 @@ void exec_repeat(ac::ACState& s)
 
 void exec_getonlinestatus(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
+    auto cl = conlock(cout);
     switch (g_chatApi->getOnlineStatus())
     {
     case c::MegaChatApi::STATUS_OFFLINE:    cout << "offline" << endl; break;
@@ -755,10 +780,9 @@ void exec_setbackgroundstatus(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_SET_BACKGROUND_STATUS, [](finishInfo& f) 
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("SetBackgroundStatus", f.e))
         {
-            cout << " background: " << f.request->getFlag() << endl;
+            conlock(cout) << " background: " << f.request->getFlag() << endl;
         }
     });
 
@@ -771,10 +795,9 @@ void exec_getuserfirstname(ac::ACState& s)
 
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_GET_FIRSTNAME, [userhandle](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("getUserFirstname", f.e))
         {
-            cout << ch_s(userhandle) << " -> " << f.request->getText() << endl;
+            conlock(cout) << ch_s(userhandle) << " -> " << f.request->getText() << endl;
         }
     });
 
@@ -788,10 +811,9 @@ void exec_getuserlastname(ac::ACState& s)
 
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_GET_LASTNAME, [userhandle](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("getUserLastname", f.e))
         {
-            cout << ch_s(userhandle) << " -> " << f.request->getText() << endl;
+            conlock(cout) << ch_s(userhandle) << " -> " << f.request->getText() << endl;
         }
     });
 
@@ -804,10 +826,9 @@ void exec_getuseremail(ac::ACState& s)
 
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_GET_EMAIL, [userhandle](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("getUserEmail", f.e))
         {
-            cout << ch_s(userhandle) << " -> " << f.request->getText() << endl;
+            conlock(cout) << ch_s(userhandle) << " -> " << f.request->getText() << endl;
         }
     });
 
@@ -819,8 +840,7 @@ void exec_getcontactemail(ac::ACState& s)
     c::MegaChatHandle userhandle(s_ch(s.words[1].s));
     unique_ptr<char[]> email(g_chatApi->getContactEmail(userhandle));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << ch_s(userhandle) << " -> " << (email ? email.get() : "<no contact relationship>") << endl;
+    conlock(cout) << ch_s(userhandle) << " -> " << (email ? email.get() : "<no contact relationship>") << endl;
 }
 
 
@@ -828,46 +848,40 @@ void exec_getuserhandlebyemail(ac::ACState& s)
 {
     c::MegaChatHandle userhandle = g_chatApi->getUserHandleByEmail(s.words[1].s.c_str());
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << s.words[1].s << " -> " << ch_s(userhandle) << endl;
+    conlock(cout) << s.words[1].s << " -> " << ch_s(userhandle) << endl;
 }
 
 void exec_getmyuserhandle(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << ch_s(g_chatApi->getMyUserHandle()) << endl;
+    conlock(cout) << ch_s(g_chatApi->getMyUserHandle()) << endl;
 }
 
 void exec_getmyfirstname(ac::ACState& s)
 {
     unique_ptr<char[]> t(g_chatApi->getMyFirstname());
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (t ? t.get() : "<no result>") << endl;
+    conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
 void exec_getmylastname(ac::ACState& s)
 {
     unique_ptr<char[]> t(g_chatApi->getMyLastname());
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (t ? t.get() : "<no result>") << endl;
+    conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
 void exec_getmyfullname(ac::ACState& s)
 {
     unique_ptr<char[]> t(g_chatApi->getMyFullname());
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (t ? t.get() : "<no result>") << endl;
+    conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
 void exec_getmyemail(ac::ACState& s)
 {
     unique_ptr<char[]> t(g_chatApi->getMyEmail());
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (t ? t.get() : "<no result>") << endl;
+    conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
 string chatDetails(const c::MegaChatRoom& cr)
@@ -894,7 +908,7 @@ void exec_getchatrooms(ac::ACState& s)
     unique_ptr<c::MegaChatRoomList> crl(g_chatApi->getChatRooms());
     if (crl)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
+        auto cl = conlock(cout);
         for (unsigned i = 0; i < crl->size(); ++i)
         {
             if (const c::MegaChatRoom* cr = crl->get(i))
@@ -911,8 +925,7 @@ void exec_getchatroom(ac::ACState& s)
     c::MegaChatHandle h = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatRoom> p(g_chatApi->getChatRoom(h));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (p ? chatDetails(*p) : "not found") << endl;
+    conlock(cout) << (p ? chatDetails(*p) : "not found") << endl;
 }
 
 
@@ -921,8 +934,7 @@ void exec_getchatroombyuser(ac::ACState& s)
     c::MegaChatHandle h = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatRoom> p(g_chatApi->getChatRoomByUser(h));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (p ? chatDetails(*p) : "not found") << endl;
+    conlock(cout) << (p ? chatDetails(*p) : "not found") << endl;
 }
 
 string chatlistDetails(const c::MegaChatListItem& cli)
@@ -955,7 +967,7 @@ void exec_getchatlistitems(ac::ACState& s)
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getChatListItems());
     if (clil)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
+        auto cl = conlock(cout);
         for (unsigned i = 0; i < clil->size(); ++i)
         {
             if (const c::MegaChatListItem* cli = clil->get(i))
@@ -971,14 +983,12 @@ void exec_getchatlistitem(ac::ACState& s)
     c::MegaChatHandle h = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatListItem> p(g_chatApi->getChatListItem(h));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (p ? chatlistDetails(*p) : "not found") << endl;
+    conlock(cout) << (p ? chatlistDetails(*p) : "not found") << endl;
 }
 
 void exec_getunreadchats(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << "unread message count: " << g_chatApi->getUnreadChats() << endl;
+    conlock(cout) << "unread message count: " << g_chatApi->getUnreadChats() << endl;
 }
 
 void exec_getactivechatlistitems(ac::ACState& s)
@@ -986,7 +996,7 @@ void exec_getactivechatlistitems(ac::ACState& s)
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getActiveChatListItems());
     if (clil)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
+        auto cl = conlock(cout);
         for (unsigned i = 0; i < clil->size(); ++i)
         {
             if (const c::MegaChatListItem* cli = clil->get(i))
@@ -1002,7 +1012,7 @@ void exec_getinactivechatlistitems(ac::ACState& s)
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getInactiveChatListItems());
     if (clil)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
+        auto cl = conlock(cout);
         for (unsigned i = 0; i < clil->size(); ++i)
         {
             if (const c::MegaChatListItem* cli = clil->get(i))
@@ -1018,7 +1028,7 @@ void exec_getunreadchatlistitems(ac::ACState& s)
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getUnreadChatListItems());
     if (clil)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
+        auto cl = conlock(cout);
         for (unsigned i = 0; i < clil->size(); ++i)
         {
             if (const c::MegaChatListItem* cli = clil->get(i))
@@ -1034,17 +1044,16 @@ void exec_getchathandlebyuser(ac::ACState& s)
     c::MegaChatHandle h = s_ch(s.words[1].s);
     c::MegaChatHandle h2 = g_chatApi->getChatHandleByUser(h);
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << ch_s(h2) << endl;
+    conlock(cout) << ch_s(h2) << endl;
 }
 
 void exec_createchat(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_CREATE_CHATROOM, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("CreateChat", f.e))
         {
+            auto cl = conlock(cout);
             cout << "Chat " << ch_s(f.request->getChatHandle()) << (f.request->getFlag() ? " is a group chat" : " is a permanent chat") << endl;
             auto list = f.request->getMegaChatPeerList();
             for (int i = 0; i < list->size(); ++i)
@@ -1067,10 +1076,9 @@ void exec_invitetochat(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_INVITE_TO_CHATROOM, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("InviteToChat", f.e))
         {
-            cout << "Invited user " << ch_s(f.request->getUserHandle()) << " to chat " << ch_s(f.request->getChatHandle()) << " as " << c::MegaChatRoom::privToString(f.request->getPrivilege()) << endl;
+            conlock(cout) << "Invited user " << ch_s(f.request->getUserHandle()) << " to chat " << ch_s(f.request->getChatHandle()) << " as " << c::MegaChatRoom::privToString(f.request->getPrivilege()) << endl;
         }
     });
 
@@ -1081,10 +1089,9 @@ void exec_removefromchat(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("RemoveFromChat", f.e))
         {
-            cout << "Removed user " << ch_s(f.request->getUserHandle()) << " from chat " << ch_s(f.request->getChatHandle()) << endl;
+            conlock(cout) << "Removed user " << ch_s(f.request->getUserHandle()) << " from chat " << ch_s(f.request->getChatHandle()) << endl;
         }
     });
 
@@ -1095,10 +1102,9 @@ void exec_leavechat(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("LeaveChat", f.e))
         {
-            cout << "Left chat " << ch_s(f.request->getChatHandle()) << " (user " << ch_s(f.request->getUserHandle()) << endl;
+            conlock(cout) << "Left chat " << ch_s(f.request->getChatHandle()) << " (user " << ch_s(f.request->getUserHandle()) << endl;
         }
     });
 
@@ -1109,10 +1115,9 @@ void exec_updatechatpermissions(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("UpdateChatPermissions", f.e))
         {
-            cout << "Updated user " << ch_s(f.request->getUserHandle()) << " in chat " << ch_s(f.request->getChatHandle()) << " to " << c::MegaChatRoom::privToString(f.request->getPrivilege()) << endl;
+            conlock(cout) << "Updated user " << ch_s(f.request->getUserHandle()) << " in chat " << ch_s(f.request->getChatHandle()) << " to " << c::MegaChatRoom::privToString(f.request->getPrivilege()) << endl;
         }
     });
 
@@ -1123,10 +1128,9 @@ void exec_truncatechat(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_TRUNCATE_HISTORY, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("TruncateChat", f.e))
         {
-            cout << "Truncated from " << ch_s(f.request->getUserHandle()) << " in chat "  << ch_s(f.request->getChatHandle()) << endl;
+            conlock(cout) << "Truncated from " << ch_s(f.request->getUserHandle()) << " in chat "  << ch_s(f.request->getChatHandle()) << endl;
         }
     });
 
@@ -1137,10 +1141,9 @@ void exec_clearchathistory(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_TRUNCATE_HISTORY, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("ClearChatHistory", f.e))
         {
-            cout << "Truncated chat " << ch_s(f.request->getChatHandle()) << ", sole message now " << ch_s(f.request->getUserHandle()) << endl;
+            conlock(cout) << "Truncated chat " << ch_s(f.request->getChatHandle()) << ", sole message now " << ch_s(f.request->getUserHandle()) << endl;
         }
     });
 
@@ -1151,10 +1154,9 @@ void exec_setchattitle(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_EDIT_CHATROOM_NAME, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("SetChatTitle", f.e))
         {
-            cout << "Chat " << ch_s(f.request->getChatHandle()) << " now titled" << f.request->getText() << endl;
+            conlock(cout) << "Chat " << ch_s(f.request->getChatHandle()) << " now titled" << f.request->getText() << endl;
         }
     });
 
@@ -1169,8 +1171,7 @@ void exec_openchatroom(ac::ACState& s)
     {
         if (!g_chatApi->openChatRoom(room, rec.listener.get()))
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << "Failed to open chat room." << endl;
+            conlock(cout) << "Failed to open chat room." << endl;
             g_roomListeners.erase(room);
         }
         else
@@ -1181,8 +1182,7 @@ void exec_openchatroom(ac::ACState& s)
     }
     else
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Room " << ch_s(room) << " is already open." << endl;
+        conlock(cout) << "Room " << ch_s(room) << " is already open." << endl;
     }
 }
 
@@ -1192,8 +1192,7 @@ void exec_closechatroom(ac::ACState& s)
     auto& rec = g_roomListeners[room];
     if (!rec.open)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
-        cout << "Room " << ch_s(room) << " was not open" << endl;
+        conlock(cout) << "Room " << ch_s(room) << " was not open" << endl;
     }
     else
     {
@@ -1207,7 +1206,7 @@ void exec_loadmessages(ac::ACState& s)
 {
     auto source = g_chatApi->loadMessages(s_ch(s.words[1].s), stoi(s.words[2].s));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
+    auto cl = conlock(cout);
     switch (source)
     {
     case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
@@ -1219,8 +1218,7 @@ void exec_loadmessages(ac::ACState& s)
 
 void exec_isfullhistoryloaded(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (g_chatApi->isFullHistoryLoaded(s_ch(s.words[1].s)) ? "Yes" : "No") << endl;
+    conlock(cout) << (g_chatApi->isFullHistoryLoaded(s_ch(s.words[1].s)) ? "Yes" : "No") << endl;
 }
 
 void exec_getmessage(ac::ACState& s)
@@ -1228,10 +1226,9 @@ void exec_getmessage(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->getMessage(room, s_ch(s.words[2].s)));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Not retrieved." << endl;
+        conlock(cout) << "Not retrieved." << endl;
     }
     else
     {
@@ -1244,10 +1241,9 @@ void exec_getmanualsendingmessage(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->getManualSendingMessage(room, s_ch(s.words[2].s)));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Not retrieved." << endl;
+        conlock(cout) << "Not retrieved." << endl;
     }
     else
     {
@@ -1261,10 +1257,9 @@ void exec_sendmessage(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->sendMessage(room, s.words[2].s.c_str()));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Failed." << endl;
+        conlock(cout) << "Failed." << endl;
     }
     else
     {
@@ -1283,10 +1278,9 @@ void exec_attachcontacts(ac::ACState& s)
 
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->attachContacts(room, mhl));  //todo: ownership
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Failed." << endl;
+        conlock(cout) << "Failed." << endl;
     }
     else
     {
@@ -1305,10 +1299,9 @@ void exec_revokeattachmentmessage(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->revokeAttachmentMessage(room, s_ch(s.words[2].s)));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Failed." << endl;
+        conlock(cout) << "Failed." << endl;
     }
     else
     {
@@ -1321,10 +1314,9 @@ void exec_editmessage(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->editMessage(room, s_ch(s.words[2].s), s.words[2].s.c_str()));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Failed." << endl;
+        conlock(cout) << "Failed." << endl;
     }
     else
     {
@@ -1337,10 +1329,9 @@ void exec_deletemessage(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->deleteMessage(room, s_ch(s.words[2].s)));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "Failed." << endl;
+        conlock(cout) << "Failed." << endl;
     }
     else
     {
@@ -1350,8 +1341,7 @@ void exec_deletemessage(ac::ACState& s)
 
 void exec_setmessageseen(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (g_chatApi->setMessageSeen(s_ch(s.words[2].s), s_ch(s.words[2].s)) ? "Done" : "Failed") << endl;
+    conlock(cout) << (g_chatApi->setMessageSeen(s_ch(s.words[2].s), s_ch(s.words[2].s)) ? "Done" : "Failed") << endl;
 }
 
 void exec_getLastMessageSeen(ac::ACState& s)
@@ -1359,10 +1349,9 @@ void exec_getLastMessageSeen(ac::ACState& s)
     auto room = s_ch(s.words[1].s);
     unique_ptr<c::MegaChatMessage> msg(g_chatApi->getLastMessageSeen(room));
 
-    std::lock_guard<std::mutex> guard(g_outputMutex);
     if (!msg)
     {
-        cout << "None." << endl;
+        conlock(cout) << "None." << endl;
     }
     else
     {
@@ -1379,10 +1368,9 @@ void exec_sendtypingnotification(ac::ACState& s)
 {
     g_chatListener.onFinish(c::MegaChatRequest::TYPE_SEND_TYPING_NOTIF, [](finishInfo& f)
     {
-        std::lock_guard<std::mutex> guard(g_outputMutex);
         if (check_err("SendTypingNotification", f.e))
         {
-            cout << "Chat " << ch_s(f.request->getChatHandle()) << " notified"  << endl;
+            conlock(cout) << "Chat " << ch_s(f.request->getChatHandle()) << " notified"  << endl;
         }
     });
 
@@ -1391,8 +1379,7 @@ void exec_sendtypingnotification(ac::ACState& s)
 
 void exec_ismessagereceptionconfirmationactive(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << (g_chatApi->isMessageReceptionConfirmationActive() ? "Yes" : "No") << endl;
+    conlock(cout) << (g_chatApi->isMessageReceptionConfirmationActive() ? "Yes" : "No") << endl;
 }
 
 
@@ -1416,8 +1403,7 @@ ac::ACN autocompleteTemplate;
 
 void exec_help(ac::ACState& s)
 {
-    std::lock_guard<std::mutex> guard(g_outputMutex);
-    cout << *autocompleteTemplate << flush;
+    conlock(cout) << *autocompleteTemplate << flush;
 }
 
 void exec_history(ac::ACState& s)
@@ -1511,8 +1497,7 @@ static void process_line(const char* l)
     case LOGINPASSWORD:
         g_megaApi->login(login.c_str(), l);
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << endl << "Logging in..." << endl;
+            conlock(cout) << "\nLogging in..." << endl;
         }
         setprompt(COMMAND);
         return;
@@ -1520,12 +1505,16 @@ static void process_line(const char* l)
     case COMMAND:
         try
         {
-            ac::autoExec(string(l), string::npos, autocompleteTemplate, false); // todo: pass correct unixCompletions flag
+            std::string consoleOutput;
+            ac::autoExec(string(l), string::npos, autocompleteTemplate, false, consoleOutput); // todo: pass correct unixCompletions flag
+            if (!consoleOutput.empty())
+            {
+                conlock(cout) << consoleOutput << flush;
+            }
         }
         catch (exception& e)
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << "Command failed: " << e.what() << endl;
+            conlock(cout) << "Command failed: " << e.what() << endl;
         }
         return;
     }
@@ -1576,8 +1565,11 @@ void megaclc()
         {
             Sleep(1);
 
-            static_cast<m::WinConsole*>(console.get())->consolePeek();
-            line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
+            {
+                auto cl = conlock(cout);
+                static_cast<m::WinConsole*>(console.get())->consolePeek();
+                line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
+            }
 
             if (g_signalPresencePeriod > 0 && g_signalPresenceLastSent + g_signalPresencePeriod < time(NULL))
             {
@@ -1631,8 +1623,12 @@ public:
 
         if (loglevel <= m::logWarning)
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << message << endl;
+            auto cl = conlock(cout);
+            cl << message;
+            if (*message && message[strlen(message) - 1] != '\n')
+            {
+                cout << endl;
+            }
         }
     }
 };
@@ -1653,8 +1649,12 @@ struct MegaclcChatChatLogger : public c::MegaChatLogger
 #endif
         if (loglevel <= c::MegaChatApi::LOG_LEVEL_WARNING)
         {
-            std::lock_guard<std::mutex> guard(g_outputMutex);
-            cout << message << endl;
+            auto cl = conlock(cout);
+            cl << message;
+            if (*message && message[strlen(message) - 1] != '\n')
+            {
+                cout << endl;
+            }
         }
     }
 };
@@ -1674,7 +1674,7 @@ int main()
     basePath += "\\MEGAclc";
     std::experimental::filesystem::create_directory(basePath);
 
-    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), (const char*)nullptr));
+    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
     g_chatApi->setLoggerObject(&g_chatLogger);
