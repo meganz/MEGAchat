@@ -1045,7 +1045,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     }
     else
     {
-        SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy and call state is ringing");
+        SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy or call state is ringing");
     }
 
     Promise<void> pms((promise::Empty())); //non-initialized promise
@@ -1089,7 +1089,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         stopIncallPingTimer();
         mLocalPlayer.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & TermCode::kInvalid),
+        FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
         mManager.removeCall(*this);
     });
@@ -1384,7 +1384,7 @@ bool Call::sendCallData(int state)
 uint8_t Call::convertTermCodeToCallDataCode()
 {
     uint8_t codeToChatd;
-    switch (mTermCode & TermCode::kInvalid)
+    switch (mTermCode & ~TermCode::kPeer)
     {
         case kUserHangup:
         {
