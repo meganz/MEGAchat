@@ -41,8 +41,11 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     QMenu menu(this);
     auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
     auto removeAction = menu.addAction(tr("Remove contact"));
+    auto publicChatInviteAction = menu.addAction(tr("Invite to PUBLIC group chat"));
+    connect(publicChatInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePublicGroupChat()));
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
+
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -100,6 +103,35 @@ void ContactItemWidget::onCreateGroupChat()
         peerList = megachat::MegaChatPeerList::createInstance();
         peerList->addPeer(mUserHandle, 2);
         this->mMegaChatApi->createChat(true, peerList);
+   }
+   msgBox.deleteLater();
+}
+
+
+
+void ContactItemWidget::onCreatePublicGroupChat()
+{
+   QMessageBox msgBox;
+   msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new public group chat.");
+   msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+   msgBox.setDefaultButton(QMessageBox::Save);
+   int ret = msgBox.exec();
+
+   if(ret == QMessageBox::Ok)
+   {
+        const char *title = NULL;
+        QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
+        if (!qTitle.isNull())
+        {
+           if (qTitle.length() != 0)
+           {
+              title = qTitle.toStdString().c_str();
+           }
+        }
+        megachat::MegaChatPeerList *peerList;
+        peerList = megachat::MegaChatPeerList::createInstance();
+        peerList->addPeer(mUserHandle, 2);
+        this->mMegaChatApi->createPublicChat(peerList, title);
    }
    msgBox.deleteLater();
 }
