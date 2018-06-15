@@ -337,7 +337,7 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 {
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
     auto wptr = weakHandle();
-    return api.call(&::mega::MegaApi::chatLinkClose, chatid)
+    return api.call(&::mega::MegaApi::chatLinkClose, chatid, nullptr)
     .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
     {
         if (wptr.deleted())
@@ -1397,35 +1397,75 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     crypto->setUsers(&users);
     crypto->createUnifiedKey();
 
-    return crypto->encryptChatTitle(title)
-    .then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& buf)
-     {
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    if (title)
+    {
+        const std::string auxTitle(title);
+        pms = crypto->encryptChatTitle(auxTitle);
+    }
+    else
+    {
+        pms = promise::Promise<std::shared_ptr<Buffer>>();
+        pms.resolve(std::make_shared<Buffer>(512));
+    }
 
-        auto titleB64 = base64urlencode(buf->buf(), buf->dataSize());
+    return pms.then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& buf)
+    {
+        auto buf64 = base64urlencode(buf->buf(), buf->dataSize());
+        const char *titleB64 = buf->dataSize() ? buf64.c_str(): NULL;
+
         ApiPromise createChatPromise;
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
             .then([wptr, this, sdkPeers, titleB64, myhandle](chatd::KeyCommand *kCommand) -> ApiPromise
             {
-                mega::MegaUserKeyMap userKeyMap;
+                mega::MegaStringMap *userKeyMap;
+                userKeyMap = mega::MegaStringMap::createInstance();
+
                 for (int i = 0; i < sdkPeers->size(); i++)
                 {
+                    //Get user B64Handle
                     mega::MegaHandle peerHandle = sdkPeers->getPeerHandle(i);
-                    auto enckey = kCommand->getKeyByUserId(peerHandle);
-                    auto enckeyB64 = base64urlencode(enckey->buf(), enckey->dataSize());
-                    userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(peerHandle, enckeyB64));
+                    char uhB64[12];
+                    mega::Base64::btoa((byte *)&peerHandle, mega::USERHANDLE, uhB64);
+                    uhB64[11] = '\0';
+
+                    //Get creator handle and copy first 8 Bytes to char*
+                    char *creatorHandle = new char[mega::USERHANDLE];
+                    memcpy(creatorHandle, &myhandle, mega::USERHANDLE);
+
+                    //Get user unified key
+                    auto useruk = kCommand->getKeyByUserId(peerHandle);
+
+                    //Append [creatorhandle+uk]
+                    std::string uKey (creatorHandle, mega::USERHANDLE);
+                    uKey.append(useruk->buf(), mega::UNIFIEDKEY);
+
+                    //Convert [creatorhandle+uk] to B64
+                    auto uKeyB64 = base64urlencode(uKey.data(), mega::HANDLEWITHUNIFIEDKEY);
+                    userKeyMap->set(uhB64, uKeyB64.c_str());
+                    delete creatorHandle;
                 }
 
+                //Get own B64Handle
+                char ohB64[12];
+                mega::Base64::btoa((byte *)&myhandle, mega::USERHANDLE, ohB64);
+                ohB64[11] = '\0';
+
+                //Get own unified key
                 auto ownenckey = kCommand->getKeyByUserId(myhandle);
-                auto ownenckeyB64 = base64urlencode(ownenckey->buf(), ownenckey->dataSize());
-                userKeyMap.insert(std::pair<mega::MegaHandle, std::string>(myhandle, ownenckeyB64));
-                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), &userKeyMap, titleB64.c_str());
+
+                //Convert unfiedkey to B64
+                auto okeyB64 = base64urlencode(ownenckey->buf(), mega::UNIFIEDKEY);
+
+                userKeyMap->set(ohB64, okeyB64.c_str());
+                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap, titleB64);
             });
         }
         else
         {
-            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), titleB64.c_str());
+            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), titleB64);
         }
 
         return createChatPromise
