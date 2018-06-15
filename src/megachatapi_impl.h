@@ -590,6 +590,7 @@ public:
     virtual const char *getPeerFullname(unsigned int i) const;
     virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
+    virtual bool isPublic() const;
     virtual const char *getTitle() const;
     virtual bool isActive() const;
 
@@ -617,6 +618,7 @@ private:
     std::vector<std::string> peerLastnames;
     std::vector<std::string> peerEmails;
     bool group;
+    bool mPublicChat;
     bool active;
 
     std::string title;

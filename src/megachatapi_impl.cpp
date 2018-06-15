@@ -4956,6 +4956,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
         peerEmails.push_back(chat->getPeerEmail(i));
     }
     this->group = chat->isGroup();
+    this->mPublicChat = ((GroupChatRoom &)chat).publicChat();
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();
@@ -4969,6 +4970,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->chatid = chat.chatid();
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
+    this->mPublicChat = ((GroupChatRoom &)chat).publicChat();
     this->title = chat.titleString();
     this->unreadCount = chat.chat().unreadMsgCount();
     this->active = chat.isActive();
@@ -5178,6 +5180,11 @@ const char *MegaChatRoomPrivate::getPeerEmail(unsigned int i) const
 bool MegaChatRoomPrivate::isGroup() const
 {
     return group;
+}
+
+bool MegaChatRoomPrivate::isPublic() const
+{
+    return mPublicChat;
 }
 
 const char *MegaChatRoomPrivate::getTitle() const
