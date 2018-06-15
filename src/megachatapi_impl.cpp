@@ -5398,6 +5398,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->title = chatroom.titleString();
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
+    this->mPublicChat = ((GroupChatRoom &)chatroom).publicChat();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->changed = 0;
@@ -5466,6 +5467,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->lastMsgType = item->getLastMessageType();
     this->lastMsgSender = item->getLastMessageSender();
     this->group = item->isGroup();
+    this->mPublicChat = item->isPublic();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
@@ -5540,6 +5542,11 @@ int64_t MegaChatListItemPrivate::getLastTimestamp() const
 bool MegaChatListItemPrivate::isGroup() const
 {
     return group;
+}
+
+bool MegaChatListItemPrivate::isPublic() const
+{
+    return mPublicChat;
 }
 
 bool MegaChatListItemPrivate::isActive() const

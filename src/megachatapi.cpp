@@ -1151,6 +1151,11 @@ bool MegaChatListItem::isGroup() const
     return false;
 }
 
+bool MegaChatListItem::isPublic() const
+{
+    return false;
+}
+
 bool MegaChatListItem::isActive() const
 {
     return false;

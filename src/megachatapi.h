@@ -3553,6 +3553,12 @@ public:
     virtual bool isGroup() const;
 
     /**
+     * @brief Returns whether this chat is a public chat or not
+     * @return True if this chat is a public chat.
+     */
+    virtual bool isPublic() const;
+
+    /**
      * @brief Returns whether the user is member of the chatroom (for groupchats),
      * or the user is contact with the peer (for 1on1 chats).
      *
