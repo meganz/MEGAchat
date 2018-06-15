@@ -28,7 +28,15 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     }
     else
     {
-        ui->mAvatar->setText("G");
+        if(item->isPublic())
+        {
+            ui->mAvatar->setText("P");
+            ui->mAvatar->setStyleSheet("color: #43B63D");
+        }
+        else
+        {
+            ui->mAvatar->setText("G");
+        }
     }
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
