@@ -2046,7 +2046,7 @@ void ChatRoomList::loadFromDb()
             std::string unifiedKey;
             if(auxstmt.step())
             {
-                unifiedKey = auxstmt.stringCol(2);
+                unifiedKey = auxstmt.stringCol(0);
             }
             room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), unifiedKey);
         }
