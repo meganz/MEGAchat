@@ -325,21 +325,26 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
          case MegaChatRequest::TYPE_CREATE_CHATROOM:
              if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
-                std::string title;
                 MegaChatHandle handle = request->getChatHandle();
-                QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
-                if (!qTitle.isNull())
-                {
-                    title = qTitle.toStdString();
-                    if (!title.empty())
-                    {
-                        this->mMegaChatApi->setChatTitle(handle, title.c_str());
-                    }
-                }
-
-                this->mMegaChatApi->setChatTitle(handle, title.c_str());
                 const MegaChatListItem *chatListItem = mMainWin->getLocalChatListItem(handle);
-                mMainWin->addChat(chatListItem);
+
+                if (chatListItem)
+                {
+                    std::string title;
+                    QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
+                    if (!qTitle.isNull())
+                    {
+                        title = qTitle.toStdString();
+                        if (!title.empty())
+                        {
+                            this->mMegaChatApi->setChatTitle(handle, title.c_str());
+                        }
+                    }
+
+                    this->mMegaChatApi->setChatTitle(handle, title.c_str());
+                    const MegaChatListItem *chatListItem = mMainWin->getLocalChatListItem(handle);
+                    mMainWin->addChat(chatListItem);
+                }
              }
              break;
          case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
