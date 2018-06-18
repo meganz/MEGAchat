@@ -2214,7 +2214,7 @@ ChatRoomList::~ChatRoomList()
 //Create chat or receive an invitation
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)
+  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr), mPublicChat(aChat.isPublicChat())
 {
     auto peers = aChat.getPeerList();
     std::vector<promise::Promise<void> > promises;
