@@ -161,14 +161,46 @@ bool Client::openDb(const std::string& sid)
         KR_LOG_WARNING("Can't get local database version");
         return false;
     }
-    std::string ver(gDbSchemaHash);
-    ver.append("_").append(gDbSchemaVersionSuffix);
-    if (stmt.stringCol(0) != ver)
+
+    std::string currentVersion(gDbSchemaHash);
+    currentVersion.append("_").append(gDbSchemaVersionSuffix);    // <hash>_<suffix>
+
+    std::string cachedVersion(stmt.stringCol(0));
+    if (cachedVersion != currentVersion)
+    {
+        ok = false;
+
+        // if only version suffix changed, we may be able to provide backwards compatibility without
+        // forcing a full reload, but just porting/adapting data
+        size_t cachedVersionSuffixPos = cachedVersion.find_last_of('_');
+        if (cachedVersionSuffixPos != std::string::npos)
+        {
+            std::string cachedVersionSuffix = cachedVersion.substr(cachedVersionSuffixPos + 1);
+            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix != cachedVersionSuffix)
+            {
+                KR_LOG_WARNING("Clearing history from cached chats...");
+
+                // clients with version 2 missed the call-history msgs, need to clear cached history
+                // in order to fetch fresh history including the missing management messages
+                db.query("delete from history");
+                db.query("update chat_vars set value = 0 where name = 'have_all_history'");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+
+                KR_LOG_WARNING("Successfully cleared cached history. Database version has been updated to %s", gDbSchemaVersionSuffix);
+
+                ok = true;
+            }
+        }
+    }
+
+    if (!ok)
     {
         db.close();
         KR_LOG_WARNING("Database schema version is not compatible with app version, will rebuild it");
         return false;
     }
+
     mSid = sid;
     return true;
 }
