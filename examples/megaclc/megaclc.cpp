@@ -24,8 +24,11 @@
 // Currently only built under Visual Studio.
 
 #include <iomanip>
-#include <filesystem>
+#ifdef _WIN32
+    #include <filesystem>
+#endif
 #include <fstream>
+#include <mutex>
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -95,7 +98,16 @@ ConsoleLock conlock(std::ostream& o)
 // convert string to handle
 c::MegaChatHandle s_ch(const string& s)
 {
-    return s == "<Null>" ? c::MEGACHAT_INVALID_HANDLE : k::Id(s.c_str(), s.size());
+    bool ret;
+    if (s == "<Null>")
+    {
+        ret = c::MEGACHAT_INVALID_HANDLE;
+    }
+    else
+    {
+        ret = k::Id(s.c_str(), s.size());
+    }
+    return ret;
 }
 
 // convert handle to string
@@ -314,7 +326,7 @@ public:
     {
     }
 
-    void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override;
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override;
 
     virtual void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
     {
