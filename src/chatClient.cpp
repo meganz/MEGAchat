@@ -1919,21 +1919,17 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     dumpChatrooms(*copy);
 #endif
     
-    // this assertion happens on logon if you have a direct chat and you have removed that contact (and in the case seen, you have no contacts left)
-    //assert(mContactsLoaded);
-    if (mContactsLoaded)
+    assert(mContactsLoaded);
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, copy, scsn]()
     {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this, copy, scsn]()
+        if (wptr.deleted())
         {
-            if (wptr.deleted())
-            {
-                return;
-            }
+            return;
+        }
 
-            chats->onChatsUpdate(*copy);
-        }, appCtx);
-    }
+        chats->onChatsUpdate(*copy);
+    }, appCtx);
 }
 
 void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
