@@ -460,10 +460,13 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
     uint16_t refsSize = data8.read<uint16_t>(8);
 
     //convert back to utf8 the binary part, only to determine its utf8 len
-    //size_t binlen8 = convert.to_bytes(&u16[0], &u16[refsSize+10]).size();
+#ifndef _MSC_VER
+    size_t binlen8 = convert.to_bytes(&u16[0], &u16[refsSize+10]).size();
+#else
     std::string result8;
     ::mega::MegaApi::utf16ToUtf8((wchar_t*)u16.data(), u16.size(), &result8);
     size_t binlen8 = result8.size();
+#endif
 
     if (data.dataSize() > binlen8)
         msg.assign(data.buf()+binlen8, data.dataSize()-binlen8);
