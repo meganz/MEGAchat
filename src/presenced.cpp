@@ -1,6 +1,5 @@
 #include "presenced.h"
 #include "chatClient.h"
-#include <mega/utils.h>
 
 using namespace std;
 using namespace promise;
@@ -429,7 +428,6 @@ void Client::logSend(const Command& cmd)
 //only for sent commands
 void Command::toString(char* buf, size_t bufsize) const
 {
-    using namespace mega;
     auto op = opcode();
     switch (op)
     {

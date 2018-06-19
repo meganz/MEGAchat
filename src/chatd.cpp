@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <random>
 #include <regex>
-#include <mega/utils.h>
 
 using namespace std;
 using namespace promise;
@@ -760,7 +759,6 @@ string Command::toString(const StaticBuffer& data)
         }
         case OP_CLIENTID:
         {
-            using namespace mega;
             char tmpbuf[64];
             snprintf(tmpbuf, 63, "0x%" PRIx64, data.read<uint64_t>(1));
             return string("CLIENTID: ")+tmpbuf;
