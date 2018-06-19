@@ -372,6 +372,9 @@ public:
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
 
+    virtual promise::Promise<std::string>
+    decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
+
     virtual void createUnifiedKey();
     virtual void setUnifiedKey(const std::string &key);
     virtual std::string getUnifiedKey();

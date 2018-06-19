@@ -8,12 +8,14 @@
 #include <sys/stat.h>
 #include "signal.h"
 
+#include <mega/megaclient.h>
 using namespace std;
 using namespace mega;
 using namespace megachat;
 
 int main(int argc, char **argv)
 {
+    mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     struct sigaction sa;
     MegaChatApplication app(argc,argv);
     app.readSid();
@@ -355,6 +357,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
+
+    case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
+        if (e->getErrorCode() != MegaChatError::ERROR_OK)
+                QMessageBox::information(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+            else
+                QMessageBox::information(nullptr, tr("Export chat link"), tr("The chat link is").append(request->getLink()));
+        break;
 
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:

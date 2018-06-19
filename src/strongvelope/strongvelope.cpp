@@ -672,6 +672,18 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
     }
 }
 
+promise::Promise<std::string>
+ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver)
+{
+    auto wptr = weakHandle();
+    return decryptKey(key, sender, receiver)
+    .then([this, wptr](const std::shared_ptr<SendKey>& key)
+    {
+        wptr.throwIfDeleted();
+        return key->toString();
+    });
+}
+
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver)
 {

@@ -137,6 +137,9 @@ public:
     virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
 
+    virtual promise::Promise<std::string>
+    decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) = 0;
+
     virtual void
     createUnifiedKey() = 0;
 
