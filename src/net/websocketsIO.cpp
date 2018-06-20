@@ -179,7 +179,7 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
-bool DNScache::set(std::string &url, std::string &ipv4, std::string &ipv6)
+bool DNScache::set(const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
     auto it = mRecords.find(url);
     bool exists = (it != mRecords.end());
@@ -201,12 +201,12 @@ bool DNScache::set(std::string &url, std::string &ipv4, std::string &ipv6)
     return match;
 }
 
-void DNScache::clear(std::string &url)
+void DNScache::clear(const std::string &url)
 {
     mRecords.erase(url);
 }
 
-bool DNScache::get(std::string &url, std::string &ipv4, std::string &ipv6)
+bool DNScache::get(const std::string &url, std::string &ipv4, std::string &ipv6)
 {
     auto it = mRecords.find(url);
     if (it == mRecords.end())
@@ -220,7 +220,7 @@ bool DNScache::get(std::string &url, std::string &ipv4, std::string &ipv6)
     return true;
 }
 
-void DNScache::connectDone(std::string &url, std::string &ip)
+void DNScache::connectDone(const std::string &url, const std::string &ip)
 {
     auto it = mRecords.find(url);
     if (it != mRecords.end())
@@ -236,7 +236,7 @@ void DNScache::connectDone(std::string &url, std::string &ip)
     }
 }
 
-time_t DNScache::age(std::string &url)
+time_t DNScache::age(const std::string &url)
 {
     auto it = mRecords.find(url);
     if (it != mRecords.end())

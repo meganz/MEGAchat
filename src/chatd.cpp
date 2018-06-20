@@ -491,26 +491,38 @@ Promise<void> Connection::reconnect()
                     return;
                 }
 
-                if (statusDNS < 0)
+                if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                   CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d", statusDNS);
-                   string errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
-                   if (!mConnectPromise.done())
-                   {
-                       mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                   }
-                   if (!mLoginPromise.done())
-                   {
-                       mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                   }
-                   return;
+                    string errStr;
+                    if (statusDNS < 0)
+                    {
+                        CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
+                        errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
+                    }
+                    else
+                    {
+                        CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
+                        errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
+                    }
+
+                    if (!mConnectPromise.done())
+                    {
+                        mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                    }
+                    if (!mLoginPromise.done())
+                    {
+                        mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                    }
+                    return;
                 }
 
                 if (!cachedIPs) // connect required DNS lookup
                 {
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
 
-                    mDNScache.set(mUrl.host, ipsv4.at(0), ipsv6.at(0));
+                    mDNScache.set(mUrl.host,
+                                  ipsv4.size() ? ipsv4.at(0) : "",
+                                  ipsv6.size() ? ipsv6.at(0) : "");
                     doConnect();
                     return;
                 }
@@ -527,7 +539,9 @@ Promise<void> Connection::reconnect()
                 else
                 {
                     // update DNS cache
-                    bool ret = mDNScache.set(mUrl.host, ipv4, ipv6);
+                    bool ret = mDNScache.set(mUrl.host,
+                                  ipsv4.size() ? ipsv4.at(0) : "",
+                                  ipsv6.size() ? ipsv6.at(0) : "");
                     assert(!ret);
 
                     CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
@@ -538,7 +552,7 @@ Promise<void> Connection::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                CHATDS_LOG_DEBUG("Sync DNS error in chatd. Error code: %d", statusDNS);
+                CHATDS_LOG_ERROR("Sync DNS error in chatd. Error code: %d", statusDNS);
                 string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
                 if (!mConnectPromise.done())
                 {

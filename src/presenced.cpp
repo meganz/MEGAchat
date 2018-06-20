@@ -231,10 +231,12 @@ Client::reconnect(const std::string& url)
                     return;
                 }
 
-                if (statusDNS < 0)
+                if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                    PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", statusDNS);
-                    string errStr = "Async DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                    string errStr = (statusDNS < 0)
+                            ? "Async DNS error in presenced. Error code: "+std::to_string(statusDNS)
+                            : "Async DNS in presenced result on empty set of IPs";
+                    PRESENCED_LOG_ERROR("%s", errStr.c_str());
                     if (!mConnectPromise.done())
                     {
                         mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
@@ -250,7 +252,9 @@ Client::reconnect(const std::string& url)
                 {
                     PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
 
-                    mDNScache.set(mUrl.host, ipsv4.at(0), ipsv6.at(0));
+                    mDNScache.set(mUrl.host,
+                                  ipsv4.size() ? ipsv4.at(0) : "",
+                                  ipsv6.size() ? ipsv6.at(0) : "");
                     doConnect();
                     return;
                 }
@@ -268,7 +272,9 @@ Client::reconnect(const std::string& url)
                 else
                 {
                     // update DNS cache
-                    bool ret = mDNScache.set(mUrl.host, ipv4, ipv6);
+                    bool ret = mDNScache.set(mUrl.host,
+                                             ipsv4.size() ? ipsv4.at(0) : "",
+                                             ipsv6.size() ? ipsv6.at(0) : "");
                     assert(!ret);
 
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
@@ -279,8 +285,8 @@ Client::reconnect(const std::string& url)
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                PRESENCED_LOG_ERROR("Sync DNS error in presenced. Error code: %d", statusDNS);
-                string errStr = "Sync DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                string errStr = "Async DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                PRESENCED_LOG_ERROR("%s", errStr.c_str());
                 if (!mConnectPromise.done())
                 {
                     mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);

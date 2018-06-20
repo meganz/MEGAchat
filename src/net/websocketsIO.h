@@ -21,11 +21,11 @@ class DNScache
 {
 public:
     DNScache() {}
-    bool set(std::string &url, std::string &ipv4, std::string &ipv6);   // true if changed
-    void clear(std::string &url);
-    bool get(std::string &url, std::string &ipv4, std::string &ipv6);
-    void connectDone(std::string &url, std::string &ip);
-    time_t age(std::string &url);
+    bool set(const std::string &url, const std::string &ipv4, const std::string &ipv6);   // true if changed
+    void clear(const std::string &url);
+    bool get(const std::string &url, std::string &ipv4, std::string &ipv6);
+    void connectDone(const std::string &url, const std::string &ip);
+    time_t age(const std::string &url);
 
 private:
     struct DNSrecord
