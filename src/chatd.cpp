@@ -2512,7 +2512,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     // set final keyid
     assert(mCrypto->currentKeyId() != CHATD_KEYID_INVALID);
     assert(mCrypto->currentKeyId() != CHATD_KEYID_UNCONFIRMED);
-    msg->keyid = mCrypto->currentKeyId();
+    assert(msg->keyid == mCrypto->currentKeyId());
 
     // add message to history
     push_forward(msg);
@@ -2575,12 +2575,20 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
     }
+
     if (mSending.empty())
     {
         CHATID_LOG_ERROR("keyConfirm: Sending queue is empty");
         return;
     }
+
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+
+    for (auto it = mSending.begin(); it != mSending.end(); it++)
+    {
+        it->msg->keyid = keyid;
+        CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
+    }
 }
 
 void Chat::onKeyReject()
@@ -2701,8 +2709,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                assert(mClient.chats(mChatId).isGroup());
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(cipherMsg->id()));
+                assert(mClient.chats(mChatId).isGroup());
+                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 cipherMsg->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
@@ -3163,8 +3172,9 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                assert(mClient.chats(mChatId).isGroup());
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
+                assert(mClient.chats(mChatId).isGroup());
+                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 message->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
