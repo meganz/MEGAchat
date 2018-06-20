@@ -98,7 +98,7 @@ ConsoleLock conlock(std::ostream& o)
 // convert string to handle
 c::MegaChatHandle s_ch(const string& s)
 {
-    bool ret;
+    c::MegaChatHandle ret;
     if (s == "<Null>")
     {
         ret = c::MEGACHAT_INVALID_HANDLE;

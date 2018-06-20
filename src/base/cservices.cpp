@@ -7,7 +7,7 @@
 #include "cservices-thread.h"
 
 #if defined(_WIN32) && defined(_MSC_VER)
-#include <time.h>
+#include <sys/timeb.h>  
 #else
 #include <sys/time.h>
 #endif
@@ -171,6 +171,10 @@ int64_t services_get_time_ms()
     struct timeval tv;
 #ifndef USE_LIBWEBSOCKETS
     evutil_gettimeofday(&tv, nullptr);
+#elif defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
 #else
     gettimeofday(&tv, nullptr);
 #endif
