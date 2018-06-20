@@ -346,7 +346,7 @@ public:
     virtual void randomBytes(void* buf, size_t bufsize) const;
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
-    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
+//    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
     virtual void onHistoryReload();
     //====
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage

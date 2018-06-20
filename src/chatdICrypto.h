@@ -122,7 +122,7 @@ public:
      */
     virtual void resetSendKey() = 0;
 
-    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const = 0;
+//    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const = 0;
 
     /** @brief Extract keys from legacy messages.
      * Must be called for every received message, even if decryption of a previous

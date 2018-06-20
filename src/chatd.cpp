@@ -2711,7 +2711,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(cipherMsg->id()));
                 assert(mClient.chats(mChatId).isGroup());
-                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
+                assert(cipherMsg->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 cipherMsg->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
@@ -3477,12 +3477,12 @@ void Chat::onJoinComplete()
     }
     mUserDump.clear();
     mEncryptionHalted = false;
-    auto unconfirmedKeyCmd = mCrypto->unconfirmedKeyCmd();
-    if (unconfirmedKeyCmd)
-    {
-        CHATID_LOG_DEBUG("Re-sending unconfirmed key");
-        sendCommand(*unconfirmedKeyCmd);
-    }
+//    auto unconfirmedKeyCmd = mCrypto->unconfirmedKeyCmd();
+//    if (unconfirmedKeyCmd)
+//    {
+//        CHATID_LOG_DEBUG("Re-sending unconfirmed key");
+//        sendCommand(*unconfirmedKeyCmd);
+//    }
 
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
