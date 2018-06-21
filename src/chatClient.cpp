@@ -1409,68 +1409,76 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         pms.resolve(std::make_shared<Buffer>(512));
     }
 
-    return pms.then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& buf)
+    return pms.then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
     {
-        auto buf64 = base64urlencode(buf->buf(), buf->dataSize());
-        const char *titleB64 = buf->dataSize() ? buf64.c_str(): NULL;
-        //Get creator handle and copy first 8 Bytes to char*
-        char *creatorHandle = new char[mega::USERHANDLE];
-        memcpy(creatorHandle, &myhandle, mega::USERHANDLE);
-
+        auto auxbuf = base64urlencode(encTitle->buf(), encTitle->dataSize());
+        const char *enctitleB64 = encTitle->dataSize() ? auxbuf.c_str(): NULL;
         ApiPromise createChatPromise;
+
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, sdkPeers, titleB64, myhandle, creatorHandle](chatd::KeyCommand *kCommand) -> ApiPromise
+            .then([wptr, this, sdkPeers, enctitleB64](chatd::KeyCommand *kCommand) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
 
                 for (int i = 0; i < sdkPeers->size(); i++)
                 {
-                    //Get user B64Handle
+                    //Get peer Handle in B64
                     mega::MegaHandle peerHandle = sdkPeers->getPeerHandle(i);
                     char uhB64[12];
                     mega::Base64::btoa((byte *)&peerHandle, mega::USERHANDLE, uhB64);
                     uhB64[11] = '\0';
 
-                    //Get user unified key
+                    //Get peer unified key
                     auto useruk = kCommand->getKeyByUserId(peerHandle);
 
-                    //Append [creatorhandle+uk]
-                    std::string uKey (creatorHandle, mega::USERHANDLE);
-                    uKey.append(useruk->buf(), mega::UNIFIEDKEY);
+                    //Get creator handle in binary
+                    uint64_t auxcreatorHandle = this->myHandle().val;
+                    char *auxcreatorHandleBin = new char[mega::USERHANDLE];
+                    memcpy(auxcreatorHandleBin, &(auxcreatorHandle), mega::USERHANDLE);
 
-                    //Convert [creatorhandle+uk] to B64
-                    auto uKeyB64 = base64urlencode(uKey.data(), mega::HANDLEWITHUNIFIEDKEY);
+                    //Append [creatorhandle+uk]
+                    std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
+                    uKeyBin.append(useruk->buf(), mega::UNIFIEDKEY);
+
+                    //Encode [creatorhandle+uk] to B64
+                    std::string uKeyB64;
+                    mega::Base64::btoa(uKeyBin, uKeyB64);
+
+                    //Add entry to map
                     userKeyMap->set(uhB64, uKeyB64.c_str());
-                    delete creatorHandle;
+                    delete auxcreatorHandleBin;
                 }
 
-                //Get own B64Handle
+                //Get own Handle in B64
+                uint64_t creatorHandle = this->myHandle().val;
                 char ohB64[12];
-                mega::Base64::btoa((byte *)&myhandle, mega::USERHANDLE, ohB64);
+                mega::Base64::btoa((byte *)&creatorHandle, mega::USERHANDLE, ohB64);
                 ohB64[11] = '\0';
 
                 //Get own unified key
-                auto ownenckey = kCommand->getKeyByUserId(myhandle);
-                std::string auxauxaux(ownenckey->buf());
-                auto auxauxKeyB64 = base64urlencode(auxauxaux.data(), mega::UNIFIEDKEY);
-                std::cout<<"\nClave antes envio"<<auxauxKeyB64.c_str()<<"\n";
+                auto ownKey = kCommand->getKeyByUserId(myHandle());
 
                 //Append [creatorhandle+uk]
-                std::string okey (creatorHandle, mega::USERHANDLE);
-                okey.append(ownenckey->buf(), mega::UNIFIEDKEY);
+                char *creatorHandleBin = new char[mega::USERHANDLE];
+                memcpy(creatorHandleBin, &(creatorHandle), mega::USERHANDLE);
+                std::string okeyBin (creatorHandleBin, mega::USERHANDLE);
+                okeyBin.append(ownKey->buf(), mega::UNIFIEDKEY);
 
-                //Convert [creatorhandle+uk] to B64
-                auto oKeyB64 = base64urlencode(okey.data(), mega::HANDLEWITHUNIFIEDKEY);
+                //Encode [creatorhandle+uk] to B64
+                std::string oKeyB64;
+                mega::Base64::btoa(okeyBin, oKeyB64);
+
+                //Add entry to map
                 userKeyMap->set(ohB64, oKeyB64.c_str());
-                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap, titleB64);
+                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap, enctitleB64);
             });
         }
         else
         {
-            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), titleB64);
+            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), enctitleB64);
         }
 
         return createChatPromise
@@ -2051,7 +2059,7 @@ void ChatRoomList::loadFromDb()
             std::string unifiedKey;
             if(auxstmt.step())
             {
-                unifiedKey = auxstmt.stringCol(0);
+                mega::Base64::atob(auxstmt.stringCol(0), unifiedKey);
             }
             room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), unifiedKey);
         }
@@ -2272,36 +2280,48 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     if (mPublicChat)
     {
         //Get B64 unified key
-        std::string auxKey(aChat.getUnifiedKey());
-        //Get unified key in binary format
-        char decodedKey[mega::HANDLEWITHUNIFIEDKEY] = {0};
+        std::string recvKey(aChat.getUnifiedKey());
         try
         {
-            //Convert to binary
-            size_t decLen = base64urldecode(auxKey.data(), auxKey.size(), decodedKey, mega::HANDLEWITHUNIFIEDKEY);
-            if (decLen >0)
+            //Convert received key from B64 to Bin
+            char* recvKeyBin = new char[mega::HANDLEWITHUNIFIEDKEY];
+            int len = mega::Base64::atob(recvKey.data(), (byte *) recvKeyBin, mega::HANDLEWITHUNIFIEDKEY);
+            if (len == mega::HANDLEWITHUNIFIEDKEY)
             {
-                //Parse invitor handle
-                mega::handle invitorHandle;
-                memcpy(&invitorHandle, decodedKey, mega::USERHANDLE);
+                //Parse invitor handle (First 8 Bytes)
+                uint64_t invitorHandle;
+                memcpy(&invitorHandle, recvKeyBin, mega::USERHANDLE);
 
-                //Parse and decrypt unified key
-                char unifiedKey [mega::UNIFIEDKEY] = {0};
-                memcpy(unifiedKey, &decodedKey[mega::USERHANDLE], mega::UNIFIEDKEY);
-                auto buf = std::make_shared<Buffer>(16);
-                buf->assign(unifiedKey, 16);
-
+                //Parse unified key (Last 16 Bytes)
+                char unifiedKey [mega::UNIFIEDKEY+1] = {0};
+                memcpy(unifiedKey, &recvKeyBin[mega::USERHANDLE], mega::UNIFIEDKEY);
+                auto bufuk = std::make_shared<Buffer>(mega::UNIFIEDKEY);
+                bufuk->assign(unifiedKey, mega::UNIFIEDKEY);
                 auto wptr = getDelTracker();
-                chat().crypto()->decryptUnifiedKey(buf, invitorHandle, invitorHandle)
-                .then([this, wptr](std::string result)
+
+                //Decrypt unified key
+                chat().crypto()->decryptUnifiedKey(bufuk, invitorHandle, invitorHandle)
+                .then([this, wptr, invitorHandle](std::string result)
                 {
                    if (wptr.deleted())
                         return;
 
+                   std::string unifiedkey_b64;
+                   mega::Base64::btoa(result, unifiedkey_b64);
+
+                   //Save in Base64 or Maybe encrypted with invitor id
                    this->parent.client.db.query(
                        "insert or replace into chat_vars(chatid, name, value)"
                        " values(?,'unified_key',?)",
-                       this->mChatid, result.c_str());
+                       this->mChatid, unifiedkey_b64.c_str());
+                })
+                .fail([wptr, this](const promise::Error& err)
+                {
+                    if (wptr.deleted())
+                         return;
+
+                    KR_LOG_ERROR("Error decrypting unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+                    this->mChat->disable(true);
                 });
             }
             else
