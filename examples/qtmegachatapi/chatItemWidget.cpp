@@ -386,6 +386,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTruncate = menu.addAction(tr("Truncate chat"));
     actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
+
+    if (mMainWin->getLocalChatListItem(mChatId)->isPublic())
+    {
+        auto actExportLink = menu.addAction(tr("Export chat link"));
+        connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
+    }
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -393,6 +399,14 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 void ChatItemWidget::truncateChat()
 {
     this->mMegaChatApi->clearChatHistory(mChatId);
+}
+
+void ChatItemWidget::exportChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->exportChatLink(mChatId);
+    }
 }
 
 void ChatItemWidget::setTitle()
