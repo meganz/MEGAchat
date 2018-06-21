@@ -259,13 +259,7 @@ Client::reconnect(const std::string& url)
                     return;
                 }
 
-
-                string ipv4, ipv6;
-                mDNScache.get(mUrl.host, ipv4, ipv6);
-                bool match = ((std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())
-                        && (std::find(ipsv6.begin(), ipsv6.end(), ipv6) != ipsv6.end()));
-
-                if (match)
+                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
                 {
                     PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }

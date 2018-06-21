@@ -181,14 +181,7 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
 
 bool DNScache::set(const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
-    auto it = mRecords.find(url);
-    bool exists = (it != mRecords.end());
-
-    bool match = (exists
-                  && (ipv4 == it->second.ipv4)
-                  && (ipv6 == it->second.ipv6));
-
-    if (!match)
+    if (!isMatch(url, ipv4, ipv6))
     {
         DNSrecord record;
         record.ipv4 = ipv4;
@@ -196,9 +189,11 @@ bool DNScache::set(const std::string &url, const std::string &ipv4, const std::s
         record.resolveTs = time(NULL);
 
         mRecords[url] = record;
+
+        return true;
     }
 
-    return match;
+    return false;
 }
 
 void DNScache::clear(const std::string &url)
@@ -245,4 +240,36 @@ time_t DNScache::age(const std::string &url)
     }
 
     return 0;
+}
+
+bool DNScache::isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    bool match = false;
+
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        std::string ipv4 = it->second.ipv4;
+        std::string ipv6 = it->second.ipv6;
+
+        match = ( ((ipv4.empty() && ipsv4.empty()) // don't have IPv4, but it wasn't received either
+                   || (std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())) // IPv4 is contained in `ipsv4`
+                  && ((ipv6.empty() && ipsv6.empty())
+                      || std::find(ipsv6.begin(), ipsv6.end(), ipv6) != ipsv6.end()));
+    }
+
+    return match;
+}
+
+bool DNScache::isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6)
+{
+    bool match = false;
+
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        match = (it->second.ipv4 == ipv4) && (it->second.ipv6 == ipv6);
+    }
+
+    return match;
 }
