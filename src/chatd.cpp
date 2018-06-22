@@ -1430,15 +1430,24 @@ void Connection::execCommand(const StaticBuffer& buf)
 
 void Chat::onNewKeys(StaticBuffer&& keybuf)
 {
-    uint16_t keylen = 0;
-    for(size_t pos = 0; pos < keybuf.dataSize(); pos+=(14+keylen))
+    size_t pos = 0;
+    while (pos < keybuf.dataSize())
     {
         Id userid(keybuf.read<uint64_t>(pos));
-        uint32_t keyid = keybuf.read<uint32_t>(pos+8);
-        keylen = keybuf.read<uint16_t>(pos+12);
-        CHATID_LOG_DEBUG(" sending key %d with length %zu to crypto module", keyid, keybuf.dataSize());
-        mCrypto->onKeyReceived(keyid, userid, mClient.userId(),
-            keybuf.readPtr(pos+14, keylen), keylen);
+        pos += 8;
+
+        uint32_t keyid = keybuf.read<uint32_t>(pos);
+        pos += 4;
+
+        uint16_t keylen = keybuf.read<uint16_t>(pos);
+        pos += 2;
+
+        const char *key = keybuf.readPtr(pos, keylen);
+        pos += keylen;
+
+        CHATID_LOG_DEBUG(" sending key %d for user %s with length %zu to crypto module",
+                         keyid, userid.toString().c_str(), keybuf.dataSize());
+        mCrypto->onKeyReceived(keyid, userid, mClient.userId(), key, keylen);
     }
 }
 
