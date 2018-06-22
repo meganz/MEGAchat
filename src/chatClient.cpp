@@ -2064,7 +2064,13 @@ void ChatRoomList::loadFromDb()
         {
             SqliteStmt auxstmt(client.db, "select value from chat_vars where chatid=? and name ='unified_key'");
             auxstmt << chatid;
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), auxstmt.stringCol(0));
+
+            std::string unifiedKey;
+            if(auxstmt.step())
+            {
+                unifiedKey.assign(auxstmt.stringCol(0));
+            }
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), unifiedKey);
         }
         emplace(chatid, room);
     }
