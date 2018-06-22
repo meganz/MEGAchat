@@ -347,12 +347,14 @@ public:
          };
 
 protected:
-    bool usingipv6 = false;
     Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
     karere::Url mUrl;
+    bool usingipv6 = false; // ip version to try first (both are tried)
+    std::string mTargetIp;
+    DNScache &mDNScache;
     bool mHeartbeatEnabled = false;
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
@@ -373,6 +375,7 @@ protected:
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void disconnect();
+    void doConnect();
     void notifyLoggedIn();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
