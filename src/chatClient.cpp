@@ -1695,7 +1695,15 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     mPublicChat = !unifiedKey.empty();
     if (mPublicChat)
     {
-        chat().crypto()->setUnifiedKey(unifiedKey);
+        if(unifiedKey.size() == mega::UNIFIEDKEY)
+        {
+            chat().crypto()->setUnifiedKey(unifiedKey);
+        }
+        else
+        {
+            KR_LOG_ERROR("Error with unifiedKey format for chat %s:\n.", Id(this->mChatid).toString().c_str());
+            this->mChat->disable(true);
+        }
     }
 
     mRoomGui = addAppItem();
@@ -2056,12 +2064,7 @@ void ChatRoomList::loadFromDb()
         {
             SqliteStmt auxstmt(client.db, "select value from chat_vars where chatid=? and name ='unified_key'");
             auxstmt << chatid;
-            std::string unifiedKey;
-            if(auxstmt.step())
-            {
-                mega::Base64::atob(auxstmt.stringCol(0), unifiedKey);
-            }
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), unifiedKey);
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6), auxstmt.stringCol(0));
         }
         emplace(chatid, room);
     }
