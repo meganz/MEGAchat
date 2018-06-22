@@ -1698,6 +1698,7 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
         if(unifiedKey.size() == mega::UNIFIEDKEY)
         {
             chat().crypto()->setUnifiedKey(unifiedKey);
+            chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
         }
         else
         {
