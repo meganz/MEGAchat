@@ -4956,7 +4956,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
         peerEmails.push_back(chat->getPeerEmail(i));
     }
     this->group = chat->isGroup();
-    this->mPublicChat = ((GroupChatRoom &)chat).publicChat();
+    this->mPublicChat = chat->isPublic();
     this->title = chat->getTitle();
     this->unreadCount = chat->getUnreadCount();
     this->active = chat->isActive();

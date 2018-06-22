@@ -3784,6 +3784,12 @@ public:
     virtual bool isGroup() const;
 
     /**
+     * @brief Returns whether this chat is a public chat or not
+     * @return True if this chat is a public chat.
+     */
+    virtual bool isPublic() const;
+
+    /**
      * @brief getTitle Returns the title of the chat, if any.
      *
      * @return The title of the chat as a null-terminated char array.

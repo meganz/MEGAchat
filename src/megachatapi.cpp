@@ -980,6 +980,11 @@ bool MegaChatRoom::isGroup() const
     return false;
 }
 
+bool MegaChatRoom::isPublic() const
+{
+    return false;
+}
+
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;
