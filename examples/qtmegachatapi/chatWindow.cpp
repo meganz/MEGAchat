@@ -40,6 +40,11 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
         ui->mVideoCallBtn->hide();
     #endif
 
+    if (mChatRoom->isPublic())
+    {
+        this->ui->mTitlebar->setStyleSheet("background-color:#c4f2c9");
+    }
+
     if (!mChatRoom->isGroup())
         ui->mMembersBtn->hide();
     else
