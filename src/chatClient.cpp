@@ -2289,60 +2289,68 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     if (mPublicChat)
     {
         //Get B64 unified key
-        std::string recvKey(aChat.getUnifiedKey());
-        try
+        if(aChat.getUnifiedKey())
         {
-            //Convert received key from B64 to Bin
-            char* recvKeyBin = new char[mega::HANDLEWITHUNIFIEDKEY];
-            int len = mega::Base64::atob(recvKey.data(), (byte *) recvKeyBin, mega::HANDLEWITHUNIFIEDKEY);
-            if (len == mega::HANDLEWITHUNIFIEDKEY)
+            std::string recvKey(aChat.getUnifiedKey());
+            try
             {
-                //Parse invitor handle (First 8 Bytes)
-                uint64_t invitorHandle;
-                memcpy(&invitorHandle, recvKeyBin, mega::USERHANDLE);
-
-                //Parse unified key (Last 16 Bytes)
-                char unifiedKey [mega::UNIFIEDKEY+1] = {0};
-                memcpy(unifiedKey, &recvKeyBin[mega::USERHANDLE], mega::UNIFIEDKEY);
-                auto bufuk = std::make_shared<Buffer>(mega::UNIFIEDKEY);
-                bufuk->assign(unifiedKey, mega::UNIFIEDKEY);
-                auto wptr = getDelTracker();
-
-                //Decrypt unified key
-                chat().crypto()->decryptUnifiedKey(bufuk, invitorHandle, invitorHandle)
-                .then([this, wptr, invitorHandle](std::string result)
+                //Convert received key from B64 to Bin
+                char *recvKeyBin = new char[mega::HANDLEWITHUNIFIEDKEY];
+                int len = mega::Base64::atob(recvKey.data(), (byte *) recvKeyBin, mega::HANDLEWITHUNIFIEDKEY);
+                if (len == mega::HANDLEWITHUNIFIEDKEY)
                 {
-                   if (wptr.deleted())
-                        return;
+                    //Parse invitor handle (First 8 Bytes)
+                    uint64_t invitorHandle;
+                    memcpy(&invitorHandle, recvKeyBin, mega::USERHANDLE);
 
-                   std::string unifiedkey_b64;
-                   mega::Base64::btoa(result, unifiedkey_b64);
+                    //Parse unified key (Last 16 Bytes)
+                    char unifiedKey [mega::UNIFIEDKEY+1] = {0};
+                    memcpy(unifiedKey, &recvKeyBin[mega::USERHANDLE], mega::UNIFIEDKEY);
+                    auto bufuk = std::make_shared<Buffer>(mega::UNIFIEDKEY);
+                    bufuk->assign(unifiedKey, mega::UNIFIEDKEY);
+                    auto wptr = getDelTracker();
 
-                   //Save in Base64 or Maybe encrypted with invitor id
-                   this->parent.client.db.query(
-                       "insert or replace into chat_vars(chatid, name, value)"
-                       " values(?,'unified_key',?)",
-                       this->mChatid, unifiedkey_b64.c_str());
-                })
-                .fail([wptr, this](const promise::Error& err)
+                    //Decrypt unified key
+                    std::cout<<"The size of the unifiedkey before decrypt in ddbb is:"<<bufuk->size();
+                    chat().crypto()->decryptUnifiedKey(bufuk, invitorHandle, invitorHandle)
+                    .then([this, wptr, invitorHandle](std::string result)
+                    {
+                       if (wptr.deleted())
+                            return;
+
+                       // Save Unified key decrypted
+                       this->parent.client.db.query(
+                           "insert or replace into chat_vars(chatid, name, value)"
+                           " values(?,'unified_key',?)",
+                           this->mChatid, result.c_str());
+                    })
+                    .fail([wptr, this](const promise::Error& err)
+                    {
+                        if (wptr.deleted())
+                             return;
+
+                        KR_LOG_ERROR("Error decrypting unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+                        this->mChat->disable(true);
+                    });
+                }
+                else
                 {
-                    if (wptr.deleted())
-                         return;
-
-                    KR_LOG_ERROR("Error decrypting unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+                    KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
                     this->mChat->disable(true);
-                });
+                }
             }
-            else
+            catch(std::exception& e)
             {
-                KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+                std::string err("Error base64-decoding chat title: ");
+                KR_LOG_ERROR("%s", err.c_str());
                 this->mChat->disable(true);
             }
         }
-        catch(std::exception& e)
+        else
         {
             std::string err("Error base64-decoding chat title: ");
             KR_LOG_ERROR("%s", err.c_str());
+            this->mChat->disable(true);
         }
     }
 
