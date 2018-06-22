@@ -680,7 +680,8 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
     .then([this, wptr](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
-        return key->toString();
+        std::string keybuff(key->buf(), 16);
+        return keybuff;
     });
 }
 
