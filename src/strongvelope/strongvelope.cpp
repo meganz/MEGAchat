@@ -770,6 +770,8 @@ void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
     output.setDataSize(actualLen);
 }
 
+
+//If publicchat encrypt with unifiedkey
 promise::Promise<std::pair<MsgCommand*, KeyCommand*>>
 ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
 {
@@ -777,7 +779,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
     if ((msg->keyid == CHATD_KEYID_INVALID)
      || (msg->keyid == CHATD_KEYID_UNCONFIRMED)) //we have to use the current send key
     {
-        if (!mCurrentKey || mParticipantsChanged) // create a new key and prepare the KeyCommand
+        if (!mCurrentKey || mParticipantsChanged || mChatMode == CHAT_MODE_PUBLIC) // create a new key and prepare the KeyCommand
         {
             auto wptr = weakHandle();
             return updateSenderKey()
@@ -1195,19 +1197,35 @@ void ProtocolHandler::onKeyRejected()
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::updateSenderKey()
 {
+    // Assemble the output for all recipients.
+    std::shared_ptr<SendKey> *key;
+    size_t auxSize;
+    char* auxBuf;
     mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
     mUnconfirmedKeyCmd.reset();
-    mCurrentKey.reset(new SendKey);
-    mCurrentKey->setDataSize(AES::BLOCKSIZE);
-    randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
     mParticipantsChanged = false;
 
-    // Assemble the output for all recipients.
-    return encryptKeyToAllParticipants(mCurrentKey)
-    .then([this](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
+    if (mChatMode == CHAT_MODE_PUBLIC)
+    {
+        key = &mUnifiedKey;
+        auxSize = mUnifiedKey->dataSize();
+        auxBuf = mUnifiedKey->buf();
+    }
+    else
+    {
+        mCurrentKey.reset(new SendKey);
+        mCurrentKey->setDataSize(AES::BLOCKSIZE);
+        randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
+        key = &mCurrentKey;
+        auxSize = mCurrentKey->dataSize();
+        auxBuf = mCurrentKey->buf();
+    }
+
+    return encryptKeyToAllParticipants(*key)
+    .then([this, auxBuf, auxSize](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
     {
         if (mCurrentKeyId == CHATD_KEYID_UNCONFIRMED &&
-            memcmp(mCurrentKey->buf(), result.second->buf(), mCurrentKey->dataSize()) == 0)
+            memcmp(auxBuf, result.second->buf(), auxSize) == 0)
         {
             mUnconfirmedKeyCmd.reset(result.first);
         }
