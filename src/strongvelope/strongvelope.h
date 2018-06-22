@@ -218,18 +218,21 @@ struct EncryptedMessage
     EncryptedMessage(const chatd::Message& msg, const StaticBuffer& aKey);
 };
 
+/**
+ * @brief The UserKeyId struct is used to identify keys used for encrypted messages.
+ * For each chat, every user has its own set of keyids that used to send messages.
+ */
 struct UserKeyId
 {
     karere::Id user;
-    uint64_t key;
-    explicit UserKeyId(karere::Id aUser, uint64_t aKey): user(aUser), key(aKey){}
+    uint64_t keyid;
+    explicit UserKeyId(karere::Id aUser, uint64_t aKeyid): user(aUser), keyid(aKeyid){}
     bool operator<(UserKeyId other) const
     {
-
         if (user != other.user)
             return user < other.user;
         else
-            return key < other.key;
+            return keyid < other.keyid;
     }
 };
 
@@ -237,22 +240,20 @@ class TlvWriter;
 extern const std::string SVCRYPTO_PAIRWISE_KEY;
 void deriveSharedKey(const StaticBuffer& sharedSecret, SendKey& output, const std::string& padString=SVCRYPTO_PAIRWISE_KEY);
 
+/**
+ * @brief The ProtocolHandler class implements ICrypto.
+ * @see chatd::ICrypto for more details.
+ */
 class ProtocolHandler: public chatd::ICrypto, public karere::DeleteTrackable
 {
 protected:
-    karere::Id mOwnHandle;
-    EcKey myPrivCu25519;
-    EcKey myPrivEd25519;
-    EcKey myPubEd25519;
-    Key<768> myPrivRsaKey;
-    karere::UserAttrCache& mUserAttrCache;
-    uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
-    SqliteDb& mDb;
-    std::shared_ptr<SendKey> mCurrentKey;
-    // When we generate a new key, it may not get sent successfully if the connection
-    // gets broken. So we need to send it again upon re-login, until it gets confirmed.
-    std::shared_ptr<chatd::KeyCommand> mUnconfirmedKeyCmd;
-    bool mForceRsa = false;
+    /**
+     * @brief The KeyEntry struct represents a Key in the map of keys (mKeys)
+     * If the key is still encrypted (because the required public key has to be
+     * fetched from API), then a promise will be attached to this KeyEntry.key
+     * Such promise will be resolved once the key is successfully decrypted.
+     * If decryption fails, then the promise will be rejected.
+     */
     struct KeyEntry
     {
         std::shared_ptr<SendKey> key;
@@ -260,6 +261,25 @@ protected:
         KeyEntry(){}
         KeyEntry(const std::shared_ptr<SendKey>& aKey): key(aKey){}
     };
+
+    // own keys
+    karere::Id mOwnHandle;
+    EcKey myPrivCu25519;
+    EcKey myPrivEd25519;
+    EcKey myPubEd25519;
+    Key<768> myPrivRsaKey;
+
+    karere::UserAttrCache& mUserAttrCache;
+    SqliteDb& mDb;
+
+    // current key
+    uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
+    std::shared_ptr<SendKey> mCurrentKey;
+    // When we generate a new key, it may not get sent successfully if the connection
+    // gets broken. So we need to send it again upon re-login, until it gets confirmed.
+    std::shared_ptr<chatd::KeyCommand> mUnconfirmedKeyCmd;
+
+    bool mForceRsa = false;
     std::map<UserKeyId, KeyEntry> mKeys;
     std::map<karere::Id, std::shared_ptr<SendKey>> mSymmKeyCache;
     karere::SetOfIds* mParticipants = nullptr;
