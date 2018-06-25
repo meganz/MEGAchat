@@ -3760,30 +3760,34 @@ bool Message::hasUrl(const string &text, string &url)
         std::string::size_type nextPositionSpace = text.find(' ', position);
         std::string::size_type nextPositionN = text.find('\n', position);
         std::string::size_type nextPositionR = text.find('\r', position);
+        std::string::size_type nextPositionT = text.find('\t', position);
         nextPositionSpace = (nextPositionSpace != std::string::npos) ? nextPositionSpace : text.size();
         nextPositionN = (nextPositionN != std::string::npos) ? nextPositionN : text.size();
         nextPositionR = (nextPositionR != std::string::npos) ? nextPositionR : text.size();
+        nextPositionT = (nextPositionT != std::string::npos) ? nextPositionT : text.size();
 
-        std::string::size_type nextPosition;
+        std::string::size_type nextPosition = nextPositionSpace;
 
-        if (nextPositionSpace <= nextPositionN && nextPositionSpace <= nextPositionR)
-        {
-            nextPosition = nextPositionSpace;
-        }
-        else if (nextPositionN < nextPositionR)
+        if (nextPositionN <= nextPosition)
         {
             nextPosition = nextPositionN;
         }
-        else
+
+        if (nextPositionR < nextPosition)
         {
             nextPosition = nextPositionR;
+        }
+
+        if (nextPositionT < nextPosition)
+        {
+            nextPosition = nextPositionT;
         }
 
         std::string partialTex = text.substr(position, nextPosition - position);
         if (partialTex.size() > 0)
         {
             char lastChar = partialTex.at(partialTex.size() - 1);
-            if (lastChar == '.' || lastChar == '\n' || lastChar == '\r')
+            if (lastChar == '.' || lastChar == '\n' || lastChar == '\r' || lastChar == '\t')
             {
                 partialTex.erase(partialTex.size() - 1);
             }
