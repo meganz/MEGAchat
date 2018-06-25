@@ -2557,11 +2557,11 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    if (mClient.richLinkState() == Client::kRichLinkEnabled)
+    if (mClient.richLinkState() == Client::kRichLinkEnabled && msg->type == Message::kMsgNormal)
     {
         requestRichLink(*msg);
     }
-    else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+    else if (mClient.richLinkState() == Client::kRichLinkNotDefined && msg->type == Message::kMsgNormal)
     {
         manageRichLinkMessage(*msg);
     }
