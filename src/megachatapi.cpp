@@ -1451,3 +1451,8 @@ const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
 {
     return NULL;
 }
+
+const char *MegaChatRichPreview::getDomainName() const
+{
+    return NULL;
+}

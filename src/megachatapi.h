@@ -676,6 +676,16 @@ public:
       * @return Url from rich preview
       */
     virtual const char *getUrl() const;
+
+    /**
+      * @brief Returns domain name from rich preview url
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Domain name from rich preview url
+      */
+    virtual const char *getDomainName() const;
 };
 
 /**
