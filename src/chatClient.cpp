@@ -1695,6 +1695,7 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
     mPublicChat = !unifiedKey.empty();
     if (mPublicChat)
     {
+        mPublicHandle = Id::inval();
         if(unifiedKey.size() == mega::UNIFIEDKEY)
         {
             chat().crypto()->setUnifiedKey(unifiedKey);
@@ -2289,6 +2290,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     if (mPublicChat)
     {
+        mPublicHandle = Id::inval();
         //Get B64 unified key
         if(aChat.getUnifiedKey())
         {
