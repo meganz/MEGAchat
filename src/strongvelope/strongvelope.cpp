@@ -750,7 +750,13 @@ void ProtocolHandler::resetUnifiedKey()
 
 std::string ProtocolHandler::getUnifiedKey()
 {
-    return mUnifiedKey->toString();
+    std::string key;
+    const char *buf = mUnifiedKey->buf();
+    if (buf)
+    {
+        key.assign(buf, mega::UNIFIEDKEY);
+    }
+    return key;
 }
 
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
