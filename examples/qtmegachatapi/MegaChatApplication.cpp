@@ -360,9 +360,18 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
 
     case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
         if (e->getErrorCode() != MegaChatError::ERROR_OK)
-                QMessageBox::information(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
-            else
-                QMessageBox::information(nullptr, tr("Export chat link"), tr("The chat link is").append(request->getLink()));
+        {
+            QMessageBox::information(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+        }
+        else
+        {
+            QMessageBox msg;
+            msg.setIcon(QMessageBox::Information);
+            msg.setText("The chat link has been generated successfully");
+            QString chatlink (request->getText());
+            msg.setDetailedText(chatlink);
+            msg.exec();
+        }
         break;
 
 #ifndef KARERE_DISABLE_WEBRTC
