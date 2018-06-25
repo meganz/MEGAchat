@@ -2309,16 +2309,20 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
                     //Parse unified key (Last 16 Bytes)
                     char unifiedKey [mega::UNIFIEDKEY+1] = {0};
                     memcpy(unifiedKey, &recvKeyBin[mega::USERHANDLE], mega::UNIFIEDKEY);
-                    auto bufuk = std::make_shared<Buffer>(mega::UNIFIEDKEY);
-                    bufuk->assign(unifiedKey, mega::UNIFIEDKEY);
+
+                    auto bufunifiedkey = std::make_shared<Buffer>(mega::UNIFIEDKEY);
+                    bufunifiedkey->assign(unifiedKey, mega::UNIFIEDKEY);
                     auto wptr = getDelTracker();
 
-                    //Decrypt unified key
-                    chat().crypto()->decryptUnifiedKey(bufuk, invitorHandle, invitorHandle)
+                    //Decrypt unifiedkey
+                    chat().crypto()->decryptUnifiedKey(bufunifiedkey, invitorHandle, invitorHandle)
                     .then([this, wptr, invitorHandle](std::string result)
                     {
                        if (wptr.deleted())
                             return;
+
+                       //Set unifiedkey in strongvelope
+                       chat().crypto()->setUnifiedKey(result);
 
                        // Save Unified key decrypted
                        this->parent.client.db.query(
