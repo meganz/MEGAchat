@@ -2312,7 +2312,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
                     auto wptr = getDelTracker();
 
                     //Decrypt unified key
-                    std::cout<<"The size of the unifiedkey before decrypt in ddbb is:"<<bufuk->size();
                     chat().crypto()->decryptUnifiedKey(bufuk, invitorHandle, invitorHandle)
                     .then([this, wptr, invitorHandle](std::string result)
                     {
