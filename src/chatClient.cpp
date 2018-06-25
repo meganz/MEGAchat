@@ -2855,14 +2855,16 @@ void GroupChatRoom::setPublicChat(bool publicChat)
     mPublicChat = publicChat;
 }
 
-const char *GroupChatRoom::chatkey()
+std::string GroupChatRoom::chatkey()
 {
-    if (!mPublicChat)
+    if (mPublicChat)
     {
-        return NULL;
+        return chat().crypto()->getUnifiedKey();
     }
-
-    // TODO: access to strongvelope and get global-key
+    else
+    {
+        return std::string();
+    }
 }
 
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)

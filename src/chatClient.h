@@ -423,8 +423,7 @@ public:
     virtual bool publicChat() const;
     void setPublicChat(bool publicChat);
 
-    // ownership of returned value is kept by this object
-    const char *chatkey();
+    std::string chatkey();
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
