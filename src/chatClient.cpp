@@ -350,8 +350,8 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 
 promise::Promise<void> Client::getPublicHandle(Id chatid)
 {
-    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
     //TODO TBD if API send actionpackets for ph changes
+    GroupChatRoom *room = static_cast<GroupChatRoom*> (chats->at(chatid));
     if (room->publicHandle() != Id::inval())
     {
         return promise::_Void();
