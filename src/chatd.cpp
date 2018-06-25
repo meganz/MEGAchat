@@ -3820,7 +3820,7 @@ bool Message::parseUrl(const std::string &url)
         return false;
     }
 
-    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z]+([-.]{1}[a-z0-9A-Z]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?(.*)?$");
+    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+([-.]{1}[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
 
     return regex_match(urlToParse, regularExpresion);
 }
