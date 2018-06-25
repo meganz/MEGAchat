@@ -6467,6 +6467,7 @@ MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const MegaChatRichPreview
     this->mIcon = richPreview->getIcon() ? richPreview->getIcon() : "";
     this->mIconFormat = richPreview->getIconFormat();
     this->mUrl = richPreview->getUrl();
+    this->mDomainName = richPreview->getDomainName();
 }
 
 MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const string &text, const string &title, const string &description,
@@ -6476,6 +6477,18 @@ MegaChatRichPreviewPrivate::MegaChatRichPreviewPrivate(const string &text, const
     , mImage(image), mImageFormat(imageFormat), mIcon(icon)
     , mIconFormat(iconFormat), mUrl(url)
 {
+    mDomainName = mUrl;
+    std::string::size_type position = mDomainName.find("://");
+    if (position != std::string::npos)
+    {
+         mDomainName = mDomainName.substr(position + 3);
+    }
+
+    position = mDomainName.find("/");
+    if (position != std::string::npos)
+    {
+        mDomainName = mDomainName.substr(0, position);
+    }
 }
 
 const char *MegaChatRichPreviewPrivate::getText() const
@@ -7035,4 +7048,9 @@ string JSonUtils::getImageFormat(const char *imagen)
     }
 
     return format;
+}
+
+const char *MegaChatRichPreviewPrivate::getDomainName() const
+{
+    return mDomainName.c_str();
 }
