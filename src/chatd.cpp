@@ -1735,19 +1735,24 @@ void Chat::requestRichLink(Message &message)
                 for (std::string::size_type i = 0; i < originalMessage.size(); i++)
                 {
                     char character = originalMessage[i];
-                    if (character != '\n' && character != '\r')
-                    {
-                        textMessage.push_back(originalMessage[i]);
-                    }
-                    else if (character == '\n')
+                    if (character == '\n')
                     {
                         textMessage.push_back('\\');
                         textMessage.push_back('n');
                     }
-                    else
+                    else if (character == '\r')
                     {
                         textMessage.push_back('\\');
                         textMessage.push_back('r');
+                    }
+                    else if (character == '"')
+                    {
+                        textMessage.push_back('\\');
+                        textMessage.push_back('"');
+                    }
+                    else
+                    {
+                        textMessage.push_back(originalMessage[i]);
                     }
                 }
 
