@@ -863,18 +863,26 @@ void MegaChatApiImpl::sendPendingRequests()
             mClient->getPublicHandle(chatid)
             .then([request, this, groupchat]
             {
-                string phbin(groupchat->publicHandle(), MegaClient::CHATLINKHANDLE);
-                string phstr;
-                Base64::btoa(phbin, phstr);
+                MegaChatHandle phbin = groupchat->publicHandle();
+                char *auxphstr = new char[8];
+                Base64::btoa((byte*)&(phbin),MegaClient::CHATLINKHANDLE,auxphstr);
+                std::string phstr(auxphstr, 8);
 
                 string keybin(groupchat->chatkey());
-                string keystr;
-                Base64::btoa(keybin, keystr);
+                MegaChatErrorPrivate *megaChatError;
+                if (keybin.size() != mega::UNIFIEDKEY)
+                {
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                }
+                else
+                {
+                    string keystr;
+                    Base64::btoa(keybin, keystr);
 
-                string link = "https://mega.nz/c/" + phstr + "#" + keystr;
-                request->setText(link.c_str());
-
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    string link = "https://mega.nz/c/" + phstr + "#" + keystr;
+                    request->setText(link.c_str());
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                }
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
