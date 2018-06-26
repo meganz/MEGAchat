@@ -2581,13 +2581,16 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    if (mClient.richLinkState() == Client::kRichLinkEnabled && msg->type == Message::kMsgNormal)
+    if (msg->type == Message::kMsgNormal)
     {
-        requestRichLink(*msg);
-    }
-    else if (mClient.richLinkState() == Client::kRichLinkNotDefined && msg->type == Message::kMsgNormal)
-    {
-        manageRichLinkMessage(*msg);
+        if (mClient.richLinkState() == Client::kRichLinkEnabled)
+        {
+            requestRichLink(*msg);
+        }
+        else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+        {
+            manageRichLinkMessage(*msg);
+        }
     }
 
     return idx;
