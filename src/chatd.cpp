@@ -2034,7 +2034,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     auto pms = mCrypto->msgEncrypt(it->msg, msgCmd);
     // if using current keyid or original keyid from msg, promise is resolved directly
     if (pms.succeeded())
+    {
         return sendKeyAndMessage(pms.value());
+    }
     // else --> new key is required: KeyCommand != NULL in pms.value()
 
     mEncryptionHalted = true;
@@ -2057,6 +2059,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         delete msgCmd;
         return err;
     });
+
     return false;
     //we don't sent a msgStatusChange event to the listener, as the GUI should initialize the
     //message's status with something already, so it's redundant.
@@ -2489,7 +2492,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
     if (mNextUnsent == mSending.begin())
         mNextUnsent++; //because we remove the first element
 
-    if (!msgid)
+    if (!msgid) // message was rejected by chatd
     {
         moveItemToManualSending(mSending.begin(), (mOwnPrivilege < PRIV_FULL)
             ? kManualSendNoWriteAccess
@@ -2884,7 +2887,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 // avoid the whole replay (even the idempotent part), and just bail out.
 
     CHATID_LOG_DEBUG("Truncating chat history before msgid %s, idx %d, fwdStart %d", ID_CSTR(msg.id()), idx, mForwardStart);
-    CALL_CRYPTO(resetSendKey);
+    CALL_CRYPTO(resetSendKey);      // discard current key, if any
     CALL_DB(truncateHistory, msg);
     if (idx != CHATD_IDX_INVALID)   // message is loaded in RAM
     {

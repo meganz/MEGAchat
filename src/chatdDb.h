@@ -80,8 +80,7 @@ public:
     }
     virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
     {
-        mDb.query("update sending set keyid = ? where rowid = ?",
-                    keyid, rowid);
+        mDb.query("update sending set keyid = ? where rowid = ?", keyid, rowid);
         assertAffectedRowCount(1, "confirmKeyOfSendingItem");
     }
     virtual void addBlobsToSendingItem(uint64_t rowid,

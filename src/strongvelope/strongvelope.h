@@ -249,10 +249,11 @@ class ProtocolHandler: public chatd::ICrypto, public karere::DeleteTrackable
 protected:
     /**
      * @brief The KeyEntry struct represents a Key in the map of keys (mKeys)
-     * If the key is still encrypted (because the required public key has to be
-     * fetched from API), then a promise will be attached to this KeyEntry.key
+     * If the received key is still encrypted (because the required public key
+     * has to be fetched from API), then a promise will be attached to this KeyEntry.key
      * Such promise will be resolved once the key is successfully decrypted.
      * If decryption fails, then the promise will be rejected.
+     * For new keys getting confirmed, the promise is never used.
      */
     struct KeyEntry
     {
@@ -280,21 +281,30 @@ protected:
     std::shared_ptr<chatd::KeyCommand> mUnconfirmedKeyCmd;
 
     bool mForceRsa = false;
+
+    // received and confirmed keys (doesn't include unconfirmed keys)
     std::map<UserKeyId, KeyEntry> mKeys;
+
+    // cache of symmetric keys (pubCu255 * privCu255)
     std::map<karere::Id, std::shared_ptr<SendKey>> mSymmKeyCache;
+
+    // current list of participants (mapped to the `chatd::Client::mUsers`)
     karere::SetOfIds* mParticipants = nullptr;
     bool mParticipantsChanged = true;
+
     bool mIsDestroying = false;
-    unsigned int mCacheVersion = 0;
+    unsigned int mCacheVersion = 0; // updated if history is reloaded
+
 public:
     karere::Id chatid;
     karere::Id ownHandle() const { return mOwnHandle; }
+    unsigned int getCacheVersion() const;
+
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& PrivCu25519,
         const StaticBuffer& PrivEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, void *ctx);
 
-    unsigned int getCacheVersion() const;
 protected:
     void loadKeysFromDb();
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
@@ -337,6 +347,8 @@ protected:
     chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
         chatd::Message* msg, const SendKey& key);
 
+
+// legacy RSA encryption methods
     promise::Promise<std::shared_ptr<Buffer>>
         rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
 
@@ -348,6 +360,7 @@ protected:
     /** @brief Extract keys from a legacy message */
     promise::Promise<void>
         legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg);
+
 public:
 //chatd::ICrypto interface
     uint32_t currentKeyId() const { return mCurrentKeyId; }

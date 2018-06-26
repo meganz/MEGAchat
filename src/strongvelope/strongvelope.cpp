@@ -770,7 +770,7 @@ ProtocolHandler::msgEncrypt(Message* msg, MsgCommand* msgCmd)
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         }
     }
-    else //use a key specified in msg->keyid (already confirmed)
+    else // use a key specified in msg->keyid, already confirmed (for MSGUPDs)
     {
         auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
@@ -1069,14 +1069,14 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
     STRONGVELOPE_LOG_DEBUG("Adding key %lld of user %s", ukid.keyid, ukid.user.toString().c_str());
 
     auto& entry = mKeys[ukid];
-    if (entry.key)  // if KeyEntry already had a decrypted key...
+    if (entry.key)  // if KeyEntry already had a decrypted key assigned to it...
     {
         if (memcmp(entry.key->buf(), key->buf(), SVCRYPTO_KEY_SIZE))
             throw std::runtime_error("addDecryptedKey: Key with id "+std::to_string(ukid.keyid)+" from user '"+ukid.user.toString()+"' already known but different");
 
         STRONGVELOPE_LOG_DEBUG("addDecryptedKey: Key %lld from user %s already known and is same", ukid.keyid, ukid.user.toString().c_str());
     }
-    else    // key was not decrypted yet...
+    else    // new key was confirmed or received key wast not decrypted yet...
     {
         entry.key = key;
         try
@@ -1091,7 +1091,7 @@ void ProtocolHandler::addDecryptedKey(UserKeyId ukid, const std::shared_ptr<Send
         }
     }
 
-    // finally, notify anyone waiting for the key (if decryption was asynchronous)
+    // finally, notify anyone waiting for decryption of the received key (if decryption was asynchronous)
     if (entry.pms)
     {
         entry.pms->resolve(entry.key);
