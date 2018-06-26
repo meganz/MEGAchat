@@ -3815,6 +3815,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
         case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
         case TYPE_EXPORT_CHAT_LINK: return "EXPORT_CHAT_LINK";
+        case TYPE_CHAT_LINK_CLOSE: return "CHAT_LINK_CLOSE";
     }
     return "UNKNOWN";
 }
