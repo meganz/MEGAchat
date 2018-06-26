@@ -3773,51 +3773,56 @@ const char* Message::statusNames[] =
 bool Message::hasUrl(const string &text, string &url)
 {
     std::string::size_type position = 0;
+    std::string partialString;
     while (position < text.size())
     {
-        std::string::size_type nextPositionSpace = text.find(' ', position);
-        std::string::size_type nextPositionN = text.find('\n', position);
-        std::string::size_type nextPositionR = text.find('\r', position);
-        std::string::size_type nextPositionT = text.find('\t', position);
-        nextPositionSpace = (nextPositionSpace != std::string::npos) ? nextPositionSpace : text.size();
-        nextPositionN = (nextPositionN != std::string::npos) ? nextPositionN : text.size();
-        nextPositionR = (nextPositionR != std::string::npos) ? nextPositionR : text.size();
-        nextPositionT = (nextPositionT != std::string::npos) ? nextPositionT : text.size();
-
-        std::string::size_type nextPosition = nextPositionSpace;
-
-        if (nextPositionN <= nextPosition)
+        char character = text[position];
+        if ((character >= 33 && character <= 126)
+                && character != '"'
+                && character != '\''
+                && character != '\\'
+                && character != '<'
+                && character != '>'
+                && character != '{'
+                && character != '}'
+                && character != '|')
         {
-            nextPosition = nextPositionN;
+            partialString.push_back(character);
         }
-
-        if (nextPositionR < nextPosition)
+        else
         {
-            nextPosition = nextPositionR;
-        }
-
-        if (nextPositionT < nextPosition)
-        {
-            nextPosition = nextPositionT;
-        }
-
-        std::string partialTex = text.substr(position, nextPosition - position);
-        if (partialTex.size() > 0)
-        {
-            char lastChar = partialTex.at(partialTex.size() - 1);
-            if (lastChar == '.' || lastChar == '\n' || lastChar == '\r' || lastChar == '\t')
+            if (partialString.size() > 0)
             {
-                partialTex.erase(partialTex.size() - 1);
+                if (partialString[partialString.size() - 1] == '.')
+                {
+                    partialString.erase(partialString.size() - 1);
+                }
+
+                if (parseUrl(partialString))
+                {
+                    url = partialString;
+                    return true;
+                }
             }
 
-            if (parseUrl(partialTex))
-            {
-                url = partialTex;
-                return true;
-            }
+            partialString.clear();
         }
 
-        position = nextPosition + 1;
+        position ++;
+    }
+
+    if (partialString.size() > 0)
+    {
+        if (partialString[partialString.size() - 1] == '.')
+        {
+            partialString.erase(partialString.size() - 1);
+        }
+
+        if (parseUrl(partialString))
+        {
+            url = partialString;
+            return true;
+        }
     }
 
     return false;
