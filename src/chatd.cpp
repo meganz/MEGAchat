@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <random>
 #include <regex>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
 
 using namespace std;
 using namespace promise;
@@ -1760,11 +1762,22 @@ void Chat::requestRichLink(Message &message)
                     }
                 }
 
-                header.insert(header.begin(), 0x0);
-                header.insert(header.begin(), Message::kMsgContainsMeta);
-                header.insert(header.begin(), 0x0);
-                header = header + std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
-                std::string updateText = header + text + std::string("]}");
+                std::string updateText = std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
+                updateText = updateText + text + std::string("]}");
+
+                rapidjson::StringStream stringStream(updateText.c_str());
+                rapidjson::Document document;
+                document.ParseStream(stringStream);
+
+                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                {
+                    API_LOG_ERROR("requestRichLink: Json is not valid");
+                    return;
+                }
+
+                updateText.insert(updateText.begin(), 0x0);
+                updateText.insert(updateText.begin(), Message::kMsgContainsMeta);
+                updateText.insert(updateText.begin(), 0x0);
                 std::string::size_type size = updateText.size();
 
                 if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
