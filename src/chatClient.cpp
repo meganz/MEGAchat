@@ -335,16 +335,43 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
 
 promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 {
-    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
     auto wptr = weakHandle();
-    return api.call(&::mega::MegaApi::chatLinkClose, chatid, nullptr)
-    .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
-    {
-        if (wptr.deleted())
-            return promise::_Void();
+    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
+    room->setChatPrivateMode();
 
-        room->setChatPrivateMode();
-        return promise::_Void();
+    const char *title = NULL;
+    if (room->hasTitle())
+    {
+        title = room->titleString();
+    }
+
+    promise::Promise<std::shared_ptr<Buffer>> pms;
+    if (title)
+    {
+        const std::string auxTitle(title);
+        pms = room->chat().crypto()->encryptChatTitle(auxTitle);
+    }
+    else
+    {
+        pms = promise::Promise<std::shared_ptr<Buffer>>();
+        pms.resolve(std::make_shared<Buffer>(512));
+    }
+
+    return pms.then([wptr, this, chatid, room, title](const std::shared_ptr<Buffer>& encTitle)
+    {
+        wptr.throwIfDeleted();
+        auto auxbuf = base64urlencode(encTitle->buf(), encTitle->dataSize());
+        const char *enctitleB64 = encTitle->dataSize() ? auxbuf.c_str(): NULL;
+
+        return api.call(&::mega::MegaApi::chatLinkClose, chatid, enctitleB64)
+        .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
+        {
+            if (wptr.deleted())
+                return promise::_Void();
+
+            room->setChatPrivateMode();
+            return promise::_Void();
+        });
     });
 }
 
