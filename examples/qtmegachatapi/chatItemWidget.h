@@ -53,6 +53,7 @@ class ChatItemWidget : public QWidget
         void setTitle();
         void truncateChat();
         void exportChatLink();
+        void closeChatLink();
 
     friend class ChatWindow;
     friend class MainWindow;

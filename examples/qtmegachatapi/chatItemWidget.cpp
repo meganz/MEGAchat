@@ -391,6 +391,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     {
         auto actExportLink = menu.addAction(tr("Export chat link"));
         connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
+
+        auto actSetPrivate = menu.addAction(tr("Set chat private"));
+        connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
     }
     menu.exec(event->globalPos());
     menu.deleteLater();
@@ -406,6 +409,14 @@ void ChatItemWidget::exportChatLink()
     if (mChatId != MEGACHAT_INVALID_HANDLE)
     {
         mMegaChatApi->exportChatLink(mChatId);
+    }
+}
+
+void ChatItemWidget::closeChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->closeChatLink(mChatId);
     }
 }
 
