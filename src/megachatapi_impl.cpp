@@ -6672,6 +6672,12 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
     rapidjson::Document document;
     document.ParseStream(stringStream);
 
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        API_LOG_ERROR("parseAttachNode: Parser json error");
+        return NULL;
+    }
+
     MegaNodeList *megaNodeList = new MegaNodeListPrivate();
 
     int attachmentNumber = document.Capacity();
@@ -6797,6 +6803,12 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
 
     rapidjson::Document document;
     document.ParseStream(stringStream);
+
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        API_LOG_ERROR("parseAttachContact: Parser json error");
+        return NULL;
+    }
 
     std::vector<MegaChatAttachedUser> *megaChatUsers = new std::vector<MegaChatAttachedUser>();
 
