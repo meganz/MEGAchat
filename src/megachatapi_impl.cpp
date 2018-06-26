@@ -843,7 +843,8 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
+            ChatRoom *room = findChatRoom(chatid);
+
             if (!room)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
@@ -858,21 +859,22 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!room->hasTitle())
+            GroupChatRoom *groupRoom = (GroupChatRoom *) room;
+            if (!groupRoom->hasTitle())
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
             mClient->getPublicHandle(chatid)
-            .then([request, this, room]
+            .then([request, this, groupRoom]
             {
-                MegaChatHandle phbin = room->publicHandle();
+                MegaChatHandle phbin = groupRoom->publicHandle();
                 char *auxphstr = new char[8];
                 Base64::btoa((byte*)&(phbin),MegaClient::CHATLINKHANDLE,auxphstr);
                 std::string phstr(auxphstr, 8);
 
-                string keybin(room->chatkey());
+                string keybin(groupRoom->chatkey());
                 MegaChatErrorPrivate *megaChatError;
                 if (keybin.size() != mega::UNIFIEDKEY)
                 {
