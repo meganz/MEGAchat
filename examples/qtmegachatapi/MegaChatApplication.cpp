@@ -359,11 +359,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
             break;
 
     case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
-        if (e->getErrorCode() != MegaChatError::ERROR_OK)
-        {
-            QMessageBox::information(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
-        }
-        else
+        if (e->getErrorCode() == MegaChatError::ERROR_OK)
         {
             QMessageBox msg;
             msg.setIcon(QMessageBox::Information);
@@ -371,6 +367,17 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
             QString chatlink (request->getText());
             msg.setDetailedText(chatlink);
             msg.exec();
+        }
+        else
+        {
+            if(e->getErrorCode() == MegaChatError::ERROR_ARGS)
+            {
+                QMessageBox::warning(nullptr, tr("Export chat link"), tr("You need to set a chat title before"));
+            }
+            else
+            {
+                QMessageBox::critical(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+            }
         }
         break;
 
