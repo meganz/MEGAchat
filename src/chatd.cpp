@@ -1729,7 +1729,6 @@ void Chat::requestRichLink(Message &message)
             Message *msg = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
             if (msg && updated == msg->updated)
             {
-                std::string header;
                 std::string text = requestText;
                 std::string originalMessage = msg->toText();
                 std::string textMessage;
@@ -1757,7 +1756,10 @@ void Chat::requestRichLink(Message &message)
                             textMessage.push_back(character);
                         break;
                         default:
-                            textMessage.push_back(originalMessage[i]);
+                            if (character > 31 && character != 127) // control ASCII characters are removed
+                            {
+                                textMessage.push_back(character);
+                            }
                         break;
                     }
                 }
