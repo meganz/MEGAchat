@@ -1624,6 +1624,11 @@ void Call::sendBusy()
     cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, TermCode::kBusy);
 }
 
+uint8_t Call::predestroyState() const
+{
+    return mPredestroyState;
+}
+
 AvFlags Call::sentAv() const
 {
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);

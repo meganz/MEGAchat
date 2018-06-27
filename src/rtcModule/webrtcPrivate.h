@@ -173,6 +173,7 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av);
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
+    virtual uint8_t predestroyState() const;
     void sendBusy();
 };
 

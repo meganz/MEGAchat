@@ -263,6 +263,7 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av) = 0;
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const = 0;
     virtual std::map<karere::Id, uint8_t> sessionState() const = 0;
+    virtual uint8_t predestroyState() const = 0;
 };
 struct SdpKey
 {
