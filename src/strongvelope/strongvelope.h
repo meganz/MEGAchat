@@ -273,14 +273,15 @@ protected:
     karere::UserAttrCache& mUserAttrCache;
     SqliteDb& mDb;
 
-    // current key
-    uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
+    // current key, keyid and userlist
     std::shared_ptr<SendKey> mCurrentKey;
-    // When we generate a new key, it may not get sent successfully if the connection
-    // gets broken. So we need to send it again upon re-login, until it gets confirmed.
-    std::shared_ptr<chatd::KeyCommand> mUnconfirmedKeyCmd;
+    uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
+    karere::SetOfIds mCurrentKeyParticipants;
 
-    bool mForceRsa = false;
+    // in-fligth new-keys
+    std::vector<std::pair<karere::SetOfIds, std::shared_ptr<SendKey>>> mUnconfirmedKeys;
+
+    bool mForceRsa = false; // for testing of legacy-mode
 
     // received and confirmed keys (doesn't include unconfirmed keys)
     std::map<UserKeyId, KeyEntry> mKeys;
@@ -365,7 +366,7 @@ public:
 //chatd::ICrypto interface
     uint32_t currentKeyId() const { return mCurrentKeyId; }
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
-    msgEncrypt(chatd::Message *message, chatd::MsgCommand* msgCmd);
+    msgEncrypt(chatd::Message *message, karere::SetOfIds recipients, chatd::MsgCommand* msgCmd);
     virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
     virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);

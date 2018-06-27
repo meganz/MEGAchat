@@ -2016,26 +2016,37 @@ bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
 
 bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 {
+    if (it->msgCmd)
+    {
+        sendKeyAndMessage(std::make_pair(it->msgCmd, it->keyCmd));
+        return true;
+    }
+
     auto msg = it->msg;
-    //opcode can be NEWMSG, MSGUPD or MSGUPDX
     assert(msg->id());
+
+    //opcode can be NEWMSG, MSGUPD or MSGUPDX
     if (it->opcode() == OP_NEWMSG && msg->backRefs.empty())
     {
         createMsgBackRefs(it);
     }
 
-    if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
+    if (mEncryptionHalted)
         return false;
 
     auto msgCmd = new MsgCommand(it->opcode(), mChatId, client().userId(),
          msg->id(), msg->ts, msg->updated, msg->keyid);
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
-    auto pms = mCrypto->msgEncrypt(it->msg, msgCmd);
-    // if using current keyid or original keyid from msg, promise is resolved directly
+    auto pms = mCrypto->msgEncrypt(msg, mUsers, msgCmd);
+    // if using current keyid or original keyid from msg, promise is resolved immediately
     if (pms.succeeded())
     {
-        return sendKeyAndMessage(pms.value());
+        it->msgCmd = pms.value().first;
+        it->keyCmd = pms.value().second;
+
+        sendKeyAndMessage(pms.value());
+        return true;
     }
     // else --> new key is required: KeyCommand != NULL in pms.value()
 
@@ -2047,6 +2058,10 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         assert(mEncryptionHalted);
         assert(!mSending.empty());
         assert(mSending.front().rowid == rowid);
+
+        SendingItem item = mSending.front();
+        item.msgCmd = result.first;
+        item.keyCmd = result.second;
 
         sendKeyAndMessage(result);
         mEncryptionHalted = false;
@@ -2363,24 +2378,13 @@ int Chat::unreadMsgCount() const
 
 void Chat::flushOutputQueue(bool fromStart)
 {
-//We assume that if fromStart is set, then we have to set mIgnoreKeyAcks
-//Indeed, if we flush the send queue from the start, this means that
-//the crypto module would get out of sync with the I/O sequence, which means
-//that it must have been reset/freshly initialized, and we have to skip
-//the NEWKEYID responses for the keys we flush from the output queue
-    if (mEncryptionHalted || (mOnlineState != kChatStateOnline))
-        return;
-
     if (fromStart)
         mNextUnsent = mSending.begin();
-
-    if (mNextUnsent == mSending.end())
-        return;
 
     while (mNextUnsent != mSending.end())
     {
         //kickstart encryption
-        //return true if we encrypted and sent at least one message
+        //return true if we encrypted at least one message
         if (!msgEncryptAndSend(mNextUnsent++))
             return;
     }
@@ -2521,10 +2525,8 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     // update msgxid to msgid
     msg->setId(msgid, false);
 
-    // set final keyid
-    assert(mCrypto->currentKeyId() != CHATD_KEYID_INVALID);
-    assert(mCrypto->currentKeyId() != CHATD_KEYID_UNCONFIRMED);
-    assert(msg->keyid == mCrypto->currentKeyId());
+    // the keyid should be already confirmed by this time
+    assert(msg->keyid != CHATD_KEYID_UNCONFIRMED);
 
     // add message to history
     push_forward(msg);
@@ -2585,8 +2587,10 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
     if (keyxid != CHATD_KEYID_UNCONFIRMED)
     {
-        CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
+        CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xfffffffe, continuing anyway");
     }
+
+    CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
 
     if (mSending.empty())
     {
@@ -2594,18 +2598,50 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         return;
     }
 
-    CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
-
-    for (auto it = mSending.begin(); it != mSending.end(); it++)
+    auto it = mSending.begin();
+    assert(it->keyCmd);  // first message in sending queue should send a NEWKEY
+    int count = 0;
+    do
     {
+        // update keyid of all messages using this confirmed new key
+        assert(it->msg->keyid == keyxid);
         it->msg->keyid = keyid;
         CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
-    }
+
+        it++;
+        count++;
+
+    } while (!it->keyCmd);  // break if another key is attached
+
+    CHATD_LOG_DEBUG("keyConfirm: updated the keyxid to keyid=%u of %d message/s in the sending queue", keyid, count);
 }
 
 void Chat::onKeyReject()
 {
-    mCrypto->onKeyRejected();
+    CALL_CRYPTO(onKeyRejected);
+
+    if (mSending.empty())
+    {
+        CHATID_LOG_ERROR("keyReject: Sending queue is empty");
+        return;
+    }
+
+    auto it = mSending.begin();
+    assert(it->keyCmd);  // first message in sending queue should send a NEWKEY if it's being rejected
+    int count = 0;
+    do
+    {
+        // update keyid of all messages using this confirmed new key
+        assert(it->msg->keyid == CHATD_KEYID_UNCONFIRMED);
+        it->msgCmd = NULL;
+        it->keyCmd = NULL;
+
+        it++;
+        count++;
+
+    } while (!it->keyCmd);  // break if another key is attached
+
+    CHATD_LOG_DEBUG("keyReject: discarded encrypted version of message/s in the sending queue", count);
 }
 
 void Chat::onHistReject()
@@ -3489,13 +3525,6 @@ void Chat::onJoinComplete()
     }
     mUserDump.clear();
     mEncryptionHalted = false;
-//    auto unconfirmedKeyCmd = mCrypto->unconfirmedKeyCmd();
-//    if (unconfirmedKeyCmd)
-//    {
-//        CHATID_LOG_DEBUG("Re-sending unconfirmed key");
-//        sendCommand(*unconfirmedKeyCmd);
-//    }
-
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages
 

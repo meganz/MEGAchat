@@ -527,6 +527,8 @@ public:
   * that (when server confirms) move it as a Message object to history buffer */
         Message* msg;
         karere::SetOfIds recipients;
+        MsgCommand *msgCmd = NULL;
+        KeyCommand *keyCmd = NULL;
         uint8_t opcode() const { return mOpcode; }
         void setOpcode(uint8_t op) { mOpcode = op; }
         SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts,
@@ -623,6 +625,7 @@ protected:
      * Thus, not writing anything about queued undecrypted messages to the db allows
      * for a clean resume from the last known good point in message history. */
     Idx mDecryptNewHaltedAt = CHATD_IDX_INVALID;
+
     /** Similar to mDecryptNewhaltedAt, but for history messages, retrieved backwards
      * in regard to time and index in history buffer. Note that the two
      *  mDecryptXXXHaltedAt operate independently. I.e. decryption of old messages may
