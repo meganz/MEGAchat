@@ -6685,6 +6685,12 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
     rapidjson::Document document;
     document.ParseStream(stringStream);
 
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        API_LOG_ERROR("parseAttachNodeJSon: Parser json error");
+        return NULL;
+    }
+
     MegaNodeList *megaNodeList = new MegaNodeListPrivate();
 
     int attachmentNumber = document.Capacity();
@@ -6695,7 +6701,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
         if (iteratorHandle == file.MemberEnd() || !iteratorHandle->value.IsString())
         {
-            API_LOG_ERROR("Invalid nodehandle in attachment JSON");
+            API_LOG_ERROR("parseAttachNodeJSon: Invalid nodehandle in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -6704,7 +6710,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorName = file.FindMember("name");
         if (iteratorName == file.MemberEnd() || !iteratorName->value.IsString())
         {
-            API_LOG_ERROR("Invalid filename in attachment JSON");
+            API_LOG_ERROR("parseAttachNodeJSon: Invalid filename in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -6718,7 +6724,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
                 || iteratorKey->value.Capacity() != 8)
         {
-            API_LOG_ERROR("Invalid nodekey in attachment JSON");
+            API_LOG_ERROR("parseAttachNodeJSon: Invalid nodekey in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -6732,7 +6738,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             }
             else
             {
-                API_LOG_ERROR("Invalid nodekey data in attachment JSON");
+                API_LOG_ERROR("parseAttachNodeJSon: Invalid nodekey data in attachment JSON");
                 delete megaNodeList;
                 return NULL;
             }
@@ -6741,7 +6747,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorSize = file.FindMember("s");
         if (iteratorSize == file.MemberEnd() || !iteratorSize->value.IsInt64())
         {
-            API_LOG_ERROR("Invalid size in attachment JSON");
+            API_LOG_ERROR("parseAttachNodeJSon: Invalid size in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -6751,7 +6757,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string fp;
         if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
         {
-            API_LOG_WARNING("Missing fingerprint in attachment JSON. Old message?");
+            API_LOG_WARNING("parseAttachNodeJSon: Missing fingerprint in attachment JSON. Old message?");
         }
         else
         {
@@ -6761,7 +6767,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
-            API_LOG_ERROR("Invalid type in attachment JSON");
+            API_LOG_ERROR("parseAttachNodeJSon: Invalid type in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -6770,7 +6776,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
-            API_LOG_ERROR("Invalid timestamp in attachment JSON");
+            API_LOG_ERROR("parseAttachNodeJSon: Invalid timestamp in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
@@ -6811,6 +6817,12 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
     rapidjson::Document document;
     document.ParseStream(stringStream);
 
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        API_LOG_ERROR("parseAttachContactJSon: Parser json error");
+        return NULL;
+    }
+
     std::vector<MegaChatAttachedUser> *megaChatUsers = new std::vector<MegaChatAttachedUser>();
 
     int contactNumber = document.Capacity();
@@ -6821,7 +6833,7 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         rapidjson::Value::ConstMemberIterator iteratorEmail = user.FindMember("email");
         if (iteratorEmail == user.MemberEnd() || !iteratorEmail->value.IsString())
         {
-            API_LOG_ERROR("Invalid email in contact-attachment JSON");
+            API_LOG_ERROR("parseAttachContactJSon: Invalid email in contact-attachment JSON");
             delete megaChatUsers;
             return NULL;
         }
@@ -6830,7 +6842,7 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         rapidjson::Value::ConstMemberIterator iteratorHandle = user.FindMember("u");
         if (iteratorHandle == user.MemberEnd() || !iteratorHandle->value.IsString())
         {
-            API_LOG_ERROR("Invalid userhandle in contact-attachment JSON");
+            API_LOG_ERROR("parseAttachContactJSon: Invalid userhandle in contact-attachment JSON");
             delete megaChatUsers;
             return NULL;
         }
@@ -6839,7 +6851,7 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         rapidjson::Value::ConstMemberIterator iteratorName = user.FindMember("name");
         if (iteratorName == user.MemberEnd() || !iteratorName->value.IsString())
         {
-            API_LOG_ERROR("Invalid username in contact-attachment JSON");
+            API_LOG_ERROR("parseAttachContactJSon: Invalid username in contact-attachment JSON");
             delete megaChatUsers;
             return NULL;
         }
@@ -6962,6 +6974,12 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
 
     rapidjson::Document document;
     document.ParseStream(stringStream);
+
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        API_LOG_ERROR("parseRichPreview: Parser json error");
+        return NULL;
+    }
 
     rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
     if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
