@@ -2619,29 +2619,6 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 void Chat::onKeyReject()
 {
     CALL_CRYPTO(onKeyRejected);
-
-    if (mSending.empty())
-    {
-        CHATID_LOG_ERROR("keyReject: Sending queue is empty");
-        return;
-    }
-
-    auto it = mSending.begin();
-    assert(it->keyCmd);  // first message in sending queue should send a NEWKEY if it's being rejected
-    int count = 0;
-    do
-    {
-        // update keyid of all messages using this confirmed new key
-        assert(it->msg->keyid == CHATD_KEYID_UNCONFIRMED);
-        it->msgCmd = NULL;
-        it->keyCmd = NULL;
-
-        it++;
-        count++;
-
-    } while (!it->keyCmd);  // break if another key is attached
-
-    CHATD_LOG_DEBUG("keyReject: discarded encrypted version of message/s in the sending queue", count);
 }
 
 void Chat::onHistReject()
