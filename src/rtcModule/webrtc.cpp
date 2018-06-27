@@ -1351,8 +1351,6 @@ bool Call::sendCallData(int state)
          payLoadLen += sizeof(uint8_t);
     }
 
-    karere::Id userid = mManager.mClient.myHandle();
-    uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
     command.write<uint64_t>(9, 0);
     command.write<uint32_t>(17, 0);
