@@ -121,6 +121,7 @@ public:
         TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected by
                                             /// another client of our user
         TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
+        TEMR_CODE_REJECT_ELSE_WHERE = 4,    /// Call was rejected on another device of ours
         TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
         TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
                                             /// users are online
