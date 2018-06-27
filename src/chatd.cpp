@@ -2000,7 +2000,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
     sendingIdx.reserve(mSending.size());
     auto next = msgit;
     next++;
-    for (auto it = mSending.begin(); it != next; next++)
+    for (auto it = mSending.begin(); it != next; it++)
     {
         sendingIdx.push_back(&(*it));
     }
