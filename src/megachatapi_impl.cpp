@@ -4079,7 +4079,14 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     switch (termCode & (~rtcModule::TermCode::kPeer))
     {
     case rtcModule::TermCode::kUserHangup:
-        this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
+        if (predestroyState != rtcModule::ICall::kStateReqSent && predestroyState != rtcModule::ICall::kStateRingIn)
+        {
+            this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
+        }
+        else
+        {
+            this->termCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
+        }
         break;
     case rtcModule::TermCode::kCallRejected:
         this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
@@ -4140,6 +4147,11 @@ void MegaChatCallPrivate::removeSession(MegaChatHandle peer)
 void MegaChatCallPrivate::setIgnoredCall(bool ignored)
 {
     this->ignored = ignored;
+}
+
+void MegaChatCallPrivate::setPredestroyState(uint8_t predestroyState)
+{
+    this->predestroyState = predestroyState;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, bool local)
@@ -6031,6 +6043,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 break;
             case rtcModule::ICall::kStateTerminating:
                 state = MegaChatCall::CALL_STATUS_TERMINATING;
+                chatCall->setPredestroyState(call->predestroyState());
                 chatCall->setIsRinging(false);
                 chatCall->setTermCode(call->termCode());
                 chatCall->setFinalTimeStamp(time(NULL));

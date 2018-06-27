@@ -204,6 +204,7 @@ public:
     void setSessionStatus(uint8_t status, MegaChatHandle peer);
     void removeSession(MegaChatHandle peer);
     void setIgnoredCall(bool ignored);
+    void setPredestroyState(uint8_t predestroyState);
 
 protected:
     MegaChatHandle chatid;
@@ -217,6 +218,7 @@ protected:
     std::string temporaryError;
     std::map<MegaChatHandle, int> sessionStatus;
     MegaChatHandle peerId;
+    uint8_t predestroyState;
 
     int termCode;
     bool ignored;
