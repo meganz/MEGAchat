@@ -3791,7 +3791,7 @@ bool Message::hasUrl(const string &text, string &url)
         }
         else
         {
-            if (partialString.size() > 0)
+            if (!partialString.empty())
             {
                 removeUnnecessaryLastCharacters(partialString);
                 if (parseUrl(partialString))
@@ -3807,7 +3807,7 @@ bool Message::hasUrl(const string &text, string &url)
         position ++;
     }
 
-    if (partialString.size() > 0)
+    if (!partialString.empty())
     {
         removeUnnecessaryLastCharacters(partialString);
         if (parseUrl(partialString))
@@ -3853,17 +3853,20 @@ bool Message::parseUrl(const std::string &url)
     return regex_match(urlToParse, regularExpresion);
 }
 
-void Message::removeUnnecessaryLastCharacters(string &test)
+void Message::removeUnnecessaryLastCharacters(string &buf)
 {
-    char lastCharacter = test[test.size() - 1];
-    while (test.size() && (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
-           || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';'))
+    if (!buf.empty())
     {
-        test.erase(test.size() - 1);
-
-        if (test.size())
+        char lastCharacter = buf.back();
+        while (!buf.empty() && (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+                               || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';'))
         {
-            lastCharacter = test[test.size() - 1];
+            buf.erase(buf.size() - 1);
+
+            if (!buf.empty())
+            {
+                lastCharacter = buf.back();
+            }
         }
     }
 }
