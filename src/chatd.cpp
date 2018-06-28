@@ -3793,9 +3793,16 @@ bool Message::hasUrl(const string &text, string &url)
         {
             if (partialString.size() > 0)
             {
-                if (partialString[partialString.size() - 1] == '.')
+                char lastCharacter = partialString[partialString.size() - 1];
+                while (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+                       || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';')
                 {
                     partialString.erase(partialString.size() - 1);
+
+                    if (partialString.size())
+                    {
+                        lastCharacter = partialString[partialString.size() - 1];
+                    }
                 }
 
                 if (parseUrl(partialString))
@@ -3813,9 +3820,16 @@ bool Message::hasUrl(const string &text, string &url)
 
     if (partialString.size() > 0)
     {
-        if (partialString[partialString.size() - 1] == '.')
+        char lastCharacter = partialString[partialString.size() - 1];
+        while (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+               || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';')
         {
             partialString.erase(partialString.size() - 1);
+
+            if (partialString.size())
+            {
+                lastCharacter = partialString[partialString.size() - 1];
+            }
         }
 
         if (parseUrl(partialString))
