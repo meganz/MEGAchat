@@ -57,51 +57,51 @@ void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
 
 static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
-    string ipv4, ipv6;
-    std::function<void (int, string, string)>* func = (std::function<void (int, string, string)>*)req->data;
+    vector<string> ipsv4, ipsv6;
+    std::function<void (int, vector<string>&, vector<string>&)>* func = (std::function<void (int, vector<string>&, vector<string>&)>*)req->data;
     struct addrinfo *hp = res;
     while (hp)
     {
         char straddr[INET6_ADDRSTRLEN];
         straddr[0] = 0;
 
-        if (!ipv4.size() && hp->ai_family == AF_INET)
+        if (hp->ai_family == AF_INET)
         {
             sockaddr_in *addr = (sockaddr_in *)hp->ai_addr;
             inet_ntop(hp->ai_family, &addr->sin_addr, straddr, sizeof(straddr));
             if (straddr[0])
             {
-                ipv4 = straddr;
+                ipsv4.push_back(straddr);
             }
         }
-        else if (!ipv6.size() && hp->ai_family == AF_INET6)
+        else if (hp->ai_family == AF_INET6)
         {
             sockaddr_in6 *addr = (sockaddr_in6 *)hp->ai_addr;
             inet_ntop(hp->ai_family, &addr->sin6_addr, straddr, sizeof(straddr));
             if (straddr[0])
             {
-                ipv6 = string("[") + straddr + "]";
+                ipsv6.push_back(string("[") + straddr + "]");
             }
-        }
-
-        if (ipv4.size() && ipv6.size())
-        {
-            break;
         }
 
         hp = hp->ai_next;
     }
 
-    (*func)(status, ipv4, ipv6);
+    if (status < 0)
+    {
+        WEBSOCKETS_LOG_ERROR("Failed to resolve DNS. Reason: %s (%d)", uv_strerror(status), status);
+    }
+
+    (*func)(status, ipsv4, ipsv6);
     uv_freeaddrinfo(res);
     delete func;
     delete req;
 }
 
-bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, string, string)> f)
+bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, vector<string>&, vector<string>&)> f)
 {
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
-    h->data = new std::function<void (int, string, string)>(f);
+    h->data = new std::function<void (int, vector<string>&, vector<string>&)>(f);
     return uv_getaddrinfo(eventloop, h, onDnsResolved, hostname, NULL, NULL);
 }
 

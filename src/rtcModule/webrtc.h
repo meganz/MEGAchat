@@ -121,8 +121,10 @@ enum TermCode: uint8_t
 
 static inline bool isTermError(TermCode code)
 {
-    return (code & 0x7f) >= TermCode::kErrorFirst;
+    int errorCode = code & ~TermCode::kPeer;
+    return (errorCode >= TermCode::kErrorFirst) && (errorCode <= TermCode::kErrorLast);
 }
+
 const char* termCodeToStr(uint8_t code);
 const char* rtcmdTypeToStr(uint8_t type);
 std::string rtmsgCommandToString(const StaticBuffer& data);

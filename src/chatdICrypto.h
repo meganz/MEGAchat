@@ -8,9 +8,13 @@ namespace chatd
 {
 enum
 {
-    SVCRYPTO_ERRTYPE = 0x3e9ac910, //< all promise errors originating from strongvelope should have this type
-    SVCRYPTO_ENOKEY = 1, //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
-    SVCRYPTO_ENOMSG = 2 //< Can't decrypt because message has been deleted during decryption process
+    SVCRYPTO_ERRTYPE = 0x3e9ac910,  //< all promise errors originating from strongvelope should have this type
+    SVCRYPTO_ENOKEY = 1,            //< Can't decrypt because we can't obtain the decrypt key. May occur if a message was sent just after a user joined
+    SVCRYPTO_ENOMSG = 2,            //< Can't decrypt because message has been deleted during decryption process
+    SVCRYPTO_ENOTYPE = 3,           //< Type of message not recognized by the client
+    SVCRYPTO_EEXPIRED = 4,          //< Strongvelope instance was deleted
+    SVCRYPTO_ESIGNATURE = 5,        //< Verification of signature failed
+    SVCRYPTO_EMALFORMED = 6         //< Failed to parse message, invalid format or corrupted data
 };
 
 class Chat;

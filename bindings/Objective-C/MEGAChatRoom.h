@@ -33,6 +33,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) NSUInteger peerCount;
 @property (readonly, nonatomic, getter=isGroup) BOOL group;
 @property (readonly, nonatomic) NSString *title;
+@property (readonly, nonatomic, getter=hasCustomTitle) BOOL customTitle;
 @property (readonly, nonatomic) MEGAChatRoomChangeType changes;
 @property (readonly, nonatomic) NSInteger unreadCount;
 @property (readonly, nonatomic) uint64_t userTypingHandle;
