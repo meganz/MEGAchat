@@ -1431,7 +1431,8 @@ void Connection::execCommand(const StaticBuffer& buf)
 void Chat::onNewKeys(StaticBuffer&& keybuf)
 {
     size_t pos = 0;
-    while (pos < keybuf.dataSize())
+    size_t size = keybuf.dataSize();
+    while ((pos + 14) < size)
     {
         Id userid(keybuf.read<uint64_t>(pos));
         pos += 8;
@@ -1445,9 +1446,15 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         const char *key = keybuf.readPtr(pos, keylen);
         pos += keylen;
 
-        CHATID_LOG_DEBUG(" sending key %d for user %s with length %zu to crypto module",
+        CHATID_LOG_DEBUG("sending key %d for user %s with length %zu to crypto module",
                          keyid, userid.toString().c_str(), keybuf.dataSize());
-        mCrypto->onKeyReceived(keyid, userid, mClient.userId(), key, keylen);
+        CALL_CRYPTO(onKeyReceived, keyid, userid, mClient.userId(), key, keylen);
+    }
+
+    if (pos != size)
+    {
+        CHATID_LOG_ERROR("onNewKeys: unexpected size of received NEWKEY");
+        assert(false);
     }
 }
 
@@ -1624,7 +1631,7 @@ void Chat::clearHistory()
 {
     initChat();
     CALL_DB(clearHistory);
-    mCrypto->onHistoryReload();
+    CALL_CRYPTO(onHistoryReload);
     mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
 }
