@@ -1997,9 +1997,16 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
     }
 }
 
-Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg)
+Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds* recipients)
 {
-    mSending.emplace_back(opcode, msg, mUsers);
+    // for NEWMSG, recipients is always NULL --> use current participants
+    // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG
+    // for MSGUPD, recipients is not used (the keyid is already confirmed)
+    assert((opcode == OP_NEWMSG && !recipients)
+           || (opcode == OP_MSGUPDX && recipients)
+           || (opcode == OP_MSGUPD && msg->keyid != CHATD_KEYID_INVALID && msg->keyid != CHATD_KEYID_UNCONFIRMED));
+
+    mSending.emplace_back(opcode, msg, recipients ? *recipients : mUsers);
     CALL_DB(saveMsgToSending, mSending.back());
     if (mNextUnsent == mSending.end())
     {
@@ -2045,7 +2052,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
          msg->id(), msg->ts, msg->updated, msg->keyid);
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
-    auto pms = mCrypto->msgEncrypt(msg, mUsers, msgCmd);
+    auto pms = mCrypto->msgEncrypt(msg, it->recipients, msgCmd);
     // if using current keyid or original keyid from msg, promise is resolved immediately
     if (pms.succeeded())
     {
@@ -2103,6 +2110,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         return nullptr;
     }
 
+    SetOfIds *recipients = NULL;
     if (msg.isSending()) //update the not yet sent(or at least not yet confirmed) original as well, trying to avoid sending the original content
     {
         SendingItem* item = nullptr;
@@ -2120,6 +2128,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             item->msg->updated = age + 1;
         }
         msg.assign((void*)newdata, newlen);
+        recipients = new SetOfIds(item->recipients);
         CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
     } //end msg.isSending()
 
@@ -2127,12 +2136,12 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.isSending(), msg.keyid, newtype, userp);
 
     auto wptr = weakHandle();
-    marshallCall([wptr, this, upd]()
+    marshallCall([wptr, this, upd, recipients]()
     {
         if (wptr.deleted())
             return;
 
-        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
+        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
 
     }, mClient.karereClient->appCtx);
 

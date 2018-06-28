@@ -671,7 +671,7 @@ protected:
     void handleLastReceivedSeen(karere::Id msgid);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    SendingItem* postMsgToSending(uint8_t opcode, Message* msg);
+    SendingItem* postMsgToSending(uint8_t opcode, Message* msg, karere::SetOfIds* recipients = NULL);
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();

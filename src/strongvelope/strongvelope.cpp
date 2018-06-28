@@ -742,12 +742,14 @@ void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 }
 
 promise::Promise<std::pair<MsgCommand*, KeyCommand*>>
-ProtocolHandler::msgEncrypt(Message* msg, SetOfIds recipients, MsgCommand* msgCmd)
+ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand* msgCmd)
 {
     assert(msg->keyid == msgCmd->keyId());
     if ((msg->keyid == CHATD_KEYID_INVALID)         // keyid has not been assigned yet (NEWMSG)
      || (msg->keyid == CHATD_KEYID_UNCONFIRMED))    // or it was, but not yet confimed (MSGUPDX, replayed NEWMSG)
     {
+        assert(msgCmd->opcode() != OP_MSGUPD);  // edits always have a confirmed keyid
+
         if (mCurrentKey && mCurrentKeyParticipants == *mParticipants)
         {
             // use current key, whether it's unconfirmed (in-flight) or already confirmed
@@ -781,7 +783,7 @@ ProtocolHandler::msgEncrypt(Message* msg, SetOfIds recipients, MsgCommand* msgCm
             else    // first msg for new set of participants --> create new key and attach to MsgCmd as KeyCmd
             {
                 auto wptr = weakHandle();
-                return updateSenderKey()
+                return updateSenderKey(recipients)
                 .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
                 {
                     wptr.throwIfDeleted();
@@ -1218,32 +1220,29 @@ void ProtocolHandler::onKeyRejected()
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::updateSenderKey()
+ProtocolHandler::updateSenderKey(const SetOfIds &recipients)
 {
     mCurrentKey.reset(new SendKey);
     mCurrentKey->setDataSize(AES::BLOCKSIZE);
     randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
 
     mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
-    mCurrentKeyParticipants = *mParticipants;
+    mCurrentKeyParticipants = recipients;
 
     mUnconfirmedKeys.push_back(std::make_pair(mCurrentKeyParticipants, mCurrentKey));
 
     // Assemble the output for all recipients.
-    return encryptKeyToAllParticipants(mCurrentKey);
+    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants);
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser)
+ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const SetOfIds &participants)
 {
+    auto keyCmd = new KeyCommand(Id::null());
+
     // Users and send key may change while we are getting pubkeys of current
     // users, so make a snapshot
-    auto keyCmd = new KeyCommand(Id::null());
-    SetOfIds users = *mParticipants;
-    if (extraUser)
-    {
-        users.insert(extraUser);
-    }
+    SetOfIds users = participants;
     std::vector<Promise<void>> promises;
     promises.reserve(users.size());
 
@@ -1257,6 +1256,8 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
         });
         promises.push_back(pms);
     }
+
+    // wait for key encrypted to all participants (immediate only if all pubkeys were available)
     return promise::when(promises)
     .then([keyCmd, key]()
     {
@@ -1275,8 +1276,14 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
     blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
     blob->append<uint8_t>(Message::kMsgChatTitle);
 
+    SetOfIds participants = *mParticipants;
+    if (extraUser)
+    {
+        participants.insert(extraUser);
+    }
+
     auto wptr = weakHandle();
-    return encryptKeyToAllParticipants(key, extraUser)
+    return encryptKeyToAllParticipants(key, participants)
     .then([this, wptr, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
     {
         wptr.throwIfDeleted();

@@ -67,7 +67,7 @@ public:
      * that message instead of the 0xfffffffe keyid.
      */
     virtual promise::Promise<std::pair<MsgCommand*, KeyCommand*> >
-    msgEncrypt(Message* msg, karere::SetOfIds recipients, MsgCommand* cmd) = 0;
+    msgEncrypt(Message* msg, const karere::SetOfIds &recipients, MsgCommand* cmd) = 0;
 
     /**
      * @brief Called by the client for received messages to decrypt them.
@@ -121,8 +121,6 @@ public:
      * to a real one.
      */
     virtual void resetSendKey() = 0;
-
-//    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const = 0;
 
     /** @brief Extract keys from legacy messages.
      * Must be called for every received message, even if decryption of a previous

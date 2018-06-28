@@ -316,7 +316,7 @@ protected:
      * message is sent.
      */
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    updateSenderKey();
+    updateSenderKey(const karere::SetOfIds &recipients);
 
     /**
      * @brief Signs a message using EdDSA with the Ed25519 key pair.
@@ -340,7 +340,7 @@ protected:
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser=0);
+        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants);
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
@@ -366,7 +366,7 @@ public:
 //chatd::ICrypto interface
     uint32_t currentKeyId() const { return mCurrentKeyId; }
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
-    msgEncrypt(chatd::Message *message, karere::SetOfIds recipients, chatd::MsgCommand* msgCmd);
+    msgEncrypt(chatd::Message *message, const karere::SetOfIds &recipients, chatd::MsgCommand* msgCmd);
     virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
     virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);

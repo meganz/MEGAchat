@@ -191,7 +191,9 @@ public:
             }
             Buffer recpts;
             stmt.blobCol(10, recpts);
-            queue.emplace_back(opcode, msg, recpts, stmt.intCol(0));
+            karere::SetOfIds recipients;
+            recipients.load(recpts);
+            queue.emplace_back(opcode, msg, recipients, stmt.intCol(0));
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
