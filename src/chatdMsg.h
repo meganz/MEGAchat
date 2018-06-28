@@ -480,7 +480,7 @@ public:
     uint16_t updated;
     uint32_t keyid;
     unsigned char type;
-    BackRefId backRefId;
+    BackRefId backRefId = 0;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
     mutable uint8_t userFlags = 0;
