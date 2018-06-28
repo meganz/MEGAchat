@@ -764,7 +764,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         {
             // check if new key was already created, but still unconfirmed (for MSGUPDX, replayed NEWMSG)
             std::shared_ptr<SendKey> unconfirmedKey;
-            for (auto& it: mUnconfirmedKeys)// = mUnconfirmedKeys.begin(); it != mUnconfirmedKeys.end(); it++)
+            for (auto& it: mUnconfirmedKeys)
             {
                 if (it.first == recipients)
                 {
@@ -783,7 +783,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
             else    // first msg for new set of participants --> create new key and attach to MsgCmd as KeyCmd
             {
                 auto wptr = weakHandle();
-                return updateSenderKey(recipients)
+                return createNewKey(recipients)
                 .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
                 {
                     wptr.throwIfDeleted();
@@ -1220,7 +1220,7 @@ void ProtocolHandler::onKeyRejected()
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::updateSenderKey(const SetOfIds &recipients)
+ProtocolHandler::createNewKey(const SetOfIds &recipients)
 {
     mCurrentKey.reset(new SendKey);
     mCurrentKey->setDataSize(AES::BLOCKSIZE);

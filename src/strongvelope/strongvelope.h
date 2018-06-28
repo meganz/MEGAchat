@@ -316,7 +316,7 @@ protected:
      * message is sent.
      */
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    updateSenderKey(const karere::SetOfIds &recipients);
+    createNewKey(const karere::SetOfIds &recipients);
 
     /**
      * @brief Signs a message using EdDSA with the Ed25519 key pair.

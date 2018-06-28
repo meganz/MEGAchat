@@ -91,9 +91,10 @@ public:
         //the argument type for the template parameter to sqlQuery(), which
         //compiles without any warning, but results is corrupt data written to the db!
         mDb.query("update sending set msg_cmd=?, key_cmd=? where rowid=?",
-            msgCmd?static_cast<StaticBuffer>(*msgCmd):StaticBuffer(nullptr, 0),
-            keyCmd?static_cast<StaticBuffer>(*keyCmd):StaticBuffer(nullptr, 0), rowid);
-        assertAffectedRowCount(1,"addCommandBlobToSendingItem");
+                  msgCmd ? static_cast<StaticBuffer>(*msgCmd) : StaticBuffer(nullptr, 0),
+                  keyCmd ? static_cast<StaticBuffer>(*keyCmd) : StaticBuffer(nullptr, 0),
+                  rowid);
+        assertAffectedRowCount(1,"addBlobsToSendingItem");
     }
     virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid)
     {
@@ -170,18 +171,28 @@ public:
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
             "ts, updated, backrefid, backrefs, recipients from sending where chatid=? order by rowid asc");
         stmt << mChat.chatId();
+
+        // Fill the sending queue with SendingItems from DB
         queue.clear();
         while(stmt.step())
         {
+            int rowid = stmt.intCol(0);
             uint8_t opcode = stmt.intCol(1);
+            karere::Id msgid = stmt.int64Col(2);
+            karere::Id userid = mChat.client().userId();
+            chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
+            unsigned char type = (unsigned char)stmt.intCol(5);
+            uint32_t ts = stmt.intCol(6);
+            uint16_t updated = stmt.intCol(7);
 
-            assert((opcode == chatd::OP_NEWMSG) || (opcode == chatd::OP_MSGUPD)
+            auto msg = new chatd::Message(
+                        msgid, userid, ts, updated, nullptr, 0, true, keyid, type);
+
+            assert((opcode == chatd::OP_NEWMSG)
+                   || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
-            auto msg = new chatd::Message(stmt.int64Col(2), mChat.client().userId(),
-                    stmt.intCol(6), stmt.intCol(7), nullptr, 0, true, (chatd::KeyId)stmt.intCol(3),
-                    (unsigned char)stmt.intCol(5));
-            stmt.blobCol(4, *msg);
+            stmt.blobCol(4, *msg);  // plain-text content
             msg->backRefId = stmt.uint64Col(8);
             if (stmt.hasBlobCol(9))
             {
@@ -189,11 +200,13 @@ public:
                 stmt.blobCol(9, refs);
                 refs.read(0, msg->backRefs);
             }
+
             Buffer recpts;
             stmt.blobCol(10, recpts);
             karere::SetOfIds recipients;
             recipients.load(recpts);
-            queue.emplace_back(opcode, msg, recipients, stmt.intCol(0));
+            chatd::Chat::SendingItem item(opcode, msg, recipients, rowid);
+            queue.emplace_back(item);
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
