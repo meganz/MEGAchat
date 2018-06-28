@@ -3856,8 +3856,8 @@ bool Message::parseUrl(const std::string &url)
 void Message::removeUnnecessaryLastCharacters(string &test)
 {
     char lastCharacter = test[test.size() - 1];
-    while (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
-           || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';')
+    while (test.size() && (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+           || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';'))
     {
         test.erase(test.size() - 1);
 
