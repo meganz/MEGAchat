@@ -3793,18 +3793,7 @@ bool Message::hasUrl(const string &text, string &url)
         {
             if (partialString.size() > 0)
             {
-                char lastCharacter = partialString[partialString.size() - 1];
-                while (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
-                       || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';')
-                {
-                    partialString.erase(partialString.size() - 1);
-
-                    if (partialString.size())
-                    {
-                        lastCharacter = partialString[partialString.size() - 1];
-                    }
-                }
-
+                removeUnnecessaryLastCharacters(partialString);
                 if (parseUrl(partialString))
                 {
                     url = partialString;
@@ -3820,18 +3809,7 @@ bool Message::hasUrl(const string &text, string &url)
 
     if (partialString.size() > 0)
     {
-        char lastCharacter = partialString[partialString.size() - 1];
-        while (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
-               || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';')
-        {
-            partialString.erase(partialString.size() - 1);
-
-            if (partialString.size())
-            {
-                lastCharacter = partialString[partialString.size() - 1];
-            }
-        }
-
+        removeUnnecessaryLastCharacters(partialString);
         if (parseUrl(partialString))
         {
             url = partialString;
@@ -3873,5 +3851,20 @@ bool Message::parseUrl(const std::string &url)
     std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+([-.]{1}[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
 
     return regex_match(urlToParse, regularExpresion);
+}
+
+void Message::removeUnnecessaryLastCharacters(string &test)
+{
+    char lastCharacter = test[test.size() - 1];
+    while (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+           || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';')
+    {
+        test.erase(test.size() - 1);
+
+        if (test.size())
+        {
+            lastCharacter = test[test.size() - 1];
+        }
+    }
 }
 }
