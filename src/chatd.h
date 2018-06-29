@@ -1225,7 +1225,7 @@ public:
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
     virtual void saveMsgToSending(Chat::SendingItem& msg) = 0;
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
-    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const Command* keyCmd) = 0;
+    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
     virtual void updateMsgKeyIdInSending(uint64_t rowid, KeyId keyid) = 0;

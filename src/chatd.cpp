@@ -1540,6 +1540,7 @@ void Chat::loadAndProcessUnsent()
     CALL_DB(loadSendQueue, mSending);
     if (mSending.empty())
         return;
+
     mNextUnsent = mSending.begin();
     replayUnsentNotifications();
 
@@ -2058,6 +2059,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     {
         it->msgCmd = pms.value().first;
         it->keyCmd = pms.value().second;
+        CALL_DB(addBlobsToSendingItem, it->rowid, it->msgCmd, it->keyCmd);
 
         sendKeyAndMessage(pms.value());
         return true;
@@ -2076,6 +2078,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         SendingItem item = mSending.front();
         item.msgCmd = result.first;
         item.keyCmd = result.second;
+        CALL_DB(addBlobsToSendingItem, item.rowid, item.msgCmd, item.keyCmd);
 
         sendKeyAndMessage(result);
         mEncryptionHalted = false;

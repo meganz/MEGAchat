@@ -687,6 +687,19 @@ public:
         append(keydata, keylen);
     }
     bool hasKeys() const { return dataSize() > 17; }
+    uint32_t keybloblen() const { return read<uint32_t>(13); }
+    StaticBuffer keyblob() const
+    {
+        auto len = keybloblen();
+        return StaticBuffer(readPtr(17, len), len);
+    }
+    void setKeyBlobs(const char* keyblob, uint32_t len)
+    {
+        write(13, len);
+        memcpy(writePtr(17, len), keyblob, len);
+        setDataSize(17 + len);
+    }
+
     void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
     virtual std::string toString() const;
 };
