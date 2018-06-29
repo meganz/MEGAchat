@@ -325,6 +325,25 @@ enum Opcode
     OP_DELREACTION = 34,
 
     /**
+      * @brief
+      * C->S: Subscribe to events for this chat in preview mode. Client has no existing message buffer.
+      * Send: <chatid> <userid> <user_priv>
+      *
+      * S->C: Indicates users in this chat and their privilege level as well as privilege
+      * Receive: <chatid> <userid> <priv>
+      */
+    OP_HANDLEJOIN = 36,
+
+    /**
+      * @brief
+      * C->S: Subscribe to events for this chat in preview mode, indicating the existing message range
+      *    (msgid0 is the oldest, msgid1 the newest). Responds with all messages newer
+      *    than msgid1 (if any) as NEWMSG, followed by a HISTDONE.
+      * Send: <chatid> <msgid0> <msgid1>
+      */
+    OP_HANDLEJOINRANGEHIST = 37,
+
+    /**
       ** @brief <chatid>
       *
       * C->S: ping server to ensure client is up to date for the specified chatid

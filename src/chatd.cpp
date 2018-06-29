@@ -3826,6 +3826,8 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(ECHO);
         RET_ENUM_NAME(ADDREACTION);
         RET_ENUM_NAME(DELREACTION);
+        RET_ENUM_NAME(HANDLEJOIN);
+        RET_ENUM_NAME(HANDLEJOINRANGEHIST);
         RET_ENUM_NAME(SYNC);
         default: return "(invalid opcode)";
     };
