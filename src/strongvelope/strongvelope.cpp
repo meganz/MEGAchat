@@ -499,6 +499,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
+    loadUnconfirmedKeysFromDb();
     auto var = getenv("KRCHAT_FORCE_RSA");
     if (var)
     {
@@ -532,6 +533,68 @@ void ProtocolHandler::loadKeysFromDb()
         assert(ret.second);
     }
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu send keys from database", chatid, mKeys.size());
+}
+
+void ProtocolHandler::loadUnconfirmedKeysFromDb()
+{
+    SqliteStmt stmt(mDb, "select recipients, key_cmd from sending "
+                    "where chatid=? and key_cmd not null order by rowid asc");
+    stmt << chatid;
+    while(stmt.step())
+    {
+        // read recipients
+        Buffer recpts;
+        stmt.blobCol(0, recpts);
+        karere::SetOfIds recipients;
+        recipients.load(recpts);
+
+        // read new key blobs
+        assert (stmt.hasBlobCol(1));
+        Buffer keyBlobs;
+        stmt.blobCol(1, keyBlobs);
+
+        //pick the version that is encrypted for us
+        const char *pos = keyBlobs.buf();
+        const char *end = keyBlobs.buf() + keyBlobs.dataSize();
+        std::shared_ptr<Buffer> encryptedKey = nullptr;
+        while (pos < end)
+        {
+            karere::Id receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos += 8;
+
+            uint16_t keylen = Buffer::alignSafeRead<uint16_t>(pos);//*(uint16_t*)(pos);
+            pos += 2;
+
+            if (receiver == mOwnHandle)
+            {
+                encryptedKey = std::make_shared<Buffer>(16);
+                encryptedKey->assign(pos, 16);
+                break;
+            }
+
+            pos += keylen;
+        }
+
+        if (!encryptedKey) // not found
+        {
+            assert(false);
+            continue;
+        }
+
+        auto wptr = weakHandle();
+        decryptKey(encryptedKey, mOwnHandle, mOwnHandle)
+        .then([this, wptr, recipients](const std::shared_ptr<SendKey>& key)
+        {
+            wptr.throwIfDeleted();
+
+            mCurrentKey = key;
+            mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
+            mCurrentKeyParticipants = recipients;
+            mUnconfirmedKeys.push_back(std::make_pair(mCurrentKeyParticipants, mCurrentKey));
+        });
+    }
+
+    STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid, mUnconfirmedKeys.size());
 }
 
 void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
@@ -1228,7 +1291,6 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 
     mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
     mCurrentKeyParticipants = recipients;
-
     mUnconfirmedKeys.push_back(std::make_pair(mCurrentKeyParticipants, mCurrentKey));
 
     // Assemble the output for all recipients.

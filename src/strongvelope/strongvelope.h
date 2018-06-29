@@ -306,8 +306,21 @@ public:
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, void *ctx);
 
+    promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
+        decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
+
 protected:
     void loadKeysFromDb();
+
+    /**
+     * @brief Load unconfirmed keys stored in cache
+     *
+     * Upon resumption from cache, if there were unconfirmed keys in-flight (NEWKEY's attached to
+     * NEWMSGs that are in the sending queue, already encrypted in their KeyCommand+MsgCommand shape),
+     * strongvelope should know them in order to properly confirm them when onKeyConfirmed() is called
+     */
+    void loadUnconfirmedKeysFromDb();
+
     promise::Promise<std::shared_ptr<SendKey>> getKey(UserKeyId ukid, bool legacy=false);
     void addDecryptedKey(UserKeyId ukid, const std::shared_ptr<SendKey>& key);
     /**
@@ -380,11 +393,7 @@ public:
     virtual void randomBytes(void* buf, size_t bufsize) const;
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
-//    virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
     virtual void onHistoryReload();
-    //====
-    promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
-        decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
 };
 }
 namespace chatd
