@@ -3791,13 +3791,9 @@ bool Message::hasUrl(const string &text, string &url)
         }
         else
         {
-            if (partialString.size() > 0)
+            if (!partialString.empty())
             {
-                if (partialString[partialString.size() - 1] == '.')
-                {
-                    partialString.erase(partialString.size() - 1);
-                }
-
+                removeUnnecessaryLastCharacters(partialString);
                 if (parseUrl(partialString))
                 {
                     url = partialString;
@@ -3811,13 +3807,9 @@ bool Message::hasUrl(const string &text, string &url)
         position ++;
     }
 
-    if (partialString.size() > 0)
+    if (!partialString.empty())
     {
-        if (partialString[partialString.size() - 1] == '.')
-        {
-            partialString.erase(partialString.size() - 1);
-        }
-
+        removeUnnecessaryLastCharacters(partialString);
         if (parseUrl(partialString))
         {
             url = partialString;
@@ -3859,5 +3851,23 @@ bool Message::parseUrl(const std::string &url)
     std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+([-.]{1}[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
 
     return regex_match(urlToParse, regularExpresion);
+}
+
+void Message::removeUnnecessaryLastCharacters(string &buf)
+{
+    if (!buf.empty())
+    {
+        char lastCharacter = buf.back();
+        while (!buf.empty() && (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+                               || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';'))
+        {
+            buf.erase(buf.size() - 1);
+
+            if (!buf.empty())
+            {
+                lastCharacter = buf.back();
+            }
+        }
+    }
 }
 }
