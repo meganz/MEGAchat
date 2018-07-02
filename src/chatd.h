@@ -677,7 +677,9 @@ protected:
     karere::Id makeRandomId();
     void login();
     void join();
+    void handlejoin();
     void joinRangeHist(const ChatDbInfo& dbInfo);
+    void handlejoinRangeHist(const ChatDbInfo& dbInfo);
     void onDisconnect();
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)

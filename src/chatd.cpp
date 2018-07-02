@@ -325,10 +325,22 @@ void Chat::login()
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
-    if (mOldestKnownMsgId) //if we have local history
-        joinRangeHist(info);
+
+    bool previewMode = crypto()->getPreviewMode();
+    if (previewMode)
+    {
+        if (mOldestKnownMsgId) //if we have local history
+            handlejoinRangeHist(info);
+        else
+            handlejoin();
+    }
     else
-        join();
+    {
+        if (mOldestKnownMsgId) //if we have local history
+            joinRangeHist(info);
+        else
+            join();
+    }
 }
 
 Connection::Connection(Client& client, int shardNo)
@@ -847,6 +859,25 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(stream.str());
             return tmpString;
         }
+        case OP_HANDLEJOIN:
+        {
+            string tmpString;
+            karere::Id ph =  *((uint64_t *) data.readPtr(1,6));
+            karere::Id userId = data.read<uint64_t>(7);
+            uint8_t priv = data.read<uint8_t>(15);
+
+            tmpString.append("HANDLEJOIN ph: ");
+            tmpString.append(ID_CSTR(ph), 8);
+
+            tmpString.append(" userid: ");
+            tmpString.append(ID_CSTR(userId));
+
+            tmpString.append(" priv: ");
+            tmpString.append(std::to_string(priv));
+            return tmpString;
+        }
+
+
 #ifndef KARERE_DISABLE_WEBRTC
         case OP_RTMSG_ENDPOINT:
         case OP_RTMSG_USER:
@@ -892,7 +923,37 @@ void Chat::join()
     //We don't have any local history, otherwise joinRangeHist() would be called instead of this
     //Reset handshake state, as we may be reconnecting
     mServerFetchState = kHistNotFetching;
+    CHATID_LOG_DEBUG("Sending JOIN");
     sendCommand(Command(OP_JOIN) + mChatId + mClient.mUserId + (int8_t)PRIV_NOCHANGE);
+    requestHistoryFromServer(-initialHistoryFetchCount);
+}
+
+void Chat::handlejoin()
+{
+    //Get public handle from mPhToChatId map
+    auto m = client().karereClient->mPhToChatId;
+    auto it = m.begin();
+    uint64_t auxph;
+    while (it != m.end())   // message is loaded in RAM
+    {
+        if (it->second == mChatId )
+        {
+            auxph = it->first;
+        }
+        it++;
+    }
+    Buffer buff;
+    buff.write(0,&auxph, ::mega::PUBLICHANDLE);
+
+    //We don't have any local history, otherwise joinRangeHist() would be called instead of this
+    //Reset handshake state, as we may be reconnecting
+    mServerFetchState = kHistNotFetching;
+    CHATID_LOG_DEBUG("Sending HANDLEJOIN");
+
+    //Create command `OPCODE_HANDLEJOIN(1) + chathandle(6) + userId(8) + priv(1)`
+    Command comm (OP_HANDLEJOIN);
+    comm.append(buff.buf(), ::mega::PUBLICHANDLE);
+    sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
 
@@ -2495,6 +2556,33 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + at(highnum()).id());
+}
+
+// after a reconnect, we tell the chatd the oldest and newest buffered message
+void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
+{
+    auto m = client().karereClient->mPhToChatId;
+    auto it = m.begin();
+    uint64_t auxph;
+    while (it != m.end())   // message is loaded in RAM
+    {
+        if (it->second == mChatId )
+        {
+            auxph = it->first;
+        }
+        it++;
+    }
+    Buffer buff;
+    buff.write(0,&auxph, ::mega::PUBLICHANDLE);
+
+    assert(dbInfo.oldestDbId && dbInfo.newestDbId);
+    mServerFetchState = kHistFetchingNewFromServer;
+    CHATID_LOG_DEBUG("Sending HANDLEJOINRANGEHIST based on app db: %s - %s",
+            dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
+
+    Command comm (OP_HANDLEJOINRANGEHIST);
+    comm.append(buff.buf(), ::mega::PUBLICHANDLE);
+    sendCommand(comm + dbInfo.oldestDbId + at(highnum()).id());
 }
 
 Client::~Client()
