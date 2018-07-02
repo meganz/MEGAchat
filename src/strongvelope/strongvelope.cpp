@@ -825,37 +825,37 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         }
         else    // msg for different set of recipients or no current key available
         {
-            // check if new key was already created, but still unconfirmed (for MSGUPDX, replayed NEWMSG)
-            std::shared_ptr<SendKey> unconfirmedKey;
-            for (auto& it: mUnconfirmedKeys)
+            // edits of unconfirmed new messages should reuse the same key than original message
+            if (msgCmd->opcode() == OP_MSGUPDX)
             {
-                if (it.first == recipients)
+                std::shared_ptr<SendKey> unconfirmedKey;
+                for (auto& it: mUnconfirmedKeys)
                 {
-                    unconfirmedKey = it.second;
-                    break;
+                    if (it.first == recipients)
+                    {
+                        unconfirmedKey = it.second;
+
+                        msg->keyid = CHATD_KEYID_UNCONFIRMED;
+                        msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
+                        msgEncryptWithKey(*msg, *msgCmd, *unconfirmedKey);
+
+                        return std::make_pair(msgCmd, (KeyCommand*)nullptr);
+                    }
                 }
+                return promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
             }
 
-            if (unconfirmedKey)
+            // first msg for new set of participants --> create new key and attach to MsgCmd as KeyCmd
+            auto wptr = weakHandle();
+            return createNewKey(recipients)
+            .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
             {
+                wptr.throwIfDeleted();
                 msg->keyid = CHATD_KEYID_UNCONFIRMED;
                 msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
-                msgEncryptWithKey(*msg, *msgCmd, *unconfirmedKey);
-                return std::make_pair(msgCmd, (KeyCommand*)nullptr);
-            }
-            else    // first msg for new set of participants --> create new key and attach to MsgCmd as KeyCmd
-            {
-                auto wptr = weakHandle();
-                return createNewKey(recipients)
-                .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
-                {
-                    wptr.throwIfDeleted();
-                    msg->keyid = CHATD_KEYID_UNCONFIRMED;
-                    msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
-                    msgEncryptWithKey(*msg, *msgCmd, *result.second);
-                    return std::make_pair(msgCmd, result.first);
-                });
-            }
+                msgEncryptWithKey(*msg, *msgCmd, *result.second);
+                return std::make_pair(msgCmd, result.first);
+            });
         }
     }
     else // use a key specified in msg->keyid, already confirmed (for MSGUPDs)

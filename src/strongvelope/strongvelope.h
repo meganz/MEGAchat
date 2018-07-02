@@ -291,7 +291,6 @@ protected:
 
     // current list of participants (mapped to the `chatd::Client::mUsers`)
     karere::SetOfIds* mParticipants = nullptr;
-    bool mParticipantsChanged = true;
 
     bool mIsDestroying = false;
     unsigned int mCacheVersion = 0; // updated if history is reloaded
