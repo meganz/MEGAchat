@@ -331,7 +331,7 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 }
 
 
-promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::string &key)
+promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
 {
     auto wptr = weakHandle();
     std::string chatKey = key;
@@ -347,20 +347,26 @@ promise::Promise<void> Client::loadChatLink(megaHandle publicHandle, const std::
             return promise::Error("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
         }
 
-        std::string title = result->getText();
         Id ph = result->getNodeHandle();
-        std::string url = result->getLink();
         int shard = result->getAccess();
+        int numPeers = result->getNumDetails();
 
-        //Convert unified chat key to binary (16 Bytes) and set in strongvelope
-        std::string keybin;
-        mega::Base64::atob(chatKey, keybin);
+        std::string title = result->getText() ? result->getText() : "";
+        if (title.empty())
+        {
+            KR_LOG_WARNING("Chat title is empty for chatid: %d", chatId);
+        }
 
-        //TODO: connect to chatd using the URL
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true, ph, true, keybin);
+        std::string url = result->getLink() ? result->getLink() : "";
+        if (url.empty())
+        {
+            return promise::Error("Chatlink Url returned for chatid "+karere::Id(chatId).toString()+" is not valid. ", kErrorTypeGeneric);
+        }
 
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, title, true, ph, true, chatKey, numPeers, url);
         mPhToChatId[ph] = chatId;
         chats->emplace(chatId, (ChatRoom *)room);
+        room->connect();
         return promise::_Void();
     });
 }
@@ -1729,6 +1735,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
+    mPreviewMode = false;
     SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
     std::vector<promise::Promise<void> > promises;
@@ -1774,13 +1781,15 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title,
-    bool aPublicChat, const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey)
+    bool aPublicChat, const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat),
-mPublicHandle(publicHandle), mPreviewMode(previewMode)
+mPublicHandle(publicHandle), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 {
     initWithChatd();
     mChat->crypto()->setUnifiedKey(unifiedKey);
+    mChat->crypto()->setPreviewMode(previewMode);
+    mUrl = aUrl;
 
     auto ct = title.data();
     bool hasCt = (ct && ct[0]);
@@ -2299,6 +2308,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr), mPublicChat(aChat.isPublicChat())
 {
+    mPreviewMode = false;
     auto peers = aChat.getPeerList();
     std::vector<promise::Promise<void> > promises;
     if (peers)
@@ -2465,8 +2475,19 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 
     buf.setDataSize(decLen);
     auto wptr = getDelTracker();
-    return this->chat().crypto()->decryptChatTitle(buf)
-    .then([wptr, this](const std::string& title)
+    promise::Promise<std::string> pms;
+    if (mPreviewMode)
+    {
+        std::string auxTitle = this->chat().crypto()->decryptPublicChatTitle(buf);
+        pms = promise::Promise<std::string>();
+        pms.resolve(auxTitle);
+    }
+    else
+    {
+        pms = chat().crypto()->decryptChatTitle(buf);
+    }
+
+    return pms.then([wptr, this](const std::string& title)
     {
         wptr.throwIfDeleted();
         if (mTitleString == title)
@@ -2486,7 +2507,6 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
                 clearTitle();
             }
         }
-
         notifyTitleChanged();
     })
     .fail([wptr, this](const promise::Error& err)
@@ -2928,6 +2948,16 @@ std::string GroupChatRoom::chatkey()
     {
         return std::string();
     }
+}
+
+int GroupChatRoom::getNumPeers() const
+{
+    return mNumPeers;
+}
+
+void GroupChatRoom::setNumPeers(int value)
+{
+    mNumPeers = value;
 }
 
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)

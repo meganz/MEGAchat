@@ -306,6 +306,7 @@ protected:
     uint64_t mPublicHandle;
     bool mPublicChat;
     bool mPreviewMode;
+    int mNumPeers = 0; //Only for public chats in preview mode
 
     void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
     bool syncMembers(const UserPrivMap& users);
@@ -339,7 +340,7 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                       unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
                       const std::string& title, bool aPublicChat,
-                      const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey);
+                      const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl);
     ~GroupChatRoom();
 public:
 //chatd::Listener
@@ -424,6 +425,8 @@ public:
     void setPublicChat(bool publicChat);
 
     std::string chatkey();
+    int getNumPeers() const;
+    void setNumPeers(int value);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -732,7 +735,7 @@ public:
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
     // TODO: add documentation
-    promise::Promise<void> loadChatLink(megaHandle publicHandle, const std::string &key);
+    promise::Promise<void> loadChatLink(uint64_t publicHandle, const std::string &key);
 
     // TODO: add documentation
     promise::Promise<void> closeChatLink(karere::Id chatid);
