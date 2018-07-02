@@ -5650,7 +5650,27 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 priv = callEndInfo->duration;
-                code = callEndInfo->termCode;
+                switch(callEndInfo->termCode)
+                {
+                    case END_CALL_REASON_CANCELLED:
+                        code = END_CALL_REASON_NO_ANSWER;
+                        break;
+                    case END_CALL_REASON_ENDED:
+                    case END_CALL_REASON_FAILED:
+                        if (priv > 0)
+                        {
+                            code = END_CALL_REASON_ENDED;
+                        }
+                        else
+                        {
+                            code = END_CALL_REASON_FAILED;
+                        }
+                        break;
+                    default:
+                        code = callEndInfo->termCode;
+                        break;
+                }
+
                 delete callEndInfo;
             }
             break;
