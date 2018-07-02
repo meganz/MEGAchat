@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <random>
 #include <regex>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
 
 using namespace std;
 using namespace promise;
@@ -1783,7 +1785,6 @@ void Chat::requestRichLink(Message &message)
             Message *msg = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
             if (msg && updated == msg->updated)
             {
-                std::string header;
                 std::string text = requestText;
                 std::string originalMessage = msg->toText();
                 std::string textMessage;
@@ -1791,27 +1792,50 @@ void Chat::requestRichLink(Message &message)
                 for (std::string::size_type i = 0; i < originalMessage.size(); i++)
                 {
                     char character = originalMessage[i];
-                    if (character != '\n' && character != '\r')
+                    switch (character)
                     {
-                        textMessage.push_back(originalMessage[i]);
-                    }
-                    else if (character == '\n')
-                    {
-                        textMessage.push_back('\\');
-                        textMessage.push_back('n');
-                    }
-                    else
-                    {
-                        textMessage.push_back('\\');
-                        textMessage.push_back('r');
+                        case '\n':
+                            textMessage.push_back('\\');
+                            textMessage.push_back('n');
+                        break;
+                        case '\r':
+                            textMessage.push_back('\\');
+                            textMessage.push_back('r');
+                        break;
+                        case '\t':
+                            textMessage.push_back('\\');
+                            textMessage.push_back('t');
+                        break;
+                        case '\"':
+                        case '\\':
+                            textMessage.push_back('\\');
+                            textMessage.push_back(character);
+                        break;
+                        default:
+                            if (character > 31 && character != 127) // control ASCII characters are removed
+                            {
+                                textMessage.push_back(character);
+                            }
+                        break;
                     }
                 }
 
-                header.insert(header.begin(), 0x0);
-                header.insert(header.begin(), Message::kMsgContainsMeta);
-                header.insert(header.begin(), 0x0);
-                header = header + std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
-                std::string updateText = header + text + std::string("]}");
+                std::string updateText = std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
+                updateText = updateText + text + std::string("]}");
+
+                rapidjson::StringStream stringStream(updateText.c_str());
+                rapidjson::Document document;
+                document.ParseStream(stringStream);
+
+                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                {
+                    API_LOG_ERROR("requestRichLink: Json is not valid");
+                    return;
+                }
+
+                updateText.insert(updateText.begin(), 0x0);
+                updateText.insert(updateText.begin(), Message::kMsgContainsMeta);
+                updateText.insert(updateText.begin(), 0x0);
                 std::string::size_type size = updateText.size();
 
                 if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
@@ -1976,7 +2000,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
     sendingIdx.reserve(mSending.size());
     auto next = msgit;
     next++;
-    for (auto it = mSending.begin(); it != next; next++)
+    for (auto it = mSending.begin(); it != next; it++)
     {
         sendingIdx.push_back(&(*it));
     }
@@ -2613,13 +2637,16 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    if (mClient.richLinkState() == Client::kRichLinkEnabled)
+    if (msg->type == Message::kMsgNormal)
     {
-        requestRichLink(*msg);
-    }
-    else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
-    {
-        manageRichLinkMessage(*msg);
+        if (mClient.richLinkState() == Client::kRichLinkEnabled)
+        {
+            requestRichLink(*msg);
+        }
+        else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+        {
+            manageRichLinkMessage(*msg);
+        }
     }
 
     return idx;
@@ -3812,47 +3839,48 @@ const char* Message::statusNames[] =
 bool Message::hasUrl(const string &text, string &url)
 {
     std::string::size_type position = 0;
+    std::string partialString;
     while (position < text.size())
     {
-        std::string::size_type nextPositionSpace = text.find(' ', position);
-        std::string::size_type nextPositionN = text.find('\n', position);
-        std::string::size_type nextPositionR = text.find('\r', position);
-        nextPositionSpace = (nextPositionSpace != std::string::npos) ? nextPositionSpace : text.size();
-        nextPositionN = (nextPositionN != std::string::npos) ? nextPositionN : text.size();
-        nextPositionR = (nextPositionR != std::string::npos) ? nextPositionR : text.size();
-
-        std::string::size_type nextPosition;
-
-        if (nextPositionSpace <= nextPositionN && nextPositionSpace <= nextPositionR)
+        char character = text[position];
+        if ((character >= 33 && character <= 126)
+                && character != '"'
+                && character != '\''
+                && character != '\\'
+                && character != '<'
+                && character != '>'
+                && character != '{'
+                && character != '}'
+                && character != '|')
         {
-            nextPosition = nextPositionSpace;
-        }
-        else if (nextPositionN < nextPositionR)
-        {
-            nextPosition = nextPositionN;
+            partialString.push_back(character);
         }
         else
         {
-            nextPosition = nextPositionR;
+            if (!partialString.empty())
+            {
+                removeUnnecessaryLastCharacters(partialString);
+                if (parseUrl(partialString))
+                {
+                    url = partialString;
+                    return true;
+                }
+            }
+
+            partialString.clear();
         }
 
-        std::string partialTex = text.substr(position, nextPosition - position);
-        if (partialTex.size() > 0)
+        position ++;
+    }
+
+    if (!partialString.empty())
+    {
+        removeUnnecessaryLastCharacters(partialString);
+        if (parseUrl(partialString))
         {
-            char lastChar = partialTex.at(partialTex.size() - 1);
-            if (lastChar == '.' || lastChar == '\n' || lastChar == '\r')
-            {
-                partialTex.erase(partialTex.size() - 1);
-            }
-
-            if (parseUrl(partialTex))
-            {
-                url = partialTex;
-                return true;
-            }
+            url = partialString;
+            return true;
         }
-
-        position = nextPosition + 1;
     }
 
     return false;
@@ -3886,8 +3914,26 @@ bool Message::parseUrl(const std::string &url)
         return false;
     }
 
-    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z]+([-.]{1}[a-z0-9A-Z]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?(.*)?$");
+    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+([-.]{1}[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
 
     return regex_match(urlToParse, regularExpresion);
+}
+
+void Message::removeUnnecessaryLastCharacters(string &buf)
+{
+    if (!buf.empty())
+    {
+        char lastCharacter = buf.back();
+        while (!buf.empty() && (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+                               || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';'))
+        {
+            buf.erase(buf.size() - 1);
+
+            if (!buf.empty())
+            {
+                lastCharacter = buf.back();
+            }
+        }
+    }
 }
 }

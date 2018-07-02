@@ -24,6 +24,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
     MEGAChatCallTermCodeCallReqCancel = 1,
     MEGAChatCallTermCodeCallReject = 2,
     MEGAChatCallTermCodeAnswerElseWhere = 3,
+    MEGAChatCallTermCodeRejectElseWhere = 4,
     MEGAChatCallTermCodeAnswerTimeout = 5,
     MEGAChatCallTermCodeRingOutTimeout = 6,
     MEGAChatCallTermCodeAppTerminating = 7,

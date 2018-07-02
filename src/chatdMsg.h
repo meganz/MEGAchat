@@ -480,7 +480,7 @@ public:
     uint16_t updated;
     uint32_t keyid;
     unsigned char type;
-    BackRefId backRefId;
+    BackRefId backRefId = 0;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
     mutable uint8_t userFlags = 0;
@@ -610,6 +610,7 @@ public:
 
     static bool hasUrl(const std::string &text, std::string &url);
     static bool parseUrl(const std::string &url);
+    static void removeUnnecessaryLastCharacters(std::string& test);
 
 protected:
     static const char* statusNames[];

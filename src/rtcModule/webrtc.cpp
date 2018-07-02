@@ -830,7 +830,7 @@ void Call::handleReject(RtMessage& packet)
             return;
         }
 
-        destroy(static_cast<TermCode>(TermCode::kCallRejected), false);
+        destroy(static_cast<TermCode>(TermCode::kRejElsewhere), false);
     }
 }
 
@@ -1351,8 +1351,6 @@ bool Call::sendCallData(int state)
          payLoadLen += sizeof(uint8_t);
     }
 
-    karere::Id userid = mManager.mClient.myHandle();
-    uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
     command.write<uint64_t>(9, 0);
     command.write<uint32_t>(17, 0);
@@ -1413,6 +1411,11 @@ uint8_t Call::convertTermCodeToCallDataCode()
 
         case kAnsElsewhere:
             SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
+            assert(false);
+            break;
+
+        case kRejElsewhere:
+            SUB_LOG_ERROR("Can't generate a history call ended message for local kRejElsewhere code");
             assert(false);
             break;
 
@@ -2484,6 +2487,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kUserHangup);
         RET_ENUM_NAME(kCallRejected);
         RET_ENUM_NAME(kAnsElsewhere);
+        RET_ENUM_NAME(kRejElsewhere);
         RET_ENUM_NAME(kAnswerTimeout);
         RET_ENUM_NAME(kRingOutTimeout);
         RET_ENUM_NAME(kAppTerminating);
