@@ -1413,7 +1413,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
             SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
             assert(false);
             break;
-            
+
         case kRejElsewhere:
             SUB_LOG_ERROR("Can't generate a history call ended message for local kRejElsewhere code");
             assert(false);
@@ -1625,6 +1625,11 @@ void Call::sendBusy()
 {
     // Broadcast instead of send only to requestor, so that all other our clients know we rejected the call
     cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, TermCode::kBusy);
+}
+
+uint8_t Call::predestroyState() const
+{
+    return mPredestroyState;
 }
 
 AvFlags Call::sentAv() const
