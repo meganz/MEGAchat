@@ -18,7 +18,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    int unreadCount = mMainWin->getLocalChatListItem(mChatId)->getUnreadCount();
+    int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
     ui->mName->setText(item->getTitle());
 
@@ -28,14 +28,22 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     }
     else
     {
-        if(item->isPublic())
+        if (item->isPreview())
         {
-            ui->mAvatar->setText("P");
-            ui->mAvatar->setStyleSheet("color: #43B63D");
+            ui->mAvatar->setText("V");
+            ui->mAvatar->setStyleSheet("color: #FF0C14");
         }
         else
         {
-            ui->mAvatar->setText("G");
+            if(item->isPublic())
+            {
+                ui->mAvatar->setText("P");
+                ui->mAvatar->setStyleSheet("color: #43B63D");
+            }
+            else
+            {
+                ui->mAvatar->setText("G");
+            }
         }
     }
 
@@ -182,7 +190,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                        .append(" Duration: ")
                        .append(stringList.at(0).toStdString())
                        .append("secs TermCode: ")
-                       .append(stringList.at(1).toStdString());
+                       .append("stringList.at(1).toStdString()");
             break;
         }
 

@@ -381,6 +381,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
         }
         break;
 
+    case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
+    {
+        MegaChatHandle chatid = request->getChatHandle();
+        MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+        if (!chatListItem)
+        {
+            QMessageBox::critical(nullptr, tr("Export chat link"), tr("Chat Item does not exists"));
+        }
+        else
+        {
+            mMainWin->addChat(chatListItem);
+        }
+        break;
+    }
+
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:

@@ -217,6 +217,8 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
     connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
 
+    auto actLoadLink = menu.addAction(tr("Preview public chat"));
+    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
     menu.exec(event->globalPos());
 }
 
@@ -415,6 +417,22 @@ void MainWindow::onChangeItemsVisibility()
 {
     allItemsVisibility = !allItemsVisibility;
     orderContactChatList(allItemsVisibility);
+}
+
+void MainWindow::loadChatLink()
+{
+    std::string chatLink;
+    QString qChatLink = QInputDialog::getText(this, tr("Load chat link"), tr("Enter a valid chatlink"));
+    if (!qChatLink.isNull())
+    {
+        chatLink = qChatLink.toStdString();
+        if (chatLink.empty())
+        {
+            QMessageBox::warning(this, tr("Load chat link"), tr("You can't enter an empty chatlink"));
+            return;
+        }
+        this->mMegaChatApi->loadChatLink(chatLink.c_str());
+    }
 }
 
 void MainWindow::onAddContact()

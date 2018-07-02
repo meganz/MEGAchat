@@ -115,6 +115,7 @@ class MainWindow :
         void onAddContact();
         void setOnlineStatus();
         void onChangeItemsVisibility();
+        void loadChatLink();
 
     signals:
         void esidLogout();
