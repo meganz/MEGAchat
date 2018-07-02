@@ -284,6 +284,7 @@ private:
     int64_t lastTs;
     bool group;
     bool mPublicChat;
+    bool mPreviewMode;
     bool active;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
@@ -305,6 +306,7 @@ public:
     virtual int64_t getLastTimestamp() const;
     virtual bool isGroup() const;
     virtual bool isPublic() const;
+    virtual bool isPreview() const;
     virtual bool isActive() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;

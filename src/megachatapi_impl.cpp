@@ -739,6 +739,11 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
             string parsedLink = request->getLink();
+            if (parsedLink.empty())
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
 
             //link format: https://mega.nz/c/<public-handle>#<chat-key>
             string separator = "c/";
@@ -757,22 +762,24 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (pos == string::npos
                 || pos != 8
-                || (parsedLink.size() - pos - 1) != 25)
+                || (parsedLink.size() - pos - 1) != 22)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
+            //Parse public handle (First 8 Bytes)
             string phstr = parsedLink.substr(0, pos);   // 6 bytes in binary, 8 in B64url
             MegaChatHandle ph = UNDEF;
-            Base64::atob(phstr.c_str(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
+            Base64::atob(phstr.data(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
 
-            string key; // it's 16 bytes in binary, 25 in B64url
+            //Parse unified key (Last 16 Bytes)
+            string key; // it's 16 bytes in binary, 22 in B64url
             string keystr = parsedLink.substr(pos + 1);
             Base64::atob(keystr, key);
 
             //Check that ph and uk have right size
-            if (ISUNDEF(ph) || key.size() != 16 || phstr.size() != 6)
+            if (ISUNDEF(ph) || key.size() != 16)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -884,7 +891,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     string keystr;
                     Base64::btoa(keybin, keystr);
-
                     string link = "https://mega.nz/c/" + phstr + "#" + keystr;
                     request->setText(link.c_str());
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -5538,6 +5544,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
     this->mPublicChat = ((GroupChatRoom &)chatroom).publicChat();
+    this->mPreviewMode = ((GroupChatRoom &)chatroom).previewMode();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->changed = 0;
@@ -5626,6 +5633,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->lastMsgSender = item->getLastMessageSender();
     this->group = item->isGroup();
     this->mPublicChat = item->isPublic();
+    this->mPreviewMode = item->isPreview();
     this->active = item->isActive();
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
@@ -5705,6 +5713,11 @@ bool MegaChatListItemPrivate::isGroup() const
 bool MegaChatListItemPrivate::isPublic() const
 {
     return mPublicChat;
+}
+
+bool MegaChatListItemPrivate::isPreview() const
+{
+    return mPreviewMode;
 }
 
 bool MegaChatListItemPrivate::isActive() const

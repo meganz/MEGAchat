@@ -3858,6 +3858,12 @@ public:
     virtual bool isPublic() const;
 
     /**
+     * @brief Returns whether a public chat is in preview mode or not
+     * @return True if this public chat is in preview mode.
+     */
+    virtual bool isPreview() const;
+
+    /**
      * @brief Returns whether the user is member of the chatroom (for groupchats),
      * or the user is contact with the peer (for 1on1 chats).
      *

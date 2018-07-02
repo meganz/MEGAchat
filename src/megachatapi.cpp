@@ -1186,6 +1186,11 @@ bool MegaChatListItem::isPublic() const
     return false;
 }
 
+bool MegaChatListItem::isPreview() const
+{
+    return false;
+}
+
 bool MegaChatListItem::isActive() const
 {
     return false;
