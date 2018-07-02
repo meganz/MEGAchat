@@ -84,9 +84,10 @@ enum TermCode: uint8_t
 {
     kUserHangup = 0,            // < Normal user hangup
 //    kCallReqCancel = 1,       // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
-    kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
-    // <another client of our user
+    kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected in
+    // < the current device
     kAnsElsewhere = 3,          // < Call was answered on another device of ours
+    kRejElsewhere = 4,          // < Call was rejected on another device of ours
     kAnswerTimeout = 5,         // < Call was not answered in a timely manner
     kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
     // < users are online
@@ -338,18 +339,7 @@ public:
      * @brief Search all audio and video devices at system at that moment.
      */
     virtual void loadDeviceList() = 0;
-
-    /**
-     * @brief Initiates a call to the specified JID.
-     * @param userHandler - the event handler interface that will receive further events
-     * about the call
-     * @param targetJid - the bare or full JID of the callee. If the JID is bare,
-     * the call request is broadcasted to all devices of that user. If the JID is
-     * full (includes the xmpp resource), then only that device will receive the call request.
-     * @param av What streams to send - audio and/or video or none.
-     * @param files - used for file transfer calls, not implemented yet.
-     * @param myJid - used when in a XMPP conference chatroom to specify our room-specific jid
-     */
+    
     virtual bool isCaptureActive() const = 0;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
