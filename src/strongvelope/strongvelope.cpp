@@ -505,7 +505,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mUnifiedSender((uint64_t)0)
+ mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -524,7 +524,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, int chatMode, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode), mUnifiedSender((uint64_t)0)
+ mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     if (this->mChatMode == CHAT_MODE_PRIVATE)
@@ -765,16 +765,6 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
     }
 }
 
-void ProtocolHandler::setUnifiedSender(karere::Id unifiedSender)
-{
-    this->mUnifiedSender = unifiedSender;
-}
-
-karere::Id ProtocolHandler::getUnifiedSender()
-{
-    return this->mUnifiedSender;
-}
-
 void ProtocolHandler::createUnifiedKey()
 {
     // initialize a new unified key
@@ -791,6 +781,16 @@ void ProtocolHandler::setUnifiedKey(const std::string &key)
 void ProtocolHandler::resetUnifiedKey()
 {
     mUnifiedKey.reset();
+}
+
+void ProtocolHandler::setPreviewMode(bool previewMode)
+{
+    mPreviewMode = previewMode;
+}
+
+bool ProtocolHandler::getPreviewMode()
+{
+    return mPreviewMode;
 }
 
 std::string ProtocolHandler::getUnifiedKey()
@@ -907,7 +907,6 @@ ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
     });
 }
 
-
 promise::Promise<std::string>
 ProtocolHandler::decryptChatTitle(const Buffer& data)
 {
@@ -931,6 +930,30 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
     catch(std::exception& e)
     {
         return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
+    }
+}
+
+std::string
+ProtocolHandler::decryptPublicChatTitle(const Buffer& data)
+{
+    try
+    {
+        Buffer copy(data.dataSize());
+        copy.copyFrom(data);
+        auto msg = std::make_shared<chatd::Message>(
+            karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
+        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+
+        auto unifiedKey = std::make_shared<SendKey>();
+        memcpy(unifiedKey->buf(), mUnifiedKey->buf(), AES::BLOCKSIZE);
+
+        chatd::Message *decryptedMsg = parsedMsg->decryptPublicChatTitle(msg.get(), unifiedKey);
+        std::string res(decryptedMsg->buf(),decryptedMsg->size());
+        return res;
+    }
+    catch(std::exception& e)
+    {
+        return std::string();
     }
 }
 
@@ -1400,6 +1423,13 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants()
     });
 }
 
+chatd::Message*
+ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key)
+{
+    symmetricDecrypt(*key, *msg);
+    msg->setEncrypted(0);
+    return msg;
+}
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {

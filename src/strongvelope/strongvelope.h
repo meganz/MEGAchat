@@ -186,6 +186,8 @@ struct ParsedMessage: public karere::DeleteTrackable
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
+
+    chatd::Message *decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key);
     promise::Promise<std::string> extractUnifiedKeyFromCt(chatd::Message *msg);
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
     std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
@@ -278,8 +280,8 @@ protected:
     unsigned int mCacheVersion = 0;
 
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
+    bool mPreviewMode = false;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
-    karere::Id mUnifiedSender;
 
 public:
     karere::Id chatid;
@@ -368,6 +370,9 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants();
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
+
+    virtual std::string decryptPublicChatTitle(const Buffer& data);
+
     virtual const chatd::KeyCommand* unconfirmedKeyCmd() const { return mUnconfirmedKeyCmd.get(); }
     virtual void onHistoryReload();
     //====
@@ -381,8 +386,8 @@ public:
     virtual void setUnifiedKey(const std::string &key);
     virtual std::string getUnifiedKey();
     virtual void resetUnifiedKey();
-    virtual void setUnifiedSender(karere::Id unifiedSender);
-    virtual karere::Id getUnifiedSender();
+    virtual void setPreviewMode(bool previewMode);
+    virtual bool getPreviewMode();
     unsigned int getChatMode() const;
     void setChatMode(unsigned int chatMode);
 };
