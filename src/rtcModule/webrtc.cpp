@@ -565,6 +565,15 @@ bool RtcModule::isCallInProgress() const
     return callInProgress;
 }
 
+void RtcModule::removeCall(Id chatid)
+{
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
+    {
+        itCall->second->destroy(TermCode::kErrUserOffline, false);
+    }
+}
+
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional)
 {
