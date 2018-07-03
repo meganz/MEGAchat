@@ -136,7 +136,7 @@ public:
     encryptChatTitle(const std::string& data, uint64_t extraUser=0) = 0;
 
     virtual promise::Promise<chatd::KeyCommand*>
-    encryptUnifiedKeyForAllParticipants() = 0;
+    encryptUnifiedKeyForAllParticipants(uint64_t extraUser=0) = 0;
 
     virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;

@@ -15,7 +15,6 @@ using namespace megachat;
 
 int main(int argc, char **argv)
 {
-    mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     struct sigaction sa;
     MegaChatApplication app(argc,argv);
     app.readSid();
