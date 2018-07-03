@@ -565,6 +565,15 @@ bool RtcModule::isCallInProgress() const
     return callInProgress;
 }
 
+void RtcModule::removeCall(Id chatid)
+{
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
+    {
+        itCall->second->destroy(TermCode::kErrUserOffline, false);
+    }
+}
+
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional)
 {
@@ -955,7 +964,7 @@ void Call::msgJoin(RtMessage& packet)
 }
 promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
-    SUB_LOG_ERROR("gracefully term all sessions");
+    SUB_LOG_DEBUG("gracefully term all sessions");
     std::vector<promise::Promise<void>> promises;
     for (auto it = mSessions.begin(); it != mSessions.end();)
     {
@@ -2162,7 +2171,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 
     if (!msg.empty())
     {
-        SUB_LOG_ERROR("Terminating due to: %s", msg.c_str());
+        SUB_LOG_DEBUG("Terminating due to: %s", msg.c_str());
     }
     assert(!mTerminatePromise.done());
     setState(kStateTerminating);

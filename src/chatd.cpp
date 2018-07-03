@@ -371,6 +371,13 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     {
         auto& chat = mChatdClient.chats(chatid);
         chat.onDisconnect();
+
+#ifndef KARERE_DISABLE_WEBRTC
+        if (mChatdClient.karereClient->rtc)
+        {
+            mChatdClient.karereClient->rtc->removeCall(chatid);
+        }
+#endif
     }
 
     if (oldState == kStateDisconnected)
