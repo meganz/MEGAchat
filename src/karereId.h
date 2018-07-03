@@ -25,6 +25,7 @@ public:
     bool operator<(const Id& other) const { return val < other.val; }
     static const Id null() { return static_cast<uint64_t>(0); }
     static const Id inval() { return ~((uint64_t)0); }
+    static const Id COMMANDER() { return Id("gTxFhlOd_LQ"); }
 };
 
 

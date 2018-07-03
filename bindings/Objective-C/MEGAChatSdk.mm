@@ -636,6 +636,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->deleteMessage(chatId, messageId) cMemoryOwn:YES] : nil;
 }
 
+- (MEGAChatMessage *)removeRichLinkForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
+    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->removeRichLink(chatId, messageId) cMemoryOwn:YES] : nil;
+}
+
 - (BOOL)setMessageSeenForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
     return self.megaChatApi->setMessageSeen(chatId, messageId);
 }
@@ -913,6 +917,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 + (void)setCatchException:(BOOL)enable {
     MegaChatApi::setCatchException(enable);
+}
+
++ (BOOL)hasUrl:(NSString *)text {
+    return MegaChatApi::hasUrl(text ? [text UTF8String] : NULL);
 }
 
 @end
