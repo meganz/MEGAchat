@@ -794,7 +794,8 @@ public:
         END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
         END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
         END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller
+        END_CALL_REASON_CANCELLED   = 5     /// (deprecated) Call was canceled by caller.
+                                            /// Instead of this termCode apps receives END_CALL_REASON_NO_ANSWER
     };
 
     enum
