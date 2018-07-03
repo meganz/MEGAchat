@@ -5657,7 +5657,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                         break;
                     case END_CALL_REASON_ENDED:
                     case END_CALL_REASON_FAILED:
-                        if (priv > 0)
+                        if (callEndInfo->duration > 0)
                         {
                             code = END_CALL_REASON_ENDED;
                         }
