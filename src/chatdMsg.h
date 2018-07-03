@@ -182,10 +182,10 @@ enum Opcode
       * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
       * Receive: <chatid> <keyid> <payload>
       *
-      * Keep <keyxid> as constant as possible. Valid range: [0xFFFF0001 - 0xFFFFFFFF]
+      * Note that <keyxid> should be constant. Valid range: [0xFFFF0001 - 0xFFFFFFFF]
       * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor
       * ( userid, keyid ) are unique!
-      * Note that <keyxid> is per connection. They don't survive a reconnection.
+      * Note that <keyxid> is per connection. It does not survive a reconnection.
       */
     OP_NEWKEY = 17,
 

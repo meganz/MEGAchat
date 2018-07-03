@@ -187,14 +187,12 @@ public:
             uint32_t ts = stmt.intCol(6);
             uint16_t updated = stmt.intCol(7);
 
-            auto msg = new chatd::Message(
-                        msgid, userid, ts, updated, nullptr, 0, true, keyid, type);
-
             assert((opcode == chatd::OP_NEWMSG)
                    || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
-            stmt.blobCol(4, *msg);  // plain-text content
+            auto msg = new chatd::Message(msgid, userid, ts, updated, nullptr, 0, true, keyid, type);
+            stmt.blobCol(4, *msg);  // set plain-text content
             msg->backRefId = stmt.uint64Col(8);
             if (stmt.hasBlobCol(9))
             {

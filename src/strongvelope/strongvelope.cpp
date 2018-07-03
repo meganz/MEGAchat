@@ -562,7 +562,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             karere::Id receiver = Buffer::alignSafeRead<uint64_t>(pos);
             pos += 8;
 
-            uint16_t keylen = Buffer::alignSafeRead<uint16_t>(pos);//*(uint16_t*)(pos);
+            uint16_t keylen = Buffer::alignSafeRead<uint16_t>(pos);
             pos += 2;
 
             if (receiver == mOwnHandle)
