@@ -327,6 +327,11 @@ void MegaChatApi::setBackgroundStatus(bool background, MegaChatRequestListener *
     pImpl->setBackgroundStatus(background, listener);
 }
 
+int MegaChatApi::getBackgroundStatus()
+{
+    return pImpl->getBackgroundStatus();
+}
+
 void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
 {
     pImpl->getUserFirstname(userhandle, listener);
@@ -504,7 +509,12 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
 
 MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
-   return pImpl->attachContacts(chatid, handles);
+    return pImpl->attachContacts(chatid, handles);
+}
+
+MegaChatMessage *MegaChatApi::forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId)
+{
+    return pImpl->forwardContact(sourceChatid, msgid, targetChatId);
 }
 
 void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
@@ -545,6 +555,11 @@ MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle 
 MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     return pImpl->editMessage(chatid, msgid, NULL);
+}
+
+MegaChatMessage *MegaChatApi::removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->removeRichLink(chatid, msgid);
 }
 
 bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
@@ -729,6 +744,11 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatH
 void MegaChatApi::setCatchException(bool enable)
 {
     MegaChatApiImpl::setCatchException(enable);
+}
+
+bool MegaChatApi::hasUrl(const char *text)
+{
+    return MegaChatApiImpl::hasUrl(text);
 }
 
 void MegaChatApi::addChatListener(MegaChatListener *listener)
@@ -1305,6 +1325,56 @@ bool MegaChatMessage::hasChanged(int) const
     return false;
 }
 
+const MegaChatContainsMeta *MegaChatMessage::getContainsMeta() const
+{
+    return NULL;
+}
+
+MegaChatRichPreview *MegaChatRichPreview::copy() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getText() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getTitle() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getDescription() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getImage() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getImageFormat() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getIcon() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getIconFormat() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getUrl() const
+{
+    return NULL;
+}
+
 int MegaChatMessage::getCode() const
 {
     return 0;
@@ -1414,4 +1484,24 @@ bool MegaChatPresenceConfig::isSignalActivityRequired() const
 void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
 {
 
+}
+
+MegaChatContainsMeta *MegaChatContainsMeta::copy() const
+{
+    return NULL;
+}
+
+int MegaChatContainsMeta::getType() const
+{
+    return MegaChatContainsMeta::CONTAINS_META_INVALID;
+}
+
+const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getDomainName() const
+{
+    return NULL;
 }

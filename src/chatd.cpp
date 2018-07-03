@@ -4,6 +4,9 @@
 #include "base64url.h"
 #include <algorithm>
 #include <random>
+#include <regex>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
 
 using namespace std;
 using namespace promise;
@@ -85,6 +88,54 @@ namespace chatd
 Client::Client(karere::Client *client, Id userId)
 :mUserId(userId), mApi(&client->api), karereClient(client)
 {
+    mRichPrevAttrCbHandle = karereClient->userAttrCache().getAttr(mUserId, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
+       [](::Buffer *buf, void* userp)
+       {
+            Client *client = static_cast<Client*>(userp);
+            client->mRichLinkState = kRichLinkNotDefined;
+
+            // if user changed the option to do/don't generate rich links...
+            if (buf && !buf->empty())
+            {
+                char tmp[2];
+                base64urldecode(buf->buf(), buf->size(), tmp, 2);
+                switch(*tmp)
+                {
+                case '1':
+                    client->mRichLinkState = kRichLinkEnabled;
+                    break;
+
+                case '0':
+                    client->mRichLinkState = kRichLinkDisabled;
+                    break;
+
+                default:
+                    CHATD_LOG_WARNING("Unexpected value for user attribute USER_ATTR_RICH_PREVIEWS - value: %c", *tmp);
+                    break;
+                }
+            }
+
+            // proceed to prepare rich-links or to discard them
+            switch (client->mRichLinkState)
+            {
+            case kRichLinkEnabled:
+                for (auto& chat: client->mChatForChatId)
+                {
+                    chat.second->requestPendingRichLinks();
+                }
+                break;
+
+            case kRichLinkDisabled:
+                for (auto& chat: client->mChatForChatId)
+                {
+                    chat.second->removePendingRichLinks();
+                }
+                break;
+
+            case kRichLinkNotDefined:
+                break;
+            }
+       });
 }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
@@ -141,7 +192,7 @@ void Client::sendEcho()
         conn.second->sendEcho();
     }
 }
-  
+
 void Client::setKeepaliveType(bool isInBackground)
 {
     mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
@@ -167,10 +218,11 @@ void Client::cancelTimers()
 
 void Client::notifyUserActive()
 {
-    sendEcho();
-
     if (mKeepaliveType == OP_KEEPALIVE)
         return;
+
+    sendEcho();
+
     mKeepaliveType = OP_KEEPALIVE;
     sendKeepalive();
 }
@@ -178,6 +230,11 @@ void Client::notifyUserActive()
 bool Client::isMessageReceivedConfirmationActive() const
 {
     return mMessageReceivedConfirmation;
+}
+
+uint8_t Client::richLinkState() const
+{
+    return mRichLinkState;
 }
 
 bool Client::areAllChatsLoggedIn()
@@ -192,6 +249,11 @@ bool Client::areAllChatsLoggedIn()
             allConnected = false;
             break;
         }
+    }
+
+    if (allConnected)
+    {
+        CHATD_LOG_DEBUG("We are now logged in to all chats");
     }
 
     return allConnected;
@@ -227,7 +289,7 @@ void Chat::connect()
             mConnection.reconnect()
             .fail([this](const promise::Error& err)
             {
-                CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+                CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
             });
         });
 
@@ -237,7 +299,7 @@ void Chat::connect()
         mConnection.reconnect()
         .fail([this](const promise::Error& err)
         {
-            CHATID_LOG_ERROR("Error connecting to server: %s", err.what());
+            CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
         });
 
     }
@@ -270,12 +332,14 @@ void Chat::login()
 }
 
 Connection::Connection(Client& client, int shardNo)
-: mChatdClient(client), mShardNo(shardNo)
+: mChatdClient(client), mShardNo(shardNo),
+  mDNScache(mChatdClient.karereClient->websocketIO->mDnsCache)
 {}
 
 void Connection::wsConnectCb()
 {
-    CHATDS_LOG_DEBUG("Chatd connected");
+    CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
+    mDNScache.connectDone(mUrl.host, mTargetIp);
     mState = kStateConnected;
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
@@ -286,13 +350,13 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     string reason;
     if (preason)
         reason.assign(preason, reason_len);
-    
+
     onSocketClose(errcode, errtype, reason);
 }
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
-    CHATDS_LOG_WARNING("Socket close. Reason: %s", reason.c_str());
+    CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mHeartbeatEnabled = false;
     auto oldState = mState;
     mState = kStateDisconnected;
@@ -320,6 +384,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         return;
 
     usingipv6 = !usingipv6;
+    mTargetIp.clear();
 
     if (oldState < kStateConnected) //tell retry controller that the connect attempt failed
     {
@@ -351,6 +416,9 @@ bool Connection::sendKeepalive(uint8_t opcode)
 
 void Connection::sendEcho()
 {
+    if (!mUrl.isValid())    // the connection is not ready yet (i.e. initialization in offline-mode)
+        return;
+
     if (mEchoTimer) // one is already sent
         return;
 
@@ -410,95 +478,99 @@ Promise<void> Connection::reconnect()
             mConnectPromise = Promise<void>();
             mLoginPromise = Promise<void>();
 
+            string ipv4, ipv6;
+            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+
             mState = kStateResolving;
-            CHATDS_LOG_DEBUG("Resolving hostname...");
+            CHATDS_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
             for (auto& chatid: mChatIds)
             {
                 auto& chat = mChatdClient.chats(chatid);
                 if (!chat.isDisabled())
-                    chat.setOnlineState(kChatStateConnecting);                
+                    chat.setOnlineState(kChatStateConnecting);
             }
 
-            int status = wsResolveDNS(mChatdClient.karereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, this](int status, std::string ipv4, std::string ipv6)
+            int statusDNS = wsResolveDNS(mChatdClient.karereClient->websocketIO, mUrl.host.c_str(),
+                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
                     CHATDS_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
                     return;
                 }
-                if (mState != kStateResolving)
+
+                if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                    CHATDS_LOG_DEBUG("Unexpected connection state %s while resolving DNS.", connStateToStr(mState));
+                    string errStr;
+                    if (statusDNS < 0)
+                    {
+                        CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
+                        errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
+                    }
+                    else
+                    {
+                        CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
+                        errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
+                    }
+
+                    if (!mConnectPromise.done())
+                    {
+                        mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                    }
+                    if (!mLoginPromise.done())
+                    {
+                        mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                    }
                     return;
                 }
 
-                if (status < 0)
+                if (!cachedIPs) // connect required DNS lookup
                 {
-                   CHATDS_LOG_DEBUG("Async DNS error in chatd. Error code: %d", status);
-                   string errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
-                   if (!mConnectPromise.done())
-                   {
-                       mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
-                   }
-                   if (!mLoginPromise.done())
-                   {
-                       mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
-                   }
-                   return;
+                    CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+
+                    mDNScache.set(mUrl.host,
+                                  ipsv4.size() ? ipsv4.at(0) : "",
+                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    doConnect();
+                    return;
                 }
 
-                mState = kStateConnecting;
-                string ip = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
-                CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", ip.c_str());
-
-                bool rt = wsConnect(mChatdClient.karereClient->websocketIO, ip.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure);
-                if (!rt)
+                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
                 {
-                    string otherip;
-                    if (ip == ipv6 && ipv4.size())
-                    {
-                        otherip = ipv4;
-                    }
-                    else if (ip == ipv4 && ipv6.size())
-                    {
-                        otherip = ipv6;
-                    }
+                    CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
+                }
+                else
+                {
+                    // update DNS cache
+                    bool ret = mDNScache.set(mUrl.host,
+                                  ipsv4.size() ? ipsv4.at(0) : "",
+                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    assert(!ret);
 
-                    if (otherip.size())
-                    {
-                        CHATDS_LOG_DEBUG("Connection to chatd failed. Retrying using the IP: %s", otherip.c_str());
-                        if (wsConnect(mChatdClient.karereClient->websocketIO, otherip.c_str(),
-                                                  mUrl.host.c_str(),
-                                                  mUrl.port,
-                                                  mUrl.path.c_str(),
-                                                  mUrl.isSecure))
-                        {
-                            return;
-                        }
-                    }
-
-                    onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
+                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
             });
 
-            if (status < 0)
+            // immediate error at wsResolveDNS()
+            if (statusDNS < 0)
             {
-                CHATDS_LOG_DEBUG("Sync DNS error in chatd. Error code: %d", status);
+                CHATDS_LOG_ERROR("Sync DNS error in chatd. Error code: %d", statusDNS);
                 string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
                 if (!mConnectPromise.done())
                 {
-                    mConnectPromise.reject(errStr, status, kErrorTypeGeneric);
+                    mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
                 }
                 if (!mLoginPromise.done())
                 {
-                    mLoginPromise.reject(errStr, status, kErrorTypeGeneric);
+                    mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
                 }
+            }
+            else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
+            // no network connetion, so it's futile to attempt to connect
+            {
+                doConnect();
             }
 
             return mConnectPromise
@@ -528,6 +600,55 @@ void Connection::disconnect()
     }
 
     onSocketClose(0, 0, "terminating");
+}
+
+void Connection::doConnect()
+{
+    string ipv4, ipv6;
+    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+    assert(cachedIPs);
+    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
+    mState = kStateConnecting;
+    CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", mTargetIp.c_str());
+
+    bool rt = wsConnect(mChatdClient.karereClient->websocketIO, mTargetIp.c_str(),
+              mUrl.host.c_str(),
+              mUrl.port,
+              mUrl.path.c_str(),
+              mUrl.isSecure);
+
+    if (!rt)    // immediate failure --> try the other IP family (if available)
+    {
+        CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
+
+        string oldTargetIp = mTargetIp;
+        mTargetIp.clear();
+        if (oldTargetIp == ipv6 && ipv4.size())
+        {
+            mTargetIp = ipv4;
+        }
+        else if (oldTargetIp == ipv4 && ipv6.size())
+        {
+            mTargetIp = ipv6;
+        }
+
+        if (mTargetIp.size())
+        {
+            CHATDS_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
+            if (wsConnect(mChatdClient.karereClient->websocketIO, mTargetIp.c_str(),
+                                      mUrl.host.c_str(),
+                                      mUrl.port,
+                                      mUrl.path.c_str(),
+                                      mUrl.isSecure))
+            {
+                return;
+            }
+            CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
+        }
+
+        onSocketClose(0, 0, "Websocket error on wsConnect (chatd)");
+    }
 }
 
 promise::Promise<void> Connection::retryPendingConnection()
@@ -602,7 +723,7 @@ bool Connection::sendBuf(Buffer&& buf)
 {
     if (!isConnected())
         return false;
-    
+
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
     buf.free();
     return rc;
@@ -897,7 +1018,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             {
                 if (wptr.deleted())
                     return;
-                
+
                 CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
                 requestHistoryFromServer(-count);
             }, mClient.karereClient->appCtx);
@@ -1025,7 +1146,7 @@ void Connection::wsHandleMsgCb(char *data, size_t len)
     mTsLastRecv = time(NULL);
     execCommand(StaticBuffer(data, len));
 }
-    
+
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?
@@ -1638,10 +1759,203 @@ void Chat::initChat()
     mHaveAllHistory = false;
 }
 
+void Chat::requestRichLink(Message &message)
+{
+    std::string text = message.toText();
+    std::string url;
+    if (Message::hasUrl(text, url))
+    {
+        std::regex expresion("^(http://|https://)(.+)");
+        std::string linkRequest = url;
+        if (!regex_match(url, expresion))
+        {
+            linkRequest = std::string("http://") + url;
+        }
+
+        auto wptr = weakHandle();
+        karere::Id msgId = message.id();
+        uint16_t updated = message.updated;
+        client().karereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
+        .then([wptr, this, msgId, updated](ReqResult result)
+        {
+            if (wptr.deleted())
+                return;
+
+            const char *requestText = result->getText();
+            if (!requestText || (strlen(requestText) == 0))
+            {
+                CHATID_LOG_ERROR("requestRichLink: API request succeed, but returned an empty metadata for: %s", result->getLink());
+                return;
+            }
+
+            Idx messageIdx = msgIndexFromId(msgId);
+            Message *msg = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
+            if (msg && updated == msg->updated)
+            {
+                std::string text = requestText;
+                std::string originalMessage = msg->toText();
+                std::string textMessage;
+                textMessage.reserve(originalMessage.size());
+                for (std::string::size_type i = 0; i < originalMessage.size(); i++)
+                {
+                    char character = originalMessage[i];
+                    switch (character)
+                    {
+                        case '\n':
+                            textMessage.push_back('\\');
+                            textMessage.push_back('n');
+                        break;
+                        case '\r':
+                            textMessage.push_back('\\');
+                            textMessage.push_back('r');
+                        break;
+                        case '\t':
+                            textMessage.push_back('\\');
+                            textMessage.push_back('t');
+                        break;
+                        case '\"':
+                        case '\\':
+                            textMessage.push_back('\\');
+                            textMessage.push_back(character);
+                        break;
+                        default:
+                            if (character > 31 && character != 127) // control ASCII characters are removed
+                            {
+                                textMessage.push_back(character);
+                            }
+                        break;
+                    }
+                }
+
+                std::string updateText = std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
+                updateText = updateText + text + std::string("]}");
+
+                rapidjson::StringStream stringStream(updateText.c_str());
+                rapidjson::Document document;
+                document.ParseStream(stringStream);
+
+                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                {
+                    API_LOG_ERROR("requestRichLink: Json is not valid");
+                    return;
+                }
+
+                updateText.insert(updateText.begin(), 0x0);
+                updateText.insert(updateText.begin(), Message::kMsgContainsMeta);
+                updateText.insert(updateText.begin(), 0x0);
+                std::string::size_type size = updateText.size();
+
+                if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
+                {
+                    CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", ID_CSTR(msgId));
+                }
+            }
+            else if (!msg)
+            {
+                CHATID_LOG_WARNING("requestRichLink: Message not found (%s)", ID_CSTR(msgId));
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("requestRichLink: Message has been updated during rich link request (%s)", ID_CSTR(msgId));
+            }
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            if (wptr.deleted())
+                return;
+
+            CHATID_LOG_ERROR("Failed to request rich link: request error (%d)", err.code());
+        });
+    }
+}
+
+Message *Chat::removeRichLink(Message &message, const string& content)
+{
+
+    Message *msg = msgModify(message, content.c_str(), content.size(), NULL, Message::kMsgNormal);
+    if (!msg)
+    {
+        CHATID_LOG_ERROR("requestRichLink: Message can't be updated with the rich-link (%s)", ID_CSTR(message.id()));
+    }
+    else
+    {
+        // prevent to create a new rich-link upon acknowledge of update at onMsgUpdated()
+        msg->richLinkRemoved = true;
+    }
+
+    return msg;
+}
+
+void Chat::requestPendingRichLinks()
+{
+    for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin();
+         it != mMsgsToUpdateWithRichLink.end();
+         it++)
+    {
+        karere::Id msgid = *it;
+        Idx index = msgIndexFromId(msgid);
+        if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
+        {
+            Message *msg = findOrNull(index);
+            if (msg)
+            {
+                requestRichLink(*msg);
+            }
+            else
+            {
+                CHATID_LOG_DEBUG("Failed to find message by index, being index retrieved from message id (index: %d, id: %d)", index, msgid);
+            }
+        }
+        else
+        {
+            CHATID_LOG_DEBUG("Failed to find message by id (id: %d)", msgid);
+        }
+    }
+
+    mMsgsToUpdateWithRichLink.clear();
+}
+
+void Chat::removePendingRichLinks()
+{
+    mMsgsToUpdateWithRichLink.clear();
+}
+
+void Chat::removePendingRichLinks(Idx idx)
+{
+    for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin(); it != mMsgsToUpdateWithRichLink.end(); )
+    {
+        karere::Id msgid = *it;
+        it++;
+        Idx index = msgIndexFromId(msgid);
+        assert(index != CHATD_IDX_INVALID);
+        if (index <= idx)
+        {
+            mMsgsToUpdateWithRichLink.erase(msgid);
+        }
+    }
+}
+
+void Chat::manageRichLinkMessage(Message &message)
+{
+    std::string url;
+    bool hasURL = Message::hasUrl(message.toText(), url);
+    bool isMsgQueued = (mMsgsToUpdateWithRichLink.find(message.id()) != mMsgsToUpdateWithRichLink.end());
+
+    if (!isMsgQueued && hasURL)
+    {
+        mMsgsToUpdateWithRichLink.insert(message.id());
+    }
+    else if (isMsgQueued && !hasURL)    // another edit removed the previous URL
+    {
+        mMsgsToUpdateWithRichLink.erase(message.id());
+    }
+}
+
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
 {
     if (msglen > kMaxMsgSize)
     {
+        CHATID_LOG_WARNING("msgSubmit: Denying sending message because it's too long");
         return NULL;
     }
 
@@ -1655,7 +1969,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     {
         if (wptr.deleted())
             return;
-        
+
         msgSubmit(message);
 
     }, mClient.karereClient->appCtx);
@@ -1693,7 +2007,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
     sendingIdx.reserve(mSending.size());
     auto next = msgit;
     next++;
-    for (auto it = mSending.begin(); it != next; next++)
+    for (auto it = mSending.begin(); it != next; it++)
     {
         sendingIdx.push_back(&(*it));
     }
@@ -1828,7 +2142,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 }
 
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
-Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp)
+Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
     uint32_t age = time(NULL) - msg.ts;
     if (age > CHATD_MAX_EDIT_AGE)
@@ -1836,6 +2150,12 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         CHATID_LOG_DEBUG("msgModify: Denying edit of msgid %s because message is too old", ID_CSTR(msg.id()));
         return nullptr;
     }
+    if (newlen > kMaxMsgSize)
+    {
+        CHATID_LOG_WARNING("msgModify: Denying edit of msgid %s because message is too long", ID_CSTR(msg.id()));
+        return nullptr;
+    }
+
     if (msg.isSending()) //update the not yet sent(or at least not yet confirmed) original as well, trying to avoid sending the original content
     {
         SendingItem* item = nullptr;
@@ -1855,19 +2175,20 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.assign((void*)newdata, newlen);
         CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
     } //end msg.isSending()
+
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
-        msg.isSending(), msg.keyid, msg.type, userp);
+        msg.isSending(), msg.keyid, newtype, userp);
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, upd]()
     {
         if (wptr.deleted())
             return;
-        
+
         postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd);
 
     }, mClient.karereClient->appCtx);
-    
+
     return upd;
 }
 
@@ -1959,7 +2280,7 @@ void Chat::onLastSeen(Id msgid)
     {
         if (mLastSeenIdx == CHATD_IDX_INVALID)  // don't have a previous idx yet --> initialization
         {
-            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(mLastSeenId));
+            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
@@ -2186,6 +2507,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 Client::~Client()
 {
     cancelTimers();
+    karereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
@@ -2277,7 +2599,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     // set final keyid
     assert(mCrypto->currentKeyId() != CHATD_KEYID_INVALID);
     assert(mCrypto->currentKeyId() != CHATD_KEYID_UNCONFIRMED);
-    msg->keyid = mCrypto->currentKeyId();
+    assert(msg->keyid == mCrypto->currentKeyId());
 
     // add message to history
     push_forward(msg);
@@ -2321,6 +2643,19 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
             notifyLastTextMsg();
         }
     }
+
+    if (msg->type == Message::kMsgNormal)
+    {
+        if (mClient.richLinkState() == Client::kRichLinkEnabled)
+        {
+            requestRichLink(*msg);
+        }
+        else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+        {
+            manageRichLinkMessage(*msg);
+        }
+    }
+
     return idx;
 }
 
@@ -2330,12 +2665,20 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     {
         CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xffffffff, continuing anyway");
     }
+
     if (mSending.empty())
     {
         CHATID_LOG_ERROR("keyConfirm: Sending queue is empty");
         return;
     }
+
     CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
+
+    for (auto it = mSending.begin(); it != mSending.end(); it++)
+    {
+        it->msg->keyid = keyid;
+        CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
+    }
 }
 
 void Chat::onKeyReject()
@@ -2379,6 +2722,15 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
         throw std::runtime_error(errorMsg);
     }
 
+    // Update with contains meta has been rejected by server. We don't notify
+    if (msg.type == Message::kMsgContainsMeta)
+    {
+        CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %d", serverReason);
+        CALL_DB(deleteItemFromSending, mSending.front().rowid);
+        mSending.pop_front();
+        return;
+    }
+
     /* Server reason:
         0 - insufficient privs or not in chat
         1 - message is not your own or you are outside the time window
@@ -2407,6 +2759,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
+    time_t updateTs = 0;
+    bool richLinkRemoved = false;
+
     if (cipherMsg->userid == client().userId())
     {
         for (auto it = mSending.begin(); it != mSending.end(); )
@@ -2424,6 +2779,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             it++;
             mPendingEdits.erase(cipherMsg->id());
             mSending.erase(erased);
+            updateTs = item.msg->updated;
+            richLinkRemoved = item.msg->richLinkRemoved;
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
@@ -2442,8 +2799,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                assert(mClient.chats(mChatId).isGroup());
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(cipherMsg->id()));
+                assert(mClient.chats(mChatId).isGroup());
+                assert(cipherMsg->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 cipherMsg->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
@@ -2466,7 +2824,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         return cipherMsg;
     })
-    .then([this](Message* msg)
+    .then([this, updateTs, richLinkRemoved](Message* msg)
     {
         assert(!msg->isPendingToDecrypt()); //either decrypted or error
         if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
@@ -2494,6 +2852,20 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("Skipping replayed MSGUPD");
                 delete msg;
                 return;
+            }
+
+            if (!msg->empty() && msg->type == Message::kMsgNormal
+                             && !richLinkRemoved        // user have not requested to remove rich-link preview (generate it)
+                             && updateTs && (updateTs == msg->updated)) // message could have been updated by another client earlier/later than our update's attempt
+            {
+                if (client().richLinkState() == Client::kRichLinkEnabled)
+                {
+                    requestRichLink(*msg);
+                }
+                else if (mClient.richLinkState() == Client::kRichLinkNotDefined)
+                {
+                    manageRichLinkMessage(*msg);
+                }
             }
 
             //update in db
@@ -2551,7 +2923,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             uint16_t delta = 0;
             CALL_DB(getMessageDelta, msg->id(), &delta);
 
-            if (delta != msg->updated)
+            if (delta < msg->updated)
             {
                 //update in db
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
@@ -2600,7 +2972,11 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
         //GUI must detach and free any resources associated with
         //messages older than the one specified
         CALL_LISTENER(onHistoryTruncated, msg, idx);
+
         deleteMessagesBefore(idx);
+        removePendingRichLinks(idx);
+
+        // update last-seen pointer
         if (mLastSeenIdx != CHATD_IDX_INVALID)
         {
             if (mLastSeenIdx <= idx)
@@ -2612,6 +2988,8 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
                 CALL_DB(setLastSeen, 0);
             }
         }
+
+        // update last-received pointer
         if (mLastReceivedIdx != CHATD_IDX_INVALID)
         {
             if (mLastReceivedIdx <= idx)
@@ -2884,8 +3262,9 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                assert(mClient.chats(mChatId).isGroup());
                 CHATID_LOG_WARNING("No key to decrypt message %s, possibly message was sent just before user joined", ID_CSTR(message->id()));
+                assert(mClient.chats(mChatId).isGroup());
+                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
                 message->setEncrypted(Message::kEncryptedNoKey);
                 break;
 
@@ -3463,4 +3842,105 @@ const char* Message::statusNames[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
+
+bool Message::hasUrl(const string &text, string &url)
+{
+    std::string::size_type position = 0;
+    std::string partialString;
+    while (position < text.size())
+    {
+        char character = text[position];
+        if ((character >= 33 && character <= 126)
+                && character != '"'
+                && character != '\''
+                && character != '\\'
+                && character != '<'
+                && character != '>'
+                && character != '{'
+                && character != '}'
+                && character != '|')
+        {
+            partialString.push_back(character);
+        }
+        else
+        {
+            if (!partialString.empty())
+            {
+                removeUnnecessaryLastCharacters(partialString);
+                if (parseUrl(partialString))
+                {
+                    url = partialString;
+                    return true;
+                }
+            }
+
+            partialString.clear();
+        }
+
+        position ++;
+    }
+
+    if (!partialString.empty())
+    {
+        removeUnnecessaryLastCharacters(partialString);
+        if (parseUrl(partialString))
+        {
+            url = partialString;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Message::parseUrl(const std::string &url)
+{
+    if (url.find('.') == std::string::npos)
+    {
+        return false;
+    }
+
+    std::string urlToParse = url;
+    std::string::size_type position = urlToParse.find("://");
+    if (position != std::string::npos)
+    {
+        std::regex expresion("^(http://|https://)(.+)");
+        if (regex_match(urlToParse, expresion))
+        {
+            urlToParse = urlToParse.substr(position + 3);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    if (urlToParse.find("mega.co.nz/#!") != std::string::npos || urlToParse.find("mega.co.nz/#F!") != std::string::npos ||
+            urlToParse.find("mega.nz/#!") != std::string::npos || urlToParse.find("mega.nz/#F!") != std::string::npos)
+    {
+        return false;
+    }
+
+    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+([-.]{1}[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
+
+    return regex_match(urlToParse, regularExpresion);
+}
+
+void Message::removeUnnecessaryLastCharacters(string &buf)
+{
+    if (!buf.empty())
+    {
+        char lastCharacter = buf.back();
+        while (!buf.empty() && (lastCharacter == '.' || lastCharacter == ',' || lastCharacter == ':'
+                               || lastCharacter == '?' || lastCharacter == '!' || lastCharacter == ';'))
+        {
+            buf.erase(buf.size() - 1);
+
+            if (!buf.empty())
+            {
+                lastCharacter = buf.back();
+            }
+        }
+    }
+}
 }

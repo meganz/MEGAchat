@@ -766,6 +766,15 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the background status established in MEGAchat
+     *
+     * @return True if background status was set.
+     */
+    public int getBackgroundStatus(){
+        return megaChatApi.getBackgroundStatus();
+    }
+
+    /**
      * Returns the current firstname of the user
      *
      * This function is useful to get the firstname of users who participated in a groupchat with
@@ -1290,6 +1299,32 @@ public class MegaChatApiJava {
      */
     public MegaChatMessage attachContacts(long chatid, MegaHandleList handles){
         return megaChatApi.attachContacts(chatid, handles);
+    }
+
+    /**
+     * Forward a message with attach contact
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param sourceChatid MegaChatHandle that identifies the chat room where the source message is
+     * @param msgid MegaChatHandle that identifies the message that is going to be forwarded
+     * @param targetChatId MegaChatHandle that identifies the chat room where the message is going to be forwarded
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+    public MegaChatMessage forwardContact(long sourceChatid, long msgid, long targetChatId){
+        return megaChatApi.forwardContact(sourceChatid, msgid, targetChatId);
     }
 
     /**
