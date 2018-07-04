@@ -278,8 +278,21 @@ protected:
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
 
+    /**
+     * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
+     * Each key, created for an specific set of participants, is used to encrypt one or more
+     * new messages and their updates (NEWMSG + [MSGUPDX]*)
+     */
+    struct NewKeyEntry
+    {
+        std::shared_ptr<SendKey> key;
+        karere::SetOfIds recipients;
+        std::set<karere::Id> msgxids;   // list of msgxid/msgid using this unconfirmed key
+        NewKeyEntry(const std::shared_ptr<SendKey>& aKey, karere:: SetOfIds aRecipients)
+            : key(aKey), recipients(aRecipients) {}
+    };
     // in-fligth new-keys
-    std::vector<std::pair<karere::SetOfIds, std::shared_ptr<SendKey>>> mUnconfirmedKeys;
+    std::vector<NewKeyEntry> mUnconfirmedKeys;
 
     bool mForceRsa = false; // for testing of legacy-mode
 
@@ -328,7 +341,7 @@ protected:
      * message is sent.
      */
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    createNewKey(const karere::SetOfIds &recipients);
+    createNewKey(const karere::SetOfIds &recipients, const karere::Id msgxid);
 
     /**
      * @brief Signs a message using EdDSA with the Ed25519 key pair.
