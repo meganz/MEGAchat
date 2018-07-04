@@ -5292,28 +5292,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 {
                     this->lastMsg = std::to_string(callEndedInfo->duration);
                     this->lastMsg.push_back(0x01);
-                    uint32_t termCode = callEndedInfo->termCode;
-                    switch (termCode)
-                    {
-                        case MegaChatMessage::END_CALL_REASON_CANCELLED:
-                            termCode = MegaChatMessage::END_CALL_REASON_NO_ANSWER;
-                            break;
-                        case MegaChatMessage::END_CALL_REASON_ENDED:
-                        case MegaChatMessage::END_CALL_REASON_FAILED:
-                            if (callEndedInfo->duration > 0)
-                            {
-                                termCode = MegaChatMessage::END_CALL_REASON_ENDED;
-                            }
-                            else
-                            {
-                                termCode = MegaChatMessage::END_CALL_REASON_FAILED;
-                            }
-                            break;
-                        default:
-                            termCode = callEndedInfo->termCode;
-                            break;
-                    }
-
+                    int termCode = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndedInfo);
                     this->lastMsg += std::to_string(termCode);
                     for (unsigned int i = 0; i < callEndedInfo->participants.size(); i++)
                     {
@@ -5675,27 +5654,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 priv = callEndInfo->duration;
-                switch(callEndInfo->termCode)
-                {
-                    case END_CALL_REASON_CANCELLED:
-                        code = END_CALL_REASON_NO_ANSWER;
-                        break;
-                    case END_CALL_REASON_ENDED:
-                    case END_CALL_REASON_FAILED:
-                        if (callEndInfo->duration > 0)
-                        {
-                            code = END_CALL_REASON_ENDED;
-                        }
-                        else
-                        {
-                            code = END_CALL_REASON_FAILED;
-                        }
-                        break;
-                    default:
-                        code = callEndInfo->termCode;
-                        break;
-                }
-
+                code = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndInfo);
                 delete callEndInfo;
             }
             break;
@@ -5877,6 +5836,33 @@ void MegaChatMessagePrivate::setCode(int code)
 void MegaChatMessagePrivate::setAccess()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
+}
+
+int MegaChatMessagePrivate::convertEndCallTermCodeToUI(const Message::CallEndedInfo  &callEndInfo)
+{
+    int code;
+    switch (callEndInfo.termCode)
+    {
+        case END_CALL_REASON_CANCELLED:
+            code = END_CALL_REASON_NO_ANSWER;
+            break;
+        case END_CALL_REASON_ENDED:;
+        case END_CALL_REASON_FAILED:
+            if (callEndInfo.duration > 0)
+            {
+                code =  END_CALL_REASON_ENDED;
+            }
+            else
+            {
+                code = END_CALL_REASON_FAILED;
+            }
+            break;
+        default:
+            code = callEndInfo.termCode;
+            break;
+    }
+
+    return code;
 }
 
 unsigned int MegaChatMessagePrivate::getUsersCount() const
