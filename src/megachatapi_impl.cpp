@@ -5292,7 +5292,29 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 {
                     this->lastMsg = std::to_string(callEndedInfo->duration);
                     this->lastMsg.push_back(0x01);
-                    this->lastMsg += std::to_string(static_cast<uint32_t>(callEndedInfo->termCode));
+                    uint32_t termCode = callEndedInfo->termCode;
+                    switch (termCode)
+                    {
+                        case MegaChatMessage::END_CALL_REASON_CANCELLED:
+                            termCode = MegaChatMessage::END_CALL_REASON_NO_ANSWER;
+                            break;
+                        case MegaChatMessage::END_CALL_REASON_ENDED:
+                        case MegaChatMessage::END_CALL_REASON_FAILED:
+                            if (callEndedInfo->duration > 0)
+                            {
+                                termCode = MegaChatMessage::END_CALL_REASON_ENDED;
+                            }
+                            else
+                            {
+                                termCode = MegaChatMessage::END_CALL_REASON_FAILED;
+                            }
+                            break;
+                        default:
+                            termCode = callEndedInfo->termCode;
+                            break;
+                    }
+
+                    this->lastMsg += std::to_string(termCode);
                     for (unsigned int i = 0; i < callEndedInfo->participants.size(); i++)
                     {
                         this->lastMsg.push_back(0x01);
