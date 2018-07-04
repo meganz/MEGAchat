@@ -538,7 +538,7 @@ void ProtocolHandler::loadKeysFromDb()
 void ProtocolHandler::loadUnconfirmedKeysFromDb()
 {
     SqliteStmt stmt(mDb, "select recipients, key_cmd, msgid from sending "
-                    "where chatid=? and order by rowid asc");
+                    "where chatid=? order by rowid asc");
     stmt << chatid;
     while(stmt.step())
     {
