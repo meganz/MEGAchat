@@ -732,15 +732,8 @@ void Call::handleMessage(RtMessage& packet)
         if (packet.type == RTCMD_SESS_TERMINATE)
         {
             TermCode reason = static_cast<TermCode>(data.read<uint8_t>(8));
-            chatd::EndpointId endPointId(packet.clientid, packet.userid);
-
-            auto itRetries = mSessRetries.find(endPointId);
-            if (!Session::isTermRetriable(reason) && itRetries != mSessRetries.end())
+            if (!Session::isTermRetriable(reason) && cancelSessionRetryTimer(packet.userid, packet.clientid))
             {
-                megaHandle timerHandle = itRetries->second;
-                cancelTimeout(timerHandle, mManager.mClient.appCtx);
-                mSessRetries.erase(itRetries);
-
                 SUB_LOG_DEBUG("Peer terminates session willingfully, but have scheduled a retry because of error. Aborting retry");
                 destroyIfNoSessionsOrRetries(reason);
             }
