@@ -794,8 +794,8 @@ void Call::msgCallReqCancel(RtMessage& packet)
         return;
     }
 
-    auto term = packet.payload.read<uint8_t>(8);
-    destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
+//    auto term = packet.payload.read<uint8_t>(8);  // don't notify kUserHangUp but kCallReqCancel
+    destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -1043,7 +1043,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
-    mTermCode = code;
+    mTermCode = (mState == kStateReqSent) ? kCallReqCancel : code;  // adjust for onStateChange()
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
@@ -1064,6 +1064,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
         case kStateReqSent:
             cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            code = kCallReqCancel;  // overwrite code for onDestroy() callback
             pms = promise::_Void();
             break;
         case kStateRingIn:
@@ -1400,6 +1401,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 case kStateRingIn:
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
+                    assert(false);  // it should be kCallReqCancel
                     codeToChatd = kCallDataReasonCancelled;
                     break;
 
@@ -1413,6 +1415,11 @@ uint8_t Call::convertTermCodeToCallDataCode()
             }
             break;
         }
+
+        case kCallReqCancel:
+            assert(mPredestroyState == kStateReqSent);
+            codeToChatd = kCallDataReasonCancelled;
+            break;
 
         case kCallRejected:
             codeToChatd = kCallDataReasonRejected;
