@@ -106,7 +106,6 @@ class Call: public ICall
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
-    std::map<chatd::EndpointId, time_t> mSessRetriesTime;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::string mName;
@@ -162,6 +161,7 @@ protected:
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
+    bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
     friend class RtcModule;
     friend class Session;
 public:
