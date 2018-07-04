@@ -86,10 +86,6 @@ public:
     virtual void addBlobsToSendingItem(uint64_t rowid,
                     const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd)
     {
-        //WARNING: Must cast *msgCmd and *keyCmd to StaticBuffer, otherwise
-        //compiler (at least clang on MacOS) seems not able to properly determine
-        //the argument type for the template parameter to sqlQuery(), which
-        //compiles without any warning, but results is corrupt data written to the db!
         mDb.query("update sending set keyid=?, msg_cmd=?, key_cmd=? where rowid=?",
                   msgCmd ? msgCmd->keyId() : 0,
                   msgCmd ? msgCmd->msg() : StaticBuffer(nullptr, 0),

@@ -809,7 +809,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
 {
     assert(msg->keyid == msgCmd->keyId());
     if ((msg->keyid == CHATD_KEYID_INVALID)         // keyid has not been assigned yet (NEWMSG)
-     || (msg->keyid == CHATD_KEYID_UNCONFIRMED))    // or it was, but not yet confimed (MSGUPDX, replayed NEWMSG)
+     || (msg->keyid == CHATD_KEYID_UNCONFIRMED))    // or it was, but not yet confimed (MSGUPDX)
     {
         assert(msgCmd->opcode() != OP_MSGUPD);  // edits always have a confirmed keyid
 
