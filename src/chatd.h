@@ -14,6 +14,7 @@
 #include "chatdMsg.h"
 #include "url.h"
 #include "net/websocketsIO.h"
+#include "userAttrCache.h"
 
 namespace karere {
     class Client;
@@ -346,12 +347,14 @@ public:
          };
 
 protected:
-    bool usingipv6 = false;
     Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
     karere::Url mUrl;
+    bool usingipv6 = false; // ip version to try first (both are tried)
+    std::string mTargetIp;
+    DNScache &mDNScache;
     bool mHeartbeatEnabled = false;
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
@@ -372,6 +375,7 @@ protected:
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void disconnect();
+    void doConnect();
     void notifyLoggedIn();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
@@ -631,6 +635,7 @@ protected:
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     uint32_t mLastMsgTs;
     bool mIsGroup;
+    std::set<karere::Id> mMsgsToUpdateWithRichLink;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -686,6 +691,11 @@ protected:
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
+    void requestRichLink(Message &message);
+    void requestPendingRichLinks();
+    void removePendingRichLinks();
+    void removePendingRichLinks(Idx idx);
+    void manageRichLinkMessage(Message &message);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -940,7 +950,10 @@ public:
      * The user is responsible to clear any reference to a previous edit to avoid a
      * dangling pointer.
      */
-    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
+    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
+
+    /** Removes metadata from rich-link and converts the message to the original (normal) one */
+    Message *removeRichLink(Message &message, const std::string &content);
 
     /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
       * It's possible that the exact count is not yet known, if the last seen message is not
@@ -1049,6 +1062,7 @@ public:
     void clearHistory();
     void sendSync();
 
+
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1097,6 +1111,9 @@ protected:
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
+    uint8_t mRichLinkState = kRichLinkNotDefined;
+    karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
+
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1110,6 +1127,7 @@ protected:
     void sendEcho();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
+    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
     MyMegaApi *mApi;
@@ -1118,6 +1136,7 @@ public:
     IRtcHandler* mRtcHandler = nullptr;
     karere::Id userId() const { return mUserId; }
     void setKeepaliveType(bool isInBackground);
+    uint8_t keepaliveType() { return mKeepaliveType; }
     Client(karere::Client *client, karere::Id userId);
     ~Client();
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
@@ -1151,6 +1170,7 @@ public:
     /** Clean the timers set */
     void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
+    uint8_t richLinkState() const;
     friend class Connection;
     friend class Chat;
 

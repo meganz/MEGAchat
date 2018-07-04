@@ -16,7 +16,9 @@ namespace rtcModule {void globalCleanup(); }
 
 namespace karere
 {
-const char* gDbSchemaVersionSuffix = "2";
+const char* gDbSchemaVersionSuffix = "3";
+// 2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
+
 bool gCatchException = true;
 
 void globalInit(void(*postFunc)(void*, void*), uint32_t options, const char* logPath, size_t logSize)
