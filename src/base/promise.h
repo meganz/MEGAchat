@@ -38,9 +38,6 @@ enum ResolvedState
     #define PROMISE_LOG_REF(fmtString,...)
 #endif
 
-static const char* kNoMoreCallbacksMsg =
-  "No more space for promise callbacks, please increase the L template argument";
-
 //===
 struct _Void{};
 typedef _Void Void;

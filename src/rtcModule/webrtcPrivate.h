@@ -83,6 +83,24 @@ public:
 
 class Call: public ICall
 {
+    enum
+    {
+        kCallDataInProgress     = 0,
+        kCallDataRinging        = 1,
+        kCallDataEnd            = 2
+    };
+
+    enum
+    {
+        kCallDataReasonEnded        = 0x01, /// normal hangup of on-going call
+        kCallDataReasonRejected     = 0x02, /// incoming call was rejected by callee
+        kCallDataReasonNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
+        kCallDataReasonFailed       = 0x04, /// on-going call failed
+        kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+    };
+
+
+
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
@@ -99,6 +117,7 @@ protected:
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
+    uint8_t mPredestroyState;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -137,7 +156,8 @@ protected:
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid);
     void sendInCallCommand();
-    bool sendCallData(bool ringing);
+    bool sendCallData(int state);
+    uint8_t convertTermCodeToCallDataCode();
     friend class RtcModule;
     friend class Session;
 public:
@@ -191,6 +211,7 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
+    virtual void removeCall(karere::Id chatid);
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);

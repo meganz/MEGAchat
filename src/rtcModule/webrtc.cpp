@@ -265,15 +265,21 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    // PayLoad: <callid> <ringing> <AV flags>
+    if (chat.isGroup())
+    {
+        RTCM_LOG_DEBUG("handleCallData: CALLDATA received for a groupcall. Ignoring...");
+        return;
+    }
+
+    // PayLoad: <callid> <state> <AV flags> [if (state == kCallDataEnd) <termCode>]
     karere::Id callid = msg.read<karere::Id>(0);
-    bool ringing = msg.read<uint8_t>(sizeof(karere::Id));
+    uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
 
-    // If receive a OP_CALLDATA with ringing false. It doesn't do anything.
-    if (!ringing)
+    // If receive a OP_CALLDATA with ringing false --> ignore
+    if (state != Call::kCallDataRinging)
     {
-        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state in Progress");
+        RTCM_LOG_DEBUG("handleCallData: receive a CALLDATA with state \"ringing\"");
         return;
     }
 
@@ -559,6 +565,15 @@ bool RtcModule::isCallInProgress() const
     return callInProgress;
 }
 
+void RtcModule::removeCall(Id chatid)
+{
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
+    {
+        itCall->second->destroy(TermCode::kErrUserOffline, false);
+    }
+}
+
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional)
 {
@@ -779,8 +794,8 @@ void Call::msgCallReqCancel(RtMessage& packet)
         return;
     }
 
-    auto term = packet.payload.read<uint8_t>(8);
-    destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
+//    auto term = packet.payload.read<uint8_t>(8);  // don't notify kUserHangUp but kCallReqCancel
+    destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -824,7 +839,7 @@ void Call::handleReject(RtMessage& packet)
             return;
         }
 
-        destroy(static_cast<TermCode>(TermCode::kCallRejected), false);
+        destroy(static_cast<TermCode>(TermCode::kRejElsewhere), false);
     }
 }
 
@@ -929,7 +944,7 @@ void Call::msgJoin(RtMessage& packet)
         {
             setState(Call::kStateInProgress);
             // Send OP_CALLDATA with call inProgress
-            sendCallData(false);
+            sendCallData(kCallDataInProgress);
         }
         // create session to this peer
         auto sess = std::make_shared<Session>(*this, packet);
@@ -949,7 +964,7 @@ void Call::msgJoin(RtMessage& packet)
 }
 promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
-    SUB_LOG_ERROR("gracefully term all sessions");
+    SUB_LOG_DEBUG("gracefully term all sessions");
     std::vector<promise::Promise<void>> promises;
     for (auto it = mSessions.begin(); it != mSessions.end();)
     {
@@ -1028,20 +1043,45 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
-    mTermCode = code;
+    mTermCode = (mState == kStateReqSent) ? kCallReqCancel : code;  // adjust for onStateChange()
+    mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
+
+    if (mPredestroyState != Call::kStateRingIn && code != TermCode::kBusy)
+    {
+        sendCallData(kCallDataEnd);
+    }
+    else
+    {
+        SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy or call state is ringing");
+    }
 
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
-        if (!mIsGroup) //TODO: Maybe do it also for group calls
+        switch (mPredestroyState)
         {
-            cmdBroadcast(RTCMD_CALL_TERMINATE, code);
+        case kStateReqSent:
+            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            code = kCallReqCancel;  // overwrite code for onDestroy() callback
+            pms = promise::_Void();
+            break;
+        case kStateRingIn:
+            cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, code);
+            pms = promise::_Void();
+            break;
+        default:
+            if (!mIsGroup)
+            {
+                cmdBroadcast(RTCMD_CALL_TERMINATE, code);
+            }
+
+            // if we initiate the call termination, we must initiate the
+            // session termination handshake
+            pms = gracefullyTerminateAllSessions(code);
+            break;
         }
-        // if we initiate the call termination, we must initiate the
-        // session termination handshake
-        pms = gracefullyTerminateAllSessions(code);
     }
     else
     {
@@ -1054,11 +1094,12 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     {
         if (wptr.deleted())
             return;
+
         assert(mSessions.empty());
         stopIncallPingTimer();
         mLocalPlayer.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & 0x7f),
+        FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
         mManager.removeCall(*this);
     });
@@ -1091,7 +1132,7 @@ bool Call::broadcastCallReq()
         return false;
     }
     assert(mState == Call::kStateHasLocalStream);
-    if (!sendCallData(true))
+    if (!sendCallData(kCallDataRinging))
     {
         return false;
     }
@@ -1145,8 +1186,7 @@ void Call::stopIncallPingTimer(bool endCall)
 
     if (endCall)
     {
-        mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() +
-            mManager.mClient.myHandle() + mChat.connection().clientId());
+        mChat.sendCommand(Command(OP_ENDCALL) + mChat.chatId() + uint64_t(0) + uint32_t(0));
     }
 }
 
@@ -1307,25 +1347,31 @@ bool Call::rejoin(karere::Id userid)
 
 void Call::sendInCallCommand()
 {
-    if (!mChat.sendCommand(Command(OP_INCALL) + mChat.chatId() + mManager.mClient.myHandle() + mChat.connection().clientId()))
+    if (!mChat.sendCommand(Command(OP_INCALL) + mChat.chatId() + uint64_t(0) + uint32_t(0)))
     {
         asyncDestroy(TermCode::kErrNetSignalling, true);
     }
 }
 
-bool Call::sendCallData(bool ringing)
+bool Call::sendCallData(int state)
 {
     uint16_t payLoadLen = sizeof(mId) + sizeof(uint8_t) + sizeof(uint8_t);
+    if (state == kCallDataEnd)
+    {
+         payLoadLen += sizeof(uint8_t);
+    }
 
-    karere::Id userid = mManager.mClient.myHandle();
-    uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
-    command.write<uint64_t>(9, userid);
-    command.write<uint32_t>(17, clientid);
+    command.write<uint64_t>(9, 0);
+    command.write<uint32_t>(17, 0);
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(23, mId);
-    command.write<uint8_t>(31, ringing);
+    command.write<uint8_t>(31, state);
     command.write<uint8_t>(32, sentAv().value());
+    if (state == kCallDataEnd)
+    {
+        command.write<uint8_t>(33, convertTermCodeToCallDataCode());
+    }
 
     if (!mChat.sendCommand(std::move(command)))
     {
@@ -1341,6 +1387,79 @@ bool Call::sendCallData(bool ringing)
     }
 
     return true;
+}
+
+uint8_t Call::convertTermCodeToCallDataCode()
+{
+    uint8_t codeToChatd;
+    switch (mTermCode & ~TermCode::kPeer)
+    {
+        case kUserHangup:
+        {
+            switch (mPredestroyState)
+            {
+                case kStateRingIn:
+                    assert(false);  // it should be kCallRejected
+                case kStateReqSent:
+                    assert(false);  // it should be kCallReqCancel
+                    codeToChatd = kCallDataReasonCancelled;
+                    break;
+
+                case kStateInProgress:
+                    codeToChatd = kCallDataReasonEnded;
+                    break;
+
+                default:
+                    codeToChatd = kCallDataReasonFailed;
+                    break;
+            }
+            break;
+        }
+
+        case kCallReqCancel:
+            assert(mPredestroyState == kStateReqSent);
+            codeToChatd = kCallDataReasonCancelled;
+            break;
+
+        case kCallRejected:
+            codeToChatd = kCallDataReasonRejected;
+            break;
+
+        case kAnsElsewhere:
+            SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
+            assert(false);
+            break;
+            
+        case kRejElsewhere:
+            SUB_LOG_ERROR("Can't generate a history call ended message for local kRejElsewhere code");
+            assert(false);
+            break;
+
+        case kAnswerTimeout:
+        case kRingOutTimeout:
+            codeToChatd = kCallDataReasonNoAnswer;
+            break;
+
+        case kAppTerminating:
+            codeToChatd = (mPredestroyState == kStateInProgress) ? kCallDataReasonEnded : kCallDataReasonFailed;
+            break;
+
+        case kBusy:
+            assert(!isJoiner());
+            codeToChatd = kCallDataReasonRejected;
+            break;
+
+        default:
+            if (!isTermError(mTermCode))
+            {
+                SUB_LOG_ERROR("convertTermCodeToCallDataCode: Don't know how to translate term code %s, returning FAILED",
+                              termCodeToStr(mTermCode));
+            }
+            codeToChatd = kCallDataReasonFailed;
+            break;
+    }
+
+    return codeToChatd;
 }
 
 bool Call::answer(AvFlags av)
@@ -1367,8 +1486,8 @@ void Call::hangup(TermCode reason)
         {
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
         }
-        cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, reason);
-        destroy(reason, false);
+
+        destroy(reason, true);
         return;
     case kStateRingIn:
         if (reason == TermCode::kInvalid)
@@ -1385,8 +1504,7 @@ void Call::hangup(TermCode reason)
             assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
         }
         assert(mSessions.empty());
-        cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, reason);
-        destroy(reason, false);
+        destroy(reason, true);
         return;
     case kStateJoining:
     case kStateInProgress:
@@ -2060,7 +2178,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 
     if (!msg.empty())
     {
-        SUB_LOG_ERROR("Terminating due to: %s", msg.c_str());
+        SUB_LOG_DEBUG("Terminating due to: %s", msg.c_str());
     }
     assert(!mTerminatePromise.done());
     setState(kStateTerminating);
@@ -2380,6 +2498,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kUserHangup);
         RET_ENUM_NAME(kCallRejected);
         RET_ENUM_NAME(kAnsElsewhere);
+        RET_ENUM_NAME(kRejElsewhere);
         RET_ENUM_NAME(kAnswerTimeout);
         RET_ENUM_NAME(kRingOutTimeout);
         RET_ENUM_NAME(kAppTerminating);

@@ -14,6 +14,7 @@
 #include "chatdMsg.h"
 #include "url.h"
 #include "net/websocketsIO.h"
+#include "userAttrCache.h"
 
 namespace karere {
     class Client;
@@ -62,7 +63,7 @@ enum HistSource
     kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
     kHistSourceDb = 2, //<History is being retrieved from the local DB
     kHistSourceServer = 3, //< History is being retrieved from the server
-    kHistSourceServerOffline = 4 //< History has to be fetched from server, but we are offline
+    kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
 };
 /** Timeout to send SEEN (Milliseconds)**/
 enum { kSeenTimeout = 200 };
@@ -102,10 +103,10 @@ public:
     virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
 
     /** @brief A history message has been received, as a result of getHistory().
-     * @param The index of the message in the history buffer
-     * @param The message itself
+     * @param idx The index of the message in the history buffer
+     * @param msg The message itself
      * @param status The 'seen' status of the message
-     * @param isFromDb The message can be received from the server, or from the app's local
+     * @param isLocal The message can be received from the server, or from the app's local
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
     virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isLocal){}
@@ -132,7 +133,7 @@ public:
     /**
      * @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
      * @param msg The edited message
-     * @param oriIsSending - whether the original message has been sent or not
+     * @param oriMsgIsSending - whether the original message has been sent or not
      * yet sent (on the send queue).
      * @note The calls to \c onUnsentMsgLoaded() and \c onUnsentEditLoaded()
      * are done in the order of the corresponding events (send, edit)
@@ -265,7 +266,7 @@ public:
      * is typing a message. Normally the app should have a timer that
      * is reset each time a typing notification is received. When the timer
      * expires or stop typing is received, it should hide the notification GUI.
-     * @param user The user that is typing. The app can use the user attrib
+     * @param userid The user that is typing. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
     virtual void onUserTyping(karere::Id userid) {}
@@ -274,7 +275,7 @@ public:
      * @brief onUserStopTyping Called when a signal is received that a peer
      * has stopped to type a message. When this message arrives, notification GUI
      * has to be removed.
-     * @param user The user that has stop to type. The app can use the user attrib
+     * @param userid The user that has stop to type. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
     virtual void onUserStopTyping(karere::Id userid) {}
@@ -339,19 +340,21 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected, kStateLoggedIn };
+    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected};
     enum {
         kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
         kEchoTimeout = 1    // echo to check connection is alive when back to foreground
          };
 
 protected:
-    bool usingipv6;
     Client& mChatdClient;
     int mShardNo;
     std::set<karere::Id> mChatIds;
     State mState = kStateNew;
     karere::Url mUrl;
+    bool usingipv6 = false; // ip version to try first (both are tried)
+    std::string mTargetIp;
+    DNScache &mDNScache;
     bool mHeartbeatEnabled = false;
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
@@ -364,10 +367,6 @@ protected:
     {
         return mState == kStateConnected;
     }
-    bool isLoggedIn() const
-    {
-        return mState == kStateLoggedIn;
-    }
     
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
@@ -376,6 +375,7 @@ protected:
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void disconnect();
+    void doConnect();
     void notifyLoggedIn();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
@@ -386,7 +386,7 @@ protected:
     bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
-    bool sendEcho();
+    void sendEcho();
     friend class Client;
     friend class Chat;
 public:
@@ -635,6 +635,7 @@ protected:
     Idx mDecryptOldHaltedAt = CHATD_IDX_INVALID;
     uint32_t mLastMsgTs;
     bool mIsGroup;
+    std::set<karere::Id> mMsgsToUpdateWithRichLink;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -690,6 +691,11 @@ protected:
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
+    void requestRichLink(Message &message);
+    void requestPendingRichLinks();
+    void removePendingRichLinks();
+    void removePendingRichLinks(Idx idx);
+    void manageRichLinkMessage(Message &message);
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -944,7 +950,10 @@ public:
      * The user is responsible to clear any reference to a previous edit to avoid a
      * dangling pointer.
      */
-    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp);
+    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
+
+    /** Removes metadata from rich-link and converts the message to the original (normal) one */
+    Message *removeRichLink(Message &message, const std::string &content);
 
     /** @brief The number of unread messages. Calculated based on the last-seen-by-us pointer.
       * It's possible that the exact count is not yet known, if the last seen message is not
@@ -1053,6 +1062,7 @@ public:
     void clearHistory();
     void sendSync();
 
+
 protected:
     void msgSubmit(Message* msg);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1101,6 +1111,9 @@ protected:
     std::set<megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
+    uint8_t mRichLinkState = kRichLinkNotDefined;
+    karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
+
     Connection& chatidConn(karere::Id chatid)
     {
         auto it = mConnectionForChatId.find(chatid);
@@ -1114,6 +1127,7 @@ protected:
     void sendEcho();
 public:
     enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
+    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
     unsigned inactivityCheckIntervalSec = 20;
     uint32_t options = 0;
     MyMegaApi *mApi;
@@ -1122,6 +1136,7 @@ public:
     IRtcHandler* mRtcHandler = nullptr;
     karere::Id userId() const { return mUserId; }
     void setKeepaliveType(bool isInBackground);
+    uint8_t keepaliveType() { return mKeepaliveType; }
     Client(karere::Client *client, karere::Id userId);
     ~Client();
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
@@ -1155,6 +1170,7 @@ public:
     /** Clean the timers set */
     void cancelTimers();
     bool isMessageReceivedConfirmationActive() const;
+    uint8_t richLinkState() const;
     friend class Connection;
     friend class Chat;
 
@@ -1162,10 +1178,12 @@ public:
 
 
     // Chatd Version:
+    // - Version 0: initial version
     // - Version 1:
+    //  * Add commands CALLDATA and REJECT
     // - Version 2:
-    //  * Add commands CALL_DATA and REJECT
-    static const unsigned chatdVersion;
+    //  * Add call-logging messages
+    static const unsigned chatdVersion = 2;
 };
 
 static inline const char* connStateToStr(Connection::State state)
@@ -1175,7 +1193,6 @@ static inline const char* connStateToStr(Connection::State state)
     case Connection::State::kStateDisconnected: return "Disconnected";
     case Connection::State::kStateConnecting: return "Connecting";
     case Connection::State::kStateConnected: return "Connected";
-    case Connection::State::kStateLoggedIn: return "Logged-in";
     case Connection::State::kStateNew: return "New";
     case Connection::State::kStateFetchingUrl: return "Fetching URL";
     default: return "(invalid)";

@@ -55,7 +55,7 @@ struct UserAttrDesc
         :type(aType), getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[10];
+extern UserAttrDesc gUserAttrDescs[21];
 
 struct UserAttrPair
 {

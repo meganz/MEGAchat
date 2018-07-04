@@ -201,6 +201,8 @@ public:
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
 #endif
 
+    void TEST_RichLinkUserAttribute(unsigned int a1);
+
     unsigned mOKTests;
     unsigned mFailedTests;
 
@@ -291,6 +293,8 @@ private:
 
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    bool mRichLinkFlag[NUM_ACCOUNTS];
+    int mCountRichLink[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];

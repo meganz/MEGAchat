@@ -93,6 +93,8 @@ HEADERS  += asyncTest-framework.h \
             waiter/libuvWaiter.h \
             waiter/libeventWaiter.h
 
+RESOURCES += dbSchema.sql
+
 DEFINES += USE_LIBWEBSOCKETS=1
 
 CONFIG(qt) {

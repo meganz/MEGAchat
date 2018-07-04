@@ -193,10 +193,7 @@ public:
          * This means that either a new message has been received, or the last
          * message of existing history was just fetched (this is the first message
          * received when fetching history, because it is fetched from newest to oldest).
-         * @param type The message type, as in chatd::Message::type
-         * @param contents The contents of the message. May contain binary data
-         * @param ts The message timestamp, as in chatd::Message::ts
-         * @param userid Id of the sender of the message
+         * @param msg Contains the properties of the last text message
          */
         virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg) {}
 
