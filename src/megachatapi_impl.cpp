@@ -605,8 +605,6 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if ( uh == MEGACHAT_INVALID_HANDLE || uh == mClient->myHandle())
             {
-                request->setUserHandle(uh);
-
                 ((GroupChatRoom *)chatroom)->leave()
                 .then([request, this]()
                 {

@@ -2617,7 +2617,7 @@ GroupChatRoom::~GroupChatRoom()
 promise::Promise<void> GroupChatRoom::leave()
 {
     auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle())
+    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, mega::INVALID_HANDLE)
     .fail([](const promise::Error& err) -> Promise<void>
     {
         if (err.code() == ::mega::MegaError::API_EARGS) //room does not actually exist on API, ignore room and remove it locally
