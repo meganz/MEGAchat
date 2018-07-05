@@ -537,80 +537,71 @@ void ProtocolHandler::loadKeysFromDb()
 
 void ProtocolHandler::loadUnconfirmedKeysFromDb()
 {
-    SqliteStmt stmt(mDb, "select recipients, key_cmd, msgid from sending "
-                    "where chatid=? order by rowid asc");
+    SqliteStmt stmt(mDb, "select recipients, key_cmd, keyid from sending "
+                    "where chatid=? and key_cmd not null order by rowid asc");
     stmt << chatid;
     while(stmt.step())
     {
-        if (stmt.hasBlobCol(1))     // SendingItem with KeyCommand attached
+        assert(stmt.hasBlobCol(1));
+
+        // read recipients
+        Buffer recpts;
+        stmt.blobCol(0, recpts);
+        karere::SetOfIds recipients;
+        recipients.load(recpts);
+
+        // read new key blobs
+        Buffer keyBlobs;
+        stmt.blobCol(1, keyBlobs);
+
+        // read keyid
+        KeyId keyid = (KeyId)stmt.intCol(2);
+        assert(keyid > 0xffff0000);
+
+        //pick the version that is encrypted for us
+        const char *pos = keyBlobs.buf();
+        const char *end = keyBlobs.buf() + keyBlobs.dataSize();
+        std::shared_ptr<Buffer> encryptedKey = nullptr;
+        while (pos < end)
         {
-            // read recipients
-            Buffer recpts;
-            stmt.blobCol(0, recpts);
-            karere::SetOfIds recipients;
-            recipients.load(recpts);
+            karere::Id receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos += 8;
 
-            // read new key blobs
-            Buffer keyBlobs;
-            stmt.blobCol(1, keyBlobs);
+            uint16_t keylen = Buffer::alignSafeRead<uint16_t>(pos);
+            pos += 2;
 
-            //pick the version that is encrypted for us
-            const char *pos = keyBlobs.buf();
-            const char *end = keyBlobs.buf() + keyBlobs.dataSize();
-            std::shared_ptr<Buffer> encryptedKey = nullptr;
-            while (pos < end)
+            if (receiver == mOwnHandle)
             {
-                karere::Id receiver = Buffer::alignSafeRead<uint64_t>(pos);
-                pos += 8;
-
-                uint16_t keylen = Buffer::alignSafeRead<uint16_t>(pos);
-                pos += 2;
-
-                if (receiver == mOwnHandle)
-                {
-                    encryptedKey = std::make_shared<Buffer>(16);
-                    encryptedKey->assign(pos, 16);
-                    break;
-                }
-
-                pos += keylen;
+                encryptedKey = std::make_shared<Buffer>(16);
+                encryptedKey->assign(pos, 16);
+                break;
             }
 
-            if (!encryptedKey) // not found
-            {
-                STRONGVELOPE_LOG_ERROR("(%" PRId64 "): own key not found in the keyblob from KeyCommand", chatid);
-                assert(false);
-                continue;
-            }
-
-            // read msgid
-            karere::Id msgid = stmt.int64Col(2);
-
-            auto wptr = weakHandle();
-            auto pms = decryptKey(encryptedKey, mOwnHandle, mOwnHandle);
-            assert(pms.done()); // our keys must be available in cache
-            pms.then([this, wptr, recipients, msgid](const std::shared_ptr<SendKey>& key)
-            {
-                wptr.throwIfDeleted();
-
-                mCurrentKey = key;
-                mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
-                mCurrentKeyParticipants = recipients;
-
-                NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants);
-                entry.msgxids.insert(msgid);
-
-                mUnconfirmedKeys.push_back(entry);
-            });
+            pos += keylen;
         }
-        else    // SendingItem without KeyCommand attached
+
+        if (!encryptedKey) // not found
         {
-            assert(mUnconfirmedKeys.size());    // we have loaded at least one for previous message
-
-            // we need the list of msgxids using this unconfirmed key
-            karere::Id msgid = stmt.int64Col(2);
-            mUnconfirmedKeys.back().msgxids.insert(msgid);
+            STRONGVELOPE_LOG_ERROR("(%" PRId64 "): own key not found in the keyblob from KeyCommand", chatid);
+            assert(false);
+            continue;
         }
+
+        auto wptr = weakHandle();
+        auto pms = decryptKey(encryptedKey, mOwnHandle, mOwnHandle);
+        assert(pms.done()); // our keys must be available in cache
+        pms.then([this, wptr, recipients, keyid](const std::shared_ptr<SendKey>& key)
+        {
+            wptr.throwIfDeleted();
+
+            mCurrentKey = key;
+            mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
+            mCurrentKeyParticipants = recipients;
+            mCurrentLocalKeyId = keyid;
+
+            NewKeyEntry entry(key, recipients, keyid);
+            mUnconfirmedKeys.push_back(entry);
+        });
     }
 
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid, mUnconfirmedKeys.size());
