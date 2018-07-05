@@ -4374,35 +4374,41 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     // Last four bits indicate the termination code and fifth bit indicate local or peer
     switch (termCode & (~rtcModule::TermCode::kPeer))
     {
-    case rtcModule::TermCode::kUserHangup:
-        this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
-        break;
-    case rtcModule::TermCode::kCallRejected:
-        this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
-        break;
-    case rtcModule::TermCode::kAnsElsewhere:
-        this->termCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
-        break;
-    case rtcModule::TermCode::kAnswerTimeout:
-        this->termCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
-        break;
-    case rtcModule::TermCode::kRingOutTimeout:
-        this->termCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
-        break;
-    case rtcModule::TermCode::kAppTerminating:
-        this->termCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
-        break;
-    case rtcModule::TermCode::kBusy:
-        this->termCode = MegaChatCall::TERM_CODE_BUSY;
-        break;
-    case rtcModule::TermCode::kNotFinished:
-        this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
-        break;
-    case rtcModule::TermCode::kCallGone:
-    case rtcModule::TermCode::kInvalid:
-    default:
-        this->termCode = MegaChatCall::TERM_CODE_ERROR;
-        break;
+        case rtcModule::TermCode::kUserHangup:
+            this->termCode = MegaChatCall::TERM_CODE_USER_HANGUP;
+            break;        
+        case rtcModule::TermCode::kCallReqCancel:
+            this->termCode = MegaChatCall::TERM_CODE_CALL_REQ_CANCEL;
+            break;
+        case rtcModule::TermCode::kCallRejected:
+            this->termCode = MegaChatCall::TERM_CODE_CALL_REJECT;
+            break;
+        case rtcModule::TermCode::kAnsElsewhere:
+            this->termCode = MegaChatCall::TERM_CODE_ANSWER_ELSE_WHERE;
+            break;
+        case rtcModule::TermCode::kRejElsewhere:
+            this->termCode = MegaChatCall::TEMR_CODE_REJECT_ELSE_WHERE;
+            break;
+        case rtcModule::TermCode::kAnswerTimeout:
+            this->termCode = MegaChatCall::TERM_CODE_ANSWER_TIMEOUT;
+            break;
+        case rtcModule::TermCode::kRingOutTimeout:
+            this->termCode = MegaChatCall::TERM_CODE_RING_OUT_TIMEOUT;
+            break;
+        case rtcModule::TermCode::kAppTerminating:
+            this->termCode = MegaChatCall::TERM_CODE_APP_TERMINATING;
+            break;
+        case rtcModule::TermCode::kBusy:
+            this->termCode = MegaChatCall::TERM_CODE_BUSY;
+            break;
+        case rtcModule::TermCode::kNotFinished:
+            this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
+            break;
+        case rtcModule::TermCode::kCallGone:
+        case rtcModule::TermCode::kInvalid:
+        default:
+            this->termCode = MegaChatCall::TERM_CODE_ERROR;
+            break;
     }
 
     if (termCode & rtcModule::TermCode::kPeer)
@@ -5591,7 +5597,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
                 {
                     this->lastMsg = std::to_string(callEndedInfo->duration);
                     this->lastMsg.push_back(0x01);
-                    this->lastMsg += std::to_string(static_cast<uint32_t>(callEndedInfo->termCode));
+                    int termCode = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndedInfo);
+                    this->lastMsg += std::to_string(termCode);
                     for (unsigned int i = 0; i < callEndedInfo->participants.size(); i++)
                     {
                         this->lastMsg.push_back(0x01);
@@ -5964,7 +5971,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 }
 
                 priv = callEndInfo->duration;
-                code = callEndInfo->termCode;
+                code = MegaChatMessagePrivate::convertEndCallTermCodeToUI(*callEndInfo);
                 delete callEndInfo;
             }
             break;
@@ -6146,6 +6153,33 @@ void MegaChatMessagePrivate::setCode(int code)
 void MegaChatMessagePrivate::setAccess()
 {
     this->changed |= MegaChatMessage::CHANGE_TYPE_ACCESS;
+}
+
+int MegaChatMessagePrivate::convertEndCallTermCodeToUI(const Message::CallEndedInfo  &callEndInfo)
+{
+    int code;
+    switch (callEndInfo.termCode)
+    {
+        case END_CALL_REASON_CANCELLED:
+            code = END_CALL_REASON_NO_ANSWER;
+            break;
+        case END_CALL_REASON_ENDED:;
+        case END_CALL_REASON_FAILED:
+            if (callEndInfo.duration > 0)
+            {
+                code =  END_CALL_REASON_ENDED;
+            }
+            else
+            {
+                code = END_CALL_REASON_FAILED;
+            }
+            break;
+        default:
+            code = callEndInfo.termCode;
+            break;
+    }
+
+    return code;
 }
 
 unsigned int MegaChatMessagePrivate::getUsersCount() const

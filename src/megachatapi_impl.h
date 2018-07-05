@@ -705,6 +705,8 @@ public:
     void setCode(int code);
     void setAccess();
 
+    static int convertEndCallTermCodeToUI(const chatd::Message::CallEndedInfo &callEndInfo);
+
 private:
     int changed;
 
