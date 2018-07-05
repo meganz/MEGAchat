@@ -1191,6 +1191,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos++;
                 CHATDS_LOG_DEBUG("%s: recv JOIN - user '%s' with privilege level %d",
                                 ID_CSTR(chatid), ID_CSTR(userid), priv);
+
+                if (userid == Id::COMMANDER())
+                {
+                    CHATDS_LOG_ERROR("recv JOIN for API user");
+                    assert(false);
+                    break;
+                }
+
                 auto& chat =  mChatdClient.chats(chatid);
                 if (priv == PRIV_NOTPRESENT)
                     chat.onUserLeave(userid);
