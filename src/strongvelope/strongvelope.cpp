@@ -616,7 +616,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
     STRONGVELOPE_LOG_DEBUG("(%" PRId64 "): Loaded %zu unconfirmed keys from database", chatid, mUnconfirmedKeys.size());
 }
 
-void ProtocolHandler::msgEncryptWithKey(Message& src, chatd::MsgCommand& dest,
+void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
     const StaticBuffer& key)
 {
     // create 'nonce' and encrypt plaintext --> `ciphertext`
@@ -826,75 +826,74 @@ void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 promise::Promise<std::pair<MsgCommand*, KeyCommand*>>
 ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand* msgCmd)
 {
-    assert(msg->keyid == msgCmd->keyId());
-    if ((msg->keyid == CHATD_KEYID_INVALID)         // keyid has not been assigned yet (NEWMSG)
-     || (msg->keyid == CHATD_KEYID_UNCONFIRMED))    // or it was, but not yet confimed (MSGUPDX)
+    // if keyid has not been assigned yet...
+    if (msg->keyid == CHATD_KEYID_INVALID)
     {
-        assert(msgCmd->opcode() != OP_MSGUPD);  // edits always have a confirmed keyid
+        assert(msgCmd->opcode() == OP_NEWMSG);
+        // MSGUPDXs are created with keyid=INVALID, but as soon as the precedent NEWMSG
+        // is encrypted, their corresponding MSGUPDX in the sending queue get their keyid
+        // updated to the keyid used for the original NEWMSG
 
-        if (mCurrentKey && mCurrentKeyParticipants == *mParticipants)
+        // if already have a suitable key...
+        if (mCurrentKey && mCurrentKeyParticipants == recipients)
         {
-            // use current key, whether it's unconfirmed (in-flight) or already confirmed
-            assert(mCurrentKey);
-            assert(mCurrentKeyId != CHATD_KEYID_INVALID);
-            msg->keyid = mCurrentKeyId;
+            if (mCurrentKeyId == CHATD_KEYID_UNCONFIRMED) // assign message's keyid to the local keyid
+            {
+                msg->keyid = mCurrentLocalKeyId;
+            }
+            else    // already confirmed, assign message's keyid to the final chatd keyid
+            {
+                assert(mCurrentKeyId != CHATD_KEYID_INVALID);
+                msg->keyid = mCurrentKeyId;
+            }
             msgCmd->setKeyId(mCurrentKeyId);
             msgEncryptWithKey(*msg, *msgCmd, *mCurrentKey);
-
-            // if message is encrypted to one unconfirmed new key...
-            if (msg->keyid == CHATD_KEYID_UNCONFIRMED)
-            {
-                // ...anotate the msgxid of the corresponding MsgCommand
-                mUnconfirmedKeys.back().msgxids.insert(msg->id());
-            }
-
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         }
-        else    // msg for different set of recipients or no current key available
+        else
         {
-            // edits of unconfirmed new messages should reuse the same key than original message
-            if (msgCmd->opcode() == OP_MSGUPDX)
-            {
-                for (auto& it: mUnconfirmedKeys)
-                {
-                    // check this unconfirmed key was used to encrypt this message
-                    // It may happen that several messages for the same set of participants
-                    // are encrypted to different keys: K1+M1+K2+M2+K3+M3+M3upd
-                    // (K1 and K3 are for the same set of participants, K2 for a different one)
-                    NewKeyEntry item = it;
-                    if (item.recipients == recipients
-                            && item.msgxids.find(msg->id()) != item.msgxids.end())
-                    {
-                        msg->keyid = CHATD_KEYID_UNCONFIRMED;
-                        msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
-                        msgEncryptWithKey(*msg, *msgCmd, *item.key);
-
-                        return std::make_pair(msgCmd, (KeyCommand*)nullptr);
-                    }
-                }
-                return promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
-            }
-
-            // first msg for new set of participants --> create new key and attach to MsgCmd as KeyCmd
             auto wptr = weakHandle();
-            return createNewKey(recipients, msg->id())
+            return createNewKey(recipients)
             .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
             {
                 wptr.throwIfDeleted();
-                msg->keyid = CHATD_KEYID_UNCONFIRMED;
+                msg->keyid = result.first->localKeyid;
                 msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
                 msgEncryptWithKey(*msg, *msgCmd, *result.second);
                 return std::make_pair(msgCmd, result.first);
             });
         }
     }
-    else // use a key specified in msg->keyid, already confirmed (for MSGUPDs)
+    else if (msg->isLocalKeyid())   // edit of message whose key is in-flight
     {
+        assert(msgCmd->opcode() == OP_MSGUPDX);
+
+        for (auto& it: mUnconfirmedKeys)
+        {
+            // check this unconfirmed key was used to encrypt this message
+            // It may happen that several messages for the same set of participants
+            // are encrypted to different keys: K1+M1+K2+M2+K3+M3+M3upd
+            // (K1 and K3 are for the same set of participants, K2 for a different one)
+            NewKeyEntry entry = it;
+            if (entry.recipients == recipients && entry.localKeyid == msg->keyid)
+            {
+                msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
+                msgEncryptWithKey(*msg, *msgCmd, *entry.key);
+                return std::make_pair(msgCmd, (KeyCommand*)nullptr);
+            }
+        }
+        return promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
+    }
+    else    // confirmed keyid
+    {
+        assert(msgCmd->opcode() == OP_MSGUPD);  // edits always have a confirmed keyid
+
         auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
         .then([this, wptr, msg, msgCmd](const std::shared_ptr<SendKey>& key)
         {
             wptr.throwIfDeleted();
+            msgCmd->setKeyId(msg->keyid);
             msgEncryptWithKey(*msg, *msgCmd, *key);
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         });
@@ -1313,7 +1312,7 @@ void ProtocolHandler::onKeyRejected()
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::createNewKey(const SetOfIds &recipients, const Id msgxid)
+ProtocolHandler::createNewKey(const SetOfIds &recipients)
 {
     mCurrentKey.reset(new SendKey);
     mCurrentKey->setDataSize(AES::BLOCKSIZE);
@@ -1321,19 +1320,30 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients, const Id msgxid)
 
     mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
     mCurrentKeyParticipants = recipients;
+    mCurrentLocalKeyId = createLocalKeyId();
 
-    NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants);
-    entry.msgxids.insert(msgxid);
+    NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentLocalKeyId);
     mUnconfirmedKeys.push_back(entry);
 
     // Assemble the output for all recipients.
-    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants);
+    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentLocalKeyId);
+}
+
+uint32_t ProtocolHandler::createLocalKeyId()
+{
+    static uint32_t nextLocalKeyId = CHATD_KEYID_UNCONFIRMED;
+
+    if (nextLocalKeyId == 0xffff0001)
+        nextLocalKeyId = CHATD_KEYID_UNCONFIRMED;
+
+    return nextLocalKeyId--;
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const SetOfIds &participants)
+ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const SetOfIds &participants, uint32_t localkeyid)
 {
     auto keyCmd = new KeyCommand(Id::null());
+    keyCmd->localKeyid = localkeyid;
 
     // Users and send key may change while we are getting pubkeys of current
     // users, so make a snapshot
@@ -1450,6 +1460,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
 void ProtocolHandler::onUserJoin(Id userid)
 {
+    // preload keys for the new participant
     mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
     mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
     mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
@@ -1507,7 +1518,14 @@ void ProtocolHandler::randomBytes(void* buf, size_t bufsize) const
 {
     randombytes_buf(buf, bufsize);
 }
-} //end stringvelope namespace
+
+ProtocolHandler::NewKeyEntry::NewKeyEntry(const std::shared_ptr<SendKey> &aKey, SetOfIds aRecipients, uint64_t aLocalKeyid)
+    : key(aKey), recipients(aRecipients), localKeyid(aLocalKeyid)
+{
+
+}
+
+} //end strongvelope namespace
 
 namespace chatd
 {

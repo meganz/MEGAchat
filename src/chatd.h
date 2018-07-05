@@ -516,25 +516,30 @@ class Chat: public karere::DeleteTrackable
 {
 ///@cond PRIVATE
 public:
+
+    /**
+     * @brief The SendingItem struct represent items in the sending queue.
+     * Initially,
+     */
     struct SendingItem
     {
-    protected:
-        uint8_t mOpcode;
-    public:
-        uint64_t rowid;
- /** When sending a message, we attach the Message object here to avoid
-  * double-converting it when queued as a raw command in Sending, and after
-  * that (when server confirms) move it as a Message object to history buffer */
+        SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts, uint64_t aRowid=0);
+        ~SendingItem();
+
+        uint8_t mOpcode;    // NEWMSG, MSGUPDX or MSGUPD
+
+        /** When sending a message, we attach the Message object here to avoid
+        * double-converting it when queued as a raw command in Sending, and after
+        * that (when server confirms) move it as a Message object to history buffer */
         Message* msg;
         karere::SetOfIds recipients;
-        MsgCommand *msgCmd = NULL;
-        KeyCommand *keyCmd = NULL;
+        uint64_t rowid; // in the sending table of DB cache
+
+        MsgCommand *msgCmd = NULL;  // stores the encrypted NEWMSG/MSGUPDX/MSGUPD
+        KeyCommand *keyCmd = NULL;  // stores the encrypted NEWKEY, if needed
         uint8_t opcode() const { return mOpcode; }
         void setOpcode(uint8_t op) { mOpcode = op; }
-        SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts,
-            uint64_t aRowid=0)
-        : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), recipients(aRcpts){}
-        ~SendingItem(){ if (msg) delete msg; }
+
         bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
         bool isEdit() const { return mOpcode == OP_MSGUPD || mOpcode == OP_MSGUPDX; }
         void setKeyId(KeyId keyid)
@@ -545,14 +550,13 @@ public:
     typedef std::list<SendingItem> OutputQueue;
     struct ManualSendItem
     {
+        ManualSendItem(Message* aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason);
+        ManualSendItem();
+
         Message* msg;
         uint64_t rowid;
         uint8_t opcode;
         ManualSendReason reason;
-        ManualSendItem(Message* aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason)
-            :msg(aMsg), rowid(aRowid), opcode(aOpcode), reason(aReason){}
-        ManualSendItem()
-            :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
 
     Client& mClient;
@@ -1225,7 +1229,7 @@ public:
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
     virtual void saveMsgToSending(Chat::SendingItem& msg) = 0;
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
-    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd) = 0;
+    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
     virtual void updateMsgKeyIdInSending(uint64_t rowid, KeyId keyid) = 0;

@@ -2027,6 +2027,9 @@ bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
             return false;
     }
     return sendCommand(*cmd.first);
+//            return false;
+//    }
+//    return sendCommand(*cmd.first);
 }
 
 bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
@@ -2037,7 +2040,8 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         return true;
     }
 
-    auto msg = it->msg;
+    Message* msg = it->msg;
+    uint64_t rowid = it->rowid;
     assert(msg->id());
 
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
@@ -2050,16 +2054,21 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         return false;
 
     auto msgCmd = new MsgCommand(it->opcode(), mChatId, client().userId(),
-         msg->id(), msg->ts, msg->updated, msg->keyid);
+         msg->id(), msg->ts, msg->updated);
 
     CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
     auto pms = mCrypto->msgEncrypt(msg, it->recipients, msgCmd);
     // if using current keyid or original keyid from msg, promise is resolved immediately
     if (pms.succeeded())
     {
+        MsgCommand *msgCmd = pms.value().first;
+        KeyCommand *keyCmd = pms.value().second;
+        assert(msgCmd->keyId() != CHATD_KEYID_INVALID);
+        assert(!keyCmd || keyCmd->localKeyid == msg->keyid);
+
         it->msgCmd = pms.value().first;
         it->keyCmd = pms.value().second;
-        CALL_DB(addBlobsToSendingItem, it->rowid, it->msgCmd, it->keyCmd);
+        CALL_DB(addBlobsToSendingItem, rowid, it->msgCmd, it->keyCmd, msg->keyid);
 
         sendKeyAndMessage(pms.value());
         return true;
@@ -2068,17 +2077,21 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 
     mEncryptionHalted = true;
     CHATID_LOG_DEBUG("Can't encrypt message immediately, halting output");
-    auto rowid = mSending.front().rowid;
-    pms.then([this, rowid](std::pair<MsgCommand*, KeyCommand*> result)
+
+    pms.then([this, msg, rowid](std::pair<MsgCommand*, KeyCommand*> result)
     {
+        MsgCommand *msgCmd = result.first;
+        KeyCommand *keyCmd = result.second;
+
+        assert(msgCmd->keyId() != CHATD_KEYID_INVALID);
+        assert(!keyCmd || keyCmd->localKeyid == msg->keyid);
         assert(mEncryptionHalted);
         assert(!mSending.empty());
-        assert(mSending.front().rowid == rowid);
 
         SendingItem item = mSending.front();
-        item.msgCmd = result.first;
-        item.keyCmd = result.second;
-        CALL_DB(addBlobsToSendingItem, item.rowid, item.msgCmd, item.keyCmd);
+        item.msgCmd = msgCmd;
+        item.keyCmd = keyCmd;
+        CALL_DB(addBlobsToSendingItem, rowid, item.msgCmd, item.keyCmd, msg->keyid);
 
         sendKeyAndMessage(result);
         mEncryptionHalted = false;
@@ -2114,7 +2127,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     }
 
     SetOfIds *recipients = NULL;
-    if (msg.isSending()) //update the not yet sent(or at least not yet confirmed) original as well, trying to avoid sending the original content
+    if (msg.isSending())
     {
         SendingItem* item = nullptr;
         for (auto& loopItem: mSending)
@@ -2126,14 +2139,20 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
             }
         }
         assert(item);
+
+        // avoid same "delta" for different edits
         if ((item->opcode() == OP_MSGUPD) || (item->opcode() == OP_MSGUPDX))
         {
             item->msg->updated = age + 1;
         }
+
+        // update original content as well, trying to avoid sending the original content
         msg.assign((void*)newdata, newlen);
-        recipients = new SetOfIds(item->recipients);
         CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
-    } //end msg.isSending()
+
+        // recipients must not change
+        recipients = new SetOfIds(item->recipients);
+    }
 
     auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
         msg.isSending(), msg.keyid, newtype, userp);
@@ -3871,4 +3890,31 @@ bool Message::parseUrl(const std::string &url)
 
     return regex_match(urlToParse, regularExpresion);
 }
+
+Chat::SendingItem::SendingItem(uint8_t aOpcode, Message *aMsg, const SetOfIds &aRcpts, uint64_t aRowid)
+    : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), recipients(aRcpts)
+{
+
 }
+
+Chat::SendingItem::~SendingItem()
+{
+    if (msg)
+    {
+        delete msg;
+    }
+}
+
+Chat::ManualSendItem::ManualSendItem(Message *aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason)
+    :msg(aMsg), rowid(aRowid), opcode(aOpcode), reason(aReason)
+{
+
+}
+
+Chat::ManualSendItem::ManualSendItem()
+    :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason)
+{
+
+}
+
+} // end chatd namespace

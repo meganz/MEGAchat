@@ -277,6 +277,7 @@ protected:
     std::shared_ptr<SendKey> mCurrentKey;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
+    uint32_t mCurrentLocalKeyId = 0;    // only valid while the current key is in-flight
 
     /**
      * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
@@ -285,14 +286,15 @@ protected:
      */
     struct NewKeyEntry
     {
+        NewKeyEntry(const std::shared_ptr<SendKey>& aKey, karere:: SetOfIds aRecipients, uint64_t aLocalKeyid);
+
         std::shared_ptr<SendKey> key;
         karere::SetOfIds recipients;
-        std::set<karere::Id> msgxids;   // list of msgxid/msgid using this unconfirmed key
-        NewKeyEntry(const std::shared_ptr<SendKey>& aKey, karere:: SetOfIds aRecipients)
-            : key(aKey), recipients(aRecipients) {}
+        uint64_t localKeyid; // local keyid --> rowid in the sending table containing the NewKey
     };
     // in-fligth new-keys
     std::vector<NewKeyEntry> mUnconfirmedKeys;
+
 
     bool mForceRsa = false; // for testing of legacy-mode
 
@@ -341,7 +343,9 @@ protected:
      * message is sent.
      */
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-    createNewKey(const karere::SetOfIds &recipients, const karere::Id msgxid);
+    createNewKey(const karere::SetOfIds &recipients);
+
+    uint32_t createLocalKeyId();
 
     /**
      * @brief Signs a message using EdDSA with the Ed25519 key pair.
@@ -365,8 +369,8 @@ protected:
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants);
-    void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
+        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, uint32_t localkeyid = 0);
+    void msgEncryptWithKey(const chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
         const std::shared_ptr<ParsedMessage>& parsedMsg, chatd::Message* msg);

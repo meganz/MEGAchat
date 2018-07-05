@@ -348,7 +348,7 @@ enum Priv: signed char
 class Message: public Buffer
 {
 public:
-    enum: uint8_t
+    enum Type: uint8_t
     {
         kMsgInvalid           = 0x00,
         kMsgNormal            = 0x01,
@@ -378,14 +378,16 @@ public:
     };
     enum { kFlagForceNonText = 0x01 };
 
-    enum { kNotEncrypted        = 0,    /// Message already decrypted
-           kEncryptedPending    = 1,    /// Message pending to be decrypted (transient)
-           kEncryptedNoKey      = 2,    /// Key not found for the message (permanent failure)
-           kEncryptedSignature  = 3,    /// Signature verification failure (permanent failure)
-           kEncryptedMalformed  = 4,    /// Malformed/corrupted data in the message (permanent failure)
-           kEncryptedNoType     = 5     /// Management message of unknown type (transient, not supported by the app yet)
-           // if type of management message is unknown, it would be stored encrypted and will not be decrypted
-           // even if the library adds support to the new type (unless the message is reloaded from server)
+    enum EncryptionStatus
+    {
+        kNotEncrypted        = 0,    /// Message already decrypted
+        kEncryptedPending    = 1,    /// Message pending to be decrypted (transient)
+        kEncryptedNoKey      = 2,    /// Key not found for the message (permanent failure)
+        kEncryptedSignature  = 3,    /// Signature verification failure (permanent failure)
+        kEncryptedMalformed  = 4,    /// Malformed/corrupted data in the message (permanent failure)
+        kEncryptedNoType     = 5     /// Management message of unknown type (transient, not supported by the app yet)
+        // if type of management message is unknown, it would be stored encrypted and will not be decrypted
+        // even if the library adds support to the new type (unless the message is reloaded from server)
     };
 
     /** @brief Info recorder in a management message.
@@ -470,11 +472,13 @@ public:
     };
 
 private:
-//avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
+    //avoid setting the id and flag pairs one by one by making them accessible only by setId(Id,bool)
     karere::Id mId;
     bool mIdIsXid = false;
+
 protected:
     uint8_t mIsEncrypted = kNotEncrypted;
+
 public:
     karere::Id userid;
     uint32_t ts;
@@ -486,19 +490,25 @@ public:
     mutable void* userp;
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
+
     karere::Id id() const { return mId; }
+    void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     bool isSending() const { return mIdIsXid; }
+
+    bool isLocalKeyid() const { return (keyid > 0xffff0000); }
+
     uint8_t isEncrypted() const { return mIsEncrypted; }
     bool isPendingToDecrypt() const { return (mIsEncrypted == kEncryptedPending); }
     // true if message is valid, but permanently undecryptable (not transient like unknown types or keyid not found)
     bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
-    void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
+
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
           unsigned char aType=kMsgNormal, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr)
@@ -668,6 +678,7 @@ public:
 class KeyCommand: public Command
 {
 public:
+    uint32_t localKeyid = CHATD_KEYID_INVALID;
     explicit KeyCommand(karere::Id chatid, uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
         size_t reserve=128)
     : Command(OP_NEWKEY, reserve)

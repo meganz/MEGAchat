@@ -61,14 +61,21 @@ public:
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
-        assert(item.isMessage());
-        auto msg = item.msg;
+        uint8_t opcode = item.opcode();
+        assert((opcode == chatd::OP_NEWMSG)
+               || (opcode == chatd::OP_MSGUPD)
+               || (opcode == chatd::OP_MSGUPDX));
+
+        chatd::Message* msg = item.msg;
         Buffer rcpts;
         item.recipients.save(rcpts);
+
         mDb.query("insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
                          "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
-            (uint64_t)mChat.chatId(), item.opcode(), msg->ts, msg->id(),
+            (uint64_t)mChat.chatId(), opcode, msg->ts, msg->id(),
             *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
+
+        // assign the given rowid to the SendingItem
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
@@ -84,11 +91,13 @@ public:
         assertAffectedRowCount(1, "confirmKeyOfSendingItem");
     }
     virtual void addBlobsToSendingItem(uint64_t rowid,
-                    const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd)
+        const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd, chatd::KeyId keyid)
     {
+        // possible values of `keyid`:
+        // - NEWMSG/MSGUPDX: local keyxid = rowid of the KeyCmd related to this MsgCmd
+        // - MSGUPD: chat keyid (already confirmed)
         mDb.query("update sending set keyid=?, msg_cmd=?, key_cmd=? where rowid=?",
-                  msgCmd ? msgCmd->keyId() : 0,
-                  msgCmd ? msgCmd->msg() : StaticBuffer(nullptr, 0),
+                  keyid, msgCmd->msg(),
                   keyCmd ? keyCmd->keyblob() : StaticBuffer(nullptr, 0),
                   rowid);
         assertAffectedRowCount(1,"addBlobsToSendingItem");
