@@ -959,13 +959,39 @@ public class MegaChatApiJava {
      * MegaChatRoom objects, but a limited set of data that is usually displayed
      * at the list of chatrooms, like the title of the chat or the unread count.
      *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
      * You take the ownership of the returned value
      *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     public ArrayList<MegaChatListItem> getChatListItems(){
         return chatRoomListItemToArray(megaChatApi.getChatListItems());
+    }
 
+    /**
+     * Get all chatrooms (1on1 and groupal) that contains a certain set of participants
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function returns even archived chatrooms.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param peers MegaChatPeerList that contains the user handles of the chat participants,
+     * except our own handle because MEGAchat doesn't include them in the map of members for each chatroom.
+     *
+     * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
+     */
+    public ArrayList<MegaChatListItem> getChatListItemsByPeers(MegaChatPeerList peers){
+        return chatRoomListItemToArray(megaChatApi.getChatListItemsByPeers(peers));
     }
 
     /**
@@ -992,6 +1018,9 @@ public class MegaChatApiJava {
 
     /**
      * Return the number of chatrooms with unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
+     *
      * @return The number of chatrooms with unread messages
      */
     public int getUnreadChats(){
@@ -1012,9 +1041,8 @@ public class MegaChatApiJava {
     /**
      * Return the chatrooms that are currently inactive
      *
-     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
-     * when the contact-relationship is broken (you remove the contact or you are
-     * removed by the other contact).
+     * Chatrooms became inactive when you left a groupchat or you are removed by
+     * a moderator. 1on1 chats do not become inactive, just read-only.
      *
      * You take the onwership of the returned value.
      *
@@ -1025,7 +1053,20 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Return the archived chatrooms
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the archived chatrooms
+     */
+    public ArrayList<MegaChatListItem> getArchivedChatListItems(){
+        return chatRoomListItemToArray(megaChatApi.getArchivedChatListItems());
+    }
+
+    /**
      * Return the chatrooms that have unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
      *
      * You take the onwership of the returned value.
      *
@@ -1141,6 +1182,34 @@ public class MegaChatApiJava {
      */
     public void setChatTitle(long chatid, String title, MegaChatRequestListenerInterface listener){
         megaChatApi.setChatTitle(chatid, title, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Allows to un/archive chats
+     *
+     * This is a per-chat and per-user option, and it's intended to be used when the user does
+     * not care anymore about an specific chatroom. Archived chatrooms should be displayed in a
+     * different section or alike, so it can be clearly identified as archived.
+     *
+     * Note you will stop receiving \c onChatListItemUpdate() updated for changes of type
+     * MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT, since the user is not anymore interested on
+     * the activity of this chatroom.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ARCHIVE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if chat is to be archived or unarchived
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
+     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param archive True to set the chat as archived, false to unarchive it.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void archiveChat(long chatid, boolean archive, MegaChatRequestListenerInterface listener){
+        megaChatApi.archiveChat(chatid, archive, createDelegateRequestListener(listener));
     }
 
     /**
