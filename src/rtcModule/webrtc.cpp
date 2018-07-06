@@ -840,7 +840,7 @@ void Call::msgCallReqDecline(RtMessage& packet)
     {
         handleReject(packet);
     }
-    else if (code == TermCode::kBusy)
+    else if (code == TermCode::kBusy || code == TermCode::kErrAlready)
     {
         handleBusy(packet);
     }
