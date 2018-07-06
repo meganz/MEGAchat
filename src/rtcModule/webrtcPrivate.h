@@ -189,7 +189,7 @@ public:
         kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 20000
+        kSessSetupTimeout = 30000
     };
 
     //TODO: set valid values
