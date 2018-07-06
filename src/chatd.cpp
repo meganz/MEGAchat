@@ -1437,7 +1437,7 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         Id userid(keybuf.read<uint64_t>(pos));
         pos += 8;
 
-        uint32_t keyid = keybuf.read<uint32_t>(pos);
+        KeyId keyid = keybuf.read<KeyId>(pos);
         pos += 4;
 
         uint16_t keylen = keybuf.read<uint16_t>(pos);
@@ -2063,8 +2063,9 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     {
         MsgCommand *msgCmd = pms.value().first;
         KeyCommand *keyCmd = pms.value().second;
-        assert(msgCmd->keyId() != CHATD_KEYID_INVALID);
-        assert(!keyCmd || keyCmd->localKeyid() == msg->keyid);
+        assert((!keyCmd && !isLocalKeyId(msgCmd->keyId()))          // no newkey required and msgCmd's keyid is final or...
+               || (keyCmd && keyCmd->localKeyid() == msg->keyid     // ... or localkeyid is assigned to message
+                   && msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED)); // and msgCmd's keyid is unconfirmed
 
         it->msgCmd = pms.value().first;
         it->keyCmd = pms.value().second;
@@ -2080,13 +2081,14 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 
     pms.then([this, msg, rowid](std::pair<MsgCommand*, KeyCommand*> result)
     {
-        MsgCommand *msgCmd = result.first;
-        KeyCommand *keyCmd = result.second;
-
-        assert(msgCmd->keyId() != CHATD_KEYID_INVALID);
-        assert(!keyCmd || keyCmd->localKeyid() == msg->keyid);
         assert(mEncryptionHalted);
         assert(!mSending.empty());
+
+        MsgCommand *msgCmd = result.first;
+        KeyCommand *keyCmd = result.second;
+        assert(keyCmd);
+        assert(keyCmd->localKeyid() == msg->keyid);
+        assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
 
         SendingItem item = mSending.front();
         item.msgCmd = msgCmd;

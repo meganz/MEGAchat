@@ -556,7 +556,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
 
         // read keyid
         KeyId keyid = (KeyId)stmt.intCol(2);
-        assert(keyid > 0xffff0000);
+        assert(isLocalKeyId(keyid));
 
         //pick the version that is encrypted for us
         const char *pos = keyBlobs.buf();
@@ -1124,7 +1124,7 @@ ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedM
     });
 }
 
-void ProtocolHandler::onKeyReceived(uint32_t keyid, Id sender, Id receiver,
+void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
                                     const char* data, uint16_t dataLen)
 {
     auto encKey = std::make_shared<Buffer>(data, dataLen);
@@ -1241,7 +1241,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
     }
 }
 
-void ProtocolHandler::onKeyConfirmed(uint32_t localkeyid, uint32_t keyid)
+void ProtocolHandler::onKeyConfirmed(KeyId localkeyid, KeyId keyid)
 {
     // new keys are always confirmed in the same order than received by chatd
     auto it = mUnconfirmedKeys.begin();
@@ -1323,18 +1323,18 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
     return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentLocalKeyId);
 }
 
-uint32_t ProtocolHandler::createLocalKeyId()
+KeyId ProtocolHandler::createLocalKeyId()
 {
-    static uint32_t nextLocalKeyId = CHATD_KEYID_UNCONFIRMED;
+    static KeyId nextLocalKeyId = CHATD_KEYID_MAX;
 
-    if (nextLocalKeyId == 0xffff0001)
-        nextLocalKeyId = CHATD_KEYID_UNCONFIRMED;
+    if (--nextLocalKeyId < CHATD_KEYID_MIN)
+        nextLocalKeyId = CHATD_KEYID_MAX;
 
-    return nextLocalKeyId--;
+    return nextLocalKeyId;
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
-ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const SetOfIds &participants, uint32_t localkeyid)
+ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const SetOfIds &participants, KeyId localkeyid)
 {
     auto keyCmd = new KeyCommand(chatid, localkeyid);
 
@@ -1513,7 +1513,7 @@ void ProtocolHandler::randomBytes(void* buf, size_t bufsize) const
     randombytes_buf(buf, bufsize);
 }
 
-ProtocolHandler::NewKeyEntry::NewKeyEntry(const std::shared_ptr<SendKey> &aKey, SetOfIds aRecipients, uint64_t aLocalKeyid)
+ProtocolHandler::NewKeyEntry::NewKeyEntry(const std::shared_ptr<SendKey> &aKey, SetOfIds aRecipients, KeyId aLocalKeyid)
     : key(aKey), recipients(aRecipients), localKeyid(aLocalKeyid)
 {
 

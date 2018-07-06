@@ -225,7 +225,7 @@ struct EncryptedMessage
 struct UserKeyId
 {
     karere::Id user;
-    uint64_t keyid;
+    uint64_t keyid; // 64 bits for backwards compatibility with stronvelope v1 (legacy RSA)
     explicit UserKeyId(karere::Id aUser, uint64_t aKeyid): user(aUser), keyid(aKeyid){}
     bool operator<(UserKeyId other) const
     {
@@ -275,9 +275,9 @@ protected:
 
     // current key, keyid and userlist
     std::shared_ptr<SendKey> mCurrentKey;
-    uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
+    chatd::KeyId mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
-    uint32_t mCurrentLocalKeyId = CHATD_KEYID_INVALID;    // only valid while the current key is in-flight
+    chatd::KeyId mCurrentLocalKeyId = CHATD_KEYID_INVALID;    // only valid while the current key is in-flight
 
     /**
      * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
@@ -286,11 +286,11 @@ protected:
      */
     struct NewKeyEntry
     {
-        NewKeyEntry(const std::shared_ptr<SendKey>& aKey, karere:: SetOfIds aRecipients, uint64_t aLocalKeyid);
+        NewKeyEntry(const std::shared_ptr<SendKey>& aKey, karere::SetOfIds aRecipients, chatd::KeyId aLocalKeyid);
 
         std::shared_ptr<SendKey> key;
         karere::SetOfIds recipients;
-        uint64_t localKeyid; // local keyid --> rowid in the sending table containing the NewKey
+        chatd::KeyId localKeyid; // local keyid --> rowid in the sending table containing the NewKey
     };
     // in-fligth new-keys
     std::vector<NewKeyEntry> mUnconfirmedKeys;
@@ -345,7 +345,7 @@ protected:
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
     createNewKey(const karere::SetOfIds &recipients);
 
-    uint32_t createLocalKeyId();
+    chatd::KeyId createLocalKeyId();
 
     /**
      * @brief Signs a message using EdDSA with the Ed25519 key pair.
@@ -369,7 +369,7 @@ protected:
     promise::Promise<std::shared_ptr<Buffer>>
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
-        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, uint32_t localkeyid = 0);
+        encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, chatd::KeyId localkeyid = 0);
     void msgEncryptWithKey(const chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
@@ -393,13 +393,13 @@ protected:
 
 public:
 //chatd::ICrypto interface
-    uint32_t currentKeyId() const { return mCurrentKeyId; }
+    chatd::KeyId currentKeyId() const { return mCurrentKeyId; }
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
     msgEncrypt(chatd::Message *message, const karere::SetOfIds &recipients, chatd::MsgCommand* msgCmd);
     virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
-    virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
+    virtual void onKeyReceived(chatd::KeyId keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);
-    virtual void onKeyConfirmed(uint32_t localkeyid, uint32_t keyid);
+    virtual void onKeyConfirmed(chatd::KeyId localkeyid, chatd::KeyId keyid);
     virtual void onKeyRejected();
     virtual void setUsers(karere::SetOfIds* users);
     virtual void onUserJoin(karere::Id userid);

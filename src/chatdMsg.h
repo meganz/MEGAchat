@@ -9,7 +9,9 @@
 enum
 {
     CHATD_KEYID_INVALID = 0,                // used when no keyid is set
-    CHATD_KEYID_UNCONFIRMED = 0xfffffffe    // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
+    CHATD_KEYID_UNCONFIRMED = 0xfffffffe,   // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
+    CHATD_KEYID_MAX = 0xffffffff,           // higher keyid allowed for unconfirmed new keys
+    CHATD_KEYID_MIN = 0xffff0000            // lower keyid allowed for unconfirmed new keys
 };
 
 namespace chatd
@@ -17,6 +19,11 @@ namespace chatd
 
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
+
+static bool isLocalKeyId(KeyId localKeyid)
+{
+    return (localKeyid >= CHATD_KEYID_MIN);
+}
 
 enum { kMaxBackRefs = 32 };
 
@@ -483,7 +490,7 @@ public:
     karere::Id userid;
     uint32_t ts;
     uint16_t updated;
-    uint32_t keyid;
+    KeyId keyid;
     unsigned char type;
     BackRefId backRefId;
     std::vector<BackRefId> backRefs;
@@ -495,7 +502,7 @@ public:
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     bool isSending() const { return mIdIsXid; }
 
-    bool isLocalKeyid() const { return (keyid > 0xffff0000); }
+    bool isLocalKeyid() const { return isLocalKeyId(keyid); }
 
     uint8_t isEncrypted() const { return mIsEncrypted; }
     bool isPendingToDecrypt() const { return (mIsEncrypted == kEncryptedPending); }
@@ -691,20 +698,22 @@ public:
 class KeyCommand: public Command
 {
 private:
-    uint32_t mLocalKeyid;
+    KeyId mLocalKeyid;
 
 public:
-    explicit KeyCommand(karere::Id chatid, uint32_t aLocalkeyid, size_t reserve=128)
+    explicit KeyCommand(karere::Id chatid, KeyId aLocalkeyid, size_t reserve=128)
     : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
-        uint32_t keyid=CHATD_KEYID_UNCONFIRMED;
-        append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
+        assert(isLocalKeyId(mLocalKeyid));
+
+        KeyId keyid = CHATD_KEYID_UNCONFIRMED;
+        append(chatid.val).append<KeyId>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
 
     KeyId localKeyid() { return mLocalKeyid; }
-    KeyId keyId() const { return read<uint32_t>(9); }
+    KeyId keyId() const { return read<KeyId>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
-    void setKeyId(uint32_t keyid) { write(9, keyid); }
+    void setKeyId(KeyId keyid) { write(9, keyid); }
     void addKey(karere::Id userid, void* keydata, uint16_t keylen)
     {
         assert(keydata && (keylen != 0));
