@@ -217,7 +217,8 @@ public:
             // if message was already encrypted, restore the MsgCommand
             if (stmt.hasBlobCol(11))
             {
-                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, keyid);
+                chatd::KeyId chatdKeyid = (keyid < 0xffff0001) ? keyid : CHATD_KEYID_UNCONFIRMED;
+                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, chatdKeyid);
                 Buffer buf;
                 stmt.blobCol(11, buf);
                 msgCmd->setMsg(buf.buf(), buf.dataSize());
@@ -228,6 +229,9 @@ public:
             // it message had a new key attached, restore the KeyCommand
             if (stmt.hasBlobCol(12))
             {
+                assert(queue.back().msgCmd);    // a NEWKEY must always indicate there's an encrypted NEWMSG
+                assert(opcode == chatd::OP_NEWMSG);
+
                 chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
                 Buffer buf;
                 stmt.blobCol(12, buf);

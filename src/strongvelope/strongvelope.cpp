@@ -848,7 +848,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
             .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
             {
                 wptr.throwIfDeleted();
-                msg->keyid = result.first->localKeyid;
+                msg->keyid = result.first->localKeyid();
                 msgCmd->setKeyId(CHATD_KEYID_UNCONFIRMED);
                 msgEncryptWithKey(*msg, *msgCmd, *result.second);
                 return std::make_pair(msgCmd, result.first);
@@ -1333,8 +1333,7 @@ uint32_t ProtocolHandler::createLocalKeyId()
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const SetOfIds &participants, uint32_t localkeyid)
 {
-    auto keyCmd = new KeyCommand(Id::null());
-    keyCmd->localKeyid = localkeyid;
+    auto keyCmd = new KeyCommand(chatid, localkeyid);
 
     // Users and send key may change while we are getting pubkeys of current
     // users, so make a snapshot

@@ -2064,7 +2064,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         MsgCommand *msgCmd = pms.value().first;
         KeyCommand *keyCmd = pms.value().second;
         assert(msgCmd->keyId() != CHATD_KEYID_INVALID);
-        assert(!keyCmd || keyCmd->localKeyid == msg->keyid);
+        assert(!keyCmd || keyCmd->localKeyid() == msg->keyid);
 
         it->msgCmd = pms.value().first;
         it->keyCmd = pms.value().second;
@@ -2084,7 +2084,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         KeyCommand *keyCmd = result.second;
 
         assert(msgCmd->keyId() != CHATD_KEYID_INVALID);
-        assert(!keyCmd || keyCmd->localKeyid == msg->keyid);
+        assert(!keyCmd || keyCmd->localKeyid() == msg->keyid);
         assert(mEncryptionHalted);
         assert(!mSending.empty());
 

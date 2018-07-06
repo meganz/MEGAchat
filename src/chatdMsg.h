@@ -675,17 +675,33 @@ public:
     virtual ~Command(){}
 };
 
+/**
+ * @brief The KeyCommand class represents a `NEWKEY` command for chatd.
+ *
+ * It inherits from Buffer and the structure of the byte-sequence is:
+ *      opcode.1 + chatid.8 + keyid.4 + keyblobslen.4 + keyblobs.keylen
+ *
+ * The keyblobs follow the structure:
+ *      userid.8 + keylen.2 + key.keylen
+ *
+ * Additionally, the KeyCommand stores the given local keyid, which is used
+ * internally. The keyid encoded in the command is always hardwire to the
+ * constant value CHATD_KEYID_UNCONFIRMED.
+ */
 class KeyCommand: public Command
 {
+private:
+    uint32_t mLocalKeyid;
+
 public:
-    uint32_t localKeyid = CHATD_KEYID_INVALID;
-    explicit KeyCommand(karere::Id chatid, uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        size_t reserve=128)
-    : Command(OP_NEWKEY, reserve)
+    explicit KeyCommand(karere::Id chatid, uint32_t aLocalkeyid, size_t reserve=128)
+    : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
+        uint32_t keyid=CHATD_KEYID_UNCONFIRMED;
         append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
-    KeyCommand(): Command(){} //for db loading
+
+    KeyId localKeyid() { return mLocalKeyid; }
     KeyId keyId() const { return read<uint32_t>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(uint32_t keyid) { write(9, keyid); }
@@ -711,7 +727,7 @@ public:
         setDataSize(17 + len);
     }
 
-    void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
+    void clearKeys() { setDataSize(17); }
     virtual std::string toString() const;
 };
 
