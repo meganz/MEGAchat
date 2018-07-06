@@ -2153,7 +2153,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
     uint32_t age = time(NULL) - msg.ts;
-    if (age > CHATD_MAX_EDIT_AGE)
+    if (!msg.isSending() && age > CHATD_MAX_EDIT_AGE)
     {
         CHATID_LOG_DEBUG("msgModify: Denying edit of msgid %s because message is too old", ID_CSTR(msg.id()));
         return nullptr;
