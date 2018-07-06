@@ -1127,15 +1127,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     setState(Call::kStateTerminating);
     clearCallOutTimer();
 
-    if (mPredestroyState != Call::kStateRingIn && code != TermCode::kBusy)
-    {
-        sendCallData(kCallDataEnd);
-    }
-    else
-    {
-        SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy or call state is ringing");
-    }
-
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
@@ -1173,13 +1164,17 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         if (wptr.deleted())
             return;
 
-        if (mPredestroyState != Call::kStateRingIn && code != TermCode::kBusy)
+        if (code == TermCode::kAnsElsewhere || code == TermCode::kErrAlready || code == TermCode::kAnswerTimeout)
         {
-            sendCallData(CallDataState::kCallDataEnd);
+            SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere or kErrAlready");
+        }
+        else if (mState == kStateRingIn)
+        {
+            SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
         else
         {
-            SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy and call state is ringing");
+            sendCallData(CallDataState::kCallDataEnd);
         }
 
         assert(mSessions.empty());
