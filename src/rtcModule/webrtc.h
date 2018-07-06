@@ -314,8 +314,8 @@ protected:
         : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
 public:
     enum {
-       kMaxCallReceivers = 10,
-       kMaxCallAudioSenders = 10,
+       kMaxCallReceivers = 20,
+       kMaxCallAudioSenders = 20,
        kMaxCallVideoSenders = 6
     };
 
