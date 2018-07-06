@@ -814,7 +814,6 @@ void Call::msgCallTerminate(RtMessage& packet)
     else
     {
         EndpointId endpointId(packet.userid, packet.clientid);
-        time_t sessionRetryTime = 0;
         auto itSessionRety = mSessRetries.find(endpointId);
         if (itSessionRety != mSessRetries.end())
         {
