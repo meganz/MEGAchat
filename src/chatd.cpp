@@ -2022,7 +2022,6 @@ bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
     assert(cmd.first);
     if (cmd.second) // if NEWKEY is required for this NEWMSG...
     {
-        cmd.second->setChatId(mChatId);
         if (!sendCommand(*cmd.second))
             return false;
     }
