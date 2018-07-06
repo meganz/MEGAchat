@@ -1756,29 +1756,36 @@ AvFlags Call::sentAv() const
     return mLocalStream ? mLocalStream->effectiveAv() : AvFlags(0);
 }
 /** Protocol flow:
-    C(aller): broadcast RTCMD.CALLDATA payloadLen.2 callid.8 callState.1 avflags.1
+    C(aller): broadcast CALLDATA payloadLen.2 callid.8 callState.1 avflags.1
        => state: CallState.kReqSent
     A(nswerer): send RINGING
        => state: CallState.kRingIn
-    C: may send RTCMD.CALL_REQ_CANCEL callid.8 reason.1 if caller aborts the call request.
+    C: may send CALL_REQ_CANCEL callid.8 reason.1 if caller aborts the call request.
        The reason is normally Term.kUserHangup or Term.kAnswerTimeout
-    A: may broadcast RTCMD.CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call.
-    When other clients of the same user receive the CALL_REQ_DECLINE, they should stop ringing.
+    A: may broadcast CALL_REQ_DECLINE callid.8 reason.1 if answerer rejects the call or if
+       the user is currently in another call: if that call is in the same chatroom, then the reason
+       is kErrAlready, otherwise - kBusy.
+       In group calls, CALL_REQ_DECLINE is ignored by the caller, as a group call request can't be rejected by
+       a single user. In 1on1 rooms, the caller should abort the call by broadcasting CALL_REQ_CANCEL,
+       with the reason from the received CALL_REQ_DECLINE, and the kPeer bit set. All other clients should stop
+       ringing when they receive the CALL_REQ_CANCEL.
     == (from here on we can join an already ongoing group call) ==
     A: broadcast JOIN callid.8 anonId.8
         => state: CallState.kCallDataJoining
         => isJoiner = true
+        Other clients of user A will receive the answering client's JOIN (if call
+        was answered), or CALL_REQ_DECLINE (in case the call was rejected), and will know that the call has
+        been handled by another client of that user. They will then dismiss the "incoming call"
+        dialog and stop ringing.
+        In 1on1 calls, when the call initiator receives the first JOIN, it broadcasts a CALLDATA packet
+        with type kNotRinging, signifying that the call was answered, so the other clients can stop ringing.
         Note: In case of joining an ongoing call, the callid is generated locally
           and does not match the callid if the ongoing call, as the protocol
           has no way of conveying the callid of the ongoing call. The responders
           to the JOIN will use the callid of the JOIN, and not the original callid.
           The callid is just used to match command/responses in the call setup handshake.
           Once that handshake is complete, only session ids are used for the actual 1on1 sessions.
-        In case of 1on1 call other clients of user A will receive the answering client's JOIN (if call
-        was answered), or TERMINATE (in case the call was rejected), and will know that the call has
-        been handled by another client of that user. They will then dismiss the "incoming call"
-        dialog.
-          A: broadcast RTCMD.CALL_REQ_HANDLED callid.8 ans.1 to all other devices of own userid
+
     C: send SESSION callid.8 sid.8 anonId.8 encHashKey.32 actualCallId.8
         => call state: CallState.kInProgress
         => sess state: SessState.kWaitSdpOffer
@@ -1788,9 +1795,20 @@ AvFlags Call::sentAv() const
     C: send SDP_ANSWER sid.8 fprHash.32 avflags.1 sdpLen.2 sdpAnswer.sdpLen
         => state: SessState.kWaitMedia
     A and C: exchange ICE_CANDIDATE sid.8 midLen.1 mid.midLen mLineIdx.1 candLen.2 iceCand.candLen
+
+    Once the webrtc session is connected (ICE connection state changes to 'connected'),
+    and this is the first connected session for that client, then the call is locally considered
+    as started, and the GUI transitions to the in-call state.
+
     A or C: may send MUTE sid.8 avState.1 (if user mutes/unmutes audio/video).
         Webrtc does not have an in-band notification of stream muting
-        (needed to update the GUI), so we do it out-of-band
+        (needed to update the GUI), so we do it out-of-band.
+        The client that sends the MUTE also sends a CALLDATA packet with type kMute and
+        its new audio and video send state, in order to notify clients that are not in
+        the call, so they can count the available audio/video slots within a group call.
+        At a later stage, we may want to stop sending the MUTE command at all and only
+        use the CALLDATA (which ws introduced at a later stage).
+
     A or C: send SESS_TERMINATE sid.8 reason.1
         => state: SessState.kTerminating
     C or A: send SESS_TERMINATE_ACK sid.8
@@ -1800,10 +1818,64 @@ AvFlags Call::sentAv() const
         the peer from thinking that the webrtc connection was closed
         due to error
         => state: Sess.kDestroyed
-@note avflags of caller are duplicated in CALLDATA and RTCMD.SDP_ANSWER
+@note avflags of caller are duplicated in CALLDATA and SDP_ANSWER
 The first is purely informative, to make the callee aware what type of
 call the caller is requesting - audio or video.
 This is not available when joining an existing call.
+
+== INCALL, ENDCALL protocol ==
+Each client that is involved in a call, periodically sends an INCALL ping packet to the server.
+The server keeps track of all actively pinging clients, and dumps a list of them to clients that log
+into that chatroom, and sends deltas in realtime when new clients join or leave. When a client leaves a call,
+it sends an ENDCALL. If it times out to send an INCALL ping, the server behaves as if that client sent
+an ENDCALL (i.e. considers that client went out of the call). This mechanism allows to keep track of
+whether there is an ongoing call in a chatroom and who is participating in it at any moment.
+This is how clients know whether they can join an ongoing group call.
+
+== CALLDATA protocol ==
+- Overview -
+CALLDATA is a special packet that can contain arbitrary data, is sent by clients, and is stored on the server
+per-client. Actually the server stores only the last such packet sent by each client. When a client
+sends such a packet, the server also broadcasts it to all other clients in that chatroom. Upon login
+to a chatroom, the server dumps the CALLDATA blobs stored for all clients (i.e. the last ones they sent).
+After that, any new CALLDATA a client sends is received by everyone because of the broadcast.
+
+- Call request -
+The CALLDATA mechanism was initually introduced to allow for call requests to be received
+via mobile PUSH. When the call request is broadcast, a mobile client is likely to not be running.
+It would be started by the OS upon receipt by the PUSH event, but it would miss the realtime
+call request message. Therefore, the call request needed to be persisted on the server.
+This was realized by the server keeping track of the last CALLDATA packet received by each client,
+and dumping these packets upon login to a chatroom (even before any history fetch is done).
+This would allow for the call initiator to persist a CALLDATA packet on the server, that signifies
+a call request (having a type kRinging). When the call is answered or aborted, the caller is responsible
+for either overwriting the kRinging CALLDATA with one that signals the call request is not there anymore -
+usually a type kNotRinging CALLDATA (when the call was answered), or send an ENDCALL to the server if it
+aborts the call for some reason. A client sending an ENDCALL (or timing out the INCALL ping) results in its
+CALLDATA not being sent by the server to clients that log into that chatroom.
+
+- Call end -
+Later, the CALLDATA mechanism was extended to facilitate posting history messages about call events -
+particularly about the end of a call. The posting of these call management messages is done by the server
+and it needs to figure out the reason for the call termination, in order to display "Call was not answered",
+"Call ended normally", "Call failed", "Call request was canceled", etc. To do that, clients send another type
+of CALLDATA (kTerminated) to the server with a reason code. When a client just sends an ENDCALL or times
+out the INCALL ping, the server assumes it left the call due to some error. When all clients leave the call,
+the server combines the reasons they reported and posts a call-ended management messages in the message history.
+
+- Audio/video slots -
+In group calls, the number of audio and video senders and receivers has to be kept track of,
+in order to not overload client with too many streams. This means that a client may be disallowed
+to join a call with camera enabled, with microphone enabled, or even disallow join at all, even without
+sending any media. This is because of the mesh configuration of group calls - the bandwidth and processing
+requirement grows exponentially with the number of stream senders, but also linearly with the number of passive
+receivers (a stream sender is also a receiver). Therefore, all CALLDATA packets that a client sends include
+its current audio/video send state. This allows even clients that are not in the call to keep track of how many
+people are sending and receiving audio/video, and disallow the user to enable camera/mic or even join the call.
+There is a dedicated CALLDATA type kMute that clients send for the specific purpose of updating the a/v send state.
+It is send when the client mutes/unmutes camera or mic. Currently this CALLDATA is sent together with the MUTE
+message, but in the future we may want to only rely on the CALLDATA packet.
+
 */
 Session::Session(Call& call, RtMessage& packet)
 :ISession(call, packet.userid, packet.clientid), mManager(call.mManager)
