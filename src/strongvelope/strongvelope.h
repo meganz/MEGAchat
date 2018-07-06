@@ -277,7 +277,7 @@ protected:
     std::shared_ptr<SendKey> mCurrentKey;
     uint32_t mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
-    uint32_t mCurrentLocalKeyId = 0;    // only valid while the current key is in-flight
+    uint32_t mCurrentLocalKeyId = CHATD_KEYID_INVALID;    // only valid while the current key is in-flight
 
     /**
      * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
@@ -399,7 +399,7 @@ public:
     virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);
     virtual void onKeyReceived(uint32_t keyid, karere::Id sender,
         karere::Id receiver, const char* data, uint16_t dataLen);
-    virtual void onKeyConfirmed(uint32_t keyxid, uint32_t keyid);
+    virtual void onKeyConfirmed(uint32_t localkeyid, uint32_t keyid);
     virtual void onKeyRejected();
     virtual void setUsers(karere::SetOfIds* users);
     virtual void onUserJoin(karere::Id userid);

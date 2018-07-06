@@ -589,7 +589,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
 
         auto wptr = weakHandle();
         auto pms = decryptKey(encryptedKey, mOwnHandle, mOwnHandle);
-        assert(pms.done()); // our keys must be available in cache
+        assert(pms.succeeded()); // our keys must be available in cache
         pms.then([this, wptr, recipients, keyid](const std::shared_ptr<SendKey>& key)
         {
             wptr.throwIfDeleted();
@@ -1241,7 +1241,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
     }
 }
 
-void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
+void ProtocolHandler::onKeyConfirmed(uint32_t localkeyid, uint32_t keyid)
 {
     // new keys are always confirmed in the same order than received by chatd
     auto it = mUnconfirmedKeys.begin();
@@ -1251,28 +1251,30 @@ void ProtocolHandler::onKeyConfirmed(uint32_t keyxid, uint32_t keyid)
         return;
     }
 
-    if (!mCurrentKey || (mCurrentKeyId != CHATD_KEYID_UNCONFIRMED))
-        throw std::runtime_error("strongvelope: onKeyConfirmed: Current send key is not unconfirmed");
-    if (keyxid != CHATD_KEYID_UNCONFIRMED)
-        throw std::runtime_error("strongvelope: onKeyConfirmed: Usage error: trying to set keyid to the UNCONFIRMED value");
+    NewKeyEntry &entry = *it;
+    UserKeyId userKeyId(mOwnHandle, keyid);
+    std::shared_ptr<SendKey> confirmedKey = entry.key;
+    assert(entry.localKeyid == localkeyid);
+    assert(mKeys.find(userKeyId) == mKeys.end());
+
+    // add confirmed key to mKeys
+    addDecryptedKey(userKeyId, confirmedKey);
 
     // check if confirmed key is the currentKey
-    std::shared_ptr<SendKey> confirmedKey = it->key;
-    if (mUnconfirmedKeys.size() == 1)
+    if (mCurrentKey && mUnconfirmedKeys.size() == 1)
     {
         // if there are multiple new keys in-flight, the currentKey
         // is the last one being confirmed
         assert(memcmp(mCurrentKey->buf(), confirmedKey->buf(), mCurrentKey->dataSize()) == 0);
         assert(mCurrentKeyId == CHATD_KEYID_UNCONFIRMED);
-        assert(it->recipients == mCurrentKeyParticipants);
+        assert(mCurrentLocalKeyId == localkeyid);
+        assert(mCurrentKeyParticipants == entry.recipients);
 
         mCurrentKeyId = keyid;  // keyxid --> keyid
+        mCurrentLocalKeyId = CHATD_KEYID_INVALID;
     }
 
-    UserKeyId userKeyId(mOwnHandle, keyid);
-    assert(mKeys.find(userKeyId) == mKeys.end());
-    addDecryptedKey(userKeyId, confirmedKey);
-
+    // remove it from queue of unconfirmed keys
     mUnconfirmedKeys.erase(it);
 }
 
@@ -1286,19 +1288,20 @@ void ProtocolHandler::onKeyRejected()
         return;
     }
 
-    if (!mCurrentKey || (mCurrentKeyId != CHATD_KEYID_UNCONFIRMED))
-        throw std::runtime_error("strongvelope: onKeyRejected: Current send key is already confirmed");
-
-    std::shared_ptr<SendKey> rejectedKey = it->key;
-    if (mUnconfirmedKeys.size() == 1)
+    // check if rejected key is the current key
+    NewKeyEntry &entry = *it;
+    std::shared_ptr<SendKey> rejectedKey = entry.key;
+    if (mCurrentKey && mUnconfirmedKeys.size() == 1)
     {
         assert(memcmp(mCurrentKey->buf(), rejectedKey->buf(), mCurrentKey->dataSize()) == 0);
         assert(mCurrentKeyId == CHATD_KEYID_UNCONFIRMED);
-        assert(it->recipients == mCurrentKeyParticipants);
+        assert(mCurrentLocalKeyId == entry.localKeyid);
+        assert(mCurrentKeyParticipants == entry.recipients);
 
         resetSendKey();
     }
 
+    // remove it from queue of unconfirmed keys
     mUnconfirmedKeys.erase(it);
 }
 
@@ -1465,6 +1468,7 @@ void ProtocolHandler::resetSendKey()
     mCurrentKey.reset();
     mCurrentKeyId = CHATD_KEYID_INVALID;
     mCurrentKeyParticipants = SetOfIds();
+    mCurrentLocalKeyId = CHATD_KEYID_INVALID;
 }
 
 void ProtocolHandler::setUsers(karere::SetOfIds* users)

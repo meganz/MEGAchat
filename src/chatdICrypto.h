@@ -101,7 +101,7 @@ public:
     /**
      * @brief A new key sent to server has been confirmed by the server, and added to Chat.keys
      */
-    virtual void onKeyConfirmed(KeyId keyxid, KeyId keyid)  = 0;
+    virtual void onKeyConfirmed(KeyId localkeyid, KeyId keyid)  = 0;
 
     /**
      * @brief A new key sent to server has been rejected by the server

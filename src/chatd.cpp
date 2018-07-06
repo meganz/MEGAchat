@@ -2517,7 +2517,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
     if (mSending.empty())
         return nullptr;
 
-    auto& item = mSending.front();
+    SendingItem& item = mSending.front();
     if (item.opcode() == OP_MSGUPDX)
     {
         CHATID_LOG_DEBUG("msgConfirm: sendQueue doesnt start with NEWMSG or MSGUPD, but with MSGUPDX");
@@ -2541,14 +2541,16 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
             : kManualSendGeneralReject); //deletes item
         return nullptr;
     }
-    auto msg = item.msg;
-    item.msg = nullptr;
+
+    Message *msg = item.msg;
+    item.msg = nullptr; // avoid item.msg to be deleted in SendingItem dtor
     assert(msg);
     assert(msg->isSending());
 
     CALL_DB(deleteItemFromSending, item.rowid);
     mSending.pop_front(); //deletes item
-    return msg;
+
+    return msg; // gives the ownership
 }
 
 // msgid can be 0 in case of rejections
@@ -2564,12 +2566,13 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     msg->setId(msgid, false);
 
     // the keyid should be already confirmed by this time
-    assert(msg->keyid != CHATD_KEYID_UNCONFIRMED);
+    assert(!msg->isLocalKeyid());
 
     // add message to history
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
+
     //update any following MSGUPDX-s referring to this msgxid
     for (auto& item: mSending)
     {
@@ -2625,10 +2628,9 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
 {
     if (keyxid != CHATD_KEYID_UNCONFIRMED)
     {
-        CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xfffffffe, continuing anyway");
+        CHATID_LOG_ERROR("keyConfirm: Key transaction id != 0xfffffffe");
+        return;
     }
-
-    CALL_CRYPTO(onKeyConfirmed, keyxid, keyid);
 
     if (mSending.empty())
     {
@@ -2636,22 +2638,27 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         return;
     }
 
-    auto it = mSending.begin();
-    assert(it->keyCmd);  // first message in sending queue should send a NEWKEY
+    const SendingItem &item = mSending.front();
+    assert(item.keyCmd);  // first message in sending queue should send a NEWKEY
+    KeyId localKeyid = item.keyCmd->localKeyid();
+    assert(item.msg->keyid == localKeyid);
+
+    CALL_CRYPTO(onKeyConfirmed, localKeyid, keyid);
+
+    // update keyid of all messages using this confirmed new key
     int count = 0;
-    do
+    for (auto& item: mSending)
     {
-        // update keyid of all messages using this confirmed new key
-        assert(it->msg->keyid == keyxid);
-        it->msg->keyid = keyid;
-        CALL_DB(updateMsgKeyIdInSending, it->rowid, keyid);
+        Message *msg = item.msg;
+        if (msg->keyid == localKeyid)
+        {
+            msg->keyid = keyid;
+            CALL_DB(updateMsgKeyIdInSending, item.rowid, keyid);
 
-        it++;
-        count++;
-
-    } while (!it->keyCmd);  // break if another key is attached
-
-    CHATD_LOG_DEBUG("keyConfirm: updated the keyxid to keyid=%u of %d message/s in the sending queue", keyid, count);
+            count++;
+        }
+    }
+    CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
 }
 
 void Chat::onKeyReject()
