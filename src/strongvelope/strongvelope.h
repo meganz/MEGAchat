@@ -277,7 +277,6 @@ protected:
     std::shared_ptr<SendKey> mCurrentKey;
     chatd::KeyId mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
-    chatd::KeyId mCurrentLocalKeyId = CHATD_KEYID_INVALID;    // only valid while the current key is in-flight
 
     /**
      * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
@@ -393,7 +392,6 @@ protected:
 
 public:
 //chatd::ICrypto interface
-    chatd::KeyId currentKeyId() const { return mCurrentKeyId; }
     promise::Promise<std::pair<chatd::MsgCommand*, chatd::KeyCommand*>>
     msgEncrypt(chatd::Message *message, const karere::SetOfIds &recipients, chatd::MsgCommand* msgCmd);
     virtual promise::Promise<chatd::Message*> msgDecrypt(chatd::Message* message);

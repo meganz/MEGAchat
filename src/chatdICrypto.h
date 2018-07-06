@@ -108,8 +108,6 @@ public:
      */
     virtual void onKeyRejected()  = 0;
 
-    virtual KeyId currentKeyId() const = 0;
-
     /**
      * @brief Invalidates the current send key, forcing a new send key to be generated
      * and posted on next message encrypt.

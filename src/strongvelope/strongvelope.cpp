@@ -595,9 +595,8 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             wptr.throwIfDeleted();
 
             mCurrentKey = key;
-            mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
+            mCurrentKeyId = keyid;
             mCurrentKeyParticipants = recipients;
-            mCurrentLocalKeyId = keyid;
 
             NewKeyEntry entry(key, recipients, keyid);
             mUnconfirmedKeys.push_back(entry);
@@ -828,16 +827,8 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         // if already have a suitable key...
         if (mCurrentKey && mCurrentKeyParticipants == recipients)
         {
-            if (mCurrentKeyId == CHATD_KEYID_UNCONFIRMED) // assign message's keyid to the local keyid
-            {
-                msg->keyid = mCurrentLocalKeyId;
-            }
-            else    // already confirmed, assign message's keyid to the final chatd keyid
-            {
-                assert(mCurrentKeyId != CHATD_KEYID_INVALID);
-                msg->keyid = mCurrentKeyId;
-            }
-            msgCmd->setKeyId(mCurrentKeyId);
+            msg->keyid = mCurrentKeyId;
+            msgCmd->setKeyId(isLocalKeyId(mCurrentKeyId) ? CHATD_KEYID_UNCONFIRMED : mCurrentKeyId);
             msgEncryptWithKey(*msg, *msgCmd, *mCurrentKey);
             return std::make_pair(msgCmd, (KeyCommand*)nullptr);
         }
@@ -1266,12 +1257,10 @@ void ProtocolHandler::onKeyConfirmed(KeyId localkeyid, KeyId keyid)
         // if there are multiple new keys in-flight, the currentKey
         // is the last one being confirmed
         assert(memcmp(mCurrentKey->buf(), confirmedKey->buf(), mCurrentKey->dataSize()) == 0);
-        assert(mCurrentKeyId == CHATD_KEYID_UNCONFIRMED);
-        assert(mCurrentLocalKeyId == localkeyid);
+        assert(mCurrentKeyId == localkeyid);
         assert(mCurrentKeyParticipants == entry.recipients);
 
-        mCurrentKeyId = keyid;  // keyxid --> keyid
-        mCurrentLocalKeyId = CHATD_KEYID_INVALID;
+        mCurrentKeyId = keyid;  // localkeyid --> keyid
     }
 
     // remove it from queue of unconfirmed keys
@@ -1294,8 +1283,7 @@ void ProtocolHandler::onKeyRejected()
     if (mCurrentKey && mUnconfirmedKeys.size() == 1)
     {
         assert(memcmp(mCurrentKey->buf(), rejectedKey->buf(), mCurrentKey->dataSize()) == 0);
-        assert(mCurrentKeyId == CHATD_KEYID_UNCONFIRMED);
-        assert(mCurrentLocalKeyId == entry.localKeyid);
+        assert(mCurrentKeyId == entry.localKeyid);
         assert(mCurrentKeyParticipants == entry.recipients);
 
         resetSendKey();
@@ -1312,15 +1300,14 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
     mCurrentKey->setDataSize(AES::BLOCKSIZE);
     randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
 
-    mCurrentKeyId = CHATD_KEYID_UNCONFIRMED;
+    mCurrentKeyId = createLocalKeyId();
     mCurrentKeyParticipants = recipients;
-    mCurrentLocalKeyId = createLocalKeyId();
 
-    NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentLocalKeyId);
+    NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
     mUnconfirmedKeys.push_back(entry);
 
     // Assemble the output for all recipients.
-    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentLocalKeyId);
+    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
 }
 
 KeyId ProtocolHandler::createLocalKeyId()
@@ -1468,7 +1455,6 @@ void ProtocolHandler::resetSendKey()
     mCurrentKey.reset();
     mCurrentKeyId = CHATD_KEYID_INVALID;
     mCurrentKeyParticipants = SetOfIds();
-    mCurrentLocalKeyId = CHATD_KEYID_INVALID;
 }
 
 void ProtocolHandler::setUsers(karere::SetOfIds* users)
