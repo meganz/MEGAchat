@@ -1755,10 +1755,10 @@ std::map<Id, uint8_t> Call::sessionState() const
     return sessionState;
 }
 
-void Call::sendBusy()
+void Call::sendBusy(bool isCallToSameUser)
 {
     // Broadcast instead of send only to requestor, so that all other our clients know we rejected the call
-    cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, TermCode::kBusy);
+    cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, isCallToSameUser ? TermCode::kErrAlready : TermCode::kBusy);
 }
 
 AvFlags Call::sentAv() const

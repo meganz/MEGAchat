@@ -113,8 +113,9 @@ enum TermCode: uint8_t
     kErrPeerOffline = 33,       // < we received a notification that that user went offline
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
-    kErrorLast = 35,            // < Last enum indicating call termination due to error
-    kLast = 35,                 // < Last call terminate enum value
+    kErrAlready = 36,           // < There is already a call in this chatroom
+    kErrorLast = 36,            // < Last enum indicating call termination due to error
+    kLast = 36,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
