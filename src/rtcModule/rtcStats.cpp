@@ -209,18 +209,35 @@ void Recorder::onStats(const webrtc::StatsReports &data)
     else
     {
         auto& last = *mStats->mSamples.back();
-        auto d_dly = (mCurrSample->vstats.r.dly - last.vstats.r.dly);
-        if (d_dly < 0)
-            d_dly = -d_dly;
-        auto d_vrtt = (mCurrSample->vstats.s.rtt - last.vstats.s.rtt);
-        if (d_vrtt < 0)
-            d_vrtt = -d_vrtt;
-        auto d_auRtt = mCurrSample->astats.rtt - last.astats.rtt;
-        if (d_auRtt < 0)
-            d_auRtt = -d_auRtt;
-        auto d_auJtr = mCurrSample->astats.jtr - last.astats.jtr;
-        if (d_auJtr < 0)
-            d_auJtr = -d_auJtr;
+        long d_dly = 0;
+        if (last.vstats.r.dly)
+        {
+            auto d_dly = (mCurrSample->vstats.r.dly - last.vstats.r.dly);
+            if (d_dly < 0)
+                d_dly = -d_dly;
+        }
+        long d_vrtt = 0;
+        if (last.vstats.s.rtt)
+        {
+            d_vrtt = (mCurrSample->vstats.s.rtt - last.vstats.s.rtt);
+            if (d_vrtt < 0)
+                d_vrtt = -d_vrtt;
+        }
+        long d_auRtt = 0;
+        if (last.astats.rtt)
+        {
+            d_auRtt = mCurrSample->astats.rtt - last.astats.rtt;
+            if (d_auRtt < 0)
+                d_auRtt = -d_auRtt;
+        }
+        long d_auJtr = 0;
+        if (last.astats.jtr)
+        {
+            d_auJtr = mCurrSample->astats.jtr - last.astats.jtr;
+                    if (d_auJtr < 0)
+                        d_auJtr = -d_auJtr;
+        }
+
         auto d_ts = mCurrSample->ts - last.ts;
         auto d_apl = mCurrSample->astats.pl - last.astats.pl;
         shouldAddSample =
