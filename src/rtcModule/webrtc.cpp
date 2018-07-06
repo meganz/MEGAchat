@@ -594,6 +594,13 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
 
+    if (userid == chat.client().karereClient->myHandle())
+    {
+        RTCM_LOG_WARNING("Ignoring call request from another client of our user");
+        return;
+    }
+
+    auto itCallHandler = mCallHandlers.find(chatid);
     auto itCall = mCalls.find(chatid);
     if (itCall != mCalls.end())
     {
@@ -601,11 +608,9 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         shared_ptr<Call> existingCall = itCall->second;
         if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
         {
-            if (clientid != existingCall->callerClient())
-            {
-                RTCM_LOG_DEBUG("hadleCallDataRequest: Receive a CALLDATA with other call in progress");
-                existingCall->sendBusy();
-            }
+            RTCM_LOG_DEBUG("hadleCallDataRequest: Receive a CALLDATA with other call in progress");
+            bool isCallToSameUser = (userid == existingCall->caller());
+            existingCall->sendBusy(isCallToSameUser);
             return;
         }
         else if (mClient.myHandle() > userid)
@@ -620,7 +625,12 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         existingCall->hangup();
         mCalls.erase(itCall);
     }
-
+    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(userid))
+    {
+        // Other client of our user is participanting in the call
+        RTCM_LOG_DEBUG("hadleCallDataRequest: Ignoring call request: We are already in the group call from another client");
+        return ;
+    }
 
     auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, chat.isGroup(),
                                                              true, nullptr, userid, clientid));

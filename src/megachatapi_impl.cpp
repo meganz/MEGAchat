@@ -4480,6 +4480,19 @@ bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
     return changed;
 }
 
+bool MegaChatCallPrivate::isParticipating(Id userid)
+{
+    for (auto it = participants.begin(); it != participants.end(); it++)
+    {
+        if (it->first.userid == userid)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid)
 {
     this->chatApi = chatApi;
@@ -6553,6 +6566,12 @@ int MegaChatCallHandler::callParticipants()
 {
     assert(chatCall);
     return chatCall ? chatCall->getCallParticipants(): 0;
+}
+
+bool MegaChatCallHandler::isParticipating(Id userid)
+{
+    assert(chatCall);
+    return chatCall->isParticipating(userid);
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()

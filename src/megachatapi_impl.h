@@ -240,6 +240,7 @@ public:
     bool removeParticipant(karere::Id userid, uint32_t clientid);
     int getCallParticipants();
     bool adjustAvFlagsToRestriction(karere::AvFlags &av);
+    bool isParticipating(karere::Id userid);
 
 protected:
     MegaChatHandle chatid;
@@ -511,6 +512,7 @@ public:
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid);
     virtual int callParticipants();
+    virtual bool isParticipating(karere::Id userid);
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid);

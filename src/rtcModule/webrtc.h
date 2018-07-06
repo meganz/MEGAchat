@@ -170,6 +170,7 @@ public:
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) = 0;
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
+    virtual bool isParticipating(karere::Id userid) = 0;
 };
 class IGlobalHandler
 {
