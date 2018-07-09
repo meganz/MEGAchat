@@ -675,7 +675,7 @@ protected:
     void handleLastReceivedSeen(karere::Id msgid);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    SendingItem* postMsgToSending(uint8_t opcode, Message* msg, karere::SetOfIds* recipients = NULL);
+    SendingItem* postMsgToSending(uint8_t opcode, Message* msg, karere::SetOfIds recipients);
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
@@ -1231,7 +1231,7 @@ public:
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
     virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
-    virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
+    virtual void updateMsgPlaintextInSending(const Message& data) = 0;
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;

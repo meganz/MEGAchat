@@ -115,9 +115,9 @@ public:
         mDb.query("delete from sending where rowid = ?1", rowid);
         assertAffectedRowCount(1, "deleteItemFromSending");
     }
-    virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data)
+    virtual void updateMsgPlaintextInSending(const chatd::Message& msg)
     {
-        mDb.query("update sending set msg = ? where rowid = ?", data, rowid);
+        mDb.query("update sending set msg = ? updated = ? where msgid = ?", msg, msg.updated, msg.id());
         assertAffectedRowCount(1, "updateMsgPlaintextInSending");
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)

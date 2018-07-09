@@ -1917,7 +1917,7 @@ void Chat::msgSubmit(Message* msg)
     }
     onMsgTimestamp(msg->ts);
 
-    postMsgToSending(OP_NEWMSG, msg);
+    postMsgToSending(OP_NEWMSG, msg, mUsers);
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -1998,16 +1998,16 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
     }
 }
 
-Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds* recipients)
+Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds recipients)
 {
     // for NEWMSG, recipients is always NULL --> use current participants
-    // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG
+    // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
-    assert((opcode == OP_NEWMSG && !recipients)
-           || (opcode == OP_MSGUPDX && recipients)
-           || (opcode == OP_MSGUPD && msg->keyid != CHATD_KEYID_INVALID && msg->keyid != CHATD_KEYID_UNCONFIRMED));
+    assert((opcode == OP_NEWMSG && recipients == mUsers)
+           || (opcode == OP_MSGUPDX && isLocalKeyId(msg->keyid))
+           || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
-    mSending.emplace_back(opcode, msg, recipients ? *recipients : mUsers);
+    mSending.emplace_back(opcode, msg, recipients);
     CALL_DB(saveMsgToSending, mSending.back());
     if (mNextUnsent == mSending.end())
     {
@@ -2112,7 +2112,8 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
 Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
 {
-    uint32_t age = time(NULL) - msg.ts;
+    uint32_t now = time(NULL);
+    uint32_t age = now - msg.ts;
     if (!msg.isSending() && age > CHATD_MAX_EDIT_AGE)
     {
         CHATID_LOG_DEBUG("msgModify: Denying edit of msgid %s because message is too old", ID_CSTR(msg.id()));
@@ -2124,35 +2125,66 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         return nullptr;
     }
 
-    SetOfIds *recipients = NULL;
+    SetOfIds recipients;
     if (msg.isSending())
     {
+        // recipients must be the same from original message/s
+        // content of original message/s should be updated with the new content
+        // delta of original message/s should be updated to the current timestamp
+        // Note that there could be more than one item in the sending queue
+        // referencing to the same message that wants to be edited (more than one
+        // unconfirmed edit, for both confirmed or unconfirmed messages)
+
+        // find the most-recent item in the queue, which has the most recent timestamp
         SendingItem* item = nullptr;
-        for (auto& loopItem: mSending)
+        for (list<SendingItem>::reverse_iterator loopItem = mSending.rbegin();
+             loopItem != mSending.rend(); loopItem++)
         {
-            if (loopItem.msg->id() == msg.id())
+            if (loopItem->msg->id() == msg.id())
             {
-                item = &loopItem;
+                item = &(*loopItem);
                 break;
             }
         }
         assert(item);
 
         // avoid same "delta" for different edits
-        if ((item->opcode() == OP_MSGUPD) || (item->opcode() == OP_MSGUPDX))
+        switch (item->opcode())
         {
-            item->msg->updated = age + 1;
+            case OP_NEWMSG:
+                if (age == 0)
+                {
+                    age++;
+                }
+            break;
+
+            case OP_MSGUPD:
+            case OP_MSGUPDX:
+                if (item->msg->updated == age)
+                {
+                    age++;
+                }
+                break;
+
+            default:
+                CHATID_LOG_ERROR("msgModify: unexpected opcode for the msgid %s in the sending queue", ID_CSTR(msg.id()));
+                return nullptr;
         }
 
         // update original content as well, trying to avoid sending the original content
+        msg.updated = age;
         msg.assign((void*)newdata, newlen);
-        CALL_DB(updateMsgPlaintextInSending, item->rowid, msg);
+        CALL_DB(updateMsgPlaintextInSending, msg);  // for all messages with same msgid
 
         // recipients must not change
-        recipients = new SetOfIds(item->recipients);
+        recipients = SetOfIds(item->recipients);
+    }
+    else if (age == 0)  // in the very unlikely case the msg is already confirmed, but edit is done in the same second
+    {
+        age++;
     }
 
-    auto upd = new Message(msg.id(), msg.userid, msg.ts, age+1, newdata, newlen,
+    auto upd = new Message(msg.id(), msg.userid, msg.ts, age, newdata, newlen,
         msg.isSending(), msg.keyid, newtype, userp);
 
     auto wptr = weakHandle();
