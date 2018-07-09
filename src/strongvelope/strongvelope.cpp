@@ -597,6 +597,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
             mCurrentKey = key;
             mCurrentKeyId = keyid;
             mCurrentKeyParticipants = recipients;
+            mCurrentLocalKeyId = keyid;
 
             NewKeyEntry entry(key, recipients, keyid);
             mUnconfirmedKeys.push_back(entry);
@@ -1312,12 +1313,10 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 
 KeyId ProtocolHandler::createLocalKeyId()
 {
-    static KeyId nextLocalKeyId = CHATD_KEYID_MAX;
+    if (--mCurrentLocalKeyId < CHATD_KEYID_MIN)
+        mCurrentLocalKeyId = CHATD_KEYID_MAX;
 
-    if (--nextLocalKeyId < CHATD_KEYID_MIN)
-        nextLocalKeyId = CHATD_KEYID_MAX;
-
-    return nextLocalKeyId;
+    return mCurrentLocalKeyId;
 }
 
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>

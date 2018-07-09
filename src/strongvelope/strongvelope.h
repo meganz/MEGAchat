@@ -277,6 +277,7 @@ protected:
     std::shared_ptr<SendKey> mCurrentKey;
     chatd::KeyId mCurrentKeyId = CHATD_KEYID_INVALID;
     karere::SetOfIds mCurrentKeyParticipants;
+    chatd::KeyId mCurrentLocalKeyId = CHATD_KEYID_MAX;
 
     /**
      * @brief The NewKeyEntry struct represents a Key in the list of unconfirmed keys (mUnconfirmedKeys)
