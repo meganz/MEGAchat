@@ -2026,9 +2026,6 @@ bool Chat::sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd)
             return false;
     }
     return sendCommand(*cmd.first);
-//            return false;
-//    }
-//    return sendCommand(*cmd.first);
 }
 
 bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
