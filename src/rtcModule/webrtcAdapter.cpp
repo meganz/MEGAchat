@@ -138,7 +138,7 @@ void DeviceManager::enumInputDevices()
             {
                 devices.insert(devices.begin(), cricket::Device(name, id));
             }
-            RTCM_LOG_WARNING("Video input device %d: '%s'", i+1, name);
+            RTCM_LOG_DEBUG("Video input device %d: '%s'", i+1, name);
         }
     }
 
