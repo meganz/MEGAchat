@@ -118,9 +118,10 @@ public:
     {
         TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
         TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
-        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected by
-                                            /// another client of our user
+        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected in
+                                            /// the current device
         TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
+        TEMR_CODE_REJECT_ELSE_WHERE = 4,    /// Call was rejected on another device of ours
         TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
         TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
                                             /// users are online
@@ -676,6 +677,16 @@ public:
       * @return Url from rich preview
       */
     virtual const char *getUrl() const;
+
+    /**
+      * @brief Returns domain name from rich preview url
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Domain name from rich preview url
+      */
+    virtual const char *getDomainName() const;
 };
 
 /**
@@ -783,7 +794,8 @@ public:
         END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
         END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
         END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller
+        END_CALL_REASON_CANCELLED   = 5     /// (deprecated) Call was canceled by caller.
+                                            /// Instead of this termCode apps receives END_CALL_REASON_NO_ANSWER
     };
 
     enum

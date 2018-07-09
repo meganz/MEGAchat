@@ -565,6 +565,15 @@ bool RtcModule::isCallInProgress() const
     return callInProgress;
 }
 
+void RtcModule::removeCall(Id chatid)
+{
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
+    {
+        itCall->second->destroy(TermCode::kErrUserOffline, false);
+    }
+}
+
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional)
 {
@@ -785,8 +794,8 @@ void Call::msgCallReqCancel(RtMessage& packet)
         return;
     }
 
-    auto term = packet.payload.read<uint8_t>(8);
-    destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
+//    auto term = packet.payload.read<uint8_t>(8);  // don't notify kUserHangUp but kCallReqCancel
+    destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -830,7 +839,7 @@ void Call::handleReject(RtMessage& packet)
             return;
         }
 
-        destroy(static_cast<TermCode>(TermCode::kCallRejected), false);
+        destroy(static_cast<TermCode>(TermCode::kRejElsewhere), false);
     }
 }
 
@@ -955,7 +964,7 @@ void Call::msgJoin(RtMessage& packet)
 }
 promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
-    SUB_LOG_ERROR("gracefully term all sessions");
+    SUB_LOG_DEBUG("gracefully term all sessions");
     std::vector<promise::Promise<void>> promises;
     for (auto it = mSessions.begin(); it != mSessions.end();)
     {
@@ -1034,7 +1043,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
-    mTermCode = code;
+    mTermCode = (mState == kStateReqSent) ? kCallReqCancel : code;  // adjust for onStateChange()
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
@@ -1055,6 +1064,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
         case kStateReqSent:
             cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            code = kCallReqCancel;  // overwrite code for onDestroy() callback
             pms = promise::_Void();
             break;
         case kStateRingIn:
@@ -1351,8 +1361,6 @@ bool Call::sendCallData(int state)
          payLoadLen += sizeof(uint8_t);
     }
 
-    karere::Id userid = mManager.mClient.myHandle();
-    uint32_t clientid = mChat.connection().clientId();
     Command command = Command(chatd::OP_CALLDATA) + mChat.chatId();
     command.write<uint64_t>(9, 0);
     command.write<uint32_t>(17, 0);
@@ -1393,6 +1401,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 case kStateRingIn:
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
+                    assert(false);  // it should be kCallReqCancel
                     codeToChatd = kCallDataReasonCancelled;
                     break;
 
@@ -1407,12 +1416,22 @@ uint8_t Call::convertTermCodeToCallDataCode()
             break;
         }
 
+        case kCallReqCancel:
+            assert(mPredestroyState == kStateReqSent);
+            codeToChatd = kCallDataReasonCancelled;
+            break;
+
         case kCallRejected:
             codeToChatd = kCallDataReasonRejected;
             break;
 
         case kAnsElsewhere:
             SUB_LOG_ERROR("Can't generate a history call ended message for local kAnsElsewhere code");
+            assert(false);
+            break;
+            
+        case kRejElsewhere:
+            SUB_LOG_ERROR("Can't generate a history call ended message for local kRejElsewhere code");
             assert(false);
             break;
 
@@ -2159,7 +2178,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 
     if (!msg.empty())
     {
-        SUB_LOG_ERROR("Terminating due to: %s", msg.c_str());
+        SUB_LOG_DEBUG("Terminating due to: %s", msg.c_str());
     }
     assert(!mTerminatePromise.done());
     setState(kStateTerminating);
@@ -2479,6 +2498,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kUserHangup);
         RET_ENUM_NAME(kCallRejected);
         RET_ENUM_NAME(kAnsElsewhere);
+        RET_ENUM_NAME(kRejElsewhere);
         RET_ENUM_NAME(kAnswerTimeout);
         RET_ENUM_NAME(kRingOutTimeout);
         RET_ENUM_NAME(kAppTerminating);

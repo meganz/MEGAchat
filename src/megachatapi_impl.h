@@ -696,6 +696,8 @@ public:
     void setCode(int code);
     void setAccess();
 
+    static int convertEndCallTermCodeToUI(const chatd::Message::CallEndedInfo &callEndInfo);
+
 private:
     int changed;
 
@@ -1061,6 +1063,7 @@ public:
     virtual const char *getIcon() const;
     virtual const char *getIconFormat() const;
     virtual const char *getUrl() const;
+    virtual const char *getDomainName() const;
 
 protected:
     std::string mText;
@@ -1071,6 +1074,7 @@ protected:
     std::string mIcon;
     std::string mIconFormat;
     std::string mUrl;
+    std::string mDomainName;
 };
 
 class MegaChatContainsMetaPrivate : public MegaChatContainsMeta

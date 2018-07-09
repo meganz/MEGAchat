@@ -357,8 +357,6 @@ public:
         if (stmt.intCol(0) != chatd::Message::kMsgTruncate)
             throw std::runtime_error("DbInterface::truncateHistory: Truncate message type is not 'truncate'");
 #endif
-
-        mDb.query("delete from manual_sending where chatid = ?", mChat.chatId());
     }
     virtual chatd::Idx getOldestIdx()
     {
