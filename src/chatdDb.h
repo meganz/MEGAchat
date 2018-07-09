@@ -120,11 +120,6 @@ public:
         mDb.query("update sending set msg = ? where rowid = ?", data, rowid);
         assertAffectedRowCount(1, "updateMsgPlaintextInSending");
     }
-    virtual void updateMsgKeyIdInSending(uint64_t rowid, chatd::KeyId keyid)
-    {
-        mDb.query("update sending set keyid = ? where rowid = ?", keyid, rowid);
-        assertAffectedRowCount(1, "updateMsgKeyIdInSending");
-    }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
 #if 1

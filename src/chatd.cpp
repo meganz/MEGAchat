@@ -2651,7 +2651,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         if (msg->keyid == localKeyid)
         {
             msg->keyid = keyid;
-            CALL_DB(updateMsgKeyIdInSending, item.rowid, keyid);
+            CALL_DB(confirmKeyOfSendingItem, item.rowid, keyid);
 
             count++;
         }
@@ -3897,7 +3897,7 @@ bool Message::parseUrl(const std::string &url)
 }
 
 Chat::SendingItem::SendingItem(uint8_t aOpcode, Message *aMsg, const SetOfIds &aRcpts, uint64_t aRowid)
-    : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), recipients(aRcpts)
+    : mOpcode(aOpcode), msg(aMsg), recipients(aRcpts), rowid(aRowid)
 {
 
 }

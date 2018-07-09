@@ -1232,7 +1232,6 @@ public:
     virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
     virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
-    virtual void updateMsgKeyIdInSending(uint64_t rowid, KeyId keyid) = 0;
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
     virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
