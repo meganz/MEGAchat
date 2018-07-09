@@ -69,6 +69,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) NSInteger unreadChats;
 @property (nonatomic, readonly) MEGAChatListItemList *activeChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *inactiveChatListItems;
+@property (nonatomic, readonly) MEGAChatListItemList *archivedChatListItems;
 
 #pragma mark - Init
 
@@ -185,6 +186,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title;
+
+- (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive;
 
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 

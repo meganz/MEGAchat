@@ -424,6 +424,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getActiveChatListItems() cMemoryOwn:YES];
 }
 
+- (MEGAChatListItemList *)archivedChatListItems {
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getArchivedChatListItems() cMemoryOwn:YES];
+}
+
 - (MEGAChatListItemList *)inactiveChatListItems {
     return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getInactiveChatListItems() cMemoryOwn:YES];
 }
@@ -540,6 +544,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title {
     self.megaChatApi->setChatTitle(chatId, title ? [title UTF8String] : NULL);
+}
+
+- (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->archiveChat(chatId, archive, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive {
+    self.megaChatApi->archiveChat(chatId, archive);
 }
 
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate {

@@ -97,6 +97,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isActive() : NO;
 }
 
+- (BOOL)isArchived {
+    return self.megaChatRoom ? self.megaChatRoom->isArchived() : NO;
+}
+
 - (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {
     return self.megaChatRoom ? self.megaChatRoom->getPeerPrivilegeByHandle(userHande) : -2;
 }
