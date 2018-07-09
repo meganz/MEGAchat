@@ -2059,7 +2059,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     {
         MsgCommand *msgCmd = pms.value().first;
         KeyCommand *keyCmd = pms.value().second;
-        assert((!keyCmd && !isLocalKeyId(msgCmd->keyId()))          // no newkey required and msgCmd's keyid is final or...
+        assert(!keyCmd                                              // no newkey required...
                || (keyCmd && keyCmd->localKeyid() == msg->keyid     // ... or localkeyid is assigned to message
                    && msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED)); // and msgCmd's keyid is unconfirmed
 
