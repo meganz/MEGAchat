@@ -6668,12 +6668,19 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
         // hash -> fingerprint
-        const char *fingerprint = megaNode->getFingerprint();
+        const char *fingerprintMega = megaNode->getFingerprint();
+        char *fingerprint = NULL;
+        if (fingerprintMega)
+        {
+            fingerprint = MegaApiImpl::getMegaFingerprintFromSdkFingerprint(fingerprintMega);
+        }
+
         if (fingerprint)
         {
             rapidjson::Value fpValue(rapidjson::kStringType);
             fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
+            delete [] fingerprint;
         }
 
         // fa -> image thumbnail/preview/mediainfo
@@ -6829,11 +6836,19 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
         std::string key = DataTranslation::vector_to_b(kElements);
 
+        char *sdkFigerPrint = NULL;
+        if (fingerprint && size >= 0)
+        {
+            sdkFigerPrint = MegaApiImpl::getSdkFingerprintFromMegaFingerprint(fingerprint, size);
+        }
+
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, fingerprint, INVALID_HANDLE,
+                             megaHandle, &key, &attrstring, &fa, sdkFigerPrint, INVALID_HANDLE,
                              NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
+
+        delete [] sdkFigerPrint;
     }
 
     return megaNodeList;
