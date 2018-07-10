@@ -269,12 +269,37 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         && clientid == chat.connection().clientId())
     {
         RTCM_LOG_WARNING("Ignoring CALLDATA sent back to sender");
+        return;
     }
 
     updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
     if (state == Call::CallDataState::kCallDataRinging)
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+    }
+    else if (state == Call::CallDataState::kCallDataInProgress)
+    {
+        auto itCall = mCalls.find(chatid);
+        if (itCall == mCalls.end())
+        {
+            RTCM_LOG_DEBUG("Ingoring kCallDataInProgress CALLDATA for unknown call");
+            return;
+        }
+
+        if (chat.isGroup() && itCall->second->state() == Call::kStateRingIn)
+        {
+            itCall->second->destroy(TermCode::kAnswerTimeout, false);
+        }
+    }
+    else if (state == Call::CallDataState::kCallDataJoin &&
+             userid == chat.client().karereClient->myHandle() &&
+             clientid != chat.connection().clientId())
+    {
+        auto itCall = mCalls.find(chatid);
+        if (itCall != mCalls.end() && itCall->second->state() == Call::kStateRingIn)
+        {
+            itCall->second->destroy(TermCode::kAnsElsewhere, false);
+        }
     }
 }
 
@@ -591,10 +616,11 @@ std::vector<Id> RtcModule::chatsWithCall() const
 void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, Id callid, AvFlags avFlagsRemote)
 {
     karere::Id chatid = chat.chatId();
+    karere::Id myHandle = chat.client().karereClient->myHandle();
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
 
-    if (userid == chat.client().karereClient->myHandle())
+    if (userid == myHandle)
     {
         RTCM_LOG_WARNING("Ignoring call request from another client of our user");
         return;
@@ -625,7 +651,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         existingCall->hangup();
         mCalls.erase(itCall);
     }
-    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(userid))
+    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
     {
         // Other client of our user is participanting in the call
         RTCM_LOG_DEBUG("hadleCallDataRequest: Ignoring call request: We are already in the group call from another client");
@@ -1024,7 +1050,10 @@ void Call::msgJoin(RtMessage& packet)
         {
             setState(Call::kStateInProgress);
             // Send OP_CALLDATA with call inProgress
-            sendCallData(CallDataState::kCallDataInProgress);
+            if (!chat().isGroup())
+            {
+                sendCallData(CallDataState::kCallDataInProgress);
+            }
         }
         // create session to this peer
         auto sess = std::make_shared<Session>(*this, packet);
@@ -1225,10 +1254,19 @@ bool Call::broadcastCallReq()
     auto wptr = weakHandle();
     mCallOutTimer = setTimeout([wptr, this]()
     {
-        if (wptr.deleted() || mState != Call::kStateReqSent)
+        if (wptr.deleted())
             return;
 
-        destroy(TermCode::kRingOutTimeout, true);
+        if (mState == Call::kStateReqSent)
+        {
+            destroy(TermCode::kRingOutTimeout, true);
+        }
+        else if (chat().isGroup() && mState == Call::kStateInProgress)
+        {
+            // In group calls we don't stop ringing even when call is answered, but stop it
+            // after some time (we use the same kAnswerTimeout duration in order to share the timer)
+            sendCallData(CallDataState::kCallDataInProgress);
+        }
     }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
     return true;
 }
