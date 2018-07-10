@@ -150,6 +150,8 @@ using namespace megachat;
         case MEGAChatListItemChangeTypeLastTs:
             result = @"Last timestamp";
             break;
+        case MEGAChatListItemChangeTypeArchived:
+            result = @"Archived";
             
         default:
             result = @"Default";
