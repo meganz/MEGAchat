@@ -593,6 +593,7 @@ public:
     virtual const char *getPeerEmail(unsigned int i) const;
     virtual bool isGroup() const;
     virtual bool isPublic() const;
+    virtual bool isPreview() const;
     virtual const char *getTitle() const;
     virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
@@ -622,6 +623,7 @@ private:
     std::vector<std::string> peerEmails;
     bool group;
     bool mPublicChat;
+    bool mPreviewMode;
     bool active;
     bool mHasCustomTitle;
 

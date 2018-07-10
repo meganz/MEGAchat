@@ -1005,6 +1005,11 @@ bool MegaChatRoom::isPublic() const
     return false;
 }
 
+bool MegaChatRoom::isPreview() const
+{
+    return false;
+}
+
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;

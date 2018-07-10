@@ -2611,7 +2611,7 @@ public:
      * @brief TODO documentation
      *
      */
-    void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener);
+    void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Remove another user from a chat. To remove a user you need to have the
@@ -4095,6 +4095,12 @@ public:
      * @return True if this chat is a public chat.
      */
     virtual bool isPublic() const;
+
+    /**
+     * @brief Returns whether this chat is in preview mode or not
+     * @return True if this chat is in preview mode.
+     */
+    virtual bool isPreview() const;
 
     /**
      * @brief getTitle Returns the title of the chat, if any.

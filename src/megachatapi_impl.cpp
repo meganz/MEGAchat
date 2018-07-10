@@ -382,7 +382,7 @@ void MegaChatApiImpl::sendPendingRequests()
             bool publicChat = request->getPrivilege();
             bool group = request->getFlag();
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
-            if (!userpriv || (group && !publicChat) || (!group && publicChat))
+            if (!userpriv || (!group && publicChat))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -2442,7 +2442,7 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
             //TODO clear records related to this chat in cache
             GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
             mClient->eraseChatIdByPh(openChatRoom->publicHandle());
-            mClient->chats->erase(chatid);
+            mClient->chats->removeRoom(*openChatRoom);
             delete chatroom;
         }
     }
@@ -5092,6 +5092,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->mPublicChat = chat->isPublic();
+    this->mPreviewMode = chat->isPreview();
     this->title = chat->getTitle();
     this->mHasCustomTitle = chat->hasCustomTitle();
     this->unreadCount = chat->getUnreadCount();
@@ -5107,6 +5108,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->mPublicChat = ((GroupChatRoom &)chat).publicChat();
+    this->mPreviewMode = ((GroupChatRoom &)chat).previewMode();
     this->title = chat.titleString();
     this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
     this->unreadCount = chat.chat().unreadMsgCount();
@@ -5322,6 +5324,11 @@ bool MegaChatRoomPrivate::isGroup() const
 bool MegaChatRoomPrivate::isPublic() const
 {
     return mPublicChat;
+}
+
+bool MegaChatRoomPrivate::isPreview() const
+{
+    return mPreviewMode;
 }
 
 const char *MegaChatRoomPrivate::getTitle() const
