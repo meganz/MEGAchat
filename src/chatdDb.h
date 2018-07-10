@@ -58,6 +58,7 @@ public:
            .append(std::to_string(actual));
         throw std::runtime_error(msg);
     }
+
     void saveMsgToSending(chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
@@ -78,18 +79,13 @@ public:
         // assign the given rowid to the SendingItem
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
-    virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
+
+    virtual int updateSendingItemKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid)
     {
-        assert(item.msg);
-        mDb.query("update sending set msg = ?, updated = ? where rowid = ?",
-            *item.msg, item.msg->updated, item.rowid);
-        assertAffectedRowCount(1, "updateMsgInSending");
+        mDb.query("update sending set keyid = ? where keyid = ?", keyid, localkeyid);
+        return sqlite3_changes(mDb);
     }
-    virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
-    {
-        mDb.query("update sending set keyid = ? where rowid = ?", keyid, rowid);
-        assertAffectedRowCount(1, "confirmKeyOfSendingItem");
-    }
+
     virtual void addBlobsToSendingItem(uint64_t rowid,
         const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd, chatd::KeyId keyid)
     {
@@ -102,23 +98,24 @@ public:
                   rowid);
         assertAffectedRowCount(1,"addBlobsToSendingItem");
     }
-    virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid)
+
+    virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid)
     {
-        assert(item.opcode() == chatd::OP_MSGUPDX);
         mDb.query(
-            "update sending set opcode=?, msgid=? where chatid=? and rowid=? and opcode=? and msgid=?",
-            chatd::OP_MSGUPD, msgid, mChat.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
-        assertAffectedRowCount(1, "updateSendingItemMsgidAndOpcode");
+            "update sending set opcode=?, msgid=? where chatid=? and opcode=? and msgid=?",
+            chatd::OP_MSGUPD, msgid, mChat.chatId(), chatd::OP_MSGUPDX, msgxid);
+        return sqlite3_changes(mDb);
     }
+
     virtual void deleteItemFromSending(uint64_t rowid)
     {
         mDb.query("delete from sending where rowid = ?1", rowid);
         assertAffectedRowCount(1, "deleteItemFromSending");
     }
-    virtual void updateMsgPlaintextInSending(const chatd::Message& msg)
+    virtual int updateSendingItemContentAndDelta(const chatd::Message& msg)
     {
-        mDb.query("update sending set msg = ? updated = ? where msgid = ?", msg, msg.updated, msg.id());
-        assertAffectedRowCount(1, "updateMsgPlaintextInSending");
+        mDb.query("update sending set msg = ?, updated = ? where msgid = ?", msg, msg.updated, msg.id());
+        return sqlite3_changes(mDb);
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {

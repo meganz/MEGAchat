@@ -1230,14 +1230,29 @@ public:
     /// an assertion will be triggered. Therefore, the application must always try to read not less than
     /// \c count messages, in case they are avaialble in the db.
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
+//  <<<--- Management of the SENDING QUEUE --->>>
+
+    /// adds a new item to the sending queue
     virtual void saveMsgToSending(Chat::SendingItem& msg) = 0;
-    virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
+
+    /// upon message's edit, every related item in the sending queue should be updated
+    virtual int updateSendingItemContentAndDelta(const chatd::Message& msg) = 0;
+
+    /// upon key's confirmation (keyxid->keyid), every related item in sending queue should be updated
+    virtual int updateSendingItemKeyid(KeyId localkeyid, KeyId keyid) = 0;
+
+    /// upon message's confirmation (msgxid->msgid), every related item in sending queue should be updated
+    virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid) = 0;
+
+    /// upon message's encryption, store MsgCommand, KeyCommand and local keyxid
     virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
+
+    /// delete item from the sending queue
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
-    virtual void updateMsgPlaintextInSending(const Message& data) = 0;
+
+    /// populate the sending queue in memory from DB
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
-    virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
@@ -1250,7 +1265,6 @@ public:
     virtual void setLastSeen(karere::Id msgid) = 0;
     virtual void setLastReceived(karere::Id msgid) = 0;
     virtual chatd::Idx getOldestIdx() = 0;
-    virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual bool haveAllHistory() = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;

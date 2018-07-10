@@ -2260,10 +2260,27 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                 return nullptr;
         }
 
-        // update original content as well, trying to avoid sending the original content
+        // update original content+delta for all messages with same msgxid, trying to avoid sending the original content
         msg.updated = age;
         msg.assign((void*)newdata, newlen);
-        CALL_DB(updateMsgPlaintextInSending, msg);  // for all messages with same msgid
+        int count = 0;
+        for (auto& it: mSending)
+        {
+            SendingItem &item = it;
+            if (item.msg->id() == msg.id())
+            {
+                item.msg->updated = age;
+                item.msg->assign((void*)newdata, newlen);
+                count++;
+            }
+        }
+        assert(count);  // an edit of a message in sending always indicates the former message is in the queue
+        if (count)
+        {
+            int countDb = mDbInterface->updateSendingItemContentAndDelta(msg);
+            assert(countDb == count);
+            CHATD_LOG_DEBUG("msgModify: updated the content and delta of %d message/s in the sending queue", count);
+        }
 
         // recipients must not change
         recipients = SetOfIds(item->recipients);
@@ -2693,16 +2710,24 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     CALL_DB(addMsgToHistory, *msg, idx);
 
     //update any following MSGUPDX-s referring to this msgxid
+    int count = 0;
     for (auto& item: mSending)
     {
         if (item.msg->id() == msgxid)
         {
             assert(item.opcode() == OP_MSGUPDX);
-            CALL_DB(sendingItemMsgupdxToMsgupd, item, msgid);
             item.msg->setId(msgid, false);
             item.setOpcode(OP_MSGUPD);
+            count++;
         }
     }
+    if (count)
+    {
+        int countDb = mDbInterface->updateSendingItemsMsgidAndOpcode(msgxid, msgid);
+        assert(countDb == count);
+        CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%u to msgid=%u of %d message/s in the sending queue", msgxid, msgid, count);
+    }
+
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx);
 
     // last text message stuff
@@ -2775,12 +2800,16 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         if (msg->keyid == localKeyid)
         {
             msg->keyid = keyid;
-            CALL_DB(confirmKeyOfSendingItem, item.rowid, keyid);
-
             count++;
         }
     }
-    CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
+    assert(count);  // a confirmed key should always indicate that a new message was sent
+    if (count)
+    {
+        int countDb = mDbInterface->updateSendingItemKeyid(localKeyid, keyid);
+        assert(countDb == count);
+        CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
+    }
 }
 
 void Chat::onKeyReject()
