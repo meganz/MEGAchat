@@ -2217,9 +2217,9 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     SetOfIds recipients;    // empty for already confirmed messages, since they already have a keyid
     if (msg.isSending())
     {
-        // "recipients" must be the same from original message/s
-        // "content" of original message/s should be updated with the new content
-        // "delta" of original message/s should be updated to the current timestamp
+        // recipients must be the same from original message/s
+        // content of original message/s should be updated with the new content
+        // delta of original message/s should be updated to the current timestamp
         // Note that there could be more than one item in the sending queue
         // referencing to the same message that wants to be edited (more than one
         // unconfirmed edit, for both confirmed or unconfirmed messages)
@@ -2263,9 +2263,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         // update original content as well, trying to avoid sending the original content
         msg.updated = age;
         msg.assign((void*)newdata, newlen);
-        int count = mDbInterface->updateMsgContentAndDeltaInSending(msg);  // for all messages with same msgid
-        CHATID_LOG_DEBUG("msgModify: the content and delta of %d have been updated in DB", count);
-
+        CALL_DB(updateMsgPlaintextInSending, msg);  // for all messages with same msgid
 
         // recipients must not change
         recipients = SetOfIds(item->recipients);
@@ -2770,7 +2768,18 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     CALL_CRYPTO(onKeyConfirmed, localKeyid, keyid);
 
     // update keyid of all messages using this confirmed new key
-    int count = mDbInterface->confirmKeyOfSendingItems(localKeyid, keyid);
+    int count = 0;
+    for (auto& item: mSending)
+    {
+        Message *msg = item.msg;
+        if (msg->keyid == localKeyid)
+        {
+            msg->keyid = keyid;
+            CALL_DB(confirmKeyOfSendingItem, item.rowid, keyid);
+
+            count++;
+        }
+    }
     CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
 }
 

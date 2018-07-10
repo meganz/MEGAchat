@@ -1234,10 +1234,10 @@ public:
     virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
     virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
     virtual void deleteItemFromSending(uint64_t rowid) = 0;
-    virtual int updateMsgContentAndDeltaInSending(const Message& data) = 0;
+    virtual void updateMsgPlaintextInSending(const Message& data) = 0;
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
-    virtual int confirmKeyOfSendingItems(KeyId localkeyid, KeyId keyid) = 0;
+    virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
     virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
