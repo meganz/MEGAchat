@@ -1507,17 +1507,10 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
     size_t size = keybuf.dataSize();
     while ((pos + 14) < size)
     {
-        Id userid(keybuf.read<uint64_t>(pos));
-        pos += 8;
-
-        KeyId keyid = keybuf.read<KeyId>(pos);
-        pos += 4;
-
-        uint16_t keylen = keybuf.read<uint16_t>(pos);
-        pos += 2;
-
-        const char *key = keybuf.readPtr(pos, keylen);
-        pos += keylen;
+        Id userid(keybuf.read<uint64_t>(pos));          pos += 8;
+        KeyId keyid = keybuf.read<KeyId>(pos);          pos += 4;
+        uint16_t keylen = keybuf.read<uint16_t>(pos);   pos += 2;
+        const char *key = keybuf.readPtr(pos, keylen);  pos += keylen;
 
         CHATID_LOG_DEBUG("sending key %d for user %s with length %zu to crypto module",
                          keyid, userid.toString().c_str(), keybuf.dataSize());
