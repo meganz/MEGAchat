@@ -828,21 +828,30 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (room->publicChat()
-                && (room->ownPriv() == chatd::PRIV_OPER))
+            if (!room->publicChat())
             {
-                mClient->closeChatLink(chatid)
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const promise::Error& err)
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
             }
+
+            if (room->ownPriv() != chatd::PRIV_OPER)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            mClient->closeChatLink(chatid)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
             break;
         }
         case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:

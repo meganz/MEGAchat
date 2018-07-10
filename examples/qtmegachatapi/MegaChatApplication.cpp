@@ -401,6 +401,18 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
         }
         break;
     }
+    case MegaChatRequest::TYPE_CHAT_LINK_CLOSE:
+    {
+        if(e->getErrorCode() != MegaChatError::ERROR_OK)
+        {
+            QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat to private mode ").append(e->getErrorString()));
+        }
+        else
+        {
+            QMessageBox::warning(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
+        }
+        break;
+    }
     case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
     {
         if(e->getErrorCode() == MegaChatError::ERROR_OK)
