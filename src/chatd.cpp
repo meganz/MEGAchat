@@ -820,6 +820,8 @@ string Command::toString(const StaticBuffer& data)
             string tmpString;
             tmpString.append("NEWKEY - keyxid: ");
             tmpString.append(to_string(keycmd.keyId()));
+            tmpString.append(", localkeyid: ");
+            tmpString.append(to_string(keycmd.localKeyid()));
             return tmpString;
         }
         case OP_CLIENTID:
@@ -872,7 +874,12 @@ string Command::toString() const
 string KeyCommand::toString() const
 {
     assert(opcode() == OP_NEWKEY);
-    return string("NEWKEY: keyid = ")+to_string(keyId());
+    string tmpString;
+    tmpString.append("NEWKEY - keyxid: ");
+    tmpString.append(to_string(keyId()));
+    tmpString.append(", localkeyid: ");
+    tmpString.append(to_string(mLocalKeyid));
+    return tmpString;
 }
 // rejoin all open chats after reconnection (this is mandatory)
 promise::Promise<void> Connection::rejoinExistingChats()

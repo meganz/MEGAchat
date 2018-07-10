@@ -711,7 +711,7 @@ public:
         append(chatid.val).append<KeyId>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
 
-    KeyId localKeyid() { return mLocalKeyid; }
+    KeyId localKeyid() const { return mLocalKeyid; }
     KeyId keyId() const { return read<KeyId>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(KeyId keyid) { write(9, keyid); }
