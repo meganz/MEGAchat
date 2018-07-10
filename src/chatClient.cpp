@@ -70,10 +70,7 @@ std::string encodeFirstName(const std::string& first);
           app(aApp),
           contactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
-          mMyName("\0", 1),
-          mOwnPresence(Presence::kInvalid),
-          mPresencedClient(&api, this, *this, caps),
-          mSyncCount(-1)
+          mPresencedClient(&api, this, *this, caps)
 {
 }
 
@@ -229,9 +226,9 @@ void Client::heartbeat()
     }
 
     mPresencedClient.heartbeat();
-    if (chatd)
+    if (mChatdClient)
     {
-        chatd->heartbeat();
+        mChatdClient->heartbeat();
     }
 }
 
@@ -252,9 +249,9 @@ promise::Promise<void> Client::retryPendingConnections()
     std::vector<Promise<void>> promises;
 
     promises.push_back(mPresencedClient.retryPendingConnection());
-    if (chatd)
+    if (mChatdClient)
     {
-        promises.push_back(chatd->retryPendingConnections());
+        promises.push_back(mChatdClient->retryPendingConnections());
     }
     return promise::when(promises);
 }
@@ -380,7 +377,7 @@ void Client::saveDb()
 promise::Promise<void> Client::pushReceived()
 {
     // if already sent SYNCs or we are not logged in right now...
-    if (mSyncTimer || !chatd || !chatd->areAllChatsLoggedIn())
+    if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
     {
         return mSyncPromise;
         // promise will resolve once logged in for all chats or after receive all SYNCs back
@@ -398,7 +395,7 @@ promise::Promise<void> Client::pushReceived()
         mSyncTimer = 0;
         mSyncCount = -1;
 
-        chatd->retryPendingConnections();
+        mChatdClient->retryPendingConnections();
 
     }, chatd::kSyncTimeout, appCtx);
 
@@ -460,7 +457,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         if (wptr.deleted())
             return;
         loadContactListFromApi(*contactList);
-        chatd.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this, mMyHandle));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -493,7 +490,7 @@ void Client::commit(const std::string& scsn)
     KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
 }
 
-void Client::onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event)
+void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
 {
     assert(event);
     int type = event->getType();
@@ -590,7 +587,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        chatd.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this, mMyHandle));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -638,7 +635,7 @@ Client::InitState Client::init(const char* sid)
     return mInitState;
 }
 
-void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e)
+void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
     if (e->getErrorCode() == ::mega::MegaError::API_ESID)
     {
@@ -980,7 +977,7 @@ void Client::disconnect()
     }
 
     // disconnect from chatd shards and presenced
-    chatd->disconnect();
+    mChatdClient->disconnect();
     mPresencedClient.disconnect();
 }
 void Client::setConnState(ConnState newState)
@@ -1223,7 +1220,7 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 {
     app.onPresenceConfigChanged(state, pending);
 }
-void Client::onConnStateChange(presenced::Client::ConnState state)
+void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 
 }
@@ -1244,16 +1241,16 @@ void Client::notifyNetworkOnline()
 }
 void Client::notifyUserIdle()
 {
-    if (chatd)
+    if (mChatdClient)
     {
-        chatd->notifyUserIdle();
+        mChatdClient->notifyUserIdle();
     }
 }
 void Client::notifyUserActive()
 {
-    if (chatd)
+    if (mChatdClient)
     {
-        chatd->notifyUserActive();
+        mChatdClient->notifyUserActive();
     }
 }
 
@@ -1302,7 +1299,7 @@ promise::Promise<void> Client::setPresence(Presence pres)
     }
 }
 
-void Client::onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *aUsers)
+void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
 {
     if (!aUsers)
         return;
@@ -1361,7 +1358,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
 promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
 {
     auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), user)
+    return parent.mKarereClient.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), user)
     .then([this, wptr, user]()
     {
         wptr.throwIfDeleted();
@@ -1384,17 +1381,17 @@ void ChatRoom::onLastMessageTsUpdated(uint32_t ts)
         auto display = roomGui();
         if (display)
             display->onLastTsUpdated(ts);
-    }, parent.client.appCtx);
+    }, parent.mKarereClient.appCtx);
 }
 
 ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
 {
-    return parent.client.api.call(&::mega::MegaApi::grantAccessInChat, chatid(), node, userHandle);
+    return parent.mKarereClient.api.call(&::mega::MegaApi::grantAccessInChat, chatid(), node, userHandle);
 }
 
 ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
 {
-    return parent.client.api.call(&::mega::MegaApi::removeAccessInChat, chatid(), node, userHandle);
+    return parent.mKarereClient.api.call(&::mega::MegaApi::removeAccessInChat, chatid(), node, userHandle);
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
@@ -1406,9 +1403,9 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
 {
-    mChat = &parent.client.chatd->createChat(
+    mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.client.newStrongvelope(chatid()), mCreationTs, mIsGroup);
+        parent.mKarereClient.newStrongvelope(chatid()), mCreationTs, mIsGroup);
 }
 
 template <class T, typename F>
@@ -1431,7 +1428,7 @@ void callAfterInit(T* self, F&& func, void *ctx)
 
 void PeerChatRoom::initWithChatd()
 {
-    createChatdChat(SetOfIds({Id(mPeer), parent.client.myHandle()}));
+    createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
 void PeerChatRoom::connect()
@@ -1442,7 +1439,7 @@ void PeerChatRoom::connect()
 #ifndef KARERE_DISABLE_WEBRTC
 rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
-    return parent.client.rtc->startCall(chatid(), av, handler);
+    return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
 }
 #endif
 
@@ -1452,7 +1449,7 @@ promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList
 
     for (int i = 0; i < nodes->size(); ++i)
     {
-        if (!parent.client.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), peer()))
+        if (!parent.mKarereClient.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), peer()))
         {
             ApiPromise promise = requestGrantAccess(nodes->get(i), peer());
             promises.push_back(promise);
@@ -1466,7 +1463,7 @@ promise::Promise<void> PeerChatRoom::requestRevokeAccessToNode(mega::MegaNode *n
 {
     std::vector<ApiPromise> promises;
 
-    mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
+    mega::MegaHandleList *megaHandleList = parent.mKarereClient.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
 
     for (unsigned int j = 0; j < megaHandleList->size(); ++j)
     {
@@ -1487,7 +1484,7 @@ promise::Promise<void> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
     {
         for (auto it = mPeers.begin(); it != mPeers.end(); ++it)
         {
-            if (!parent.client.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), it->second->mHandle))
+            if (!parent.mKarereClient.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), it->second->mHandle))
             {
                 ApiPromise promise = requestGrantAccess(nodes->get(i), it->second->mHandle);
                 promises.push_back(promise);
@@ -1502,7 +1499,7 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
 {
     std::vector<ApiPromise> promises;
 
-    mega::MegaHandleList *megaHandleList = parent.client.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
+    mega::MegaHandleList *megaHandleList = parent.mKarereClient.api.sdk.getAttachmentAccess(mChatid, node->getHandle());
 
     for (unsigned int j = 0; j < megaHandleList->size(); ++j)
     {
@@ -1517,7 +1514,7 @@ promise::Promise<void> GroupChatRoom::requestRevokeAccessToNode(mega::MegaNode *
 
 IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 {
-    auto list = parent.client.app.chatListHandler();
+    auto list = parent.mKarereClient.app.chatListHandler();
     return list ? list->addGroupChatItem(*this) : nullptr;
 }
 
@@ -1526,7 +1523,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
-    SqliteStmt stmt(parent.client.db, "select userid, priv from chat_peers where chatid=?");
+    SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
     std::vector<promise::Promise<void> > promises;
     while(stmt.step())
@@ -1554,7 +1551,7 @@ mHasTitle(!title.empty()), mRoomGui(nullptr)
 void GroupChatRoom::initWithChatd()
 {
     karere::SetOfIds users;
-    users.insert(parent.client.myHandle());
+    users.insert(parent.mKarereClient.myHandle());
     for (auto& peer: mPeers)
     {
         users.insert(peer.first);
@@ -1573,7 +1570,7 @@ void GroupChatRoom::connect()
         decryptTitle()
         .fail([](const promise::Error& err)
         {
-            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect");
+            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect. Error: %s", err.what());
         });
     }
 }
@@ -1585,7 +1582,7 @@ promise::Promise<void> GroupChatRoom::memberNamesResolved() const
 
 IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 {
-    auto list = parent.client.app.chatListHandler();
+    auto list = parent.mKarereClient.app.chatListHandler();
     return list ? list->addPeerChatItem(*this) : nullptr;
 }
 
@@ -1607,10 +1604,10 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)),
     mRoomGui(nullptr)
 {
-    parent.client.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
+    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
         mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime());
 //just in case
-    parent.client.db.query("delete from chat_peers where chatid = ?", mChatid);
+    parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
     KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
 
@@ -1621,16 +1618,16 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && (parent.client.initState() != Client::kInitTerminated))
-        parent.client.app.chatListHandler()->removePeerChatItem(*mRoomGui);
-    auto chatd = parent.client.chatd.get();
-    if (chatd)
-        chatd->leave(mChatid);
+    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+        parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+
+    if (parent.mKarereClient.mChatdClient)
+        parent.mKarereClient.mChatdClient->leave(mChatid);
 }
 
 void PeerChatRoom::initContact(const uint64_t& peer)
 {
-    mContact = parent.client.contactList->contactFromUserId(peer);
+    mContact = parent.mKarereClient.contactList->contactFromUserId(peer);
     mEmail = mContact ? mContact->email() : "Inactive account";
     if (mContact)
     {
@@ -1638,7 +1635,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     }
     else    // 1on1 with ex-user
     {
-        mUsernameAttrCbId = parent.client.userAttrCache().getAttr(peer,
+        mUsernameAttrCbId = parent.mKarereClient.userAttrCache().getAttr(peer,
             USER_ATTR_FULLNAME, this,
             [](Buffer* data, void* userp)
             {
@@ -1685,7 +1682,7 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         return false;
 
     mOwnPriv = priv;
-    parent.client.db.query("update chats set own_priv = ? where chatid = ?", priv, mChatid);
+    parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", priv, mChatid);
 
     return true;
 }
@@ -1696,7 +1693,7 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
         return false;
 
     mPeerPriv = priv;
-    parent.client.db.query("update chats set peer_priv = ? where chatid = ?", priv, mChatid);
+    parent.mKarereClient.db.query("update chats set peer_priv = ? where chatid = ?", priv, mChatid);
 
     return true;
 }
@@ -1720,7 +1717,7 @@ const std::string &PeerChatRoom::completeTitleString() const
 
 promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv priv, bool saveToDb)
 {
-    assert(userid != parent.client.myHandle());
+    assert(userid != parent.mKarereClient.myHandle());
 
     auto it = mPeers.find(userid);
     if (it != mPeers.end())
@@ -1738,12 +1735,12 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
 
-        if (parent.client.initState() >= Client::kInitHasOnlineSession)
-            parent.client.presenced().addPeer(userid);
+        if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
+            parent.mKarereClient.presenced().addPeer(userid);
     }
     if (saveToDb)
     {
-        parent.client.db.query("insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
+        parent.mKarereClient.db.query("insert or replace into chat_peers(chatid, userid, priv) values(?,?,?)",
             mChatid, userid, priv);
     }
 
@@ -1760,8 +1757,8 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     }
     delete it->second;
     mPeers.erase(it);
-    parent.client.presenced().removePeer(userid);
-    parent.client.db.query("delete from chat_peers where chatid=? and userid=?",
+    parent.mKarereClient.presenced().removePeer(userid);
+    parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?",
                 mChatid, userid);
     if (!mHasTitle)
         makeTitleFromMemberNames();
@@ -1770,20 +1767,20 @@ bool GroupChatRoom::removeMember(uint64_t userid)
 
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
-    assert(userid != parent.client.myHandle());
+    assert(userid != parent.mKarereClient.myHandle());
     auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
     .then([this, wptr, userid, priv]()
     {
         wptr.throwIfDeleted();
-        parent.client.db.query("update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
+        parent.mKarereClient.db.query("update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
     });
 }
 
 promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
 {
     auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(
+    return parent.mKarereClient.api.callIgnoreResult(
                 &::mega::MegaApi::truncateChat,
                 chatid(),
                 msgId)
@@ -1806,20 +1803,20 @@ void GroupChatRoom::deleteSelf()
             return;
         }
 
-        auto db = parent.client.db;
+        auto db = parent.mKarereClient.db;
         db.query("delete from chat_peers where chatid=?", mChatid);
         db.query("delete from chats where chatid=?", mChatid);
         delete this;
-    }, parent.client.appCtx);
+    }, parent.mKarereClient.appCtx);
 }
 
 ChatRoomList::ChatRoomList(Client& aClient)
-:client(aClient)
+:mKarereClient(aClient)
 {}
 
 void ChatRoomList::loadFromDb()
 {
-    SqliteStmt stmt(client.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
+    SqliteStmt stmt(mKarereClient.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -1851,7 +1848,7 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
         ChatRoom* room = addRoom(apiRoom);
         chatids.insert(chatid);
 
-        if (client.connected())
+        if (mKarereClient.connected())
         {
             KR_LOG_DEBUG("...connecting new room to chatd...");
             room->connect();
@@ -1871,7 +1868,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     if(apiRoom.isGroup())
     {
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
-        if (client.connected())
+        if (mKarereClient.connected())
         {
             GroupChatRoom *groupchat = static_cast<GroupChatRoom*>(room);
             if (groupchat->hasTitle())
@@ -1879,7 +1876,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
                 groupchat->decryptTitle()
                 .fail([](const promise::Error& err)
                 {
-                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom. Error: %s", err.what());
                 });
             }
         }
@@ -1931,7 +1928,7 @@ void ChatRoomList::removeRoom(GroupChatRoom& room)
 void GroupChatRoom::setRemoved()
 {
     mOwnPriv = chatd::PRIV_NOTPRESENT;
-    parent.client.db.query("update chats set own_priv=? where chatid=?", mOwnPriv, mChatid);
+    parent.mKarereClient.db.query("update chats set own_priv=? where chatid=?", mOwnPriv, mChatid);
     notifyExcludedFromChat();
 }
 
@@ -2018,7 +2015,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         for (int i=0; i<size; i++)
         {
             auto handle = peers->getPeerHandle(i);
-            assert(handle != parent.client.myHandle());
+            assert(handle != parent.mKarereClient.myHandle());
             mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
             promises.push_back(mPeers[handle]->nameResolved());
         }
@@ -2044,7 +2041,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     }
 
     //save to db
-    auto db = parent.client.db;
+    auto db = parent.mKarereClient.db;
     db.query("delete from chat_peers where chatid=?", mChatid);
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
@@ -2103,7 +2100,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
             if (!mTitleString.empty())
             {
                 mHasTitle = true;
-                parent.client.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+                parent.mKarereClient.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
             }
             else
             {
@@ -2164,7 +2161,7 @@ void GroupChatRoom::makeTitleFromMemberNames()
 void GroupChatRoom::loadTitleFromDb()
 {
     //load user title if set
-    SqliteStmt stmt(parent.client.db, "select title from chats where chatid = ?");
+    SqliteStmt stmt(parent.mKarereClient.db, "select title from chats where chatid = ?");
     stmt << mChatid;
     if (!stmt.step())
     {
@@ -2189,7 +2186,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
     {
         wptr.throwIfDeleted();
         auto b64 = base64urlencode(buf->buf(), buf->dataSize());
-        return parent.client.api.callIgnoreResult(&::mega::MegaApi::setChatTitle, chatid(),
+        return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::setChatTitle, chatid(),
             b64.c_str());
     })
     .then([wptr, this, title]()
@@ -2205,12 +2202,11 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui && (parent.client.initState() != Client::kInitTerminated))
-        parent.client.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
+    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+        parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
-    auto chatd = parent.client.chatd.get();
-    if (chatd)
-        chatd->leave(mChatid);
+    if (parent.mKarereClient.mChatdClient)
+        parent.mKarereClient.mChatdClient->leave(mChatid);
 
     for (auto& m: mPeers)
     {
@@ -2221,7 +2217,7 @@ GroupChatRoom::~GroupChatRoom()
 promise::Promise<void> GroupChatRoom::leave()
 {
     auto wptr = getDelTracker();
-    return parent.client.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, parent.client.myHandle())
+    return parent.mKarereClient.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, parent.mKarereClient.myHandle())
     .fail([](const promise::Error& err) -> Promise<void>
     {
         if (err.code() == ::mega::MegaError::API_EARGS) //room does not actually exist on API, ignore room and remove it locally
@@ -2251,7 +2247,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     .then([this, wptr, userid, priv](const std::string& title)
     {
         wptr.throwIfDeleted();
-        return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
+        return parent.mKarereClient.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
             title.empty() ? nullptr: title.c_str());
     })
     .then([this, wptr, userid, priv](ReqResult)
@@ -2283,7 +2279,7 @@ bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
 void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
     mChat = &chat;
-    dbIntf = new ChatdSqliteDb(*mChat, parent.client.db);
+    dbIntf = new ChatdSqliteDb(*mChat, parent.mKarereClient.db);
     if (mAppChatHandler)
     {
         setAppChatHandler(mAppChatHandler);
@@ -2319,7 +2315,7 @@ bool ChatRoom::hasChatHandler() const
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    if (userid == parent.client.myHandle())
+    if (userid == parent.mKarereClient.myHandle())
     {
         syncOwnPriv(privilege);
     }
@@ -2344,7 +2340,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
-    if (userid == parent.client.myHandle())
+    if (userid == parent.mKarereClient.myHandle())
     {
         setRemoved();
     }
@@ -2359,7 +2355,7 @@ void GroupChatRoom::onUserLeave(Id userid)
 
 void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    if (userid == parent.client.chatd->userId())
+    if (userid == parent.mKarereClient.mChatdClient->userId())
         syncOwnPriv(privilege);
     else if (userid.val == mPeer)
         syncPeerPriv(privilege);
@@ -2368,7 +2364,7 @@ void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 }
 void PeerChatRoom::onUserLeave(Id userid)
 {
-    KR_LOG_ERROR("PeerChatRoom: Bug: Received an user leave event from chatd on a permanent chat, ignoring");
+    KR_LOG_ERROR("PeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent chat, ignoring", userid.toString());
 }
 
 void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
@@ -2383,7 +2379,7 @@ void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
             auto display = roomGui();
             if (display)
                 display->onLastMessageUpdated(msg);
-        }, parent.client.appCtx);
+        }, parent.mKarereClient.appCtx);
     }
     else
     {
@@ -2414,9 +2410,9 @@ void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
 {
     if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
-         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+         || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
     {
-        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+        parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
 }
 
@@ -2427,17 +2423,17 @@ void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)
     //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
     // and, if so, remove the block from `onRecvNewMessage()`
     if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
-         || (msg.userid != parent.client.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+         || (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
     {
-        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+        parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
 }
 
 void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status status, const chatd::Message& msg)
 {
-    if (msg.userid != parent.client.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (msg.userid != parent.mKarereClient.myHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
-        parent.client.app.onChatNotification(mChatid, msg, status, idx);
+        parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
 }
 
@@ -2467,7 +2463,7 @@ void ChatRoom::notifyTitleChanged()
 
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
-    }, parent.client.appCtx);
+    }, parent.mKarereClient.appCtx);
 }
 
 void GroupChatRoom::onUnreadChanged()
@@ -2481,7 +2477,7 @@ void GroupChatRoom::onUnreadChanged()
 bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 {
     bool changed = false;
-    auto db = parent.client.db;
+    auto db = parent.mKarereClient.db;
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
@@ -2542,7 +2538,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
 void GroupChatRoom::clearTitle()
 {
     makeTitleFromMemberNames();
-    parent.client.db.query("update chats set title=NULL where chatid=?", mChatid);
+    parent.mKarereClient.db.query("update chats set title=NULL where chatid=?", mChatid);
 }
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
@@ -2557,7 +2553,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         mEncryptedTitle = title;
         mHasTitle = true;
-        if (parent.client.connected())
+        if (parent.mKarereClient.connected())
         {
             decryptTitle()
             .fail([](const promise::Error& err)
@@ -2601,7 +2597,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     }
     else
     {
-        onUserJoin(parent.client.myHandle(), mOwnPriv);
+        onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
     }
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
     return true;
@@ -2624,7 +2620,7 @@ UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, User
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
-    mNameAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
+    mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
         user, USER_ATTR_FULLNAME, this,
         [](Buffer* buf, void* userp)
     {
@@ -2652,7 +2648,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
     });
 
-    mEmailAttrCbHandle = mRoom.parent.client.userAttrCache().getAttr(
+    mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
         user, USER_ATTR_EMAIL, this,
         [](Buffer* buf, void* userp)
     {
@@ -2670,8 +2666,8 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
 
 GroupChatRoom::Member::~Member()
 {
-    mRoom.parent.client.userAttrCache().removeCb(mNameAttrCbHandle);
-    mRoom.parent.client.userAttrCache().removeCb(mEmailAttrCbHandle);
+    mRoom.parent.mKarereClient.userAttrCache().removeCb(mNameAttrCbHandle);
+    mRoom.parent.mKarereClient.userAttrCache().removeCb(mEmailAttrCbHandle);
 }
 
 promise::Promise<void> GroupChatRoom::Member::nameResolved() const
@@ -2681,7 +2677,7 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
 
 void Client::connectToChatd(bool isInBackground)
 {
-    chatd->setKeepaliveType(isInBackground);
+    mChatdClient->setKeepaliveType(isInBackground);
 
     for (auto& item: *chats)
     {
@@ -2994,35 +2990,6 @@ void Contact::attachChatRoom(PeerChatRoom& room)
             Id(mUserid).toString()+" already has a chat room attached");
     KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
     setChatRoom(room);
-}
-uint64_t Client::useridFromJid(const std::string& jid)
-{
-    auto end = jid.find('@');
-    if (end != 13)
-    {
-        KR_LOG_WARNING("useridFromJid: Invalid Mega JID '%s'", jid.c_str());
-        return mega::UNDEF;
-    }
-
-    uint64_t userid;
-#ifndef NDEBUG
-    auto len =
-#endif
-    mega::Base32::atob(jid.c_str(), (byte*)&userid, end);
-    assert(len == 8);
-    return userid;
-}
-
-Contact* ContactList::contactFromJid(const std::string& jid) const
-{
-    auto userid = Client::useridFromJid(jid);
-    if (userid == mega::UNDEF)
-        return nullptr;
-    auto it = find(userid);
-    if (it == this->end())
-        return nullptr;
-    else
-        return it->second;
 }
 
 #define RETURN_ENUM_NAME(name) case name: return #name

@@ -1287,7 +1287,7 @@ void ProtocolHandler::onUserJoin(Id userid)
     mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
 }
 
-void ProtocolHandler::onUserLeave(Id userid)
+void ProtocolHandler::onUserLeave(Id /*userid*/)
 {
     mParticipantsChanged = true;
     resetSendKey(); //just in case
