@@ -794,8 +794,16 @@ void Call::msgCallReqCancel(RtMessage& packet)
         return;
     }
 
-//    auto term = packet.payload.read<uint8_t>(8);  // don't notify kUserHangUp but kCallReqCancel
-    destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
+    auto term = packet.payload.read<uint8_t>(8);
+    if (term == TermCode::kAnswerTimeout)
+    {
+        destroy(static_cast<TermCode>(kAnswerTimeout | TermCode::kPeer), false);
+    }
+    else // don't notify kUserHangUp but kCallReqCancel
+    {
+        assert(term == TermCode::kUserHangup);
+        destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
+    }
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -1043,7 +1051,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
-    mTermCode = (mState == kStateReqSent) ? kCallReqCancel : code;  // adjust for onStateChange()
+    mTermCode = (mState == kStateReqSent && code == TermCode::kUserHangup) ? kCallReqCancel : code;  // adjust for onStateChange()
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
