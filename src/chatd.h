@@ -1218,18 +1218,29 @@ struct ChatDbInfo
 class DbInterface
 {
 public:
-    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
-    /// Called when the client was requested to fetch history, and it knows the db contains the requested
-    /// history range.
-    /// @param startIdx - the start index of the requested history range
-    /// @param count - the number of messages to return
-    /// @param[out] messages - The app should put the messages in this vector, the most recent message being
-    /// at position 0 in the vector, and the oldest being the last. If the returned message count is less
-    /// than the requested by \c count, the client considers there is no more history in the db. However,
-    /// if the application-specified \c oldestDbId in the call to \n init() has not been retrieved yet,
-    /// an assertion will be triggered. Therefore, the application must always try to read not less than
-    /// \c count messages, in case they are avaialble in the db.
+    virtual ~DbInterface(){}
+
+
+//  <<<--- Management of the HISTORY buffer --->>>
+
+    /**
+    * @brief Called when the client was requested to fetch history
+    *
+    * @param startIdx - the start index of the requested history range
+    * @param count - the number of messages to return
+    * @param [out] messages - The app should put the messages in this vector, the most recent message being
+    * at position 0 in the vector, and the oldest being the last. If the returned message count is less
+    * than the requested by \c count, the client considers there is no more history in the db.
+    */
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
+
+    /// adds a message to the history buffer at the specified \c idx
+    virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
+
+    /// update a message in the history buffer with the specified \c msgid
+    virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
+
+
 //  <<<--- Management of the SENDING QUEUE --->>>
 
     /// adds a new item to the sending queue
@@ -1252,24 +1263,41 @@ public:
 
     /// populate the sending queue in memory from DB
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
-    virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
-    virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
-    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
-    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
+
+
+//  <<<--- Management of the MANUAL SENDING QUEUE --->>>
+
+    /// move a message from the sending queue to manual-sending queue
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
-    virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
+
+    /// delete item from the manual-sending queue
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
+
+    /// load all messages in the manual-sending queue
+    virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
+
+    /// load a single message from the manual-sending queue
     virtual void loadManualSendItem(uint64_t rowid, Chat::ManualSendItem& item) = 0;
-    virtual void truncateHistory(const chatd::Message& msg) = 0;
+
+
+//  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
+
+    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
+
     virtual void setLastSeen(karere::Id msgid) = 0;
     virtual void setLastReceived(karere::Id msgid) = 0;
-    virtual chatd::Idx getOldestIdx() = 0;
+
+    virtual Idx getOldestIdx() = 0;
+    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
+    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
+    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
+
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual bool haveAllHistory() = 0;
-    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
+
+    virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
-    virtual ~DbInterface(){}
 };
 
 }

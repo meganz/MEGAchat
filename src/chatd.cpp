@@ -2260,9 +2260,10 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                 return nullptr;
         }
 
-        // update original content+delta for all messages with same msgxid, trying to avoid sending the original content
+        // update original content+delta of the message being edited...
         msg.updated = age;
         msg.assign((void*)newdata, newlen);
+        // ...and also for all messages with same msgid in the sending queue , trying to avoid sending the original content
         int count = 0;
         for (auto& it: mSending)
         {
