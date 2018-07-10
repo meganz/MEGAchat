@@ -24,6 +24,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     ui->mSplitter->setStretchFactor(1,0);
     ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->mChatdStatusDisplay->hide();
+    ui->mJoinBtn->hide();
     setChatTittle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
@@ -42,7 +43,21 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     if (mChatRoom->isPublic())
     {
-        this->ui->mTitlebar->setStyleSheet("background-color:#c4f2c9");
+        if(mChatRoom->isPreview())
+        {
+            this->ui->mMembersBtn->hide();
+            this->ui->mMsgSendBtn->hide();
+            this->ui->mAudioCallBtn->hide();
+            this->ui->mVideoCallBtn->hide();
+            this->ui->mMembersBtn->hide();
+            this->ui->mMessageEdit->hide();
+            ui->mJoinBtn->show();
+            this->ui->mTitlebar->setStyleSheet("background-color:#ffe4af");
+        }
+        else
+        {
+            this->ui->mTitlebar->setStyleSheet("background-color:#c4f2c9");
+        }
     }
 
     if (!mChatRoom->isGroup())
@@ -92,6 +107,11 @@ void ChatWindow::setChatTittle(const char *title)
     .append(" [")
     .append(mChatRoom->privToString(mChatRoom->getOwnPrivilege()))
     .append("]");
+
+    if(mChatRoom->isPreview())
+    {
+        chatTitle.append("        <PREVIEW>");
+    }
     ui->mTitleLabel->setText(chatTitle);
 }
 
@@ -107,12 +127,20 @@ void ChatWindow::openChatRoom()
 ChatWindow::~ChatWindow()
 {
     ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
+
+    MegaChatListItem *item = mMegaChatApi->getChatListItem(mChatRoom->getChatId());
     if (chatItemWidget)
     {
         chatItemWidget->invalidChatWindowHandle();
     }
-    mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
+
+    if (mChatRoom->isPreview())
+    {
+        mMainWin->removeLocalChatListItem(item);
+        mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
+    }
     delete megaChatRoomListenerDelegate;
+    delete item;
     delete mChatRoom;
     delete ui;
 }
@@ -356,7 +384,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
                     nSending--;
                 }
 
-                addMsgWidget(msg, loadedMessages + nSending + nManualSending);
+                addMsgWidget(msg->copy(), loadedMessages + nSending + nManualSending);
                 auxMessage = findChatMessage(msg->getRowId());
                 if(auxMessage)
                 {
@@ -699,3 +727,12 @@ void ChatWindow::deleteCallGui()
     ui->mTextChatWidget->show();
 }
 #endif
+
+void ChatWindow::on_mJoinBtn_clicked()
+{
+    auto ret = QMessageBox::question(this, tr("Join chat link"), tr("Do you want to join to this chat?"));
+    if (ret != QMessageBox::Yes)
+        return;
+
+    this->mMegaChatApi->joinChatLink(this->mChatRoom->getChatId());
+}

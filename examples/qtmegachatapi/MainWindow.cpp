@@ -308,7 +308,6 @@ ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandl
     return itChats->second;
 }
 
-
 void MainWindow::addContact(MegaUser *contact)
 {
     ContactItemWidget *contactItemWidget = new ContactItemWidget(ui->contactList, mMegaChatApi, mMegaApi, contact);
@@ -475,6 +474,8 @@ void MainWindow::addChatListener()
 
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
 {
+    ChatItemWidget * chatItemWidget = NULL;
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         //Update local chat list when we are connected to all chats
@@ -488,9 +489,8 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
         delete presenceConfig;
         return;
     }
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
-    it = chatWidgets.find(chatid);
 
+    it = chatWidgets.find(chatid);
     if (it != chatWidgets.end())
     {
         ChatItemWidget * chatItemWidget = it->second;
@@ -632,6 +632,7 @@ void MainWindow::removeLocalChatListItem(MegaChatListItem *item)
         mLocalChatListItems.erase(itItem);
         delete auxItem;
     }
+    this->orderContactChatList(allItemsVisibility);
 }
 
 const megachat::MegaChatListItem *MainWindow::getLocalChatListItem(megachat::MegaChatHandle chatId)
@@ -693,7 +694,7 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
     itContacts = contactWidgets.find(contactHandle);
 
     if (itContacts != contactWidgets.end())
-    {                
+    {
         ContactItemWidget *contactItemWidget = itContacts->second;
         contactItemWidget->updateTitle(firstname);
     }

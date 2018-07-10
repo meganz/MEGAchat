@@ -88,7 +88,9 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
 #endif
-    protected slots:
+        void on_mJoinBtn_clicked();
+
+protected slots:
 #ifndef KARERE_DISABLE_WEBRTC
         void closeEvent(QCloseEvent *event);
         void createCallGui(bool);

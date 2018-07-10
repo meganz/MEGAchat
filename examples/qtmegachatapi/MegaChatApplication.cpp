@@ -59,7 +59,14 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
-    delete mMainWin;
+
+    const QObjectList lstChildren  = mMainWin->children();
+    foreach(QObject* pWidget, lstChildren)
+    {
+        pWidget->deleteLater();
+    }
+
+    mMainWin->deleteLater();
     delete mMegaChatApi;
     delete mMegaApi;
     delete mLogger;
@@ -394,7 +401,31 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
         }
         break;
     }
+    case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
+    {
+        if(e->getErrorCode() == MegaChatError::ERROR_OK)
+        {
+           MegaChatHandle chatHandle = request->getChatHandle();
+           ChatItemWidget *item =  mMainWin->getChatItemWidget(chatHandle, false);
+           if (item)
+           {
+                ChatWindow *chatWin = item->getChatWindow();
+                if(chatWin)
+                {
+                    chatWin->close();
+                }
 
+                mMainWin->updateLocalChatListItems();
+                mMainWin->orderContactChatList(true);
+           }
+           QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
+        }
+        else
+        {
+            QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link ").append(e->getErrorString()));
+        }
+        break;
+    }
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:
