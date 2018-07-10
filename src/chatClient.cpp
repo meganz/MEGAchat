@@ -1787,9 +1787,14 @@ mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat),
 mPublicHandle(publicHandle), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 {
     initWithChatd();
+    mChat->crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
     mChat->crypto()->setUnifiedKey(unifiedKey);
     mChat->crypto()->setPreviewMode(previewMode);
     mUrl = aUrl;
+
+    //Add my own handle to peers list
+    const Id myHandle = this->chat().client().karereClient->myHandle();
+    mPeers[myHandle] = new Member(*this, myHandle, chatd::PRIV_RDONLY);
 
     auto ct = title.data();
     bool hasCt = (ct && ct[0]);
@@ -2103,10 +2108,7 @@ void GroupChatRoom::deleteSelf()
         {
             return;
         }
-
-        auto db = parent.client.db;
-        db.query("delete from chat_peers where chatid=?", mChatid);
-        db.query("delete from chats where chatid=?", mChatid);
+        chat().getDbInterface()->chatCleanup();
         delete this;
     }, parent.client.appCtx);
 }
@@ -2178,18 +2180,11 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     ChatRoom* room;
     if(apiRoom.isGroup())
     {
+        //We need to ensure that unified key exists before decrypt title for public chats. So we decrypt title inside ctor
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
         if (client.connected())
         {
             GroupChatRoom *groupchat = static_cast<GroupChatRoom*>(room);
-            if (groupchat->hasTitle())
-            {
-                groupchat->decryptTitle()
-                .fail([](const promise::Error& err)
-                {
-                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
-                });
-            }
         }
     }
     else    // 1on1
@@ -2392,12 +2387,22 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
                        //Set unifiedkey in strongvelope
                        chat().crypto()->setUnifiedKey(result);
+                       chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
 
                        // Save Unified key decrypted
                        this->parent.client.db.query(
                            "insert or replace into chat_vars(chatid, name, value)"
                            " values(?,'unified_key',?)",
                            this->mChatid, result.c_str());
+
+                       if (mHasTitle)
+                       {
+                           decryptTitle()
+                           .fail([](const promise::Error& err)
+                           {
+                               KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+                           });
+                       }
                     })
                     .fail([wptr, this](const promise::Error& err)
                     {
@@ -2426,6 +2431,17 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
             std::string err("Error base64-decoding chat title: ");
             KR_LOG_ERROR("%s", err.c_str());
             this->mChat->disable(true);
+        }
+    }
+    else
+    {
+        if (mHasTitle)
+        {
+            decryptTitle()
+            .fail([](const promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+            });
         }
     }
 
@@ -2476,7 +2492,8 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     buf.setDataSize(decLen);
     auto wptr = getDelTracker();
     promise::Promise<std::string> pms;
-    if (mPreviewMode)
+
+    if (mPublicChat)
     {
         std::string auxTitle = this->chat().crypto()->decryptPublicChatTitle(buf);
         pms = promise::Promise<std::string>();
@@ -2635,6 +2652,7 @@ promise::Promise<void> GroupChatRoom::leave()
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 {
     auto wptr = getDelTracker();
+    //Add new user to strongvelope set of users
     promise::Promise<std::string> pms = mHasTitle
         ? chat().crypto()->encryptChatTitle(mTitleString, userid)
           .then([](const std::shared_ptr<Buffer>& buf)
@@ -2642,51 +2660,92 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
                return base64urlencode(buf->buf(), buf->dataSize());
           })
         : promise::Promise<std::string>(std::string());
-
     return pms
     .then([this, wptr, userid, priv](const std::string& title)
     {
         wptr.throwIfDeleted();
-        return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
-            chat().crypto()->getUnifiedKey().c_str(), title.empty() ? nullptr: title.c_str());
-    })
-    .then([this, wptr, userid, priv](ReqResult)
-    {
-        wptr.throwIfDeleted();
-        addMember(userid, priv, true)
-        .then([wptr, this]()
+        ApiPromise createChatPromise;
+        if(mPublicChat)
+        {
+            createChatPromise = chat().crypto()->encryptUnifiedKeyForAllParticipants(userid)
+            .then([wptr, this, title, userid, priv](chatd::KeyCommand* encKey)
+             {
+                //Get peer unified key
+                auto useruk = encKey->getKeyByUserId(userid);
+
+                //Get creator handle in binary
+                uint64_t auxcreatorHandle = this->chat().client().karereClient->myHandle().val;
+                char *auxcreatorHandleBin = new char[mega::USERHANDLE];
+                memcpy(auxcreatorHandleBin, &(auxcreatorHandle), mega::USERHANDLE);
+
+                //Append [creatorhandle+uk]
+                std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
+                uKeyBin.append(useruk->buf(), mega::UNIFIEDKEY);
+
+                //Encode [creatorhandle+uk] to B64
+                std::string uKeyB64;
+                mega::Base64::btoa(uKeyBin, uKeyB64);
+
+                return parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
+                    uKeyB64.c_str(), title.empty() ? nullptr: title.c_str());
+             });
+        }
+        else
+        {
+            createChatPromise = parent.client.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
+                nullptr, title.empty() ? nullptr: title.c_str());
+        }
+        return createChatPromise
+        .then([this, wptr, userid, priv](ReqResult)
         {
             wptr.throwIfDeleted();
-            if (!mHasTitle)
+            addMember(userid, priv, true)
+            .then([wptr, this]()
             {
-                makeTitleFromMemberNames();
-            }
+                wptr.throwIfDeleted();
+                if (!mHasTitle)
+                {
+                    makeTitleFromMemberNames();
+                }
+            });
         });
+
     });
+
 }
 
 promise::Promise<void> GroupChatRoom::joinChatLink()
 {
     auto wptr = getDelTracker();
     karere::Id userid (parent.client.chatd->userId());
-    promise::Promise<std::string> pms = mHasTitle
-        ? chat().crypto()->encryptChatTitle(mTitleString, userid)
-          .then([](const std::shared_ptr<Buffer>& buf)
-          {
-               return base64urlencode(buf->buf(), buf->dataSize());
-          })
-        : promise::Promise<std::string>(std::string());
 
-    return pms
-    .then([this, wptr](const std::string& title)
+    return chat().crypto()->encryptUnifiedKeyToUser(userid)
+    .then([wptr, this](std::string key) -> ApiPromise
     {
-        wptr.throwIfDeleted();
+        //Get own handle
+        const Id  myHandle = chat().mClient.karereClient->myHandle();
+
+        //Get invitorhandle handle in binary
+        uint64_t auxcreatorHandle = myHandle.val;
+        char *auxcreatorHandleBin = new char[mega::USERHANDLE];
+        memcpy(auxcreatorHandleBin, &(auxcreatorHandle), mega::USERHANDLE);
+
+        //Append [invitorhandle+uk]
+        std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
+        uKeyBin.append(key.data(), mega::UNIFIEDKEY);
+
+        //Encode [invitorhandle+uk] to B64
+        std::string uKeyB64;
+        mega::Base64::btoa(uKeyBin, uKeyB64);
+
         return parent.client.api.call(&mega::MegaApi::chatLinkJoin, mPublicHandle,
-            chat().crypto()->getUnifiedKey().c_str());
+            uKeyB64.c_str());
     })
     .then([this, wptr, userid](ReqResult)
     {
         wptr.throwIfDeleted();
+        mPreviewMode = false;
+
         addMember(userid, chatd::PRIV_FULL, true)
         .then([wptr, this]()
         {
@@ -3232,6 +3291,7 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
         {
             return false;
         }
+
         client.db.query("update contacts set visibility = ? where userid = ?",
             newVisibility, userid);
         contact->onVisibilityChanged(newVisibility);
