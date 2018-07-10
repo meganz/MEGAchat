@@ -2280,7 +2280,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         {
             int countDb = mDbInterface->updateSendingItemContentAndDelta(msg);
             assert(countDb == count);
-            CHATD_LOG_DEBUG("msgModify: updated the content and delta of %d message/s in the sending queue", count);
+            CHATID_LOG_DEBUG("msgModify: updated the content and delta of %d message/s in the sending queue", count);
         }
 
         // recipients must not change
