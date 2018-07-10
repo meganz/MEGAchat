@@ -2104,7 +2104,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
            || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
     mSending.emplace_back(opcode, msg, recipients);
-    CALL_DB(saveMsgToSending, mSending.back());
+    CALL_DB(addSendingItem, mSending.back());
     if (mNextUnsent == mSending.end())
     {
         mNextUnsent--;
@@ -2285,7 +2285,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         assert(count);  // an edit of a message in sending always indicates the former message is in the queue
         if (count)
         {
-            int countDb = mDbInterface->updateSendingItemContentAndDelta(msg);
+            int countDb = mDbInterface->updateSendingItemsContentAndDelta(msg);
             assert(countDb == count);
             CHATID_LOG_DEBUG("msgModify: updated the content and delta of %d message/s in the sending queue", count);
         }
@@ -2574,7 +2574,7 @@ void Chat::flushOutputQueue(bool fromStart)
 
 void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason)
 {
-    CALL_DB(deleteItemFromSending, it->rowid);
+    CALL_DB(deleteSendingItem, it->rowid);
     CALL_DB(saveItemToManualSending, *it, reason);
     CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should put this message at end of that list of messages requiring 'manual' resend
     it->msg = nullptr; //don't delete the Message object, it will be owned by the app
@@ -2691,7 +2691,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
     assert(msg);
     assert(msg->isSending());
 
-    CALL_DB(deleteItemFromSending, item.rowid);
+    CALL_DB(deleteSendingItem, item.rowid);
     mSending.pop_front(); //deletes item
 
     return msg; // gives the ownership
@@ -2814,7 +2814,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     assert(count);  // a confirmed key should always indicate that a new message was sent
     if (count)
     {
-        int countDb = mDbInterface->updateSendingItemKeyid(localKeyid, keyid);
+        int countDb = mDbInterface->updateSendingItemsKeyid(localKeyid, keyid);
         assert(countDb == count);
         CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
     }
@@ -2865,7 +2865,7 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
     if (msg.type == Message::kMsgContainsMeta)
     {
         CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %d", serverReason);
-        CALL_DB(deleteItemFromSending, mSending.front().rowid);
+        CALL_DB(deleteSendingItem, mSending.front().rowid);
         mSending.pop_front();
         return;
     }
@@ -2878,7 +2878,7 @@ void Chat::rejectMsgupd(Id id, uint8_t serverReason)
     if (serverReason == 2)
     {
         CALL_LISTENER(onEditRejected, msg, kManualSendEditNoChange);
-        CALL_DB(deleteItemFromSending, mSending.front().rowid);
+        CALL_DB(deleteSendingItem, mSending.front().rowid);
         mSending.pop_front();
     }
     else
@@ -2913,7 +2913,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 continue;
             }
             //erase item
-            CALL_DB(deleteItemFromSending, item.rowid);
+            CALL_DB(deleteSendingItem, item.rowid);
             auto erased = it;
             it++;
             mPendingEdits.erase(cipherMsg->id());

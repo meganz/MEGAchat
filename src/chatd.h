@@ -1244,13 +1244,13 @@ public:
 //  <<<--- Management of the SENDING QUEUE --->>>
 
     /// adds a new item to the sending queue
-    virtual void saveMsgToSending(Chat::SendingItem& msg) = 0;
+    virtual void addSendingItem(Chat::SendingItem& msg) = 0;
 
     /// upon message's edit, every related item in the sending queue should be updated
-    virtual int updateSendingItemContentAndDelta(const chatd::Message& msg) = 0;
+    virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg) = 0;
 
     /// upon key's confirmation (keyxid->keyid), every related item in sending queue should be updated
-    virtual int updateSendingItemKeyid(KeyId localkeyid, KeyId keyid) = 0;
+    virtual int updateSendingItemsKeyid(KeyId localkeyid, KeyId keyid) = 0;
 
     /// upon message's confirmation (msgxid->msgid), every related item in sending queue should be updated
     virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid) = 0;
@@ -1259,7 +1259,7 @@ public:
     virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
 
     /// delete item from the sending queue
-    virtual void deleteItemFromSending(uint64_t rowid) = 0;
+    virtual void deleteSendingItem(uint64_t rowid) = 0;
 
     /// populate the sending queue in memory from DB
     virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
