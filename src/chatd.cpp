@@ -1983,17 +1983,18 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     message->backRefId = generateRefId(mCrypto);
 
     auto wptr = weakHandle();
-    marshallCall([wptr, this, message]()
+    SetOfIds recipients = mUsers;
+    marshallCall([wptr, this, message, recipients]()
     {
         if (wptr.deleted())
             return;
 
-        msgSubmit(message);
+        msgSubmit(message, recipients);
 
     }, mClient.karereClient->appCtx);
     return message;
 }
-void Chat::msgSubmit(Message* msg)
+void Chat::msgSubmit(Message* msg, SetOfIds recipients)
 {
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
@@ -2005,7 +2006,7 @@ void Chat::msgSubmit(Message* msg)
     }
     onMsgTimestamp(msg->ts);
 
-    postMsgToSending(OP_NEWMSG, msg, mUsers);
+    postMsgToSending(OP_NEWMSG, msg, recipients);
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -2213,7 +2214,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         return nullptr;
     }
 
-    SetOfIds recipients;
+    SetOfIds recipients;    // empty for already confirmed messages, since they already have a keyid
     if (msg.isSending())
     {
         // recipients must be the same from original message/s

@@ -1071,7 +1071,7 @@ public:
 
 
 protected:
-    void msgSubmit(Message* msg);
+    void msgSubmit(Message* msg, karere::SetOfIds recipients);
     bool msgEncryptAndSend(OutputQueue::iterator it);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
