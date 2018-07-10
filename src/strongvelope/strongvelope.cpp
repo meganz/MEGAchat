@@ -619,6 +619,18 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padSt
     });
 }
 
+promise::Promise<std::string>
+ProtocolHandler::encryptUnifiedKeyToUser(karere::Id user)
+{
+    return encryptKeyTo(mUnifiedKey, user)
+    .then([user](const std::shared_ptr<Buffer>& encryptedKey)
+    {
+        assert(encryptedKey && !encryptedKey->empty());
+        std::string auxKey (encryptedKey->buf(), encryptedKey->dataSize());
+        return auxKey;
+    });
+}
+
 Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser)
 {
@@ -938,6 +950,11 @@ ProtocolHandler::decryptPublicChatTitle(const Buffer& data)
 {
     try
     {
+        if (!mUnifiedKey)
+        {
+            return std::string();
+        }
+
         Buffer copy(data.dataSize());
         copy.copyFrom(data);
         auto msg = std::make_shared<chatd::Message>(
@@ -1066,11 +1083,21 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         };
         auto ctx = std::make_shared<Context>();
 
-        auto symPms = getKey(UserKeyId(message->userid, keyid), isLegacy)
-        .then([ctx](const std::shared_ptr<SendKey>& key)
+        promise::Promise<std::shared_ptr<SendKey>> symPms;
+        if (mChatMode == CHAT_MODE_PRIVATE)
         {
-            ctx->sendKey = key;
-        });
+            symPms = getKey(UserKeyId(message->userid, keyid), isLegacy);
+            symPms.then([ctx](const std::shared_ptr<SendKey>& key)
+            {
+                ctx->sendKey = key;
+            });
+        }
+        else
+        {
+            ctx->sendKey = mUnifiedKey;
+            symPms = promise::Promise<std::shared_ptr<SendKey>>();
+            symPms.resolve(ctx->sendKey);
+        }
 
         // Get signing key
         auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,

@@ -139,6 +139,9 @@ public:
     encryptUnifiedKeyForAllParticipants(uint64_t extraUser=0) = 0;
 
     virtual promise::Promise<std::string>
+    encryptUnifiedKeyToUser(karere::Id user) = 0;
+
+    virtual promise::Promise<std::string>
     decryptChatTitle(const Buffer& data) = 0;
 
     virtual std::string

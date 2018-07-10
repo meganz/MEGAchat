@@ -333,6 +333,9 @@ protected:
         encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
         encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, uint64_t extraUser=0);
+    promise::Promise<std::string>
+        encryptUnifiedKeyToUser(karere::Id user);
+
     void msgEncryptWithKey(chatd::Message &src, chatd::MsgCommand& dest,
         const StaticBuffer& key);
     promise::Promise<chatd::Message*> handleManagementMessage(
