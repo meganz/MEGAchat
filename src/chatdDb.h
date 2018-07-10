@@ -85,10 +85,10 @@ public:
             *item.msg, item.msg->updated, item.rowid);
         assertAffectedRowCount(1, "updateMsgInSending");
     }
-    virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
+    virtual int confirmKeyOfSendingItems(chatd::KeyId localkeyid, chatd::KeyId keyid)
     {
-        mDb.query("update sending set keyid = ? where rowid = ?", keyid, rowid);
-        assertAffectedRowCount(1, "confirmKeyOfSendingItem");
+        mDb.query("update sending set keyid = ? where keyid = ?", keyid, localkeyid);
+        return sqlite3_changes(mDb);
     }
     virtual void addBlobsToSendingItem(uint64_t rowid,
         const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd, chatd::KeyId keyid)
@@ -115,10 +115,10 @@ public:
         mDb.query("delete from sending where rowid = ?1", rowid);
         assertAffectedRowCount(1, "deleteItemFromSending");
     }
-    virtual void updateMsgPlaintextInSending(const chatd::Message& msg)
+    virtual int updateMsgContentAndDeltaInSending(const chatd::Message& msg)
     {
         mDb.query("update sending set msg = ? updated = ? where msgid = ?", msg, msg.updated, msg.id());
-        assertAffectedRowCount(1, "updateMsgPlaintextInSending");
+        return sqlite3_changes(mDb);
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
