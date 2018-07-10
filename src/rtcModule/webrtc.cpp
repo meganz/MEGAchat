@@ -795,14 +795,13 @@ void Call::msgCallReqCancel(RtMessage& packet)
     }
 
     auto term = packet.payload.read<uint8_t>(8);
-    if (term == TermCode::kAnswerTimeout)
+    if (term == TermCode::kUserHangup)
     {
-        destroy(static_cast<TermCode>(kAnswerTimeout | TermCode::kPeer), false);
-    }
-    else // don't notify kUserHangUp but kCallReqCancel
-    {
-        assert(term == TermCode::kUserHangup);
         destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
+    }
+    else
+    {
+        destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
     }
 }
 
