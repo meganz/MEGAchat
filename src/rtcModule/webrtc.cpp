@@ -277,12 +277,12 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
     }
-    else if (state == Call::CallDataState::kCallDataInProgress)
+    else if (state == Call::CallDataState::kCallDataNotRinging)
     {
         auto itCall = mCalls.find(chatid);
         if (itCall == mCalls.end())
         {
-            RTCM_LOG_DEBUG("Ingoring kCallDataInProgress CALLDATA for unknown call");
+            RTCM_LOG_DEBUG("Ingoring kCallDataNotRinging CALLDATA for unknown call");
             return;
         }
 
@@ -291,7 +291,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
     }
-    else if (state == Call::CallDataState::kCallDataJoin &&
+    else if (state == Call::CallDataState::kCallDataSession &&
              userid == chat.client().karereClient->myHandle() &&
              clientid != chat.connection().clientId())
     {
@@ -1052,7 +1052,7 @@ void Call::msgJoin(RtMessage& packet)
             // Send OP_CALLDATA with call inProgress
             if (!chat().isGroup())
             {
-                sendCallData(CallDataState::kCallDataInProgress);
+                sendCallData(CallDataState::kCallDataNotRinging);
             }
         }
         // create session to this peer
@@ -1265,7 +1265,7 @@ bool Call::broadcastCallReq()
         {
             // In group calls we don't stop ringing even when call is answered, but stop it
             // after some time (we use the same kAnswerTimeout duration in order to share the timer)
-            sendCallData(CallDataState::kCallDataInProgress);
+            sendCallData(CallDataState::kCallDataNotRinging);
         }
     }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
     return true;
@@ -1424,7 +1424,7 @@ bool Call::join(Id userid)
         return false;
     }
 
-    sendCallData(CallDataState::kCallDataJoin);
+    sendCallData(CallDataState::kCallDataSession);
     startIncallPingTimer();
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well

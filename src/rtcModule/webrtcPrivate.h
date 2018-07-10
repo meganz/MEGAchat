@@ -87,10 +87,10 @@ class Call: public ICall
 {
     enum CallDataState
     {
-        kCallDataInProgress     = 0,
+        kCallDataNotRinging     = 0,
         kCallDataRinging        = 1,
         kCallDataEnd            = 2,
-        kCallDataJoin           = 3,
+        kCallDataSession        = 3,
         kCallDataMute           = 4
     };
 
