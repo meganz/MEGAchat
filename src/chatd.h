@@ -1063,6 +1063,7 @@ public:
     bool isGroup() const;
     void clearHistory();
     void sendSync();
+    DbInterface* getDbInterface();
 
 
 protected:

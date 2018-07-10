@@ -2326,6 +2326,11 @@ void Chat::onLastReceived(Id msgid)
     }
 }
 
+DbInterface* Chat::getDbInterface()
+{
+    return mDbInterface;
+}
+
 void Chat::onLastSeen(Id msgid)
 {
     Idx idx = CHATD_IDX_INVALID;
