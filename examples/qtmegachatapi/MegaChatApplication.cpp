@@ -15,7 +15,6 @@ using namespace megachat;
 
 int main(int argc, char **argv)
 {
-    struct sigaction sa;
     MegaChatApplication app(argc,argv);
     app.readSid();
     app.init();

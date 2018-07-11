@@ -519,23 +519,30 @@ class Chat: public karere::DeleteTrackable
 {
 ///@cond PRIVATE
 public:
+
+    /**
+     * @brief The SendingItem struct represent items in the sending queue.
+     * Initially,
+     */
     struct SendingItem
     {
-    protected:
-        uint8_t mOpcode;
-    public:
-        uint64_t rowid;
- /** When sending a message, we attach the Message object here to avoid
-  * double-converting it when queued as a raw command in Sending, and after
-  * that (when server confirms) move it as a Message object to history buffer */
+        SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts, uint64_t aRowid=0);
+        ~SendingItem();
+
+        uint8_t mOpcode;    // NEWMSG, MSGUPDX or MSGUPD
+
+        /** When sending a message, we attach the Message object here to avoid
+        * double-converting it when queued as a raw command in Sending, and after
+        * that (when server confirms) move it as a Message object to history buffer */
         Message* msg;
         karere::SetOfIds recipients;
+        uint64_t rowid; // in the sending table of DB cache
+
+        MsgCommand *msgCmd = NULL;  // stores the encrypted NEWMSG/MSGUPDX/MSGUPD
+        KeyCommand *keyCmd = NULL;  // stores the encrypted NEWKEY, if needed
         uint8_t opcode() const { return mOpcode; }
         void setOpcode(uint8_t op) { mOpcode = op; }
-        SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts,
-            uint64_t aRowid=0)
-        : mOpcode(aOpcode), rowid(aRowid), msg(aMsg), recipients(aRcpts){}
-        ~SendingItem(){ if (msg) delete msg; }
+
         bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
         bool isEdit() const { return mOpcode == OP_MSGUPD || mOpcode == OP_MSGUPDX; }
         void setKeyId(KeyId keyid)
@@ -546,14 +553,13 @@ public:
     typedef std::list<SendingItem> OutputQueue;
     struct ManualSendItem
     {
+        ManualSendItem(Message* aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason);
+        ManualSendItem();
+
         Message* msg;
         uint64_t rowid;
         uint8_t opcode;
         ManualSendReason reason;
-        ManualSendItem(Message* aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason)
-            :msg(aMsg), rowid(aRowid), opcode(aOpcode), reason(aReason){}
-        ManualSendItem()
-            :msg(nullptr), rowid(0), opcode(0), reason(kManualSendInvalidReason){}
     };
 
     Client& mClient;
@@ -626,6 +632,7 @@ protected:
      * Thus, not writing anything about queued undecrypted messages to the db allows
      * for a clean resume from the last known good point in message history. */
     Idx mDecryptNewHaltedAt = CHATD_IDX_INVALID;
+
     /** Similar to mDecryptNewhaltedAt, but for history messages, retrieved backwards
      * in regard to time and index in history buffer. Note that the two
      *  mDecryptXXXHaltedAt operate independently. I.e. decryption of old messages may
@@ -671,7 +678,7 @@ protected:
     void handleLastReceivedSeen(karere::Id msgid);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
-    SendingItem* postMsgToSending(uint8_t opcode, Message* msg);
+    SendingItem* postMsgToSending(uint8_t opcode, Message* msg, karere::SetOfIds recipients);
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
@@ -1067,7 +1074,7 @@ public:
 
 
 protected:
-    void msgSubmit(Message* msg);
+    void msgSubmit(Message* msg, karere::SetOfIds recipients);
     bool msgEncryptAndSend(OutputQueue::iterator it);
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
@@ -1214,47 +1221,88 @@ struct ChatDbInfo
 class DbInterface
 {
 public:
-    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
-    /// Called when the client was requested to fetch history, and it knows the db contains the requested
-    /// history range.
-    /// @param startIdx - the start index of the requested history range
-    /// @param count - the number of messages to return
-    /// @param[out] messages - The app should put the messages in this vector, the most recent message being
-    /// at position 0 in the vector, and the oldest being the last. If the returned message count is less
-    /// than the requested by \c count, the client considers there is no more history in the db. However,
-    /// if the application-specified \c oldestDbId in the call to \n init() has not been retrieved yet,
-    /// an assertion will be triggered. Therefore, the application must always try to read not less than
-    /// \c count messages, in case they are avaialble in the db.
+    virtual ~DbInterface(){}
+
+
+//  <<<--- Management of the HISTORY buffer --->>>
+
+    /**
+    * @brief Called when the client was requested to fetch history
+    *
+    * @param startIdx - the start index of the requested history range
+    * @param count - the number of messages to return
+    * @param [out] messages - The app should put the messages in this vector, the most recent message being
+    * at position 0 in the vector, and the oldest being the last. If the returned message count is less
+    * than the requested by \c count, the client considers there is no more history in the db.
+    */
     virtual void fetchDbHistory(Idx startIdx, unsigned count, std::vector<Message*>& messages) = 0;
-    virtual void saveMsgToSending(Chat::SendingItem& msg) = 0;
-    virtual void updateMsgInSending(const chatd::Chat::SendingItem& item) = 0;
-    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const Command* keyCmd) = 0;
-    virtual void deleteItemFromSending(uint64_t rowid) = 0;
-    virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data) = 0;
-    virtual void updateMsgKeyIdInSending(uint64_t rowid, KeyId keyid) = 0;
-    virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
+
+    /// adds a message to the history buffer at the specified \c idx
     virtual void addMsgToHistory(const Message& msg, Idx idx) = 0;
-    virtual void confirmKeyOfSendingItem(uint64_t rowid, KeyId keyid) = 0;
+
+    /// update a message in the history buffer with the specified \c msgid
     virtual void updateMsgInHistory(karere::Id msgid, const Message& msg) = 0;
-    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
-    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
+
+
+//  <<<--- Management of the SENDING QUEUE --->>>
+
+    /// adds a new item to the sending queue
+    virtual void addSendingItem(Chat::SendingItem& msg) = 0;
+
+    /// upon message's edit, every related item in the sending queue should be updated
+    virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg) = 0;
+
+    /// upon key's confirmation (keyxid->keyid), every related item in sending queue should be updated
+    virtual int updateSendingItemsKeyid(KeyId localkeyid, KeyId keyid) = 0;
+
+    /// upon message's confirmation (msgxid->msgid), every related item in sending queue should be updated
+    virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid) = 0;
+
+    /// upon message's encryption, store MsgCommand, KeyCommand and local keyxid
+    virtual void addBlobsToSendingItem(uint64_t rowid, const MsgCommand* msgCmd, const KeyCommand* keyCmd, KeyId keyid) = 0;
+
+    /// delete item from the sending queue
+    virtual void deleteSendingItem(uint64_t rowid) = 0;
+
+    /// populate the sending queue in memory from DB
+    virtual void loadSendQueue(Chat::OutputQueue& queue) = 0;
+
+
+//  <<<--- Management of the MANUAL SENDING QUEUE --->>>
+
+    /// move a message from the sending queue to manual-sending queue
     virtual void saveItemToManualSending(const Chat::SendingItem& item, int reason) = 0;
-    virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
+
+    /// delete item from the manual-sending queue
     virtual bool deleteManualSendItem(uint64_t rowid) = 0;
+
+    /// load all messages in the manual-sending queue
+    virtual void loadManualSendItems(std::vector<Chat::ManualSendItem>& items) = 0;
+
+    /// load a single message from the manual-sending queue
     virtual void loadManualSendItem(uint64_t rowid, Chat::ManualSendItem& item) = 0;
-    virtual void truncateHistory(const chatd::Message& msg) = 0;
+
+
+//  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
+
+    virtual void getHistoryInfo(ChatDbInfo& info) = 0;
+
     virtual void setLastSeen(karere::Id msgid) = 0;
     virtual void setLastReceived(karere::Id msgid) = 0;
-    virtual chatd::Idx getOldestIdx() = 0;
-    virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid) = 0;
-    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
+
     virtual void setChatVar (const char *name, bool value) = 0;
     virtual bool chatVar (const char *name) = 0;
     virtual bool removeChatVar (const char *name) = 0;
-    virtual void chatCleanup() = 0;
+
+    virtual Idx getOldestIdx() = 0;
+    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
+    virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
+    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
+
+    virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
-    virtual ~DbInterface(){}
+    virtual void chatCleanup() = 0;
 };
 
 }

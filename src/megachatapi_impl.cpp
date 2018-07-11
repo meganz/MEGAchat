@@ -6999,12 +6999,19 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
         // hash -> fingerprint
-        const char *fingerprint = megaNode->getFingerprint();
+        const char *fingerprintMega = megaNode->getFingerprint();
+        char *fingerprint = NULL;
+        if (fingerprintMega)
+        {
+            fingerprint = MegaApiImpl::getMegaFingerprintFromSdkFingerprint(fingerprintMega);
+        }
+
         if (fingerprint)
         {
             rapidjson::Value fpValue(rapidjson::kStringType);
             fpValue.SetString(fingerprint, strlen(fingerprint), jSonAttachmentNodes.GetAllocator());
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
+            delete [] fingerprint;
         }
 
         // fa -> image thumbnail/preview/mediainfo
@@ -7063,6 +7070,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
     {
         const rapidjson::Value& file = document[i];
 
+        // nodehandle
         rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
         if (iteratorHandle == file.MemberEnd() || !iteratorHandle->value.IsString())
         {
@@ -7070,8 +7078,9 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             delete megaNodeList;
             return NULL;
         }
-        std::string handleString = iteratorHandle->value.GetString();
+        MegaHandle megaHandle = MegaApi::base64ToHandle(iteratorHandle->value.GetString());
 
+        // filename
         rapidjson::Value::ConstMemberIterator iteratorName = file.FindMember("name");
         if (iteratorName == file.MemberEnd() || !iteratorName->value.IsString())
         {
@@ -7081,6 +7090,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         std::string nameString = iteratorName->value.GetString();
 
+        // nodekey
         rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
         if (!iteratorKey->value.IsArray())
         {
@@ -7108,7 +7118,9 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
                 return NULL;
             }
         }
+        std::string key = DataTranslation::vector_to_b(kElements);
 
+        // size
         rapidjson::Value::ConstMemberIterator iteratorSize = file.FindMember("s");
         if (iteratorSize == file.MemberEnd() || !iteratorSize->value.IsInt64())
         {
@@ -7118,6 +7130,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t size = iteratorSize->value.GetInt64();
 
+        // fingerprint
         rapidjson::Value::ConstMemberIterator iteratorFp = file.FindMember("hash");
         std::string fp;
         if (iteratorFp == file.MemberEnd() || !iteratorFp->value.IsString())
@@ -7128,7 +7141,10 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         {
             fp = iteratorFp->value.GetString();
         }
+        // convert MEGA's fingerprint to the internal format used by SDK (includes size)
+        char *sdkFingerprint = !fp.empty() ? MegaApiImpl::getSdkFingerprintFromMegaFingerprint(fp.c_str(), size) : NULL;
 
+        // nodetype
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
@@ -7138,6 +7154,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int type = iteratorType->value.GetInt();
 
+        // timestamp
         rapidjson::Value::ConstMemberIterator iteratorTimeStamp = file.FindMember("ts");
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
@@ -7147,6 +7164,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
         int64_t timeStamp = iteratorTimeStamp->value.GetInt64();
 
+        // file-attrstring
         rapidjson::Value::ConstMemberIterator iteratorFa = file.FindMember("fa");
         std::string fa;
         if (iteratorFa != file.MemberEnd() && iteratorFa->value.IsString())
@@ -7154,17 +7172,14 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fa = iteratorFa->value.GetString();
         }
 
-        MegaHandle megaHandle = MegaApi::base64ToHandle(handleString.c_str());
         std::string attrstring;
-        const char* fingerprint = !fp.empty() ? fp.c_str() : NULL;
-
-        std::string key = DataTranslation::vector_to_b(kElements);
-
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, fingerprint, INVALID_HANDLE,
+                             megaHandle, &key, &attrstring, &fa, sdkFingerprint, INVALID_HANDLE,
                              NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
+
+        delete [] sdkFingerprint;
     }
 
     return megaNodeList;

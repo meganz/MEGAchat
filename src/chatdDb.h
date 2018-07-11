@@ -58,66 +58,64 @@ public:
            .append(std::to_string(actual));
         throw std::runtime_error(msg);
     }
-    void saveMsgToSending(chatd::Chat::SendingItem& item)
+
+    void addSendingItem(chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
-        assert(item.isMessage());
-        auto msg = item.msg;
+        uint8_t opcode = item.opcode();
+        assert((opcode == chatd::OP_NEWMSG)
+               || (opcode == chatd::OP_MSGUPD)
+               || (opcode == chatd::OP_MSGUPDX));
+
+        chatd::Message* msg = item.msg;
         Buffer rcpts;
         item.recipients.save(rcpts);
+
         mDb.query("insert into sending (chatid, opcode, ts, msgid, msg, type, updated, "
                          "recipients, backrefid, backrefs) values(?,?,?,?,?,?,?,?,?,?)",
-            (uint64_t)mChat.chatId(), item.opcode(), msg->ts, msg->id(),
+            (uint64_t)mChat.chatId(), opcode, msg->ts, msg->id(),
             *msg, msg->type, msg->updated, rcpts, msg->backRefId, msg->backrefBuf());
+
+        // assign the given rowid to the SendingItem
         item.rowid = sqlite3_last_insert_rowid(mDb);
     }
-    virtual void updateMsgInSending(const chatd::Chat::SendingItem& item)
+
+    virtual int updateSendingItemsKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid)
     {
-        assert(item.msg);
-        mDb.query("update sending set msg = ?, updated = ? where rowid = ?",
-            *item.msg, item.msg->updated, item.rowid);
-        assertAffectedRowCount(1, "updateMsgInSending");
+        mDb.query("update sending set keyid = ? where keyid = ?", keyid, localkeyid);
+        return sqlite3_changes(mDb);
     }
-    virtual void confirmKeyOfSendingItem(uint64_t rowid, chatd::KeyId keyid)
-    {
-        mDb.query("update sending set keyid = ? where rowid = ?",
-                    keyid, rowid);
-        assertAffectedRowCount(1, "confirmKeyOfSendingItem");
-    }
+
     virtual void addBlobsToSendingItem(uint64_t rowid,
-                    const chatd::MsgCommand* msgCmd, const chatd::Command* keyCmd)
+        const chatd::MsgCommand* msgCmd, const chatd::KeyCommand* keyCmd, chatd::KeyId keyid)
     {
-        //WARNING: Must cast *msgCmd and *keyCmd to StaticBuffer, otherwise
-        //compiler (at least clang on MacOS) seems not able to properly determine
-        //the argument type for the template parameter to sqlQuery(), which
-        //compiles without any warning, but results is corrupt data written to the db!
-        mDb.query("update sending set msg_cmd=?, key_cmd=? where rowid=?",
-            msgCmd?static_cast<StaticBuffer>(*msgCmd):StaticBuffer(nullptr, 0),
-            keyCmd?static_cast<StaticBuffer>(*keyCmd):StaticBuffer(nullptr, 0), rowid);
-        assertAffectedRowCount(1,"addCommandBlobToSendingItem");
+        // possible values of `keyid`:
+        // - NEWMSG/MSGUPDX: local keyxid = rowid of the KeyCmd related to this MsgCmd
+        // - MSGUPD: chat keyid (already confirmed)
+        mDb.query("update sending set keyid=?, msg_cmd=?, key_cmd=? where rowid=?",
+                  keyid, msgCmd->msg(),
+                  keyCmd ? keyCmd->keyblob() : StaticBuffer(nullptr, 0),
+                  rowid);
+        assertAffectedRowCount(1,"addBlobsToSendingItem");
     }
-    virtual void sendingItemMsgupdxToMsgupd(const chatd::Chat::SendingItem& item, karere::Id msgid)
+
+    virtual int updateSendingItemsMsgidAndOpcode(karere::Id msgxid, karere::Id msgid)
     {
-        assert(item.opcode() == chatd::OP_MSGUPDX);
         mDb.query(
-            "update sending set opcode=?, msgid=? where chatid=? and rowid=? and opcode=? and msgid=?",
-            chatd::OP_MSGUPD, msgid, mChat.chatId(), item.rowid, chatd::OP_MSGUPDX, item.msg->id());
-        assertAffectedRowCount(1, "updateSendingItemMsgidAndOpcode");
+            "update sending set opcode=?, msgid=? where chatid=? and opcode=? and msgid=?",
+            chatd::OP_MSGUPD, msgid, mChat.chatId(), chatd::OP_MSGUPDX, msgxid);
+        return sqlite3_changes(mDb);
     }
-    virtual void deleteItemFromSending(uint64_t rowid)
+
+    virtual void deleteSendingItem(uint64_t rowid)
     {
         mDb.query("delete from sending where rowid = ?1", rowid);
-        assertAffectedRowCount(1, "deleteItemFromSending");
+        assertAffectedRowCount(1, "deleteSendingItem");
     }
-    virtual void updateMsgPlaintextInSending(uint64_t rowid, const StaticBuffer& data)
+    virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg)
     {
-        mDb.query("update sending set msg = ? where rowid = ?", data, rowid);
-        assertAffectedRowCount(1, "updateMsgPlaintextInSending");
-    }
-    virtual void updateMsgKeyIdInSending(uint64_t rowid, chatd::KeyId keyid)
-    {
-        mDb.query("update sending set keyid = ? where rowid = ?", keyid, rowid);
-        assertAffectedRowCount(1, "updateMsgKeyIdInSending");
+        mDb.query("update sending set msg = ?, updated = ? where msgid = ?", msg, msg.updated, msg.id());
+        return sqlite3_changes(mDb);
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
@@ -169,20 +167,29 @@ public:
     virtual void loadSendQueue(chatd::Chat::OutputQueue& queue)
     {
         SqliteStmt stmt(mDb, "select rowid, opcode, msgid, keyid, msg, type, "
-            "ts, updated, backrefid, backrefs, recipients from sending where chatid=? order by rowid asc");
+            "ts, updated, backrefid, backrefs, recipients, msg_cmd, key_cmd "
+            "from sending where chatid=? order by rowid asc");
         stmt << mChat.chatId();
+
+        // Fill the sending queue with SendingItems from DB
         queue.clear();
         while(stmt.step())
         {
+            int rowid = stmt.intCol(0);
             uint8_t opcode = stmt.intCol(1);
+            karere::Id msgid = stmt.int64Col(2);
+            karere::Id userid = mChat.client().userId();
+            chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
+            unsigned char type = (unsigned char)stmt.intCol(5);
+            uint32_t ts = stmt.intCol(6);
+            uint16_t updated = stmt.intCol(7);
 
-            assert((opcode == chatd::OP_NEWMSG) || (opcode == chatd::OP_MSGUPD)
+            assert((opcode == chatd::OP_NEWMSG)
+                   || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
-            auto msg = new chatd::Message(stmt.int64Col(2), mChat.client().userId(),
-                    stmt.intCol(6), stmt.intCol(7), nullptr, 0, true, (chatd::KeyId)stmt.intCol(3),
-                    (unsigned char)stmt.intCol(5));
-            stmt.blobCol(4, *msg);
+            auto msg = new chatd::Message(msgid, userid, ts, updated, nullptr, 0, true, keyid, type);
+            stmt.blobCol(4, *msg);  // set plain-text content
             msg->backRefId = stmt.uint64Col(8);
             if (stmt.hasBlobCol(9))
             {
@@ -190,9 +197,40 @@ public:
                 stmt.blobCol(9, refs);
                 refs.read(0, msg->backRefs);
             }
+
             Buffer recpts;
             stmt.blobCol(10, recpts);
-            queue.emplace_back(opcode, msg, recpts, stmt.intCol(0));
+            karere::SetOfIds recipients;
+            recipients.load(recpts);
+
+            // add the SendingItem to the OutputQueue
+            queue.emplace_back(opcode, msg, recipients, rowid);
+
+            // if message was already encrypted, restore the MsgCommand
+            if (stmt.hasBlobCol(11))
+            {
+                chatd::KeyId chatdKeyid = (keyid < 0xffff0001) ? keyid : CHATD_KEYID_UNCONFIRMED;
+                chatd::MsgCommand *msgCmd = new chatd::MsgCommand(opcode, mChat.chatId(), userid, msgid, ts, updated, chatdKeyid);
+                Buffer buf;
+                stmt.blobCol(11, buf);
+                msgCmd->setMsg(buf.buf(), buf.dataSize());
+
+                queue.back().msgCmd = msgCmd;
+            }
+
+            // it message had a new key attached, restore the KeyCommand
+            if (stmt.hasBlobCol(12))
+            {
+                assert(queue.back().msgCmd);    // a NEWKEY must always indicate there's an encrypted NEWMSG
+                assert(opcode == chatd::OP_NEWMSG);
+
+                chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
+                Buffer buf;
+                stmt.blobCol(12, buf);
+                keyCmd->setKeyBlobs(buf.buf(), buf.dataSize());
+
+                queue.back().keyCmd = keyCmd;
+            }
         }
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
