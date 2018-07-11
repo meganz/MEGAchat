@@ -93,8 +93,6 @@ HEADERS  += asyncTest-framework.h \
             waiter/libuvWaiter.h \
             waiter/libeventWaiter.h
 
-RESOURCES += dbSchema.sql
-
 DEFINES += USE_LIBWEBSOCKETS=1
 
 CONFIG(qt) {
@@ -139,4 +137,5 @@ karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
 PRE_TARGETDEPS += karereDbSchema.cpp
 QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
 
-DISTFILES +=
+DISTFILES += \
+    $$PWD/../../src/dbSchema.sql
