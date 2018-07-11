@@ -2323,7 +2323,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed0), "The call has to be finished account 1");
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed1), "The call has to be finished account 2");
 
-    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_USER_HANGUP && *termCode0 == *termCode1,
+    ASSERT_CHAT_TEST(*termCode0 == MegaChatCall::TERM_CODE_CALL_REQ_CANCEL && *termCode0 == *termCode1,
                      "Invalid Termination code. TermCode1: "
                      + std::to_string(*termCode0)
                      + "  TermCode2: "
