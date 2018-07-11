@@ -2096,7 +2096,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 
 Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds recipients)
 {
-    // for NEWMSG, recipients is always NULL --> use current participants
+    // for NEWMSG, recipients is always current set of participants
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
     assert((opcode == OP_NEWMSG && recipients == mUsers)
@@ -4066,10 +4066,9 @@ Chat::SendingItem::SendingItem(uint8_t aOpcode, Message *aMsg, const SetOfIds &a
 
 Chat::SendingItem::~SendingItem()
 {
-    if (msg)
-    {
-        delete msg;
-    }
+    delete msg;
+    delete msgCmd;
+    delete keyCmd;
 }
 
 Chat::ManualSendItem::ManualSendItem(Message *aMsg, uint64_t aRowid, uint8_t aOpcode, ManualSendReason aReason)
