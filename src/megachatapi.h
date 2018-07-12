@@ -3824,8 +3824,9 @@ public:
         CHANGE_TYPE_TITLE               = 0x08,
         CHANGE_TYPE_USER_TYPING         = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_OWN_PRIV            = 0x40,  /// Our privilege level has changed
-        CHANGE_TYPE_USER_STOP_TYPING    = 0x80 /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
+        CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_ARCHIVE             = 0X100 /// Archived or unarchived
     };
 
     enum {
@@ -4081,6 +4082,7 @@ public:
      *  - Participants: new peer added or existing peer removed
      *  - Last message: the last relevant message in the chatroom
      *  - Last timestamp: the last date of any activity in the chatroom
+     *  - Archived: when the chat becomes archived/unarchived
      *
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
@@ -4168,7 +4170,7 @@ public:
      *
      * The changes can include: a user join/leaves the chatroom, a user changes its name,
      * the unread messages count has changed, the online state of the connection to the
-     * chat server has changed.
+     * chat server has changed, the chat becomes archived/unarchived.
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat

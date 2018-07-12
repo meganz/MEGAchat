@@ -1743,10 +1743,18 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     if (changedArchived)
     {
         mIsArchived = chat.isArchived();
+        int count = mChat->unreadMsgCount();
+
+        if (mAppChatHandler)
+        {
+            mAppChatHandler->onChatArchived(mIsArchived);
+            mAppChatHandler->onUnreadCountChanged(count);
+        }
         auto listItem = roomGui();
         if (listItem)
         {
             listItem->onChatArchived(mIsArchived);
+            listItem->onUnreadCountChanged(count);
         }
     }
     return changed;
@@ -1850,9 +1858,18 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
         bool archiveChanged = syncArchive(archive);
         if (archiveChanged)
         {
+            int count = mChat->unreadMsgCount();
+            if (mAppChatHandler)
+            {
+                mAppChatHandler->onChatArchived(archive);
+                mAppChatHandler->onUnreadCountChanged(count);
+            }
             auto listItem = roomGui();
             if (listItem)
+            {
                 listItem->onChatArchived(archive);
+                listItem->onUnreadCountChanged(count);
+            }
         }
     });
 }
@@ -2501,7 +2518,7 @@ void PeerChatRoom::onUnreadChanged()
     if (mIsArchived)
         return;
 
-    auto count = mChat->unreadMsgCount();
+    int count = mChat->unreadMsgCount();
     if (mRoomGui)
         mRoomGui->onUnreadCountChanged(count);
 
@@ -2678,9 +2695,19 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     if (archiveChanged)
     {
         mIsArchived = chat.isArchived();
+        int count = mChat->unreadMsgCount();
+
+        if (mAppChatHandler)
+        {
+            mAppChatHandler->onChatArchived(mIsArchived);
+            mAppChatHandler->onUnreadCountChanged(count);
+        }
         auto listItem = roomGui();
         if (listItem)
+        {
             listItem->onChatArchived(mIsArchived);
+            listItem->onUnreadCountChanged(count);
+        }
     }
 
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
