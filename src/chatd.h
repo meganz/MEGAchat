@@ -1061,7 +1061,8 @@ public:
     bool isGroup() const;
     void clearHistory();
     void sendSync();
-
+    bool isParticipantingInCall(karere::Id userid);
+    void removeAllCallParticipants();
 
 protected:
     void msgSubmit(Message* msg);

@@ -376,6 +376,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         if (mChatdClient.karereClient->rtc)
         {
             mChatdClient.karereClient->rtc->removeCall(chatid);
+            chat.removeAllCallParticipants();
         }
 #endif
     }
@@ -1680,6 +1681,24 @@ void Chat::clearHistory()
 void Chat::sendSync()
 {
     sendCommand(Command(OP_SYNC) + mChatId);
+}
+
+bool Chat::isParticipantingInCall(Id userid)
+{
+    for (auto it = mCallParticipants.begin(); it != mCallParticipants.end(); it++)
+    {
+        if (it->userid == userid)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void Chat::removeAllCallParticipants()
+{
+    mCallParticipants.clear();
 }
 
 Message* Chat::getMsgByXid(Id msgxid)

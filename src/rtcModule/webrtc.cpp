@@ -291,16 +291,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
     }
-    else if (state == Call::CallDataState::kCallDataSession &&
-             userid == chat.client().karereClient->myHandle() &&
-             clientid != chat.connection().clientId())
-    {
-        auto itCall = mCalls.find(chatid);
-        if (itCall != mCalls.end() && itCall->second->state() == Call::kStateRingIn)
-        {
-            itCall->second->destroy(TermCode::kAnsElsewhere, false);
-        }
-    }
 }
 
 template <class... Args>
@@ -651,7 +641,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         existingCall->hangup();
         mCalls.erase(itCall);
     }
-    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
+    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && chat.isParticipantingInCall(myHandle))
     {
         // Other client of our user is participanting in the call
         RTCM_LOG_DEBUG("hadleCallDataRequest: Ignoring call request: We are already in the group call from another client");
