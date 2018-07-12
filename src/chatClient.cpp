@@ -1743,19 +1743,7 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     if (changedArchived)
     {
         mIsArchived = chat.isArchived();
-        int count = mChat->unreadMsgCount();
-
-        if (mAppChatHandler)
-        {
-            mAppChatHandler->onChatArchived(mIsArchived);
-            mAppChatHandler->onUnreadCountChanged(count);
-        }
-        auto listItem = roomGui();
-        if (listItem)
-        {
-            listItem->onChatArchived(mIsArchived);
-            listItem->onUnreadCountChanged(count);
-        }
+        onArchivedChanged(mIsArchived);
     }
     return changed;
 }
@@ -1858,18 +1846,7 @@ promise::Promise<void> ChatRoom::archiveChat(bool archive)
         bool archiveChanged = syncArchive(archive);
         if (archiveChanged)
         {
-            int count = mChat->unreadMsgCount();
-            if (mAppChatHandler)
-            {
-                mAppChatHandler->onChatArchived(archive);
-                mAppChatHandler->onUnreadCountChanged(count);
-            }
-            auto listItem = roomGui();
-            if (listItem)
-            {
-                listItem->onChatArchived(archive);
-                listItem->onUnreadCountChanged(count);
-            }
+            onArchivedChanged(archive);
         }
     });
 }
@@ -2513,17 +2490,24 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
     }
 }
 
-void PeerChatRoom::onUnreadChanged()
+void ChatRoom::onUnreadChanged()
 {
-    if (mIsArchived)
-        return;
+    IApp::IChatListItem *room = roomGui();
+    if (room)
+    {
+        auto count = mChat->unreadMsgCount();
+        room->onUnreadCountChanged(count);
+    }
+}
 
-    int count = mChat->unreadMsgCount();
-    if (mRoomGui)
-        mRoomGui->onUnreadCountChanged(count);
-
-    if (mContact && mContact->appItem())
-        mContact->appItem()->onUnreadCountChanged(count);
+void ChatRoom::onArchivedChanged(bool archived)
+{
+    IApp::IChatListItem *room = roomGui();
+    if (room)
+    {
+        room->onChatArchived(archived);
+        onUnreadChanged();
+    }
 }
 
 void PeerChatRoom::updateTitle(const std::string& title)
@@ -2543,16 +2527,6 @@ void ChatRoom::notifyTitleChanged()
         if (mAppChatHandler)
             mAppChatHandler->onTitleChanged(mTitleString);
     }, parent.mKarereClient.appCtx);
-}
-
-void GroupChatRoom::onUnreadChanged()
-{
-    if (mIsArchived)
-        return;
-
-    auto count = mChat->unreadMsgCount();
-    if (mRoomGui)
-        mRoomGui->onUnreadCountChanged(count);
 }
 
 // return true if new peer or peer removed. Updates peer privileges as well
@@ -2694,20 +2668,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool archiveChanged = syncArchive(chat.isArchived());
     if (archiveChanged)
     {
-        mIsArchived = chat.isArchived();
-        int count = mChat->unreadMsgCount();
-
-        if (mAppChatHandler)
-        {
-            mAppChatHandler->onChatArchived(mIsArchived);
-            mAppChatHandler->onUnreadCountChanged(count);
-        }
-        auto listItem = roomGui();
-        if (listItem)
-        {
-            listItem->onChatArchived(mIsArchived);
-            listItem->onUnreadCountChanged(count);
-        }
+        onArchivedChanged(mIsArchived);
     }
 
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());

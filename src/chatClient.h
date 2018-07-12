@@ -144,7 +144,7 @@ public:
      * The handler must forward some events to the chatroom in order to
      * have the chat list item still receive events. The events that need
      * to be forwarded are:
-     * \c onUserJoin, \c onUserLeave, \c onUnreadChanged,
+     * \c onUserJoin, \c onUserLeave, \c onUnreadChanged, \c onChatArchived,
      * \c onOnlineStateChange, \c onRecvNewMessage, \c onRecvHistoryMessage.
      * @param handler The application-provided chat event handler.
      * The chatroom object does not take owhership of the handler,
@@ -182,6 +182,10 @@ public:
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
+    virtual void onUnreadChanged();
+
+    //IApp::IChatHandler implementation
+    virtual void onArchivedChanged(bool archived);
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
     promise::Promise<void> archiveChat(bool archive);
@@ -249,7 +253,6 @@ public:
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onUnreadChanged();
 /** @endcond */
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
@@ -334,9 +337,8 @@ public:
     ~GroupChatRoom();
 public:
 //chatd::Listener
-    void onUserJoin(Id userid, chatd::Priv priv);
-    void onUserLeave(Id userid);
-    void onUnreadChanged();
+    virtual void onUserJoin(Id userid, chatd::Priv priv);
+    virtual void onUserLeave(Id userid);
 //====
     /** @endcond PRIVATE */
 

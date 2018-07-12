@@ -4536,6 +4536,11 @@ void MegaChatRoomHandler::onMemberNameChanged(uint64_t /*userid*/, const std::st
 
 void MegaChatRoomHandler::onChatArchived(bool archived)
 {
+    if (mRoom)
+    {
+        mRoom->onArchivedChanged(archived);
+    }
+
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setArchived(archived);
 
