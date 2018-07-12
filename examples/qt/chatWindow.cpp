@@ -3,7 +3,7 @@
 using namespace karere;
 
 ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
-    : QDialog(parent), client(room.parent.client), mRoom(room), mWaitMsg(*this)
+    : QDialog(parent), client(room.parent.mKarereClient), mRoom(room), mWaitMsg(*this)
 {
     userp = this;
     ui.setupUi(this);

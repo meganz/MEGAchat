@@ -469,7 +469,7 @@ Promise<void> Connection::reconnect()
         mState = kStateResolving;
 
         auto wptr = weakHandle();
-        return retry("chatd", [this](int no, DeleteTrackable::Handle wptr)
+        return retry("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr)
         {
             if (wptr.deleted())
             {

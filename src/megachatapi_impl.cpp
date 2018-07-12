@@ -1752,7 +1752,7 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
 
 void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
 {
-    bool allConnected = (newState == MegaChatApi::CHAT_CONNECTION_ONLINE) ? mClient->chatd->areAllChatsLoggedIn() : false;
+    bool allConnected = (newState == MegaChatApi::CHAT_CONNECTION_ONLINE) ? mClient->mChatdClient->areAllChatsLoggedIn() : false;
 
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
     {
@@ -1913,7 +1913,7 @@ int MegaChatApiImpl::getOnlineStatus()
 {
     sdkMutex.lock();
 
-    int status = mClient ? mClient->ownPresence().status() : MegaChatApi::STATUS_INVALID;
+    int status = mClient ? mClient->ownPresence().status() : (int)MegaChatApi::STATUS_INVALID;
 
     sdkMutex.unlock();
 
@@ -1987,9 +1987,9 @@ int MegaChatApiImpl::getBackgroundStatus()
 
     sdkMutex.lock();
 
-    if (mClient && mClient->chatd)
+    if (mClient && mClient->mChatdClient)
     {
-        status = (mClient->chatd->keepaliveType() == chatd::OP_KEEPALIVE) ? 0 : 1;
+        status = (mClient->mChatdClient->keepaliveType() == chatd::OP_KEEPALIVE) ? 0 : 1;
     }
 
     sdkMutex.unlock();
@@ -2977,7 +2977,7 @@ void MegaChatApiImpl::sendStopTypingNotification(MegaChatHandle chatid, MegaChat
 
 bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
 {
-    return mClient ? mClient->chatd->isMessageReceivedConfirmationActive() : false;
+    return mClient ? mClient->mChatdClient->isMessageReceivedConfirmationActive() : false;
 }
 
 void MegaChatApiImpl::saveCurrentState()
@@ -4703,7 +4703,7 @@ std::set<MegaChatHandle> *MegaChatRoomHandler::handleNewMessage(MegaChatMessage 
     return msgToUpdate;
 }
 
-void MegaChatRoomHandler::onMemberNameChanged(uint64_t userid, const std::string &newName)
+void MegaChatRoomHandler::onMemberNameChanged(uint64_t /*userid*/, const std::string &/*newName*/)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setMembersUpdated();
@@ -4776,7 +4776,7 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
     }
 }
 
-void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool isLocal)
+void MegaChatRoomHandler::onRecvHistoryMessage(Idx idx, Message &msg, Message::Status status, bool /*isLocal*/)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
     handleHistoryMessage(message);
@@ -5844,7 +5844,7 @@ void MegaChatListItemHandler::onRejoinedChat()
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& msg)
+void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& /*msg*/)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setLastMessage();
@@ -6329,7 +6329,7 @@ void LoggerHandler::setLogToConsole(bool enable)
     gLogger.logToConsole(enable);
 }
 
-void LoggerHandler::log(krLogLevel level, const char *msg, size_t len, unsigned flags)
+void LoggerHandler::log(krLogLevel level, const char *msg, size_t /*len*/, unsigned /*flags*/)
 {
     mutex.lock();
     if (megaLogger)
@@ -6420,7 +6420,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     }
 }
 
-void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool byPeer, const string &msg)
+void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const string &/*msg*/)
 {
     assert(chatCall != NULL);
     if (chatCall != NULL)
