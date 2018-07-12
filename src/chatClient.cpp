@@ -2364,7 +2364,7 @@ void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 }
 void PeerChatRoom::onUserLeave(Id userid)
 {
-    KR_LOG_ERROR("PeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent chat, ignoring", userid.toString());
+    KR_LOG_ERROR("PeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent chat, ignoring", userid.toString().c_str());
 }
 
 void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
