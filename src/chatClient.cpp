@@ -191,6 +191,26 @@ bool Client::openDb(const std::string& sid)
 
                 ok = true;
             }
+            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            {
+                // clients with version 3 need to force a full-reload of SDK's cache to retrieve
+                // "deleted" chats from API, since it used to not return them. It should only be
+                // done in case there's at least one chat.
+
+                SqliteStmt stmt(db, "select count(*) from chats");
+                stmt.stepMustHaveData("get chats count");
+                if (stmt.intCol(0) > 0)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    api.sdk.invalidateCache();
+                }
+                else    // no chats --> only invalidate MEGAchat cache (the schema has changed)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat cache...");
+                }
+
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
