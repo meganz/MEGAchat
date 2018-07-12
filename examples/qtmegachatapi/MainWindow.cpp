@@ -408,14 +408,15 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
 
 void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
 {
-    int change = item->getChanges();
-    megachat::MegaChatHandle chatHandle = item->getChatId();
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-    itChats = chatWidgets.find(chatHandle);
+    updateLocalChatListItem(item);
 
+    megachat::MegaChatHandle chatid = item->getChatId();
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
+    itChats = chatWidgets.find(chatid);
     if (itChats != chatWidgets.end())
     {
         ChatItemWidget * chatItemWidget = itChats->second;
+        int change = item->getChanges();
         switch (change)
         {
             //Last Message update
@@ -458,13 +459,11 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
-                    updateLocalChatListItem(item);
                     orderContactChatList(allItemsVisibility , archivedItemsVisibility);
                 }
             //The Chatroom has been un/archived
             case (megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE):
                 {
-                    updateLocalChatListItem(item);
                     orderContactChatList(allItemsVisibility, archivedItemsVisibility);
                 }
         }
