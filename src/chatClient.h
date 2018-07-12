@@ -222,7 +222,7 @@ protected:
 public:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
-    const uint64_t peer() const { return mPeer; }
+    uint64_t peer() const { return mPeer; }
     chatd::Priv peerPrivilege() const { return mPeerPriv; }
 
     /**
@@ -411,7 +411,7 @@ class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr 
 {
 /** @cond PRIVATE */
 public:
-    Client& client;
+    Client& mKarereClient;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
     void removeRoom(GroupChatRoom& room);
@@ -538,6 +538,7 @@ public:
     const std::string* getUserEmail(uint64_t userid) const;
     /** @endcond */
 };
+
 /** @brief The karere Client object. Create an instance to use Karere.
  *
  *  A sequence of how the client has to be initialized:
@@ -561,19 +562,6 @@ class Client: public rtcModule::IGlobalHandler,
 {
 public:
     enum ConnState { kDisconnected = 0, kConnecting, kConnected };
-/** @cond PRIVATE */
-protected:
-    std::string mAppDir;
-//these must be before the db member, because they are initialized during the init of db member
-    Id mMyHandle = Id::null(); //mega::UNDEF
-    std::string mSid;
-    std::unique_ptr<UserAttrCache> mUserAttrCache;
-    std::string mMyEmail;
-    uint64_t mMyIdentity = 0; // seed for CLIENTID
-    ConnState mConnState = kDisconnected;
-    promise::Promise<void> mConnectPromise;
-public:
-    enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
     enum InitState: uint8_t
     {
         /** The client has just been created. \c init() has not been called yet */
@@ -636,25 +624,28 @@ public:
         kInitErrSidInvalid
     };
 
-    WebsocketsIO *websocketIO;
-    void *appCtx;
-    SqliteDb db;
-    std::unique_ptr<chatd::Client> chatd;
-    MyMegaApi api;
-    IApp& app;
+    /** @brief Convenience aliases for the \c force flag in \c setPresence() */
+    enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
+
+    std::string mAppDir;        // must be before db member because it's used during the init of db member
+    WebsocketsIO *websocketIO;  // network-layer interface
+    void *appCtx;               // app's context
+    MyMegaApi api;              // MegaApi's instance
+    IApp& app;                  // app's interface
+    SqliteDb db;                // db-layer interface
+
+    std::unique_ptr<chatd::Client> mChatdClient;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    std::unique_ptr<rtcModule::IRtcModule> rtc;
+#endif
+
     char mMyPrivCu25519[32] = {0};
     char mMyPrivEd25519[32] = {0};
     char mMyPrivRsa[1024] = {0};
     unsigned short mMyPrivRsaLen = 0;
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
-    IApp::ILoginDialog::Handle mLoginDlg;
-    UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
-    presenced::Client& presenced() { return mPresencedClient; }
-    bool contactsLoaded() const { return mContactsLoaded; }
-    ConnState connState() const { return mConnState; }
-    bool connected() const { return mConnState == kConnected; }
-    /** @endcond PRIVATE */
 
     /** @brief The contact list of the client */
     std::unique_ptr<ContactList> contactList;
@@ -662,18 +653,40 @@ public:
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
 
-    const Id myHandle() const { return mMyHandle; }
+    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
+    int mSyncCount = -1;                     // to track if all chats returned SYNC
+    promise::Promise<void> mSyncPromise;    // resolved only when up to date
 
-    /** @brief Our own display name */
-    const std::string& myName() const { return mMyName; }
+    IApp::ILoginDialog::Handle mLoginDlg;
 
-    const std::string& myEmail() const { return mMyEmail; }
+protected:
 
-    const uint64_t myIdentity() const { return mMyIdentity; }
+    Id mMyHandle = Id::null(); //mega::UNDEF
+    std::string mMyName = std::string("\0", 1);
+    std::string mMyEmail;
+    uint64_t mMyIdentity = 0; // seed for CLIENTID
+    std::unique_ptr<UserAttrCache> mUserAttrCache;
+    UserAttrCache::Handle mOwnNameAttrHandle;
 
-    /** @brief Utulity function to convert a jid to a user handle */
-    static uint64_t useridFromJid(const std::string& jid);
+    std::string mSid;
+    std::string mLastScsn;
+    InitState mInitState = kInitCreated;
+    ConnState mConnState = kDisconnected;
+    bool mContactsLoaded = false;
 
+    // resolved when fetchnodes is completed
+    promise::Promise<void> mSessionReadyPromise;
+
+    // resolved when connection to presenced is established
+    promise::Promise<void> mConnectPromise;
+
+    Presence mOwnPresence = Presence::kInvalid;
+    presenced::Client mPresencedClient;
+    std::string mPresencedUrl;
+
+    megaHandle mHeartbeatTimer = 0;
+
+public:
     /**
      * @brief Creates a karere Client.
      *
@@ -690,6 +703,19 @@ public:
            uint8_t caps, void *ctx = NULL);
 
     virtual ~Client();
+
+    const Id myHandle() const { return mMyHandle; }
+    const std::string& myName() const { return mMyName; }
+    const std::string& myEmail() const { return mMyEmail; }
+    uint64_t myIdentity() const { return mMyIdentity; }
+    UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
+
+    ConnState connState() const { return mConnState; }
+    bool connected() const { return mConnState == kConnected; }
+    bool contactsLoaded() const { return mContactsLoaded; }
+
+    Presence ownPresence() const { return mOwnPresence; }
+    presenced::Client& presenced() { return mPresencedClient; }
 
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged in
@@ -735,7 +761,6 @@ public:
     static const char* initStateToStr(unsigned char state);
     const char* connStateStr() const { return connStateToStr(mConnState); }
     static const char* connStateToStr(ConnState state);
-
 
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
@@ -790,9 +815,6 @@ public:
      */
     void terminate(bool deleteDb=false);
 
-    /** @brief Convenience aliases for the \c force flag in \c setPresence() */
-    enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
-
     /**
     * @brief set user's chat presence.
     * Set user's presence state
@@ -802,10 +824,6 @@ public:
     */
     promise::Promise<void> setPresence(const Presence pres);
 
-    /**
-     * @brief Returns our own presence, as received by the presenced client
-     */
-    Presence ownPresence() const { return mOwnPresence; }
     /** @brief Creates a group chatroom with the specified peers, privileges
      * and title.
      * @param peers A vector of userhandle and privilege pairs for each of
@@ -817,48 +835,33 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
+
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
+
     bool isCallInProgress() const;
 #ifndef KARERE_DISABLE_WEBRTC
-    std::unique_ptr<rtcModule::IRtcModule> rtc;
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
 
     promise::Promise<void> pushReceived();
-    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
-    int mSyncCount;                         // to track if all chats returned SYNC
-    promise::Promise<void> mSyncPromise;    // resolved only when up to date
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
-/** @cond PRIVATE */
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
 
 protected:
-    std::string mMyName;
-    bool mContactsLoaded = false;
-    promise::Promise<void> mSessionReadyPromise;
-    Presence mOwnPresence;
-    /** @brief Our own email address */
-    std::string mEmail;
-    /** @brief Our password */
-    std::string mPassword;
-    /** @brief Client's contact list */
-    presenced::Client mPresencedClient;
-    std::string mPresencedUrl;
-    UserAttrCache::Handle mOwnNameAttrHandle;
-    megaHandle mHeartbeatTimer = 0;
-    std::string mLastScsn;
     void heartbeat();
-    InitState mInitState = kInitCreated;
     void setInitState(InitState newState);
+
+    // db-related methods
     std::string dbPath(const std::string& sid) const;
     bool openDb(const std::string& sid);
     void createDb();
     void wipeDb(const std::string& sid);
     void createDbSchema();
-    void connectToChatd(bool isInBackground);
+
+    // initialization of own handle/email/identity/keys/contacts...
     karere::Id getMyHandleFromDb();
     karere::Id getMyHandleFromSdk();
     std::string getMyEmailFromDb();
@@ -868,11 +871,15 @@ protected:
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
     void loadContactListFromApi(::mega::MegaUserList& contactList);
+
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
+
+    // connection-related methods
+    void connectToChatd(bool isInBackground);
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
- //   void setOwnPresence(Presence pres);
     promise::Promise<int> initializeContactList();
+
     /** @brief A convenience method to log in the associated Mega SDK instance,
      *  using IApp::ILoginDialog to ask the user/app for credentials. This
      * method is to be used in a standalone chat app where the SDK instance is not
@@ -911,10 +918,10 @@ protected:
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
+
     //==
     friend class ChatRoom;
     friend class ChatRoomList;
-/** @endcond PRIVATE */
 };
 
 }

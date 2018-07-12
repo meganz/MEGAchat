@@ -75,7 +75,7 @@ void Client::notifyLoggedIn()
     mLoginPromise.resolve();
 }
 
-void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
 {
     onSocketClose(errcode, errtype, preason);
 }
@@ -201,7 +201,7 @@ Client::reconnect(const std::string& url)
         setConnState(kResolving);
 
         auto wptr = weakHandle();
-        return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
+        return retry("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr)
         {
             if (wptr.deleted())
             {

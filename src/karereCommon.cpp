@@ -39,7 +39,7 @@ void globalCleanup()
     services_shutdown();
 }
 
-void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned flags)
+void RemoteLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsigned /*flags*/)
 {
 //WARNING:
 //This is a logger callback, and can be called by worker threads.
