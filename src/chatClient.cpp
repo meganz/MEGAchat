@@ -720,6 +720,7 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
+                api.sdk.resumeActionPackets();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
@@ -729,15 +730,16 @@ void Client::onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *reque
                 .fail([this](const promise::Error& err)
                 {
                     mSessionReadyPromise.reject(err);
+                    api.sdk.resumeActionPackets();
                     return err;
                 })
                 .then([this]()
                 {
                     setInitState(kInitHasOnlineSession);
                     mSessionReadyPromise.resolve();
+                    api.sdk.resumeActionPackets();
                 });
             }
-            api.sdk.resumeActionPackets();
         }, appCtx);
         break;
     }
