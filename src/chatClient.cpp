@@ -1483,7 +1483,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, sdkPeers, enctitleB64](chatd::KeyCommand *kCommand) -> ApiPromise
+            .then([wptr, this, sdkPeers, enctitleB64](chatd::KeyCommand *keyCmd) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
@@ -1497,7 +1497,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                     uhB64[11] = '\0';
 
                     //Get peer unified key
-                    auto useruk = kCommand->getKeyByUserId(peerHandle);
+                    auto useruk = keyCmd->getKeyByUserId(peerHandle);
 
                     //Get creator handle in binary
                     uint64_t auxcreatorHandle = this->myHandle().val;
@@ -1524,7 +1524,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 ohB64[11] = '\0';
 
                 //Get own unified key
-                auto ownKey = kCommand->getKeyByUserId(myHandle());
+                auto ownKey = keyCmd->getKeyByUserId(myHandle());
 
                 //Append [creatorhandle+uk]
                 char *creatorHandleBin = new char[mega::USERHANDLE];

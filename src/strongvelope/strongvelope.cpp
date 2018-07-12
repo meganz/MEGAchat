@@ -1591,8 +1591,14 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
 {
     assert(!mUnifiedKey->empty());
     auto wptr = weakHandle();
+    SetOfIds participants = *mParticipants;
 
-    return encryptKeyToAllParticipants(mUnifiedKey, extraUser)
+    if(extraUser)
+    {
+        participants.insert(extraUser);
+    }
+
+    return encryptKeyToAllParticipants(mUnifiedKey, participants)
     .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
     {
         wptr.throwIfDeleted();
