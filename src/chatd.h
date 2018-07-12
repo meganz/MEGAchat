@@ -100,7 +100,7 @@ public:
      * @param status - The 'seen' status of the message. Normally it should be
      * 'not seen', until we call setMessageSeen() on it
      */
-    virtual void onRecvNewMessage(Idx idx, Message& msg, Message::Status status){}
+    virtual void onRecvNewMessage(Idx /*idx*/, Message& /*msg*/, Message::Status /*status*/){}
 
     /** @brief A history message has been received, as a result of getHistory().
      * @param idx The index of the message in the history buffer
@@ -109,7 +109,7 @@ public:
      * @param isLocal The message can be received from the server, or from the app's local
      * history db via \c fetchDbHistory() - this parameter specifies the source
      */
-    virtual void onRecvHistoryMessage(Idx idx, Message& msg, Message::Status status, bool isLocal){}
+    virtual void onRecvHistoryMessage(Idx /*idx*/, Message& /*msg*/, Message::Status /*status*/, bool /*isLocal*/){}
 
     /**
      * @brief The retrieval of the requested history batch, via \c getHistory(), was completed
@@ -119,7 +119,7 @@ public:
      * from mixing messages from local source and from server, as they are never
      * mixed in one history chunk.
      */
-    virtual void onHistoryDone(HistSource source) {}
+    virtual void onHistoryDone(HistSource /*source*/) {}
 
     /**
      * @brief An unsent message was loaded from local db. The app should normally
@@ -128,7 +128,7 @@ public:
      * the message posting ocurrent, from the oldest to the newest,
      * i.e. subsequent onUnsentMsgLoaded() calls are for newer unsent messages
      */
-    virtual void onUnsentMsgLoaded(Message& msg) {}
+    virtual void onUnsentMsgLoaded(Message& /*msg*/) {}
 
     /**
      * @brief An unsent edit of a message was loaded. Similar to \c onUnsentMsgLoaded()
@@ -138,7 +138,7 @@ public:
      * @note The calls to \c onUnsentMsgLoaded() and \c onUnsentEditLoaded()
      * are done in the order of the corresponding events (send, edit)
      */
-    virtual void onUnsentEditLoaded(Message& msg, bool oriMsgIsSending) {}
+    virtual void onUnsentEditLoaded(Message& /*msg*/, bool /*oriMsgIsSending*/) {}
 
     /** @brief A message sent by us was acknoledged by the server, assigning it a MSGID.
       * At this stage, the message state is "received-by-server", and it is in the history
@@ -148,7 +148,7 @@ public:
       * @param msg - The message object - \c id() returns a real msgid, and \c isSending() is \c false
       * @param idx - The history buffer index at which the message was put
       */
-    virtual void onMessageConfirmed(karere::Id msgxid, const Message& msg, Idx idx){}
+    virtual void onMessageConfirmed(karere::Id /*msgxid*/, const Message& /*msg*/, Idx /*idx*/){}
 
      /** @brief A message was rejected by the server for some reason.
       * As the message is not yet in the history buffer, its \c id()
@@ -174,13 +174,13 @@ public:
       * of the message. The client must have already received this message as
       * a NEWMSG upon reconnect, so it can just remove the pending message.
       */
-    virtual void onMessageRejected(const Message& msg, uint8_t reason){}
+    virtual void onMessageRejected(const Message& /*msg*/, uint8_t /*reason*/){}
 
     /** @brief A message was delivered, seen, etc. When the seen/received pointers are advanced,
      * this will be called for each message of the pointer-advanced range, so the application
      * doesn't need to iterate over ranges by itself
      */
-    virtual void onMessageStatusChange(Idx idx, Message::Status newStatus, const Message& msg){}
+    virtual void onMessageStatusChange(Idx /*idx*/, Message::Status /*newStatus*/, const Message& /*msg*/){}
 
     /**
      * @brief Called when a message edit is received, i.e. MSGUPD is received.
@@ -191,14 +191,14 @@ public:
      * @param msg The edited message
      * @param idx - the index of the edited message
      */
-    virtual void onMessageEdited(const Message& msg, Idx idx){}
+    virtual void onMessageEdited(const Message& /*msg*/, Idx /*idx*/){}
 
     /** @brief An edit posted by us was rejected for some reason.
      * // TODO
      * @param msg
      * @param reason
      */
-    virtual void onEditRejected(const Message& msg, ManualSendReason reason){}
+    virtual void onEditRejected(const Message& /*msg*/, ManualSendReason /*reason*/){}
 
     /** @brief The chatroom connection (to the chatd server shard) state
      * has changed.
@@ -208,13 +208,13 @@ public:
     /** @brief A user has joined the room, or their privilege has
      * changed.
      */
-    virtual void onUserJoin(karere::Id userid, Priv privilege){}
+    virtual void onUserJoin(karere::Id /*userid*/, Priv /*privilege*/){}
 
     /**
      * @brief onUserLeave User has been excluded from the group chat
      * @param userid The userid of the user
      */
-    virtual void onUserLeave(karere::Id userid){}
+    virtual void onUserLeave(karere::Id /*userid*/){}
 
     /** @brief We have been excluded from this chatroom */
     virtual void onExcludedFromChat() {}
@@ -237,7 +237,7 @@ public:
      * this is used to identify the message in seubsequent retry/cancel
      * @param reason - The code of the reason why the message could not be auto sent
      */
-    virtual void onManualSendRequired(Message* msg, uint64_t id, ManualSendReason reason) {}
+    virtual void onManualSendRequired(Message* /*msg*/, uint64_t /*id*/, ManualSendReason /*reason*/) {}
 
     /**
      * @brief onHistoryTruncated The history of the chat was truncated by someone
@@ -247,7 +247,7 @@ public:
      * overwritten with a management message that contains information who truncated the message.
      * @param idx - The index of \c msg
      */
-    virtual void onHistoryTruncated(const Message& msg, Idx idx) {}
+    virtual void onHistoryTruncated(const Message& /*msg*/, Idx /*idx*/) {}
 
     /**
      * @brief onMsgOrderVerificationFail The message ordering check for \c msg has
@@ -269,7 +269,7 @@ public:
      * @param userid The user that is typing. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
-    virtual void onUserTyping(karere::Id userid) {}
+    virtual void onUserTyping(karere::Id /*userid*/) {}
 
     /**
      * @brief onUserStopTyping Called when a signal is received that a peer
@@ -278,14 +278,14 @@ public:
      * @param userid The user that has stop to type. The app can use the user attrib
      * cache to get a human-readable name for the user.
      */
-    virtual void onUserStopTyping(karere::Id userid) {}
+    virtual void onUserStopTyping(karere::Id /*userid*/) {}
 
     /**
      * @brief Called when the last known text message changes/is updated, so that
      * the app can display it next to the chat title
      * @param msg Contains the properties of the last text message
      */
-    virtual void onLastTextMessageUpdated(const LastTextMsg& msg) {}
+    virtual void onLastTextMessageUpdated(const LastTextMsg& /*msg*/) {}
     /**
      * @brief Called when a message with a newer timestamp/modification time
      * is encountered. This can be used by the app to order chats in the chat
@@ -293,7 +293,7 @@ public:
      * @param ts The timestamp of the newer message. If a message is edited,
      * ts is the sum of the original message timestamp and the update delta.
      */
-    virtual void onLastMessageTsUpdated(uint32_t ts) {}
+    virtual void onLastMessageTsUpdated(uint32_t /*ts*/) {}
 
     /**
      * @brief Called when a chat is going to reload its history after the server rejects JOINRANGEHIST
@@ -305,11 +305,11 @@ class Connection;
 class IRtcHandler
 {
 public:
-    virtual void handleMessage(Chat& chat, const StaticBuffer& msg) {}
-    virtual void handleCallData(Chat& chat, karere::Id chatid, karere::Id userid, uint32_t clientid, const StaticBuffer& msg) {}
+    virtual void handleMessage(Chat& /*chat*/, const StaticBuffer& /*msg*/) {}
+    virtual void handleCallData(Chat& /*chat*/, karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/, const StaticBuffer& /*msg*/) {}
     virtual void onShutdown() {}
-    virtual void onUserOffline(karere::Id chatid, karere::Id userid, uint32_t clientid) {}
-    virtual void onDisconnect(chatd::Connection& conn) {}
+    virtual void onUserOffline(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
+    virtual void onDisconnect(chatd::Connection& /*conn*/) {}
 
     /**
      * @brief This function is used to stop incall timer call during reconnection process

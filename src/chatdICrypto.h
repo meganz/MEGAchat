@@ -80,17 +80,17 @@ public:
     /**
      * @brief The chatroom connection (to the chatd server shard) state state has changed.
      */
-    virtual void onOnlineStateChange(ChatState state){}
+    virtual void onOnlineStateChange(ChatState /*state*/){}
 
     /**
      * @brief A user has joined, or their privilege has changed
      * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
      * left the chat
      */
-    virtual void onUserJoin(karere::Id userid){}
+    virtual void onUserJoin(karere::Id /*userid*/){}
 
     /**  @brief A user has left the room */
-    virtual void onUserLeave(karere::Id userid){}
+    virtual void onUserLeave(karere::Id /*userid*/){}
 
     /**
     * @brief A key was received from the server, and added to Chat.keys
