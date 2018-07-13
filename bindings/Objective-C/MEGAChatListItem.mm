@@ -152,6 +152,7 @@ using namespace megachat;
             break;
         case MEGAChatListItemChangeTypeArchived:
             result = @"Archived";
+            break;
             
         default:
             result = @"Default";
