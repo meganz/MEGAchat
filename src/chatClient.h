@@ -144,7 +144,7 @@ public:
      * The handler must forward some events to the chatroom in order to
      * have the chat list item still receive events. The events that need
      * to be forwarded are:
-     * \c onUserJoin, \c onUserLeave, \c onUnreadChanged, \c onChatArchived,
+     * \c onUserJoin, \c onUserLeave, \c onUnreadChanged,
      * \c onOnlineStateChange, \c onRecvNewMessage, \c onRecvHistoryMessage.
      * @param handler The application-provided chat event handler.
      * The chatroom object does not take owhership of the handler,

@@ -2492,11 +2492,15 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
 
 void ChatRoom::onUnreadChanged()
 {
+    auto count = mChat->unreadMsgCount();
     IApp::IChatListItem *room = roomGui();
     if (room)
     {
-        auto count = mChat->unreadMsgCount();
         room->onUnreadCountChanged(count);
+    }
+    if (mAppChatHandler)
+    {
+        mAppChatHandler->onUnreadCountChanged(count);
     }
 }
 
@@ -2506,8 +2510,15 @@ void ChatRoom::onArchivedChanged(bool archived)
     if (room)
     {
         room->onChatArchived(archived);
-        onUnreadChanged();
     }
+    if (mAppChatHandler)
+    {
+        mAppChatHandler->onChatArchived(archived);
+    }
+
+    // since the archived rooms don't count for the chats with unread messages,
+    // we need to notifiy the apps about the changes on unread messages.
+    onUnreadChanged();
 }
 
 void PeerChatRoom::updateTitle(const std::string& title)
