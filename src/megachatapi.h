@@ -1216,7 +1216,8 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
-        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
+        TYPE_PUSH_RECEIVED,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2364,11 +2365,36 @@ public:
      * MegaChatRoom objects, but a limited set of data that is usually displayed
      * at the list of chatrooms, like the title of the chat or the unread count.
      *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
      * You take the ownership of the returned value
      *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     MegaChatListItemList *getChatListItems();
+
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) that contains a certain set of participants
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function returns even archived chatrooms.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param peers MegaChatPeerList that contains the user handles of the chat participants,
+     * except our own handle because MEGAchat doesn't include them in the map of members for each chatroom.
+     *
+     * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
+     */
+    MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
 
     /**
      * @brief Get the MegaChatListItem that has a specific handle
@@ -2394,7 +2420,7 @@ public:
     /**
      * @brief Return the number of chatrooms with unread messages
      *
-     * Inactive chatrooms with unread messages are not considered.
+     * Archived chatrooms with unread messages are not considered.
      *
      * @return The number of chatrooms with unread messages
      */
@@ -2412,9 +2438,8 @@ public:
     /**
      * @brief Return the chatrooms that are currently inactive
      *
-     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
-     * when the contact-relationship is broken (you remove the contact or you are
-     * removed by the other contact).
+     * Chatrooms became inactive when you left a groupchat or you are removed by
+     * a moderator. 1on1 chats do not become inactive, just read-only.
      *
      * You take the onwership of the returned value.
      *
@@ -2423,7 +2448,18 @@ public:
     MegaChatListItemList *getInactiveChatListItems();
 
     /**
+     * @brief Return the archived chatrooms
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the archived chatrooms
+     */
+    MegaChatListItemList *getArchivedChatListItems();
+
+    /**
      * @brief Return the chatrooms that have unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
      *
      * You take the onwership of the returned value.
      *
@@ -2632,6 +2668,28 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows to un/archive chats
+     *
+     * This is a per-chat and per-user option, and it's intended to be used when the user does
+     * not care anymore about an specific chatroom. Archived chatrooms should be displayed in a
+     * different section or alike, so it can be clearly identified as archived.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ARCHIVE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if chat is to be archived or unarchived
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
+     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param archive True to set the chat as archived, false to unarchive it.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened
@@ -3558,12 +3616,13 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01, /// obsolete
         CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
-        CHANGE_TYPE_UNREAD_COUNT    = 0x04,
+        CHANGE_TYPE_UNREAD_COUNT    = 0x04, /// Unread count updated
         CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
-        CHANGE_TYPE_TITLE           = 0x10,
+        CHANGE_TYPE_TITLE           = 0x10, /// Title updated
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80  /// Timestamp of the last activity
+        CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
+        CHANGE_TYPE_ARCHIVE         = 0X100 /// Archived or unarchived
     };
 
     virtual ~MegaChatListItem() {}
@@ -3713,6 +3772,12 @@ public:
     virtual bool isActive() const;
 
     /**
+     * @brief Returns whether the chat is currently archived or not.
+     * @return True if the chat is archived, false otherwise.
+     */
+    virtual bool isArchived() const;
+
+    /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms
      *
      * The returned value is only valid for 1on1 chatrooms. For groupchats, it will
@@ -3755,8 +3820,9 @@ public:
         CHANGE_TYPE_TITLE               = 0x08,
         CHANGE_TYPE_USER_TYPING         = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_OWN_PRIV            = 0x40,  /// Our privilege level has changed
-        CHANGE_TYPE_USER_STOP_TYPING    = 0x80 /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
+        CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_ARCHIVE             = 0X100 /// Archived or unarchived
     };
 
     enum {
@@ -3976,6 +4042,12 @@ public:
      */
     virtual bool isActive() const;
 
+    /**
+     * @brief Returns whether the chat is currently archived or not.
+     * @return True if the chat is archived, false otherwise.
+     */
+    virtual bool isArchived() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };
@@ -4006,6 +4078,7 @@ public:
      *  - Participants: new peer added or existing peer removed
      *  - Last message: the last relevant message in the chatroom
      *  - Last timestamp: the last date of any activity in the chatroom
+     *  - Archived: when the chat becomes archived/unarchived
      *
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
@@ -4093,7 +4166,7 @@ public:
      *
      * The changes can include: a user join/leaves the chatroom, a user changes its name,
      * the unread messages count has changed, the online state of the connection to the
-     * chat server has changed.
+     * chat server has changed, the chat becomes archived/unarchived.
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat

@@ -188,6 +188,26 @@ bool Client::openDb(const std::string& sid)
 
                 ok = true;
             }
+            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            {
+                // clients with version 3 need to force a full-reload of SDK's cache to retrieve
+                // "deleted" chats from API, since it used to not return them. It should only be
+                // done in case there's at least one chat.
+
+                SqliteStmt stmt(db, "select count(*) from chats");
+                stmt.stepMustHaveData("get chats count");
+                if (stmt.intCol(0) > 0)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    api.sdk.invalidateCache();
+                }
+                else    // no chats --> only invalidate MEGAchat cache (the schema has changed)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat cache...");
+                }
+
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -1357,22 +1377,25 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
     });
 }
 
-promise::Promise<void> GroupChatRoom::excludeMember(uint64_t user)
+promise::Promise<void> GroupChatRoom::excludeMember(uint64_t userid)
 {
     auto wptr = getDelTracker();
-    return parent.mKarereClient.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), user)
-    .then([this, wptr, user]()
+    return parent.mKarereClient.api.callIgnoreResult(&mega::MegaApi::removeFromChat, chatid(), userid)
+    .then([this, wptr, userid]()
     {
         wptr.throwIfDeleted();
-        removeMember(user);
+        if (removeMember(userid) && !mHasTitle)
+        {
+            makeTitleFromMemberNames();
+        }
     });
 }
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
-  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& aTitle)
+  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& aTitle)
    :parent(aParent), mChatid(chatid),
     mShardNo(aShard), mIsGroup(aIsGroup),
-    mOwnPriv(aOwnPriv), mTitleString(aTitle), mCreationTs(ts)
+    mOwnPriv(aOwnPriv), mCreationTs(ts), mIsArchived(aIsArchived), mTitleString(aTitle)
 {}
 
 //chatd::Listener
@@ -1521,8 +1544,8 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, const std::string& title)
-:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, title),
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title)
+:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -1589,8 +1612,8 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts)
-:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts), mPeer(peer),
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts, bool aIsArchived)
+:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived), mPeer(peer),
   mPeerPriv(peerPriv),
   mRoomGui(nullptr)
 {
@@ -1602,12 +1625,11 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
     :ChatRoom(parent, chat.getHandle(), false, chat.getShard(),
-     (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime()),
-    mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)),
-    mRoomGui(nullptr)
+     (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
+      mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
-    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created) values (?,?,?,?,?,?)",
-        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime());
+    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
@@ -1654,7 +1676,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 }
             });
 
-        if (mTitleString.empty()) // user attrib fetch was not synchornous
+        if (mTitleString.empty()) // user attrib fetch was not synchronous
         {
             updateTitle(encodeFirstName(mEmail));
             assert(!mTitleString.empty());
@@ -1684,7 +1706,18 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         return false;
 
     mOwnPriv = priv;
-    parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", priv, mChatid);
+    parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
+
+    return true;
+}
+
+bool ChatRoom::syncArchive(bool aIsArchived)
+{
+    if (mIsArchived == aIsArchived)
+        return false;
+
+    mIsArchived = aIsArchived;
+    parent.mKarereClient.db.query("update chats set archived = ? where chatid = ?", mIsArchived, mChatid);
 
     return true;
 }
@@ -1695,15 +1728,23 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
         return false;
 
     mPeerPriv = priv;
-    parent.mKarereClient.db.query("update chats set peer_priv = ? where chatid = ?", priv, mChatid);
+    parent.mKarereClient.db.query("update chats set peer_priv = ? where chatid = ?", mPeerPriv, mChatid);
 
     return true;
 }
 
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
-    bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);   // returns true if own privilege has changed
+    bool changed = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());   // returns true if own privilege has changed
+    bool changedArchived = syncArchive(chat.isArchived());
+    changed |= changedArchived;
     changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
+
+    if (changedArchived)
+    {
+        mIsArchived = chat.isArchived();
+        onArchivedChanged(mIsArchived);
+    }
     return changed;
 }
 
@@ -1751,19 +1792,20 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
 
 bool GroupChatRoom::removeMember(uint64_t userid)
 {
+    KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", Id(mChatid).toString().c_str(), Id(userid).toString().c_str());
+
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
     {
         KR_LOG_WARNING("GroupChatRoom::removeMember for a member that we don't have, ignoring");
         return false;
     }
+
     delete it->second;
-    mPeers.erase(it);
+    mPeers.erase(it);    
     parent.mKarereClient.presenced().removePeer(userid);
-    parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?",
-                mChatid, userid);
-    if (!mHasTitle)
-        makeTitleFromMemberNames();
+    parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
+
     return true;
 }
 
@@ -1793,6 +1835,22 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
+promise::Promise<void> ChatRoom::archiveChat(bool archive)
+{
+    auto wptr = getDelTracker();
+    return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::archiveChat, chatid(), archive)
+    .then([this, wptr, archive]()
+    {
+        wptr.throwIfDeleted();
+
+        bool archiveChanged = syncArchive(archive);
+        if (archiveChanged)
+        {
+            onArchivedChanged(archive);
+        }
+    });
+}
+
 void GroupChatRoom::deleteSelf()
 {
     //have to post a delete on the event loop, as there may be pending
@@ -1818,7 +1876,7 @@ ChatRoomList::ChatRoomList(Client& aClient)
 
 void ChatRoomList::loadFromDb()
 {
-    SqliteStmt stmt(mKarereClient.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title from chats");
+    SqliteStmt stmt(mKarereClient.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -1830,9 +1888,9 @@ void ChatRoomList::loadFromDb()
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1));
+            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(6));
         emplace(chatid, room);
     }
 }
@@ -1996,7 +2054,7 @@ ChatRoomList::~ChatRoomList()
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime()), mRoomGui(nullptr)
+  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()), mRoomGui(nullptr)
 {
     auto title = aChat.getTitle();
     if (title && title[0])
@@ -2047,8 +2105,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     db.query("delete from chat_peers where chatid=?", mChatid);
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created) values(?,?,-1,0,?,?)",
-        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime());
+        "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
+        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
 
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
@@ -2267,16 +2325,6 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     });
 }
 
-bool ChatRoom::syncRoomPropertiesWithApi(const mega::MegaTextChat &chat)
-{
-    if (chat.getShard() != mShardNo)
-        throw std::runtime_error("syncWithApi: Shard number of chat can't change");
-    if (chat.isGroup() != mIsGroup)
-        throw std::runtime_error("syncWithApi: isGroup flag can't change");
-
-    return syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
-}
-
 //chatd::Listener::init
 void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
@@ -2348,7 +2396,10 @@ void GroupChatRoom::onUserLeave(Id userid)
     }
     else
     {
-        removeMember(userid);
+        if (removeMember(userid) && !mHasTitle)
+        {
+            makeTitleFromMemberNames();
+        }
 
         if (mRoomGui)
             mRoomGui->onUserLeave(userid);
@@ -2439,14 +2490,35 @@ void ChatRoom::onMessageStatusChange(chatd::Idx idx, chatd::Message::Status stat
     }
 }
 
-void PeerChatRoom::onUnreadChanged()
+void ChatRoom::onUnreadChanged()
 {
     auto count = mChat->unreadMsgCount();
-    if (mRoomGui)
-        mRoomGui->onUnreadCountChanged(count);
+    IApp::IChatListItem *room = roomGui();
+    if (room)
+    {
+        room->onUnreadCountChanged(count);
+    }
+    if (mAppChatHandler)
+    {
+        mAppChatHandler->onUnreadCountChanged(count);
+    }
+}
 
-    if (mContact && mContact->appItem())
-        mContact->appItem()->onUnreadCountChanged(count);
+void ChatRoom::onArchivedChanged(bool archived)
+{
+    IApp::IChatListItem *room = roomGui();
+    if (room)
+    {
+        room->onChatArchived(archived);
+    }
+    if (mAppChatHandler)
+    {
+        mAppChatHandler->onChatArchived(archived);
+    }
+
+    // since the archived rooms don't count for the chats with unread messages,
+    // we need to notifiy the apps about the changes on unread messages.
+    onUnreadChanged();
 }
 
 void PeerChatRoom::updateTitle(const std::string& title)
@@ -2468,44 +2540,43 @@ void ChatRoom::notifyTitleChanged()
     }, parent.mKarereClient.appCtx);
 }
 
-void GroupChatRoom::onUnreadChanged()
+// return true if new peer or peer removed. Updates peer privileges as well
+bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
-    auto count = mChat->unreadMsgCount();
-    if (mRoomGui)
-        mRoomGui->onUnreadCountChanged(count);
-}
+    UserPrivMap users;
+    auto members = chat.getPeerList();
+    if (members)
+    {
+        auto size = members->size();
+        for (int i = 0; i < size; i++)
+        {
+            users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+        }
+    }
 
-// return true if new peer, peer removed or peer's privilege updated
-bool GroupChatRoom::syncMembers(const UserPrivMap& users)
-{
-    bool changed = false;
-    auto db = parent.mKarereClient.db;
+    bool peersChanged = false;
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
+        auto member = ourIt->second;
+
         auto it = users.find(userid);
         if (it == users.end()) //we have a user that is not in the chatroom anymore
         {
-            changed = true;
-            auto erased = ourIt;
-            ourIt++;
-            auto member = erased->second;
-            mPeers.erase(erased);
-            delete member;
-            db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
-            KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Removed member %s",
-                 Id(mChatid).toString().c_str(),  Id(userid).toString().c_str());
+            peersChanged = true;
+            ourIt++;    // prevent iterator becoming invalid due to removal
+            removeMember(userid);
         }
-        else
+        else    // existing peer changed privilege
         {
-            if (ourIt->second->mPriv != it->second)
+            if (member->mPriv != it->second)
             {
-                changed = true;
-                db.query("update chat_peers set priv=? where chatid=? and userid=?", it->second, mChatid, userid);
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
                      Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
-                     ourIt->second->mPriv, it->second);
-                ourIt->second->mPriv = it->second;
+                     member->mPriv, it->second);
+
+                member->mPriv = it->second;
+                parent.mKarereClient.db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
             }
             ourIt++;
         }
@@ -2516,12 +2587,12 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
     {
         if (mPeers.find(user.first) == mPeers.end())
         {
-            changed = true;
+            peersChanged = true;
             promises.push_back(addMember(user.first, user.second, true));
         }
     }
 
-    if (promises.size() > 0)
+    if (peersChanged)
     {
         auto wptr = weakHandle();
         promise::when(promises)
@@ -2535,7 +2606,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
         });
     }
 
-    return changed;
+    return peersChanged;
 }
 void GroupChatRoom::clearTitle()
 {
@@ -2545,78 +2616,74 @@ void GroupChatRoom::clearTitle()
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
+    // Own privilege changed
     auto oldPriv = mOwnPriv;
-    bool changed = ChatRoom::syncRoomPropertiesWithApi(chat);
-    UserPrivMap membs;
-    changed |= syncMembers(apiMembersToMap(chat, membs));
+    bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
+    if (ownPrivChanged)
+    {
+        if (oldPriv == chatd::PRIV_NOTPRESENT)
+        {
+            if (mOwnPriv != chatd::PRIV_NOTPRESENT)
+            {
+                // if already connected, need to send a new JOIN to chatd
+                if (parent.mKarereClient.connected())
+                {
+                    KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
+                    mChat->connect();
+                }
+                KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
+                notifyRejoinedChat();
+            }
+        }
+        else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
+        {
+            //we were excluded
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(mChatid).toString().c_str());
+            setRemoved(); // may delete 'this'
+            return true;
+        }
+        else
+        {
+            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  Id(mChatid).toString().c_str());
+            onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
+        }
+    }
 
+    // Peer list changes
+    bool membersChanged = syncMembers(chat);
+
+    // Title changes
     auto title = chat.getTitle();
     if (title && title[0])
     {
-        mEncryptedTitle = title;
-        mHasTitle = true;
-        if (parent.mKarereClient.connected())
+        if (mEncryptedTitle != title)   // title has changed
         {
-            decryptTitle()
-            .fail([](const promise::Error& err)
+            mEncryptedTitle = title;
+            mHasTitle = true;
+            if (parent.mKarereClient.connected())
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
-            });
+                decryptTitle()
+                .fail([](const promise::Error& err)
+                {
+                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
+                });
+            }
         }
     }
-    else
+    else if (membersChanged && !mHasTitle)
     {
-        // By checking if 'changed', we avoid some unnecessary notifications about title-updates
-        // TODO: we still notify title-updates for all privilege changes, when only group
-        // composition changes represent a title-update and should be notified
-        if (changed)
-        {
-            clearTitle();
-            KR_LOG_DEBUG("Empty title received for group chat %s", Id(mChatid).toString().c_str());
-        }
+        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", Id(mChatid).toString().c_str());
+        clearTitle();
     }
 
-    if (!changed)
+    bool archiveChanged = syncArchive(chat.isArchived());
+    if (archiveChanged)
     {
-        KR_LOG_DEBUG("Sync group chatroom %s with API: no changes", Id(mChatid).toString().c_str());
-        return false;
+        onArchivedChanged(mIsArchived);
     }
 
-    if (oldPriv == chatd::PRIV_NOTPRESENT)
-    {
-        if (mOwnPriv != chatd::PRIV_NOTPRESENT)
-        {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
-            notifyRejoinedChat();
-        }
-    }
-    else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
-    {
-        //we were excluded
-        KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(mChatid).toString().c_str());
-        setRemoved(); // may delete 'this'
-        return true;
-    }
-    else
-    {
-        onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
-    }
     KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
     return true;
-}
-
-UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs)
-{
-    auto members = chat.getPeerList();
-    if (members)
-    {
-        auto size = members->size();
-        for (int i = 0; i < size; i++)
-        {
-            membs.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
-        }
-    }
-    return membs;
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)

@@ -358,6 +358,11 @@ MegaChatListItemList *MegaChatApi::getChatListItems()
     return pImpl->getChatListItems();
 }
 
+MegaChatListItemList *MegaChatApi::getChatListItemsByPeers(MegaChatPeerList *peers)
+{
+    return pImpl->getChatListItemsByPeers(peers);
+}
+
 MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
 {
     return pImpl->getChatListItem(chatid);
@@ -376,6 +381,11 @@ MegaChatListItemList *MegaChatApi::getActiveChatListItems()
 MegaChatListItemList *MegaChatApi::getInactiveChatListItems()
 {
     return pImpl->getInactiveChatListItems();
+}
+
+MegaChatListItemList *MegaChatApi::getArchivedChatListItems()
+{
+    return pImpl->getArchivedChatListItems();
 }
 
 MegaChatListItemList *MegaChatApi::getUnreadChatListItems()
@@ -426,6 +436,11 @@ void MegaChatApi::clearChatHistory(MegaChatHandle chatid, MegaChatRequestListene
 void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener)
 {
     pImpl->setChatTitle(chatid, title, listener);
+}
+
+void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener)
+{
+    pImpl->archiveChat(chatid, archive, listener);
 }
 
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
@@ -1000,6 +1015,11 @@ bool MegaChatRoom::isActive() const
     return false;
 }
 
+bool MegaChatRoom::isArchived() const
+{
+    return false;
+}
+
 MegaChatPeerList * MegaChatPeerList::createInstance()
 {
     return new MegaChatPeerListPrivate();
@@ -1142,6 +1162,11 @@ bool MegaChatListItem::isGroup() const
 }
 
 bool MegaChatListItem::isActive() const
+{
+    return false;
+}
+
+bool MegaChatListItem::isArchived() const
 {
     return false;
 }
