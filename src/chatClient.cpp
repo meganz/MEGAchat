@@ -2747,7 +2747,7 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
     {
         wptr.throwIfDeleted();
         mPreviewMode = false;
-
+        parent.mKarereClient.eraseChatIdByPh(this->mPublicHandle);
         addMember(userid, chatd::PRIV_FULL, true)
         .then([wptr, this]()
         {
