@@ -198,6 +198,9 @@ using namespace megachat;
         case MEGAChatRoomChangeTypeUserStopTyping:
             result = @"User stops typing";
             break;
+        case MEGAChatRoomChangeTypeArchive:
+            result = @"Archived";
+            break;
             
         default:
             result = @"Default";

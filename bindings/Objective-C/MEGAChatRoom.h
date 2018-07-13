@@ -8,7 +8,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
     MEGAChatRoomChangeTypeUserTyping     = 0x10,
     MEGAChatRoomChangeTypeClosed         = 0x20,
     MEGAChatRoomChangeTypeOwnPriv        = 0x40,
-    MEGAChatRoomChangeTypeUserStopTyping = 0x80
+    MEGAChatRoomChangeTypeUserStopTyping = 0x80,
+    MEGAChatRoomChangeTypeArchive = 0x100
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
