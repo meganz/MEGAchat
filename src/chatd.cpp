@@ -3847,7 +3847,7 @@ bool Chat::findLastTextMsg()
         if (wptr.deleted())
             return;
 
-        if (mOnlineState == kChatStateOnline)
+        if (mOnlineState == kChatStateOnline && !mLastTextMsg.isFetching())
         {
             CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
