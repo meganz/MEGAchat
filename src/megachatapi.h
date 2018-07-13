@@ -2676,10 +2676,6 @@ public:
      * not care anymore about an specific chatroom. Archived chatrooms should be displayed in a
      * different section or alike, so it can be clearly identified as archived.
      *
-     * Note you will stop receiving \c onChatListItemUpdate() updated for changes of type
-     * MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT, since the user is not anymore interested on
-     * the activity of this chatroom.
-     *
      * The associated request type with this request is MegaChatRequest::TYPE_ARCHIVE_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
