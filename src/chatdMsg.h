@@ -630,6 +630,7 @@ public:
     static bool parseUrl(const std::string &url);
     static void removeUnnecessaryLastCharacters(std::string& buf);
     static void removeUnnecessaryfirstCharacters(std::string& buf);
+    static bool isValidEmail(const std::string &buf);
 
 protected:
     static const char* statusNames[];
