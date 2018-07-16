@@ -3998,6 +3998,7 @@ bool Message::hasUrl(const string &text, string &url)
         {
             if (!partialString.empty())
             {
+                removeUnnecessaryfirstCharacters(partialString);
                 removeUnnecessaryLastCharacters(partialString);
                 if (parseUrl(partialString))
                 {
@@ -4014,6 +4015,7 @@ bool Message::hasUrl(const string &text, string &url)
 
     if (!partialString.empty())
     {
+        removeUnnecessaryfirstCharacters(partialString);
         removeUnnecessaryLastCharacters(partialString);
         if (parseUrl(partialString))
         {
@@ -4101,4 +4103,21 @@ void Message::removeUnnecessaryLastCharacters(string &buf)
     }
 }
 
+void Message::removeUnnecessaryfirstCharacters(string &buf)
+{
+    if (!buf.empty())
+    {
+        char firstCharacter = buf.front();
+        while (!buf.empty() && (firstCharacter == '.' || firstCharacter == ',' || firstCharacter == ':'
+                               || firstCharacter == '?' || firstCharacter == '!' || firstCharacter == ';'))
+        {
+            buf.erase(0, 1);
+
+            if (!buf.empty())
+            {
+                firstCharacter = buf.front();
+            }
+        }
+    }
+}
 } // end chatd namespace
