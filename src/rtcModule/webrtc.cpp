@@ -1303,10 +1303,10 @@ void Call::stopIncallPingTimer(bool endCall)
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    // TODO: For group calls we would need to revise this
+    mSessions.erase(sess.mSid);
+
     if (mState == kStateTerminating)
     {
-        mSessions.erase(sess.mSid);
         return;
     }
 
