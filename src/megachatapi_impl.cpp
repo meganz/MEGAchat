@@ -4296,7 +4296,6 @@ void MegaChatCallPrivate::setError(const string &temporaryError)
 
 void MegaChatCallPrivate::setTermCode(rtcModule::TermCode termCode)
 {
-    assert(this->termCode == MegaChatCall::TERM_CODE_NOT_FINISHED);
     convertTermCode(termCode);
 }
 
