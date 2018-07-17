@@ -309,6 +309,12 @@ std::string ChatMessage::managementInfoToString() const
            .append(std::to_string(mMessage->getTermCode()));
         return ret;
     }
+    case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+    {
+        ret.append("User ").append(userHandle_64)
+           .append(" has started start a call");
+        return ret;
+    }
     default:
         ret.append("Management message with unknown type: ")
            .append(std::to_string(mMessage->getType()));

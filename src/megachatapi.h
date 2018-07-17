@@ -872,7 +872,8 @@ public:
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
-        TYPE_HIGHEST_MANAGEMENT     = 6,
+        TYPE_CALL_STARTED           = 7,    /// Management message indicating a call has started
+        TYPE_HIGHEST_MANAGEMENT     = 7,
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts

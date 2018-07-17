@@ -177,7 +177,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                        .append(stringList.at(1).toStdString());
             break;
         }
-
+        case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+        {
+            lastMessage.append("User ").append(senderHandle)
+               .append(" has started start a call");
+        }
         default:
             lastMessage = item->getLastMessage();
             break;
