@@ -1603,7 +1603,7 @@ void Chat::onFetchHistDone()
     {
         assert(!mHaveAllHistory); //if we reach start of history, mLastTextMsg.state() will be set to kNone
         CHATID_LOG_DEBUG("No text message seen yet, fetching more history from server");
-        getHistory(16);
+        getHistory(initialHistoryFetchCount);
     }
 }
 
