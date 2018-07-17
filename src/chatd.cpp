@@ -3589,6 +3589,13 @@ void Chat::onJoinComplete()
             findAndNotifyLastTextMsg();
         }
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (mClient.karereClient->rtc)
+    {
+        mClient.karereClient->rtc->removeCallWithoutParticipants(mChatId);
+    }
+#endif
 }
 
 void Chat::resetGetHistory()

@@ -595,6 +595,18 @@ void RtcModule::removeCall(Id chatid, bool keepCallHandler)
         }
     });
 }
+
+void RtcModule::removeCallWithoutParticipants(Id chatid)
+{
+    auto itHandler = mCallHandlers.find(chatid);
+    if (itHandler != mCallHandlers.end())
+    {
+        if (!itHandler->second->callParticipants())
+        {
+            delete itHandler->second;
+            mCallHandlers.erase(itHandler);
+        }
+    }
 }
 
 void RtcModule::addCallHandler(Id chatid, ICallHandler *callHandler)
