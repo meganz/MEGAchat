@@ -1358,6 +1358,7 @@ void Call::removeSession(Session& sess, TermCode reason)
     if (!Session::isTermRetriable(reason))
     {
         destroyIfNoSessionsOrRetries(reason);
+        return;
     }
 
     // If we want to terminate the call (no matter if initiated by us or peer), we first
@@ -1400,7 +1401,6 @@ void Call::removeSession(Session& sess, TermCode reason)
             return;
 
         mSessRetries.erase(endpointId);
-
         if (mState >= kStateTerminating) // call already terminating
         {
            return; //timer is not relevant anymore
@@ -1411,7 +1411,6 @@ void Call::removeSession(Session& sess, TermCode reason)
             SUB_LOG_DEBUG("Timed out waiting for peer to rejoin, terminating call");
             hangup(kErrSessRetryTimeout);
         }
-
     }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
 
     mSessions.erase(sess.mSid);
@@ -2654,7 +2653,8 @@ Session::~Session()
 
 bool Session::isTermRetriable(TermCode reason)
 {
-    return (reason & 0x7f) != TermCode::kErrPeerOffline;
+    TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
+    return termCode != TermCode::kErrPeerOffline && termCode != TermCode::kUserHangup;
 }
 
 #define RET_ENUM_NAME(name) case name: return #name
