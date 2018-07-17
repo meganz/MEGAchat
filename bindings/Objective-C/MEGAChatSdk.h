@@ -44,6 +44,7 @@ typedef NS_ENUM (NSInteger, MEGAChatSource) {
 
 typedef NS_ENUM (NSInteger, MEGAChatInit) {
     MEGAChatInitError             = -1,
+    MEGAChatInitNotDone           = 0,
     MEGAChatInitWaitingNewSession = 1,
     MEGAChatInitOfflineSession    = 2,
     MEGAChatInitOnlineSession     = 3,
