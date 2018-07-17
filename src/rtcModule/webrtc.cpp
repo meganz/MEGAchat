@@ -553,15 +553,37 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
     callHandler->addParticipant(userid, clientid, av);
 }
 
-void RtcModule::removeCall(Id chatid)
+void RtcModule::removeCall(Id chatid, bool keepCallHandler)
 {
     auto itCall = mCalls.find(chatid);
+    Promise<void> pms = promise::_Void();
     if (itCall != mCalls.end())
     {
-        itCall->second->destroy(TermCode::kErrPeerOffline, false);
+        pms = itCall->second->destroy(TermCode::kErrPeerOffline, false);
     }
 
-    //TODO: Study behaviour for calls where user is not active
+    auto wptr = weakHandle();
+    pms.then([wptr, this, chatid, keepCallHandler]()
+    {
+        if (wptr.deleted())
+            return;
+
+        auto itHandler = mCallHandlers.find(chatid);
+        if (itHandler != mCallHandlers.end())
+        {
+            Chat &chat = mClient.chatd->chats(chatid);
+            if (keepCallHandler && itHandler->second->callParticipants() && chat.isGroup())
+            {
+                itHandler->second->removeAllParticipants();
+            }
+            else
+            {
+                delete itHandler->second;
+                mCallHandlers.erase(itHandler);
+            }
+        }
+    });
+}
 }
 
 void RtcModule::addCallHandler(Id chatid, ICallHandler *callHandler)

@@ -375,8 +375,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 #ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.karereClient->rtc)
         {
-            mChatdClient.karereClient->rtc->removeCall(chatid);
-            chat.removeAllCallParticipants();
+            mChatdClient.karereClient->rtc->removeCall(chatid, true);
         }
 #endif
     }
