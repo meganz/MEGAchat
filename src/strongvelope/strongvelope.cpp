@@ -1067,6 +1067,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 
             return msg;
         }
+        case Message::kMsgCallStarted:
         case Message::kMsgTruncate:
         {
             msg->setEncrypted(Message::kNotEncrypted);

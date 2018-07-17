@@ -395,6 +395,7 @@ public:
         kMsgPrivChange          = 0x04,
         kMsgChatTitle           = 0x05,
         kMsgCallEnd             = 0x06,
+        kMsgCallStarted         = 0x07,
         kMsgPublicHandleCreate  = 0x08,
         kMsgPublicHandleDelete  = 0x09,
         kMsgSetPrivateMode      = 0x0A,
