@@ -1537,12 +1537,15 @@ void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *re
 
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
 {
-    for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+    if (call->getId() != Id::inval())
     {
-        (*it)->onChatCallUpdate(chatApi, call);
-    }
+        for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+        {
+            (*it)->onChatCallUpdate(chatApi, call);
+        }
 
-    call->removeChanges();
+        call->removeChanges();
+    }
 }
 
 void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, MegaChatHandle peerid, int width, int height, char *buffer)
@@ -4284,7 +4287,7 @@ void MegaChatCallPrivate::setFinalTimeStamp(int64_t timeStamp)
 
 void MegaChatCallPrivate::removeChanges()
 {
-    changed = 0;
+    changed = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
     temporaryError.clear();
 }
 
@@ -4490,6 +4493,17 @@ bool MegaChatCallPrivate::isParticipating(Id userid)
     }
 
     return false;
+}
+
+void MegaChatCallPrivate::removeAllParticipants()
+{
+    participants.clear();
+    changed |= MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
+}
+
+void MegaChatCallPrivate::setId(Id callid)
+{
+    this->callid = callid;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid)
@@ -6329,6 +6343,12 @@ MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
 
 MegaChatCallHandler::~MegaChatCallHandler()
 {
+    if (chatCall && chatCall->getStatus() != MegaChatCall::CALL_STATUS_DESTROYED)
+    {
+        chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
+        megaChatApi->fireOnChatCallUpdate(chatCall);
+    }
+
     delete chatCall;
 }
 
@@ -6571,6 +6591,28 @@ bool MegaChatCallHandler::isParticipating(Id userid)
 {
     assert(chatCall);
     return chatCall->isParticipating(userid);
+}
+
+void MegaChatCallHandler::removeAllParticipants()
+{
+    chatCall->removeAllParticipants();
+    megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+karere::Id MegaChatCallHandler::getCallId() const
+{
+    assert(chatCall);
+    return chatCall->getId();
+}
+
+void MegaChatCallHandler::setCallId(karere::Id callid)
+{
+    assert(chatCall);
+    chatCall->setId(callid);
+    if (chatCall->getChanges() != MegaChatCall::CHANGE_TYPE_NO_CHANGES)
+    {
+        megaChatApi->fireOnChatCallUpdate(chatCall);
+    }
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()

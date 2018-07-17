@@ -172,6 +172,7 @@ public:
 
     enum
     {
+        CHANGE_TYPE_NO_CHANGES = 0x00,          /// Call hasn't any change
         CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed

@@ -272,6 +272,12 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
+    if (state == Call::CallDataState::kCallDataEnd)
+    {
+        // Peer will be removed from call participants with OP_ENDCALL
+        return;
+    }
+
     updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
     if (state == Call::CallDataState::kCallDataRinging)
     {
@@ -554,6 +560,10 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
     if (it != mCallHandlers.end())  // already known call, update flags
     {
         callHandler = it->second;
+        if (callid != Id::inval())
+        {
+            callHandler->setCallId(callid);
+        }
     }
     else    // unknown call, create call handler and set flags
     {
@@ -686,7 +696,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         existingCall->hangup();
         mCalls.erase(itCall);
     }
-    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && chat.isParticipantingInCall(myHandle))
+    else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
     {
         // Other client of our user is participanting in the call
         RTCM_LOG_DEBUG("hadleCallDataRequest: Ignoring call request: We are already in the group call from another client");
