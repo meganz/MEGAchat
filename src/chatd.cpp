@@ -3847,12 +3847,21 @@ bool Chat::findLastTextMsg()
         if (wptr.deleted())
             return;
 
-        if (mOnlineState == kChatStateOnline && !mLastTextMsg.isFetching())
+        // since this codepath is marshalled, it could happen the last
+        // text message is already found before the marshall is executed
+        if (mLastTextMsg.isValid())
+            return;
+
+        if (isFetchingFromServer())
+        {
+            mLastTextMsg.setState(LastTextMsgState::kFetching);
+        }
+        else if (mOnlineState == kChatStateOnline)
         {
             CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
-            requestHistoryFromServer(-16);
+            requestHistoryFromServer(-initialHistoryFetchCount);
             mLastTextMsg.setState(LastTextMsgState::kFetching);
         }
 
