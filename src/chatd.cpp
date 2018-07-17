@@ -1682,24 +1682,6 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
-bool Chat::isParticipantingInCall(Id userid)
-{
-    for (auto it = mCallParticipants.begin(); it != mCallParticipants.end(); it++)
-    {
-        if (it->userid == userid)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void Chat::removeAllCallParticipants()
-{
-    mCallParticipants.clear();
-}
-
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
@@ -1733,14 +1715,17 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 }
 void Chat::onInCall(karere::Id userid, uint32_t clientid)
 {
-    mCallParticipants.emplace(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
+    assert(mClient.mRtcHandler);
+    if (mClient.mRtcHandler)
+    {
+        mClient.mRtcHandler->handleInCall(mChatId, userid, clientid);
+    }
+#endif
 }
 
 void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
-    EndpointId key(userid, clientid);
-    mCallParticipants.erase(key);
-
 #ifndef KARERE_DISABLE_WEBRTC
     assert(mClient.mRtcHandler);
     if (mClient.mRtcHandler)

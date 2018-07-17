@@ -498,6 +498,17 @@ void RtcModule::stopCallsTimers(int shard)
     }
 }
 
+void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid)
+{
+    auto callHandlerIt = mCallHandlers.find(chatid);
+    // Call doesn't exist and user isn't participating then create the callHandler (if it's necessary) and add participant to call
+    if (callHandlerIt == mCallHandlers.end() || !callHandlerIt->second->isParticipating(userid))
+    {
+        updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
+    }
+
+}
+
 template <class... Args>
 void RtcModule::sendCommand(Chat &chat, uint8_t opcode, uint8_t command, Id chatid, Id userid, uint32_t clientid, Args... args)
 {
