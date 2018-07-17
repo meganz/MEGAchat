@@ -3998,7 +3998,7 @@ bool Message::hasUrl(const string &text, string &url)
         {
             if (!partialString.empty())
             {
-                removeUnnecessaryfirstCharacters(partialString);
+                removeUnnecessaryFirstCharacters(partialString);
                 removeUnnecessaryLastCharacters(partialString);
                 if (parseUrl(partialString))
                 {
@@ -4015,7 +4015,7 @@ bool Message::hasUrl(const string &text, string &url)
 
     if (!partialString.empty())
     {
-        removeUnnecessaryfirstCharacters(partialString);
+        removeUnnecessaryFirstCharacters(partialString);
         removeUnnecessaryLastCharacters(partialString);
         if (parseUrl(partialString))
         {
@@ -4109,7 +4109,7 @@ void Message::removeUnnecessaryLastCharacters(string &buf)
     }
 }
 
-void Message::removeUnnecessaryfirstCharacters(string &buf)
+void Message::removeUnnecessaryFirstCharacters(string &buf)
 {
     if (!buf.empty())
     {
