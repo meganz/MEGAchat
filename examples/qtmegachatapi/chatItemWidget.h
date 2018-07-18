@@ -48,13 +48,17 @@ class ChatItemWidget : public QWidget
         MainWindow * mMainWin;
         std::string mLastMsgAuthor;
 
-    private slots:
+    protected slots:
         void leaveGroupChat();
         void setTitle();
         void truncateChat();
+        void archiveChat();
+        void unarchiveChat();
 
     friend class ChatWindow;
     friend class MainWindow;
+    friend class ContactItemWidget;
+    friend class ChatGroupDialog;
     friend class CallAnswerGui;
 };
 #endif // CHATITEM_H

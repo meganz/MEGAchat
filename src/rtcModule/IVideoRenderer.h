@@ -74,9 +74,9 @@ public:
 class NullRenderer: public IVideoRenderer
 {
 public:
-    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData)
+    virtual void* getImageBuffer(unsigned short /*width*/, unsigned short /*height*/, void*& /*userData*/)
     { return nullptr; }
-    virtual void frameComplete(void* userp) {}
+    virtual void frameComplete(void* /*userp*/) {}
     virtual void released() { delete this; } //we don't post frames to the GUI so no problem with deleting immediately
 };
 }
