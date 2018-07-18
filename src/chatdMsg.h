@@ -378,20 +378,23 @@ class Message: public Buffer
 public:
     enum Type: uint8_t
     {
-        kMsgInvalid           = 0x00,
-        kMsgNormal            = 0x01,
-        kMsgManagementLowest  = 0x02,
-        kMsgAlterParticipants = 0x02,
-        kMsgTruncate          = 0x03,
-        kMsgPrivChange        = 0x04,
-        kMsgChatTitle         = 0x05,
-        kMsgCallEnd           = 0x06,
-        kMsgManagementHighest = 0x06,
-        kMsgUserFirst         = 0x10,
-        kMsgAttachment        = 0x10,
-        kMsgRevokeAttachment  = 0x11,
-        kMsgContact           = 0x12,
-        kMsgContainsMeta      = 0x13
+        kMsgInvalid             = 0x00,
+        kMsgNormal              = 0x01,
+        kMsgManagementLowest    = 0x02,
+        kMsgAlterParticipants   = 0x02,
+        kMsgTruncate            = 0x03,
+        kMsgPrivChange          = 0x04,
+        kMsgChatTitle           = 0x05,
+        kMsgCallEnd             = 0x06,
+        kMsgPublicHandleCreate  = 0x08,
+        kMsgPublicHandleDelete  = 0x09,
+        kMsgSetPrivateMode      = 0x0A,
+        kMsgManagementHighest   = 0x0A,
+        kMsgUserFirst           = 0x10,
+        kMsgAttachment          = 0x10,
+        kMsgRevokeAttachment    = 0x11,
+        kMsgContact             = 0x12,
+        kMsgContainsMeta        = 0x13
     };
     enum Status
     {

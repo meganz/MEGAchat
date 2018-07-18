@@ -319,6 +319,7 @@ public:
     void setClosed();
     void setLastTimestamp(int64_t ts);
     void setLastMessage();
+    void setChatMode(bool mode);
 };
 
 class MegaChatListItemHandler :public virtual karere::IApp::IChatListItem
@@ -336,6 +337,7 @@ public:
     virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastTsUpdated(uint32_t ts);
     virtual void onChatOnlineState(const chatd::ChatState state);
+    virtual void onChatModeChanged(bool mode);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -418,6 +420,7 @@ public:
     virtual void onLastTextMessageUpdated(const chatd::LastTextMsg& msg);
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
+    virtual void onChatModeChanged(bool mode);
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -611,6 +614,7 @@ public:
     void setUserTyping(MegaChatHandle uh);
     void setUserStopTyping(MegaChatHandle uh);
     void setClosed();
+    void setChatMode(bool mode);
 
 private:
     int changed;
@@ -957,6 +961,7 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 

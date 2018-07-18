@@ -412,6 +412,18 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
         }
         break;
     }
+    case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
+    {
+        if(e->getErrorCode() != MegaChatError::ERROR_OK)
+        {
+            QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
+        }
+        else
+        {
+            QMessageBox::warning(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
+        }
+        break;
+    }
     case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
     {
         if(e->getErrorCode() == MegaChatError::ERROR_OK)

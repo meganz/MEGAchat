@@ -11,6 +11,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 #ifndef KARERE_DISABLE_WEBRTC
     mCallGui = NULL;
 #endif
+    mPreview = false;
     loadedMessages = 0;
     nManualSending = 0;
     mPendingLoad = 0;
@@ -45,6 +46,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     {
         if(mChatRoom->isPreview())
         {
+            mPreview = true;
             this->ui->mMembersBtn->hide();
             this->ui->mMsgSendBtn->hide();
             this->ui->mAudioCallBtn->hide();
@@ -200,6 +202,11 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChat
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
     {
         setChatTittle(NULL);
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
+    {
+        this->ui->mTitlebar->setStyleSheet("background-color:#c1efff");
     }
 }
 

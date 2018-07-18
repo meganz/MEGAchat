@@ -458,6 +458,11 @@ void MegaChatApi::closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *
     pImpl->closeChatLink(chatid, listener);
 }
 
+void MegaChatApi::removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->removeChatLink(chatid, listener);
+}
+
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);

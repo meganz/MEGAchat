@@ -1125,6 +1125,14 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
+        case Message::kMsgSetPrivateMode:
+        case Message::kMsgPublicHandleCreate:
+        case Message::kMsgPublicHandleDelete:
+        {
+            msg->setEncrypted(Message::kNotEncrypted);
+            return msg;
+        }
+
         default:
             return promise::Error("Unknown management message type "+
                 std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);

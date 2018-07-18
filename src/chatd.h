@@ -219,6 +219,10 @@ public:
     /** @brief We have been excluded from this chatroom */
     virtual void onExcludedFromChat() {}
 
+    /** Chat mode has changed
+     */
+    virtual void onChatModeChanged(bool mode) {}
+
     /** @brief We have rejoined the room
      */
     virtual void onRejoinedChat() {}

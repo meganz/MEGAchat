@@ -407,6 +407,14 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
                 {
                     updateLocalChatListItem(item);
                     orderContactChatList(allItemsVisibility);
+                    break;
+                }
+            //The chatroom is private now
+            case (megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE):
+                {
+                    updateLocalChatListItem(item);
+                    orderContactChatList(allItemsVisibility);
+                    break;
                 }
         }
      }

@@ -372,7 +372,6 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 {
     auto wptr = weakHandle();
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
-    room->setChatPrivateMode();
 
     const char *title = NULL;
     if (room->hasTitle())
@@ -404,9 +403,26 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
             if (wptr.deleted())
                 return promise::_Void();
 
+            uint64_t ph = room->publicHandle();
+            eraseChatIdByPh(ph);
             room->setChatPrivateMode();
             return promise::_Void();
         });
+    });
+}
+
+promise::Promise<void> Client::deleteChatLink(karere::Id chatid)
+{
+    auto wptr = weakHandle();
+    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
+
+    wptr.throwIfDeleted();
+    return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
+    .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
+    {
+        eraseChatIdByPh(room->publicHandle());
+        room->setPublicHandle(Id::inval());
+        return promise::_Void();
     });
 }
 
@@ -423,9 +439,12 @@ promise::Promise<void> Client::getPublicHandle(Id chatid)
         auto wptr = weakHandle();
 
         return api.call(&::mega::MegaApi::chatLinkCreate, chatid)
-        .then([this, room, wptr](ReqResult result) -> promise::Promise<void>
+        .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
         {
-            room->setPublicHandle(result->getParentHandle());
+            //Set ph in room and map
+            uint64_t ph = result->getParentHandle();
+            room->setPublicHandle(ph);
+            mPhToChatId[ph] = chatid;
             return promise::_Void();
         });
     }
@@ -2225,6 +2244,12 @@ void ChatRoomList::removeRoom(GroupChatRoom& room)
     auto it = find(room.chatid());
     if (it == end())
         throw std::runtime_error("removeRoom:: Room not in chat list");
+
+    //If room is in preview mode we can remove all records from db at this moment
+    if (room.previewMode())
+    {
+        room.chat().getDbInterface()->chatCleanup();
+    }
     room.deleteSelf();
     erase(it);
 }
@@ -2962,6 +2987,20 @@ void ChatRoom::notifyTitleChanged()
     }, parent.mKarereClient.appCtx);
 }
 
+
+void ChatRoom::notifyChatModeChanged()
+{
+    callAfterInit(this, [this]
+    {
+        auto display = roomGui();
+        if (display)
+            display->onChatModeChanged(this->publicChat());
+
+        if (mAppChatHandler)
+            mAppChatHandler->onChatModeChanged(this->publicChat());
+    }, parent.mKarereClient.appCtx);
+}
+
 void GroupChatRoom::onUnreadChanged()
 {
     auto count = mChat->unreadMsgCount();
@@ -3178,6 +3217,7 @@ void GroupChatRoom::setChatPrivateMode()
     //Update cache
     auto db = parent.mKarereClient.db;
     db.query("delete from chat_vars where chatid=? and name='unified_key'", mChatid);
+    notifyChatModeChanged();
 }
 
 UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs)

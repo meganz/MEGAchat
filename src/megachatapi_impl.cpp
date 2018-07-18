@@ -854,10 +854,60 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+
+        case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
+        {
+            MegaChatHandle chatid = request->getChatHandle();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
+            if (!room)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (!room->publicChat())
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (room->ownPriv() != chatd::PRIV_OPER)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            MegaChatHandle ph = mClient->chatIdByPh(room->publicHandle());
+            if (ph == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            mClient->deleteChatLink(chatid)
+            .then([request, this]()
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([request, this](const promise::Error& err)
+            {
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
+
+            break;
+        }
         case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            ChatRoom *room = findChatRoom(chatid);
+            GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
 
             if (!room)
             {
@@ -880,8 +930,19 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->getPublicHandle(chatid)
-            .then([request, this, groupRoom]
+            promise::Promise<void> pms;
+            MegaChatHandle ph = mClient->chatIdByPh(room->publicHandle());
+            if (ph != MEGACHAT_INVALID_HANDLE)
+            {
+                pms = promise::Promise<void>();
+                pms.resolve();
+            }
+            else
+            {
+                pms = mClient->getPublicHandle(chatid);
+            }
+
+            pms.then([request, this, groupRoom]
             {
                 MegaChatHandle phbin = groupRoom->publicHandle();
                 char *auxphstr = new char[8];
@@ -2416,6 +2477,14 @@ void MegaChatApiImpl::closeChatLink(MegaChatHandle chatid, MegaChatRequestListen
     waiter->notify();
 }
 
+void MegaChatApiImpl::removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_REMOVE, listener);
+    request->setChatHandle(chatid);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {    
     if (!listener)
@@ -3941,6 +4010,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
         case TYPE_EXPORT_CHAT_LINK: return "EXPORT_CHAT_LINK";
         case TYPE_CHAT_LINK_CLOSE: return "CHAT_LINK_CLOSE";
+        case TYPE_CHAT_LINK_REMOVE: return "CHAT_LINK_REMOVE";
     }
     return "UNKNOWN";
 }
@@ -4719,6 +4789,14 @@ void MegaChatRoomHandler::onTitleChanged(const string &title)
     fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onChatModeChanged(bool mode)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    chat->setChatMode(mode);
+
+    fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::onUnreadCountChanged(int count)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
@@ -5415,6 +5493,12 @@ void MegaChatRoomPrivate::setClosed()
     this->changed |= MegaChatRoom::CHANGE_TYPE_CLOSED;
 }
 
+void MegaChatRoomPrivate::setChatMode(bool mode)
+{
+    this->mPublicChat = mode;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CHAT_MODE;
+}
+
 char *MegaChatRoomPrivate::firstnameFromBuffer(const string &buffer)
 {
     char *ret = NULL;
@@ -5459,6 +5543,14 @@ void MegaChatListItemHandler::onTitleChanged(const string &title)
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
     item->setTitle(title);
+
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
+void MegaChatListItemHandler::onChatModeChanged(bool mode)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setChatMode(mode);
 
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -5577,7 +5669,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     LastTextMsg *&msg = message;
     uint8_t lastMsgStatus = chatroom.chat().lastTextMessage(msg);
     if (lastMsgStatus == LastTextMsgState::kHave)
-    {        
+    {
         this->lastMsgSender = msg->sender();
         this->lastMsgType = msg->type();
         this->mLastMsgId = (msg->idx() == CHATD_IDX_INVALID) ? msg->xid() : msg->id();
@@ -5625,7 +5717,10 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             }
 
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
-            case MegaChatMessage::TYPE_TRUNCATE:    // no content at all
+            case MegaChatMessage::TYPE_TRUNCATE:                // no content at all
+            case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:    // no content at all
+            case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:    // no content at all
+            case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
             default:
                 break;
         }
@@ -5798,6 +5893,12 @@ void MegaChatListItemPrivate::setLastTimestamp(int64_t ts)
 void MegaChatListItemPrivate::setLastMessage()
 {
     this->changed |= MegaChatListItem::CHANGE_TYPE_LAST_MSG;
+}
+
+void MegaChatListItemPrivate::setChatMode(bool mode)
+{
+    this->mPublicChat = mode;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CHAT_MODE;
 }
 
 MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chatApi, ChatRoom &room)
@@ -5993,6 +6094,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
+        case MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:
+        case MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:
+        case MegaChatMessage::TYPE_SET_PRIVATE_MODE:
             break;
         default:
         {

@@ -309,6 +309,28 @@ std::string ChatMessage::managementInfoToString() const
            .append(std::to_string(mMessage->getTermCode()));
         return ret;
     }
+
+    case megachat::MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:
+    {
+        ret.append("User ").append(userHandle_64)
+           .append(" created a public handle ");
+        return ret;
+    }
+
+    case megachat::MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:
+    {
+        ret.append("User ").append(userHandle_64)
+                .append(" removed a public handle ");
+        return ret;
+    }
+
+    case megachat::MegaChatMessage::TYPE_SET_PRIVATE_MODE:
+    {
+        ret.append("User ").append(userHandle_64)
+                .append(" converted chat into private mode ");
+        return ret;
+    }
+
     default:
         ret.append("Management message with unknown type: ")
            .append(std::to_string(mMessage->getType()));

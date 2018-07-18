@@ -66,6 +66,7 @@ protected:
     std::string mTitleString;
     uint32_t mCreationTs;
     void notifyTitleChanged();
+    void notifyChatModeChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
@@ -761,14 +762,21 @@ public:
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
-    // TODO: add documentation
+    /** @brief This function returns an url to connect to a public chat in preview mode
+     */
     promise::Promise<void> loadChatLink(uint64_t publicHandle, const std::string &key);
 
-    // TODO: add documentation
+    /** @brief This function invalidates the current public handle and set the chat mode to private
+     */
     promise::Promise<void> closeChatLink(karere::Id chatid);
 
-    // TODO: add documentation (this function may become obsolete if API add the ph to mcf)
+    /** @brief This function creates a public handle if not exists
+     */
     promise::Promise<void> getPublicHandle(karere::Id chatid);
+
+    /** @brief This function invalidates the current public handle
+     */
+    promise::Promise<void> deleteChatLink(karere::Id chatid);
 
     uint64_t chatIdByPh(uint64_t ph)
     {

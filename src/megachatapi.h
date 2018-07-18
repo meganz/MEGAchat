@@ -765,7 +765,10 @@ public:
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
-        TYPE_HIGHEST_MANAGEMENT     = 6,
+        TYPE_PUBLIC_HANDLE_CREATE   = 8,    /// Management message indicating a public handle has been created
+        TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
+        TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
+        TYPE_HIGHEST_MANAGEMENT     = 10,
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
@@ -1219,6 +1222,7 @@ public:
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
         TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK,
         TYPE_CHAT_LINK_CLOSE, TYPE_CHAT_LINK_JOIN,
+        TYPE_CHAT_LINK_REMOVE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2777,10 +2781,53 @@ public:
      */
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
 
-    /**TODO
+    /**
+     * @brief Set the chat mode to private
      *
+     * This function invalidates the currect public handle and set the chat mode to private
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_CLOSE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to set chat
+     * mode to private
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
      */
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Invalidates the currect public handl
+     *
+     * This function invalidates the currect public handle and set the chat mode to private
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_REMOVE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to
+     * invalidate the currect public handle
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief This method should be called when a chat is opened
@@ -3712,7 +3759,8 @@ public:
         CHANGE_TYPE_TITLE           = 0x10,
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80  /// Timestamp of the last activity
+        CHANGE_TYPE_LAST_TS         = 0x80,  /// Timestamp of the last activity
+        CHANGE_TYPE_CHAT_MODE       = 0x100 /// User has set chat mode to private
     };
 
     virtual ~MegaChatListItem() {}
@@ -3917,7 +3965,8 @@ public:
         CHANGE_TYPE_USER_TYPING         = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_OWN_PRIV            = 0x40,  /// Our privilege level has changed
-        CHANGE_TYPE_USER_STOP_TYPING    = 0x80 /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_CHAT_MODE           = 0x100 /// User has set chat mode to private
     };
 
     enum {

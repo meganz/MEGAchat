@@ -157,6 +157,22 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                        .append(" to ").append(priv);
             break;
         }
+
+        case megachat::MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:
+            lastMessage.append("User ").append(senderHandle)
+                       .append(" has created a public handle");
+        break;
+
+        case megachat::MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:
+            lastMessage.append("User ").append(senderHandle)
+                       .append(" has removed a public handle");
+        break;
+
+        case megachat::MegaChatMessage::TYPE_SET_PRIVATE_MODE:
+            lastMessage.append("User ").append(senderHandle)
+                       .append(" has converted chat mode into private mode");
+        break;
+
         case megachat::MegaChatMessage::TYPE_TRUNCATE:
             lastMessage = "Truncate";
             break;
@@ -414,6 +430,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
         auto actExportLink = menu.addAction(tr("Export chat link"));
         connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
 
+        auto actRemoveLink = menu.addAction(tr("Remove chat link"));
+        connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
+
         auto actSetPrivate = menu.addAction(tr("Set chat private"));
         connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
     }
@@ -441,6 +460,16 @@ void ChatItemWidget::closeChatLink()
         mMegaChatApi->closeChatLink(mChatId);
     }
 }
+
+
+void ChatItemWidget::removeChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->removeChatLink(mChatId);
+    }
+}
+
 
 void ChatItemWidget::setTitle()
 {

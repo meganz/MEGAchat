@@ -206,6 +206,10 @@ public:
         /** @brief Called when the connection state to the chatroom shard changes.
          */
         virtual void onChatOnlineState(const chatd::ChatState /*state*/) {}
+
+        /** @brief Called when the chat mode changes to private.
+         */
+        virtual void onChatModeChanged(bool mode) = 0;
     };
 
     /**

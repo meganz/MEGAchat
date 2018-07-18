@@ -72,6 +72,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
+        bool mPreview;
         int nSending;
         int loadedMessages;
         int nManualSending;
