@@ -591,7 +591,7 @@ void RtcModule::removeCall(Id chatid, bool keepCallHandler)
         auto itHandler = mCallHandlers.find(chatid);
         if (itHandler != mCallHandlers.end())
         {
-            Chat &chat = mClient.chatd->chats(chatid);
+            Chat &chat = mClient.mChatdClient->chats(chatid);
             if (keepCallHandler && itHandler->second->callParticipants() && chat.isGroup())
             {
                 itHandler->second->removeAllParticipants();
