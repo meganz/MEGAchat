@@ -1003,7 +1003,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatroom->chat().connection().clientId())
             {
                 API_LOG_ERROR("Start call - Refusing start/join a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -1064,7 +1064,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatroom->chat().connection().clientId())
             {
                 API_LOG_ERROR("Answer call - Refusing answer a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
-                errorCode = MegaChatError::ERROR_UNKNOWN;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 

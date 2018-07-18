@@ -2664,7 +2664,7 @@ Session::~Session()
 bool Session::isTermRetriable(TermCode reason)
 {
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
-    return termCode != TermCode::kErrPeerOffline && termCode != TermCode::kUserHangup;
+    return (termCode != TermCode::kErrPeerOffline) && (termCode != TermCode::kUserHangup);
 }
 
 #define RET_ENUM_NAME(name) case name: return #name
