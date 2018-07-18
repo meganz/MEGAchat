@@ -212,7 +212,7 @@ void Recorder::onStats(const webrtc::StatsReports &data)
         long d_dly = 0;
         if (last.vstats.r.dly)
         {
-            auto d_dly = (mCurrSample->vstats.r.dly - last.vstats.r.dly);
+            d_dly = (mCurrSample->vstats.r.dly - last.vstats.r.dly);
             if (d_dly < 0)
                 d_dly = -d_dly;
         }
