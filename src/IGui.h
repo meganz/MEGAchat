@@ -80,6 +80,9 @@ public:
          */
         virtual void onMemberNameChanged(uint64_t /*userid*/, const std::string& /*newName*/){}
 
+        /** @brief Called when the chat is un/archived */
+        virtual void onChatArchived(bool /*archived*/) {}
+
         /** @brief Returns an optionally associated user data pointer */
         void* userp = nullptr;
     };
@@ -203,13 +206,14 @@ public:
          */
         virtual void onLastTsUpdated(uint32_t /*ts*/) {}
 
-        /** @brief Called when the connection state to the chatroom shard changes.
-         */
+        /** @brief Called when the connection state to the chatroom shard changes. */
         virtual void onChatOnlineState(const chatd::ChatState /*state*/) {}
 
-        /** @brief Called when the chat mode changes to private.
-         */
+        /** @brief Called when the chat mode changes to private. */
         virtual void onChatModeChanged(bool mode) = 0;
+
+        /** @brief Called when the chat is un/archived */
+        virtual void onChatArchived(bool /*archived*/) {}
     };
 
     /**

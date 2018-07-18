@@ -9,10 +9,12 @@
 #include "contactItemWidget.h"
 #include "QTMegaChatListener.h"
 #include "megaLoggerApplication.h"
+#include "chatGroupDialog.h"
 #include "QTMegaChatCallListener.h"
 
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
+const int chatArchivedStatus = 2;
 
 struct Chat
 {
@@ -59,9 +61,10 @@ class MainWindow :
         void addContact(mega::MegaUser *contact);
         void addChatListener();
         void clearContactChatList();
-        void orderContactChatList(bool showInactive);
+        void orderContactChatList(bool showInactive, bool showArchived);
         void addContacts();
         void addInactiveChats();
+        void addArchivedChats();
         void addActiveChats();
         void createSettingsMenu();
 #ifndef KARERE_DISABLE_WEBRTC
@@ -95,6 +98,7 @@ class MainWindow :
     protected:
         Ui::MainWindow *ui;
         bool allItemsVisibility;
+        bool archivedItemsVisibility = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
         mega::MegaApi * mMegaApi;
@@ -106,6 +110,7 @@ class MainWindow :
         std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
         std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
         int activeChats;
+        int archivedChats;
         int inactiveChats;
         int nContacts;
 
@@ -113,9 +118,13 @@ class MainWindow :
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
         void onAddContact();
+        void onAddChatGroup();
         void setOnlineStatus();
         void onChangeItemsVisibility();
         void loadChatLink();
+        void on_bHiddenChats_clicked();
+        void on_bArchivedChats_clicked();
+        void on_bChatGroup_clicked();
 
     signals:
         void esidLogout();

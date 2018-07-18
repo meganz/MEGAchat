@@ -3,16 +3,18 @@
 #include <QWidget>
 #include "chatWindow.h"
 #include "megachatapi.h"
+#include "MainWindow.h"
 
 namespace Ui {
 class ChatItem;
 }
 
+class MainWindow;
 class ContactItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ContactItemWidget(QWidget *parent , megachat::MegaChatApi *megChatApi, mega::MegaApi *mMegaApi, mega::MegaUser *contact);
+        ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megChatApi, mega::MegaApi *mMegaApi, mega::MegaUser *contact);
         virtual ~ContactItemWidget();
         void contextMenuEvent(QContextMenuEvent *event);
         void setAvatarStyle();
@@ -28,6 +30,7 @@ class ContactItemWidget : public QWidget
         megachat::MegaChatApi *mMegaChatApi;
         mega::MegaApi *mMegaApi;
         QListWidgetItem *mListWidgetItem;
+        MainWindow *mMainWin;
 
     private slots:
         void onCreateGroupChat();

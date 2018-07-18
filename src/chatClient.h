@@ -63,8 +63,9 @@ protected:
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
-    std::string mTitleString;
     uint32_t mCreationTs;
+    bool mIsArchived;
+    std::string mTitleString;
     void notifyTitleChanged();
     void notifyChatModeChanged();
     bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
@@ -73,6 +74,7 @@ protected:
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
+    bool syncArchive(bool aIsArchived);
     void onMessageTimestamp(uint32_t ts);
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
@@ -91,7 +93,7 @@ public:
     virtual void connect() = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
-             unsigned char shard, chatd::Priv ownPriv, uint32_t ts,
+             unsigned char shard, chatd::Priv ownPriv, uint32_t ts, bool isArchived,
              const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
@@ -107,6 +109,9 @@ public:
 
     /** @brief Whether this chatroom is a groupchat or 1on1 chat */
     bool isGroup() const { return mIsGroup; }
+
+    /** @brief Whether this chatroom is archived or not */
+    bool isArchived() const { return mIsArchived; }
 
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
@@ -181,8 +186,13 @@ public:
     virtual void onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status);
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
+    virtual void onUnreadChanged();
+
+    //IApp::IChatHandler implementation
+    virtual void onArchivedChanged(bool archived);
 
     promise::Promise<void> truncateHistory(karere::Id msgId);
+    promise::Promise<void> archiveChat(bool archive);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes) = 0;
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node) = 0;
@@ -213,7 +223,7 @@ protected:
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
-            chatd::Priv peerPriv, uint32_t ts);
+            chatd::Priv peerPriv, uint32_t ts, bool aIsArchived);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 
@@ -313,6 +323,7 @@ protected:
     bool syncMembers(const UserPrivMap& users);
     static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void setChatPrivateMode();
+    bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
@@ -332,22 +343,26 @@ protected:
     friend class ChatRoomList;
     friend class Member;
     friend class Client;
+
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-                  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  const std::string& title, const std::string &unifiedKey);
+                unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                bool aIsArchived, const std::string& title, const std::string &unifiedKey);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-                      unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                      const std::string& title, bool aPublicChat,
-                      const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl);
+                unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                bool aIsArchived, const std::string& title, bool aPublicChat,
+                const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl);
+
+
+
     ~GroupChatRoom();
 public:
 //chatd::Listener
-    void onUserJoin(Id userid, chatd::Priv priv);
-    void onUserLeave(Id userid);
-    void onUnreadChanged();
+    virtual void onUserJoin(Id userid, chatd::Priv priv);
+    virtual void onUserLeave(Id userid);
+    virtual void onUnreadChanged();
 //====
     /** @endcond PRIVATE */
 

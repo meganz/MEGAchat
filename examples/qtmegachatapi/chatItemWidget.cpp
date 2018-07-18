@@ -20,7 +20,33 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     ui->setupUi(this);
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
-    ui->mName->setText(item->getTitle());
+
+    if (item->isArchived())
+    {
+        QString text = NULL;
+        text.append(item->getTitle())
+        .append(" [A]");
+        ui->mName->setText(text);
+        ui->mName->setStyleSheet("color:#DEF0FC;");
+        ui->mAvatar->setStyleSheet("color:#DEF0FC;");
+    }
+    else
+    {
+        if (!item->isActive())
+        {
+            QString text = NULL;
+            text.append(item->getTitle())
+            .append(" [H]");
+            ui->mName->setText(text);
+            ui->mName->setStyleSheet("color:#FFC9C6;");
+            ui->mAvatar->setStyleSheet("color:#FFC9C6;");
+        }
+        else
+        {
+            ui->mName->setText(item->getTitle());
+            ui->mName->setStyleSheet("color:#FFFFFF; font-weight:bold;");
+        }
+    }
 
     if (!item->isGroup())
     {
@@ -411,9 +437,14 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
 
     QMenu menu(this);
-    if (mMainWin->getLocalChatListItem(mChatId)->isGroup())
+    const megachat::MegaChatListItem * auxItem = mMainWin->getLocalChatListItem(mChatId);
+    if (auxItem->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
+        if (!auxItem->isActive())
+        {
+            actLeave->setEnabled(false);
+        }
         connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
         auto actTopic = menu.addAction(tr("Set chat topic"));
         actTopic->setEnabled(canChangePrivs);
@@ -425,7 +456,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
 
-    if (mMainWin->getLocalChatListItem(mChatId)->isPublic())
+    if (auxItem->isPublic())
     {
         auto actExportLink = menu.addAction(tr("Export chat link"));
         connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
@@ -434,8 +465,20 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
         connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
 
         auto actSetPrivate = menu.addAction(tr("Set chat private"));
-        connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
+        connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));        
     }
+
+    if (auxItem->isArchived() && !auxItem->isPreview())
+    {
+        auto actArchive = menu.addAction(tr("Unarchive chat"));
+        connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
+    }
+    else
+    {
+        auto actArchive = menu.addAction(tr("Archive chat"));
+        connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+    }
+
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -461,7 +504,6 @@ void ChatItemWidget::closeChatLink()
     }
 }
 
-
 void ChatItemWidget::removeChatLink()
 {
     if (mChatId != MEGACHAT_INVALID_HANDLE)
@@ -470,6 +512,15 @@ void ChatItemWidget::removeChatLink()
     }
 }
 
+void ChatItemWidget::archiveChat()
+{
+    mMegaChatApi->archiveChat(mChatId, true);
+}
+
+void ChatItemWidget::unarchiveChat()
+{
+    mMegaChatApi->archiveChat(mChatId, false);
+}
 
 void ChatItemWidget::setTitle()
 {

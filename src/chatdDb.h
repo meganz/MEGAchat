@@ -82,7 +82,7 @@ public:
 
     virtual int updateSendingItemsKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid)
     {
-        mDb.query("update sending set keyid = ? where keyid = ?", keyid, localkeyid);
+        mDb.query("update sending set keyid = ? where keyid = ? and chatid = ?", keyid, localkeyid, mChat.chatId());
         return sqlite3_changes(mDb);
     }
 
@@ -114,7 +114,8 @@ public:
     }
     virtual int updateSendingItemsContentAndDelta(const chatd::Message& msg)
     {
-        mDb.query("update sending set msg = ?, updated = ? where msgid = ?", msg, msg.updated, msg.id());
+        mDb.query("update sending set msg = ?, updated = ? where msgid = ? and chatid = ?",
+                  msg, msg.updated, msg.id(), mChat.chatId());
         return sqlite3_changes(mDb);
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)

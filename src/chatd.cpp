@@ -1664,7 +1664,7 @@ void Chat::onFetchHistDone()
     {
         assert(!mHaveAllHistory); //if we reach start of history, mLastTextMsg.state() will be set to kNone
         CHATID_LOG_DEBUG("No text message seen yet, fetching more history from server");
-        getHistory(16);
+        getHistory(initialHistoryFetchCount);
     }
 }
 
@@ -3940,12 +3940,21 @@ bool Chat::findLastTextMsg()
         if (wptr.deleted())
             return;
 
-        if (mOnlineState == kChatStateOnline && !mLastTextMsg.isFetching())
+        // since this codepath is marshalled, it could happen the last
+        // text message is already found before the marshall is executed
+        if (mLastTextMsg.isValid())
+            return;
+
+        if (isFetchingFromServer())
+        {
+            mLastTextMsg.setState(LastTextMsgState::kFetching);
+        }
+        else if (mOnlineState == kChatStateOnline)
         {
             CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
-            requestHistoryFromServer(-16);
+            requestHistoryFromServer(-initialHistoryFetchCount);
             mLastTextMsg.setState(LastTextMsgState::kFetching);
         }
 
@@ -4093,6 +4102,7 @@ bool Message::hasUrl(const string &text, string &url)
         {
             if (!partialString.empty())
             {
+                removeUnnecessaryFirstCharacters(partialString);
                 removeUnnecessaryLastCharacters(partialString);
                 if (parseUrl(partialString))
                 {
@@ -4109,6 +4119,7 @@ bool Message::hasUrl(const string &text, string &url)
 
     if (!partialString.empty())
     {
+        removeUnnecessaryFirstCharacters(partialString);
         removeUnnecessaryLastCharacters(partialString);
         if (parseUrl(partialString))
         {
@@ -4123,6 +4134,11 @@ bool Message::hasUrl(const string &text, string &url)
 bool Message::parseUrl(const std::string &url)
 {
     if (url.find('.') == std::string::npos)
+    {
+        return false;
+    }
+
+    if (isValidEmail(url))
     {
         return false;
     }
@@ -4148,7 +4164,8 @@ bool Message::parseUrl(const std::string &url)
         return false;
     }
 
-    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+([-.]{1}[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+)*.[a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
+    std::regex regularExpresion("^(WWW.|www.)?[a-z0-9A-Z-._~:/?#@!$&'()*+,;=]+[.][a-zA-Z]{2,5}(:[0-9]{1,5})?([a-z0-9A-Z-._~:/?#@!$&'()*+,;=]*)?$");
+
 
     return regex_match(urlToParse, regularExpresion);
 }
@@ -4194,6 +4211,30 @@ void Message::removeUnnecessaryLastCharacters(string &buf)
             }
         }
     }
+}
+
+void Message::removeUnnecessaryFirstCharacters(string &buf)
+{
+    if (!buf.empty())
+    {
+        char firstCharacter = buf.front();
+        while (!buf.empty() && (firstCharacter == '.' || firstCharacter == ',' || firstCharacter == ':'
+                               || firstCharacter == '?' || firstCharacter == '!' || firstCharacter == ';'))
+        {
+            buf.erase(0, 1);
+
+            if (!buf.empty())
+            {
+                firstCharacter = buf.front();
+            }
+        }
+    }
+}
+
+bool Message::isValidEmail(const string &buf)
+{
+    std::regex regularExpresion("^[a-z0-9A-Z._%+-]+@[a-z0-9A-Z.-]+[.][a-zA-Z]{2,6}");
+    return regex_match(buf, regularExpresion);
 }
 
 } // end chatd namespace

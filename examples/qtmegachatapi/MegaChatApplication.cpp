@@ -195,7 +195,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
                 }
                 else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility);
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
                 }
             }
         }
@@ -338,6 +338,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                 if (chatListItem)
                 {
                     std::string title;
+                    MegaChatHandle chatid = request->getChatHandle();
                     QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
                     if (!qTitle.isNull())
                     {
@@ -347,9 +348,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                             this->mMegaChatApi->setChatTitle(handle, title.c_str());
                         }
                     }
-
-                    this->mMegaChatApi->setChatTitle(handle, title.c_str());
-                    const MegaChatListItem *chatListItem = mMainWin->getLocalChatListItem(handle);
+                    mMegaChatApi->setChatTitle(chatid, title.c_str());
+                    const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                    mMainWin->addLocalChatListItem(chatListItem);
+                    delete chatListItem;
+                    chatListItem = mMainWin->getLocalChatListItem(chatid);
                     mMainWin->addChat(chatListItem);
                 }
              }
@@ -363,92 +366,103 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
 
-    case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
-        if (e->getErrorCode() == MegaChatError::ERROR_OK)
-        {
-            QMessageBox msg;
-            msg.setIcon(QMessageBox::Information);
-            msg.setText("The chat link has been generated successfully");
-            QString chatlink (request->getText());
-            msg.setDetailedText(chatlink);
-            msg.exec();
-        }
-        else
-        {
-            if(e->getErrorCode() == MegaChatError::ERROR_ARGS)
+        case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
-                QMessageBox::warning(nullptr, tr("Export chat link"), tr("You need to set a chat title before"));
+                QMessageBox msg;
+                msg.setIcon(QMessageBox::Information);
+                msg.setText("The chat link has been generated successfully");
+                QString chatlink (request->getText());
+                msg.setDetailedText(chatlink);
+                msg.exec();
             }
             else
             {
-                QMessageBox::critical(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
-            }
-        }
-        break;
-
-    case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
-    {
-        MegaChatHandle chatid = request->getChatHandle();
-        MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-        if (!chatListItem)
-        {
-            QMessageBox::critical(nullptr, tr("Export chat link"), tr("Chat Item does not exists"));
-        }
-        else
-        {
-            mMainWin->addChat(chatListItem);
-        }
-        break;
-    }
-    case MegaChatRequest::TYPE_CHAT_LINK_CLOSE:
-    {
-        if(e->getErrorCode() != MegaChatError::ERROR_OK)
-        {
-            QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat to private mode ").append(e->getErrorString()));
-        }
-        else
-        {
-            QMessageBox::warning(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
-        }
-        break;
-    }
-    case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
-    {
-        if(e->getErrorCode() != MegaChatError::ERROR_OK)
-        {
-            QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
-        }
-        else
-        {
-            QMessageBox::warning(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
-        }
-        break;
-    }
-    case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
-    {
-        if(e->getErrorCode() == MegaChatError::ERROR_OK)
-        {
-           MegaChatHandle chatHandle = request->getChatHandle();
-           ChatItemWidget *item =  mMainWin->getChatItemWidget(chatHandle, false);
-           if (item)
-           {
-                ChatWindow *chatWin = item->getChatWindow();
-                if(chatWin)
+                if(e->getErrorCode() == MegaChatError::ERROR_ARGS)
                 {
-                    chatWin->close();
+                    QMessageBox::warning(nullptr, tr("Export chat link"), tr("You need to set a chat title before"));
                 }
+                else
+                {
+                    QMessageBox::critical(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+                }
+            }
+            break;
 
-                mMainWin->updateLocalChatListItems();
-                mMainWin->orderContactChatList(true);
-           }
-           QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
-        }
-        else
+        case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
-            QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link ").append(e->getErrorString()));
+            MegaChatHandle chatid = request->getChatHandle();
+            MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+            if (!chatListItem)
+            {
+                QMessageBox::critical(nullptr, tr("Export chat link"), tr("Chat Item does not exists"));
+            }
+            else
+            {
+                mMainWin->addChat(chatListItem);
+            }
+            break;
         }
-        break;
-    }
+        case MegaChatRequest::TYPE_CHAT_LINK_CLOSE:
+        {
+            if(e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat to private mode ").append(e->getErrorString()));
+            }
+            else
+            {
+                QMessageBox::warning(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
+            }
+            break;
+        }
+        case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
+        {
+            if(e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
+            }
+            else
+            {
+                QMessageBox::warning(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
+            }
+            break;
+        }
+        case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
+        {
+            if(e->getErrorCode() == MegaChatError::ERROR_OK)
+            {
+               MegaChatHandle chatHandle = request->getChatHandle();
+               ChatItemWidget *item =  mMainWin->getChatItemWidget(chatHandle, false);
+               if (item)
+               {
+                    ChatWindow *chatWin = item->getChatWindow();
+                    if(chatWin)
+                    {
+                        chatWin->close();
+                    }
+
+                    mMainWin->updateLocalChatListItems();
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+               }
+               QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
+            }
+            else
+            {
+                QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link ").append(e->getErrorString()));
+            }
+            break;
+        }
+        case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
+            }
+            else
+            {
+                 mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+            }
+            break;
+
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
          case MegaChatRequest::TYPE_START_CHAT_CALL:

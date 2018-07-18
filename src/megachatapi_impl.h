@@ -286,6 +286,7 @@ private:
     bool mPublicChat;
     bool mPreviewMode;
     bool active;
+    bool archived;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
     int lastMsgPriv;
@@ -308,6 +309,7 @@ public:
     virtual bool isPublic() const;
     virtual bool isPreview() const;
     virtual bool isActive() const;
+    virtual bool isArchived() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
     virtual MegaChatHandle getLastMessageHandle() const;
@@ -318,6 +320,16 @@ public:
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
+    void setArchived(bool);
+
+    /**
+     * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
+     * recives the filenames of the attached nodes. The filenames of nodes are separated
+     * by ASCII character '0x01'
+     * If the message is of type MegaChatMessage::TYPE_CONTACT, this function
+     * recives the usernames. The usernames are separated
+     * by ASCII character '0x01'
+     */
     void setLastMessage();
     void setChatMode(bool mode);
 };
@@ -338,7 +350,7 @@ public:
     virtual void onLastTsUpdated(uint32_t ts);
     virtual void onChatOnlineState(const chatd::ChatState state);
     virtual void onChatModeChanged(bool mode);
-
+    virtual void onChatArchived(bool archived);
     virtual const karere::ChatRoom& getChatRoom() const;
 
 protected:
@@ -386,6 +398,7 @@ public:
     virtual rtcModule::ICallHandler* callHandler();
 #endif
     virtual void onMemberNameChanged(uint64_t userid, const std::string &newName);
+    virtual void onChatArchived(bool archived);
     //virtual void* userp();
 
 
@@ -600,6 +613,7 @@ public:
     virtual const char *getTitle() const;
     virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
+    virtual bool isArchived() const;
 
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
@@ -615,6 +629,7 @@ public:
     void setUserStopTyping(MegaChatHandle uh);
     void setClosed();
     void setChatMode(bool mode);
+    void setArchived(bool archived);
 
 private:
     int changed;
@@ -629,6 +644,7 @@ private:
     bool mPublicChat;
     bool mPreviewMode;
     bool active;
+    bool archived;
     bool mHasCustomTitle;
 
     std::string title;
@@ -941,10 +957,12 @@ public:
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
+    MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
     int getUnreadChats();
     MegaChatListItemList *getActiveChatListItems();
     MegaChatListItemList *getInactiveChatListItems();
+    MegaChatListItemList *getArchivedChatListItems();
     MegaChatListItemList *getUnreadChatListItems();
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
@@ -962,6 +980,7 @@ public:
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 
