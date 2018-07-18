@@ -358,6 +358,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 {
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mHeartbeatEnabled = false;
+    mClientId = 0;      // clientid change with new connections
     auto oldState = mState;
     mState = kStateDisconnected;
 
