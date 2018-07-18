@@ -102,7 +102,7 @@ void RtcModule::init()
         KR_LOG_ERROR("Gelb failed with error '%s', using static server list", err.what());
     });
 
-    mClient.chatd->setRtcHandler(this);
+    mClient.mChatdClient->setRtcHandler(this);
 }
 
 IRtcModule* create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto* crypto, const char* iceServers)
@@ -413,8 +413,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     ICallHandler& handler, Id callid)
 {
     karere::Id id = callid.isValid() ? callid : (karere::Id)random<uint64_t>();
-
-    auto& chat = mClient.chatd->chats(chatid);
+    auto& chat = mClient.mChatdClient->chats(chatid);
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
     {
@@ -947,7 +946,14 @@ void Call::msgCallReqCancel(RtMessage& packet)
     }
 
     auto term = packet.payload.read<uint8_t>(8);
-    destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
+    if (term == TermCode::kUserHangup)
+    {
+        destroy(static_cast<TermCode>(kCallReqCancel | TermCode::kPeer), false);
+    }
+    else
+    {
+        destroy(static_cast<TermCode>(term | TermCode::kPeer), false);
+    }
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -1196,7 +1202,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_DEBUG("Destroying call due to: %s", msg.c_str());
     }
 
-    mTermCode = code;
+    mTermCode = (mState == kStateReqSent && code == TermCode::kUserHangup) ? kCallReqCancel : code;  // adjust for onStateChange()
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
@@ -1208,6 +1214,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
         case kStateReqSent:
             cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            code = kCallReqCancel;  // overwrite code for onDestroy() callback
             pms = promise::_Void();
             break;
         case kStateRingIn:
@@ -1572,6 +1579,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
                 case kStateRingIn:
                     assert(false);  // it should be kCallRejected
                 case kStateReqSent:
+                    assert(false);  // it should be kCallReqCancel
                     codeToChatd = kCallDataReasonCancelled;
                     break;
 
@@ -1585,6 +1593,11 @@ uint8_t Call::convertTermCodeToCallDataCode()
             }
             break;
         }
+
+        case kCallReqCancel:
+            assert(mPredestroyState == kStateReqSent);
+            codeToChatd = kCallDataReasonCancelled;
+            break;
 
         case kCallRejected:
             codeToChatd = kCallDataReasonRejected;
