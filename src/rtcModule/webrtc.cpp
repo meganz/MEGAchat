@@ -661,7 +661,7 @@ std::vector<Id> RtcModule::chatsWithCall() const
 void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, Id callid, AvFlags avFlagsRemote)
 {
     karere::Id chatid = chat.chatId();
-    karere::Id myHandle = chat.client().karereClient->myHandle();
+    karere::Id myHandle = mClient.myHandle();
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
 
@@ -684,7 +684,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             existingCall->sendBusy(isCallToSameUser);
             return;
         }
-        else if (mClient.myHandle() > userid)
+        else if (myHandle > userid)
         {
             RTCM_LOG_DEBUG("hadleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
             return;
