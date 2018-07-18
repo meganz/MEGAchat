@@ -44,7 +44,7 @@ class MyListener: public mega::MegaRequestListener
 public:
     MyListener(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
     ApiPromise mPromise;
-    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+    virtual void onRequestFinish(mega::MegaApi* /*api*/, mega::MegaRequest *request, mega::MegaError* e)
     {
         if (wptr.deleted())
             return;
@@ -84,7 +84,7 @@ public:
     MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
 
     promise::Promise<void> mPromise;
-    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+    virtual void onRequestFinish(mega::MegaApi* /*api*/, mega::MegaRequest */*request*/, mega::MegaError* e)
     {
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
@@ -113,7 +113,7 @@ public:
 
 class MyMegaLogger: public ::mega::MegaLogger
 {
-    virtual void log(const char *time, int loglevel, const char *source, const char *message)
+    virtual void log(const char */*time*/, int loglevel, const char *source, const char *message)
     {
         static krLogLevel sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
         {

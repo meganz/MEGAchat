@@ -232,7 +232,7 @@ public:
             }
             ::free(mBuf);
         }
-        mBufSize = (kMinBufSize>datalen) ? kMinBufSize : datalen;
+        mBufSize = (kMinBufSize > datalen) ? (size_t) kMinBufSize : datalen;
         mBuf = (char*)malloc(mBufSize);
         if (!mBuf)
         {
