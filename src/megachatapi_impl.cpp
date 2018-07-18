@@ -1537,15 +1537,20 @@ void MegaChatApiImpl::fireOnChatRequestTemporaryError(MegaChatRequestPrivate *re
 
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
 {
-    if (call->getId() != Id::inval())
+    if (call->getId() == Id::inval())
     {
-        for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
-        {
-            (*it)->onChatCallUpdate(chatApi, call);
-        }
-
-        call->removeChanges();
+        // if a call have no id yet, it's because we haven't received yet the initial CALLDATA,
+        // but just some previous opcodes related to the call, like INCALLs or CALLTIME (which
+        // do not include the callid)
+        return;
     }
+
+    for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
+    {
+        (*it)->onChatCallUpdate(chatApi, call);
+    }
+
+    call->removeChanges();
 }
 
 void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, MegaChatHandle peerid, int width, int height, char *buffer)
