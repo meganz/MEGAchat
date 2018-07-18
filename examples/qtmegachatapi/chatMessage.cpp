@@ -312,7 +312,7 @@ std::string ChatMessage::managementInfoToString() const
     case megachat::MegaChatMessage::TYPE_CALL_STARTED:
     {
         ret.append("User ").append(userHandle_64)
-           .append(" has started start a call");
+           .append(" has started a call");
         return ret;
     }
     default:
