@@ -1469,7 +1469,7 @@ rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handl
 
 rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
 {
-    return parent.client.rtc->joinCall(chatid(), av, handler, callid);
+    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
 }
 #endif
 
