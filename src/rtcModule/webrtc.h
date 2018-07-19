@@ -83,7 +83,8 @@ enum: uint8_t
 enum TermCode: uint8_t
 {
     kUserHangup = 0,            // < Normal user hangup
-//    kCallReqCancel = 1,       // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
+    kCallReqCancel = 1,         // < deprecated, now we have CALL_REQ_CANCEL specially for call requests, but keep this
+    // < code to notify the app when the call is cancelled (in contrast to kUserHangup, which is used when call was stablished)
     kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected in
     // < the current device
     kAnsElsewhere = 3,          // < Call was answered on another device of ours
@@ -158,12 +159,12 @@ public:
      */
     virtual ~ICallHandler(){}
     virtual void setCall(ICall* call)  = 0;
-    virtual void onStateChange(uint8_t newState) {}
+    virtual void onStateChange(uint8_t /*newState*/) {}
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
-    virtual ISessionHandler* onNewSession(ISession& sess) { return nullptr; }
-    virtual void onLocalStreamObtained(IVideoRenderer*& rendererOut) {}
-    virtual void onLocalMediaError(const std::string errors) {}
-    virtual void onRingOut(karere::Id peer) {}
+    virtual ISessionHandler* onNewSession(ISession& /*sess*/) { return nullptr; }
+    virtual void onLocalStreamObtained(IVideoRenderer*& /*rendererOut*/) {}
+    virtual void onLocalMediaError(const std::string /*errors*/) {}
+    virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
 

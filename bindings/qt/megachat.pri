@@ -137,4 +137,5 @@ karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
 PRE_TARGETDEPS += karereDbSchema.cpp
 QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
 
-DISTFILES +=
+DISTFILES += \
+    $$PWD/../../src/dbSchema.sql
