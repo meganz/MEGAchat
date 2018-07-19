@@ -188,6 +188,7 @@ public:
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
+    void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
     void TEST_OfflineMode(unsigned int accountIndex);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
@@ -211,6 +212,12 @@ private:
     void makeContact(unsigned int a1, unsigned int a2);
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
                                               megachat::MegaChatPeerList *peers, bool create = true);
+
+    megachat::MegaChatHandle getPublicChatRoom(unsigned int a1, unsigned int a2,
+                                                     megachat::MegaChatHandle peer);
+
+    megachat::MegaChatHandle createPublicChatRoom(unsigned int a1, unsigned int a2,
+                                              megachat::MegaChatPeerList *peers, bool create = true, const char* title = NULL);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -265,6 +272,7 @@ private:
     megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
     megachat::MegaChatRoom *chatroom[NUM_ACCOUNTS];
     megachat::MegaChatListItem *chatListItem[NUM_ACCOUNTS];
+    std::string chatLinks[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
