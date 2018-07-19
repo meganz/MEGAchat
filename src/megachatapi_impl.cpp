@@ -3409,10 +3409,15 @@ IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
 
 rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call, karere::AvFlags av)
 {
-    MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
-    chatCallHandler->setCall(&call);
     MegaChatHandle chatid = call.chat().chatId();
-    mClient->rtc->addCallHandler(chatid, chatCallHandler);
+    MegaChatCallHandler *chatCallHandler = static_cast<MegaChatCallHandler *>(mClient->rtc->findCallHandler(chatid));
+    if (!chatCallHandler)
+    {
+        chatCallHandler = new MegaChatCallHandler(this);
+        mClient->rtc->addCallHandler(chatid, chatCallHandler);
+    }
+
+    chatCallHandler->setCall(&call);
     chatCallHandler->getMegaChatCall()->setInitialAudioVideoFlags(av);
 
     // Notify onIncomingCall like state change becouse rtcModule::ICall::kStateRingIn status
@@ -6557,6 +6562,7 @@ MegaChatCallHandler::~MegaChatCallHandler()
 
 void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 {
+    assert(!this->call);
     this->call = call;
     if (!chatCall)
     {

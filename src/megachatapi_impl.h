@@ -538,8 +538,8 @@ public:
     void setCallNotPresent(karere::Id chatid, karere::Id callid);
 private:
     MegaChatApiImpl *megaChatApi;
-    rtcModule::ICall *call;
-    MegaChatCallPrivate *chatCall;
+    rtcModule::ICall *call = NULL;
+    MegaChatCallPrivate *chatCall = NULL;
 
     rtcModule::IVideoRenderer *localVideoReceiver;
 };
