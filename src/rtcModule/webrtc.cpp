@@ -1249,7 +1249,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         {
             SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere or kErrAlready");
         }
-        else if (mState == kStateRingIn)
+        else if (mPredestroyState == kStateRingIn)
         {
             SUB_LOG_DEBUG("Not sending CALLDATA because we were passively ringing in a group call");
         }
