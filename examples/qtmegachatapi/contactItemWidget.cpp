@@ -93,6 +93,10 @@ void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 
 void ContactItemWidget::onCreatePublicGroupChat()
 {
+   megachat::MegaChatPeerList *peerList;
+   peerList = megachat::MegaChatPeerList::createInstance();
+   peerList->addPeer(mUserHandle, 2);
+
    QMessageBox msgBox;
    msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new public group chat.");
    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
@@ -101,23 +105,23 @@ void ContactItemWidget::onCreatePublicGroupChat()
 
    if (ret == QMessageBox::Ok)
    {
-        const char *title = NULL;
+        std::string title;
         QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
         if (!qTitle.isNull())
         {
-           if (qTitle.length() != 0)
-           {
-              title = qTitle.toStdString().c_str();
-           }
+            title = qTitle.toStdString();
+            if (title.empty() || title.size() == 1)
+            {
+                this->mMegaChatApi->createPublicChat(peerList);
+            }
+            else
+            {
+                this->mMegaChatApi->createPublicChat(peerList, title.c_str());
+            }
         }
-        megachat::MegaChatPeerList *peerList;
-        peerList = megachat::MegaChatPeerList::createInstance();
-        peerList->addPeer(mUserHandle, 2);
-        this->mMegaChatApi->createPublicChat(peerList, title);
    }
    msgBox.deleteLater();
 }
-
 
 void ContactItemWidget::onCreateGroupChat()
 {
