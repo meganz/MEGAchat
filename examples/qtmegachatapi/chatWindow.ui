@@ -447,6 +447,34 @@ border-image: url(':/groupchat-members-hover.svg')
            </property>
           </widget>
          </item>
+		<item>
+				  <widget class="QToolButton" name="mSettingsBtn">
+				   <property name="enabled">
+				    <bool>true</bool>
+				   </property>
+				   <property name="minimumSize">
+				    <size>
+				     <width>30</width>
+				     <height>20</height>
+				    </size>
+				   </property>
+				   <property name="styleSheet">
+				    <string notr="true">QToolButton
+		{
+		border-image: url(':/settings.svg')
+		}
+		QToolButton:hover
+		{
+		border-image: url(':/settings-hover.svg')
+		}
+		</string>
+				   </property>
+				   <property name="text">
+				    <string/>
+				   </property>
+				  </widget>
+				 </item>
+
          <item>
           <widget class="QToolButton" name="mJoinBtn">
            <property name="enabled">

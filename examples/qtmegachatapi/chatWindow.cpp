@@ -178,6 +178,9 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
 
 void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
 {
+    delete mChatRoom;
+    this->mChatRoom = chat->copy();
+
     if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
     {
         ui->mMessageEdit->setEnabled(false);
@@ -188,15 +191,7 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChat
 
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
     {
-       delete mChatRoom;
-       this->mChatRoom = chat->copy();
        this->setChatTittle(mChatRoom->getTitle());
-    }
-
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS))
-    {
-        delete mChatRoom;
-        this->mChatRoom = chat->copy();
     }
 
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
@@ -493,10 +488,6 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         return ;
     }
 
-    auto truncate = menu.addAction("Truncate chat");
-    truncate->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
-
     auto addEntry = menu.addMenu("Add contact to chat");
     addEntry->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
     mega::MegaUserList *userList = mMegaApi->getContacts();
@@ -609,6 +600,113 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     }
 }
 
+void ChatWindow::createSettingsMenu(QMenu& menu)
+{
+    if (!mChatRoom->isActive())
+    {
+        return;
+    }
+    //Leave
+    auto leave = menu.addAction("Leave chat");
+    connect(leave, SIGNAL(triggered()), this, SLOT(onLeaveGroupChat()));
+
+    //Truncate
+    auto truncate = menu.addAction("Truncate chat");
+    truncate->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+
+    //Set topic
+    auto title = menu.addAction("Set title");
+    title->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+    connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
+
+    if (!mChatRoom->isArchived())
+    {
+        //Archive
+        auto archive = menu.addAction("Archive chat");
+        connect(archive, SIGNAL(triggered()), this, SLOT(onArchiveChat()));
+    }
+    else
+    {
+        //Unarchive
+        auto unarchive = menu.addAction("Unarchive chat");
+        connect(unarchive, SIGNAL(triggered()), this, SLOT(onUnarchiveChat()));
+    }
+
+    if (mChatRoom->isPublic())
+    {
+        //Export chat link
+        auto exportChatLink = menu.addAction("Export chat link");
+        exportChatLink->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+        connect(exportChatLink, SIGNAL(triggered()), this, SLOT(onExportChatLink()));
+
+        //Remove chat link
+        auto removeChatLink = menu.addAction("Remove chat link");
+        removeChatLink->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+        connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
+
+        //Close chat link
+        auto closeChatLink = menu.addAction("Close chat link");
+        closeChatLink->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+        connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
+    }
+
+}
+
+void ChatWindow::onExportChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->exportChatLink(mChatRoom->getChatId());
+    }
+
+}
+void ChatWindow::onRemoveChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->removeChatLink(mChatRoom->getChatId());
+    }
+}
+void ChatWindow::onCloseChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->closeChatLink(mChatRoom->getChatId());
+    }
+}
+
+void ChatWindow::onUnarchiveChat()
+{
+    mMegaChatApi->archiveChat(mChatRoom->getChatId(), false);
+}
+
+void ChatWindow::onArchiveChat()
+{
+    mMegaChatApi->archiveChat(mChatRoom->getChatId(), true);
+}
+
+
+void ChatWindow::onChangeTitle()
+{
+    std::string title;
+    QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
+    if (!qTitle.isNull())
+    {
+        title = qTitle.toStdString();
+        if (title.empty())
+        {
+            QMessageBox::warning(this, tr("Set chat title"), tr("You can't set an empty title"));
+            return;
+        }
+        this->mMegaChatApi->setChatTitle(mChatRoom->getChatId(), title.c_str());
+    }
+}
+
+void ChatWindow::onLeaveGroupChat()
+{
+    this->mMegaChatApi->leaveChat(mChatRoom->getChatId());
+}
 
 void ChatWindow::onTruncateChat()
 {
@@ -743,4 +841,18 @@ void ChatWindow::on_mJoinBtn_clicked()
         return;
 
     this->mMegaChatApi->joinChatLink(this->mChatRoom->getChatId());
+}
+
+void ChatWindow::on_mSettingsBtn_clicked()
+{
+    if(mChatRoom->isGroup())
+    {
+        QMenu menu(this);
+        createSettingsMenu(menu);
+        menu.setLayoutDirection(Qt::RightToLeft);
+        menu.adjustSize();
+        menu.exec(ui->mMembersBtn->mapToGlobal(
+            QPoint(-menu.width()+ui->mMembersBtn->width(), ui->mMembersBtn->height())));
+        menu.deleteLater();
+    }
 }

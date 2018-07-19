@@ -461,21 +461,32 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
                 {
-                    updateLocalChatListItem(item);
                     orderContactChatList(allItemsVisibility, archivedItemsVisibility);
                     break;
                 }
             //The chatroom is private now
             case (megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE):
                 {
-                    updateLocalChatListItem(item);
                     orderContactChatList(allItemsVisibility, archivedItemsVisibility);
                     break;
                 }
             //The Chatroom has been un/archived
             case (megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE):
                 {
+                    if (!archivedItemsVisibility)
+                    {
+                        ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
+                        if(auxChatItemWidget)
+                        {
+                            if (auxChatItemWidget->mChatWindow)
+                            {
+                                auxChatItemWidget->mChatWindow->deleteLater();
+                                auxChatItemWidget->invalidChatWindowHandle();
+                            }
+                        }
+                    }
                     orderContactChatList(allItemsVisibility, archivedItemsVisibility);
+                    break;
                 }
         }
      }

@@ -43,6 +43,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
+        void createSettingsMenu(QMenu& menu);
         void truncateChatUI();
         void connectCall();
         void hangCall();
@@ -86,10 +87,20 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberAdd();
         void onTruncateChat();
         void onMembersBtn(bool);
+        void onLeaveGroupChat();
+        void onChangeTitle();
+        void onExportChatLink();
+        void onRemoveChatLink();
+        void onCloseChatLink();
+        void onUnarchiveChat();
+        void onArchiveChat();
+
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
 #endif
         void on_mJoinBtn_clicked();
+
+        void on_mSettingsBtn_clicked();
 
 protected slots:
 #ifndef KARERE_DISABLE_WEBRTC
