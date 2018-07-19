@@ -316,6 +316,7 @@ public:
      * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
      */
     virtual void stopCallsTimers(int shard) = 0;
+    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -646,7 +647,6 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
-    std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -1068,7 +1068,6 @@ public:
     bool isGroup() const;
     void clearHistory();
     void sendSync();
-
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

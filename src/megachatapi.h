@@ -172,6 +172,7 @@ public:
 
     enum
     {
+        CHANGE_TYPE_NO_CHANGES = 0x00,      /// Call doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
@@ -3379,6 +3380,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
+     *
      * @note In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
@@ -3397,6 +3401,9 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
      *
      * @note In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.

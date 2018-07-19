@@ -114,8 +114,9 @@ enum TermCode: uint8_t
     kErrPeerOffline = 33,       // < we received a notification that that user went offline
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
-    kErrorLast = 35,            // < Last enum indicating call termination due to error
-    kLast = 35,                 // < Last call terminate enum value
+    kErrAlready = 36,           // < There is already a call in this chatroom
+    kErrorLast = 36,            // < Last enum indicating call termination due to error
+    kLast = 36,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
@@ -171,6 +172,11 @@ public:
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) = 0;
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
+    virtual bool isParticipating(karere::Id userid) = 0;
+    virtual void removeAllParticipants() = 0;
+
+    virtual karere::Id getCallId() const = 0;
+    virtual void setCallId(karere::Id callid) = 0;
 };
 class IGlobalHandler
 {
@@ -315,8 +321,8 @@ protected:
         : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
 public:
     enum {
-       kMaxCallReceivers = 10,
-       kMaxCallAudioSenders = 10,
+       kMaxCallReceivers = 20,
+       kMaxCallAudioSenders = 20,
        kMaxCallVideoSenders = 6
     };
 
@@ -362,7 +368,8 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual bool isCallInProgress() const = 0;
-    virtual void removeCall(karere::Id chatid) = 0;
+    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
+    virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
 
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;

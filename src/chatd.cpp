@@ -358,6 +358,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 {
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mHeartbeatEnabled = false;
+    mClientId = 0;      // clientid change with new connections
     auto oldState = mState;
     mState = kStateDisconnected;
 
@@ -375,7 +376,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 #ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.karereClient->rtc)
         {
-            mChatdClient.karereClient->rtc->removeCall(chatid);
+            mChatdClient.karereClient->rtc->removeCall(chatid, true);
         }
 #endif
     }
@@ -1398,7 +1399,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler && userid != mChatdClient.karereClient->myHandle())
+                if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);
@@ -1740,14 +1741,17 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 }
 void Chat::onInCall(karere::Id userid, uint32_t clientid)
 {
-    mCallParticipants.emplace(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
+    assert(mClient.mRtcHandler);
+    if (mClient.mRtcHandler)
+    {
+        mClient.mRtcHandler->handleInCall(mChatId, userid, clientid);
+    }
+#endif
 }
 
 void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
-    EndpointId key(userid, clientid);
-    mCallParticipants.erase(key);
-
 #ifndef KARERE_DISABLE_WEBRTC
     assert(mClient.mRtcHandler);
     if (mClient.mRtcHandler)
@@ -3718,6 +3722,13 @@ void Chat::onJoinComplete()
             findAndNotifyLastTextMsg();
         }
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (mClient.karereClient->rtc)
+    {
+        mClient.karereClient->rtc->removeCallWithoutParticipants(mChatId);
+    }
+#endif
 }
 
 void Chat::resetGetHistory()

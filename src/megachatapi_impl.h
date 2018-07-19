@@ -240,6 +240,9 @@ public:
     bool removeParticipant(karere::Id userid, uint32_t clientid);
     int getCallParticipants();
     bool adjustAvFlagsToRestriction(karere::AvFlags &av);
+    bool isParticipating(karere::Id userid);
+    void removeAllParticipants();
+    void setId(karere::Id callid);
 
 protected:
     MegaChatHandle chatid;
@@ -525,13 +528,18 @@ public:
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid);
     virtual int callParticipants();
+    virtual bool isParticipating(karere::Id userid);
+    virtual void removeAllParticipants();
+    virtual karere::Id getCallId() const;
+    virtual void setCallId(karere::Id callid);
+
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid);
 private:
     MegaChatApiImpl *megaChatApi;
-    rtcModule::ICall *call;
-    MegaChatCallPrivate *chatCall;
+    rtcModule::ICall *call = NULL;
+    MegaChatCallPrivate *chatCall = NULL;
 
     rtcModule::IVideoRenderer *localVideoReceiver;
 };

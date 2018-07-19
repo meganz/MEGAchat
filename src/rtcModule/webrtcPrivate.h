@@ -87,10 +87,10 @@ class Call: public ICall
 {
     enum CallDataState
     {
-        kCallDataInProgress     = 0,
+        kCallDataNotRinging     = 0,
         kCallDataRinging        = 1,
         kCallDataEnd            = 2,
-        kCallDataJoin           = 3,
+        kCallDataSession        = 3,
         kCallDataMute           = 4
     };
 
@@ -177,7 +177,7 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av);
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
-    void sendBusy();
+    void sendBusy(bool isCallToSameUser);
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -189,7 +189,7 @@ public:
         kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 20000
+        kSessSetupTimeout = 30000
     };
 
     //TODO: set valid values
@@ -207,6 +207,7 @@ public:
     virtual void onClientLeftCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void onDisconnect(chatd::Connection& conn);
     virtual void stopCallsTimers(int shard);
+    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
@@ -218,7 +219,8 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress() const;
-    virtual void removeCall(karere::Id chatid);
+    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
+    virtual void removeCallWithoutParticipants(karere::Id chatid);
     virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
     virtual ICallHandler* findCallHandler(karere::Id chatid);
     virtual int numCalls() const;
