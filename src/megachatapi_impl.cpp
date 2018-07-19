@@ -5819,6 +5819,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
 
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
             case MegaChatMessage::TYPE_TRUNCATE:    // no content at all
+            case MegaChatMessage::TYPE_CALL_STARTED:    // no content at all
             default:
                 break;
         }
@@ -6193,6 +6194,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_NORMAL:
         case MegaChatMessage::TYPE_CHAT_TITLE:
         case MegaChatMessage::TYPE_TRUNCATE:
+        case MegaChatMessage::TYPE_CALL_STARTED:    // no content at all
             break;
         default:
         {
