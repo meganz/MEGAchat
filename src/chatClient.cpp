@@ -657,34 +657,27 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (e->getErrorCode() == ::mega::MegaError::API_ESID)
-    {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]() // update state in the karere thread
-        {
-            if (wptr.deleted())
-                return;
-
-            if (initState() != kInitTerminated)
-            {
-                setInitState(kInitErrSidInvalid);
-            }
-        }, appCtx);
-        return;
-    }
-    else if (e->getErrorCode() != ::mega::MegaError::API_OK)
+    int reqType = request->getType();
+    int errorCode = e->getErrorCode();
+    if (errorCode != ::mega::MegaError::API_OK && reqType != ::mega::MegaRequest::TYPE_LOGOUT)
     {
         KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
         return;
     }
 
-    auto reqType = request->getType();
     switch (reqType)
     {
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
-        if (request->getFlag() ||   // SDK has been logged out normally closing session
-                request->getParamType() == ::mega::MegaError::API_ESID)   // SDK received ESID during login
+        bool loggedOut = (errorCode == ::mega::MegaError::API_OK && request->getFlag());    // SDK has been logged out normally closing session
+        bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
+        if (loggedOut)
+            KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
+
+        if (sessionExpired)
+            KR_LOG_WARNING("Expired session detected. Closing MEGAchat session...");
+
+        if (loggedOut || sessionExpired)
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]() // update state in the karere thread
