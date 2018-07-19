@@ -272,6 +272,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
 {
     switch (request->getType())
     {
+        case MegaChatRequest::TYPE_LOGOUT:
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
+            {
+                std::string sidPath = mAppDir + "/sid";
+                std::remove(sidPath.c_str());
+                mSid = NULL;
+                if (mMainWin)
+                {
+                    mMainWin->deleteLater();
+                    mMainWin = NULL;
+                }
+                init();
+            }
+            break;
+
          case MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
