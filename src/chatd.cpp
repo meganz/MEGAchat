@@ -3768,7 +3768,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     //idx == CHATD_IDX_INVALID when we notify about a message in the send queue
     //either (msg.isSending() && idx-is-invalid) or (!msg.isSending() && index-is-valid)
     assert(!((idx == CHATD_IDX_INVALID) ^ msg.isSending()));
-    assert(!msg.empty());
+    assert(!msg.empty() || msg.type == Message::kMsgCallStarted);
     assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
     notifyLastTextMsg();
