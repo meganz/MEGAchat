@@ -244,6 +244,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     auto actChat = menu.addAction(tr("Add new chat group"));
     connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
 
+    auto actPubChat = menu.addAction(tr("Create new public chat (Empty)"));
+    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPublicChatGroup()));
+
     menu.exec(event->globalPos());
 }
 
@@ -511,6 +514,32 @@ void MainWindow::onAddChatGroup()
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi);
     chatDialog->createChatList(list);
     chatDialog->show();
+}
+
+void MainWindow::onAddPublicChatGroup()
+{
+    QMessageBox msgBox;
+    msgBox.setText("Do you want to create a new public group chat.");
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Save);
+    int ret = msgBox.exec();
+
+    if (ret == QMessageBox::Ok)
+    {
+         const char *title = NULL;
+         QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
+         if (!qTitle.isNull())
+         {
+            if (qTitle.length() != 0)
+            {
+               title = qTitle.toStdString().c_str();
+            }
+         }
+         megachat::MegaChatPeerList *peerList;
+         peerList = megachat::MegaChatPeerList::createInstance();
+         this->mMegaChatApi->createPublicChat(peerList, title);
+    }
+    msgBox.deleteLater();
 }
 
 void MainWindow::loadChatLink()
