@@ -1584,9 +1584,10 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
-            && (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN          // for callee, incoming call
-                || call->getStatus() == MegaChatCall::CALL_STATUS_REQUEST_SENT  // for caller, outgoing call
-                || call->getStatus() == MegaChatCall::CALL_STATUS_DESTROYED))   // call finished
+            && (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN              // for callee, incoming call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_USER_NO_PRESENT   // for callee (groupcalls)
+                || call->getStatus() == MegaChatCall::CALL_STATUS_REQUEST_SENT      // for caller, outgoing call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_DESTROYED))       // call finished
     {
         // notify at MegaChatListItem level about new calls and calls being terminated
         ChatRoom *room = findChatRoom(call->getChatid());
