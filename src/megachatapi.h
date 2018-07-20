@@ -3778,6 +3778,12 @@ public:
     virtual bool isArchived() const;
 
     /**
+     * @brief Returns whether the chat has a call in progress or not.
+     * @return True if a call is in progress in this chat, false otherwise.
+     */
+    virtual bool isCallInProgress() const;
+
+    /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms
      *
      * The returned value is only valid for 1on1 chatrooms. For groupchats, it will
@@ -3822,7 +3828,7 @@ public:
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_ARCHIVE             = 0X100 /// Archived or unarchived
+        CHANGE_TYPE_ARCHIVE             = 0x100 /// Archived or unarchived
     };
 
     enum {

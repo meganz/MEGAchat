@@ -5396,6 +5396,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
+    this->mIsCallInProgress = chatroom.isCallInProgress();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
     this->lastMsgPriv = Priv::PRIV_INVALID;
@@ -5486,6 +5487,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
     this->archived = item->isArchived();
+    this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
 }
@@ -5567,6 +5569,11 @@ bool MegaChatListItemPrivate::isActive() const
 bool MegaChatListItemPrivate::isArchived() const
 {
     return archived;
+}
+
+bool MegaChatListItemPrivate::isCallInProgress() const
+{
+    return mIsCallInProgress;
 }
 
 MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const

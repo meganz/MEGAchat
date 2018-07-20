@@ -282,6 +282,7 @@ private:
     bool group;
     bool active;
     bool archived;
+    bool mIsCallInProgress;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
     int lastMsgPriv;
@@ -303,6 +304,7 @@ public:
     virtual bool isGroup() const;
     virtual bool isActive() const;
     virtual bool isArchived() const;
+    virtual bool isCallInProgress() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
     virtual MegaChatHandle getLastMessageHandle() const;
@@ -314,6 +316,7 @@ public:
     void setClosed();
     void setLastTimestamp(int64_t ts);
     void setArchived(bool);
+    void setCallInProgress();
 
     /**
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
