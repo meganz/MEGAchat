@@ -284,6 +284,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
                 addChats();
+                MegaChatHandle myHandle = mMegaChatApi->getMyUserHandle();
+                mMainWin->updateToolTipMyInfo(myHandle);
             }
             else
             {

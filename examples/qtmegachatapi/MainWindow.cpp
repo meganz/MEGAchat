@@ -34,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
     ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+
 #ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 #endif
@@ -58,6 +59,19 @@ MainWindow::~MainWindow()
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
+}
+
+void MainWindow::updateToolTipMyInfo(megachat::MegaChatHandle myHandle)
+{
+    QString text = NULL;
+    std::string myHandleBin = std::to_string(myHandle);
+    const char *myHandle_64 = mMegaApi->userHandleToBase64(myHandle);
+    text.append("\nMy User handle Bin: ");
+    text.append(myHandleBin.c_str());
+    text.append("\nMy User handle B64: ");
+    text.append(QString::fromStdString(myHandle_64));
+    ui->bOnlineStatus->setToolTip(text);
+    delete myHandle_64;
 }
 
 mega::MegaUserList * MainWindow::getUserContactList()
@@ -246,6 +260,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
     auto actPubChat = menu.addAction(tr("Create new public chat (Empty)"));
     connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPublicChatGroup()));
+
+    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
+    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
     menu.exec(event->globalPos());
 }
@@ -514,6 +531,14 @@ void MainWindow::onAddChatGroup()
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi);
     chatDialog->createChatList(list);
     chatDialog->show();
+}
+
+void MainWindow::onPrintMyInfo()
+{
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(this->ui->bOnlineStatus->toolTip());
+    msg.exec();
 }
 
 void MainWindow::onAddPublicChatGroup()

@@ -43,10 +43,12 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
     auto publicChatInviteAction = menu.addAction(tr("Invite to PUBLIC group chat"));
     auto removeAction = menu.addAction(tr("Remove contact"));
+    auto printAction = menu.addAction(tr("Print contact info"));
 
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
     connect(publicChatInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePublicGroupChat()));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
+    connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
 
     menu.exec(event->globalPos());
     menu.deleteLater();
@@ -66,6 +68,7 @@ void ContactItemWidget::setWidgetItem(QListWidgetItem *item)
 void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 {
    QString text = NULL;
+   std::string contactHandleBin = std::to_string(contact->getHandle());
    const char *email = contact->getEmail();
    const char *chatHandle_64 = "--------";
    const char *contactHandle_64 = mMegaApi->userHandleToBase64(contact->getHandle());
@@ -83,6 +86,7 @@ void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 
    text.append(tr("Email: "))
         .append(QString::fromStdString(email))
+        .append(tr("\nUser handle bin: ")).append(contactHandleBin.c_str())
         .append(tr("\nUser handle: ")).append(contactHandle_64)
         .append(tr("\nChat handle: ")).append((chatHandle_64));
 
@@ -183,6 +187,14 @@ void ContactItemWidget::onCreateGroupChat()
         delete listItems;
    }
    msgBox.deleteLater();
+}
+
+void ContactItemWidget::onPrintContactInfo()
+{
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(toolTip());
+    msg.exec();
 }
 
 void ContactItemWidget::onContactRemove()

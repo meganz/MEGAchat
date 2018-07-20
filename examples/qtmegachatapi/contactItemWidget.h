@@ -33,6 +33,7 @@ class ContactItemWidget : public QWidget
         MainWindow *mMainWin;
 
     private slots:
+        void onPrintContactInfo();
         void onCreateGroupChat();
         void onCreatePublicGroupChat();
         void onContactRemove();

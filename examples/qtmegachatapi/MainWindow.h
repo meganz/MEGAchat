@@ -90,6 +90,7 @@ class MainWindow :
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
+        void updateToolTipMyInfo(megachat::MegaChatHandle myHandle);
     public:
         MegaLoggerApplication *mLogger;
         int getNContacts() const;
@@ -126,6 +127,7 @@ class MainWindow :
         void on_bHiddenChats_clicked();
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
+        void onPrintMyInfo();
 
     signals:
         void esidLogout();
