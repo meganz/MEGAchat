@@ -109,6 +109,8 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    bool isCallInProgress() const;
+
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
 

@@ -1836,6 +1836,11 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
+bool ChatRoom::isCallInProgress() const
+{
+    return parent.mKarereClient.isCallInProgress(mChatid);
+}
+
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
 {
     auto wptr = getDelTracker();
