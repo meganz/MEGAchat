@@ -841,7 +841,7 @@ public:
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
-    bool isCallInProgress() const;
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif

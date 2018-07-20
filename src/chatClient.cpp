@@ -548,6 +548,7 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
 #ifndef KARERE_DISABLE_WEBRTC
             if (rtc && rtc->isCallInProgress())
             {
+                KR_LOG_WARNING("EVENT_DISCONNECT --> skipping reconnection triggered by SDK because there's a call in progress");
                 break;
             }
 #endif
@@ -3092,14 +3093,14 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress() const
+bool Client::isCallInProgress(Id chatid) const
 {
     bool callInProgress = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress();
+        callInProgress = rtc->isCallInProgress(chatid);
     }
 #endif
 
