@@ -3622,7 +3622,8 @@ public:
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
         CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
-        CHANGE_TYPE_ARCHIVE         = 0X100 /// Archived or unarchived
+        CHANGE_TYPE_ARCHIVE         = 0x100,/// Archived or unarchived
+        CHANGE_TYPE_CALL            = 0x200 /// There's a new call or a call has finished
     };
 
     virtual ~MegaChatListItem() {}

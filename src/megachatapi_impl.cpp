@@ -1505,6 +1505,19 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
         (*it)->onChatCallUpdate(chatApi, call);
     }
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
+            && (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN          // for callee, incoming call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_REQUEST_SENT  // for caller, outgoing call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_DESTROYED))   // call finished
+    {
+        // notify at MegaChatListItem level about new calls and calls being terminated
+        ChatRoom *room = findChatRoom(call->getChatid());
+        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
+        item->setCallInProgress();
+
+        fireOnChatListItemUpdate(item);
+    }
+
     call->removeChanges();
 }
 
@@ -5629,6 +5642,11 @@ void MegaChatListItemPrivate::setArchived(bool archived)
 {
     this->archived = archived;
     this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
+}
+
+void MegaChatListItemPrivate::setCallInProgress()
+{
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CALL;
 }
 
 void MegaChatListItemPrivate::setLastMessage()
