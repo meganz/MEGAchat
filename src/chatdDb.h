@@ -262,7 +262,7 @@ public:
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
                 false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
-            msg->setEncrypted(stmt.intCol(9));
+            msg->setEncrypted((uint8_t)stmt.intCol(9));
             messages.push_back(msg);
         }
     }

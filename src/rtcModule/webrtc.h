@@ -275,6 +275,7 @@ public:
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
     TermCode termCode() const {return mTermCode; }
     bool isJoiner() { return mIsJoiner; }
+    bool isInProgress() const;
     ICallHandler *callHandler() { return mHandler; }
     virtual karere::AvFlags sentAv() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
@@ -367,9 +368,9 @@ public:
     virtual bool isCaptureActive() const = 0;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
-    virtual bool isCallInProgress() const = 0;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
     virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
+    virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;
 
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;

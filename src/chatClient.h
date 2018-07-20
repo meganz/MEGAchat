@@ -109,6 +109,8 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    bool isCallInProgress() const;
+
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
 
@@ -843,7 +845,8 @@ public:
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
-    bool isCallInProgress() const;
+
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
     promise::Promise<void> pushReceived();
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
