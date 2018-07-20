@@ -768,3 +768,16 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
         contactItemWidget->updateTitle(firstname);
     }
 }
+
+void MainWindow::on_mLogout_clicked()
+{
+    QMessageBox msgBox;
+    msgBox.setText("Do you want to logout?");
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Save);
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Ok)
+    {
+        mMegaApi->logout();
+    }
+}

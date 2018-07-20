@@ -124,6 +124,7 @@ class MainWindow :
         void on_bHiddenChats_clicked();
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
+        void on_mLogout_clicked();
 
     signals:
         void esidLogout();

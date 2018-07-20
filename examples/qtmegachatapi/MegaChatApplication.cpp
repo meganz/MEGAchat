@@ -57,7 +57,17 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
-    delete mMainWin;
+
+    if (mMainWin)
+    {
+        const QObjectList lstChildren  = mMainWin->children();
+        foreach(QObject* pWidget, lstChildren)
+        {
+            pWidget->deleteLater();
+        }
+        mMainWin->deleteLater();
+    }
+
     delete mMegaChatApi;
     delete mMegaApi;
     delete mLogger;
@@ -285,6 +295,15 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                 init();
             }
             break;
+          case MegaChatRequest::TYPE_LOGOUT:
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
+            {
+                std::string appDir = MegaChatApi::getAppDir();
+                std::string sidPath = appDir + "/sid";
+                std::remove(sidPath.c_str());
+                QCoreApplication::quit();
+            }
+            break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
              {
              MegaChatHandle userHandle = request->getUserHandle();
@@ -336,7 +355,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
                     }
                 }
 
-                mMegaChatApi->setChatTitle(chatid, title.c_str());
                 const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
                 mMainWin->addLocalChatListItem(chatListItem);
                 delete chatListItem;
