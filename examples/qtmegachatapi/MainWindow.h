@@ -120,6 +120,7 @@ class MainWindow :
         void on_bOnlineStatus_clicked();
         void onAddContact();
         void onAddChatGroup();
+        void onAddPubChatGroup();
         void onAddPublicChatGroup();
         void setOnlineStatus();
         void onChangeItemsVisibility();
@@ -128,6 +129,7 @@ class MainWindow :
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
         void onPrintMyInfo();
+        void on_bPubChatGroup_clicked();
 
     signals:
         void esidLogout();

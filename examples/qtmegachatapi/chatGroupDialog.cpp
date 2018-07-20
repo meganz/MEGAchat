@@ -3,13 +3,14 @@
 #include <QMessageBox>
 #include "chatItemWidget.h"
 
-ChatGroupDialog::ChatGroupDialog(QWidget *parent, megachat::MegaChatApi *megaChatApi) :
+ChatGroupDialog::ChatGroupDialog(QWidget *parent, megachat::MegaChatApi *megaChatApi, bool aPub) :
     QDialog(parent),
     ui(new Ui::ChatGroupDialog)
 {
     mMainWin = (MainWindow *) parent;
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
+    mPublic = aPub;
 }
 
 ChatGroupDialog::~ChatGroupDialog()
@@ -41,6 +42,19 @@ void ChatGroupDialog::createChatList(mega::MegaUserList *contactList)
 
 void ChatGroupDialog::on_buttonBox_accepted()
 {
+    char *auxTitle = NULL;
+    std::string title;
+    QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
+    if (!qTitle.isNull())
+    {
+        title = qTitle.toStdString();
+        if (!title.empty() && title.size() != 1)
+        {
+            auxTitle = new char[title.size()+1];
+            strcpy(auxTitle, title.c_str());
+        }
+    }
+
     megachat::MegaChatPeerList *peerList = megachat::MegaChatPeerList::createInstance();
     QListWidgetItem *item = 0;
     for (int i = 0; i < ui->mListWidget->count(); ++i)
@@ -85,13 +99,28 @@ void ChatGroupDialog::on_buttonBox_accepted()
          }
          else
          {
-             this->mMegaChatApi->createChat(true, peerList);
+             if (mPublic)
+             {
+                    this->mMegaChatApi->createPublicChat(peerList, auxTitle);
+             }
+             else
+             {
+                 this->mMegaChatApi->createChat(true, peerList, auxTitle);
+             }
          }
     }
     else
     {
-         mMegaChatApi->createChat(true, peerList);
+        if (mPublic)
+        {
+               this->mMegaChatApi->createPublicChat(peerList, auxTitle);
+        }
+        else
+        {
+             mMegaChatApi->createChat(true, peerList, auxTitle);
+        }
     }
+    delete auxTitle;
     delete peerList;
     delete list;
 }

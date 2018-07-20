@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
     ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
     ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
+    ui->bPubChatGroup->setStyleSheet("color:#00FF00; border:none");
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -528,7 +529,16 @@ void MainWindow::onChangeItemsVisibility()
 void MainWindow::onAddChatGroup()
 {
     mega::MegaUserList *list = mMegaApi->getContacts();
-    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi);
+    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi, false);
+    chatDialog->createChatList(list);
+    chatDialog->show();
+}
+
+
+void MainWindow::onAddPubChatGroup()
+{
+    mega::MegaUserList *list = mMegaApi->getContacts();
+    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi, true);
     chatDialog->createChatList(list);
     chatDialog->show();
 }
@@ -867,4 +877,9 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
         ContactItemWidget *contactItemWidget = itContacts->second;
         contactItemWidget->updateTitle(firstname);
     }
+}
+
+void MainWindow::on_bPubChatGroup_clicked()
+{
+    onAddPubChatGroup();
 }
