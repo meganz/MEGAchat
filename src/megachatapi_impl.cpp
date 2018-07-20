@@ -3996,6 +3996,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     status = call.state();
     chatid = call.chat().chatId();
     callid = call.id();
+    mIsCaller = call.isCaller();
     // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
     localAVFlags = call.sentAv();
     std::map<karere::Id, karere::AvFlags> remoteFlags = call.avFlagsRemotePeers();
@@ -4023,6 +4024,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->status = call.getStatus();
     this->chatid = call.getChatid();
     this->callid = call.getId();
+    this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
     this->remoteAVFlags = call.remoteAVFlags;
     this->changed = call.changed;
@@ -4161,6 +4163,16 @@ MegaChatHandle MegaChatCallPrivate::getPeerSessionStatusChange() const
 bool MegaChatCallPrivate::isIgnored() const
 {
     return ignored;
+}
+
+bool MegaChatCallPrivate::isIncoming() const
+{
+    return !mIsCaller;
+}
+
+bool MegaChatCallPrivate::isOutgoing() const
+{
+    return mIsCaller;
 }
 
 void MegaChatCallPrivate::setStatus(int status)

@@ -191,6 +191,8 @@ public:
     virtual int getSessionStatus(MegaChatHandle peerId) const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual bool isIgnored() const;
+    virtual bool isIncoming() const;
+    virtual bool isOutgoing() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -224,6 +226,7 @@ protected:
     void convertTermCode(rtcModule::TermCode termCode);
 
     bool ringing;
+    bool mIsCaller;
 };
 
 class MegaChatVideoFrame
