@@ -94,7 +94,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     }
     else
     {
-        setConnState(kDisconnected);
+        PRESENCED_LOG_DEBUG("Socket close at state kLoggedIn");
         reconnect(); //start retry controller
     }
 }
@@ -234,7 +234,7 @@ Client::reconnect(const std::string& url)
                     {
                         wsDisconnect(true);
                     }
-                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
+                    onSocketClose(0, 0, "Async DNS error (presenced)");
                     return;
                 }
 
@@ -654,7 +654,7 @@ void Client::handleMessage(const StaticBuffer& buf)
             }
             case OP_PREFS:
             {
-                bool loginCompleted = true;
+                bool loginCompleted = false;
                 if (mConnState < kLoggedIn)
                 {
                     loginCompleted = true;
