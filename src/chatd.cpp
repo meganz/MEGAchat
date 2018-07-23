@@ -514,14 +514,18 @@ Promise<void> Connection::reconnect()
                         errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
                     }
 
-                    if (!mConnectPromise.done())
+                    if (isOnline() && cachedIPs)
                     {
-                        mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        return;
                     }
-                    if (!mLoginPromise.done())
+
+                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
                     {
-                        mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                        wsDisconnect(true);
                     }
+                    onSocketClose(0, 0, "Async DNS error (chatd)");
                     return;
                 }
 
@@ -548,7 +552,11 @@ Promise<void> Connection::reconnect()
                                   ipsv6.size() ? ipsv6.at(0) : "");
                     assert(!ret);
 
-                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
+                    {
+                        wsDisconnect(true);
+                    }
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
             });
@@ -558,14 +566,12 @@ Promise<void> Connection::reconnect()
             {
                 CHATDS_LOG_ERROR("Sync DNS error in chatd. Error code: %d", statusDNS);
                 string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
-                if (!mConnectPromise.done())
-                {
-                    mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                }
-                if (!mLoginPromise.done())
-                {
-                    mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                }
+
+                assert(!mConnectPromise.done());
+                assert(!mLoginPromise.done());
+
+                mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
             }
             else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
