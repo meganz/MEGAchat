@@ -65,15 +65,6 @@ void Client::wsConnectCb()
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
 }
-    
-void Client::notifyLoggedIn()
-{
-    assert(mConnState < kLoggedIn);
-    assert(mConnectPromise.succeeded());
-    assert(!mLoginPromise.done());
-    setConnState(kLoggedIn);
-    mLoginPromise.resolve();
-}
 
 void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
 {
@@ -96,14 +87,9 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (oldState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
-        }
-        if (!mLoginPromise.done())
-        {
-            mLoginPromise.reject(reason, errcode, errtype);
         }
     }
     else
@@ -214,7 +200,6 @@ Client::reconnect(const std::string& url)
 
             disconnect();
             mConnectPromise = Promise<void>();
-            mLoginPromise = Promise<void>();
 
             string ipv4, ipv6;
             bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
@@ -237,14 +222,19 @@ Client::reconnect(const std::string& url)
                             ? "Async DNS error in presenced. Error code: "+std::to_string(statusDNS)
                             : "Async DNS in presenced result on empty set of IPs";
                     PRESENCED_LOG_ERROR("%s", errStr.c_str());
-                    if (!mConnectPromise.done())
+
+                    if (mConnState >= kConnected && cachedIPs)
                     {
-                        mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                        PRESENCED_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        return;
                     }
-                    if (!mLoginPromise.done())
+
+                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
                     {
-                        mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                        wsDisconnect(true);
                     }
+                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                     return;
                 }
 
@@ -272,6 +262,11 @@ Client::reconnect(const std::string& url)
                     assert(!ret);
 
                     PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
+                    {
+                        wsDisconnect(true);
+                    }
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                 }
             });
@@ -279,16 +274,14 @@ Client::reconnect(const std::string& url)
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                string errStr = "Async DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                string errStr = "Immediate DNS error in presenced. Error code: "+std::to_string(statusDNS);
                 PRESENCED_LOG_ERROR("%s", errStr.c_str());
-                if (!mConnectPromise.done())
-                {
-                    mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                }
-                if (!mLoginPromise.done())
-                {
-                    mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                }
+
+                assert(mConnState == kResolving);
+                assert(!mConnectPromise.done());
+
+                // reject promise, so the RetryController starts a new attempt
+                mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
             }
             else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
@@ -661,12 +654,17 @@ void Client::handleMessage(const StaticBuffer& buf)
             }
             case OP_PREFS:
             {
+                bool loginCompleted = true;
                 if (mConnState < kLoggedIn)
-                    notifyLoggedIn();
+                {
+                    loginCompleted = true;
+                    setConnState(kLoggedIn);
+                }
+
                 READ_16(prefs, 0);
                 if (mPrefsAckWait && prefs == mConfig.toCode()) //ack
                 {
-                    PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent(0x%x)", prefs);
+                    PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent (%s)", mConfig.toString().c_str());
                 }
                 else
                 {
@@ -675,6 +673,10 @@ void Client::handleMessage(const StaticBuffer& buf)
                     {
                         PRESENCED_LOG_DEBUG("recv other PREFS while waiting for our PREFS ack, cancelling our send.\nPrefs: %s",
                           mConfig.toString().c_str());
+                    }
+                    else if (loginCompleted)
+                    {
+                        PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
                     }
                     else
                     {
