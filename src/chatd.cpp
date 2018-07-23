@@ -303,7 +303,7 @@ void Chat::connect()
         });
 
     }
-    else if (mConnection.isConnected())
+    else if (mConnection.isOnline())
     {
         login();
     }
@@ -316,7 +316,7 @@ void Chat::disconnect()
 
 void Chat::login()
 {
-    assert(mConnection.isConnected());
+    assert(mConnection.isOnline());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     // In both cases (join/joinrangehist), don't block history messages being sent to app
@@ -579,7 +579,7 @@ Promise<void> Connection::reconnect()
                 if (wptr.deleted())
                     return promise::_Void();
 
-                assert(isConnected());
+                assert(isOnline());
                 sendCommand(Command(OP_CLIENTID)+mChatdClient.karereClient->myIdentity());
                 mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
                 mHeartbeatEnabled = true;
@@ -721,7 +721,7 @@ void Client::heartbeat()
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isConnected())
+    if (!isOnline())
         return false;
 
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
@@ -1037,7 +1037,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 void Chat::requestHistoryFromServer(int32_t count)
 {
     // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
-    assert(mConnection.isConnected());
+    assert(mConnection.isOnline());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer

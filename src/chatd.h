@@ -363,10 +363,6 @@ protected:
     uint32_t mClientId = 0;
     Connection(Client& client, int shardNo);
     State state() { return mState; }
-    bool isConnected() const
-    {
-        return mState == kStateConnected;
-    }
     
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
@@ -393,7 +389,7 @@ public:
     State state() const { return mState; }
     bool isOnline() const
     {
-        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+        return mState == kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
     }
     const std::set<karere::Id>& chatIds() const { return mChatIds; }
     uint32_t clientId() const { return mClientId; }
