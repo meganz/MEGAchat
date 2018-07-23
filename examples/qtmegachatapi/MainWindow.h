@@ -11,10 +11,12 @@
 #include "megaLoggerApplication.h"
 #include "chatGroupDialog.h"
 #include "QTMegaChatCallListener.h"
+#include "MegaChatApplication.h"
 
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
 const int chatArchivedStatus = 2;
+class MegaChatApplication;
 
 struct Chat
 {
@@ -101,6 +103,7 @@ class MainWindow :
         bool archivedItemsVisibility = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
+        MegaChatApplication *mApp;
         mega::MegaApi * mMegaApi;
         megachat::MegaChatApi * mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;

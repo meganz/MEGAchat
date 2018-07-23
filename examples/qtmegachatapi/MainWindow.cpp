@@ -12,9 +12,10 @@ using namespace mega;
 using namespace megachat;
 
 MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi) :
-    QMainWindow(parent),
+    QMainWindow(0),
     ui(new Ui::MainWindow)
 {
+    mApp = (MegaChatApplication *) parent;
     nContacts = 0;
     activeChats = 0;
     archivedChats = 0;
@@ -555,25 +556,33 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
 
 void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
 {
-    if (!this->isVisible() && (newState == MegaChatApi::INIT_OFFLINE_SESSION
-       || newState == MegaChatApi::INIT_ONLINE_SESSION))
+    if (newState == MegaChatApi::INIT_ERROR)
     {
-       this->show();
-    }
-    else if (newState == MegaChatApi::INIT_ERROR)
-    {
-       this->hide();
-       Q_EMIT esidLogout();
+        if(isVisible())
+        {
+            hide();
+        }
+        Q_EMIT esidLogout();
+        return;
     }
 
-    if (newState == MegaChatApi::INIT_OFFLINE_SESSION ||
-        newState == MegaChatApi::INIT_ONLINE_SESSION)
+    if (newState == MegaChatApi::INIT_ONLINE_SESSION || newState == MegaChatApi::INIT_OFFLINE_SESSION)
     {
-        setWindowTitle(api->getMyEmail());
-    }
-    else
-    {
-        setWindowTitle("");
+        if(!isVisible())
+        {
+            mApp->mLoginDialog->deleteLater();
+            mApp->mLoginDialog = NULL;
+            show();
+            updateLocalChatListItems();
+            orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+        }
+
+        QString auxTitle(api->getMyEmail());
+        if (mApp->mSid && newState == MegaChatApi::INIT_OFFLINE_SESSION)
+        {
+            auxTitle.append(" [OFFLINE MODE]");
+        }
+        setWindowTitle(auxTitle);
     }
 }
 
@@ -624,7 +633,6 @@ void MainWindow::setNContacts(int nContacts)
 {
     this->nContacts = nContacts;
 }
-
 
 void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char *firstname)
 {

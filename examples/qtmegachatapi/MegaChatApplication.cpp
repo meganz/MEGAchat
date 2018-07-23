@@ -11,6 +11,7 @@
 using namespace std;
 using namespace mega;
 using namespace megachat;
+class MegaChatApplication;
 
 int main(int argc, char **argv)
 {
@@ -46,7 +47,8 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     mMegaChatApi->addChatNotificationListener(megaChatNotificationListenerDelegate);
 
     // Start GUI
-    mMainWin = new MainWindow(0, mLogger, mMegaChatApi, mMegaApi);
+    mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
+    mMainWin->addChatListener();
 }
 
 MegaChatApplication::~MegaChatApplication()
@@ -57,17 +59,7 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
-
-    if (mMainWin)
-    {
-        const QObjectList lstChildren  = mMainWin->children();
-        foreach(QObject* pWidget, lstChildren)
-        {
-            pWidget->deleteLater();
-        }
-        mMainWin->deleteLater();
-    }
-
+    delete mMainWin;
     delete mMegaChatApi;
     delete mMegaApi;
     delete mLogger;
@@ -77,6 +69,12 @@ MegaChatApplication::~MegaChatApplication()
 void MegaChatApplication::init()
 {
     int initState = mMegaChatApi->init(mSid);
+    if(!mMainWin)
+    {
+        mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
+        mMainWin->addChatListener();
+    }
+
     if (!mSid)
     {
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
@@ -122,8 +120,10 @@ void MegaChatApplication::readSid()
     }
 }
 
-void MegaChatApplication::saveSid(const char* sdkSid)
+void MegaChatApplication::saveSid(char *sdkSid)
 {
+    delete [] mSid;
+    mSid = strdup(sdkSid);
     ofstream osidf(mAppDir + "/sid");
     assert(sdkSid);
     osidf << sdkSid;
@@ -152,7 +152,6 @@ void MegaChatApplication::addChats()
     }
     chatList->clear();
     delete chatList;
-    mMainWin->addChatListener();
 }
 
 
@@ -177,7 +176,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
     mega::MegaHandle userHandle = NULL;
     mega:MegaUser *user;
 
-    if(userList)
+    if(userList && mMainWin)
     {
         for(int i=0; i<userList->size(); i++)
         {
@@ -248,14 +247,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_FETCH_NODES:
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                delete [] mSid;
-                mSid = mMegaApi->dumpSession();
-                saveSid(mSid);
-                mLoginDialog->deleteLater();
-                mLoginDialog = NULL;
-                mMainWin->setWindowTitle(api->getMyEmail());
-                mMainWin->show();
-                addContacts();
+                if (!mSid)
+                {
+                    char *sdkSid = mMegaApi->dumpSession();
+                    saveSid(sdkSid);
+                }
                 mMegaChatApi->connect();
             }
             else
@@ -283,11 +279,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
     switch (request->getType())
     {
          case MegaChatRequest::TYPE_CONNECT:
-            if (e->getErrorCode() == MegaChatError::ERROR_OK)
-            {
-                addChats();
-            }
-            else
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
             {
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                 mLoginDialog->deleteLater();
@@ -298,10 +290,15 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
           case MegaChatRequest::TYPE_LOGOUT:
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
-                std::string appDir = MegaChatApi::getAppDir();
-                std::string sidPath = appDir + "/sid";
+                std::string sidPath = mAppDir + "/sid";
                 std::remove(sidPath.c_str());
-                QCoreApplication::quit();
+                mSid = NULL;
+                if (mMainWin)
+                {
+                    mMainWin->deleteLater();
+                    mMainWin = NULL;
+                }
+                init();
             }
             break;
          case MegaChatRequest::TYPE_GET_FIRSTNAME:
