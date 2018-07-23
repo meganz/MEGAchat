@@ -390,15 +390,10 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     {
         CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
-        assert(!mLoginPromise.succeeded());
         assert(!mConnectPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
-        }
-        if (!mLoginPromise.done())
-        {
-            mLoginPromise.reject(reason, errcode, errtype);
         }
     }
     else
@@ -476,7 +471,6 @@ Promise<void> Connection::reconnect()
 #endif
             disconnect();
             mConnectPromise = Promise<void>();
-            mLoginPromise = Promise<void>();
 
             string ipv4, ipv6;
             bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
@@ -568,10 +562,7 @@ Promise<void> Connection::reconnect()
                 string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
 
                 assert(!mConnectPromise.done());
-                assert(!mLoginPromise.done());
-
                 mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
             }
             else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
@@ -580,17 +571,17 @@ Promise<void> Connection::reconnect()
             }
 
             return mConnectPromise
-            .then([wptr, this]() -> promise::Promise<void>
+            .then([wptr, this]()
             {
                 if (wptr.deleted())
-                    return promise::_Void();
+                    return;
 
                 assert(isOnline());
                 sendCommand(Command(OP_CLIENTID)+mChatdClient.karereClient->myIdentity());
                 mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
                 mHeartbeatEnabled = true;
                 sendKeepalive(mChatdClient.mKeepaliveType);
-                return rejoinExistingChats();
+                rejoinExistingChats();
             });
         }, wptr, mChatdClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
@@ -888,7 +879,7 @@ string KeyCommand::toString() const
     return tmpString;
 }
 // rejoin all open chats after reconnection (this is mandatory)
-promise::Promise<void> Connection::rejoinExistingChats()
+bool Connection::rejoinExistingChats()
 {
     for (auto& chatid: mChatIds)
     {
@@ -900,10 +891,11 @@ promise::Promise<void> Connection::rejoinExistingChats()
         }
         catch(std::exception& e)
         {
-            mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
+            CHATDS_LOG_ERROR("rejoinExistingChats: Exception: %s", e.what());
+            return false;
         }
     }
-    return mLoginPromise;
+    return true;
 }
 
 // send JOIN
@@ -3690,21 +3682,8 @@ void Chat::onUserLeave(Id userid)
     }
 }
 
-void Connection::notifyLoggedIn()
-{
-    if (mLoginPromise.done())
-        return;
-
-    assert(mConnectPromise.succeeded());
-    if (mChatdClient.areAllChatsLoggedIn())
-    {
-        mLoginPromise.resolve();
-    }
-}
-
 void Chat::onJoinComplete()
 {
-    mConnection.notifyLoggedIn();
     if (mUsers != mUserDump)
     {
         mUsers.swap(mUserDump);

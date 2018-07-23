@@ -359,7 +359,6 @@ protected:
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint32_t mClientId = 0;
     Connection(Client& client, int shardNo);
     State state() { return mState; }
@@ -372,10 +371,9 @@ protected:
     promise::Promise<void> reconnect();
     void disconnect();
     void doConnect();
-    void notifyLoggedIn();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
-    promise::Promise<void> rejoinExistingChats();
+    bool rejoinExistingChats();
     void resendPending();
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
