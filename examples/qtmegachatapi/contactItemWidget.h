@@ -34,6 +34,7 @@ class ContactItemWidget : public QWidget
 
     private slots:
         void onCreateGroupChat();
+        void onCreatePeerChat();
         void onContactRemove();
 };
 #endif // CONTACITEMWIDGET_H

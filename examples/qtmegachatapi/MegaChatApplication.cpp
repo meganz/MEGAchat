@@ -355,17 +355,28 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
              {
                 std::string title;
                 MegaChatHandle chatid = request->getChatHandle();
-                QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
-                if (!qTitle.isNull())
+                const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+
+                if (chatListItem->isGroup())
                 {
-                    title = qTitle.toStdString();
-                    if (!title.empty())
+                    QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
+                    if (!qTitle.isNull())
                     {
-                        this->mMegaChatApi->setChatTitle(chatid, title.c_str());
+                        title = qTitle.toStdString();
+                        if (!title.empty())
+                        {
+                            this->mMegaChatApi->setChatTitle(chatid, title.c_str());
+                        }
                     }
                 }
 
-                const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                if (mMainWin->getLocalChatListItem(chatid) && !chatListItem->isGroup())
+                {
+                    QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
+                    delete chatListItem;
+                    break;
+                }
+
                 mMainWin->addLocalChatListItem(chatListItem);
                 delete chatListItem;
                 chatListItem = mMainWin->getLocalChatListItem(chatid);
