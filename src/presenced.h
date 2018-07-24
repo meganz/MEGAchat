@@ -257,7 +257,6 @@ protected:
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
     karere::Url mUrl;
     bool usingipv6; // ip version to try first (both are tried)
@@ -281,7 +280,6 @@ protected:
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
