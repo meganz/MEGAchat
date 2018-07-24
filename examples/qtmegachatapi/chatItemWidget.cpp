@@ -214,6 +214,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         lastMessageId_64 = auxLastMessageId_64;
     }
 
+    QDateTime t;
+    t.setTime_t(item->getLastTimestamp());
+    QString lastTs = t.toString("hh:mm:ss - dd.MM.yy");
+
     if(!item->isGroup())
     {
         const char *peerEmail = chatRoom->getPeerEmail(0);
@@ -226,7 +230,8 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             .append(tr("\n\n"))
             .append(tr("\nLast message Id: ")).append(lastMessageId_64)
             .append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str())
-            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage));
+            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
+            .append(tr("\nLast ts: ")).append(lastTs);
         delete peerHandle_64;
     }
     else
@@ -267,6 +272,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         text.append(tr("\nLast message Id: ")).append(lastMessageId_64);
         text.append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str());
         text.append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage));
+        text.append(tr("\nLast ts: ")).append(lastTs);
     }
     setToolTip(text);
     delete chatRoom;
