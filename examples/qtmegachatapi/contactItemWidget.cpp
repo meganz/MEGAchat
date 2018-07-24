@@ -135,8 +135,8 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
                      ChatItemWidget *itemWidget = mMainWin->getChatItemWidget(item->getChatId(), false);
                      if (itemWidget)
                      {
+                         QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" is going to be unarchived.");
                          itemWidget->unarchiveChat();
-                         QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" has been unarchived.");
                      }
                      else
                      {
