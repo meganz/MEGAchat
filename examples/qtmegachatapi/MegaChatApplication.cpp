@@ -29,6 +29,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     // Keep the app open until it's explicitly closed
     setQuitOnLastWindowClosed(true);
 
+    mMainWin = nullptr;
     mLoginDialog = NULL;
     mSid = NULL;
 
@@ -45,10 +46,6 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
     megaChatNotificationListenerDelegate = new QTMegaChatNotificationListener(mMegaChatApi, this);
     mMegaChatApi->addChatNotificationListener(megaChatNotificationListenerDelegate);
-
-    // Start GUI
-    mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
-    mMainWin->addChatListener();
 }
 
 MegaChatApplication::~MegaChatApplication()
@@ -68,13 +65,13 @@ MegaChatApplication::~MegaChatApplication()
 
 void MegaChatApplication::init()
 {
-    int initState = mMegaChatApi->init(mSid);
-    if(!mMainWin)
+    if (!mMainWin)
     {
         mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
         mMainWin->addChatListener();
     }
 
+    int initState = mMegaChatApi->init(mSid);
     if (!mSid)
     {
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
@@ -84,6 +81,7 @@ void MegaChatApplication::init()
     {
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
+
         mMegaApi->fastLogin(mSid);
     }
 }
@@ -120,7 +118,7 @@ void MegaChatApplication::readSid()
     }
 }
 
-void MegaChatApplication::saveSid(char *sdkSid)
+void MegaChatApplication::saveSid(const char *sdkSid)
 {
     delete [] mSid;
     mSid = strdup(sdkSid);
@@ -216,6 +214,21 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
 
     delete chat;
     delete msgid;
+}
+
+char *MegaChatApplication::sid() const
+{
+    return mSid;
+}
+
+void MegaChatApplication::resetLoginDialog()
+{
+    mLoginDialog = NULL;
+}
+
+LoginDialog *MegaChatApplication::loginDialog() const
+{
+    return mLoginDialog;
 }
 
 void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)

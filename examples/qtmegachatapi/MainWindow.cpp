@@ -558,27 +558,31 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
 {
     if (newState == MegaChatApi::INIT_ERROR)
     {
-        if(isVisible())
+        QMessageBox msgBox;
+        msgBox.setText("Fatal Error starting Megachat, the application will be close");
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        int ret = msgBox.exec();
+
+        if (ret == QMessageBox::Ok)
         {
-            hide();
+            deleteLater();
+            return;
         }
-        Q_EMIT esidLogout();
-        return;
     }
 
     if (newState == MegaChatApi::INIT_ONLINE_SESSION || newState == MegaChatApi::INIT_OFFLINE_SESSION)
     {
         if(!isVisible())
         {
-            mApp->mLoginDialog->deleteLater();
-            mApp->mLoginDialog = NULL;
+            mApp->loginDialog()->deleteLater();
+            mApp->resetLoginDialog();
             show();
             updateLocalChatListItems();
             orderContactChatList(allItemsVisibility , archivedItemsVisibility);
         }
 
         QString auxTitle(api->getMyEmail());
-        if (mApp->mSid && newState == MegaChatApi::INIT_OFFLINE_SESSION)
+        if (mApp->sid() && newState == MegaChatApi::INIT_OFFLINE_SESSION)
         {
             auxTitle.append(" [OFFLINE MODE]");
         }
