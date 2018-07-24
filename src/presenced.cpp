@@ -223,7 +223,7 @@ Client::reconnect(const std::string& url)
                             : "Async DNS in presenced result on empty set of IPs";
                     PRESENCED_LOG_ERROR("%s", errStr.c_str());
 
-                    if (mConnState >= kConnected && cachedIPs)
+                    if (isOnline() && cachedIPs)
                     {
                         PRESENCED_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
                         return;
