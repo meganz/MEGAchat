@@ -1823,7 +1823,7 @@ void Chat::requestRichLink(Message &message)
                 textMessage.reserve(originalMessage.size());
                 for (std::string::size_type i = 0; i < originalMessage.size(); i++)
                 {
-                    char character = originalMessage[i];
+                    unsigned char character = originalMessage[i];
                     switch (character)
                     {
                         case '\n':
