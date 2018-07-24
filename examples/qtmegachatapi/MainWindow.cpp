@@ -559,7 +559,7 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
     if (newState == MegaChatApi::INIT_ERROR)
     {
         QMessageBox msgBox;
-        msgBox.setText("Fatal Error starting Megachat, the application will be close");
+        msgBox.setText("Critical error in MEGAchat. The application will close now. If the problem persists, you can delete your cached sessions.");
         msgBox.setStandardButtons(QMessageBox::Ok);
         int ret = msgBox.exec();
 

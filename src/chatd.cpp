@@ -2816,7 +2816,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     {
         int countDb = mDbInterface->updateSendingItemsKeyid(localKeyid, keyid);
         assert(countDb == count);
-        CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
+        CHATID_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
     }
 }
 
