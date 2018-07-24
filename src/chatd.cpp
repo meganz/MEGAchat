@@ -3029,10 +3029,14 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
-            if (msg->userid != client().userId() && // is not our own message
-                    msg->updated && !msg->size())   // is deleted
+            if (msg->isDeleted())
             {
-                CALL_LISTENER(onUnreadChanged);
+                if (msg->userid != client().userId())
+                {
+                    CALL_LISTENER(onUnreadChanged);
+                }
+
+                // update last-ts (and last message?)
             }
 
             if (msg->type == Message::kMsgTruncate)
@@ -3593,13 +3597,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
           //onLastTextMessageUpdated() with it
             notifyLastTextMsg();
         }
+
+        onMsgTimestamp(msg.ts);
     }
-    onMsgTimestamp(msg.ts);
 }
 
 void Chat::onMsgTimestamp(uint32_t ts)
 {
-    if (ts <= mLastMsgTs)
+    if (ts == mLastMsgTs)
         return;
     mLastMsgTs = ts;
     CALL_LISTENER(onLastMessageTsUpdated, ts);
@@ -3752,6 +3757,12 @@ void Chat::notifyLastTextMsg()
 {
     CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
     mLastTextMsg.mIsNotified = true;
+
+    Message *lastMsg = findOrNull(mLastTextMsg.idx());
+    if (lastMsg)
+    {
+        onMsgTimestamp(lastMsg->ts);
+    }
 }
 
 uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
