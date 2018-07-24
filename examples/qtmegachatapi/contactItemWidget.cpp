@@ -120,10 +120,22 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
          peerList = megachat::MegaChatPeerList::createInstance();
          peerList->addPeer(mUserHandle, 2);
          megachat::MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
-         if (listItems->size() && listItems->get(0)->isGroup() == isGroup)
-         {
-             auto item = listItems->get(0);
 
+         int i = 0;
+         bool exists = false;
+         while (listItems->size() > i)
+         {
+              if (listItems->get(i)->isGroup() == isGroup)
+              {
+                 exists = true;
+                 break;
+              }
+              i++;
+         }
+
+         if (exists)
+         {
+             auto item = listItems->get(i);
              QMessageBox msgBoxAns;
              msgBoxAns.setText("Another chatroom with "+ui->mName->text()+" already exists: \""+item->getTitle()+"\".\nDo you want to reuse that room?");
              msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
@@ -132,17 +144,8 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
              {
                  if (item->isArchived())
                  {
-                     ChatItemWidget *itemWidget = mMainWin->getChatItemWidget(item->getChatId(), false);
-                     if (itemWidget)
-                     {
-                         QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" is going to be unarchived.");
-                         itemWidget->unarchiveChat();
-                     }
-                     else
-                     {
-                         // the item should be found
-                         assert(false);
-                     }
+                     QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" is going to be unarchived.");
+                     mMegaChatApi->archiveChat(item->getChatId(), false);
                  }
                  else
                  {
@@ -151,13 +154,13 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
              }
              else
              {
-                 mMegaChatApi->createChat(false, peerList);
+                 mMegaChatApi->createChat(isGroup, peerList);
              }
              msgBoxAns.deleteLater();
          }
          else
          {
-             mMegaChatApi->createChat(false, peerList);
+             mMegaChatApi->createChat(isGroup, peerList);
          }
          delete listItems;
          delete peerList;
