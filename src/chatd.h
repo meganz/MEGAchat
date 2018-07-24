@@ -359,14 +359,9 @@ protected:
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint32_t mClientId = 0;
     Connection(Client& client, int shardNo);
     State state() { return mState; }
-    bool isConnected() const
-    {
-        return mState == kStateConnected;
-    }
     
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
@@ -376,10 +371,9 @@ protected:
     promise::Promise<void> reconnect();
     void disconnect();
     void doConnect();
-    void notifyLoggedIn();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
-    promise::Promise<void> rejoinExistingChats();
+    bool rejoinExistingChats();
     void resendPending();
     void join(karere::Id chatid);
     void hist(karere::Id chatid, long count);
@@ -393,7 +387,7 @@ public:
     State state() const { return mState; }
     bool isOnline() const
     {
-        return mState >= kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+        return mState == kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
     }
     const std::set<karere::Id>& chatIds() const { return mChatIds; }
     uint32_t clientId() const { return mClientId; }
