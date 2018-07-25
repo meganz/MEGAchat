@@ -3427,10 +3427,10 @@ rtcModule::ICallHandler *MegaChatApiImpl::onIncomingCall(rtcModule::ICall& call,
     return chatCallHandler;
 }
 
-rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid)
+rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid, uint32_t duration)
 {
     MegaChatCallHandler *chatCallHandler = new MegaChatCallHandler(this);
-    chatCallHandler->setCallNotPresent(chatid, callid);
+    chatCallHandler->setCallNotPresent(chatid, callid, duration);
     chatCallHandler->onStateChange(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
 
     return chatCallHandler;
@@ -4187,7 +4187,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
-MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid)
+MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration)
 {
     status = CALL_STATUS_USER_NO_PRESENT;
     this->chatid = chatid;
@@ -4196,6 +4196,11 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid)
     localAVFlags = karere::AvFlags(false, false);
     initialAVFlags = karere::AvFlags(false, false);
     initialTs = 0;
+    if (duration > 0)
+    {
+        initialTs = time(NULL) - duration;
+    }
+
     finalTs = 0;
     temporaryError = std::string("");
     termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
@@ -6745,7 +6750,10 @@ void MegaChatCallHandler::onCallStarted()
     assert(chatCall != NULL);
     if (chatCall != NULL)
     {
-        chatCall->setInitialTimeStamp(time(NULL));
+        if (!chatCall->getInitialTimeStamp())
+        {
+            chatCall->setInitialTimeStamp(time(NULL));
+        }
     }
     else
     {
@@ -6826,6 +6834,18 @@ void MegaChatCallHandler::setCallId(karere::Id callid)
     }
 }
 
+void MegaChatCallHandler::setInitialTs(int64_t initialTs)
+{
+    assert(chatCall);
+    chatCall->setInitialTimeStamp(initialTs);
+}
+
+int64_t MegaChatCallHandler::getInitialTs() const
+{
+    assert(chatCall);
+    return getInitialTs();
+}
+
 rtcModule::ICall *MegaChatCallHandler::getCall()
 {
     return call;
@@ -6836,10 +6856,10 @@ MegaChatCallPrivate *MegaChatCallHandler::getMegaChatCall()
     return chatCall;
 }
 
-void MegaChatCallHandler::setCallNotPresent(Id chatid, Id callid)
+void MegaChatCallHandler::setCallNotPresent(Id chatid, Id callid, uint32_t duration)
 {
     this->call = NULL;
-    chatCall = new MegaChatCallPrivate(chatid, callid);
+    chatCall = new MegaChatCallPrivate(chatid, callid, duration);
 }
 
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, MegaChatCallHandler *callHandler, MegaChatSessionPrivate *megaChatSession, rtcModule::ISession &session)

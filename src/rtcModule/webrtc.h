@@ -177,6 +177,8 @@ public:
 
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
+    virtual void setInitialTs(int64_t initialTs) = 0;
+    virtual int64_t getInitialTs() const = 0;
 };
 class IGlobalHandler
 {
@@ -192,7 +194,7 @@ public:
      * @param callid The call id
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid) = 0;
+    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid, uint32_t duration = 0) = 0;
 };
 
 class ISession: public karere::DeleteTrackable

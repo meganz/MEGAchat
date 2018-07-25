@@ -317,6 +317,7 @@ public:
      */
     virtual void stopCallsTimers(int shard) = 0;
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
+    virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -1189,7 +1190,9 @@ public:
     //  * Add commands CALLDATA and REJECT
     // - Version 2:
     //  * Add call-logging messages
-    static const unsigned chatdVersion = 2;
+    // - Version 3:
+    //  * Add CALLTIME command
+    static const unsigned chatdVersion = 3;
 };
 
 static inline const char* connStateToStr(Connection::State state)

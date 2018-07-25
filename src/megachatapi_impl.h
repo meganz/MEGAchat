@@ -187,7 +187,7 @@ class MegaChatCallPrivate : public MegaChatCall
 {
 public:
     MegaChatCallPrivate(const rtcModule::ICall& call);
-    MegaChatCallPrivate(karere::Id chatid, karere::Id callid);
+    MegaChatCallPrivate(karere::Id chatid, karere::Id callid, uint32_t duration = 0);
     MegaChatCallPrivate(const MegaChatCallPrivate &call);
 
     virtual ~MegaChatCallPrivate();
@@ -532,10 +532,12 @@ public:
     virtual void removeAllParticipants();
     virtual karere::Id getCallId() const;
     virtual void setCallId(karere::Id callid);
+    virtual void setInitialTs(int64_t initialTs);
+    virtual int64_t getInitialTs() const;
 
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
-    void setCallNotPresent(karere::Id chatid, karere::Id callid);
+    void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:
     MegaChatApiImpl *megaChatApi;
     rtcModule::ICall *call = NULL;
@@ -1074,7 +1076,7 @@ public:
     virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
-    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid);
+    virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid,  uint32_t duration = 0);
 #endif
 
     // rtcModule::IChatListHandler implementation
