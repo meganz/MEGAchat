@@ -177,8 +177,6 @@ public:
 
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
-    virtual void setInitialTs(int64_t initialTs) = 0;
-    virtual int64_t getInitialTs() const = 0;
 };
 class IGlobalHandler
 {

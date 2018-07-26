@@ -297,14 +297,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
     }
-    else if (state == Call::CallDataState::kCallDataSession)
-    {
-        auto it = mCallHandlers.find(chatid);
-        if (it != mCallHandlers.end() && it->second->callParticipants() == 2 && !it->second->getInitialTs())
-        {
-            it->second->setInitialTs(time(NULL));
-        }
-    }
 }
 
 template <class... Args>
@@ -519,7 +511,6 @@ void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clie
     {
         updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
     }
-
 }
 
 void RtcModule::handleCallTime(karere::Id chatid, uint32_t duration)

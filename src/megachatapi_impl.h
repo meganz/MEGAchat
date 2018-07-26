@@ -532,8 +532,6 @@ public:
     virtual void removeAllParticipants();
     virtual karere::Id getCallId() const;
     virtual void setCallId(karere::Id callid);
-    virtual void setInitialTs(int64_t initialTs);
-    virtual int64_t getInitialTs() const;
 
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();

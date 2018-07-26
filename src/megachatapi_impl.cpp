@@ -6747,18 +6747,6 @@ void MegaChatCallHandler::onCallStarting()
 
 void MegaChatCallHandler::onCallStarted()
 {
-    assert(chatCall != NULL);
-    if (chatCall != NULL)
-    {
-        if (!chatCall->getInitialTimeStamp())
-        {
-            chatCall->setInitialTimeStamp(time(NULL));
-        }
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatCallHandler::onCallStarted - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-    }
 }
 
 void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags flags)
@@ -6771,6 +6759,11 @@ void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags f
         {
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
+    }
+
+    if (chatCall->getCallParticipants() == 2 && !chatCall->getInitialTimeStamp())
+    {
+        chatCall->setInitialTimeStamp(time(NULL));
     }
 }
 
@@ -6832,18 +6825,6 @@ void MegaChatCallHandler::setCallId(karere::Id callid)
     {
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
-}
-
-void MegaChatCallHandler::setInitialTs(int64_t initialTs)
-{
-    assert(chatCall);
-    chatCall->setInitialTimeStamp(initialTs);
-}
-
-int64_t MegaChatCallHandler::getInitialTs() const
-{
-    assert(chatCall);
-    return getInitialTs();
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
