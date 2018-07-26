@@ -33,6 +33,9 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
     ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
     ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
+    ui->mFactor->hide();
+    connect(ui->mFactor,  SIGNAL(clicked(bool)), this, SLOT(onFactorBtn(bool)));
+
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
 #ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
@@ -63,6 +66,56 @@ MainWindow::~MainWindow()
 mega::MegaUserList * MainWindow::getUserContactList()
 {
     return mMegaApi->getContacts();
+}
+
+void MainWindow::enableFactor(bool active)
+{
+    if (active)
+    {
+        ui->mFactor->show();
+        ui->mFactor->setEnabled(active);
+        ui->mFactor->setStyleSheet("color:#0000FF");
+    }
+    else
+    {
+        ui->mFactor->hide();
+        ui->mFactor->setEnabled(active);
+    }
+}
+
+void MainWindow::onFactorBtn(bool)
+{
+    mMegaApi->multiFactorAuthCheck(mMegaChatApi->getMyEmail());
+}
+
+void MainWindow::onFactorGetCode()
+{
+    mMegaApi->multiFactorAuthGetCode();
+}
+
+
+void MainWindow::createFactorMenu(bool factorEnabled)
+{
+    QMenu menu(this);
+    if(factorEnabled)
+    {
+        auto disableFA = menu.addAction("Disable 2FA");
+        connect(disableFA, SIGNAL(triggered()), this, SLOT(onFactorActivate()));
+    }
+    else
+    {
+        auto truncate = menu.addAction("Enable 2FA");
+        connect(truncate, SIGNAL(triggered()), this, SLOT(onFactorActivate()));
+
+        auto getFA = menu.addAction("Get 2FA code");
+        connect(getFA, SIGNAL(triggered()), this, SLOT(onFactorGetCode()));
+    }
+
+    menu.setLayoutDirection(Qt::RightToLeft);
+    menu.adjustSize();
+    menu.exec(ui->mFactor->mapToGlobal(
+        QPoint(-menu.width()+ui->mFactor->width(), ui->mFactor->height())));
+    menu.deleteLater();
 }
 
 #ifndef KARERE_DISABLE_WEBRTC

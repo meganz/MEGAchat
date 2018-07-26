@@ -77,11 +77,13 @@ class MainWindow :
         //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
         void addLocalChatListItem(const megachat::MegaChatListItem *item);
         void updateLocalChatListItems();
+        void createFactorMenu(bool factorEnabled);
         void updateLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
+        void enableFactor(bool active);
         bool eventFilter(QObject *obj, QEvent *event);
         void contextMenuEvent(QContextMenuEvent* event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
@@ -90,6 +92,7 @@ class MainWindow :
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
+
     public:
         MegaLoggerApplication *mLogger;
         int getNContacts() const;
@@ -124,6 +127,8 @@ class MainWindow :
         void on_bHiddenChats_clicked();
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
+        void onFactorGetCode();
+        void onFactorBtn(bool);
 
     signals:
         void esidLogout();
