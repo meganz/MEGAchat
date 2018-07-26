@@ -1583,6 +1583,20 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
         (*it)->onChatCallUpdate(chatApi, call);
     }
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
+            && (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN              // for callee, incoming call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_USER_NO_PRESENT   // for callee (groupcalls)
+                || call->getStatus() == MegaChatCall::CALL_STATUS_REQUEST_SENT      // for caller, outgoing call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_DESTROYED))       // call finished
+    {
+        // notify at MegaChatListItem level about new calls and calls being terminated
+        ChatRoom *room = findChatRoom(call->getChatid());
+        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
+        item->setCallInProgress();
+
+        fireOnChatListItemUpdate(item);
+    }
+
     call->removeChanges();
 }
 
@@ -5760,6 +5774,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
+    this->mIsCallInProgress = chatroom.isCallInProgress();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
     this->lastMsgPriv = Priv::PRIV_INVALID;
@@ -5851,6 +5866,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
     this->archived = item->isArchived();
+    this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
 }
@@ -5934,6 +5950,11 @@ bool MegaChatListItemPrivate::isArchived() const
     return archived;
 }
 
+bool MegaChatListItemPrivate::isCallInProgress() const
+{
+    return mIsCallInProgress;
+}
+
 MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
 {
     return peerHandle;
@@ -5987,6 +6008,11 @@ void MegaChatListItemPrivate::setArchived(bool archived)
 {
     this->archived = archived;
     this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
+}
+
+void MegaChatListItemPrivate::setCallInProgress()
+{
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CALL;
 }
 
 void MegaChatListItemPrivate::setLastMessage()

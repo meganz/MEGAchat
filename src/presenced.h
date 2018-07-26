@@ -124,15 +124,15 @@ enum: uint8_t
       */
     OP_ADDPEERS = 4,
 
-    /**
-      * @brief
-      * C->S
-      * This command is sent when the client doesn't want to know the status of a peer or a contact
-      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
-      * in any groupchat any longer.
-      *
-      * <1> <peerHandle>
-      */
+     /**
+     * @brief
+     * C->S
+     * This command is sent when the client doesn't want to a peer to see its status
+     * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+     * in any groupchat any longer.
+     *
+     * <1> <peerHandle>
+     */
     OP_DELPEERS = 5,
 
     /**

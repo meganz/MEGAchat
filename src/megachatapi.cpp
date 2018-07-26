@@ -1220,6 +1220,11 @@ bool MegaChatListItem::isArchived() const
     return false;
 }
 
+bool MegaChatListItem::isCallInProgress() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatListItem::getPeerHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
