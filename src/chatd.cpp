@@ -2098,7 +2098,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
     assert((opcode == OP_NEWMSG && recipients == mUsers)
-           || (opcode == OP_MSGUPDX && isLocalKeyId(msg->keyid))
+           || (opcode == OP_MSGUPDX)    // can use unconfirmed or confirmed key
            || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
     mSending.emplace_back(opcode, msg, recipients);
@@ -3029,8 +3029,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
-            if (msg->userid != client().userId() && // is not our own message
-                    msg->updated && !msg->size())   // is deleted
+            if (msg->isDeleted() && msg->isOwnMessage(client().userId()))
             {
                 CALL_LISTENER(onUnreadChanged);
             }
@@ -3046,8 +3045,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 {
                     onLastTextMsgUpdated(histmsg, idx);
                 }
-                else //our last text msg was deleted or changed to management
-                {    //message, find another one
+                else //our last text msg is not valid anymore, find another one
+                {
                     findAndNotifyLastTextMsg();
                 }
             }
