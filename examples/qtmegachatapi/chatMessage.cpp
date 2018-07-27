@@ -26,12 +26,121 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
     else
         setStatus(mMessage->getStatus());
 
+    updateContent();
+
+    connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
+    updateToolTip();
+    show();
+}
+
+ChatMessage::~ChatMessage()
+{
+    delete mMessage;
+    delete ui;
+}
+
+void ChatMessage::updateToolTip()
+{
+    QString tooltip;
+
+    megachat::MegaChatHandle msgId;
+    int status = mMessage->getStatus();
+    switch (status)
+    {
+    case megachat::MegaChatMessage::STATUS_SENDING:
+        tooltip.append(tr("tempId: "));
+        msgId = mMessage->getTempId();
+        break;
+    case megachat::MegaChatMessage::STATUS_SENDING_MANUAL:
+        tooltip.append(tr("rowId: "));
+        msgId = mMessage->getRowId();
+        break;
+    default:
+        tooltip.append(tr("msgId: "));
+        msgId = mMessage->getMsgId();
+        break;
+    }
+
+    const char *auxMsgId_64 = mChatWindow->mMegaApi->userHandleToBase64(msgId);
+    const char *auxUserId_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
+    tooltip.append(QString::fromStdString(auxMsgId_64))
+            .append(tr("\ntype: "))
+            .append(QString::fromStdString(std::to_string(mMessage->getType())))
+            .append(tr("\nuserid: "))
+            .append(QString::fromStdString(auxUserId_64));
+    ui->mHeader->setToolTip(tooltip);
+    delete auxMsgId_64;
+    delete auxUserId_64;
+}
+
+void ChatMessage::showRichLinkData()
+{
+    QString text = tr("[Contains-metadata msg]");
+    const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
+    if (containsMeta && containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+    {
+        const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
+        text.append(tr("\nSubtype: rich-link"))
+            .append(tr("\nOriginal content: "))
+            .append(richPreview->getText())
+            .append(tr("\nURL: "))
+            .append(richPreview->getUrl())
+            .append(tr("\nDomain Name: "))
+            .append(richPreview->getDomainName())
+            .append(tr("\nTitle: "))
+            .append(richPreview->getTitle())
+            .append(tr("\nDescription: "))
+            .append(richPreview->getDescription())
+            .append(tr("\nHas icon: "))
+            .append(richPreview->getIcon() ? "yes" : "no")
+            .append(tr("\nHas image: "))
+            .append(richPreview->getImage() ? "yes" : "no");
+    }
+    ui->mMsgDisplay->setText(text);
+    ui->mMsgDisplay->setStyleSheet("background-color: rgba(213,245,160,128)\n");
+    ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+    ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+    ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+}
+
+QListWidgetItem *ChatMessage::getWidgetItem() const
+{
+    return mListWidgetItem;
+}
+
+void ChatMessage::setWidgetItem(QListWidgetItem *item)
+{
+    mListWidgetItem = item;
+}
+
+megachat::MegaChatMessage *ChatMessage::getMessage() const
+{
+    return mMessage;
+}
+
+void ChatMessage::setMessage(megachat::MegaChatMessage *message)
+{
+    if (mMessage)
+    {
+        delete mMessage;
+    }
+
+    this->mMessage = message;
+}
+
+void ChatMessage::setMessageContent(const char * content)
+{
+    ui->mMsgDisplay->setText(content);
+}
+
+void ChatMessage::updateContent()
+{
     if (mMessage->isEdited())
         markAsEdited();
 
-    if (!msg->isManagementMessage())
+    if (!mMessage->isManagementMessage())
     {
-        switch (msg->getType())
+        switch (mMessage->getType())
         {
             case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
             {
@@ -85,15 +194,21 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
             }
             case megachat::MegaChatMessage::TYPE_NORMAL:
             {
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,255,255,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
-                setMessageContent(msg->getContent());
+                setMessageContent(mMessage->getContent());
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_CONTAINS_META:
+            {
+                showRichLinkData();
                 break;
             }
             case megachat::MegaChatMessage::TYPE_INVALID:
             {
-                int errorCode = msg->getCode();
+                int errorCode = mMessage->getCode();
                 std::string content = "Invalid message [warn]: - (";
                 if (errorCode == MegaChatMessage::INVALID_SIGNATURE)
                     content.append("invalid signature");
@@ -102,14 +217,14 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 else
                     content.append(std::to_string(errorCode));
                 content.append(")\nContent: ");
-                if (msg->getContent())
-                    content.append(msg->getContent());
+                if (mMessage->getContent())
+                    content.append(mMessage->getContent());
                 setMessageContent(content.c_str());
                 break;
             }
             case megachat::MegaChatMessage::TYPE_UNKNOWN:
             {
-                int errorCode = msg->getCode();
+                int errorCode = mMessage->getCode();
                 std::string content = "Unknown type [hide]: - (";
                 if (errorCode == MegaChatMessage::INVALID_KEY)
                     content.append("invalid key");
@@ -120,8 +235,8 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
                 else
                     content.append(std::to_string(errorCode));
                 content.append(")\nContent: ");
-                if (msg->getContent())
-                    content.append(msg->getContent());
+                if (mMessage->getContent())
+                    content.append(mMessage->getContent());
                 setMessageContent(content.c_str());
                 break;
             }
@@ -134,75 +249,6 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
         ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
         ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
     }
-    delete chatRoom;
-    connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
-    updateToolTip();
-    show();
-}
-
-ChatMessage::~ChatMessage()
-{
-    delete mMessage;
-    delete ui;
-}
-
-void ChatMessage::updateToolTip()
-{
-    QString tooltip;
-
-    megachat::MegaChatHandle msgId;
-    int status = mMessage->getStatus();
-    switch (status)
-    {
-    case megachat::MegaChatMessage::STATUS_SENDING:
-        tooltip.append(tr("tempId: "));
-        msgId = mMessage->getTempId();
-        break;
-    case megachat::MegaChatMessage::STATUS_SENDING_MANUAL:
-        tooltip.append(tr("rowId: "));
-        msgId = mMessage->getRowId();
-        break;
-    default:
-        tooltip.append(tr("msgId: "));
-        msgId = mMessage->getMsgId();
-        break;
-    }
-
-    const char *auxMsgId_64 = mChatWindow->mMegaApi->userHandleToBase64(msgId);
-    const char *auxUserId_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
-    tooltip.append(QString::fromStdString(auxMsgId_64))
-            .append(tr("\ntype: "))
-            .append(QString::fromStdString(std::to_string(mMessage->getType())))
-            .append(tr("\nuserid: "))
-            .append(QString::fromStdString(auxUserId_64));
-    ui->mHeader->setToolTip(tooltip);
-    delete auxMsgId_64;
-    delete auxUserId_64;
-}
-
-QListWidgetItem *ChatMessage::getWidgetItem() const
-{
-    return mListWidgetItem;
-}
-
-void ChatMessage::setWidgetItem(QListWidgetItem *item)
-{
-    mListWidgetItem = item;
-}
-
-megachat::MegaChatMessage *ChatMessage::getMessage() const
-{
-    return mMessage;
-}
-
-void ChatMessage::setMessage(megachat::MegaChatMessage *message)
-{
-    this->mMessage = message;
-}
-
-void ChatMessage::setMessageContent(const char * content)
-{
-    ui->mMsgDisplay->setText(content);
 }
 
 std::string ChatMessage::managementInfoToString() const
@@ -261,6 +307,12 @@ std::string ChatMessage::managementInfoToString() const
            .append(std::to_string(mMessage->getDuration()))
            .append("secs TermCode: ")
            .append(std::to_string(mMessage->getTermCode()));
+        return ret;
+    }
+    case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+    {
+        ret.append("User ").append(userHandle_64)
+           .append(" has started a call");
         return ret;
     }
     default:
@@ -343,14 +395,30 @@ void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
    if (isMine() && !mMessage->isManagementMessage())
    {
-        QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
-        auto action = menu->addAction(tr("&Edit message"));
-        action->setData(QVariant::fromValue(this));
-        connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
-        auto delAction = menu->addAction(tr("Delete message"));
-        delAction->setData(QVariant::fromValue(this));
-        connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
-        menu->popup(this->mapToGlobal(point));
+       QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
+       if (mMessage->isEditable())
+       {
+           auto action = menu->addAction(tr("&Edit message"));
+           action->setData(QVariant::fromValue(this));
+           connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
+       }
+
+       if (mMessage->isDeletable())
+       {
+           auto delAction = menu->addAction(tr("Delete message"));
+           delAction->setData(QVariant::fromValue(this));
+           connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
+       }
+
+       if (mMessage->getType() == MegaChatMessage::TYPE_CONTAINS_META
+               && mMessage->getContainsMeta()
+               && mMessage->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+       {
+           auto richAction = menu->addAction(tr("Remove rich link"));
+           richAction->setData(QVariant::fromValue(this));
+           connect(richAction, SIGNAL(triggered()), this, SLOT(onMessageRemoveLinkAction()));
+       }
+       menu->popup(this->mapToGlobal(point));
    }
 }
 
@@ -364,6 +432,11 @@ void ChatMessage::onMessageEditAction()
     startEditingMsgWidget();
 }
 
+void ChatMessage::onMessageRemoveLinkAction()
+{
+    megaChatApi->removeRichLink(mChatId, mMessage->getMsgId());
+}
+
 void ChatMessage::cancelMsgEdit(bool clicked)
 {
     clearEdit();
@@ -373,7 +446,8 @@ void ChatMessage::cancelMsgEdit(bool clicked)
 void ChatMessage::saveMsgEdit(bool clicked)
 {
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
-    if(mMessage->getContent() != editedMsg)
+    std::string previousContent = mMessage->getContent();
+    if(editedMsg != previousContent)
     {
         megachat::MegaChatHandle messageId;
         if (mMessage->getStatus() == megachat::MegaChatMessage::STATUS_SENDING)
@@ -388,11 +462,11 @@ void ChatMessage::saveMsgEdit(bool clicked)
         megachat::MegaChatMessage *message = megaChatApi->editMessage(mChatId, messageId, editedMsg.c_str());
         if (message)
         {
-            delete mMessage;
             setMessage(message);
             setMessageContent(message->getContent());
         }
     }
+
     clearEdit();
 }
 
@@ -415,7 +489,10 @@ void ChatMessage::startEditingMsgWidget()
     layout->insertWidget(3, saveBtn);
 
     setLayout(layout);
-    mChatWindow->ui->mMessageEdit->setText(ui->mMsgDisplay->toPlainText());
+
+    std::string content = mMessage->getContent();
+
+    mChatWindow->ui->mMessageEdit->setText(content.c_str());
     mChatWindow->ui->mMessageEdit->moveCursor(QTextCursor::End);
 }
 

@@ -83,10 +83,12 @@ enum: uint8_t
 enum TermCode: uint8_t
 {
     kUserHangup = 0,            // < Normal user hangup
-//    kCallReqCancel = 1,       // < deprecated, now we have CALL_REQ_CANCEL specially for call requests
-    kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected by
-    // <another client of our user
+    kCallReqCancel = 1,         // < deprecated, now we have CALL_REQ_CANCEL specially for call requests, but keep this
+    // < code to notify the app when the call is cancelled (in contrast to kUserHangup, which is used when call was stablished)
+    kCallRejected = 2,          // < Outgoing call has been rejected by the peer OR incoming call has been rejected in
+    // < the current device
     kAnsElsewhere = 3,          // < Call was answered on another device of ours
+    kRejElsewhere = 4,          // < Call was rejected on another device of ours
     kAnswerTimeout = 5,         // < Call was not answered in a timely manner
     kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
     // < users are online
@@ -112,8 +114,9 @@ enum TermCode: uint8_t
     kErrPeerOffline = 33,       // < we received a notification that that user went offline
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
-    kErrorLast = 35,            // < Last enum indicating call termination due to error
-    kLast = 35,                 // < Last call terminate enum value
+    kErrAlready = 36,           // < There is already a call in this chatroom
+    kErrorLast = 36,            // < Last enum indicating call termination due to error
+    kLast = 36,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
@@ -121,7 +124,7 @@ enum TermCode: uint8_t
 
 static inline bool isTermError(TermCode code)
 {
-    int errorCode = code & 0x7f;
+    int errorCode = code & ~TermCode::kPeer;
     return (errorCode >= TermCode::kErrorFirst) && (errorCode <= TermCode::kErrorLast);
 }
 
@@ -157,18 +160,23 @@ public:
      */
     virtual ~ICallHandler(){}
     virtual void setCall(ICall* call)  = 0;
-    virtual void onStateChange(uint8_t newState) {}
+    virtual void onStateChange(uint8_t /*newState*/) {}
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
-    virtual ISessionHandler* onNewSession(ISession& sess) { return nullptr; }
-    virtual void onLocalStreamObtained(IVideoRenderer*& rendererOut) {}
-    virtual void onLocalMediaError(const std::string errors) {}
-    virtual void onRingOut(karere::Id peer) {}
+    virtual ISessionHandler* onNewSession(ISession& /*sess*/) { return nullptr; }
+    virtual void onLocalStreamObtained(IVideoRenderer*& /*rendererOut*/) {}
+    virtual void onLocalMediaError(const std::string /*errors*/) {}
+    virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
 
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) = 0;
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
+    virtual bool isParticipating(karere::Id userid) = 0;
+    virtual void removeAllParticipants() = 0;
+
+    virtual karere::Id getCallId() const = 0;
+    virtual void setCallId(karere::Id callid) = 0;
 };
 class IGlobalHandler
 {
@@ -184,7 +192,7 @@ public:
      * @param callid The call id
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid) = 0;
+    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid, uint32_t duration = 0) = 0;
 };
 
 class ISession: public karere::DeleteTrackable
@@ -267,6 +275,7 @@ public:
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
     TermCode termCode() const {return mTermCode; }
     bool isJoiner() { return mIsJoiner; }
+    bool isInProgress() const;
     ICallHandler *callHandler() { return mHandler; }
     virtual karere::AvFlags sentAv() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
@@ -313,8 +322,8 @@ protected:
         : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
 public:
     enum {
-       kMaxCallReceivers = 10,
-       kMaxCallAudioSenders = 10,
+       kMaxCallReceivers = 20,
+       kMaxCallAudioSenders = 20,
        kMaxCallVideoSenders = 6
     };
 
@@ -356,27 +365,16 @@ public:
      * @brief Search all audio and video devices at system at that moment.
      */
     virtual void loadDeviceList() = 0;
-
-    /**
-     * @brief Initiates a call to the specified JID.
-     * @param userHandler - the event handler interface that will receive further events
-     * about the call
-     * @param targetJid - the bare or full JID of the callee. If the JID is bare,
-     * the call request is broadcasted to all devices of that user. If the JID is
-     * full (includes the xmpp resource), then only that device will receive the call request.
-     * @param av What streams to send - audio and/or video or none.
-     * @param files - used for file transfer calls, not implemented yet.
-     * @param myJid - used when in a XMPP conference chatroom to specify our room-specific jid
-     */
     virtual bool isCaptureActive() const = 0;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
-    virtual bool isCallInProgress() const = 0;
+    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
+    virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
+    virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;
 
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual void hangupAll(TermCode reason) = 0;
-    virtual void removeCall(karere::Id chatid) = 0;
     /// RtcModule takes the ownership of the callHandler.
     virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler) = 0;
     virtual ICallHandler* findCallHandler(karere::Id chatid) = 0;

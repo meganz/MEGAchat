@@ -172,6 +172,7 @@ public:
 
     enum
     {
+        CHANGE_TYPE_NO_CHANGES = 0x00,      /// Call doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
         CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
@@ -185,9 +186,10 @@ public:
     {
         TERM_CODE_USER_HANGUP       = 0,    /// Normal user hangup
         TERM_CODE_CALL_REQ_CANCEL   = 1,    /// Call request was canceled before call was answered
-        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected by
-                                            /// another client of our user
+        TERM_CODE_CALL_REJECT       = 2,    /// Outgoing call has been rejected by the peer OR incoming call has been rejected in
+                                            /// the current device
         TERM_CODE_ANSWER_ELSE_WHERE = 3,    /// Call was answered on another device of ours
+        TEMR_CODE_REJECT_ELSE_WHERE = 4,    /// Call was rejected on another device of ours
         TERM_CODE_ANSWER_TIMEOUT    = 5,    /// Call was not answered in a timely manner
         TERM_CODE_RING_OUT_TIMEOUT  = 6,    /// We have sent a call request but no RINGING received within this timeout - no other
                                             /// users are online
@@ -693,6 +695,156 @@ public:
 
 };
 
+/**
+ * @brief This class store rich preview data
+ *
+ * This class contains the data for rich links.
+ */
+class MegaChatRichPreview
+{
+public:
+    virtual ~MegaChatRichPreview() {}
+    virtual MegaChatRichPreview *copy() const;
+
+    /**
+      * @brief Returns rich preview text
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Text from rich preview
+      */
+    virtual const char *getText() const;
+
+    /**
+      * @brief Returns rich preview title
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Title from rich preview
+      */
+    virtual const char *getTitle() const;
+
+    /**
+      * @brief Returns rich preview description
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Description from rich preview
+      */
+    virtual const char *getDescription() const;
+
+    /**
+      * @brief Returns rich preview image
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Image from rich preview as a byte array encoded in Base64URL, or NULL if not available.
+      */
+    virtual const char *getImage() const;
+
+    /**
+      * @brief Returns rich preview image format
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Image format from rich preview
+      */
+    virtual const char *getImageFormat() const;
+
+    /**
+      * @brief Returns rich preview icon
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Icon from rich preview as a byte array encoded in Base64URL, or NULL if not available.
+      */
+    virtual const char *getIcon() const;
+
+    /**
+      * @brief Returns rich preview icon format
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Icon format from rich preview
+      */
+    virtual const char *getIconFormat() const;
+
+    /**
+      * @brief Returns rich preview url
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Url from rich preview
+      */
+    virtual const char *getUrl() const;
+
+    /**
+      * @brief Returns domain name from rich preview url
+      *
+      * The MegaChatRichPreview retains the ownership of the returned string. It will
+      * be only valid until the MegaChatRichPreview is deleted.
+      *
+      * @return Domain name from rich preview url
+      */
+    virtual const char *getDomainName() const;
+};
+
+/**
+ * @brief This class represents meta contained
+ *
+ * This class includes pointer to differents kind of meta contained, like MegaChatRichPreview.
+ *
+ * @see MegaChatMessage::containsMetaType()
+ */
+class MegaChatContainsMeta
+{
+public:
+    enum
+    {
+      CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
+      CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
+    };
+
+    virtual ~MegaChatContainsMeta() {}
+
+    virtual MegaChatContainsMeta *copy() const;
+
+    /**
+     * @brief Returns the type of meta contained
+     *
+     *  - MegaChatContainsMeta::CONTAINS_META_INVALID        = -1
+     * Unknown meta contained data in the message
+     *
+     *  - MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW   = 0
+     * Meta contained is from rich preview type
+     *
+     * @return Type from meta contained of the message
+     */
+    virtual int getType() const;
+
+    /**
+     * @brief Returns data about rich-links
+     *
+     * @note This function only returns a valid object in case the function
+     * \c MegaChatContainsMeta::getType returns MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW.
+     * Otherwise, it returns NULL.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatContainsMeta object is deleted.
+     *
+     * @return MegaChatRichPreview with details about rich-link.
+     */
+    virtual const MegaChatRichPreview *getRichPreview() const;
+};
+
 class MegaChatMessage
 {
 public:
@@ -721,15 +873,12 @@ public:
         TYPE_PRIV_CHANGE            = 4,    /// Management message indicating the privilege level of a user has changed
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
-        TYPE_HIGHEST_MANAGEMENT     = 6,
+        TYPE_CALL_STARTED           = 7,    /// Management message indicating a call has started
+        TYPE_HIGHEST_MANAGEMENT     = 7,
         TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
         TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 19,   /// User message including additional metadata (ie. rich-preview for links)
-    };
-
-    enum {
-      META_CONTAINS_RICH_PREVIEW    = 0,    /// Rich-preview type for messages with meta contained
     };
 
     enum
@@ -754,7 +903,8 @@ public:
         END_CALL_REASON_REJECTED    = 2,    /// Call was rejected by callee
         END_CALL_REASON_NO_ANSWER   = 3,    /// Call wasn't answered
         END_CALL_REASON_FAILED      = 4,    /// Call finished by an error
-        END_CALL_REASON_CANCELLED   = 5     /// Call was canceled by caller
+        END_CALL_REASON_CANCELLED   = 5     /// (deprecated) Call was canceled by caller.
+                                            /// Instead of this termCode apps receives END_CALL_REASON_NO_ANSWER
     };
 
     enum
@@ -873,6 +1023,11 @@ public:
      *
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatMessage object is deleted.
+     *
+     * @note If message is of type MegaChatMessage::TYPE_CONTAINS_META and the type of meta
+     * is MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW, for convenience this function
+     * will return the original content of the message, the same than
+     * MegaChatRichPreview::getText
      *
      * @return Content of the message. If message was deleted, it returns NULL.
      */
@@ -1076,7 +1231,6 @@ public:
      */
     virtual MegaChatHandle getRowId() const;
 
-
     /**
      * @brief Returns a bit field with the changes of the message
      *
@@ -1118,6 +1272,19 @@ public:
      * @return true if this message has an specific change
      */
     virtual bool hasChanged(int changeType) const;
+
+    /**
+     * @brief Returns the meta contained
+     *
+     * This function a valid value only if the type of the message is MegaChatMessage::TYPE_CONTAINS_META.
+     * Otherwise, it returns NULL.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatMessage object is deleted.
+     *
+     * @return MegaChatContainsMeta with the details of meta contained
+     */
+    virtual const MegaChatContainsMeta *getContainsMeta() const;
 };
 
 /**
@@ -1158,7 +1325,8 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
-        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
+        TYPE_PUSH_RECEIVED,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2077,13 +2245,28 @@ public:
      * background. The app should define its status in order to receive notifications
      * from server when the app is in background.
      *
+     * This function doesn't have any effect until MEGAchat is fully initialized. It means that
+     * MegaChatApi::getInitState returns the value MegaChatApi::INIT_OFFLINE_SESSION or
+     * MegaChatApi::INIT_ONLINE_SESSION.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getfLAG - Returns the background status
+     * - MegaChatRequest::getFlag - Returns the value of 1st parameter
      *
      * @param status True if the the app is in background, false if in foreground.
      */
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Returns the background status established in MEGAchat
+     *
+     * This function will return -1 when MEGAchat is not fully initialized. It requires that
+     * MegaChatApi::getInitState returns the value MegaChatApi::INIT_OFFLINE_SESSION or
+     * MegaChatApi::INIT_ONLINE_SESSION.
+     *
+     * @return 0 for foreground, 1 for background, -1 if not fully initialized
+     */
+    int getBackgroundStatus();
 
     /**
      * @brief Returns the current firstname of the user
@@ -2291,11 +2474,36 @@ public:
      * MegaChatRoom objects, but a limited set of data that is usually displayed
      * at the list of chatrooms, like the title of the chat or the unread count.
      *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
      * You take the ownership of the returned value
      *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     MegaChatListItemList *getChatListItems();
+
+    /**
+     * @brief Get all chatrooms (1on1 and groupal) that contains a certain set of participants
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function returns even archived chatrooms.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param peers MegaChatPeerList that contains the user handles of the chat participants,
+     * except our own handle because MEGAchat doesn't include them in the map of members for each chatroom.
+     *
+     * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
+     */
+    MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
 
     /**
      * @brief Get the MegaChatListItem that has a specific handle
@@ -2321,7 +2529,7 @@ public:
     /**
      * @brief Return the number of chatrooms with unread messages
      *
-     * Inactive chatrooms with unread messages are not considered.
+     * Archived chatrooms with unread messages are not considered.
      *
      * @return The number of chatrooms with unread messages
      */
@@ -2339,9 +2547,8 @@ public:
     /**
      * @brief Return the chatrooms that are currently inactive
      *
-     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
-     * when the contact-relationship is broken (you remove the contact or you are
-     * removed by the other contact).
+     * Chatrooms became inactive when you left a groupchat or you are removed by
+     * a moderator. 1on1 chats do not become inactive, just read-only.
      *
      * You take the onwership of the returned value.
      *
@@ -2350,7 +2557,18 @@ public:
     MegaChatListItemList *getInactiveChatListItems();
 
     /**
+     * @brief Return the archived chatrooms
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the archived chatrooms
+     */
+    MegaChatListItemList *getArchivedChatListItems();
+
+    /**
      * @brief Return the chatrooms that have unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
      *
      * You take the onwership of the returned value.
      *
@@ -2561,6 +2779,28 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Allows to un/archive chats
+     *
+     * This is a per-chat and per-user option, and it's intended to be used when the user does
+     * not care anymore about an specific chatroom. Archived chatrooms should be displayed in a
+     * different section or alike, so it can be clearly identified as archived.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ARCHIVE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if chat is to be archived or unarchived
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
+     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param archive True to set the chat as archived, false to unarchive it.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief This method should be called when a chat is opened
      *
      * The second parameter is the listener that will receive notifications about
@@ -2712,6 +2952,30 @@ public:
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
      */
     MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
+
+    /**
+     * @brief Forward a message with attach contact
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param sourceChatid MegaChatHandle that identifies the chat room where the source message is
+     * @param msgid MegaChatHandle that identifies the message that is going to be forwarded
+     * @param targetChatId MegaChatHandle that identifies the chat room where the message is going to be forwarded
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+    MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
 
     /**
      * @brief Sends a node or a group of nodes to the specified chatroom
@@ -2904,6 +3168,19 @@ public:
      * @return MegaChatMessage that will be deleted. NULL if the message cannot be deleted (too old)
      */
     MegaChatMessage *deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+
+    /**
+     * @brief Remove an existing rich-link metadata
+     *
+     * This function will remove the metadata associated to the URL in the content of the message.
+     * The message will be edited and will be converted back to the MegaChatMessage::TYPE_NORMAL.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     *
+     * @return MegaChatMessage that will be modified. NULL if the message cannot be edited (too old, not rich-link...)
+     */
+    MegaChatMessage *removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
      * @brief Sets the last-seen-by-us pointer to the specified message
@@ -3104,6 +3381,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
+     *
      * @note In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
      *
@@ -3122,6 +3402,9 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called without being already connected to chatd.
      *
      * @note In case of group calls, if there is already too many peers sending video, the video flag
      * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
@@ -3436,6 +3719,14 @@ public:
 
     static void setCatchException(bool enable);
 
+    /**
+     * @brief Checks whether \c text contains a URL
+     *
+     * @param text String to search for a URL
+     * @return True if \c text contains a URL
+     */
+    static bool hasUrl(const char* text);
+
 private:
     MegaChatApiImpl *pImpl;
 };
@@ -3463,12 +3754,14 @@ public:
     {
         CHANGE_TYPE_STATUS          = 0x01, /// obsolete
         CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
-        CHANGE_TYPE_UNREAD_COUNT    = 0x04,
+        CHANGE_TYPE_UNREAD_COUNT    = 0x04, /// Unread count updated
         CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
-        CHANGE_TYPE_TITLE           = 0x10,
+        CHANGE_TYPE_TITLE           = 0x10, /// Title updated
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80  /// Timestamp of the last activity
+        CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
+        CHANGE_TYPE_ARCHIVE         = 0x100,/// Archived or unarchived
+        CHANGE_TYPE_CALL            = 0x200 /// There's a new call or a call has finished
     };
 
     virtual ~MegaChatListItem() {}
@@ -3618,6 +3911,18 @@ public:
     virtual bool isActive() const;
 
     /**
+     * @brief Returns whether the chat is currently archived or not.
+     * @return True if the chat is archived, false otherwise.
+     */
+    virtual bool isArchived() const;
+
+    /**
+     * @brief Returns whether the chat has a call in progress or not.
+     * @return True if a call is in progress in this chat, false otherwise.
+     */
+    virtual bool isCallInProgress() const;
+
+    /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms
      *
      * The returned value is only valid for 1on1 chatrooms. For groupchats, it will
@@ -3660,8 +3965,9 @@ public:
         CHANGE_TYPE_TITLE               = 0x08,
         CHANGE_TYPE_USER_TYPING         = 0x10, /// User is typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_OWN_PRIV            = 0x40,  /// Our privilege level has changed
-        CHANGE_TYPE_USER_STOP_TYPING    = 0x80 /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
+        CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
+        CHANGE_TYPE_ARCHIVE             = 0x100 /// Archived or unarchived
     };
 
     enum {
@@ -3881,6 +4187,12 @@ public:
      */
     virtual bool isActive() const;
 
+    /**
+     * @brief Returns whether the chat is currently archived or not.
+     * @return True if the chat is archived, false otherwise.
+     */
+    virtual bool isArchived() const;
+
     virtual int getChanges() const;
     virtual bool hasChanged(int changeType) const;
 };
@@ -3911,6 +4223,7 @@ public:
      *  - Participants: new peer added or existing peer removed
      *  - Last message: the last relevant message in the chatroom
      *  - Last timestamp: the last date of any activity in the chatroom
+     *  - Archived: when the chat becomes archived/unarchived
      *
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
@@ -3998,7 +4311,7 @@ public:
      *
      * The changes can include: a user join/leaves the chatroom, a user changes its name,
      * the unread messages count has changed, the online state of the connection to the
-     * chat server has changed.
+     * chat server has changed, the chat becomes archived/unarchived.
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat

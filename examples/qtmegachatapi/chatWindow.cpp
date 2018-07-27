@@ -202,9 +202,9 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatM
             }
             else
             {
-                // TODO: reuse the ChatMessage::updateContent() from rich-links branch
-                // to update the content accordingly, like it's now done in the ctor.
-               chatMessage->setMessageContent(msg->getContent());
+                chatMessage->setMessage(msg->copy());
+                chatMessage->updateContent();
+
                if (msg->isEdited())
                {
                   chatMessage->markAsEdited();
@@ -356,7 +356,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
                     nSending--;
                 }
 
-                addMsgWidget(msg, loadedMessages + nSending + nManualSending);
+                addMsgWidget(msg->copy(), loadedMessages + nSending + nManualSending);
                 auxMessage = findChatMessage(msg->getRowId());
                 if(auxMessage)
                 {

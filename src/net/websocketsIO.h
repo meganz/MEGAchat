@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <functional>
+#include <vector>
 #include <mega/waiter.h>
 #include <mega/thread.h>
 #include "base/logger.h"
@@ -16,12 +17,40 @@
 class WebsocketsClient;
 class WebsocketsClientImpl;
 
+class DNScache
+{
+public:
+    DNScache() {}
+    // returns false if ipv4 and ipv6 for the given url already match the ones in cache, true if not (so they are updated)
+    bool set(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+    void clear(const std::string &url);
+    // returns true if hit in cache, false if there's no record for the given url
+    bool get(const std::string &url, std::string &ipv4, std::string &ipv6);
+    void connectDone(const std::string &url, const std::string &ip);
+    time_t age(const std::string &url);
+    bool isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6);
+    bool isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6);
+private:
+    struct DNSrecord
+    {
+        std::string ipv4;
+        std::string ipv6;
+        time_t resolveTs = 0;       // can be used to invalidate IP addresses by age
+        time_t connectIpv4Ts = 0;   // can be used for heuristics based on last successful connection
+        time_t connectIpv6Ts = 0;   // can be used for heuristics based on last successful connection
+    };
+
+    std::map<std::string, DNSrecord> mRecords;
+};
+
 // Generic websockets network layer
 class WebsocketsIO : public mega::EventTrigger
 {
 public:
     WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
+
+    DNScache mDnsCache;
     
 protected:
     ::mega::Mutex *mutex;
@@ -30,7 +59,7 @@ protected:
     
     // This function is protected to prevent a wrong direct usage
     // It must be only used from WebsocketClient
-    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::string ipv4, std::string ipv6)> f) = 0;
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int status, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)> f) = 0;
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) = 0;
@@ -49,7 +78,7 @@ private:
 public:
     WebsocketsClient();
     virtual ~WebsocketsClient();
-    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::string, std::string)> f);
+    bool wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void(int, std::vector<std::string>&, std::vector<std::string>&)> f);
     bool wsConnect(WebsocketsIO *websocketIO, const char *ip,
                    const char *host, int port, const char *path, bool ssl);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error

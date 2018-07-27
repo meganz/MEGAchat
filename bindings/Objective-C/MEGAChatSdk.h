@@ -44,6 +44,7 @@ typedef NS_ENUM (NSInteger, MEGAChatSource) {
 
 typedef NS_ENUM (NSInteger, MEGAChatInit) {
     MEGAChatInitError             = -1,
+    MEGAChatInitNotDone           = 0,
     MEGAChatInitWaitingNewSession = 1,
     MEGAChatInitOfflineSession    = 2,
     MEGAChatInitOnlineSession     = 3,
@@ -69,6 +70,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) NSInteger unreadChats;
 @property (nonatomic, readonly) MEGAChatListItemList *activeChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *inactiveChatListItems;
+@property (nonatomic, readonly) MEGAChatListItemList *archivedChatListItems;
 
 #pragma mark - Init
 
@@ -186,6 +188,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title;
 
+- (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive;
+
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
@@ -196,6 +201,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatMessage *)messageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (MEGAChatMessage *)sendMessageToChat:(uint64_t)chatId message:(NSString *)message;
 - (MEGAChatMessage *)attachContactsToChat:(uint64_t)chatId contacts:(NSArray *)contacts;
+- (MEGAChatMessage *)forwardContactFromChat:(uint64_t)sourceChatId messageId:(uint64_t)messageId targetChatId:(uint64_t)targetChatId;
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray;
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -206,6 +212,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId;
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message;
 - (MEGAChatMessage *)deleteMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
+- (MEGAChatMessage *)removeRichLinkForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (BOOL)setMessageSeenForChat:(uint64_t)chatId messageId:(uint64_t)messageId;
 - (MEGAChatMessage *)lastChatMessageSeenForChat:(uint64_t)chatId;
 - (void)removeUnsentMessageForChat:(uint64_t)chatId rowId:(uint64_t)rowId;
@@ -258,5 +265,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 #pragma mark - Exceptions
 
 + (void)setCatchException:(BOOL)enable;
+
+#pragma mark - Rich links
+
++ (BOOL)hasUrl:(NSString *)text;
 
 @end

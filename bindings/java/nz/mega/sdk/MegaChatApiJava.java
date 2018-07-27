@@ -52,19 +52,102 @@ public class MegaChatApiJava {
         megaChatApi.addChatListener(createDelegateChatListener(listener));
     }
 
+    /**
+     * Register a listener to receive all events about calls
+     *
+     * You can use MegaChatApi::removeChatCallListener to stop receiving events.
+     *
+     * @param listener MegaChatCallListener that will receive all call events
+     */
     public void addChatCallListener(MegaChatCallListenerInterface listener)
     {
         megaChatApi.addChatCallListener(createDelegateChatCallListener(listener));
     }
 
-    public void addChatLocalVideoListener(MegaChatVideoListenerInterface listener)
-    {
-        megaChatApi.addChatLocalVideoListener(createDelegateChatVideoListener(listener, false));
+    /**
+     * Unregister a MegaChatCallListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    public void removeChatCallListener(MegaChatCallListenerInterface listener) {
+        ArrayList<DelegateMegaChatCallListener> listenersToRemove = new ArrayList<DelegateMegaChatCallListener>();
+        synchronized (activeChatCallListeners) {
+            Iterator<DelegateMegaChatCallListener> it = activeChatCallListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatCallListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i=0;i<listenersToRemove.size();i++){
+            megaChatApi.removeChatCallListener(listenersToRemove.get(i));
+        }
     }
 
-    public void addChatRemoteVideoListener(MegaChatVideoListenerInterface listener)
+    /**
+     * Register a listener to receive video from local device for an specific chat room
+     *
+     * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatVideoListener that will receive local video
+     */
+    public void addChatLocalVideoListener(long chatid, MegaChatVideoListenerInterface listener)
     {
-        megaChatApi.addChatRemoteVideoListener(createDelegateChatVideoListener(listener, true));
+        megaChatApi.addChatLocalVideoListener(chatid, createDelegateChatVideoListener(listener, false));
+    }
+
+    /**
+     * Register a listener to receive video from remote device for an specific chat room and peer
+     *
+     * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param peerid MegaChatHandle that identifies the peer
+     * @param listener MegaChatVideoListener that will receive remote video
+     */
+    public void addChatRemoteVideoListener(long chatid, long peerid, MegaChatVideoListenerInterface listener)
+    {
+        megaChatApi.addChatRemoteVideoListener(chatid, peerid, createDelegateChatVideoListener(listener, true));
+    }
+
+    /**
+     * Unregister a MegaChatVideoListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param peerid MegaChatHandle that identifies the peer (if the listener is remote)
+     * @param listener Object that is unregistered
+     */
+    public void removeChatVideoListener(long chatid, long peerid, MegaChatVideoListenerInterface listener) {
+        ArrayList<DelegateMegaChatVideoListener> listenersToRemove = new ArrayList<DelegateMegaChatVideoListener>();
+        synchronized (activeChatVideoListeners) {
+            Iterator<DelegateMegaChatVideoListener> it = activeChatVideoListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatVideoListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i = 0; i < listenersToRemove.size(); i++) {
+            DelegateMegaChatVideoListener delegateListener = listenersToRemove.get(i);
+            delegateListener.setRemoved();
+            if (delegateListener.isRemote()) {
+                megaChatApi.removeChatRemoteVideoListener(chatid, peerid, delegateListener);
+            }
+            else {
+                megaChatApi.removeChatLocalVideoListener(chatid, delegateListener);
+            }
+        }
     }
 
     /**
@@ -139,50 +222,6 @@ public class MegaChatApiJava {
             megaChatApi.removeChatListener(listenersToRemove.get(i));
         }
     }
-
-    public void removeChatCallListener(MegaChatCallListenerInterface listener) {
-        ArrayList<DelegateMegaChatCallListener> listenersToRemove = new ArrayList<DelegateMegaChatCallListener>();
-        synchronized (activeChatCallListeners) {
-            Iterator<DelegateMegaChatCallListener> it = activeChatCallListeners.iterator();
-            while (it.hasNext()) {
-                DelegateMegaChatCallListener delegate = it.next();
-                if (delegate.getUserListener() == listener) {
-                    listenersToRemove.add(delegate);
-                    it.remove();
-                }
-            }
-        }
-
-        for (int i=0;i<listenersToRemove.size();i++){
-            megaChatApi.removeChatCallListener(listenersToRemove.get(i));
-        }
-    }
-
-    public void removeChatVideoListener(MegaChatVideoListenerInterface listener) {
-        ArrayList<DelegateMegaChatVideoListener> listenersToRemove = new ArrayList<DelegateMegaChatVideoListener>();
-        synchronized (activeChatVideoListeners) {
-            Iterator<DelegateMegaChatVideoListener> it = activeChatVideoListeners.iterator();
-            while (it.hasNext()) {
-                DelegateMegaChatVideoListener delegate = it.next();
-                if (delegate.getUserListener() == listener) {
-                    listenersToRemove.add(delegate);
-                    it.remove();
-                }
-            }
-        }
-
-        for (int i = 0; i < listenersToRemove.size(); i++) {
-            DelegateMegaChatVideoListener delegateListener = listenersToRemove.get(i);
-            delegateListener.setRemoved();
-            if (delegateListener.isRemote()) {
-                megaChatApi.removeChatRemoteVideoListener(delegateListener);
-            }
-            else {
-                megaChatApi.removeChatLocalVideoListener(delegateListener);
-            }
-        }
-    }
-
 
     public int init(String sid)
     {
@@ -377,7 +416,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Logout of chat servers without invalidating the session
+     * Logout of chat servers without invalidating the session
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
      *
@@ -766,6 +805,15 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Returns the background status established in MEGAchat
+     *
+     * @return True if background status was set.
+     */
+    public int getBackgroundStatus(){
+        return megaChatApi.getBackgroundStatus();
+    }
+
+    /**
      * Returns the current firstname of the user
      *
      * This function is useful to get the firstname of users who participated in a groupchat with
@@ -950,13 +998,39 @@ public class MegaChatApiJava {
      * MegaChatRoom objects, but a limited set of data that is usually displayed
      * at the list of chatrooms, like the title of the chat or the unread count.
      *
+     * This function filters out archived chatrooms. You can retrieve them by using
+     * the function \c getArchivedChatListItems.
+     *
      * You take the ownership of the returned value
      *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     public ArrayList<MegaChatListItem> getChatListItems(){
         return chatRoomListItemToArray(megaChatApi.getChatListItems());
+    }
 
+    /**
+     * Get all chatrooms (1on1 and groupal) that contains a certain set of participants
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * This function returns even archived chatrooms.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param peers MegaChatPeerList that contains the user handles of the chat participants,
+     * except our own handle because MEGAchat doesn't include them in the map of members for each chatroom.
+     *
+     * @return List of MegaChatListItemList objects with the chatrooms that contains a certain set of participants.
+     */
+    public ArrayList<MegaChatListItem> getChatListItemsByPeers(MegaChatPeerList peers){
+        return chatRoomListItemToArray(megaChatApi.getChatListItemsByPeers(peers));
     }
 
     /**
@@ -983,6 +1057,9 @@ public class MegaChatApiJava {
 
     /**
      * Return the number of chatrooms with unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
+     *
      * @return The number of chatrooms with unread messages
      */
     public int getUnreadChats(){
@@ -1003,9 +1080,8 @@ public class MegaChatApiJava {
     /**
      * Return the chatrooms that are currently inactive
      *
-     * Chatrooms became inactive when you left a groupchat or, for 1on1 chats,
-     * when the contact-relationship is broken (you remove the contact or you are
-     * removed by the other contact).
+     * Chatrooms became inactive when you left a groupchat or you are removed by
+     * a moderator. 1on1 chats do not become inactive, just read-only.
      *
      * You take the onwership of the returned value.
      *
@@ -1016,7 +1092,20 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Return the archived chatrooms
+     *
+     * You take the onwership of the returned value.
+     *
+     * @return MegaChatListItemList including all the archived chatrooms
+     */
+    public ArrayList<MegaChatListItem> getArchivedChatListItems(){
+        return chatRoomListItemToArray(megaChatApi.getArchivedChatListItems());
+    }
+
+    /**
      * Return the chatrooms that have unread messages
+     *
+     * Archived chatrooms with unread messages are not considered.
      *
      * You take the onwership of the returned value.
      *
@@ -1132,6 +1221,34 @@ public class MegaChatApiJava {
      */
     public void setChatTitle(long chatid, String title, MegaChatRequestListenerInterface listener){
         megaChatApi.setChatTitle(chatid, title, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Allows to un/archive chats
+     *
+     * This is a per-chat and per-user option, and it's intended to be used when the user does
+     * not care anymore about an specific chatroom. Archived chatrooms should be displayed in a
+     * different section or alike, so it can be clearly identified as archived.
+     *
+     * Note you will stop receiving \c onChatListItemUpdate() updated for changes of type
+     * MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT, since the user is not anymore interested on
+     * the activity of this chatroom.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ARCHIVE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns if chat is to be archived or unarchived
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
+     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param archive True to set the chat as archived, false to unarchive it.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void archiveChat(long chatid, boolean archive, MegaChatRequestListenerInterface listener){
+        megaChatApi.archiveChat(chatid, archive, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1290,6 +1407,32 @@ public class MegaChatApiJava {
      */
     public MegaChatMessage attachContacts(long chatid, MegaHandleList handles){
         return megaChatApi.attachContacts(chatid, handles);
+    }
+
+    /**
+     * Forward a message with attach contact
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId()
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param sourceChatid MegaChatHandle that identifies the chat room where the source message is
+     * @param msgid MegaChatHandle that identifies the message that is going to be forwarded
+     * @param targetChatId MegaChatHandle that identifies the chat room where the message is going to be forwarded
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+    public MegaChatMessage forwardContact(long sourceChatid, long msgid, long targetChatId){
+        return megaChatApi.forwardContact(sourceChatid, msgid, targetChatId);
     }
 
     /**
@@ -1668,6 +1811,11 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
      *
+     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
      * @param listener MegaChatRequestListener to track this request
@@ -1684,6 +1832,11 @@ public class MegaChatApiJava {
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     *
+     * @note In case of group calls, if there is already too many peers sending video, the video flag
+     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
@@ -1848,7 +2001,8 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Returns number of calls that there are at the system
+     * Returns number of calls that are currently active
+     * @note You may not participate in all those calls.
      * @return number of calls in the system
      */
     public int getNumCalls(){
@@ -1875,6 +2029,18 @@ public class MegaChatApiJava {
      */
     public MegaHandleList getChatCallsIds(){
         return megaChatApi.getChatCallsIds();
+    }
+
+    /**
+     * @brief Returns true if there is a call at chatroom with id \c chatid
+     *
+     * @note It's not necessary that we participate in the call, but other participants do.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return True if there is a call in a chatroom. False in other case
+     */
+    public boolean hasCallInChatRoom(long chatid){
+        return megaChatApi.hasCallInChatRoom(chatid);
     }
 
     public static void setCatchException(boolean enable) {

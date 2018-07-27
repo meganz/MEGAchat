@@ -51,11 +51,11 @@ struct UserAttrDesc
     int type;
     GetDataFunc getData;
     int changeMask;
-    UserAttrDesc(int aType, GetDataFunc aGetData, int aChangeMask, unsigned char aFlags = 0)
+    UserAttrDesc(int aType, GetDataFunc aGetData, int aChangeMask)
         :type(aType), getData(aGetData), changeMask(aChangeMask){}
 };
 
-extern UserAttrDesc gUserAttrDescs[10];
+extern UserAttrDesc gUserAttrDescs[21];
 
 struct UserAttrPair
 {

@@ -199,6 +199,8 @@ public:
     void TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName);
 #endif
 
+    void TEST_RichLinkUserAttribute(unsigned int a1);
+
     unsigned mOKTests;
     unsigned mFailedTests;
 
@@ -266,6 +268,7 @@ private:
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool chatArchived[NUM_ACCOUNTS];
 
     std::string mFirstname;
     std::string mLastname;
@@ -288,6 +291,8 @@ private:
 
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    bool mRichLinkFlag[NUM_ACCOUNTS];
+    int mCountRichLink[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
@@ -384,6 +389,7 @@ public:
     bool chatUpdated[NUM_ACCOUNTS];
     bool userTyping[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool archiveUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);

@@ -87,10 +87,10 @@ class Call: public ICall
 {
     enum CallDataState
     {
-        kCallDataInProgress     = 0,
+        kCallDataNotRinging     = 0,
         kCallDataRinging        = 1,
         kCallDataEnd            = 2,
-        kCallDataJoin           = 3,
+        kCallDataSession        = 3,
         kCallDataMute           = 4
     };
 
@@ -106,7 +106,6 @@ class Call: public ICall
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
-    std::map<chatd::EndpointId, time_t> mSessRetriesTime;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::string mName;
@@ -162,6 +161,7 @@ protected:
     void destroyIfNoSessionsOrRetries(TermCode reason);
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
+    bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
     friend class RtcModule;
     friend class Session;
 public:
@@ -177,7 +177,7 @@ public:
     virtual karere::AvFlags muteUnmute(karere::AvFlags av);
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
-    void sendBusy();
+    void sendBusy(bool isCallToSameUser);
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -189,7 +189,7 @@ public:
         kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 20000
+        kSessSetupTimeout = 30000
     };
 
     enum Resolution
@@ -215,6 +215,8 @@ public:
     virtual void onClientLeftCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void onDisconnect(chatd::Connection& conn);
     virtual void stopCallsTimers(int shard);
+    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    virtual void handleCallTime(karere::Id chatid, uint32_t duration);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
@@ -225,8 +227,9 @@ public:
     virtual bool isCaptureActive() const;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
-    virtual bool isCallInProgress() const;
-    virtual void removeCall(karere::Id chatid);
+    virtual bool isCallInProgress(karere::Id chatid) const;
+    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
+    virtual void removeCallWithoutParticipants(karere::Id chatid);
     virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
     virtual ICallHandler* findCallHandler(karere::Id chatid);
     virtual int numCalls() const;
