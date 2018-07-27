@@ -83,6 +83,7 @@ class MainWindow :
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
+        const char *loginCode();
         void enableFactor(bool active);
         bool eventFilter(QObject *obj, QEvent *event);
         void contextMenuEvent(QContextMenuEvent* event);
@@ -128,6 +129,7 @@ class MainWindow :
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
         void onFactorGetCode();
+        void onFactorDisable();
         void onFactorBtn(bool);
 
     signals:
