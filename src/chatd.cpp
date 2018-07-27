@@ -1482,6 +1482,19 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mChatdClient.karereClient->onSyncReceived(chatid);
                 break;
             }
+            case OP_CALLTIME:
+            {
+                READ_CHATID(0);
+                READ_32(duration, 8);
+                CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
+#ifndef KARERE_DISABLE_WEBRTC
+                if (mChatdClient.mRtcHandler)
+                {
+                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
+                }
+#endif
+                break;
+            }
             default:
             {
                 CHATDS_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);

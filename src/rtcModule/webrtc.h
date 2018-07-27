@@ -192,7 +192,7 @@ public:
      * @param callid The call id
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid) = 0;
+    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid, uint32_t duration = 0) = 0;
 };
 
 class ISession: public karere::DeleteTrackable

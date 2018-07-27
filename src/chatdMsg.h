@@ -324,21 +324,29 @@ enum Opcode
     OP_ADDREACTION = 33,
 
     /**
-      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <unicodechar32le>
       *
       * User delete a reaction to message
       */
     OP_DELREACTION = 34,
 
     /**
-      ** @brief <chatid>
+      * @brief <chatid>
       *
       * C->S: ping server to ensure client is up to date for the specified chatid
       * S->C: response to the ping initiated by client
       */
     OP_SYNC = 38,
 
-    OP_LAST = OP_DELREACTION
+    /**
+      ** @brief <chatid> <callDuration 4 Bytes>
+      *
+      * S->C: inform about call duration in seconds for a call that exists before we get online.
+      * It is sent before any INCALL or CALLDATA
+      */
+    OP_CALLTIME = 42,
+
+    OP_LAST = OP_CALLTIME
 };
 
 // privilege levels

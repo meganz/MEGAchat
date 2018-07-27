@@ -511,7 +511,16 @@ void RtcModule::handleInCall(karere::Id chatid, karere::Id userid, uint32_t clie
     {
         updatePeerAvState(chatid, Id::inval(), userid, clientid, AvFlags(false, false));
     }
+}
 
+void RtcModule::handleCallTime(karere::Id chatid, uint32_t duration)
+{
+    auto callHandlerIt = mCallHandlers.find(chatid);
+    if (callHandlerIt == mCallHandlers.end())
+    {
+        ICallHandler *callHandler = mHandler.onGroupCallActive(chatid, karere::Id::inval(), duration);
+        addCallHandler(chatid, callHandler);
+    }
 }
 
 template <class... Args>

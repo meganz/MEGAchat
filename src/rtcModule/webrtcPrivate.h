@@ -208,6 +208,7 @@ public:
     virtual void onDisconnect(chatd::Connection& conn);
     virtual void stopCallsTimers(int shard);
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
+    virtual void handleCallTime(karere::Id chatid, uint32_t duration);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
