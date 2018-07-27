@@ -2071,17 +2071,28 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
             idx = rangeStart;
         }
 
-        uint64_t backref;
+        uint64_t backref = 0;
         if (idx < (Idx)sendingIdx.size())
         {
             backref = sendingIdx[sendingIdx.size()-1-idx]->msg->backRefId; // reference a not-yet confirmed message
         }
         else
         {
-            backref = at(highnum()-(idx-sendingIdx.size())).backRefId; // reference a regular history message
+            Message &msg = at(highnum()-(idx-sendingIdx.size()));
+            if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
+            {
+                backref = at(highnum()-(idx-sendingIdx.size())).backRefId; // reference a regular history message
+            }
+            else
+            {
+                CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
+            }
         }
 
-        msgit->msg->backRefs.push_back(backref);
+        if (backref)
+        {
+            msgit->msg->backRefs.push_back(backref);
+        }
 
         if (rangeEnd == maxEnd)
         {
