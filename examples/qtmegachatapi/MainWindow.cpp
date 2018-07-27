@@ -33,8 +33,8 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
     ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
     ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
-    ui->mFactor->hide();
-    connect(ui->mFactor,  SIGNAL(clicked(bool)), this, SLOT(onFactorBtn(bool)));
+    ui->mTwoFactor->hide();
+    connect(ui->mTwoFactor,  SIGNAL(clicked(bool)), this, SLOT(onTwoFactorBtn(bool)));
 
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
 #ifndef KARERE_DISABLE_WEBRTC
@@ -68,7 +68,7 @@ mega::MegaUserList * MainWindow::getUserContactList()
     return mMegaApi->getContacts();
 }
 
-const char *MainWindow::loginCode()
+const char *MainWindow::getAuthCode()
 {
     bool ok;
     std::string code;
@@ -95,34 +95,34 @@ const char *MainWindow::loginCode()
 }
 
 
-void MainWindow::enableFactor(bool active)
+void MainWindow::enableTwoFactorBtn(bool active)
 {
     if (active)
     {
-        ui->mFactor->show();
-        ui->mFactor->setEnabled(active);
-        ui->mFactor->setStyleSheet("color:#0000FF");
+        ui->mTwoFactor->show();
+        ui->mTwoFactor->setEnabled(active);
+        ui->mTwoFactor->setStyleSheet("color:#0000FF");
     }
     else
     {
-        ui->mFactor->hide();
-        ui->mFactor->setEnabled(active);
+        ui->mTwoFactor->hide();
+        ui->mTwoFactor->setEnabled(active);
     }
 }
 
-void MainWindow::onFactorBtn(bool)
+void MainWindow::onTwoFactorBtn(bool)
 {
     mMegaApi->multiFactorAuthCheck(mMegaChatApi->getMyEmail());
 }
 
-void MainWindow::onFactorGetCode()
+void MainWindow::onTwoFactorGetCode()
 {
     mMegaApi->multiFactorAuthGetCode();
 }
 
-void MainWindow::onFactorDisable()
+void MainWindow::onTwoFactorDisable()
 {
-    const char *auxcode = loginCode();
+    const char *auxcode = getAuthCode();
     QString code(auxcode);
     if (auxcode)
     {
@@ -136,18 +136,18 @@ void MainWindow::createFactorMenu(bool factorEnabled)
     if(factorEnabled)
     {
         auto disableFA = menu.addAction("Disable 2FA");
-        connect(disableFA, SIGNAL(triggered()), this, SLOT(onFactorDisable()));
+        connect(disableFA, SIGNAL(triggered()), this, SLOT(onTwoFactorDisable()));
     }
     else
     {
         auto getFA = menu.addAction("Enable 2FA");
-        connect(getFA, SIGNAL(triggered()), this, SLOT(onFactorGetCode()));
+        connect(getFA, SIGNAL(triggered()), this, SLOT(onTwoFactorGetCode()));
     }
 
     menu.setLayoutDirection(Qt::RightToLeft);
     menu.adjustSize();
-    menu.exec(ui->mFactor->mapToGlobal(
-        QPoint(-menu.width()+ui->mFactor->width(), ui->mFactor->height())));
+    menu.exec(ui->mTwoFactor->mapToGlobal(
+        QPoint(-menu.width()+ui->mTwoFactor->width(), ui->mTwoFactor->height())));
     menu.deleteLater();
 }
 

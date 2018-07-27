@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include "signal.h"
+#include <QClipboard>
 
 using namespace std;
 using namespace mega;
@@ -216,7 +217,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_LOGIN:
             if (e->getErrorCode() == MegaError::API_EMFAREQUIRED)
             {
-                const char *auxcode = this->mMainWin->loginCode();
+                const char *auxcode = this->mMainWin->getAuthCode();
                 QString code(auxcode);
                 QString email(request->getEmail());
                 QString password(request->getPassword());
@@ -264,7 +265,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 addContacts();
                 mMegaChatApi->connect();
                 bool twoFactorAvailable = mMegaApi->multiFactorAuthAvailable();
-                this->mMainWin->enableFactor(twoFactorAvailable);
+                this->mMainWin->enableTwoFactorBtn(twoFactorAvailable);
             }
             else
             {
@@ -306,7 +307,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
                 msg.exec();
 
-                const char *auxcode = this->mMainWin->loginCode();
+                const char *auxcode = this->mMainWin->getAuthCode();
                 QString code(auxcode);
                 if (auxcode)
                 {

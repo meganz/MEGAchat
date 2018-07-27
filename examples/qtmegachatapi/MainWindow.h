@@ -83,8 +83,8 @@ class MainWindow :
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
-        const char *loginCode();
-        void enableFactor(bool active);
+        const char *getAuthCode();
+        void enableTwoFactorBtn(bool active);
         bool eventFilter(QObject *obj, QEvent *event);
         void contextMenuEvent(QContextMenuEvent* event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
@@ -128,9 +128,9 @@ class MainWindow :
         void on_bHiddenChats_clicked();
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
-        void onFactorGetCode();
-        void onFactorDisable();
-        void onFactorBtn(bool);
+        void onTwoFactorGetCode();
+        void onTwoFactorDisable();
+        void onTwoFactorBtn(bool);
 
     signals:
         void esidLogout();

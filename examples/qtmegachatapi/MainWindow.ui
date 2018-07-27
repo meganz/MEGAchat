@@ -121,7 +121,7 @@
         </widget>
        </item>
 <item>
-        <widget class="QToolButton" name="mFactor">
+        <widget class="QToolButton" name="mTwoFactor">
          <property name="sizePolicy">
           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
