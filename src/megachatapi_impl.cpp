@@ -6755,15 +6755,16 @@ void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags f
     if (chatCall)
     {
         bool notify = chatCall->addOrUpdateParticipant(userid, clientid, flags);
+
+        if (chatCall->getCallParticipants() == 2 && !chatCall->getInitialTimeStamp())
+        {
+            chatCall->setInitialTimeStamp(time(NULL));
+        }
+
         if (notify)
         {
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
-    }
-
-    if (chatCall->getCallParticipants() == 2 && !chatCall->getInitialTimeStamp())
-    {
-        chatCall->setInitialTimeStamp(time(NULL));
     }
 }
 
