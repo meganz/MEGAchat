@@ -123,6 +123,10 @@ void ContactItemWidget::onCreatePublicGroupChat()
                 this->mMegaChatApi->createPublicChat(peerList, title.c_str());
             }
         }
+        else
+        {
+            this->mMegaChatApi->createPublicChat(peerList);
+        }
    }
    msgBox.deleteLater();
 }
@@ -182,12 +186,17 @@ void ContactItemWidget::onCreateGroupChat()
                        this->mMegaChatApi->createChat(true, peerList, title.c_str());
                    }
                 }
+                else
+                {
+                    this->mMegaChatApi->createChat(true, peerList);
+                }
             }
         }
         delete listItems;
    }
    msgBox.deleteLater();
 }
+
 
 void ContactItemWidget::onPrintContactInfo()
 {

@@ -845,7 +845,7 @@ void ChatWindow::on_mJoinBtn_clicked()
 
 void ChatWindow::on_mSettingsBtn_clicked()
 {
-    if(mChatRoom->isGroup())
+    if(mChatRoom->isGroup() && !mPreview)
     {
         QMenu menu(this);
         createSettingsMenu(menu);

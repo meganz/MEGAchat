@@ -8,7 +8,6 @@
 #include <sys/stat.h>
 #include "signal.h"
 
-#include <mega/megaclient.h>
 using namespace std;
 using namespace mega;
 using namespace megachat;

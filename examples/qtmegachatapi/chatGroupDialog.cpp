@@ -72,7 +72,7 @@ void ChatGroupDialog::on_buttonBox_accepted()
         }
     }
 
-    if (peerList->size() == 0)
+    if (peerList->size() == 0 && !mPublic)
     {
         return;
     }

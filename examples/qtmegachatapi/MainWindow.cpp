@@ -577,6 +577,10 @@ void MainWindow::onAddPublicChatGroup()
                  this->mMegaChatApi->createPublicChat(peerList, title.c_str());
              }
          }
+         else
+         {
+             this->mMegaChatApi->createPublicChat(peerList);
+         }
     }
     msgBox.deleteLater();
 }
