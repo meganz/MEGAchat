@@ -2389,11 +2389,6 @@ void Chat::onLastSeen(Id msgid)
     else    // msgid is in RAM
     {
         idx = it->second;
-
-        if (at(idx).userid == mClient.mUserId)
-        {
-            CHATID_LOG_WARNING("Last-seen points to a message by us, possibly the pointer was not set properly");
-        }
     }
 
     if (idx == CHATD_IDX_INVALID)   // msgid is unknown locally (during initialization, or very old msg)
