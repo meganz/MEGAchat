@@ -2540,9 +2540,14 @@ int Chat::unreadMsgCount() const
     Idx first = mLastSeenIdx+1;
     unsigned count = 0;
     auto last = highnum();
-    for (Idx i=first; i<=last; i++)
+    for (Idx i=last; i<=first; i--)
     {
         auto& msg = at(i);
+        if (msg.isOwnMessage(mClient.userId()))
+        {
+            break;
+        }
+
         if (msg.isValidUnread(mClient.userId()))
         {
             count++;
@@ -3022,11 +3027,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             else
             {
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
-            }
-
-            if (msg->isDeleted() && msg->isOwnMessage(client().userId()))
-            {
-                CALL_LISTENER(onUnreadChanged);
             }
 
             if (msg->type == Message::kMsgTruncate)
