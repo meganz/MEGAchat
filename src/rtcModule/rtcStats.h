@@ -55,6 +55,7 @@ public:
     std::string mDeviceInfo;
     std::vector<Sample*> mSamples;
     ConnInfo mConnInfo;
+    ~RtcStats();
     //IRtcStats implementation
     virtual const std::string& termRsn() const { return mTermRsn; }
     virtual bool isCaller() const { return mIsCaller; }
@@ -63,27 +64,6 @@ public:
     virtual const std::vector<Sample*>* samples() const { return &mSamples; }
     virtual const IConnInfo* connInfo() const { return &mConnInfo; }
     virtual void toJson(std::string& out) const;
-};
-
-class EmptyStats: public IRtcStats
-{
-public:
-    bool mIsCaller;
-    std::string mTermRsn;
-    karere::Id mCallId;
-    std::string mEmpty;
-    EmptyStats(const Session& sess, const std::string& aTermRsn);
-    virtual const std::string& ctype() const { return mEmpty; }
-    virtual const std::string& proto() const { return mEmpty; }
-    virtual const std::string& rlySvr() const { return mEmpty; }
-    virtual const std::string& termRsn() const { return mTermRsn; }
-    virtual const std::string& vcodec() const { return mEmpty; }
-    virtual bool isCaller() const { return mIsCaller; }
-    virtual karere::Id callId() const { return mCallId; }
-    virtual size_t sampleCnt() const { return 0; }
-    virtual const std::vector<Sample*>* samples() const { return nullptr; }
-    virtual const IConnInfo* connInfo() const { return nullptr; }
-    virtual void toJson(std::string&) const;
 };
 
 class Recorder: public rtc::RefCountedObject<webrtc::StatsObserver>

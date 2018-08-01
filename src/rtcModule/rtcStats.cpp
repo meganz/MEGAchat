@@ -25,9 +25,6 @@ StatSessInfo::StatSessInfo(karere::Id aSid, uint8_t termCode, const std::string&
         mTermReason = termCodeToStr(static_cast<TermCode>(termCode));
 }
 
-EmptyStats::EmptyStats(const Session& sess, const std::string& aTermRsn)
-:mIsCaller(sess.isCaller()), mTermRsn(aTermRsn), mCallId(sess.call().id()){}
-
 Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
     :mScanPeriod(scanPeriod * 1000), mMaxSamplePeriod(maxSamplePeriod * 1000),
     mCurrSample(new Sample), mSession(sess), mStats(new RtcStats)
@@ -296,6 +293,15 @@ Recorder::~Recorder()
         cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
 }
 
+RtcStats::~RtcStats()
+{
+    for (unsigned int i = 0; i < mSamples.size(); i++)
+    {
+        delete mSamples[i];
+        mSamples.clear();
+    }
+}
+
 const char* decToString(float v)
 {
     static char buf[128];
@@ -400,17 +406,6 @@ void RtcStats::toJson(std::string& json) const
         JSON_END_SUBOBJ(); //a
     JSON_END_SUBOBJ(); //samples
     json[json.size()-1]='}'; //all
-}
-
-void EmptyStats::toJson(std::string& json) const
-{
-    json.reserve(512);
-    json ="{";
-    JSON_ADD_STR(cid, mCallId.toString());
-    JSON_ADD_INT(isCaller, mIsCaller);
-    JSON_ADD_STR(termRsn, mTermRsn);
-    JSON_ADD_STR(bws, "n"); //TODO: Add platform info
-    json[json.size()-1] = '}';
 }
 }
 }
