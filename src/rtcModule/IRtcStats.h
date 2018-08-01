@@ -22,6 +22,7 @@ struct Sample
     int64_t ts;
     struct
     {
+        long rtt = 0;
         struct : BwInfo
         {
             long pl = 0;
@@ -35,8 +36,6 @@ struct Sample
         struct : BwInfo
         {
             long gbps = 0;
-            long gabps = 0;
-            long rtt = 0;
             short fps = 0;
             short cfps = 0;
             long cjtr = 0;
@@ -52,9 +51,12 @@ struct Sample
     struct
     {
         long rtt = 0;
-        long pl = 0;
-        long jtr = 0;
-        BwInfo r;
+        long plDifference = 0;
+        struct : BwInfo
+        {
+            long pl = 0;
+            long jtr = 0;
+        } r;
         BwInfo s;
     } astats;
     struct

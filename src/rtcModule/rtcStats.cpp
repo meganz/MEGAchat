@@ -137,20 +137,20 @@ void Recorder::onStats(const webrtc::StatsReports &data)
             else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
             {
                 width = getLongValue(VALNAME(FrameWidthSent), item);
-                auto& sample = mCurrSample->vstats.s;
+                auto& sample = mCurrSample->vstats;
                 AVG(Rtt, sample.rtt);
-                AVG(FrameRateSent, sample.fps);
-                AVG(FrameRateInput, sample.cfps);
-                sample.width = width;
-                sample.height = getLongValue(VALNAME(FrameHeightSent), item);
+                AVG(FrameRateSent, sample.s.fps);
+                AVG(FrameRateInput, sample.s.cfps);
+                sample.s.width = width;
+                sample.s.height = getLongValue(VALNAME(FrameHeightSent), item);
                 if (mStats->mConnInfo.mVcodec.empty())
                 {
                     mStats->mConnInfo.mVcodec = getStringValue(VALNAME(CodecName), item);
                 }
 //              s.et = stat('googAvgEncodeMs');
-                AVG(EncodeUsagePercent, sample.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.lcpu = getStringValue(VALNAME(CpuLimitedResolution), item) == "true";
-                sample.lbw = getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true";
+                AVG(EncodeUsagePercent, sample.s.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
+                sample.s.lcpu = getStringValue(VALNAME(CpuLimitedResolution), item) == "true";
+                sample.s.lbw = getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true";
                 mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
             }
             else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
@@ -164,8 +164,8 @@ void Recorder::onStats(const webrtc::StatsReports &data)
             else if (item->FindValue(VALNAME(AudioOutputLevel))) //audio tx
             {
                 mAudioTxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
-                AVG(JitterReceived, mCurrSample->astats.jtr);
-                mCurrSample->astats.pl = getLongValue(VALNAME(PacketsLost), item);
+                AVG(JitterReceived, mCurrSample->astats.r.jtr);
+                mCurrSample->astats.r.pl = getLongValue(VALNAME(PacketsLost), item);
             }
         }
         else if ((item->id()->type() == RPTYPE(CandidatePair)) && getStringValue(VALNAME(ActiveConnection), item) == "true")
@@ -196,7 +196,6 @@ void Recorder::onStats(const webrtc::StatsReports &data)
             auto& sample = mCurrSample->vstats.s;
             sample.bwav = round((float)getLongValue(VALNAME(AvailableSendBandwidth), item)/1024);
             sample.gbps = round((float)getLongValue(VALNAME(TransmitBitrate), item)/1024); //chrome returns it in bits/s, should be near our calculated bps
-            sample.gabps = (sample.gabps*4+sample.gbps)/5;
             sample.targetEncBitrate = round((float)getLongValue(VALNAME(TargetEncBitrate), item)/1024);
         }
     } //end item loop
@@ -217,9 +216,9 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 d_dly = -d_dly;
         }
         long d_vrtt = 0;
-        if (last.vstats.s.rtt)
+        if (last.vstats.rtt)
         {
-            d_vrtt = (mCurrSample->vstats.s.rtt - last.vstats.s.rtt);
+            d_vrtt = (mCurrSample->vstats.rtt - last.vstats.rtt);
             if (d_vrtt < 0)
                 d_vrtt = -d_vrtt;
         }
@@ -231,15 +230,14 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 d_auRtt = -d_auRtt;
         }
         long d_auJtr = 0;
-        if (last.astats.jtr)
+        if (last.astats.r.jtr)
         {
-            d_auJtr = mCurrSample->astats.jtr - last.astats.jtr;
+            d_auJtr = mCurrSample->astats.r.jtr - last.astats.r.jtr;
                     if (d_auJtr < 0)
                         d_auJtr = -d_auJtr;
         }
 
         auto d_ts = mCurrSample->ts - last.ts;
-        auto d_apl = mCurrSample->astats.pl - last.astats.pl;
         shouldAddSample =
             (mCurrSample->vstats.r.width != last.vstats.r.width)
          || (mCurrSample->vstats.s.width != last.vstats.s.width)
@@ -365,11 +363,10 @@ void RtcStats::toJson(std::string& json) const
                 JSON_END_SUBOBJ();
         JSON_END_SUBOBJ();
         JSON_SUBOBJ("v");
+            JSON_ADD_SAMPLES(vstats., rtt);
             JSON_SUBOBJ("s");
                 JSON_ADD_BWINFO(vstats.s);
                 JSON_ADD_SAMPLES(vstats.s., gbps);
-                JSON_ADD_SAMPLES(vstats.s., gabps);
-                JSON_ADD_SAMPLES(vstats.s., rtt);
                 JSON_ADD_SAMPLES(vstats.s., fps);
                 JSON_ADD_SAMPLES(vstats.s., cfps);
                 JSON_ADD_SAMPLES(vstats.s., cjtr);
@@ -392,13 +389,13 @@ void RtcStats::toJson(std::string& json) const
         JSON_END_SUBOBJ(); //v
         JSON_SUBOBJ("a");
             JSON_ADD_SAMPLES(astats., rtt);
-            JSON_ADD_SAMPLES(astats., jtr);
-            JSON_ADD_SAMPLES(astats., pl);
             JSON_SUBOBJ("s");
                 JSON_ADD_BWINFO(astats.s);
             JSON_END_SUBOBJ();
             JSON_SUBOBJ("r");
                 JSON_ADD_BWINFO(astats.r);
+                JSON_ADD_SAMPLES(astats.r., jtr);
+                JSON_ADD_SAMPLES(astats.r., pl);
             JSON_END_SUBOBJ();
         JSON_END_SUBOBJ(); //a
     JSON_END_SUBOBJ(); //samples
