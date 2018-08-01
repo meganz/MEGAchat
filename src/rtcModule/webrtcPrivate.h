@@ -37,6 +37,8 @@ protected:
     time_t mTsIceConn = 0;
     promise::Promise<void> mTerminatePromise;
     bool mVideoReceived = false;
+    int mNetworkQuality = -1;
+    long mAudioPacketLostAverage = 0;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void createRtcConn();
@@ -61,12 +63,15 @@ protected:
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
     void sdpSetVideoBw(std::string& sdp, int maxbr);
+    int calculateNetworQuality(stats::Sample* sample);
+    virtual int getNetworkQuality() const;
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
     ~Session();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
+    void manageNetworkQuality(stats::Sample* sample);
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);

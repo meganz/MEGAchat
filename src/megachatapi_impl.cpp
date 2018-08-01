@@ -4181,6 +4181,11 @@ void MegaChatSessionPrivate::setAvFlags(AvFlags flags)
     av = flags;
 }
 
+void MegaChatSessionPrivate::setNetworkQuality(int quality)
+{
+    networkQuality = quality;
+}
+
 MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
 {
     status = call.state();
@@ -6973,6 +6978,14 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 void MegaChatSessionHandler::onVideoRecv()
 {
 
+}
+
+void MegaChatSessionHandler::onSessionNetworkQualityChange()
+{
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setNetworkQuality(session->getNetworkQuality());
+    chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 #endif

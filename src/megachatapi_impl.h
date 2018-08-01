@@ -176,11 +176,13 @@ public:
 
     void setState(uint8_t state);
     void setAvFlags(karere::AvFlags flags);
+    void setNetworkQuality(int quality);
 
 private:
     karere::Id peerid;
     karere::AvFlags av;
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
+    int networkQuality = 2;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -558,6 +560,7 @@ public:
     virtual void onRemoteStreamRemoved();
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv);
     virtual void onVideoRecv();
+    virtual void onSessionNetworkQualityChange();
 
 private:
     MegaChatApiImpl *megaChatApi;

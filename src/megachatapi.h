@@ -129,6 +129,17 @@ public:
      * @return true if video is enable, false if video is disable
      */
     virtual bool hasVideo() const;
+
+    /**
+     * @brief Return network quality
+     *
+     * The valid network quality values are between (0-5)
+     * 0 -> the worst quality
+     * 5 -> the best quality
+     *
+     * @return network quality
+     */
+    virtual int getNetworkQuality() const;
 };
 
 /**
@@ -172,14 +183,15 @@ public:
 
     enum
     {
-        CHANGE_TYPE_NO_CHANGES = 0x00,      /// Call doesn't have any change
-        CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
-        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
-        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
-        CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
-        CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
-        CHANGE_TYPE_CALL_COMPOSITION = 0x40 /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_NO_CHANGES = 0x00,              /// Call doesn't have any change
+        CHANGE_TYPE_STATUS = 0x01,                  /// Call status has changed
+        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,          /// Remote audio/video flags has changed
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,         /// New temporary error is notified
+        CHANGE_TYPE_RINGING_STATUS = 0x10,          /// Peer has change its ringing state
+        CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
+        CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80  /// Session network quality has changed
     };
 
     enum

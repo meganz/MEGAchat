@@ -235,6 +235,8 @@ void Recorder::onStats(const webrtc::StatsReports &data)
         }
 
         auto d_ts = mCurrSample->ts - last.ts;
+        auto d_apl = mCurrSample->astats.r.pl - last.astats.r.pl;
+        mCurrSample->astats.plDifference = d_apl;
         shouldAddSample =
             (mCurrSample->vstats.r.width != last.vstats.r.width)
          || (mCurrSample->vstats.s.width != last.vstats.s.width)
@@ -272,6 +274,10 @@ void Recorder::start()
     mTimer = setInterval([this]()
     {
         mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
+        if (!mStats->mSamples.empty())
+        {
+            mSession.manageNetworkQuality(mStats->mSamples.back());
+        }
     }, mScanPeriod, mSession.mManager.mClient.appCtx);
 }
 

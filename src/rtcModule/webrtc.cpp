@@ -2243,6 +2243,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
         mTsIceConn = time(NULL);
+        mAudioPacketLostAverage = 0;
         mCall.notifySessionConnected(*this);
     }
 }
@@ -2693,6 +2694,16 @@ Session::~Session()
     SUB_LOG_DEBUG("Destroyed");
 }
 
+void Session::manageNetworkQuality(stats::Sample *sample)
+{
+    int previousNetworkquality = mNetworkQuality;
+    mNetworkQuality = calculateNetworQuality(sample);
+    if (previousNetworkquality != mNetworkQuality && previousNetworkquality != -1)
+    {
+        FIRE_EVENT(SESS, onSessionNetworkQualityChange);
+    }
+}
+
 bool Session::isTermRetriable(TermCode reason)
 {
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
@@ -2908,6 +2919,134 @@ void Session::sdpSetVideoBw(std::string& sdp, int maxbr)
     std::string line = "\r\nb=AS:" + std::to_string(maxbr);
     sdp.insert(m.position(0) + m.length(0), line);
 }
+
+int Session::calculateNetworQuality(stats::Sample *sample)
+{
+    if (!sample)
+    {
+        return 2;
+    }
+
+    long audioPlAverage;
+    long apl = sample->astats.plDifference;
+    if (apl > mAudioPacketLostAverage)
+    {
+        audioPlAverage = mAudioPacketLostAverage;
+    }
+    else
+    {
+        audioPlAverage = (mAudioPacketLostAverage * 4 + apl) / 5;
+    }
+
+    if (audioPlAverage > 2)
+    {
+        // We have lost audio packets since the last sample, that's the worst network quality
+        SUB_LOG_WARNING("Audio packets lost, returning 0 link quality");
+        return 0;
+    }
+
+    long bwav = sample->vstats.s.bwav;
+    long width = sample->vstats.s.width;
+    if (bwav && width)
+    {
+        if (width >= 480)
+        {
+            if (bwav < 30)
+            {
+                return 0;
+            }
+            else if (bwav < 64)
+            {
+                return 1;
+            }
+            else if (bwav < 160)
+            {
+                return 2;
+            }
+            else if (bwav < 300)
+            {
+                return 3;
+            }
+            else if (bwav < 400)
+            {
+                return 4;
+            }
+            else {
+                return 5;
+            }
+        }
+    }
+
+    long fps = sample->vstats.s.fps;
+    long result = 0;
+    if (fps < 15) {
+        if (fps < 3)
+        {
+            result = 0;
+        }
+        else if (fps < 5)
+        {
+            result = 1;
+        }
+        else if (fps < 10)
+        {
+            result = 2;
+        }
+        else
+        {
+            result = 3;
+        }
+    }
+
+    if (sample->vstats.s.lbw && result > 2)
+    {
+        SUB_LOG_WARNING("Video send resolution capped by bandwidth, returning 2");
+        result = 2;
+    }
+
+    if (result)
+    {
+        return result;
+    }
+
+    if (sample->cstats.rtt)
+    {
+        long crtt = sample->cstats.rtt;
+        if (crtt < 150)
+        {
+            return 5;
+        }
+        else if (crtt < 250)
+        {
+            return 4;
+        }
+        else if (crtt < 1000)
+        {
+            return 3;
+        }
+        else if (crtt < 2000)
+        {
+            return 2;
+        }
+        else if (crtt < 5000)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from, returning 2");
+    return 2;
+}
+
+int Session::getNetworkQuality() const
+{
+    return mNetworkQuality;
+}
+
 void globalCleanup()
 {
     if (!artc::isInitialized())
