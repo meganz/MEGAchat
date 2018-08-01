@@ -274,6 +274,36 @@ public:
     }
     virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
     {
+        std::string sqlCount = "select idx from history where (chatid = ?1)"
+                               "and (userid = ?2)"
+                               "and not (updated != 0 and length(data) = 0)"
+                               "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
+                               "and (type = ?6 or type = ?7 or type = ?8 or type = ?9) order by idx desc limit 1";
+        if (idx != CHATD_IDX_INVALID)
+            sqlCount+=" and (idx > ?)";
+
+        SqliteStmt stmtCount(mDb, sqlCount);
+        stmtCount << mChat.chatId() << mChat.client().userId()   // skip own messages
+             << chatd::Message::kNotEncrypted               // include decrypted messages
+             << chatd::Message::kEncryptedMalformed         // include encrypted messages due to malformed payload
+             << chatd::Message::kEncryptedSignature         // include encrypted messages due to invalid signature
+             << chatd::Message::kMsgNormal                  // include only known type of messages
+             << chatd::Message::kMsgAttachment
+             << chatd::Message::kMsgContact
+             << chatd::Message::kMsgContainsMeta;
+        if (idx != CHATD_IDX_INVALID)
+            stmtCount << idx;
+        chatd::Idx firstIdxForOwnMessage = CHATD_IDX_INVALID;
+        if(stmtCount.step())
+        {
+            firstIdxForOwnMessage = stmtCount.intCol(0);
+        }
+
+        if (firstIdxForOwnMessage != CHATD_IDX_INVALID && (firstIdxForOwnMessage > idx || idx == CHATD_IDX_INVALID))
+        {
+            idx = firstIdxForOwnMessage;
+        }
+
         // get the unread messages count --> conditions should match the ones in Message::isValidUnread()
         std::string sql = "select count(*) from history where (chatid = ?1)"
                 "and (userid != ?2)"
