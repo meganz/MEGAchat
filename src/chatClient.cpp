@@ -574,12 +574,6 @@ void Client::initWithAnonymousSession(const char* sid)
 {
     mSid = sid;
     createDb();
-    mMyHandle = getMyHandleFromSdk();
-    db.query("insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
-
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
-    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
-
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this, mMyHandle));
 }
