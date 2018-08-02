@@ -36,6 +36,15 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bPubChatGroup->setStyleSheet("color:#00FF00; border:none");
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
 
+#ifdef USE_ANONYMOUS_MODE
+    ui->bOnlineStatus->hide();
+    ui->bArchivedChats->hide();
+    ui->bHiddenChats->hide();
+    ui->bChatGroup->hide();
+    ui->bPubChatGroup->hide();
+    ui->bSettings->hide();
+#endif
+
 #ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 #endif

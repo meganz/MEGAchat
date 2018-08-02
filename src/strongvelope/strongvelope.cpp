@@ -1212,13 +1212,18 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Get signing key
-        auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,
+        promise::Promise<std::shared_ptr<Buffer*>> edPms;
+#ifndef USE_ANONYMOUS_MODE
+        edPms = mUserAttrCache.getAttr(parsedMsg->sender,
             ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
         .then([ctx](Buffer* key)
         {
             ctx->edKey.assign(key->buf(), key->dataSize());
         });
-
+#else
+        edPms = promise::Promise<std::shared_ptr<Buffer*>>();
+        edPms.resolve(nullptr);
+#endif
         // Verify signature and decrypt
         auto wptr = weakHandle();
         return promise::when(symPms, edPms)
@@ -1234,12 +1239,13 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
                 return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
             }
 
+#ifndef USE_ANONYMOUS_MODE
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
                 return promise::Error("Signature invalid for message "+
                                       message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
-
+#endif
             if (isLegacy)
             {
                 return legacyMsgDecrypt(parsedMsg, message, *ctx->sendKey);

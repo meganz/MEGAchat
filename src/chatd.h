@@ -760,7 +760,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect();
+    void connect(const char *url = NULL);
 
     void disconnect();
     /** @brief The online state of the chatroom */

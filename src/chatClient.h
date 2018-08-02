@@ -90,7 +90,7 @@ public:
     virtual const char *titleString() const = 0;
 
     /** @brief Connects to the chatd chatroom */
-    virtual void connect() = 0;
+    virtual void connect(const char *url = NULL) = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
              unsigned char shard, chatd::Priv ownPriv, uint32_t ts, bool isArchived,
@@ -216,7 +216,7 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
@@ -337,7 +337,7 @@ protected:
     void makeTitleFromMemberNames();
     void initWithChatd();
     void setRemoved();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
 
     friend class ChatRoomList;
@@ -768,6 +768,8 @@ public:
      * with an existing session.
      */
     void initWithDbSession(const char* sid);
+
+    void initWithAnonymousSession(const char *sid);
 
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged

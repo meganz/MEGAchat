@@ -259,15 +259,22 @@ bool Client::areAllChatsLoggedIn()
     return allConnected;
 }
 
-void Chat::connect()
+void Chat::connect(const char *url)
 {
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
         mConnection.mState = Connection::kStateFetchingUrl;
         auto wptr = getDelTracker();
-        mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId)
-        .then([wptr, this](ReqResult result)
+
+        ApiPromise pms;
+#ifndef USE_ANONYMOUS_MODE
+        pms = mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId);
+#else
+        pms = ApiPromise();
+        pms.resolve(nullptr);
+#endif
+        pms.then([wptr, this, url](ReqResult result)
         {
             if (wptr.deleted())
             {
@@ -275,14 +282,20 @@ void Chat::connect()
                 return;
             }
 
-            const char* url = result->getLink();
-            if (!url || !url[0])
+            std::string connectUrl;
+#ifndef USE_ANONYMOUS_MODE
+            const char* auxurl = result->getLink();
+            if (!auxurl || !auxurl[0])
             {
                 CHATID_LOG_ERROR("No chatd URL received from API");
                 return;
             }
+            connectUrl.assign(auxurl);
+#else
+            connectUrl.assign(url);
+#endif
 
-            std::string sUrl = url;
+            std::string sUrl = connectUrl;
             mConnection.mUrl.parse(sUrl);
             mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 

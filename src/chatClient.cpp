@@ -383,7 +383,7 @@ promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::st
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, true, ph, true, chatKey, numPeers, url);
         mPhToChatId[ph] = chatId;
         chats->emplace(chatId, (ChatRoom *)room);
-        room->connect();
+        room->connect(url.c_str());
         return promise::_Void();
     });
 }
@@ -568,6 +568,20 @@ void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
 #endif
     contactList->syncWithApi(contacts);
     mContactsLoaded = true;
+}
+
+void Client::initWithAnonymousSession(const char* sid)
+{
+    mSid = sid;
+    createDb();
+    mMyHandle = getMyHandleFromSdk();
+    db.query("insert or replace into vars(name,value) values('my_handle', ?)", mMyHandle);
+
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+
+    mUserAttrCache.reset(new UserAttrCache(*this));
+    mChatdClient.reset(new chatd::Client(this, mMyHandle));
 }
 
 promise::Promise<void> Client::initWithNewSession(const char* sid, const std::string& scsn,
@@ -1684,7 +1698,7 @@ void PeerChatRoom::initWithChatd()
     createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
-void PeerChatRoom::connect()
+void PeerChatRoom::connect(const char *url)
 {
     mChat->connect();
 }
@@ -1898,20 +1912,24 @@ mPublicHandle(publicHandle), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 void GroupChatRoom::initWithChatd()
 {
     karere::SetOfIds users;
-    users.insert(parent.mKarereClient.myHandle());
-    for (auto& peer: mPeers)
+    Id myHandle = parent.mKarereClient.myHandle();
+    if(myHandle != Id::null())
     {
-        users.insert(peer.first);
+        users.insert(myHandle);
+        for (auto& peer: mPeers)
+        {
+            users.insert(peer.first);
+        }
     }
     createChatdChat(users);
 }
 
-void GroupChatRoom::connect()
+void GroupChatRoom::connect(const char *url)
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
 
-    mChat->connect();
+    mChat->connect(url);
     if (mHasTitle)
     {
         decryptTitle()

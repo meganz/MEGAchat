@@ -16,7 +16,13 @@ int main(int argc, char **argv)
 {
     MegaChatApplication app(argc,argv);
     app.readSid();
-    app.init();
+
+    #ifndef USE_ANONYMOUS_MODE
+        app.init();
+    #else
+        app.initAnonymous();
+    #endif
+
     return app.exec();
 }
 
@@ -84,6 +90,56 @@ void MegaChatApplication::init()
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
         mMegaApi->fastLogin(mSid);
+    }
+}
+
+std::string MegaChatApplication::getChatLink()
+{
+    bool ok;
+    std::string link;
+    QString qLink;
+
+    while (1)
+    {
+        qLink = QInputDialog::getText((QWidget *)this->mMainWin, tr("Anonymous preview mode"),
+                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
+
+        if (ok)
+        {
+            link = qLink.toStdString();
+            if (link.size() > 1)
+            {
+                return link;
+            }
+        }
+        else
+        {
+            return std::string();
+        }
+    }
+}
+
+void MegaChatApplication::initAnonymous()
+{
+    delete [] mSid;
+    mSid = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    saveSid(mSid);
+
+    mMegaApi->createAnonymousSession();
+    QMessageBox::information(nullptr, tr("Anonymous mode"), tr("Anonymous mode: "));
+    int initState = mMegaChatApi->init(mSid);
+
+    std::string auxLink = getChatLink();
+    mMainWin->setWindowTitle("Anonymous mode");
+
+    if (auxLink.size() > 1)
+    {
+        mMegaChatApi->loadChatLink(auxLink.c_str());
+        mMainWin->show();
+    }
+    else
+    {
+        QCoreApplication::quit();
     }
 }
 
@@ -282,8 +338,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
          case MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
-                addChats();
                 MegaChatHandle myHandle = mMegaChatApi->getMyUserHandle();
+                addChats();
                 mMainWin->updateToolTipMyInfo(myHandle);
             }
             else

@@ -1554,7 +1554,9 @@ int MegaChatApiImpl::init(const char *sid)
         terminating = false;
     }
 
-    int state = mClient->init(sid);
+    int state;
+#ifndef USE_ANONYMOUS_MODE
+    state = mClient->init(sid);
     if (state != karere::Client::kInitErrNoCache &&
             state != karere::Client::kInitWaitingNewSession &&
             state != karere::Client::kInitHasOfflineSession)
@@ -1562,7 +1564,10 @@ int MegaChatApiImpl::init(const char *sid)
         // there's been an error during initialization
         localLogout();
     }
-
+#else
+    state = karere::Client::kInitWaitingNewSession;
+    mClient->initWithAnonymousSession(sid);
+#endif
     sdkMutex.unlock();
 
     return MegaChatApiImpl::convertInitState(state);
