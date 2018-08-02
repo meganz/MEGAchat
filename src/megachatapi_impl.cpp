@@ -4103,7 +4103,8 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
 }
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
-    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo())
+    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo()),
+      networkQuality(session.getNetworkQuality())
 {
 }
 
