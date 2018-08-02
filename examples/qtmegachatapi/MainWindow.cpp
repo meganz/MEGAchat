@@ -182,6 +182,7 @@ void MainWindow::orderContactChatList(bool showInactive, bool showArchived)
     }
     addContacts();
 
+#ifndef USE_ANONYMOUS_MODE
     if(showInactive)
     {
         addInactiveChats();
@@ -191,6 +192,7 @@ void MainWindow::orderContactChatList(bool showInactive, bool showArchived)
     {
         text.append(" Showing <visible> elements");
     }
+#endif
     addActiveChats();
     auxChatWidgets.clear();
     this->ui->mOnlineStatusDisplay->setText(text);
@@ -255,15 +257,13 @@ void MainWindow::addActiveChats()
 void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
+#ifndef USE_ANONYMOUS_MODE
     menu.setAttribute(Qt::WA_DeleteOnClose);
     auto addAction = menu.addAction(tr("Add user to contacts"));
     connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
     auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
     connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
-
-    auto actLoadLink = menu.addAction(tr("Preview public chat"));
-    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
 
     auto actChat = menu.addAction(tr("Add new chat group"));
     connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
@@ -273,7 +273,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
     auto actPrintMyInfo = menu.addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-
+#endif
+    auto actLoadLink = menu.addAction(tr("Preview public chat"));
+    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
     menu.exec(event->globalPos());
 }
 
