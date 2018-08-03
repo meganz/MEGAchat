@@ -139,11 +139,10 @@ void MegaChatApplication::initAnonymous(std::string chatlink)
         QApplication::quit();
     }
 
-    std::string auxLink = getChatLink();
     mMainWin->setWindowTitle("Anonymous mode");
-    if (auxLink.size() > 1)
+    if (chatlink.size() > 1)
     {
-        mMegaChatApi->loadChatLink(auxLink.c_str());
+        mMegaChatApi->loadChatLink(chatlink.c_str());
         mMainWin->show();
     }
     else
