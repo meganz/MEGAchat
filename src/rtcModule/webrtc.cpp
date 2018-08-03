@@ -2930,18 +2930,18 @@ int Session::calculateNetworQuality(stats::Sample *sample)
         return 2;
     }
 
-    long audioPlAverage;
-    long apl = sample->astats.plDifference;
-    if (apl > mAudioPacketLostAverage)
+    long audioPacketLostAverage;
+    long audioPacketLost = sample->astats.plDifference;
+    if (audioPacketLost > mAudioPacketLostAverage)
     {
-        audioPlAverage = mAudioPacketLostAverage;
+        audioPacketLostAverage = mAudioPacketLostAverage;
     }
     else
     {
-        audioPlAverage = (mAudioPacketLostAverage * 4 + apl) / 5;
+        audioPacketLostAverage = (mAudioPacketLostAverage * 4 + audioPacketLost) / 5;
     }
 
-    if (audioPlAverage > 2)
+    if (audioPacketLostAverage > 2)
     {
         // We have lost audio packets since the last sample, that's the worst network quality
         SUB_LOG_WARNING("Audio packets lost, returning 0 link quality");
@@ -3070,9 +3070,9 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
         return;
     }
 
-    if (nowTime - mTimeStart > 2) // Two seconds between samples
+    if (nowTime - mPreviousTime > 2) // Two seconds between samples
     {
-        mTimeStart = nowTime;
+        mPreviousTime = nowTime;
         size_t valueCount = number_of_channels * number_of_frames;
         int16_t *data = (int16_t*)audio_data;
         int16_t audioMaxValue = data[0];

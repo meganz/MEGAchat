@@ -32,7 +32,7 @@ class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
                         size_t number_of_frames);
 
 private:
-    time_t mTimeStart = 0;
+    time_t mPreviousTime = 0;
     ISessionHandler &mSessionHandler;
     const Session &mSession;
     bool mAudioDetected = true;
