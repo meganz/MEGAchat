@@ -346,7 +346,8 @@ void RtcStats::toJson(std::string& json) const
 {
     json.reserve(10240);
     json ="{";
-    JSON_ADD_STR(cid, mCallId.toString() + ":" + mSessionId.toString());
+    JSON_ADD_STR(cid, mCallId.toString());
+    JSON_ADD_STR(sid, mSessionId.toString());
     JSON_ADD_STR(caid, mIsCaller?mOwnAnonId.toString():mPeerAnonId.toString());
     JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId.toString():mOwnAnonId.toString());
     JSON_ADD_INT(isCaller, mIsCaller);
@@ -354,7 +355,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_INT(sper, mSper);
     JSON_ADD_INT(dur, round((float)mDur/1000));
     JSON_ADD_STR(termRsn, mTermRsn);
-    JSON_ADD_STR(bws, mDeviceInfo); //TODO: Add platform info
+    JSON_ADD_STR(bws, mDeviceInfo);
 
     int isRelay = !mConnInfo.mRlySvr.empty();
     JSON_ADD_INT(rly, isRelay);
