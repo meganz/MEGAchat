@@ -172,6 +172,7 @@ public:
     virtual MegaChatHandle getPeerid() const;
     virtual bool hasAudio() const;
     virtual bool hasVideo() const;
+    virtual int getNetworkQuality() const;
     virtual bool getAudioDetected() const;
     static uint8_t convertSessionState(uint8_t state);
 

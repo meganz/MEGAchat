@@ -4137,6 +4137,10 @@ bool MegaChatSessionPrivate::hasVideo() const
     return av.video();
 }
 
+int MegaChatSessionPrivate::getNetworkQuality() const
+{
+    return networkQuality;
+}
 
 bool MegaChatSessionPrivate::getAudioDetected() const
 {
