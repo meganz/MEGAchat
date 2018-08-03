@@ -2718,6 +2718,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
 
+    assert(msg->backRefId);
+    if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, *msg, idx, "A message with that backrefId "+std::to_string(msg->backRefId)+" already exists");
+    }
+
     //update any following MSGUPDX-s referring to this msgxid
     int count = 0;
     for (auto& item: mSending)
