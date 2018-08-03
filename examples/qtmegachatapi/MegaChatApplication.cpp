@@ -130,7 +130,6 @@ void MegaChatApplication::initAnonymous(std::string chatlink)
 {
     delete [] mSid;
     mSid = (char *)chatlink.c_str();
-    saveSid(mSid);
 
     QMessageBox::information(nullptr, tr("Anonymous mode"), tr("Anonymous mode: "));
     int initState = mMegaChatApi->initAnonymous(mSid);
