@@ -304,8 +304,9 @@ RtcStats::~RtcStats()
     for (unsigned int i = 0; i < mSamples.size(); i++)
     {
         delete mSamples[i];
-        mSamples.clear();
     }
+
+    mSamples.clear();
 }
 
 const char* decToString(float v)
