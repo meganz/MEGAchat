@@ -140,6 +140,13 @@ public:
      * @return network quality
      */
     virtual int getNetworkQuality() const;
+
+    /**
+     * @brief Return if audio is detected for this session
+     *
+     * @return true if audio is detected for this session, false in other case
+     */
+    virtual bool getAudioDetected() const;
 };
 
 /**
@@ -191,7 +198,8 @@ public:
         CHANGE_TYPE_RINGING_STATUS = 0x10,          /// Peer has change its ringing state
         CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
         CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
-        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80  /// Session network quality has changed
+        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100     /// Session audio level has changed
     };
 
     enum

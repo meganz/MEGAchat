@@ -172,17 +172,20 @@ public:
     virtual MegaChatHandle getPeerid() const;
     virtual bool hasAudio() const;
     virtual bool hasVideo() const;
+    virtual bool getAudioDetected() const;
     static uint8_t convertSessionState(uint8_t state);
 
     void setState(uint8_t state);
     void setAvFlags(karere::AvFlags flags);
     void setNetworkQuality(int quality);
+    void setAudioDetected(bool audioDetected);
 
 private:
     karere::Id peerid;
     karere::AvFlags av;
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     int networkQuality = 2;
+    bool audioDetected = true;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -561,6 +564,7 @@ public:
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv);
     virtual void onVideoRecv();
     virtual void onSessionNetworkQualityChange();
+    virtual void onSessionAudioDetected(bool audioDetected);
 
 private:
     MegaChatApiImpl *megaChatApi;

@@ -4104,7 +4104,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
     : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo()),
-      networkQuality(session.getNetworkQuality())
+      networkQuality(session.getNetworkQuality()), audioDetected(session.getAudioDetected())
 {
 }
 
@@ -4135,6 +4135,12 @@ bool MegaChatSessionPrivate::hasAudio() const
 bool MegaChatSessionPrivate::hasVideo() const
 {
     return av.video();
+}
+
+
+bool MegaChatSessionPrivate::getAudioDetected() const
+{
+    return audioDetected;
 }
 
 uint8_t MegaChatSessionPrivate::convertSessionState(uint8_t state)
@@ -4185,6 +4191,11 @@ void MegaChatSessionPrivate::setAvFlags(AvFlags flags)
 void MegaChatSessionPrivate::setNetworkQuality(int quality)
 {
     networkQuality = quality;
+}
+
+void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
+{
+    this->audioDetected = audioDetected;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
@@ -6986,6 +6997,14 @@ void MegaChatSessionHandler::onSessionNetworkQualityChange()
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     megaChatSession->setNetworkQuality(session->getNetworkQuality());
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
+    megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+void MegaChatSessionHandler::onSessionAudioDetected(bool audioDetected)
+{
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setAudioDetected(audioDetected);
+    chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_AUDIO_LEVEL);
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 

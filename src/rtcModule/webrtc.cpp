@@ -2001,6 +2001,7 @@ Session::Session(Call& call, RtMessage& packet)
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
     call.mManager.random(mOwnSdpKey);
     mHandler = call.callHandler()->onNewSession(*this);
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, *mHandler));
     printf("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
     if (packet.type == RTCMD_JOIN)
     {
@@ -2178,6 +2179,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
+    mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -2188,6 +2190,7 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
     }
     if(mRemotePlayer)
     {
+        mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
         mRemotePlayer->detachFromStream();
         mRemotePlayer.reset();
     }
@@ -3045,6 +3048,66 @@ int Session::calculateNetworQuality(stats::Sample *sample)
 int Session::getNetworkQuality() const
 {
     return mNetworkQuality;
+}
+
+AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)
+    : mSession(session), mSessionHandler(sessionHandler)
+{
+}
+
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)
+{
+    assert(bits_per_sample == 16);
+    time_t nowTime = time(NULL);
+    if (!mSession.receivedAv().audio())
+    {
+        if (mAudioDetected)
+        {
+            mAudioDetected = false;
+            mSessionHandler.onSessionAudioDetected(mAudioDetected);
+        }
+
+        return;
+    }
+
+    if (nowTime - mTimeStart > 2) // Two seconds between samples
+    {
+        mTimeStart = nowTime;
+        size_t valueCount = number_of_channels * number_of_frames;
+        int16_t *data = (int16_t*)audio_data;
+        int16_t audioMaxValue = data[0];
+        int16_t audioMinValue = data[0];
+        for (size_t i = 1; i < valueCount; i++)
+        {
+            if (data[i] > audioMaxValue)
+            {
+                audioMaxValue = data[i];
+            }
+
+            if (data[i] < audioMinValue)
+            {
+                audioMinValue = data[i];
+            }
+        }
+
+        int threshold = 100;
+        if (abs(audioMaxValue) + abs(audioMinValue) > threshold)
+        {
+            if (!mAudioDetected)
+            {
+                mAudioDetected = true;
+                mSessionHandler.onSessionAudioDetected(mAudioDetected);
+            }
+        }
+        else
+        {
+            if (mAudioDetected)
+            {
+                mAudioDetected = false;
+                mSessionHandler.onSessionAudioDetected(mAudioDetected);
+            }
+        }
+    }
 }
 
 void globalCleanup()

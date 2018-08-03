@@ -19,6 +19,25 @@ struct StateDesc
 };
 
 namespace stats { class Recorder; }
+
+class Session;
+class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
+{
+    public:
+    AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler);
+    virtual void OnData(const void* audio_data,
+                        int bits_per_sample,
+                        int sample_rate,
+                        size_t number_of_channels,
+                        size_t number_of_frames);
+
+private:
+    time_t mTimeStart = 0;
+    ISessionHandler &mSessionHandler;
+    const Session &mSession;
+    bool mAudioDetected = true;
+};
+
 class Session: public ISession
 {
 protected:
@@ -39,6 +58,7 @@ protected:
     bool mVideoReceived = false;
     int mNetworkQuality = -1;
     long mAudioPacketLostAverage = 0;
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void createRtcConn();

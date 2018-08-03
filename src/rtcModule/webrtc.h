@@ -143,6 +143,7 @@ public:
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
     virtual void onVideoRecv() {}
     virtual void onSessionNetworkQualityChange() = 0;
+    virtual void onSessionAudioDetected(bool audioDetected) = 0;
 };
 
 class ICallHandler

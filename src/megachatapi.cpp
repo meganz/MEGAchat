@@ -78,6 +78,11 @@ int MegaChatSession::getNetworkQuality() const
     return 0;
 }
 
+bool MegaChatSession::getAudioDetected() const
+{
+    return false;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }
