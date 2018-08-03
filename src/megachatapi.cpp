@@ -188,9 +188,19 @@ int MegaChatApi::init(const char *sid)
     return pImpl->init(sid);
 }
 
+int MegaChatApi::initAnonymous(const char *chatlink)
+{
+    return pImpl->initAnonymous(chatlink);
+}
+
 int MegaChatApi::getInitState()
 {
     return pImpl->getInitState();
+}
+
+bool MegaChatApi::anonymousMode()
+{
+    return pImpl->anonymousMode();
 }
 
 void MegaChatApi::connect(MegaChatRequestListener *listener)

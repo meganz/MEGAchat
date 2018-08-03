@@ -17,6 +17,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mLastOverlayCount = 0;
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
+    mAnonymous = this->mMegaChatApi->anonymousMode();
     ui->setupUi(this);
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
@@ -436,6 +437,9 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
+    if (mAnonymous)
+        return;
+
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
     bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
 

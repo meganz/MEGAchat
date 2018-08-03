@@ -30,7 +30,7 @@ class MegaChatApplication : public QApplication,
         void addChats();
         void addContacts();
         void configureLogs();
-        void initAnonymous();
+        void initAnonymous(std::string chatlink);
         void saveSid(const char* sdkSid);
         std::string getChatLink();
         virtual void onRequestFinish(megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError *e);

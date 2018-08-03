@@ -43,6 +43,7 @@ class ChatItemWidget : public QWidget
         mega::MegaApi * mMegaApi;
         ChatWindow * mChatWindow;
         QListWidgetItem *mListWidgetItem;
+        bool mAnonymous;
 
     protected:
         MainWindow * mMainWin;

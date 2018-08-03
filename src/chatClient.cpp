@@ -62,8 +62,18 @@ std::string encodeFirstName(const std::string& first);
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-    Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
-        : mAppDir(appDir),
+bool Client::anonymousMode() const
+{
+    return mAnonymousMode;
+}
+
+void Client::setAnonymousMode(bool value)
+{
+    mAnonymousMode = value;
+}
+
+Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+    : mAppDir(appDir),
           websocketIO(websocketsIO),
           appCtx(ctx),
           api(sdk, ctx),
@@ -125,11 +135,21 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
 
 std::string Client::dbPath(const std::string& sid) const
 {
-    if (sid.size() < 50)
-        throw std::runtime_error("dbPath: sid is too small");
     std::string path = mAppDir;
-    path.reserve(56);
-    path.append("/karere-").append(sid.c_str()+44).append(".db");
+    if (!anonymousMode())
+    {
+        if (sid.size() < 50)
+            throw std::runtime_error("dbPath: sid is too small");
+        path.reserve(56);
+        path.append("/karere-").append(sid.c_str()+44).append(".db");
+    }
+    else
+    {
+        if (sid.size() < 31)
+            throw std::runtime_error("dbPath: sid is too small");
+        path.reserve(43);
+        path.append("/karere-").append(sid.c_str()+31).append(".db");
+    }
     return path;
 }
 
@@ -1836,9 +1856,11 @@ mHasTitle(!title.empty()), mRoomGui(nullptr), mPublicChat(aPublicChat),
 mPublicHandle(publicHandle), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 {
     initWithChatd();
+    bool anonymous = this->chat().client().karereClient->anonymousMode();
     mChat->crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
     mChat->crypto()->setUnifiedKey(unifiedKey);
     mChat->crypto()->setPreviewMode(previewMode);
+    mChat->crypto()->setAnonymousMode(anonymous);
     mUrl = aUrl;
 
     //Add my own handle to peers list

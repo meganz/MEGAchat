@@ -1871,6 +1871,11 @@ public:
     int init(const char *sid);
 
     /**
+     * @brief Initializes karere in anonymous mode
+     */
+    int initAnonymous(const char *chatlink);
+
+    /**
      * @brief Returns the current initialization state
      *
      * The possible values are:
@@ -1889,6 +1894,12 @@ public:
      * @return The current initialization state
      */
     int getInitState();
+
+    /**
+     * @brief anonymousMode
+     * @return
+     */
+    bool anonymousMode();
 
     // ============= Requests ================
 

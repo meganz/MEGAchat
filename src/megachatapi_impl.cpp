@@ -1554,9 +1554,7 @@ int MegaChatApiImpl::init(const char *sid)
         terminating = false;
     }
 
-    int state;
-#ifndef USE_ANONYMOUS_MODE
-    state = mClient->init(sid);
+    int state = mClient->init(sid);
     if (state != karere::Client::kInitErrNoCache &&
             state != karere::Client::kInitWaitingNewSession &&
             state != karere::Client::kInitHasOfflineSession)
@@ -1564,12 +1562,43 @@ int MegaChatApiImpl::init(const char *sid)
         // there's been an error during initialization
         localLogout();
     }
-#else
-    state = karere::Client::kInitWaitingNewSession;
-    mClient->initWithAnonymousSession(sid);
-#endif
     sdkMutex.unlock();
 
+    return MegaChatApiImpl::convertInitState(state);
+}
+
+int MegaChatApiImpl::initAnonymous(const char *link)
+{
+    sdkMutex.lock();
+    if (!mClient)
+    {
+#ifndef KARERE_DISABLE_WEBRTC
+        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc;
+#else
+        uint8_t caps = karere::kClientIsMobile;
+#endif
+        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);
+        mClient->setAnonymousMode(true);
+        terminating = false;
+    }
+
+    string parsedLink (link);
+    string separator = "c/";
+    size_t pos = parsedLink.find(separator);
+    int state;
+    if (pos == string::npos)
+    {
+        state = karere::Client::kInitErrAnonymousMode;
+    }
+    else
+    {
+        pos += separator.length();
+        parsedLink = parsedLink.substr(pos);
+        state = karere::Client::kInitHasAnonymousSession;
+        mClient->initWithAnonymousSession(parsedLink.c_str());
+    }
+
+    sdkMutex.unlock();
     return MegaChatApiImpl::convertInitState(state);
 }
 
@@ -1590,6 +1619,19 @@ int MegaChatApiImpl::getInitState()
 
     return initState;
 }
+
+
+bool MegaChatApiImpl::anonymousMode()
+{
+    int anonymousMode;
+
+    sdkMutex.lock();
+        anonymousMode = mClient->anonymousMode();
+    sdkMutex.unlock();
+
+    return anonymousMode;
+}
+
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 {
@@ -3784,6 +3826,7 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
     case karere::Client::kInitErrAlready:
+    case karere::Client::kInitErrAnonymousMode:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitCreated:

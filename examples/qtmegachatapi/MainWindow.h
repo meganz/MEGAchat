@@ -91,6 +91,7 @@ class MainWindow :
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
         void updateToolTipMyInfo(megachat::MegaChatHandle myHandle);
+        void activeControls(bool active);
     public:
         MegaLoggerApplication *mLogger;
         int getNContacts() const;

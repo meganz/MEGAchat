@@ -268,12 +268,16 @@ void Chat::connect(const char *url)
         auto wptr = getDelTracker();
 
         ApiPromise pms;
-#ifndef USE_ANONYMOUS_MODE
-        pms = mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId);
-#else
-        pms = ApiPromise();
-        pms.resolve(nullptr);
-#endif
+        if (!mClient.karereClient->anonymousMode())
+        {
+            pms = mClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId);
+        }
+        else
+        {
+            pms = ApiPromise();
+            pms.resolve(nullptr);
+        }
+
         pms.then([wptr, this, url](ReqResult result)
         {
             if (wptr.deleted())
@@ -283,17 +287,21 @@ void Chat::connect(const char *url)
             }
 
             std::string connectUrl;
-#ifndef USE_ANONYMOUS_MODE
-            const char* auxurl = result->getLink();
-            if (!auxurl || !auxurl[0])
+            if (!mClient.karereClient->anonymousMode())
             {
-                CHATID_LOG_ERROR("No chatd URL received from API");
-                return;
+                const char* auxurl = result->getLink();
+                if (!auxurl || !auxurl[0])
+                {
+                    CHATID_LOG_ERROR("No chatd URL received from API");
+                    return;
+                }
+
+                connectUrl.assign(auxurl);
             }
-            connectUrl.assign(auxurl);
-#else
-            connectUrl.assign(url);
-#endif
+            else
+            {
+                connectUrl.assign(url);
+            }
 
             std::string sUrl = connectUrl;
             mConnection.mUrl.parse(sUrl);

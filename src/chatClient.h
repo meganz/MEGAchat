@@ -667,7 +667,13 @@ public:
         kInitErrAlready,
 
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid
+        kInitErrSidInvalid,
+
+        /** \c init() */
+        kInitErrAnonymousMode,
+
+        /** \c init() */
+        kInitHasAnonymousSession
     };
 
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
@@ -731,6 +737,7 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
+    bool mAnonymousMode = false;
 
 public:
     /**
@@ -928,6 +935,9 @@ public:
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
+
+    bool anonymousMode() const;
+    void setAnonymousMode(bool value);
 
 protected:
     void heartbeat();

@@ -15,13 +15,20 @@ using namespace megachat;
 int main(int argc, char **argv)
 {
     MegaChatApplication app(argc,argv);
-    app.readSid();
-
-    #ifndef USE_ANONYMOUS_MODE
+    if (argc > 2)
+    {
+        QApplication::quit();
+    }
+    else if (argc == 2)
+    {
+        std::string chatlink = argv[1];
+        app.initAnonymous(chatlink);
+    }
+    else
+    {
+        app.readSid();
         app.init();
-    #else
-        app.initAnonymous();
-    #endif
+    }
 
     return app.exec();
 }
@@ -119,21 +126,21 @@ std::string MegaChatApplication::getChatLink()
     }
 }
 
-void MegaChatApplication::initAnonymous()
+void MegaChatApplication::initAnonymous(std::string chatlink)
 {
     delete [] mSid;
-    std::string auxsid("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    mSid = (char *)auxsid.c_str();
+    mSid = (char *)chatlink.c_str();
     saveSid(mSid);
 
     QMessageBox::information(nullptr, tr("Anonymous mode"), tr("Anonymous mode: "));
-    int initState = mMegaChatApi->init(mSid);
+    int initState = mMegaChatApi->initAnonymous(mSid);
+    if (initState == MegaChatApi::INIT_ERROR)
+    {
+        QApplication::quit();
+    }
 
     std::string auxLink = getChatLink();
-
-    //If cancel btn close app
     mMainWin->setWindowTitle("Anonymous mode");
-
     if (auxLink.size() > 1)
     {
         mMegaChatApi->loadChatLink(auxLink.c_str());
@@ -458,10 +465,12 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
             }
             else
             {
-#ifdef USE_ANONYMOUS_MODE
-                mMainWin->addLocalChatListItem(chatListItem);
+                if (mMegaChatApi->anonymousMode())
+                {
+                    mMainWin->activeControls(false);
+                    mMainWin->addLocalChatListItem(chatListItem);
+                }
                 mMainWin->addChat(chatListItem);
-#endif
             }
             break;
         }

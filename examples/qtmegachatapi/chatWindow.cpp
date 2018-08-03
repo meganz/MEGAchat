@@ -55,12 +55,14 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
             this->ui->mMessageEdit->hide();
             this->ui->mTitlebar->setStyleSheet("background-color:#ffe4af");
 
-            #ifdef USE_ANONYMOUS_MODE
+            if (mMegaChatApi->anonymousMode())
+            {
                 ui->mJoinBtn->hide();
-            #else
+            }
+            else
+            {
                 ui->mJoinBtn->show();
-            #endif
-
+            }
         }
         else
         {

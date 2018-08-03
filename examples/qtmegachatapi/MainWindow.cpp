@@ -36,15 +36,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bPubChatGroup->setStyleSheet("color:#00FF00; border:none");
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
 
-#ifdef USE_ANONYMOUS_MODE
-    ui->bOnlineStatus->hide();
-    ui->bArchivedChats->hide();
-    ui->bHiddenChats->hide();
-    ui->bChatGroup->hide();
-    ui->bPubChatGroup->hide();
-    ui->bSettings->hide();
-#endif
-
 #ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 #endif
@@ -69,6 +60,28 @@ MainWindow::~MainWindow()
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
+}
+
+void MainWindow::activeControls(bool active)
+{
+    if (active)
+    {
+        ui->bOnlineStatus->show();
+        ui->bArchivedChats->show();
+        ui->bHiddenChats->show();
+        ui->bChatGroup->show();
+        ui->bPubChatGroup->show();
+        ui->bSettings->show();
+    }
+    else
+    {
+        ui->bOnlineStatus->hide();
+        ui->bArchivedChats->hide();
+        ui->bHiddenChats->hide();
+        ui->bChatGroup->hide();
+        ui->bPubChatGroup->hide();
+        ui->bSettings->hide();
+    }
 }
 
 void MainWindow::updateToolTipMyInfo(megachat::MegaChatHandle myHandle)
@@ -182,17 +195,19 @@ void MainWindow::orderContactChatList(bool showInactive, bool showArchived)
     }
     addContacts();
 
-#ifndef USE_ANONYMOUS_MODE
-    if(showInactive)
+    if (!mMegaChatApi->anonymousMode())
     {
-        addInactiveChats();
-        text.append(" Showing <all> elements");
+        if(showInactive)
+        {
+            addInactiveChats();
+            text.append(" Showing <all> elements");
+        }
+        else
+        {
+            text.append(" Showing <visible> elements");
+        }
     }
-    else
-    {
-        text.append(" Showing <visible> elements");
-    }
-#endif
+
     addActiveChats();
     auxChatWidgets.clear();
     this->ui->mOnlineStatusDisplay->setText(text);
@@ -257,23 +272,25 @@ void MainWindow::addActiveChats()
 void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
-#ifndef USE_ANONYMOUS_MODE
-    menu.setAttribute(Qt::WA_DeleteOnClose);
-    auto addAction = menu.addAction(tr("Add user to contacts"));
-    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+    if (!mMegaChatApi->anonymousMode())
+    {
+        menu.setAttribute(Qt::WA_DeleteOnClose);
+        auto addAction = menu.addAction(tr("Add user to contacts"));
+        connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
-    auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
-    connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
+        auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
+        connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
 
-    auto actChat = menu.addAction(tr("Add new chat group"));
-    connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
+        auto actChat = menu.addAction(tr("Add new chat group"));
+        connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
 
-    auto actPubChat = menu.addAction(tr("Create new public chat (Empty)"));
-    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPublicChatGroup()));
+        auto actPubChat = menu.addAction(tr("Create new public chat (Empty)"));
+        connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPublicChatGroup()));
 
-    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
-    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-#endif
+        auto actPrintMyInfo = menu.addAction(tr("Print my info"));
+        connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
+    }
+
     auto actLoadLink = menu.addAction(tr("Preview public chat"));
     connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
     menu.exec(event->globalPos());
