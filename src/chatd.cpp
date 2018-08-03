@@ -2082,6 +2082,8 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
         else
         {
             CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
+            // TODO: instead of skipping the backrefid for this range, we should try to find another
+            // message with a valid backrefid within the current range
         }
 
         if (rangeEnd == maxEnd)
