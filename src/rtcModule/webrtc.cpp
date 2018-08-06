@@ -2701,7 +2701,7 @@ void Session::manageNetworkQuality(stats::Sample *sample)
 {
     int previousNetworkquality = mNetworkQuality;
     mNetworkQuality = calculateNetworQuality(sample);
-    if (previousNetworkquality != mNetworkQuality && previousNetworkquality != -1)
+    if (previousNetworkquality != mNetworkQuality)
     {
         FIRE_EVENT(SESS, onSessionNetworkQualityChange);
     }
