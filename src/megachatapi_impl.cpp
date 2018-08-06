@@ -7001,6 +7001,11 @@ void MegaChatSessionHandler::onSessionNetworkQualityChange()
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     megaChatSession->setNetworkQuality(session->getNetworkQuality());
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
+    API_LOG_INFO("Network quality change. ChatId: %s, peer: %s, value: %d",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 session->getNetworkQuality());
+
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
@@ -7009,6 +7014,11 @@ void MegaChatSessionHandler::onSessionAudioDetected(bool audioDetected)
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     megaChatSession->setAudioDetected(audioDetected);
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_AUDIO_LEVEL);
+    API_LOG_INFO("Change Audio level. ChatId: %s, peer: %s, value: %s",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 audioDetected ? "Active" : "Inactive");
+
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
