@@ -117,23 +117,23 @@ public:
     virtual MegaChatHandle getPeerid() const;
 
     /**
-     * @brief Return audio state for the session
+     * @brief Returns audio state for the session
      *
      * @return true if audio is enable, false if audio is disable
      */
     virtual bool hasAudio() const;
 
     /**
-     * @brief Return video state for the session
+     * @brief Returns video state for the session
      *
      * @return true if video is enable, false if video is disable
      */
     virtual bool hasVideo() const;
 
     /**
-     * @brief Return network quality
+     * @brief Returns network quality
      *
-     * The valid network quality values are between (0-5)
+     * The valid network quality values are between 0 and 5
      * 0 -> the worst quality
      * 5 -> the best quality
      *
@@ -142,7 +142,7 @@ public:
     virtual int getNetworkQuality() const;
 
     /**
-     * @brief Return if audio is detected for this session
+     * @brief Returns if audio is detected for this session
      *
      * @return true if audio is detected for this session, false in other case
      */
