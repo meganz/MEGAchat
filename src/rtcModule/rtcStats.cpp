@@ -271,12 +271,14 @@ void Recorder::start()
     mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
+    mPreviousStatsSample = mStats->mSamples.size();
     mTimer = setInterval([this]()
     {
         mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-        if (!mStats->mSamples.empty())
+        if (mStats->mSamples.size() != mPreviousStatsSample)
         {
             mSession.manageNetworkQuality(mStats->mSamples.back());
+            mPreviousStatsSample = mStats->mSamples.size();
         }
     }, mScanPeriod, mSession.mManager.mClient.appCtx);
 }

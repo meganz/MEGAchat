@@ -95,6 +95,7 @@ protected:
     BwCalculator mAudioTxBwCalc;
     BwCalculator mConnRxBwCalc;
     BwCalculator mConnTxBwCalc;
+    unsigned int mPreviousStatsSample;
     void addSample();
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
