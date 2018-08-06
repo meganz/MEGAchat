@@ -2071,17 +2071,20 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
             idx = rangeStart;
         }
 
-        uint64_t backref;
-        if (idx < (Idx)sendingIdx.size())
+        Message &msg = (idx < (Idx)sendingIdx.size())
+                ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
+                : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+
+        if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
         {
-            backref = sendingIdx[sendingIdx.size()-1-idx]->msg->backRefId; // reference a not-yet confirmed message
+            msgit->msg->backRefs.push_back(msg.backRefId);
         }
         else
         {
-            backref = at(highnum()-(idx-sendingIdx.size())).backRefId; // reference a regular history message
+            CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
+            // TODO: instead of skipping the backrefid for this range, we should try to find another
+            // message with a valid backrefid within the current range
         }
-
-        msgit->msg->backRefs.push_back(backref);
 
         if (rangeEnd == maxEnd)
         {
@@ -2714,6 +2717,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
+
+    assert(msg->backRefId);
+    if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, *msg, idx, "A message with that backrefId "+std::to_string(msg->backRefId)+" already exists");
+    }
 
     //update any following MSGUPDX-s referring to this msgxid
     int count = 0;
@@ -3615,6 +3624,7 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
         if (targetIdx >= idx)
         {
             CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "Message order verification failed, possible history tampering");
+            client().karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99000, "order tampering native");
             return;
         }
     }
