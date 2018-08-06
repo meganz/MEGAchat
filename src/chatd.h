@@ -69,7 +69,6 @@ enum HistSource
 enum { kSeenTimeout = 200 };
 /** Timeout to recv SYNC (Milliseconds)**/
 enum { kSyncTimeout = 2500 };
-enum { kProtocolVersion = 0x01 };
 enum { kMaxMsgSize = 120000 };  // (in bytes)
 
 class DbInterface;
@@ -1184,7 +1183,11 @@ public:
     //  * Add commands CALLDATA and REJECT
     // - Version 2:
     //  * Add call-logging messages
-    static const unsigned chatdVersion = 2;
+    // - Version 3:
+    //  * Add CALLTIME command
+    // - Version 4:
+    //  * Add echo for SEEN command (with seen-pointer up-to-date)
+    static const unsigned chatdVersion = 4;
 };
 
 static inline const char* connStateToStr(Connection::State state)
