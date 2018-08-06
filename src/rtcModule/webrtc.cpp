@@ -2974,7 +2974,8 @@ int Session::calculateNetworQuality(stats::Sample *sample)
             {
                 return 4;
             }
-            else {
+            else
+            {
                 return 5;
             }
         }
@@ -2982,7 +2983,8 @@ int Session::calculateNetworQuality(stats::Sample *sample)
 
     long fps = sample->vstats.s.fps;
     long result = 0;
-    if (fps < 15) {
+    if (fps < 15)
+    {
         if (fps < 3)
         {
             result = 0;
@@ -3051,11 +3053,11 @@ int Session::getNetworkQuality() const
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)
-    : mSession(session), mSessionHandler(sessionHandler)
+    : mSessionHandler(sessionHandler), mSession(session)
 {
 }
 
-void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int sample_rate, size_t number_of_channels, size_t number_of_frames)
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
 {
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);
@@ -3090,8 +3092,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
             }
         }
 
-        int threshold = 100;
-        if (abs(audioMaxValue) + abs(audioMinValue) > threshold)
+        if (abs(audioMaxValue) + abs(audioMinValue) > mAudioThreshold)
         {
             if (!mAudioDetected)
             {

@@ -36,6 +36,7 @@ private:
     ISessionHandler &mSessionHandler;
     const Session &mSession;
     bool mAudioDetected = true;
+    const int mAudioThreshold = 100;
 };
 
 class Session: public ISession
