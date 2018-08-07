@@ -2929,9 +2929,10 @@ int Session::calculateNetworkQuality(stats::Sample *sample)
 {
     if (!sample)
     {
-        return 2;
+        return kNetworkQualityDefault;
     }
 
+    // check audio quality based on packets lost
     long audioPacketLostAverage;
     long audioPacketLost = sample->astats.plDifference;
     if (audioPacketLost > mAudioPacketLostAverage)
@@ -2950,6 +2951,7 @@ int Session::calculateNetworkQuality(stats::Sample *sample)
         return 0;
     }
 
+    // check bandwidth available for video frames wider than 480px
     long bwav = sample->vstats.s.bwav;
     long width = sample->vstats.s.width;
     if (bwav && width)
@@ -2983,6 +2985,7 @@ int Session::calculateNetworkQuality(stats::Sample *sample)
         }
     }
 
+    // check video frames per second
     long fps = sample->vstats.s.fps;
     long result = 0;
     if (fps < 15)
@@ -3016,6 +3019,7 @@ int Session::calculateNetworkQuality(stats::Sample *sample)
         return result;
     }
 
+    // check connection's round-trip time
     if (sample->cstats.rtt)
     {
         long crtt = sample->cstats.rtt;
@@ -3045,8 +3049,8 @@ int Session::calculateNetworkQuality(stats::Sample *sample)
         }
     }
 
-    SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from, returning 2");
-    return 2;
+    SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from");
+    return kNetworkQualityDefault;
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)

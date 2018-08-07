@@ -32,7 +32,7 @@ struct Sample
             long jtr = 0;           // jitter
             short width = 0;        // width of frame
             short height = 0;       // height of frame
-            long bwav = 0;          // bandwidth average
+            long bwav = 0;          // bandwidth available
         } r;    // receive
 
         struct : BwInfo

@@ -57,7 +57,7 @@ protected:
     time_t mTsIceConn = 0;
     promise::Promise<void> mTerminatePromise;
     bool mVideoReceived = false;
-    int mNetworkQuality = 2;
+    int mNetworkQuality = kNetworkQualityDefault;    // from 0 (worst) to 5 (best)
     long mAudioPacketLostAverage = 0;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     void setState(uint8_t state);

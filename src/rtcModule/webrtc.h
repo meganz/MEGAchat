@@ -122,6 +122,8 @@ enum TermCode: uint8_t
     kInvalid = 0x7f
 };
 
+static const uint8_t kNetworkQualityDefault = 2;     // By default, while not enough samples
+
 static inline bool isTermError(TermCode code)
 {
     int errorCode = code & ~TermCode::kPeer;
@@ -142,7 +144,28 @@ public:
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
     virtual void onVideoRecv() {}
+
+    /**
+     * @brief Notifies about changes in network quality
+     *
+     * This callback is received when the network quality changes. The
+     * worst value is 0, the best value is 5. The default value at the
+     * beginning (without enough samples) is 2.
+     *
+     * @param currentQuality Value from 0 to 5 representing the quality.
+     */
     virtual void onSessionNetworkQualityChange(int currentQuality) = 0;
+
+    /**
+     * @brief Notifies about changes on the audio
+     *
+     * This callback is received when a user participating in the call
+     * with us starts and/or stops talking. It can be used for nice UX/UI
+     * configurations, like getting the video of the peer larger when the
+     * user speaks.
+     *
+     * @param Whether the peer is speaking or not.
+     */
     virtual void onSessionAudioDetected(bool audioDetected) = 0;
 };
 

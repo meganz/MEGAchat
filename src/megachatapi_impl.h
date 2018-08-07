@@ -185,7 +185,7 @@ private:
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
     karere::AvFlags av;
-    int networkQuality = 2;
+    int networkQuality = rtcModule::kNetworkQualityDefault;
     bool audioDetected = false;
 };
 
