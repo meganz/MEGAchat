@@ -1050,7 +1050,10 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
  * - Change privileges to admin
  * - Changes privileges to read only
  * + Send message (error)
- * - Send message
+ * - Archive chatroom
+ * - Send message (automatically unarchives)
+ * - Archive chatroom
+ * - Unarchive chatroom
  *
  */
 void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
@@ -1256,11 +1259,28 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for sending stop typing notification");
     ASSERT_CHAT_TEST(*uhAction == megaChatApi[a1]->getMyUserHandle(), "My user handle is wrong at stop typing");
 
+    // --> Archive the chatroom
+    chatroom = megaChatApi[a1]->getChatRoom(chatid);
+    delete chatroom; chatroom = NULL;
+    bool *flagChatArchived = &requestFlagsChat[a1][MegaChatRequest::TYPE_ARCHIVE_CHATROOM]; *flagChatArchived = false;
+    bool *chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+    bool *chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
+    megaChatApi[a1]->archiveChat(chatid, true);
+    ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
+    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive");
+    chatroom = megaChatApi[a1]->getChatRoom(chatid);
+    ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
+    delete chatroom; chatroom = NULL;
+
     // --> Send a message and wait for reception by target user
     string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing groupchats";
     bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
     bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
+    chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+    chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
     MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
@@ -1272,35 +1292,39 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
     MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
-
-    // --> Archive the chatroom (or unarchive, if already archived)
+    // now wait for automatic unarchive, due to new message
+    ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update after new message");
+    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update after new message");
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    bool newValue = !chatroom->isArchived();
+    ASSERT_CHAT_TEST(chatroom->isArchived() == false, "Chatroom is not unarchived automatically upon new message");
     delete chatroom; chatroom = NULL;
-    bool *flagChatArchived = &requestFlagsChat[a1][MegaChatRequest::TYPE_ARCHIVE_CHATROOM]; *flagChatArchived = false;
-    bool *chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
-    bool *chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
-    megaChatApi[a1]->archiveChat(chatid, newValue);
+
+
+    // --> Archive the chatroom
+    flagChatArchived = &requestFlagsChat[a1][MegaChatRequest::TYPE_ARCHIVE_CHATROOM]; *flagChatArchived = false;
+    chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+    chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
+    megaChatApi[a1]->archiveChat(chatid, true);
     ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
     ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive");
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom->isArchived() == newValue, "Wrong value of archived.");
+    ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
+    delete chatroom; chatroom = NULL;
 
-    // --> Unarchive the chatroom (or archive, if already unarchived)
-    newValue = !chatroom->isArchived();
+    // --> Unarchive the chatroom
     delete chatroom; chatroom = NULL;
     flagChatArchived = &requestFlagsChat[a1][MegaChatRequest::TYPE_ARCHIVE_CHATROOM]; *flagChatArchived = false;
     chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
     chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
-    megaChatApi[a1]->archiveChat(chatid, newValue);
+    megaChatApi[a1]->archiveChat(chatid, false);
     ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
     ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive");
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom->isArchived() == newValue, "Wrong value of archived.");
+    ASSERT_CHAT_TEST(!chatroom->isArchived(), "Chatroom is archived when it shouldn't");
     delete chatroom; chatroom = NULL;
 
     delete messageSent;
