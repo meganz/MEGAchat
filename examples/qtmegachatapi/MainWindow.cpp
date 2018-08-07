@@ -24,7 +24,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
     mMegaChatApi = megaChatApi;
     mMegaApi = megaApi;
-    megaChatListenerDelegate = NULL;
     onlineStatus = NULL;
     allItemsVisibility = false;
     archivedItemsVisibility = false;
@@ -34,8 +33,12 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
     ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
     ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
-    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
+
+    megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
+    mMegaChatApi->addChatListener(megaChatListenerDelegate);
+
 #ifndef KARERE_DISABLE_WEBRTC
+    megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
 #endif
 }
@@ -67,7 +70,7 @@ mega::MegaUserList * MainWindow::getUserContactList()
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-void MainWindow::onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call)
+void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::MegaChatCall *call)
 {
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
     if(itWidgets == chatWidgets.end())
@@ -245,7 +248,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.exec(event->globalPos());
 }
 
-bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+bool MainWindow::eventFilter(QObject *, QEvent *event)
 {
     if (this->mMegaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
     {
@@ -407,7 +410,7 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
     }
 }
 
-void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
+void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 {
     updateLocalChatListItem(item);
 
@@ -524,13 +527,7 @@ void MainWindow::setOnlineStatus()
     this->mMegaChatApi->setOnlineStatus(pres);
 }
 
-void MainWindow::addChatListener()
-{
-    megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
-    mMegaChatApi->addChatListener(megaChatListenerDelegate);
-}
-
-void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
+void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chatid, int newState)
 {
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
@@ -554,7 +551,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle ch
     }
 }
 
-void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
+void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
 {
     if (newState == MegaChatApi::INIT_ERROR)
     {
@@ -586,7 +583,7 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
             orderContactChatList(allItemsVisibility , archivedItemsVisibility);
         }
 
-        QString auxTitle(api->getMyEmail());
+        QString auxTitle(mMegaChatApi->getMyEmail());
         if (mApp->sid() && newState == MegaChatApi::INIT_OFFLINE_SESSION)
         {
             auxTitle.append(" [OFFLINE MODE]");
@@ -595,7 +592,7 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
     }
 }
 
-void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
+void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhandle, int status, bool inProgress)
 {
     if (status == megachat::MegaChatApi::STATUS_INVALID)
         status = 0;
@@ -619,7 +616,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userh
     }
 }
 
-void MainWindow::onChatPresenceConfigUpdate(MegaChatApi* api, MegaChatPresenceConfig *config)
+void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfig *config)
 {
     int status = config->getOnlineStatus();
     if (status == megachat::MegaChatApi::STATUS_INVALID)

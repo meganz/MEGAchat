@@ -11,7 +11,6 @@
 using namespace std;
 using namespace mega;
 using namespace megachat;
-class MegaChatApplication;
 
 int main(int argc, char **argv)
 {
@@ -28,7 +27,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
     // Keep the app open until it's explicitly closed
     setQuitOnLastWindowClosed(true);
 
-    mMainWin = nullptr;
+    mMainWin = NULL;
     mLoginDialog = NULL;
     mSid = NULL;
 
@@ -79,11 +78,7 @@ void MegaChatApplication::init()
     delete [] mSid;
     mSid = NULL;
 
-    if (!mMainWin)
-    {
-        mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
-        mMainWin->addChatListener();
-    }
+    mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
 
     mSid = readSid();
     int initState = mMegaChatApi->init(mSid);
@@ -191,17 +186,14 @@ void MegaChatApplication::addContacts()
     delete contactList;
 }
 
-void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList)
+void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
 {
-    mega::MegaHandle userHandle = NULL;
-    mega:MegaUser *user;
-
     if(userList && mMainWin)
     {
-        for(int i=0; i<userList->size(); i++)
+        for(int i = 0; i < userList->size(); i++)
         {
-            user = userList->get(i);
-            userHandle = userList->get(i)->getHandle();
+            mega::MegaUser *user = userList->get(i);
+            mega::MegaHandle userHandle = user->getHandle();
             std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
             itContacts = this->mMainWin->contactWidgets.find(userHandle);
             if (itContacts == this->mMainWin->contactWidgets.end())
@@ -335,7 +327,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     }
 }
 
-void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequest *request, MegaChatError *e)
+void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *request, MegaChatError *e)
 {
     switch (request->getType())
     {

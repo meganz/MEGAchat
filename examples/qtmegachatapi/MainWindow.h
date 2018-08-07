@@ -61,7 +61,6 @@ class MainWindow :
         virtual ~MainWindow();
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
-        void addChatListener();
         void clearContactChatList();
         void orderContactChatList(bool showInactive, bool showArchived);
         void addContacts();

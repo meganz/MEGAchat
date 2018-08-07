@@ -140,7 +140,7 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
     addMsgWidget(msg, loadedMessages + nSending);
 }
 
-void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
+void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoom *chat)
 {
     if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
     {
@@ -169,7 +169,7 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChat
     }
 }
 
-void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
+void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     if(msg->isDeleted())
     {
@@ -263,7 +263,7 @@ void ChatWindow::truncateChatUI()
     }
 }
 
-bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal)
+bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*temporal*/)
 {
     megachat::MegaChatHandle msgId = getMessageId(msg);
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
@@ -321,13 +321,13 @@ void ChatWindow::setCallGui(CallGui *callGui)
 }
 #endif
 
-void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
+void ChatWindow::onMessageReceived(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
 {
     addMsgWidget(msg->copy(), loadedMessages);
     loadedMessages++;
 }
 
-void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
+void ChatWindow::onMessageLoaded(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
 {
     if(msg)
     {
@@ -385,13 +385,12 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     }
 }
 
-void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
+void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *)
 {
     truncateChatUI();
 }
 
-
-void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item)
+void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetItem *item)
 {
     switch (msg->getType())
     {
@@ -409,7 +408,7 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetIt
     }
 }
 
-QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage * msg, int index)
+QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int index)
 {
     QListWidgetItem* item = new QListWidgetItem;
     megachat::MegaChatHandle chatId = mChatRoom->getChatId();
