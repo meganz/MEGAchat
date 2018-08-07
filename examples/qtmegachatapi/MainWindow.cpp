@@ -123,9 +123,9 @@ void MainWindow::onTwoFactorGetCode()
 void MainWindow::onTwoFactorDisable()
 {
     const char *auxcode = getAuthCode();
-    QString code(auxcode);
     if (auxcode)
     {
+        QString code(auxcode);
         mMegaApi->multiFactorAuthDisable(code.toUtf8().constData());
     }
 }
