@@ -142,7 +142,7 @@ public:
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
     virtual void onVideoRecv() {}
-    virtual void onSessionNetworkQualityChange() = 0;
+    virtual void onSessionNetworkQualityChange(int currentQuality) = 0;
     virtual void onSessionAudioDetected(bool audioDetected) = 0;
 };
 
@@ -230,7 +230,6 @@ public:
     virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
-    virtual int getNetworkQuality() const = 0;
 };
 
 class ICall: public karere::WeakReferenceable<ICall>

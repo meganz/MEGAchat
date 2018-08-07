@@ -6996,15 +6996,15 @@ void MegaChatSessionHandler::onVideoRecv()
 
 }
 
-void MegaChatSessionHandler::onSessionNetworkQualityChange()
+void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
 {
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
-    megaChatSession->setNetworkQuality(session->getNetworkQuality());
+    megaChatSession->setNetworkQuality(currentQuality);
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
     API_LOG_INFO("Network quality change. ChatId: %s, peer: %s, value: %d",
                  Id(chatCall->getChatid()).toString().c_str(),
                  session->peer().toString().c_str(),
-                 session->getNetworkQuality());
+                 currentQuality);
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }

@@ -2700,10 +2700,10 @@ Session::~Session()
 void Session::manageNetworkQuality(stats::Sample *sample)
 {
     int previousNetworkquality = mNetworkQuality;
-    mNetworkQuality = calculateNetworQuality(sample);
+    mNetworkQuality = calculateNetworkQuality(sample);
     if (previousNetworkquality != mNetworkQuality)
     {
-        FIRE_EVENT(SESS, onSessionNetworkQualityChange);
+        FIRE_EVENT(SESS, onSessionNetworkQualityChange, mNetworkQuality);
     }
 }
 
@@ -2925,7 +2925,7 @@ void Session::sdpSetVideoBw(std::string& sdp, int maxbr)
     sdp.insert(m.position(0) + m.length(0), line);
 }
 
-int Session::calculateNetworQuality(stats::Sample *sample)
+int Session::calculateNetworkQuality(stats::Sample *sample)
 {
     if (!sample)
     {
@@ -3047,11 +3047,6 @@ int Session::calculateNetworQuality(stats::Sample *sample)
 
     SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from, returning 2");
     return 2;
-}
-
-int Session::getNetworkQuality() const
-{
-    return mNetworkQuality;
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)

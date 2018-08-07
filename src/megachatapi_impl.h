@@ -564,7 +564,7 @@ public:
     virtual void onRemoteStreamRemoved();
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv);
     virtual void onVideoRecv();
-    virtual void onSessionNetworkQualityChange();
+    virtual void onSessionNetworkQualityChange(int currentQuality);
     virtual void onSessionAudioDetected(bool audioDetected);
 
 private:

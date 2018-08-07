@@ -84,8 +84,8 @@ protected:
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
     void sdpSetVideoBw(std::string& sdp, int maxbr);
-    int calculateNetworQuality(stats::Sample* sample);
-    virtual int getNetworkQuality() const;
+    int calculateNetworkQuality(stats::Sample* sample);
+
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
