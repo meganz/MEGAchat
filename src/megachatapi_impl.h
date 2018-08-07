@@ -186,7 +186,7 @@ private:
     karere::AvFlags av;
     uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     int networkQuality = 2;
-    bool audioDetected = true;
+    bool audioDetected = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall

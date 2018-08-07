@@ -3092,21 +3092,11 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
             }
         }
 
-        if (abs(audioMaxValue) + abs(audioMinValue) > mAudioThreshold)
+        bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > mAudioThreshold);
+        if (audioDetected != mAudioDetected)
         {
-            if (!mAudioDetected)
-            {
-                mAudioDetected = true;
-                mSessionHandler.onSessionAudioDetected(mAudioDetected);
-            }
-        }
-        else
-        {
-            if (mAudioDetected)
-            {
-                mAudioDetected = false;
-                mSessionHandler.onSessionAudioDetected(mAudioDetected);
-            }
+            mAudioDetected = audioDetected;
+            mSessionHandler.onSessionAudioDetected(mAudioDetected);
         }
     }
 }
