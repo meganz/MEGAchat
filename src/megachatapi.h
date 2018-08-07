@@ -137,6 +137,8 @@ public:
      * 0 -> the worst quality
      * 5 -> the best quality
      *
+     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     *
      * @return network quality
      */
     virtual int getNetworkQuality() const;

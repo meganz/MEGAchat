@@ -12,9 +12,9 @@ namespace stats
 
 struct BwInfo
 {
-    long bs;
-    long bps;
-    long abps;
+    long bs;        // delta-bytes
+    long bps;       // bits-per-second
+    long abps;      // average bits-per-second
 };
 
 struct Sample
@@ -22,49 +22,55 @@ struct Sample
     int64_t ts;
     struct
     {
-        long rtt = 0;
+        long rtt = 0;               // Round-Trip delay Time
+
         struct : BwInfo
         {
-            long pl = 0;
-            long fps = 0;
-            long dly = 0;
-            long jtr = 0;
-            short width = 0;
-            short height = 0;
-            long bwav = 0;
-        } r;
+            long pl = 0;            // packets-lost
+            long fps = 0;           // frames-per-second
+            long dly = 0;           // current delay (ms)
+            long jtr = 0;           // jitter
+            short width = 0;        // width of frame
+            short height = 0;       // height of frame
+            long bwav = 0;          // bandwidth average
+        } r;    // receive
+
         struct : BwInfo
         {
-            long gbps = 0;
-            short fps = 0;
-            short cfps = 0;
+            long gbps = 0;          // transmit bitrate
+            short fps = 0;          // frames-per-second
+            short cfps = 0;         // frame-rate input
             long cjtr = 0;
-            short width = 0;
-            short height = 0;
-            float el = 0.0;
-            short lcpu = 0;
-            short lbw = 0;
-            long bwav = 0;
+            short width = 0;        // width of frame
+            short height = 0;       // height of frame
+            float el = 0.0;         // encode-usage percentage
+            short lcpu = 0;         // CPU-limited resolution
+            short lbw = 0;          // bandwidth-limited resolution
+            long bwav = 0;          // bandwidth available
             long targetEncBitrate = 0;
-        } s;
-    } vstats;
+        } s;    // sent
+
+    } vstats;   // video-stats
+
     struct
     {
-        long rtt = 0;
-        long plDifference = 0;
+        long rtt = 0;               // Round-Trip delay Time
+        long plDifference = 0;      // packets lost difference
         struct : BwInfo
         {
-            long pl = 0;
-            long jtr = 0;
+            long pl = 0;            // packets lost
+            long jtr = 0;           // jitter
         } r;
         BwInfo s;
-    } astats;
+
+    } astats;   // audio-stats
+
     struct
     {
-        long rtt = 0;
-        BwInfo r;
-        BwInfo s;
-    } cstats;
+        long rtt = 0;   // Round-Trip delay Time
+        BwInfo r;       // reception
+        BwInfo s;       // sending
+    } cstats;   // connection-stats
 };
 
 class IConnInfo
