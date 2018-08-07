@@ -4581,7 +4581,7 @@ void MegaChatCallPrivate::removeSession(Id peerid)
     }
 }
 
-void MegaChatCallPrivate::sessionUpdated(Id peerid, uint8_t changeType)
+void MegaChatCallPrivate::sessionUpdated(Id peerid, int changeType)
 {
     this->peerId = peerid;
     changed |= changeType;

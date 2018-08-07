@@ -182,9 +182,9 @@ public:
     void setAudioDetected(bool audioDetected);
 
 private:
+    uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
     karere::AvFlags av;
-    uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     int networkQuality = 2;
     bool audioDetected = false;
 };
@@ -240,7 +240,7 @@ public:
     void setIgnoredCall(bool ignored);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
     void removeSession(karere::Id peerid);
-    void sessionUpdated(karere::Id peerid, uint8_t changeType);
+    void sessionUpdated(karere::Id peerid, int changeType);
 
     bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool removeParticipant(karere::Id userid, uint32_t clientid);
