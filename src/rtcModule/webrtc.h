@@ -122,7 +122,8 @@ enum TermCode: uint8_t
     kInvalid = 0x7f
 };
 
-static const uint8_t kNetworkQualityDefault = 2;     // By default, while not enough samples
+static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
+static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
 
 static inline bool isTermError(TermCode code)
 {

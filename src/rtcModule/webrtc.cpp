@@ -3093,7 +3093,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
             }
         }
 
-        bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > mAudioThreshold);
+        bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
         if (audioDetected != mAudioDetected)
         {
             mAudioDetected = audioDetected;
