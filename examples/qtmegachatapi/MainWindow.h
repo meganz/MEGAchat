@@ -104,8 +104,8 @@ class MainWindow :
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
         MegaChatApplication *mApp;
-        mega::MegaApi * mMegaApi;
-        megachat::MegaChatApi * mMegaChatApi;
+        mega::MegaApi *mMegaApi;
+        megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
         std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
@@ -133,10 +133,12 @@ class MainWindow :
         void esidLogout();
 
      friend class ChatItemWidget;
+     friend class ContactItemWidget;
      friend class MegaChatApplication;
      friend class ChatSettingsDialog;
      friend class CallAnswerGui;
      friend class ChatWindow;
+     friend class ChatMessage;
 };
 
 #endif // MAINWINDOW_H

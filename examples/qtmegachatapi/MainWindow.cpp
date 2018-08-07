@@ -468,7 +468,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi* api, MegaChatListItem *item)
                     orderContactChatList(allItemsVisibility, archivedItemsVisibility);
                 }
         }
-     }
+    }
     else
     {
         if (!item->isArchived() && item->isActive())
@@ -578,6 +578,11 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi* api, int newState)
             mApp->resetLoginDialog();
             show();
             updateLocalChatListItems();
+        }
+
+        if (newState == MegaChatApi::INIT_ONLINE_SESSION)
+        {
+            // contacts are not loaded until MegaApi::login completes
             orderContactChatList(allItemsVisibility , archivedItemsVisibility);
         }
 

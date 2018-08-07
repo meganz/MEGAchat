@@ -39,13 +39,11 @@ class ChatItemWidget : public QWidget
         Ui::ChatItem *ui;
         int mLastOverlayCount;
         megachat::MegaChatHandle mChatId;
-        megachat::MegaChatApi * mMegaChatApi;
-        mega::MegaApi * mMegaApi;
-        ChatWindow * mChatWindow;
+        megachat::MegaChatApi *mMegaChatApi;
+        mega::MegaApi *mMegaApi;
+        ChatWindow *mChatWindow;
         QListWidgetItem *mListWidgetItem;
-
-    protected:
-        MainWindow * mMainWin;
+        MainWindow *mMainWin;
         std::string mLastMsgAuthor;
 
     protected slots:
