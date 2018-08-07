@@ -1487,6 +1487,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mChatdClient.karereClient->onSyncReceived(chatid);
                 break;
             }
+            case OP_CALLTIME:
+            {
+                READ_CHATID(0);
+                READ_32(duration, 8);
+                CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
+                // TODO: add management of calltime (for groupcalling)
+                break;
+            }
             default:
             {
                 CHATDS_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -2403,7 +2411,7 @@ void Chat::onLastSeen(Id msgid)
     {
         if (mLastSeenIdx == CHATD_IDX_INVALID)  // don't have a previous idx yet --> initialization
         {
-            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
+            CHATID_LOG_DEBUG("onLastSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
