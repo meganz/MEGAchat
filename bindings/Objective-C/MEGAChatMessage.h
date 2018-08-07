@@ -25,6 +25,8 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypePrivilegeChange   = 4,
     MEGAChatMessageTypeChatTitle         = 5,
     MEGAChatMessageTypeCallEnded         = 6,
+    MEGAChatMessageTypeCallStarted       = 7,
+    MEGAChatMessageTypeHighestManagement = 7,
     MEGAChatMessageTypeAttachment        = 16,
     MEGAChatMessageTypeRevokeAttachment  = 17, /// Obsolete
     MEGAChatMessageTypeContact           = 18,
