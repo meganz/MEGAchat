@@ -571,7 +571,6 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
     {
         if(!isVisible())
         {
-            mApp->loginDialog()->deleteLater();
             mApp->resetLoginDialog();
             show();
             updateLocalChatListItems();

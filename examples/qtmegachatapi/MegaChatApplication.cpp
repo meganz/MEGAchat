@@ -265,6 +265,7 @@ const char *MegaChatApplication::sid() const
 
 void MegaChatApplication::resetLoginDialog()
 {
+    mLoginDialog->deleteLater();
     mLoginDialog = NULL;
 }
 
