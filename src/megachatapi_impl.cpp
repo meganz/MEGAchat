@@ -6635,7 +6635,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     assert(chatCall != NULL);
     if (chatCall != NULL)
     {
-        API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %d --> %d",
+        API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
                      karere::Id(chatCall->getChatid()).toString().c_str(),
                      karere::Id(chatCall->getId()).toString().c_str(),
                      rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1

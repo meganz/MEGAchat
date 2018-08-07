@@ -2002,7 +2002,7 @@ Session::Session(Call& call, RtMessage& packet)
     call.mManager.random(mOwnSdpKey);
     mHandler = call.callHandler()->onNewSession(*this);
     mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, *mHandler));
-    printf("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
+    SUB_LOG_INFO("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
     if (packet.type == RTCMD_JOIN)
     {
         // peer will send offer
@@ -2840,7 +2840,9 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrIceFail);
         RET_ENUM_NAME(kErrSdp);
         RET_ENUM_NAME(kErrPeerOffline);
+        RET_ENUM_NAME(kErrSessSetupTimeout);
         RET_ENUM_NAME(kErrSessRetryTimeout);
+        RET_ENUM_NAME(kErrAlready);
         RET_ENUM_NAME(kInvalid);
         RET_ENUM_NAME(kNotFinished);
         default: return "(invalid term code)";
