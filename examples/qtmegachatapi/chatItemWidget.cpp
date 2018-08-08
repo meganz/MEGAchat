@@ -119,19 +119,17 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         else
         {
             const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
-            if (msgAuthor)
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
             {
                 mLastMsgAuthor.assign(msgAuthor);
             }
             else
             {
-                mLastMsgAuthor = "Unknown participant";
-                mMegaChatApi->getUserFirstname(lastMessageSender);
+                mLastMsgAuthor = "Loading firstname...";
             }
-            delete msgAuthor;
+            delete [] msgAuthor;
         }
     }
-
     switch (lastMessageType)
     {
         case megachat::MegaChatMessage::TYPE_INVALID:
@@ -389,7 +387,7 @@ ChatWindow *ChatItemWidget::getChatWindow()
     return mChatWindow;
 }
 
-void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
+void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
     showChatWindow();
 }
@@ -468,15 +466,18 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
         connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));        
     }
 
-    if (auxItem->isArchived() && !auxItem->isPreview())
+    if (!auxItem->isPreview())  // cannot un/archive rooms in preview mode
     {
-        auto actArchive = menu.addAction(tr("Unarchive chat"));
-        connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
-    }
-    else
-    {
-        auto actArchive = menu.addAction(tr("Archive chat"));
-        connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+        if (auxItem->isArchived())
+        {
+            auto actArchive = menu.addAction(tr("Unarchive chat"));
+            connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
+        }
+        else
+        {
+            auto actArchive = menu.addAction(tr("Archive chat"));
+            connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+        }
     }
 
     menu.exec(event->globalPos());

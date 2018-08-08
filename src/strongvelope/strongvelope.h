@@ -174,8 +174,6 @@ struct ParsedMessage: public karere::DeleteTrackable
     Buffer signedContent;
     Buffer signature;
     unsigned char type;
-    chatd::BackRefId backRefId = 0;
-    std::vector<chatd::BackRefId> backRefs;
     //legacy key stuff
     uint64_t keyId;
     uint64_t prevKeyId;

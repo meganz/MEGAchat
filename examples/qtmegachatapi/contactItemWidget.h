@@ -32,8 +32,11 @@ class ContactItemWidget : public QWidget
         QListWidgetItem *mListWidgetItem;
         MainWindow *mMainWin;
 
+        void createChatRoom(megachat::MegaChatHandle uh, bool isGroup, bool isPublic);
+
     private slots:
         void onPrintContactInfo();
+        void onCreatePeerChat();
         void onCreateGroupChat();
         void onCreatePublicGroupChat();
         void onContactRemove();

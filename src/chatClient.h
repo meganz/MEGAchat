@@ -68,7 +68,6 @@ protected:
     std::string mTitleString;
     void notifyTitleChanged();
     void notifyChatModeChanged();
-    bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
@@ -112,6 +111,9 @@ public:
 
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
+
+    /** @brief True if there's a call in progress */
+    bool isCallInProgress() const;
 
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
@@ -257,7 +259,6 @@ public:
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onUnreadChanged();
 /** @endcond */
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
@@ -280,8 +281,8 @@ public:
         std::string mName;
         std::string mEmail;
         Presence mPresence;
-        void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
+
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -319,11 +320,8 @@ protected:
     bool mPreviewMode;
     int mNumPeers = 0; //Only for public chats in preview mode
 
-    void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
-    bool syncMembers(const UserPrivMap& users);
-    static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void setChatPrivateMode();
-    bool syncMembers(const mega::MegaTextChat& chat);
+    bool syncMembers(const mega::MegaTextChat& chat);   
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
@@ -354,15 +352,12 @@ protected:
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
                 bool aIsArchived, const std::string& title, bool aPublicChat,
                 const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl);
-
-
-
     ~GroupChatRoom();
+
 public:
 //chatd::Listener
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onUnreadChanged();
 //====
     /** @endcond PRIVATE */
 
@@ -916,7 +911,7 @@ public:
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
-    bool isCallInProgress() const;
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif

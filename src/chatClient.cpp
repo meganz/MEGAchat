@@ -671,6 +671,7 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
 #ifndef KARERE_DISABLE_WEBRTC
             if (rtc && rtc->isCallInProgress())
             {
+                KR_LOG_WARNING("EVENT_DISCONNECT --> skipping reconnection triggered by SDK because there's a call in progress");
                 break;
             }
 #endif
@@ -780,34 +781,27 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (e->getErrorCode() == ::mega::MegaError::API_ESID)
-    {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]() // update state in the karere thread
-        {
-            if (wptr.deleted())
-                return;
-
-            if (initState() != kInitTerminated)
-            {
-                setInitState(kInitErrSidInvalid);
-            }
-        }, appCtx);
-        return;
-    }
-    else if (e->getErrorCode() != ::mega::MegaError::API_OK)
+    int reqType = request->getType();
+    int errorCode = e->getErrorCode();
+    if (errorCode != ::mega::MegaError::API_OK && reqType != ::mega::MegaRequest::TYPE_LOGOUT)
     {
         KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
         return;
     }
 
-    auto reqType = request->getType();
     switch (reqType)
     {
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
-        if (request->getFlag() ||   // SDK has been logged out normally closing session
-                request->getParamType() == ::mega::MegaError::API_ESID)   // SDK received ESID during login
+        bool loggedOut = (errorCode == ::mega::MegaError::API_OK && request->getFlag());    // SDK has been logged out normally closing session
+        bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
+        if (loggedOut)
+            KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
+
+        if (sessionExpired)
+            KR_LOG_WARNING("Expired session detected. Closing MEGAchat session...");
+
+        if (loggedOut || sessionExpired)
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]() // update state in the karere thread
@@ -1774,7 +1768,7 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,  const std::string& unifiedKey)
-:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title), mHasTitle(!title.empty()), mRoomGui(nullptr)
+    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title), mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
     mPreviewMode = false;
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -2124,7 +2118,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     }
 
     delete it->second;
-    mPeers.erase(it);
+    mPeers.erase(it);    
     parent.mKarereClient.presenced().removePeer(userid);
     parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
 
@@ -2155,6 +2149,11 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
         wptr.throwIfDeleted();
         // TODO: update indexes, last message and so on
     });
+}
+
+bool ChatRoom::isCallInProgress() const
+{
+    return parent.mKarereClient.isCallInProgress(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -2537,8 +2536,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
         mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
 
-    db.query("delete from chat_peers where chatid=?", mChatid);
-
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
     {
@@ -2845,7 +2842,6 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
      });
  }
 
-
 //chatd::Listener::init
 void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
@@ -3042,16 +3038,6 @@ void ChatRoom::onArchivedChanged(bool archived)
     onUnreadChanged();
 }
 
-void PeerChatRoom::onUnreadChanged()
-{
-    auto count = mChat->unreadMsgCount();
-    if (mRoomGui)
-        mRoomGui->onUnreadCountChanged(count);
-
-    if (mContact && mContact->appItem())
-        mContact->appItem()->onUnreadCountChanged(count);
-}
-
 void PeerChatRoom::updateTitle(const std::string& title)
 {
     mTitleString = title;
@@ -3082,29 +3068,6 @@ void ChatRoom::notifyChatModeChanged()
         if (mAppChatHandler)
             mAppChatHandler->onChatModeChanged(this->publicChat());
     }, parent.mKarereClient.appCtx);
-}
-
-void GroupChatRoom::onUnreadChanged()
-{
-    auto count = mChat->unreadMsgCount();
-    if (mRoomGui)
-        mRoomGui->onUnreadCountChanged(count);
-}
-
-
-// return true if new peer or peer removed. Updates peer privileges as well
-bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
-{
-    UserPrivMap users;
-    auto members = chat.getPeerList();
-    if (members)
-    {
-        auto size = members->size();
-        for (int i = 0; i < size; i++)
-        {
-            users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
-        }
-    }
 }
 
 // return true if new peer, peer removed or peer's privilege updated
@@ -3160,9 +3123,20 @@ void GroupChatRoom::setNumPeers(int value)
     mNumPeers = value;
 }
 
-bool GroupChatRoom::syncMembers(const UserPrivMap& users)
+// return true if new peer or peer removed. Updates peer privileges as well
+bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
-    bool changed = false;
+    UserPrivMap users;
+    auto members = chat.getPeerList();
+    if (members)
+    {
+        auto size = members->size();
+        for (int i = 0; i < size; i++)
+        {
+            users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+        }
+    }
+
     auto db = parent.mKarereClient.db;
     bool peersChanged = false;
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
@@ -3186,7 +3160,7 @@ bool GroupChatRoom::syncMembers(const UserPrivMap& users)
                      member->mPriv, it->second);
 
                 member->mPriv = it->second;
-                parent.mKarereClient.db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
+                db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
             }
             ourIt++;
         }
@@ -3325,20 +3299,6 @@ void GroupChatRoom::setChatPrivateMode()
     auto db = parent.mKarereClient.db;
     db.query("delete from chat_vars where chatid=? and name='unified_key'", mChatid);
     notifyChatModeChanged();
-}
-
-UserPrivMap& GroupChatRoom::apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs)
-{
-    auto members = chat.getPeerList();
-    if (members)
-    {
-        auto size = members->size();
-        for (int i = 0; i < size; i++)
-        {
-            membs.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
-        }
-    }
-    return membs;
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
@@ -3748,14 +3708,14 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress() const
+bool Client::isCallInProgress(Id chatid) const
 {
     bool callInProgress = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress();
+        callInProgress = rtc->isCallInProgress(chatid);
     }
 #endif
 

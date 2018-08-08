@@ -967,7 +967,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     }
     else    // confirmed keyid
     {
-        assert(msgCmd->opcode() == OP_MSGUPD);  // edits always have a confirmed keyid
+        assert(msgCmd->opcode() != OP_NEWMSG);  // new messages, at this stage, have an invalid keyid
 
         auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))

@@ -43,16 +43,10 @@ void ChatGroupDialog::createChatList(mega::MegaUserList *contactList)
 void ChatGroupDialog::on_buttonBox_accepted()
 {
     char *auxTitle = NULL;
-    std::string title;
     QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
-    if (!qTitle.isNull())
+    if (!qTitle.isNull() && !qTitle.isEmpty())
     {
-        title = qTitle.toStdString();
-        if (!title.empty() && title.size() != 1)
-        {
-            auxTitle = new char[title.size()+1];
-            strcpy(auxTitle, title.c_str());
-        }
+        auxTitle = strdup(qTitle.toStdString().c_str());
     }
 
     megachat::MegaChatPeerList *peerList = megachat::MegaChatPeerList::createInstance();
@@ -68,7 +62,7 @@ void ChatGroupDialog::on_buttonBox_accepted()
                 QMessageBox::warning(this, tr("Chat creation"), tr("Invalid user handle"));
                 return;
             }
-            peerList->addPeer(userHandle, 2);
+            peerList->addPeer(userHandle, megachat::MegaChatRoom::PRIV_STANDARD);
         }
     }
 
@@ -77,49 +71,42 @@ void ChatGroupDialog::on_buttonBox_accepted()
         return;
     }
 
+    bool reuseExistingRoom = false;
     megachat::MegaChatListItemList *list = mMegaChatApi->getChatListItemsByPeers(peerList);
     if (list->size() != 0)
     {
-         QMessageBox msgBoxAns;
-         msgBoxAns.setText("You have another chatroom with same participants do you want to reuse it ");
-         msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-         int retVal = msgBoxAns.exec();
-         if (retVal == QMessageBox::Yes)
-         {
-             if (list->get(0)->isArchived())
-             {
-                 ChatItemWidget *item = mMainWin->getChatItemWidget(list->get(0)->getChatId(), false);
-                 item->unarchiveChat();
-                 QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
-             }
-             else
-             {
-                 QMessageBox::warning(this, tr("Add chatRoom"), tr("You have decide to reuse the chatroom"));
-             }
-         }
-         else
-         {
-             if (mPublic)
-             {
-                    this->mMegaChatApi->createPublicChat(peerList, auxTitle);
-             }
-             else
-             {
-                 this->mMegaChatApi->createChat(true, peerList, auxTitle);
-             }
-         }
+        QMessageBox msgBoxAns;
+        msgBoxAns.setText("You have another chatroom with same participants do you want to reuse it?");
+        msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        int retVal = msgBoxAns.exec();
+        if (retVal == QMessageBox::Yes)
+        {
+            if (list->get(0)->isArchived())
+            {
+                ChatItemWidget *item = mMainWin->getChatItemWidget(list->get(0)->getChatId(), false);
+                item->unarchiveChat();
+                QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
+            }
+            else
+            {
+                QMessageBox::warning(this, tr("Add chatRoom"), tr("You have decided to reuse the chatroom"));
+            }
+            reuseExistingRoom = true;
+        }
     }
-    else
+
+    if (!reuseExistingRoom)
     {
         if (mPublic)
         {
-               this->mMegaChatApi->createPublicChat(peerList, auxTitle);
+            mMegaChatApi->createPublicChat(peerList, auxTitle);
         }
         else
         {
-             mMegaChatApi->createChat(true, peerList, auxTitle);
+            mMegaChatApi->createChat(true, peerList, auxTitle);
         }
     }
+
     delete auxTitle;
     delete peerList;
     delete list;
