@@ -864,6 +864,7 @@ void ProtocolHandler::createUnifiedKey()
 
 void ProtocolHandler::setUnifiedKey(const std::string &key)
 {
+    assert(key.size() == SVCRYPTO_KEY_SIZE);
     mUnifiedKey.reset(new UnifiedKey(key.data(), key.size()));
 }
 
@@ -885,10 +886,9 @@ bool ProtocolHandler::getPreviewMode()
 std::string ProtocolHandler::getUnifiedKey()
 {
     std::string key;
-    const char *buf = mUnifiedKey->buf();
-    if (buf)
+    if (!mUnifiedKey->empty())
     {
-        key.assign(buf, mega::UNIFIEDKEY);
+        key.assign(mUnifiedKey->buf(), mUnifiedKey->size());
     }
     return key;
 }

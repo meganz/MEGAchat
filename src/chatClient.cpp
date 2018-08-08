@@ -1542,7 +1542,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
                     //Append [creatorhandle+uk]
                     std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
-                    uKeyBin.append(useruk->buf(), mega::UNIFIEDKEY);
+                    uKeyBin.append(useruk->buf(), useruk->size());
                     delete auxcreatorHandleBin;
 
                     //Encode [creatorhandle+uk] to B64
@@ -1566,7 +1566,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 char *creatorHandleBin = new char[mega::USERHANDLE];
                 memcpy(creatorHandleBin, &(creatorHandle), mega::USERHANDLE);
                 std::string okeyBin (creatorHandleBin, mega::USERHANDLE);
-                okeyBin.append(ownKey->buf(), mega::UNIFIEDKEY);
+                okeyBin.append(ownKey->buf(), ownKey->size());
                 delete creatorHandleBin;
 
                 //Encode [creatorhandle+uk] to B64
@@ -1803,7 +1803,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     if (mPublicChat)
     {
         mPublicHandle = Id::inval();
-        if(unifiedKey.size() == mega::UNIFIEDKEY)
+        if(unifiedKey.size() == strongvelope::SVCRYPTO_KEY_SIZE)
         {
             chat().crypto()->setUnifiedKey(unifiedKey);
             chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
@@ -2444,27 +2444,25 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     {
         mPublicHandle = Id::inval();
         //Get B64 unified key
-        if(aChat.getUnifiedKey())
+        const char *bufB64 = aChat.getUnifiedKey();
+        if (bufB64)
         {
-            std::string recvKey(aChat.getUnifiedKey());
             try
             {
                 //Convert received key from B64 to Bin
-                char *recvKeyBin = new char[mega::HANDLEWITHUNIFIEDKEY];
-                int len = mega::Base64::atob(recvKey.data(), (byte *) recvKeyBin, mega::HANDLEWITHUNIFIEDKEY);
-                if (len == mega::HANDLEWITHUNIFIEDKEY)
+                int lenKey = strongvelope::SVCRYPTO_KEY_SIZE;
+                int lenPair = mega::MegaClient::CHATLINKHANDLE + lenKey;
+                char *bufBin = new char[lenPair];
+                int len = mega::Base64::atob(bufB64, (byte *)bufBin, lenPair);
+                if (len == lenPair)
                 {
                     //Parse invitor handle (First 8 Bytes)
                     uint64_t invitorHandle;
-                    memcpy(&invitorHandle, recvKeyBin, mega::USERHANDLE);
+                    memcpy(&invitorHandle, bufBin, sizeof invitorHandle);
 
                     //Parse unified key (Last 16 Bytes)
-                    char unifiedKey [mega::UNIFIEDKEY+1] = {0};
-                    memcpy(unifiedKey, &recvKeyBin[mega::USERHANDLE], mega::UNIFIEDKEY);
-                    delete recvKeyBin;
-
-                    auto bufunifiedkey = std::make_shared<Buffer>(mega::UNIFIEDKEY);
-                    bufunifiedkey->assign(unifiedKey, mega::UNIFIEDKEY);
+                    auto bufunifiedkey = std::make_shared<Buffer>(lenKey);
+                    bufunifiedkey->assign(&bufBin[mega::USERHANDLE], lenKey);
                     auto wptr = getDelTracker();
 
                     //Decrypt unifiedkey
@@ -2507,6 +2505,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
                     KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
                     this->mChat->disable(true);
                 }
+                delete [] bufBin;
             }
             catch(std::exception& e)
             {
@@ -2768,7 +2767,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 
                 //Append [creatorhandle+uk]
                 std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
-                uKeyBin.append(useruk->buf(), mega::UNIFIEDKEY);
+                uKeyBin.append(useruk->buf(), useruk->size());
                 delete auxcreatorHandleBin;
 
                 //Encode [creatorhandle+uk] to B64
@@ -2821,7 +2820,7 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
 
         //Append [invitorhandle+uk]
         std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
-        uKeyBin.append(key.data(), mega::UNIFIEDKEY);
+        uKeyBin.append(key.data(), key.size());
         delete auxcreatorHandleBin;
 
         //Encode [invitorhandle+uk] to B64

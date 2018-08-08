@@ -954,7 +954,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 string keybin(groupRoom->chatkey());
                 MegaChatErrorPrivate *megaChatError;
-                if (keybin.size() != mega::UNIFIEDKEY)
+                if (keybin.size() != 16)
                 {
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                 }
