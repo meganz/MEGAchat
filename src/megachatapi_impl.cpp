@@ -949,7 +949,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 MegaChatHandle phbin = groupRoom->publicHandle();
                 char *auxphstr = new char[8];
-                Base64::btoa((byte*)&(phbin),MegaClient::CHATLINKHANDLE,auxphstr);
+                Base64::btoa((byte*)&(phbin), MegaClient::CHATLINKHANDLE, auxphstr);
                 std::string phstr(auxphstr, 8);
 
                 string keybin(groupRoom->chatkey());

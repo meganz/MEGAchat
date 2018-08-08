@@ -315,9 +315,9 @@ protected:
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    uint64_t mPublicHandle;
-    bool mPublicChat;
-    bool mPreviewMode;
+    bool mPublicChat = false;
+    uint64_t mPublicHandle = Id::inval();
+    bool mPreviewMode = false;
     int mNumPeers = 0; //Only for public chats in preview mode
 
     void setChatPrivateMode();

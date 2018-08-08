@@ -146,8 +146,7 @@ public:
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) = 0;
 
-    virtual void
-    createUnifiedKey() = 0;
+    virtual void createUnifiedKey() = 0;
 
     virtual void setUnifiedKey(const std::string &key) = 0;
 

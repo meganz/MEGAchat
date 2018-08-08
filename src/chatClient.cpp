@@ -382,7 +382,7 @@ promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::st
 
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, true, ph, true, chatKey, numPeers, url);
         mPhToChatId[ph] = chatId;
-        chats->emplace(chatId, (ChatRoom *)room);
+        chats->emplace(chatId, room);
         room->connect();
         return promise::_Void();
     });
@@ -390,14 +390,8 @@ promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::st
 
 promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 {
-    auto wptr = weakHandle();
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
-
-    const char *title = NULL;
-    if (room->hasTitle())
-    {
-        title = room->titleString();
-    }
+    const char *title = (room->hasTitle()) ? room->titleString() : NULL;
 
     promise::Promise<std::shared_ptr<Buffer>> pms;
     if (title)
@@ -408,17 +402,19 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
     else
     {
         pms = promise::Promise<std::shared_ptr<Buffer>>();
-        pms.resolve(std::make_shared<Buffer>(512));
+        pms.resolve(std::make_shared<Buffer>());
     }
 
+    auto wptr = weakHandle();
     return pms.then([wptr, this, chatid, room, title](const std::shared_ptr<Buffer>& encTitle)
     {
         wptr.throwIfDeleted();
-        auto auxbuf = base64urlencode(encTitle->buf(), encTitle->dataSize());
-        const char *enctitleB64 = encTitle->dataSize() ? auxbuf.c_str(): NULL;
+
+        std::string auxbuf = base64urlencode(encTitle->buf(), encTitle->dataSize());
+        const char *enctitleB64 = encTitle->dataSize() ? auxbuf.c_str() : NULL;
 
         return api.call(&::mega::MegaApi::chatLinkClose, chatid, enctitleB64)
-        .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
+        .then([this, room, wptr, chatid](ReqResult) -> promise::Promise<void>
         {
             if (wptr.deleted())
                 return promise::_Void();
@@ -434,12 +430,14 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
 promise::Promise<void> Client::deleteChatLink(karere::Id chatid)
 {
     auto wptr = weakHandle();
-    GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
 
-    wptr.throwIfDeleted();
     return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
-    .then([this, room, wptr, chatid](ReqResult result) -> promise::Promise<void>
+    .then([this, wptr, chatid](ReqResult) -> promise::Promise<void>
     {
+        wptr.throwIfDeleted();
+
+        GroupChatRoom *room = (GroupChatRoom *) this->chats->at(chatid);
+
         eraseChatIdByPh(room->publicHandle());
         room->setPublicHandle(Id::inval());
         return promise::_Void();
@@ -1503,7 +1501,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     else
     {
         pms = promise::Promise<std::shared_ptr<Buffer>>();
-        pms.resolve(std::make_shared<Buffer>(512));
+        pms.resolve(std::make_shared<Buffer>());
     }
 
     return pms.then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
@@ -2442,7 +2440,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     if (mPublicChat)
     {
-        mPublicHandle = Id::inval();
         //Get B64 unified key
         const char *bufB64 = aChat.getUnifiedKey();
         if (bufB64)
@@ -2485,24 +2482,24 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
                        if (mHasTitle)
                        {
                            decryptTitle()
-                           .fail([](const promise::Error& err)
+                           .fail([](const promise::Error& )
                            {
                                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
                            });
                        }
                     })
-                    .fail([wptr, this](const promise::Error& err)
+                    .fail([wptr, this](const promise::Error& )
                     {
                         if (wptr.deleted())
                              return;
 
-                        KR_LOG_ERROR("Error decrypting unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+                        KR_LOG_ERROR("Error decrypting unifiedKey for chat %s", Id(this->mChatid).toString().c_str());
                         this->mChat->disable(true);
                     });
                 }
                 else
                 {
-                    KR_LOG_ERROR("Error obtaining unifiedKey for chat %s:\n.", Id(this->mChatid).toString().c_str());
+                    KR_LOG_ERROR("Error obtaining unifiedKey for chat %s", Id(this->mChatid).toString().c_str());
                     this->mChat->disable(true);
                 }
                 delete [] bufBin;
@@ -2526,7 +2523,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         if (mHasTitle)
         {
             decryptTitle()
-            .fail([](const promise::Error& err)
+            .fail([](const promise::Error&)
             {
                 KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
             });
