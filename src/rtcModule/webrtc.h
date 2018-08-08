@@ -124,8 +124,8 @@ enum TermCode: uint8_t
 
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
-static const unsigned int kStatsPeriod = 1;         // Timeout to get new stats
-static const unsigned int kMaxStatsPeriod = 5;      // Maximun timeout without add new sample to stats
+static const unsigned int kStatsPeriod = 1;         // Timeout to get new stats (in seconds)
+static const unsigned int kMaxStatsPeriod = 5;      // Maximum timeout without adding new sample to stats (in seconds)
 
 static inline bool isTermError(TermCode code)
 {
@@ -253,7 +253,6 @@ public:
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
     karere::Id peer() const { return mPeer; }
-    virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
 };

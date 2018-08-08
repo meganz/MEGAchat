@@ -790,7 +790,7 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
     }
 
     auto wptr = weakHandle();
-    mTimer = setInterval([this, wptr]()
+    mStatsTimer = setInterval([this, wptr]()
     {
         if (wptr.deleted())
             return;
@@ -1783,9 +1783,9 @@ Call::~Call()
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
-    if (mTimer)
+    if (mStatsTimer)
     {
-        cancelInterval(mTimer, mManager.mClient.appCtx);
+        cancelInterval(mStatsTimer, mManager.mClient.appCtx);
     }
 
     SUB_LOG_DEBUG("Destroyed");
@@ -2956,12 +2956,9 @@ void Session::sdpSetVideoBw(std::string& sdp, int maxbr)
     sdp.insert(m.position(0) + m.length(0), line);
 }
 
-int Session::calculateNetworkQuality(stats::Sample *sample)
+int Session::calculateNetworkQuality(const stats::Sample *sample)
 {
-    if (!sample)
-    {
-        return kNetworkQualityDefault;
-    }
+    assert(sample);
 
     // check audio quality based on packets lost
     long audioPacketLostAverage;

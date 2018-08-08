@@ -95,7 +95,6 @@ protected:
     BwCalculator mAudioTxBwCalc;
     BwCalculator mConnRxBwCalc;
     BwCalculator mConnTxBwCalc;
-    unsigned int mPreviousStatsSample;
     void addSample();
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
@@ -105,10 +104,6 @@ public:
     std::unique_ptr<RtcStats> mStats;
     Recorder(Session& sess, int scanPeriod, int maxSamplePeriod);
     ~Recorder();
-    bool isRelay() const
-    {
-        return !mStats->mConnInfo.mRlySvr.empty();
-    }
     void start();
     std::string terminate(const StatSessInfo &info);
     virtual void OnComplete(const webrtc::StatsReports& data);

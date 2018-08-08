@@ -29,7 +29,6 @@ Recorder::Recorder(Session& sess, int scanPeriod, int maxSamplePeriod)
     :mScanPeriod(scanPeriod * 1000), mMaxSamplePeriod(maxSamplePeriod * 1000),
     mCurrSample(new Sample), mSession(sess), mStats(new RtcStats)
 {
-    memset(mCurrSample.get(), 0, sizeof(Sample));
     AddRef();
     if (mScanPeriod < 0)
         mScanPeriod = 1000;
@@ -95,15 +94,9 @@ std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, c
 void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
 {
     uint64_t deltaBytes = newTotalBytes - mBwInfo->bt;
-    long bps = 0;
-    mBwInfo->bps = 0;
-    if (periodMs != 0)
-    {
-        bps = mBwInfo->bps = ((float)(deltaBytes) / 128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
-    }
-
+    mBwInfo->bps = (!periodMs) ? 0 : ((float)(deltaBytes) / 128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
     mBwInfo->bt = newTotalBytes;
-    mBwInfo->abps = (mBwInfo->abps * 4 + bps) / 5;
+    mBwInfo->abps = (mBwInfo->abps * 4 + mBwInfo->bps) / 5;
 }
 
 void Recorder::OnComplete(const webrtc::StatsReports& data)
@@ -151,8 +144,8 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 }
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.s.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.s.lcpu = getStringValue(VALNAME(CpuLimitedResolution), item) == "true";
-                sample.s.lbw = getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true";
+                sample.s.lcpu = (getStringValue(VALNAME(CpuLimitedResolution), item) == "true");
+                sample.s.lbw = (getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true");
                 mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
             }
             else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
@@ -169,18 +162,18 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 AVG(JitterReceived, mCurrSample->astats.r.jtr);
                 mCurrSample->astats.r.pl = getLongValue(VALNAME(PacketsLost), item);
                 AVG(CurrentDelayMs, mCurrSample->astats.r.dly);
-                mCurrSample->astats.r.al = ((float)((getLongValue(VALNAME(AudioOutputLevel), item))/327.67) >= 10) ? 1 : 0;
+                mCurrSample->astats.r.al = ((((float)getLongValue(VALNAME(AudioOutputLevel), item))/327.67) >= 10) ? 1 : 0;
             }
         }
-        else if ((item->id()->type() == RPTYPE(CandidatePair)) && getStringValue(VALNAME(ActiveConnection), item) == "true")
+        else if ((item->id()->type() == RPTYPE(CandidatePair)) && (getStringValue(VALNAME(ActiveConnection), item) == "true"))
         {
-            mStats->mConnInfo.mRly = getStringValue(VALNAME(LocalCandidateType), item) == "relay";
+            mStats->mConnInfo.mRly = (getStringValue(VALNAME(LocalCandidateType), item) == "relay");
             if (mStats->mConnInfo.mRly)
             {
                 mStats->mConnInfo.mRlySvr = getStringValue(VALNAME(LocalAddress), item);
             }
 
-            mStats->mConnInfo.mRRly = getStringValue(VALNAME(RemoteCandidateType), item) == "relay";
+            mStats->mConnInfo.mRRly = (getStringValue(VALNAME(RemoteCandidateType), item) == "relay");
             if (mStats->mConnInfo.mRRly)
             {
                 mStats->mConnInfo.mRRlySvr = getStringValue(VALNAME(RemoteAddress), item);
@@ -287,7 +280,6 @@ void Recorder::start()
     mStats->mPeerAnonId = mSession.peerAnonId();
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
-    mPreviousStatsSample = mStats->mSamples.size();
 }
 
 std::string Recorder::terminate(const StatSessInfo& info)
@@ -402,8 +394,8 @@ void RtcStats::toJson(std::string& json) const
     JSON_ADD_INT(rrly, mConnInfo.mRRly);
     JSON_ADD_STR(proto, mConnInfo.mProto);
     JSON_ADD_INT(isJoiner, mIsJoiner);
-    JSON_ADD_STR(caid, mIsJoiner?mOwnAnonId.toString():mPeerAnonId.toString());
-    JSON_ADD_STR(aaid, mIsJoiner?mPeerAnonId.toString():mOwnAnonId.toString());
+    JSON_ADD_STR(caid, mIsJoiner ? mOwnAnonId.toString() : mPeerAnonId.toString());
+    JSON_ADD_STR(aaid, mIsJoiner ? mPeerAnonId.toString() : mOwnAnonId.toString());
     JSON_ADD_STR(termRsn, mTermRsn);
     json[json.size()-1]='}'; //all
 }

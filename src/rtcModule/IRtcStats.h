@@ -12,9 +12,9 @@ namespace stats
 
 struct BwInfo
 {
-    long bt;        // total bytes
-    long bps;       // bits-per-second
-    long abps;      // average bits-per-second
+    long bt = 0;        // total bytes
+    long bps = 0;       // bits-per-second
+    long abps = 0;      // average bits-per-second
 };
 
 struct Sample

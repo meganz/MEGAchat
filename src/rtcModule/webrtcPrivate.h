@@ -84,7 +84,7 @@ protected:
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
     void sdpSetVideoBw(std::string& sdp, int maxbr);
-    int calculateNetworkQuality(stats::Sample* sample);
+    int calculateNetworkQuality(const stats::Sample* sample);
 
 public:
     RtcModule& mManager;
@@ -146,7 +146,7 @@ protected:
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
-    megaHandle mTimer = 0;
+    megaHandle mStatsTimer = 0;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
