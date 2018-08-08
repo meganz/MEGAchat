@@ -1508,8 +1508,12 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     return pms.then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
     {
-        auto auxbuf = base64urlencode(encTitle->buf(), encTitle->dataSize());
-        const char *enctitleB64 = encTitle->dataSize() ? auxbuf.c_str(): NULL;
+        std::string enctitleB64;
+        if (!encTitle->empty())
+        {
+            enctitleB64 = base64urlencode(encTitle->buf(), encTitle->dataSize());
+        }
+
         ApiPromise createChatPromise;
 
         if (publicchat)
@@ -1571,12 +1575,14 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
                 //Add entry to map
                 userKeyMap->set(ohB64, oKeyB64.c_str());
-                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap, enctitleB64);
+                return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
+                                !enctitleB64.empty() ? enctitleB64.c_str() : NULL);
             });
         }
         else
         {
-            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), enctitleB64);
+            createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(),
+                                         !enctitleB64.empty() ? enctitleB64.c_str() : NULL);
         }
 
         return createChatPromise
