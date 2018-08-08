@@ -103,19 +103,17 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         else
         {
             const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
-            if (msgAuthor)
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
             {
                 mLastMsgAuthor.assign(msgAuthor);
             }
             else
             {
-                mLastMsgAuthor = "Unknown participant";
-                mMegaChatApi->getUserFirstname(lastMessageSender);
+                mLastMsgAuthor = "Loading firstname...";
             }
-            delete msgAuthor;
+            delete [] msgAuthor;
         }
     }
-
     switch (lastMessageType)
     {
         case megachat::MegaChatMessage::TYPE_INVALID:
@@ -357,7 +355,7 @@ ChatWindow *ChatItemWidget::getChatWindow()
     return mChatWindow;
 }
 
-void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
+void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
     showChatWindow();
 }

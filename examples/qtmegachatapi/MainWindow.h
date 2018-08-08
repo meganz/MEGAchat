@@ -11,10 +11,12 @@
 #include "megaLoggerApplication.h"
 #include "chatGroupDialog.h"
 #include "QTMegaChatCallListener.h"
+#include "MegaChatApplication.h"
 
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
 const int chatArchivedStatus = 2;
+class MegaChatApplication;
 
 struct Chat
 {
@@ -59,7 +61,6 @@ class MainWindow :
         virtual ~MainWindow();
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
-        void addChatListener();
         void clearContactChatList();
         void orderContactChatList(bool showInactive, bool showArchived);
         void addContacts();
@@ -101,8 +102,9 @@ class MainWindow :
         bool archivedItemsVisibility = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
-        mega::MegaApi * mMegaApi;
-        megachat::MegaChatApi * mMegaChatApi;
+        MegaChatApplication *mApp;
+        mega::MegaApi *mMegaApi;
+        megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
         std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
@@ -124,15 +126,18 @@ class MainWindow :
         void on_bHiddenChats_clicked();
         void on_bArchivedChats_clicked();
         void on_bChatGroup_clicked();
+        void on_mLogout_clicked();
 
     signals:
         void esidLogout();
 
      friend class ChatItemWidget;
+     friend class ContactItemWidget;
      friend class MegaChatApplication;
      friend class ChatSettingsDialog;
      friend class CallAnswerGui;
      friend class ChatWindow;
+     friend class ChatMessage;
 };
 
 #endif // MAINWINDOW_H
