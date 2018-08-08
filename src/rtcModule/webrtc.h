@@ -124,6 +124,8 @@ enum TermCode: uint8_t
 
 static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
 static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
+static const unsigned int kStatsPeriod = 1;         // Timeout to get new stats
+static const unsigned int kMaxStatsPeriod = 5;      // Maximun timeout without add new sample to stats
 
 static inline bool isTermError(TermCode code)
 {

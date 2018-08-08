@@ -788,6 +788,21 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
         assert(!callerUser);
         assert(!callerClient);
     }
+
+    auto wptr = weakHandle();
+    mTimer = setInterval([this, wptr]()
+    {
+        if (wptr.deleted())
+            return;
+
+        for (auto it = mSessions.begin(); it != mSessions.end(); it++)
+        {
+            if (it->second->getState() == Session::kStateInProgress)
+            {
+                it->second->pollStats();
+            }
+        }
+    }, kStatsPeriod * 1000, mManager.mClient.appCtx);
 }
 
 void Call::handleMessage(RtMessage& packet)
@@ -1768,6 +1783,11 @@ Call::~Call()
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
+    if (mTimer)
+    {
+        cancelInterval(mTimer, mManager.mClient.appCtx);
+    }
+
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
@@ -2155,7 +2175,7 @@ void Session::createRtcConn()
             RTCM_LOG_ERROR("mRtcConn->AddStream() returned false");
         }
     }
-    mStatRecorder.reset(new stats::Recorder(*this, 1, 5));
+    mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
     mStatRecorder->start();
 }
 //PeerConnection events
@@ -2697,10 +2717,21 @@ Session::~Session()
     SUB_LOG_DEBUG("Destroyed");
 }
 
+void Session::pollStats()
+{
+    mRtcConn->GetStats(static_cast<webrtc::StatsObserver*>(mStatRecorder.get()), nullptr, mStatRecorder->getStatsLevel());
+    unsigned int statsSize = mStatRecorder->mStats->mSamples.size();
+    if (statsSize != mPreviousStatsSize)
+    {
+        manageNetworkQuality(mStatRecorder->mStats->mSamples.back());
+        mPreviousStatsSize = statsSize;
+    }
+}
+
 void Session::manageNetworkQuality(stats::Sample *sample)
 {
     int previousNetworkquality = mNetworkQuality;
-    mNetworkQuality = calculateNetworkQuality(sample);
+    mNetworkQuality = sample->lq;
     if (previousNetworkquality != mNetworkQuality)
     {
         FIRE_EVENT(SESS, onSessionNetworkQualityChange, mNetworkQuality);

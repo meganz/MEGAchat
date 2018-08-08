@@ -94,11 +94,16 @@ std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, c
 
 void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
 {
-    uint64_t deltaBytes = newTotalBytes - mTotalBytes;
-    auto bps = mBwInfo->bps = ((float)(deltaBytes)/128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
-    mTotalBytes = newTotalBytes;
-    mBwInfo->bs += deltaBytes;
-    mBwInfo->abps = (mBwInfo->abps * 4+bps) / 5;
+    uint64_t deltaBytes = newTotalBytes - mBwInfo->bt;
+    long bps = 0;
+    mBwInfo->bps = 0;
+    if (periodMs != 0)
+    {
+        bps = mBwInfo->bps = ((float)(deltaBytes) / 128.0) / (periodMs / 1000.0); //from bytes/s to kbits/s
+    }
+
+    mBwInfo->bt = newTotalBytes;
+    mBwInfo->abps = (mBwInfo->abps * 4 + bps) / 5;
 }
 
 void Recorder::OnComplete(const webrtc::StatsReports& data)
@@ -163,24 +168,27 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 mAudioTxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
                 AVG(JitterReceived, mCurrSample->astats.r.jtr);
                 mCurrSample->astats.r.pl = getLongValue(VALNAME(PacketsLost), item);
+                AVG(CurrentDelayMs, mCurrSample->astats.r.dly);
+                mCurrSample->astats.r.al = ((float)((getLongValue(VALNAME(AudioOutputLevel), item))/327.67) >= 10) ? 1 : 0;
             }
         }
         else if ((item->id()->type() == RPTYPE(CandidatePair)) && getStringValue(VALNAME(ActiveConnection), item) == "true")
         {
-            if (!mHasConnInfo) //happens if peer is Firefox
+            mStats->mConnInfo.mRly = getStringValue(VALNAME(LocalCandidateType), item) == "relay";
+            if (mStats->mConnInfo.mRly)
             {
-                mHasConnInfo = true;
-                bool isRelay = getStringValue(VALNAME(LocalCandidateType), item) == "relay";
-                if (isRelay)
-                {
-                    auto& rlySvr = mStats->mConnInfo.mRlySvr;
-                    rlySvr = getStringValue(VALNAME(LocalAddress), item);
-                    if (rlySvr.empty())
-                        rlySvr = "<error getting relay server>";
-                }
-                mStats->mConnInfo.mCtype = getStringValue(VALNAME(RemoteCandidateType), item);
-                mStats->mConnInfo.mProto = getStringValue(VALNAME(TransportType), item);
+                mStats->mConnInfo.mRlySvr = getStringValue(VALNAME(LocalAddress), item);
             }
+
+            mStats->mConnInfo.mRRly = getStringValue(VALNAME(RemoteCandidateType), item) == "relay";
+            if (mStats->mConnInfo.mRRly)
+            {
+                mStats->mConnInfo.mRRlySvr = getStringValue(VALNAME(RemoteAddress), item);
+            }
+
+            mStats->mConnInfo.mCtype = getStringValue(VALNAME(RemoteCandidateType), item);
+            mStats->mConnInfo.mProto = getStringValue(VALNAME(TransportType), item);
+
             auto& cstat = mCurrSample->cstats;
             AVG(Rtt, cstat.rtt);
             mConnRxBwCalc.calculate(period, getLongValue(VALNAME(BytesReceived), item));
@@ -248,6 +256,9 @@ void Recorder::onStats(const webrtc::StatsReports &data)
 //        printf("mOptions.maxSamplePeriod = %d\n", mOptions.maxSamplePeriod);
 //        printf("d_ts = %llu, d_dly = %ld, d_auRtt = %ld, d_vrtt = %ld, d_auJtr = %ld, d_apl = %ld", d_ts, d_dly, d_auRtt, d_vrtt, d_auJtr, d_apl);
     }
+
+    mCurrSample->lq = mSession.calculateNetworkQuality(mCurrSample.get());
+
     if (shouldAddSample)
     {
         //KR_LOG_DEBUG("Stats: add sample");
@@ -261,10 +272,15 @@ void Recorder::onStats(const webrtc::StatsReports &data)
     }
 }
 
+webrtc::PeerConnectionInterface::StatsOutputLevel Recorder::getStatsLevel() const
+{
+    return mStatsLevel;
+}
+
 void Recorder::start()
 {
     assert(mSession.mRtcConn);
-    mStats->mIsCaller = mSession.isCaller();
+    mStats->mIsJoiner = !mSession.isCaller();
     mStats->mCallId = mSession.call().id();
     mStats->mSessionId = mSession.sessionId();
     mStats->mOwnAnonId = mSession.call().manager().ownAnonId();
@@ -272,21 +288,10 @@ void Recorder::start()
     mStats->mSper = mScanPeriod;
     mStats->mStartTs = karere::timestampMs();
     mPreviousStatsSample = mStats->mSamples.size();
-    mTimer = setInterval([this]()
-    {
-        mSession.rtcConn()->GetStats(static_cast<webrtc::StatsObserver*>(this), nullptr, mStatsLevel);
-        if (mStats->mSamples.size() != mPreviousStatsSample)
-        {
-            mSession.manageNetworkQuality(mStats->mSamples.back());
-            mPreviousStatsSample = mStats->mSamples.size();
-        }
-    }, mScanPeriod, mSession.mManager.mClient.appCtx);
 }
 
 std::string Recorder::terminate(const StatSessInfo& info)
 {
-    cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
-    mTimer = 0;
     mStats->mDur = karere::timestampMs() - mStats->mStartTs;
     mStats->mTermRsn = info.mTermReason;
     mStats->mDeviceInfo = info.deviceInfo;
@@ -297,8 +302,6 @@ std::string Recorder::terminate(const StatSessInfo& info)
 
 Recorder::~Recorder()
 {
-    if (mTimer)
-        cancelInterval(mTimer, mSession.mManager.mClient.appCtx);
 }
 
 RtcStats::~RtcStats()
@@ -341,7 +344,7 @@ const char* decToString(float v)
 #define JSON_ADD_DEC_SAMPLES(path, name) JSON_ADD_SAMPLES_WITH_CONV(path, name, decToString)
 
 #define JSON_ADD_BWINFO(path)           \
-    JSON_ADD_SAMPLES(path., bs);        \
+    JSON_ADD_SAMPLES(path., bt);        \
     JSON_ADD_SAMPLES(path., bps);       \
     JSON_ADD_SAMPLES(path., abps)
 
@@ -351,54 +354,31 @@ void RtcStats::toJson(std::string& json) const
     json ="{";
     JSON_ADD_STR(cid, mCallId.toString());
     JSON_ADD_STR(sid, mSessionId.toString());
-    JSON_ADD_STR(caid, mIsCaller?mOwnAnonId.toString():mPeerAnonId.toString());
-    JSON_ADD_STR(aaid, mIsCaller?mPeerAnonId.toString():mOwnAnonId.toString());
-    JSON_ADD_INT(isCaller, mIsCaller);
-    JSON_ADD_INT(ts, mStartTs);
-    JSON_ADD_INT(sper, mSper);
+    JSON_ADD_INT(ts, round((float)mStartTs/1000));
     JSON_ADD_INT(dur, round((float)mDur/1000));
-    JSON_ADD_STR(termRsn, mTermRsn);
-    JSON_ADD_STR(bws, mDeviceInfo);
-
-    int isRelay = !mConnInfo.mRlySvr.empty();
-    JSON_ADD_INT(rly, isRelay);
-    if (isRelay)
-        JSON_ADD_STR(rlySvr, mConnInfo.mRlySvr);
-    JSON_ADD_STR(ctype, mConnInfo.mCtype);
-    JSON_ADD_STR(proto, mConnInfo.mProto);
-    JSON_ADD_STR(vcodec, mConnInfo.mVcodec);
     JSON_SUBOBJ("samples");
         JSON_ADD_SAMPLES(, ts);
-        JSON_SUBOBJ("c");
-            JSON_ADD_SAMPLES(cstats., rtt);
-                JSON_SUBOBJ("s");
-                    JSON_ADD_BWINFO(cstats.s);
-                JSON_END_SUBOBJ();
-                JSON_SUBOBJ("r");
-                    JSON_ADD_BWINFO(cstats.r);
-                JSON_END_SUBOBJ();
-        JSON_END_SUBOBJ();
+        JSON_ADD_SAMPLES(, lq);
         JSON_SUBOBJ("v");
             JSON_ADD_SAMPLES(vstats., rtt);
             JSON_SUBOBJ("s");
                 JSON_ADD_BWINFO(vstats.s);
-                JSON_ADD_SAMPLES(vstats.s., gbps);
                 JSON_ADD_SAMPLES(vstats.s., fps);
                 JSON_ADD_SAMPLES(vstats.s., cfps);
-                JSON_ADD_SAMPLES(vstats.s., cjtr);
                 JSON_ADD_SAMPLES(vstats.s., width);
                 JSON_ADD_SAMPLES(vstats.s., height);
                 JSON_ADD_DEC_SAMPLES(vstats.s., el);
                 JSON_ADD_SAMPLES(vstats.s., lcpu);
                 JSON_ADD_SAMPLES(vstats.s., lbw);
                 JSON_ADD_SAMPLES(vstats.s., bwav);
+                JSON_ADD_SAMPLES(vstats.s., gbps);
             JSON_END_SUBOBJ();
             JSON_SUBOBJ("r");
                 JSON_ADD_BWINFO(vstats.r);
-                JSON_ADD_SAMPLES(vstats.r., fps);
-                JSON_ADD_SAMPLES(vstats.r., jtr);
-                JSON_ADD_SAMPLES(vstats.r., dly);
                 JSON_ADD_SAMPLES(vstats.r., pl);
+                JSON_ADD_SAMPLES(vstats.r., jtr);
+                JSON_ADD_SAMPLES(vstats.r., fps);
+                JSON_ADD_SAMPLES(vstats.r., dly);
                 JSON_ADD_SAMPLES(vstats.r., width);
                 JSON_ADD_SAMPLES(vstats.r., height);
             JSON_END_SUBOBJ(); //r
@@ -412,9 +392,19 @@ void RtcStats::toJson(std::string& json) const
                 JSON_ADD_BWINFO(astats.r);
                 JSON_ADD_SAMPLES(astats.r., jtr);
                 JSON_ADD_SAMPLES(astats.r., pl);
+                JSON_ADD_SAMPLES(astats.r., dly);
+                JSON_ADD_SAMPLES(astats.r., al);
             JSON_END_SUBOBJ();
         JSON_END_SUBOBJ(); //a
     JSON_END_SUBOBJ(); //samples
+    JSON_ADD_STR(bws, mDeviceInfo);
+    JSON_ADD_INT(rly, mConnInfo.mRly);
+    JSON_ADD_INT(rrly, mConnInfo.mRRly);
+    JSON_ADD_STR(proto, mConnInfo.mProto);
+    JSON_ADD_INT(isJoiner, mIsJoiner);
+    JSON_ADD_STR(caid, mIsJoiner?mOwnAnonId.toString():mPeerAnonId.toString());
+    JSON_ADD_STR(aaid, mIsJoiner?mPeerAnonId.toString():mOwnAnonId.toString());
+    JSON_ADD_STR(termRsn, mTermRsn);
     json[json.size()-1]='}'; //all
 }
 }

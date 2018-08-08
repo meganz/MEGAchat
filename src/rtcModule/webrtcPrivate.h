@@ -58,6 +58,7 @@ protected:
     bool mVideoReceived = false;
     int mNetworkQuality = kNetworkQualityDefault;    // from 0 (worst) to 5 (best)
     long mAudioPacketLostAverage = 0;
+    unsigned int mPreviousStatsSize = 0;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
@@ -89,6 +90,7 @@ public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
     ~Session();
+    void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
     void manageNetworkQuality(stats::Sample* sample);
@@ -144,6 +146,7 @@ protected:
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
+    megaHandle mTimer = 0;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);

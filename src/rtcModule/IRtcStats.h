@@ -12,7 +12,7 @@ namespace stats
 
 struct BwInfo
 {
-    long bs;        // delta-bytes
+    long bt;        // total bytes
     long bps;       // bits-per-second
     long abps;      // average bits-per-second
 };
@@ -20,6 +20,7 @@ struct BwInfo
 struct Sample
 {
     int64_t ts;
+    int lq;         // network quality
     struct
     {
         long rtt = 0;               // Round-Trip delay Time
@@ -40,7 +41,6 @@ struct Sample
             long gbps = 0;          // transmit bitrate
             short fps = 0;          // frames-per-second
             short cfps = 0;         // frame-rate input
-            long cjtr = 0;
             short width = 0;        // width of frame
             short height = 0;       // height of frame
             float el = 0.0;         // encode-usage percentage
@@ -60,6 +60,8 @@ struct Sample
         {
             long pl = 0;            // packets lost
             long jtr = 0;           // jitter
+            long dly = 0;           // current delay in milliseconds
+            long al = 0;            // audio output level
         } r;
         BwInfo s;
 
