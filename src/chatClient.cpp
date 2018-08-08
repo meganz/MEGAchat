@@ -371,13 +371,13 @@ promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::st
         std::string title = result->getText() ? result->getText() : "";
         if (title.empty())
         {
-            KR_LOG_WARNING("Chat title is empty for chatid: %d", chatId);
+            KR_LOG_WARNING("Chat title is empty for chatid: %s", chatId.toString().c_str());
         }
 
         std::string url = result->getLink() ? result->getLink() : "";
         if (url.empty())
         {
-            return promise::Error("Chatlink Url returned for chatid "+karere::Id(chatId).toString()+" is not valid. ", kErrorTypeGeneric);
+            return promise::Error("Chatlink Url returned for chatid "+chatId.toString()+" is not valid. ", kErrorTypeGeneric);
         }
 
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, true, ph, true, chatKey, numPeers, url);

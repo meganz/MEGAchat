@@ -2801,10 +2801,10 @@ public:
     /**
      * @brief Allows any user to preview an public chat without be part of
      *
-     * This function loads the required data required to preview an public chat referenced by a
-     * chat-link. It returns the actual \c chatid and also the title, if any. If this request
-     * success, the caller can proceed as usual with \c MegaChatApi::openChatRoom to preview
-     * the chatroom in read-only mode.
+     * This function loads the required data to preview a public chat referenced by a
+     * chat-link. It returns the actual \c chatid, the number of peers and also the title,
+     * if any. If this request success, the caller can proceed as usual with
+     * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2818,7 +2818,8 @@ public:
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
-     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
+     * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat

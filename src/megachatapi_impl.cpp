@@ -798,9 +798,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 request->setChatHandle(loadedChatId);
 
                 ChatRoom *room = findChatRoom(loadedChatId);
+                assert(room->isGroup());
                 if (room)
                 {
-                   request->setText(room->titleString());
+                    request->setText(room->titleString());
+                    request->setNumber(((GroupChatRoom*)room)->getNumPeers());
                 }
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
