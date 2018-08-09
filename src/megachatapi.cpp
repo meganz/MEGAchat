@@ -212,6 +212,11 @@ bool MegaChatCall::isOutgoing() const
     return false;
 }
 
+MegaChatHandle MegaChatCall::getCaller() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);

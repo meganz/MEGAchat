@@ -227,6 +227,7 @@ public:
     virtual bool isIgnored() const;
     virtual bool isIncoming() const;
     virtual bool isOutgoing() const;
+    virtual MegaChatHandle getCaller() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -251,6 +252,7 @@ public:
     bool isParticipating(karere::Id userid);
     void removeAllParticipants();
     void setId(karere::Id callid);
+    void setCaller(karere::Id caller);
 
 protected:
     MegaChatHandle chatid;
@@ -266,6 +268,7 @@ protected:
     std::map<karere::Id, MegaChatSession *> sessions;
     std::map<chatd::EndpointId, karere::AvFlags> participants;
     MegaChatHandle peerId;  // to identify the updated session
+    MegaChatHandle callerId;
 
     int termCode;
     bool ignored;

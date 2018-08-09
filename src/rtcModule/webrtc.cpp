@@ -948,6 +948,17 @@ void Call::msgCallReqDecline(RtMessage& packet)
     {
         handleBusy(packet);
     }
+    else if (code == TermCode::kErrNotSupported)
+    {
+        if (packet.userid != mChat.client().userId() && !mChat.isGroup())
+        {
+            mNotSupportedAnswer = true;
+        }
+        else
+        {
+            SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE (kErrNotSupported) group Chat or same user");
+        }
+    }
     else
     {
         SUB_LOG_WARNING("Ingoring CALL_REQ_DECLINE with unexpected termnation code %s", termCodeToStr(code));
@@ -1345,7 +1356,14 @@ bool Call::broadcastCallReq()
 
         if (mState == Call::kStateReqSent)
         {
-            destroy(TermCode::kRingOutTimeout, true);
+            if (mNotSupportedAnswer && !mChat.isGroup())
+            {
+                destroy(static_cast<TermCode>(TermCode::kErrNotSupported | TermCode::kPeer), true);
+            }
+            else
+            {
+                destroy(TermCode::kRingOutTimeout, true);
+            }
         }
         else if (chat().isGroup() && mState == Call::kStateInProgress)
         {
@@ -2850,6 +2868,7 @@ const char* termCodeToStr(uint8_t code)
     switch(code)
     {
         RET_ENUM_NAME(kUserHangup);
+        RET_ENUM_NAME(kCallReqCancel);
         RET_ENUM_NAME(kCallRejected);
         RET_ENUM_NAME(kAnsElsewhere);
         RET_ENUM_NAME(kRejElsewhere);
@@ -2874,6 +2893,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrSessSetupTimeout);
         RET_ENUM_NAME(kErrSessRetryTimeout);
         RET_ENUM_NAME(kErrAlready);
+        RET_ENUM_NAME(kErrNotSupported);
         RET_ENUM_NAME(kInvalid);
         RET_ENUM_NAME(kNotFinished);
         default: return "(invalid term code)";

@@ -501,15 +501,27 @@ public:
 
     /**
      * @brief Returns if call is incoming
+     *
      * @return Ture if incoming call, false if outgoing
      */
     virtual bool isIncoming() const;
 
     /**
      * @brief Returns if call is outgoing
+     *
      * @return Ture if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns the handle from user that has started the call
+     *
+     * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
+     * In any other case, it will be MEGACHAT_INVALID_HANDLE
+     *
+     * @return user handle of caller
+     */
+    virtual MegaChatHandle getCaller() const;
 };
 
 /**
