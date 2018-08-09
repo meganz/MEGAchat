@@ -52,7 +52,7 @@ using namespace megachat;
     NSString *remoteVideo = [self hasVideoInitialCall] ? @"ON" : @"OFF";
     NSString *localTermCode = [self isLocalTermCode] ? @"YES" : @"NO";
     NSString *ringing = [self isRinging] ? @"YES" : @"NO";
-    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing];
+    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@, sessions: %@, participants: %@, numParticipants: %ld>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing, [self sessions], self.participants, (long)self.numParticipants];
 }
 
 - (MEGAChatCallStatus)status {
