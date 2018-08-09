@@ -6691,7 +6691,8 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
     {
         chatid = chatCall->getChatid();
         MegaHandleList *participants = chatCall->getParticipants();
-        if (participants && participants->size() > 0)
+        bool uniqueParticipant = (participants && participants->size() == 1 && participants->get(0) == megaChatApi->getMyUserHandle());
+        if (participants && participants->size() > 0 && !uniqueParticipant)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
             megaChatApi->fireOnChatCallUpdate(chatCall);
