@@ -2737,11 +2737,12 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     .then([this, wptr, userid, priv](const std::string& title)
     {
         wptr.throwIfDeleted();
-        ApiPromise createChatPromise;
+        ApiPromise invitePms;
         if(mPublicChat)
         {
-            createChatPromise = chat().crypto()->encryptUnifiedKeyForAllParticipants(userid)
-            .then([wptr, this, title, userid, priv](chatd::KeyCommand* encKey)
+            std::string titleCpy = title;
+            invitePms = chat().crypto()->encryptUnifiedKeyForAllParticipants(userid)
+            .then([wptr, this, titleCpy, userid, priv](chatd::KeyCommand* encKey)
              {
                 //Get peer unified key
                 auto useruk = encKey->getKeyByUserId(userid);
@@ -2761,15 +2762,15 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
                 mega::Base64::btoa(uKeyBin, uKeyB64);
 
                 return parent.mKarereClient.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
-                    uKeyB64.c_str(), title.empty() ? nullptr : title.c_str());
+                    uKeyB64.c_str(), titleCpy.empty() ? nullptr : titleCpy.c_str());
              });
         }
         else
         {
-            createChatPromise = parent.mKarereClient.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
+            invitePms = parent.mKarereClient.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
                 nullptr, title.empty() ? nullptr : title.c_str());
         }
-        return createChatPromise
+        return invitePms
         .then([this, wptr, userid, priv](ReqResult)
         {
             wptr.throwIfDeleted();
@@ -2788,38 +2789,27 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 
 promise::Promise<void> GroupChatRoom::joinChatLink()
 {
-    auto wptr = getDelTracker();
-    karere::Id userid (parent.mKarereClient.mChatdClient->userId());
+    Id myHandle(parent.mKarereClient.myHandle());
 
-    return chat().crypto()->encryptUnifiedKeyToUser(userid)
-    .then([wptr, this](std::string key) -> ApiPromise
+    return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
+    .then([this, myHandle](std::string key) -> ApiPromise
     {
-        //Get own handle
-        const Id  myHandle = chat().mClient.karereClient->myHandle();
-
-        //Get invitorhandle handle in binary
-        uint64_t auxcreatorHandle = myHandle.val;
-        char *auxcreatorHandleBin = new char[mega::USERHANDLE];
-        memcpy(auxcreatorHandleBin, &(auxcreatorHandle), mega::USERHANDLE);
-
         //Append [invitorhandle+uk]
-        std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
+        std::string uKeyBin((char*)&myHandle, mega::USERHANDLE);
         uKeyBin.append(key.data(), key.size());
-        delete auxcreatorHandleBin;
 
         //Encode [invitorhandle+uk] to B64
         std::string uKeyB64;
         mega::Base64::btoa(uKeyBin, uKeyB64);
 
-        return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin, mPublicHandle,
-            uKeyB64.c_str());
-     })
-    .then([this, wptr, userid](ReqResult)
+        return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin,
+                    mPublicHandle, uKeyB64.c_str());
+    })
+    .then([this, myHandle](ReqResult)
     {
-        wptr.throwIfDeleted();
         mPreviewMode = false;
         parent.mKarereClient.eraseChatIdByPh(this->mPublicHandle);
-     });
+    });
  }
 
 //chatd::Listener::init
