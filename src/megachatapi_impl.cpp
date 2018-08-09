@@ -4199,7 +4199,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     ignored = false;
     changed = 0;
     peerId = 0;
-    callerId = call.caller();
+    callerId = call.caller() ? call.caller().val : MEGACHAT_INVALID_HANDLE;
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
@@ -4225,7 +4225,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration
     ignored = false;
     changed = 0;
     peerId = 0;
-    callerId = 0;
+    callerId = MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
