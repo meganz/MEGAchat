@@ -4103,7 +4103,8 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
 }
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
-    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo())
+    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo()),
+      networkQuality(session.getNetworkQuality()), audioDetected(session.getAudioDetected())
 {
 }
 
@@ -4134,6 +4135,16 @@ bool MegaChatSessionPrivate::hasAudio() const
 bool MegaChatSessionPrivate::hasVideo() const
 {
     return av.video();
+}
+
+int MegaChatSessionPrivate::getNetworkQuality() const
+{
+    return networkQuality;
+}
+
+bool MegaChatSessionPrivate::getAudioDetected() const
+{
+    return audioDetected;
 }
 
 uint8_t MegaChatSessionPrivate::convertSessionState(uint8_t state)
@@ -4179,6 +4190,16 @@ void MegaChatSessionPrivate::setState(uint8_t state)
 void MegaChatSessionPrivate::setAvFlags(AvFlags flags)
 {
     av = flags;
+}
+
+void MegaChatSessionPrivate::setNetworkQuality(int quality)
+{
+    networkQuality = quality;
+}
+
+void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
+{
+    this->audioDetected = audioDetected;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
@@ -4572,7 +4593,7 @@ void MegaChatCallPrivate::removeSession(Id peerid)
     }
 }
 
-void MegaChatCallPrivate::sessionUpdated(Id peerid, uint8_t changeType)
+void MegaChatCallPrivate::sessionUpdated(Id peerid, int changeType)
 {
     this->peerId = peerid;
     changed |= changeType;
@@ -6626,7 +6647,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     assert(chatCall != NULL);
     if (chatCall != NULL)
     {
-        API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %d --> %d",
+        API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
                      karere::Id(chatCall->getChatid()).toString().c_str(),
                      karere::Id(chatCall->getId()).toString().c_str(),
                      rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1
@@ -6985,6 +7006,32 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 void MegaChatSessionHandler::onVideoRecv()
 {
 
+}
+
+void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
+{
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setNetworkQuality(currentQuality);
+    chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
+    API_LOG_INFO("Network quality change. ChatId: %s, peer: %s, value: %d",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 currentQuality);
+
+    megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+void MegaChatSessionHandler::onSessionAudioDetected(bool audioDetected)
+{
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setAudioDetected(audioDetected);
+    chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_AUDIO_LEVEL);
+    API_LOG_INFO("Change Audio level. ChatId: %s, peer: %s, value: %s",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 audioDetected ? "Active" : "Inactive");
+
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 #endif

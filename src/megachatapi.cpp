@@ -73,6 +73,16 @@ bool MegaChatSession::hasVideo() const
     return false;
 }
 
+int MegaChatSession::getNetworkQuality() const
+{
+    return 0;
+}
+
+bool MegaChatSession::getAudioDetected() const
+{
+    return false;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }

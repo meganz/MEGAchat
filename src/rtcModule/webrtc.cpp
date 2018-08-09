@@ -788,6 +788,21 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
         assert(!callerUser);
         assert(!callerClient);
     }
+
+    auto wptr = weakHandle();
+    mStatsTimer = setInterval([this, wptr]()
+    {
+        if (wptr.deleted())
+            return;
+
+        for (auto it = mSessions.begin(); it != mSessions.end(); it++)
+        {
+            if (it->second->getState() == Session::kStateInProgress)
+            {
+                it->second->pollStats();
+            }
+        }
+    }, kStatsPeriod * 1000, mManager.mClient.appCtx);
 }
 
 void Call::handleMessage(RtMessage& packet)
@@ -1768,6 +1783,11 @@ Call::~Call()
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
+    if (mStatsTimer)
+    {
+        cancelInterval(mStatsTimer, mManager.mClient.appCtx);
+    }
+
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
@@ -2001,7 +2021,8 @@ Session::Session(Call& call, RtMessage& packet)
     // Packet can be RTCMD_JOIN or RTCMD_SESSION
     call.mManager.random(mOwnSdpKey);
     mHandler = call.callHandler()->onNewSession(*this);
-    printf("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
+    mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, *mHandler));
+    SUB_LOG_INFO("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
     if (packet.type == RTCMD_JOIN)
     {
         // peer will send offer
@@ -2154,7 +2175,7 @@ void Session::createRtcConn()
             RTCM_LOG_ERROR("mRtcConn->AddStream() returned false");
         }
     }
-    mStatRecorder.reset(new stats::Recorder(*this, 1, 5));
+    mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
     mStatRecorder->start();
 }
 //PeerConnection events
@@ -2178,6 +2199,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     });
     mRemotePlayer->attachToStream(stream);
     mRemotePlayer->enableVideo(mPeerAv.video());
+    mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
 }
 void Session::onRemoveStream(artc::tspMediaStream stream)
 {
@@ -2188,6 +2210,7 @@ void Session::onRemoveStream(artc::tspMediaStream stream)
     }
     if(mRemotePlayer)
     {
+        mRemotePlayer->getAudioTrack()->RemoveSink(mAudioLevelMonitor.get());
         mRemotePlayer->detachFromStream();
         mRemotePlayer.reset();
     }
@@ -2243,6 +2266,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
         mTsIceConn = time(NULL);
+        mAudioPacketLostAverage = 0;
         mCall.notifySessionConnected(*this);
     }
 }
@@ -2693,6 +2717,27 @@ Session::~Session()
     SUB_LOG_DEBUG("Destroyed");
 }
 
+void Session::pollStats()
+{
+    mRtcConn->GetStats(static_cast<webrtc::StatsObserver*>(mStatRecorder.get()), nullptr, mStatRecorder->getStatsLevel());
+    unsigned int statsSize = mStatRecorder->mStats->mSamples.size();
+    if (statsSize != mPreviousStatsSize)
+    {
+        manageNetworkQuality(mStatRecorder->mStats->mSamples.back());
+        mPreviousStatsSize = statsSize;
+    }
+}
+
+void Session::manageNetworkQuality(stats::Sample *sample)
+{
+    int previousNetworkquality = mNetworkQuality;
+    mNetworkQuality = sample->lq;
+    if (previousNetworkquality != mNetworkQuality)
+    {
+        FIRE_EVENT(SESS, onSessionNetworkQualityChange, mNetworkQuality);
+    }
+}
+
 bool Session::isTermRetriable(TermCode reason)
 {
     TermCode termCode = static_cast<TermCode>(reason & ~TermCode::kPeer);
@@ -2826,7 +2871,9 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrIceFail);
         RET_ENUM_NAME(kErrSdp);
         RET_ENUM_NAME(kErrPeerOffline);
+        RET_ENUM_NAME(kErrSessSetupTimeout);
         RET_ENUM_NAME(kErrSessRetryTimeout);
+        RET_ENUM_NAME(kErrAlready);
         RET_ENUM_NAME(kInvalid);
         RET_ENUM_NAME(kNotFinished);
         default: return "(invalid term code)";
@@ -2908,6 +2955,181 @@ void Session::sdpSetVideoBw(std::string& sdp, int maxbr)
     std::string line = "\r\nb=AS:" + std::to_string(maxbr);
     sdp.insert(m.position(0) + m.length(0), line);
 }
+
+int Session::calculateNetworkQuality(const stats::Sample *sample)
+{
+    assert(sample);
+
+    // check audio quality based on packets lost
+    long audioPacketLostAverage;
+    long audioPacketLost = sample->astats.plDifference;
+    if (audioPacketLost > mAudioPacketLostAverage)
+    {
+        audioPacketLostAverage = mAudioPacketLostAverage;
+    }
+    else
+    {
+        audioPacketLostAverage = (mAudioPacketLostAverage * 4 + audioPacketLost) / 5;
+    }
+
+    if (audioPacketLostAverage > 2)
+    {
+        // We have lost audio packets since the last sample, that's the worst network quality
+        SUB_LOG_WARNING("Audio packets lost, returning 0 link quality");
+        return 0;
+    }
+
+    // check bandwidth available for video frames wider than 480px
+    long bwav = sample->vstats.s.bwav;
+    long width = sample->vstats.s.width;
+    if (bwav && width)
+    {
+        if (width >= 480)
+        {
+            if (bwav < 30)
+            {
+                return 0;
+            }
+            else if (bwav < 64)
+            {
+                return 1;
+            }
+            else if (bwav < 160)
+            {
+                return 2;
+            }
+            else if (bwav < 300)
+            {
+                return 3;
+            }
+            else if (bwav < 400)
+            {
+                return 4;
+            }
+            else
+            {
+                return 5;
+            }
+        }
+    }
+
+    // check video frames per second
+    long fps = sample->vstats.s.fps;
+    long result = 0;
+    if (fps < 15)
+    {
+        if (fps < 3)
+        {
+            result = 0;
+        }
+        else if (fps < 5)
+        {
+            result = 1;
+        }
+        else if (fps < 10)
+        {
+            result = 2;
+        }
+        else
+        {
+            result = 3;
+        }
+    }
+
+    if (sample->vstats.s.lbw && result > 2)
+    {
+        SUB_LOG_WARNING("Video send resolution capped by bandwidth, returning 2");
+        result = 2;
+    }
+
+    if (result)
+    {
+        return result;
+    }
+
+    // check connection's round-trip time
+    if (sample->cstats.rtt)
+    {
+        long crtt = sample->cstats.rtt;
+        if (crtt < 150)
+        {
+            return 5;
+        }
+        else if (crtt < 250)
+        {
+            return 4;
+        }
+        else if (crtt < 1000)
+        {
+            return 3;
+        }
+        else if (crtt < 2000)
+        {
+            return 2;
+        }
+        else if (crtt < 5000)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from");
+    return kNetworkQualityDefault;
+}
+
+AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)
+    : mSessionHandler(sessionHandler), mSession(session)
+{
+}
+
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
+{
+    assert(bits_per_sample == 16);
+    time_t nowTime = time(NULL);
+    if (!mSession.receivedAv().audio())
+    {
+        if (mAudioDetected)
+        {
+            mAudioDetected = false;
+            mSessionHandler.onSessionAudioDetected(mAudioDetected);
+        }
+
+        return;
+    }
+
+    if (nowTime - mPreviousTime > 2) // Two seconds between samples
+    {
+        mPreviousTime = nowTime;
+        size_t valueCount = number_of_channels * number_of_frames;
+        int16_t *data = (int16_t*)audio_data;
+        int16_t audioMaxValue = data[0];
+        int16_t audioMinValue = data[0];
+        for (size_t i = 1; i < valueCount; i++)
+        {
+            if (data[i] > audioMaxValue)
+            {
+                audioMaxValue = data[i];
+            }
+
+            if (data[i] < audioMinValue)
+            {
+                audioMinValue = data[i];
+            }
+        }
+
+        bool audioDetected = (abs(audioMaxValue) + abs(audioMinValue) > kAudioThreshold);
+        if (audioDetected != mAudioDetected)
+        {
+            mAudioDetected = audioDetected;
+            mSessionHandler.onSessionAudioDetected(mAudioDetected);
+        }
+    }
+}
+
 void globalCleanup()
 {
     if (!artc::isInitialized())
