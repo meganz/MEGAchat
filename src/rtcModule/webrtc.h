@@ -32,6 +32,9 @@ class ICall {};
 class IRtcModule;
 class RtcModule;
 typedef uint8_t TermCode;
+uint8_t kErrNotSupported = 37;
+uint8_t RTCMD_CALL_REQ_DECLINE = 2;
+uint8_t kCallDataRinging = 1;
 }
 
 #else

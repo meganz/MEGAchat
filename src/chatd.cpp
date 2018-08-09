@@ -1407,21 +1407,21 @@ void Connection::execCommand(const StaticBuffer& buf)
 #else
                 READ_ID(callid, 22);
                 READ_8(state, 30);
-                if (state == 1) // Ringing state
+                if (state == kCallDataRinging) // Ringing state
                 {
                     chatd::Command msg(chatd::OP_RTMSG_BROADCAST);
                     msg.write<uint64_t>(1, chatid.val);
                     msg.write<uint64_t>(9, 0);
                     msg.write<uint32_t>(17, 0);
-                    msg.write<uint16_t>(21, 10);        // Payload length
-                    msg.write<uint8_t>(23, 2);          // RTCMD_CALL_REQ_DECLINE
+                    msg.write<uint16_t>(21, 10);        // Payload length -> opCode(1) + callid(8) + termCode(1)
+                    msg.write<uint8_t>(23, RTCMD_CALL_REQ_DECLINE);          // RTCMD_CALL_REQ_DECLINE
                     msg.write<uint64_t>(24, callid.val);
-                    msg.write<uint8_t>(32, 37);         // Termination code kErrNotSupported = 37
+                    msg.write<uint8_t>(32, kErrNotSupported);         // Termination code kErrNotSupported = 37
                     auto& chat = mChatdClient.chats(chatid);
                     chat.sendCommand(std::move(msg));
                 }
 
-                pos += payloadLen - 9;
+                pos += payloadLen - 9;  // 9 -> callid(8) + state(1)
 #endif
 
                 break;
