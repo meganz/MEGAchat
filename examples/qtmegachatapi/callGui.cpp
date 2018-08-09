@@ -93,7 +93,7 @@ void CallGui::drawPeerAvatar(QImage &image)
             break;
         }
     }    
-    QChar letter = (std::strlen(title) == 0)
+    QChar letter = (!title || std::strlen(title) == 0)
         ? QChar('?')
         : QChar(title[0]);
 

@@ -19,6 +19,25 @@ struct StateDesc
 };
 
 namespace stats { class Recorder; }
+
+class Session;
+class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
+{
+    public:
+    AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler);
+    virtual void OnData(const void* audio_data,
+                        int bits_per_sample,
+                        int sample_rate,
+                        size_t number_of_channels,
+                        size_t number_of_frames);
+
+private:
+    time_t mPreviousTime = 0;
+    ISessionHandler &mSessionHandler;
+    const Session &mSession;
+    bool mAudioDetected = false;
+};
+
 class Session: public ISession
 {
 protected:
@@ -37,6 +56,10 @@ protected:
     time_t mTsIceConn = 0;
     promise::Promise<void> mTerminatePromise;
     bool mVideoReceived = false;
+    int mNetworkQuality = kNetworkQualityDefault;    // from 0 (worst) to 5 (best)
+    long mAudioPacketLostAverage = 0;
+    unsigned int mPreviousStatsSize = 0;
+    std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void createRtcConn();
@@ -61,12 +84,16 @@ protected:
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
     void sdpSetVideoBw(std::string& sdp, int maxbr);
+    int calculateNetworkQuality(const stats::Sample* sample);
+
 public:
     RtcModule& mManager;
     Session(Call& call, RtMessage& packet);
     ~Session();
+    void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
+    void manageNetworkQuality(stats::Sample* sample);
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -119,6 +146,7 @@ protected:
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
+    megaHandle mStatsTimer = 0;
     bool mNotSupportedAnswer = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);

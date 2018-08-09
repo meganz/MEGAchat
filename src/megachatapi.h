@@ -117,18 +117,38 @@ public:
     virtual MegaChatHandle getPeerid() const;
 
     /**
-     * @brief Return audio state for the session
+     * @brief Returns audio state for the session
      *
      * @return true if audio is enable, false if audio is disable
      */
     virtual bool hasAudio() const;
 
     /**
-     * @brief Return video state for the session
+     * @brief Returns video state for the session
      *
      * @return true if video is enable, false if video is disable
      */
     virtual bool hasVideo() const;
+
+    /**
+     * @brief Returns network quality
+     *
+     * The valid network quality values are between 0 and 5
+     * 0 -> the worst quality
+     * 5 -> the best quality
+     *
+     * @note The app may want to show a "slow network" warning when the quality is <= 1.
+     *
+     * @return network quality
+     */
+    virtual int getNetworkQuality() const;
+
+    /**
+     * @brief Returns if audio is detected for this session
+     *
+     * @return true if audio is detected for this session, false in other case
+     */
+    virtual bool getAudioDetected() const;
 };
 
 /**
@@ -172,14 +192,16 @@ public:
 
     enum
     {
-        CHANGE_TYPE_NO_CHANGES = 0x00,      /// Call doesn't have any change
-        CHANGE_TYPE_STATUS = 0x01,          /// Call status has changed
-        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,   /// Local audio/video flags has changed
-        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,  /// Remote audio/video flags has changed
-        CHANGE_TYPE_TEMPORARY_ERROR = 0x08, /// New temporary error is notified
-        CHANGE_TYPE_RINGING_STATUS = 0x10,  /// Peer has change its ringing state
-        CHANGE_TYPE_SESSION_STATUS = 0x20,  /// Session status has changed
-        CHANGE_TYPE_CALL_COMPOSITION = 0x40 /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_NO_CHANGES = 0x00,              /// Call doesn't have any change
+        CHANGE_TYPE_STATUS = 0x01,                  /// Call status has changed
+        CHANGE_TYPE_LOCAL_AVFLAGS = 0x02,           /// Local audio/video flags has changed
+        CHANGE_TYPE_REMOTE_AVFLAGS = 0x04,          /// Remote audio/video flags has changed
+        CHANGE_TYPE_TEMPORARY_ERROR = 0x08,         /// New temporary error is notified
+        CHANGE_TYPE_RINGING_STATUS = 0x10,          /// Peer has change its ringing state
+        CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
+        CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
+        CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100     /// Session audio level has changed
     };
 
     enum
