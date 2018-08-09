@@ -1395,7 +1395,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
-                pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
@@ -1403,7 +1402,28 @@ void Connection::execCommand(const StaticBuffer& buf)
                     auto& chat = mChatdClient.chats(chatid);
                     mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
+
+                pos += payloadLen;
+#else
+                READ_ID(callid, 22);
+                READ_8(state, 30);
+                if (state == 1) // Ringing state
+                {
+                    chatd::Command msg(chatd::OP_RTMSG_BROADCAST);
+                    msg.write<uint64_t>(1, chatid.val);
+                    msg.write<uint64_t>(9, 0);
+                    msg.write<uint32_t>(17, 0);
+                    msg.write<uint16_t>(21, 10); // Payload length
+                    msg.write<uint8_t>(23, ::rtcModule::RTCMD_CALL_REQ_DECLINE);
+                    msg.write<uint64_t>(24, callid.val);
+                    msg.write<uint8_t>(32, 37);      // Termination code kErrNotSupported = 37
+                    auto& chat = mChatdClient.chats(chatid);
+                    chat.sendCommand(std::move(msg));
+                }
+
+                pos += payloadLen - 9;
 #endif
+
                 break;
             }
             case OP_RTMSG_ENDPOINT:

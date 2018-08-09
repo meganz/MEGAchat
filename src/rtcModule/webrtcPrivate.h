@@ -119,6 +119,7 @@ protected:
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
+    bool mNotSupportedAnswer = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
