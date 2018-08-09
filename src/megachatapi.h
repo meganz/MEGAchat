@@ -498,6 +498,18 @@ public:
      * @return True if the call has been ignored, false otherwise.
      */
     virtual bool isIgnored() const;
+
+    /**
+     * @brief Returns if call is incoming
+     * @return Ture if incoming call, false if outgoing
+     */
+    virtual bool isIncoming() const;
+
+    /**
+     * @brief Returns if call is outgoing
+     * @return Ture if outgoing call, false if incoming
+     */
+    virtual bool isOutgoing() const;
 };
 
 /**

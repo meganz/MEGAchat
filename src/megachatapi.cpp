@@ -202,6 +202,16 @@ bool MegaChatCall::isIgnored() const
     return false;
 }
 
+bool MegaChatCall::isIncoming() const
+{
+    return false;
+}
+
+bool MegaChatCall::isOutgoing() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
