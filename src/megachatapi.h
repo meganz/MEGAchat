@@ -495,7 +495,7 @@ public:
      * @brief Returns the handle from user that has started the call
      *
      * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
-     * In other case will be MEGACHAT_INVALID_HANDLE
+     * In any other case, it will be MEGACHAT_INVALID_HANDLE
      *
      * @return user handle of caller
      */
