@@ -382,6 +382,7 @@ protected:
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
     void sendEcho();
+    void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
     friend class Client;
     friend class Chat;
 public:
