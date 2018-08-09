@@ -494,10 +494,10 @@ public:
     /**
      * @brief Returns the handle from user that has started the call
      *
-     * This funcion only return a valid value when call is or has gone throght CALL_STATUS_RING_IN state.
-     * In other case will be a not valid value
+     * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
+     * In other case will be MEGACHAT_INVALID_HANDLE
      *
-     * @return user handle from caller
+     * @return user handle of caller
      */
     virtual MegaChatHandle getCaller() const;
 };
