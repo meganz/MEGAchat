@@ -801,7 +801,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 assert(room->isGroup());
                 if (room)
                 {
-                    request->setText(room->titleString());
+                    request->setText(room->titleString().c_str());
                     request->setNumber(((GroupChatRoom*)room)->getNumPeers());
                 }
 
@@ -5391,17 +5391,27 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.completeTitleString();
-
         this->peers.push_back(userpriv_pair(uh, priv));
 
-        const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
-        this->peerFirstnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
+        Contact *contact = peerchat.contact();
+        if (contact)
+        {
+            string name = contact->titleString();
 
-        buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
-        this->peerLastnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
+            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
+            this->peerFirstnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+
+            buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
+            this->peerLastnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+        }
+        else    // we don't have firstname and lastname individually
+        {
+            this->peerFirstnames.push_back(title);
+            this->peerLastnames.push_back("");
+        }
+
 
         this->peerEmails.push_back(peerchat.email());
     }

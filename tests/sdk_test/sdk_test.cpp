@@ -29,24 +29,24 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
-    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
-    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
-    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
-    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
-    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+//    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
+//    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
+//    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
+//    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
+//    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
+//    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
-    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
-    EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
-    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
-    EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
-    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
-    EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
-    EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
+//    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
+//    EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
+//    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
+//    EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
+//    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
+//    EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
+//    EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
 
-#ifndef KARERE_DISABLE_WEBRTC
-    EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
-#endif
+//#ifndef KARERE_DISABLE_WEBRTC
+//    EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
+//#endif
 
     // The test below is a manual test. It requires call will be answered from webClient or similar
     //EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
@@ -196,7 +196,7 @@ void MegaChatApiTest::init()
     MegaApi::addLoggerObject(logger);
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger);
-    MegaChatApi::setLogToConsole(false);
+    MegaChatApi::setLogToConsole(true);
     MegaChatApi::setCatchException(false);
 
     for (int i = 0; i < NUM_ACCOUNTS; i++)
@@ -1460,6 +1460,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     flagExportChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_EXPORT_CHAT_LINK]; *flagExportChatLink = false;
     megaChatApi[a1]->exportChatLink(chatid, this);
     ASSERT_CHAT_TEST(waitForResponse(flagExportChatLink), "Timeout expired for export chat link");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error exporting public chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     std::string chatLink = this->chatLinks[a1];
     assert(!chatLink.empty());
 

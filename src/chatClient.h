@@ -66,6 +66,7 @@ protected:
     uint32_t mCreationTs;
     bool mIsArchived;
     std::string mTitleString;
+    bool mHasTitle;
     void notifyTitleChanged();
     void notifyChatModeChanged();
     void switchListenerToApp();
@@ -86,7 +87,14 @@ public:
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual const char *titleString() const = 0;
+    virtual const std::string &titleString() const  { return mTitleString; }
+
+    /** @brief Returns whether the chatroom has a title set. If not, then
+      * its title string will be composed from the first names of the room members.
+      * This method will return false for PeerChatRoom, only GroupChatRoom are
+      * capable to have a custom title.
+      */
+    virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
     virtual void connect() = 0;
@@ -241,15 +249,6 @@ public:
      */
     Contact *contact() const { return mContact; }
 
-    /** @brief The screen name of the peer */
-    virtual const char *titleString() const;
-
-    /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
-      * First byte indicate first name length
-      */
-    const std::string& completeTitleString() const;
-
-
     /** @brief The screen email address of the peer */
     virtual const std::string& email() const { return mEmail; }
 
@@ -311,7 +310,6 @@ public:
     /** @cond PRIVATE */
 protected:
     MemberMap mPeers;
-    bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
@@ -363,14 +361,6 @@ public:
 
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
-
-    /** @brief Returns whether the group chatroom has a title set. If not, then
-      * its title string will be composed from the first names of the room members
-      */
-    bool hasTitle() const { return mHasTitle; }
-
-    /** @brief The title of the chatroom */
-    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief The 'presence' of the chatroom - it's actually the online state,
      * and can be only online or offline, depending on whether we are connected
