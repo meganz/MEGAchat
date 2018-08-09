@@ -54,4 +54,12 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getPeerid() : 0;
 }
 
+- (NSInteger)networkQuality {
+    return self.megaChatSession ? self.megaChatSession->getNetworkQuality() : 0;
+}
+
+- (BOOL)audioDetected {
+    return self.megaChatSession ? self.megaChatSession->getAudioDetected() : NO;
+}
+
 @end
