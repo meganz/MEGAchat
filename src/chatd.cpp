@@ -1413,10 +1413,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                     msg.write<uint64_t>(1, chatid.val);
                     msg.write<uint64_t>(9, 0);
                     msg.write<uint32_t>(17, 0);
-                    msg.write<uint16_t>(21, 10); // Payload length
-                    msg.write<uint8_t>(23, ::rtcModule::RTCMD_CALL_REQ_DECLINE);
+                    msg.write<uint16_t>(21, 10);        // Payload length
+                    msg.write<uint8_t>(23, 2);          // RTCMD_CALL_REQ_DECLINE
                     msg.write<uint64_t>(24, callid.val);
-                    msg.write<uint8_t>(32, 37);      // Termination code kErrNotSupported = 37
+                    msg.write<uint8_t>(32, 37);         // Termination code kErrNotSupported = 37
                     auto& chat = mChatdClient.chats(chatid);
                     chat.sendCommand(std::move(msg));
                 }
