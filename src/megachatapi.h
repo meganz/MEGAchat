@@ -479,15 +479,27 @@ public:
 
     /**
      * @brief Returns if call is incoming
+     *
      * @return Ture if incoming call, false if outgoing
      */
     virtual bool isIncoming() const;
 
     /**
      * @brief Returns if call is outgoing
+     *
      * @return Ture if outgoing call, false if incoming
      */
     virtual bool isOutgoing() const;
+
+    /**
+     * @brief Returns the handle from user that has started the call
+     *
+     * This funcion only return a valid value when call is or has gone throght CALL_STATUS_RING_IN state.
+     * In other case will be a not valid value
+     *
+     * @return user handle from caller
+     */
+    virtual MegaChatHandle getCaller() const;
 };
 
 /**

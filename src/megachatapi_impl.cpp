@@ -4199,6 +4199,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     ignored = false;
     changed = 0;
     peerId = 0;
+    callerId = call.caller();
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
@@ -4224,6 +4225,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration
     ignored = false;
     changed = 0;
     peerId = 0;
+    callerId = 0;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -4244,6 +4246,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->ignored = call.ignored;
     this->sessionStatus = call.sessionStatus;
     this->peerId = call.peerId;
+    this->callerId = call.callerId;
 
     for (std::map<karere::Id, MegaChatSession *>::const_iterator it = call.sessions.begin(); it != call.sessions.end(); it++)
     {
@@ -4420,6 +4423,11 @@ bool MegaChatCallPrivate::isIncoming() const
 bool MegaChatCallPrivate::isOutgoing() const
 {
     return mIsCaller;
+}
+
+MegaChatHandle MegaChatCallPrivate::getCaller() const
+{
+    return callerId;
 }
 
 void MegaChatCallPrivate::setStatus(int status)
@@ -4674,6 +4682,11 @@ void MegaChatCallPrivate::removeAllParticipants()
 void MegaChatCallPrivate::setId(Id callid)
 {
     this->callid = callid;
+}
+
+void MegaChatCallPrivate::setCaller(Id caller)
+{
+    this->callerId = caller;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid)
@@ -6623,8 +6636,8 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 
 void MegaChatCallHandler::onStateChange(uint8_t newState)
 {
-    assert(chatCall != NULL);
-    if (chatCall != NULL)
+    assert(chatCall);
+    if (chatCall)
     {
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %d --> %d",
                      karere::Id(chatCall->getChatid()).toString().c_str(),
@@ -6646,6 +6659,8 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 state = MegaChatCall::CALL_STATUS_REQUEST_SENT;
                 break;
             case rtcModule::ICall::kStateRingIn:
+                assert(call);
+                chatCall->setCaller(call->caller());
                 state = MegaChatCall::CALL_STATUS_RING_IN;
                 break;
             case rtcModule::ICall::kStateJoining:
