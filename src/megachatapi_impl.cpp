@@ -4415,7 +4415,7 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerId)
 
 int MegaChatCallPrivate::getNumParticipants() const
 {
-    return sessions.size();
+    return participants.size();
 }
 
 MegaHandleList *MegaChatCallPrivate::getParticipants() const
