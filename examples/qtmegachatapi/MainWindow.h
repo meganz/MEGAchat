@@ -40,8 +40,8 @@ struct ChatComparator
     }
 };
 
-class ChatSettings;
-class ChatSettingsDialog;
+class WebRTCSettings;
+class WebRTCSettingsDialog;
 class ChatItemWidget;
 class ContactItemWidget;
 class QTMegaChatCallListener;
@@ -63,12 +63,12 @@ class MainWindow :
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
         void clearContactChatList();
-        void orderContactChatList(bool showInactive, bool showArchived);
+        void orderContactChatList();
         void addContacts();
         void addInactiveChats();
         void addArchivedChats();
         void addActiveChats();
-        void createSettingsMenu();
+        void createWebRTCSettingsDialog();
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
@@ -85,7 +85,6 @@ class MainWindow :
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
         bool eventFilter(QObject *obj, QEvent *event);
-        void contextMenuEvent(QContextMenuEvent* event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
         void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
@@ -100,10 +99,10 @@ class MainWindow :
 
     protected:
         Ui::MainWindow *ui;
-        bool allItemsVisibility;
-        bool archivedItemsVisibility = false;
+        bool mShowInactive;
+        bool mShowArchived = false;
         QMenu *onlineStatus;
-        ChatSettings *mChatSettings;
+        WebRTCSettings *mWebRTCSettings;
         MegaChatApplication *mApp;
         mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *mMegaChatApi;
@@ -121,18 +120,15 @@ class MainWindow :
     private slots:
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
-        void on_bHiddenChats_clicked();
-        void on_bArchivedChats_clicked();
-        void on_bChatGroup_clicked();
-        void on_bPubChatGroup_clicked();
         void on_mLogout_clicked();
 
-        void onChangeItemsVisibility();
+        void onShowInactiveChats();
+        void onShowArchivedChats();
         void onAddContact();
-        void onAddChatGroup();
+        void onAddPeerChatGroup();
+        void onAddGroupChat();
         void onAddPubChatGroup();
-        void onAddPublicChatGroup();
-        void onPrintMyInfo();
+        void onWebRTCsetting();
 
         void setOnlineStatus();
         void loadChatLink();
@@ -143,7 +139,7 @@ class MainWindow :
      friend class ChatItemWidget;
      friend class ContactItemWidget;
      friend class MegaChatApplication;
-     friend class ChatSettingsDialog;
+     friend class WebRTCSettingsDialog;
      friend class CallAnswerGui;
      friend class ChatWindow;
      friend class ChatMessage;

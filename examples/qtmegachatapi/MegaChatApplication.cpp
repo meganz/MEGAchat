@@ -214,9 +214,9 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *use
                     mFirstnamesMap.erase(userHandle);
                     getFirstname(userHandle);
                 }
-                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
+                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->mShowInactive != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+                    mMainWin->orderContactChatList();
                 }
             }
         }
@@ -515,7 +515,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     }
 
                     mMainWin->updateLocalChatListItems();
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+                    mMainWin->orderContactChatList();
                 }
                 QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
             }
@@ -533,7 +533,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             }
             else
             {
-                mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+                mMainWin->orderContactChatList();
             }
             break;
 
@@ -580,7 +580,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             break;
 
         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
-            mMainWin->createSettingsMenu();
+            mMainWin->createWebRTCSettingsDialog();
             break;
 #endif
     }

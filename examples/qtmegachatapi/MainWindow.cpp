@@ -25,15 +25,11 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     mMegaChatApi = megaChatApi;
     mMegaApi = megaApi;
     onlineStatus = NULL;
-    allItemsVisibility = false;
-    archivedItemsVisibility = false;
+    mShowInactive = false;
+    mShowArchived = false;
     mLogger = logger;
-    mChatSettings = new ChatSettings();
+    mWebRTCSettings = new WebRTCSettings();
     qApp->installEventFilter(this);
-    ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
-    ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
-    ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
-    ui->bPubChatGroup->setStyleSheet("color:#00FF00; border:none");
 
     megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
     mMegaChatApi->addChatListener(megaChatListenerDelegate);
@@ -61,7 +57,7 @@ MainWindow::~MainWindow()
 
     delete megaChatListenerDelegate;
     delete megaChatCallListenerDelegate;
-    delete mChatSettings;
+    delete mWebRTCSettings;
     chatWidgets.clear();
     contactWidgets.clear();
     delete ui;
@@ -167,31 +163,45 @@ void MainWindow::clearContactChatList()
     contactWidgets.clear();
 }
 
-void MainWindow::orderContactChatList(bool showInactive, bool showArchived)
+void MainWindow::orderContactChatList()
 {
-    QString text;
     auxChatWidgets = chatWidgets;
     clearContactChatList();
-    if (showArchived)
+
+    // add items to the list
+    addContacts();
+    if (mShowArchived)
     {
         addArchivedChats();
     }
-    addContacts();
-
-    if(showInactive)
+    if(mShowInactive)
     {
         addInactiveChats();
-        text.append(" Showing <all> elements");
+    }
+    addActiveChats();
+
+    auxChatWidgets.clear();
+
+    // prepare tag to indicate chatrooms shown
+    QString text;
+    if (mShowArchived && mShowInactive)
+    {
+        text.append(" Showing <all> chatrooms");
+    }
+    else if (mShowArchived)
+    {
+        text.append(" Showing <active+archived> chatrooms");
+    }
+    else if (mShowInactive)
+    {
+        text.append(" Showing <active+inactive> chatrooms");
     }
     else
     {
-        text.append(" Showing <visible> elements");
+        text.append(" Showing <active> chatrooms");
     }
-    addActiveChats();
-    auxChatWidgets.clear();
-    this->ui->mOnlineStatusDisplay->setText(text);
+    ui->mOnlineStatusDisplay->setText(text);
 }
-
 
 void MainWindow::addContacts()
 {
@@ -203,9 +213,9 @@ void MainWindow::addContacts()
     {
         contact = contactList->get(i);
         mega::MegaHandle userHandle = contact->getHandle();
-        if (userHandle != this->mMegaChatApi->getMyUserHandle())
+        if (userHandle != mMegaChatApi->getMyUserHandle())
         {
-            if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && allItemsVisibility != true)
+            if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mShowInactive != true)
             {
                 continue;
             }
@@ -248,50 +258,59 @@ void MainWindow::addActiveChats()
     delete activeChatList;
 }
 
-void MainWindow::contextMenuEvent(QContextMenuEvent *event)
-{
-    QMenu menu(this);
-    menu.setAttribute(Qt::WA_DeleteOnClose);
-    auto addAction = menu.addAction(tr("Add user to contacts"));
-    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
-
-    auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
-    connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
-
-    auto actLoadLink = menu.addAction(tr("Preview public chat"));
-    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
-
-    auto actChat = menu.addAction(tr("Add new chat group"));
-    connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
-
-    auto actPubChat = menu.addAction(tr("Create new public chat (Empty)"));
-    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPublicChatGroup()));
-
-    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
-    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-
-    menu.exec(event->globalPos());
-}
-
 bool MainWindow::eventFilter(QObject *, QEvent *event)
 {
-    if (this->mMegaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
+    if (event->type() == QEvent::MouseButtonRelease
+            && mMegaChatApi->getInitState() == MegaChatApi::INIT_ONLINE_SESSION
+            && mMegaChatApi->isSignalActivityRequired())
     {
-        this->mMegaChatApi->signalPresenceActivity();
+        mMegaChatApi->signalPresenceActivity();
     }
     return false;
 }
 
 void MainWindow::on_bSettings_clicked()
 {
-    #ifndef KARERE_DISABLE_WEBRTC
-        this->mMegaChatApi->loadAudioVideoDeviceList();
-    #endif
+    QMenu menu(this);
+    menu.setAttribute(Qt::WA_DeleteOnClose);
+
+    auto actInactive = menu.addAction(tr("Show/Hide inactive chats"));
+    connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
+
+    auto actArchived = menu.addAction(tr("Show/Hide archived chats"));
+    connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
+
+    menu.addSeparator();
+
+    auto addAction = menu.addAction(tr("Add user to contacts"));
+    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+
+    auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
+    connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChatGroup()));
+
+    auto actGroupChat = menu.addAction(tr("Create group chat"));
+    connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
+
+    auto actPubChat = menu.addAction(tr("Create public chat"));
+    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
+
+    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
+    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
+
+    menu.addSeparator();
+
+    auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
+    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
+
+    QPoint pos = ui->bSettings->pos();
+    pos.setX(pos.x() + ui->bSettings->width());
+    pos.setY(pos.y() + ui->bSettings->height());
+    menu.exec(mapToGlobal(pos));
 }
 
-void MainWindow::createSettingsMenu()
+void MainWindow::createWebRTCSettingsDialog()
 {
-    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this, mChatSettings);
+    WebRTCSettingsDialog *chatSettings = new WebRTCSettingsDialog(this, mWebRTCSettings);
     chatSettings->exec();
     chatSettings->deleteLater();
 }
@@ -335,29 +354,6 @@ void MainWindow::on_bOnlineStatus_clicked()
         "}");
     onlineStatus->exec();
     onlineStatus->deleteLater();
-}
-
-void MainWindow::on_bHiddenChats_clicked()
-{
-    QString text = NULL;
-    allItemsVisibility = !allItemsVisibility;
-    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
-    allItemsVisibility?text.append("color:#00FF00; border:none"):text.append("color:#FF0000; border:none");
-    ui->bHiddenChats->setStyleSheet(text);
-}
-
-void MainWindow::on_bChatGroup_clicked()
-{
-    onAddChatGroup();
-}
-
-void MainWindow::on_bArchivedChats_clicked()
-{
-    QString text = NULL;
-    archivedItemsVisibility = !archivedItemsVisibility;
-    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
-    archivedItemsVisibility?text.append("color:#00FF00; border:none"):text.append("color:#FF0000; border:none");
-    ui->bArchivedChats->setStyleSheet(text);
 }
 
 ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder)
@@ -479,7 +475,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
             {
                 chatItemWidget->updateToolTip(item, NULL);
-                orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+                orderContactChatList();
                 break;
             }
 
@@ -493,21 +489,21 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             //Timestamp of the last activity update
             case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
             {
-                orderContactChatList(allItemsVisibility, archivedItemsVisibility);
+                orderContactChatList();
                 break;
             }
 
             //The chatroom is private now
             case (megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE):
             {
-                orderContactChatList(allItemsVisibility, archivedItemsVisibility);
+                orderContactChatList();
                 break;
             }
 
             //The Chatroom has been un/archived
             case (megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE):
             {
-                if (!archivedItemsVisibility)
+                if (!mShowArchived)
                 {
                     ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
                     if(auxChatItemWidget)
@@ -519,7 +515,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
                         }
                     }
                 }
-                orderContactChatList(allItemsVisibility, archivedItemsVisibility);
+                orderContactChatList();
                 break;
             }
         }
@@ -528,49 +524,55 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     {
         if (!item->isArchived() && item->isActive())
         {
-            orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+            orderContactChatList();
         }
     }
 }
 
-void MainWindow::onChangeItemsVisibility()
+void MainWindow::onShowInactiveChats()
 {
-    allItemsVisibility = !allItemsVisibility;
-    orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+    mShowInactive = !mShowInactive;
+    orderContactChatList();
 }
 
-void MainWindow::onAddChatGroup()
+void MainWindow::onShowArchivedChats()
+{
+    mShowArchived = !mShowArchived;
+    orderContactChatList();
+}
+
+void MainWindow::onAddPeerChatGroup()
 {
     mega::MegaUserList *list = mMegaApi->getContacts();
-    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi, false);
+    CreateChatDialog *chatDialog = new CreateChatDialog(this, mMegaChatApi, false, false);
     chatDialog->createChatList(list);
     chatDialog->show();
     delete list;
 }
 
+void MainWindow::onAddGroupChat()
+{
+    mega::MegaUserList *list = mMegaApi->getContacts();
+    CreateChatDialog *chatDialog = new CreateChatDialog(this, mMegaChatApi, true, false);
+    chatDialog->createChatList(list);
+    chatDialog->show();
+    delete list;
+}
 
 void MainWindow::onAddPubChatGroup()
 {
     mega::MegaUserList *list = mMegaApi->getContacts();
-    ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi, true);
+    CreateChatDialog *chatDialog = new CreateChatDialog(this, mMegaChatApi, true, true);
     chatDialog->createChatList(list);
     chatDialog->show();
     delete list;
 }
 
-void MainWindow::onPrintMyInfo()
+void MainWindow::onWebRTCsetting()
 {
-    QMessageBox msg;
-    msg.setIcon(QMessageBox::Information);
-    msg.setText(this->ui->bOnlineStatus->toolTip());
-    msg.exec();
-}
-
-void MainWindow::onAddPublicChatGroup()
-{
-    megachat::MegaChatPeerList *peerList = megachat::MegaChatPeerList::createInstance();
-    createChatRoom(peerList, true, true);
-    delete peerList;
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->loadAudioVideoDeviceList();
+#endif
 }
 
 void MainWindow::loadChatLink()
@@ -585,7 +587,7 @@ void MainWindow::loadChatLink()
             QMessageBox::warning(this, tr("Load chat link"), tr("You can't enter an empty chatlink"));
             return;
         }
-        this->mMegaChatApi->loadChatLink(chatLink.c_str());
+        mMegaChatApi->loadChatLink(chatLink.c_str());
     }
 }
 
@@ -618,17 +620,15 @@ void MainWindow::setOnlineStatus()
     {
         return;
     }
-    this->mMegaChatApi->setOnlineStatus(pres);
+    mMegaChatApi->setOnlineStatus(pres);
 }
 
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chatid, int newState)
 {
-    ChatItemWidget * chatItemWidget = NULL;
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
     if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
     {
         updateLocalChatListItems();
-        orderContactChatList(allItemsVisibility, archivedItemsVisibility);
+        orderContactChatList();
         megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
         if (presenceConfig)
         {
@@ -638,7 +638,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chati
         return;
     }
 
-    it = chatWidgets.find(chatid);
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it = chatWidgets.find(chatid);
     if (it != chatWidgets.end())
     {
         ChatItemWidget * chatItemWidget = it->second;
@@ -674,7 +674,7 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
         if (newState == MegaChatApi::INIT_ONLINE_SESSION)
         {
             // contacts are not loaded until MegaApi::login completes
-            orderContactChatList(allItemsVisibility , archivedItemsVisibility);
+            orderContactChatList();
         }
 
         QString auxTitle(mMegaChatApi->getMyEmail());
@@ -868,7 +868,7 @@ void MainWindow::removeLocalChatListItem(MegaChatListItem *item)
         mLocalChatListItems.erase(itItem);
         delete auxItem;
     }
-    this->orderContactChatList(allItemsVisibility, archivedItemsVisibility);
+    orderContactChatList();
 }
 
 const megachat::MegaChatListItem *MainWindow::getLocalChatListItem(megachat::MegaChatHandle chatId)
@@ -941,11 +941,6 @@ void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char
         ContactItemWidget *contactItemWidget = itContacts->second;
         contactItemWidget->updateTitle(firstname);
     }
-}
-
-void MainWindow::on_bPubChatGroup_clicked()
-{
-    onAddPubChatGroup();
 }
 
 void MainWindow::on_mLogout_clicked()

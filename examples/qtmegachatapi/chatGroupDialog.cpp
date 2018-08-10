@@ -3,7 +3,7 @@
 #include <QMessageBox>
 #include "chatItemWidget.h"
 
-ChatGroupDialog::ChatGroupDialog(QWidget *parent, megachat::MegaChatApi *megaChatApi, bool aPub) :
+CreateChatDialog::CreateChatDialog(QWidget *parent, megachat::MegaChatApi *megaChatApi, bool aGroup, bool aPub) :
     QDialog(parent),
     ui(new Ui::ChatGroupDialog)
 {
@@ -11,14 +11,28 @@ ChatGroupDialog::ChatGroupDialog(QWidget *parent, megachat::MegaChatApi *megaCha
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
     mPublic = aPub;
+    mGroup = aGroup;
+
+    if (mPublic)
+    {
+        setWindowTitle("Create public chat");
+    }
+    else if (mGroup)
+    {
+        setWindowTitle("Create private group chat");
+    }
+    else
+    {
+        setWindowTitle("Create private group chat");
+    }
 }
 
-ChatGroupDialog::~ChatGroupDialog()
+CreateChatDialog::~CreateChatDialog()
 {
     delete ui;
 }
 
-void ChatGroupDialog::createChatList(mega::MegaUserList *contactList)
+void CreateChatDialog::createChatList(mega::MegaUserList *contactList)
 {
     for (int i = 0; i < contactList->size(); i++)
     {
@@ -34,7 +48,7 @@ void ChatGroupDialog::createChatList(mega::MegaUserList *contactList)
     }
 }
 
-void ChatGroupDialog::on_buttonBox_accepted()
+void CreateChatDialog::on_buttonBox_accepted()
 {
     megachat::MegaChatPeerList *peerList = megachat::MegaChatPeerList::createInstance();
     QListWidgetItem *item = 0;
@@ -53,17 +67,27 @@ void ChatGroupDialog::on_buttonBox_accepted()
         }
     }
 
-    if (peerList->size() == 0 && !mPublic)
+    if (peerList->size() != 1 && !mGroup)
     {
-        QMessageBox::warning(this, tr("Chat creation"), tr("Private groupchats cannot be empty"));
+        QMessageBox::warning(this, tr("Chat creation"), tr("1on1 chatrooms only allow one participant."));
+        show();
+        delete peerList;
         return;
     }
 
-    mMainWin->createChatRoom(peerList, true, mPublic);
+    if (peerList->size() == 0 && !mPublic)
+    {
+        QMessageBox::warning(this, tr("Chat creation"), tr("Private groupchats cannot be empty"));
+        show();
+        delete peerList;
+        return;
+    }
+
+    mMainWin->createChatRoom(peerList, mGroup, mPublic);
     delete peerList;
 }
 
-void ChatGroupDialog::on_buttonBox_rejected()
+void CreateChatDialog::on_buttonBox_rejected()
 {
     close();
 }

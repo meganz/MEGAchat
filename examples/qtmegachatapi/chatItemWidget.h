@@ -59,7 +59,7 @@ class ChatItemWidget : public QWidget
     friend class ChatWindow;
     friend class MainWindow;
     friend class ContactItemWidget;
-    friend class ChatGroupDialog;
+    friend class CreateChatDialog;
     friend class CallAnswerGui;
 };
 #endif // CHATITEM_H
