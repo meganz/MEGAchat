@@ -36,7 +36,7 @@ struct TurnServerInfo
         SRVJSON_CHECK_GET_PROP(url, host, String);
         if (url.substr(0, 5) != "turn:")
         {
-            KR_LOG_WARNING("TURN server url missing 'turn:' prefix, adding it");
+            KR_LOG_DEBUG("TURN server url missing 'turn:' prefix, adding it");
             url = "turn:"+url;
 //TODO: Remove once the gelb JSON is ok
             int port = 0;

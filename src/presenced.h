@@ -254,13 +254,14 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Client *karereClient;
-    karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
-    bool usingipv6;
+    karere::Url mUrl;
+    bool usingipv6; // ip version to try first (both are tried)
+    std::string mTargetIp;
+    DNScache &mDNScache;
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
@@ -274,12 +275,11 @@ protected:
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/);
     virtual void wsHandleMsgCb(char *data, size_t len);
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void notifyLoggedIn();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
@@ -312,6 +312,7 @@ public:
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
+    void doConnect();
     promise::Promise<void> retryPendingConnection();
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients

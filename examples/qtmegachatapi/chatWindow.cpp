@@ -351,7 +351,7 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
                     nSending--;
                 }
 
-                addMsgWidget(msg, loadedMessages + nSending + nManualSending);
+                addMsgWidget(msg->copy(), loadedMessages + nSending + nManualSending);
                 auxMessage = findChatMessage(msg->getRowId());
                 if(auxMessage)
                 {

@@ -14,7 +14,6 @@ using namespace megachat;
 
 int main(int argc, char **argv)
 {
-    struct sigaction sa;
     MegaChatApplication app(argc,argv);
     app.readSid();
     app.init();
@@ -188,7 +187,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi * api, mega::MegaUserList 
                 }
                 else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility);
+                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
                 }
             }
         }
@@ -326,19 +325,22 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
              if (e->getErrorCode() == MegaChatError::ERROR_OK)
              {
                 std::string title;
-                MegaChatHandle handle = request->getChatHandle();
+                MegaChatHandle chatid = request->getChatHandle();
                 QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
                 if (!qTitle.isNull())
                 {
                     title = qTitle.toStdString();
                     if (!title.empty())
                     {
-                        this->mMegaChatApi->setChatTitle(handle, title.c_str());
+                        this->mMegaChatApi->setChatTitle(chatid, title.c_str());
                     }
                 }
 
-                this->mMegaChatApi->setChatTitle(handle, title.c_str());
-                const MegaChatListItem *chatListItem = mMainWin->getLocalChatListItem(handle);
+                mMegaChatApi->setChatTitle(chatid, title.c_str());
+                const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                mMainWin->addLocalChatListItem(chatListItem);
+                delete chatListItem;
+                chatListItem = mMainWin->getLocalChatListItem(chatid);
                 mMainWin->addChat(chatListItem);
              }
              break;
@@ -349,6 +351,17 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *megaChatApi, MegaChatRequ
          case MegaChatRequest::TYPE_EDIT_CHATROOM_NAME:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
+            break;
+
+        case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
+            }
+            else
+            {
+                 mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+            }
             break;
 
 #ifndef KARERE_DISABLE_WEBRTC
