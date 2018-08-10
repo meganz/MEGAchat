@@ -400,7 +400,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 MegaChatHandle chatid = request->getChatHandle();
                 const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-                if (chatListItem->isGroup())
+                if (chatListItem->isGroup() && !chatListItem->isPublic())   // public chats allow to set title upon creation
                 {
                     QString qTitle = QInputDialog::getText(mMainWin, tr("Set chat title"), tr("Leave blank for default title"));
                     if (!qTitle.isNull())

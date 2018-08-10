@@ -93,10 +93,10 @@ class MainWindow :
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
         void updateToolTipMyInfo(megachat::MegaChatHandle myHandle);
-    public:
         MegaLoggerApplication *mLogger;
         int getNContacts() const;
         void setNContacts(int nContacts);
+        void createChatRoom(megachat::MegaChatPeerList *peerList, bool isGroup, bool isPublic);
 
     protected:
         Ui::MainWindow *ui;

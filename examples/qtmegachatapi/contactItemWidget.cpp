@@ -133,78 +133,17 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup, bool isP
     }
     msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
     msgBox.setDefaultButton(QMessageBox::Cancel);
-    int ret = msgBox.exec();
 
-    if (ret == QMessageBox::Cancel)
+    if (msgBox.exec() == QMessageBox::Cancel)
     {
         return;
     }
 
-     MegaChatPeerList *peerList = MegaChatPeerList::createInstance();
-     peerList->addPeer(uh, MegaChatRoom::PRIV_STANDARD);
+    MegaChatPeerList *peerList = MegaChatPeerList::createInstance();
+    peerList->addPeer(uh, MegaChatRoom::PRIV_STANDARD);
 
-     int i = 0;
-     bool exists = false;
-     MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
-     while (listItems->size() > i)
-     {
-          if (listItems->get(i)->isGroup() == isGroup)
-          {
-             exists = true;
-             break;
-          }
-          i++;
-     }
-
-     bool reuseExistingRoom = false;
-     if (exists)
-     {
-         auto item = listItems->get(i);
-         QMessageBox msgBoxAns;
-         msgBoxAns.setText("Another chatroom with "+ui->mName->text()+" already exists: \""+item->getTitle()+"\".\nDo you want to reuse that room?");
-         msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-         int retVal = msgBoxAns.exec();
-         if (retVal == QMessageBox::Yes)
-         {
-             if (item->isArchived())
-             {
-                 QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" is going to be unarchived.");
-                 mMegaChatApi->archiveChat(item->getChatId(), false);
-             }
-             else
-             {
-                 QMessageBox::warning(this, tr("Add chatRoom"), "Reusing chatroom \""+QString(item->getTitle())+"\"");
-             }
-             reuseExistingRoom = true;
-         }
-     }
-
-
-     if (!reuseExistingRoom)
-     {
-         char *title = NULL;
-         if (isGroup)
-         {
-             QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
-             if (!qTitle.isNull() && !qTitle.isEmpty())
-             {
-                 title = strdup(qTitle.toStdString().c_str());
-             }
-         }
-
-         if (isPublic)
-         {
-             mMegaChatApi->createPublicChat(peerList, title);
-         }
-         else
-         {
-             mMegaChatApi->createChat(isGroup, peerList, title);
-         }
-         delete title;
-     }
-
-     delete listItems;
-     delete peerList;
+    mMainWin->createChatRoom(peerList, isGroup, isPublic);
+    delete peerList;
 }
 
 void ContactItemWidget::onPrintContactInfo()

@@ -545,6 +545,7 @@ void MainWindow::onAddChatGroup()
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi, false);
     chatDialog->createChatList(list);
     chatDialog->show();
+    delete list;
 }
 
 
@@ -554,6 +555,7 @@ void MainWindow::onAddPubChatGroup()
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi, true);
     chatDialog->createChatList(list);
     chatDialog->show();
+    delete list;
 }
 
 void MainWindow::onPrintMyInfo()
@@ -566,36 +568,9 @@ void MainWindow::onPrintMyInfo()
 
 void MainWindow::onAddPublicChatGroup()
 {
-    megachat::MegaChatPeerList *peerList;
-    peerList = megachat::MegaChatPeerList::createInstance();
-    QMessageBox msgBox;
-    msgBox.setText("Do you want to create a new public group chat.");
-    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Cancel);
-    int ret = msgBox.exec();
-
-    if (ret == QMessageBox::Ok)
-    {
-         std::string title;
-         QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
-         if (!qTitle.isNull())
-         {
-             title = qTitle.toStdString();
-             if (title.empty() || title.size() == 1)
-             {
-                 this->mMegaChatApi->createPublicChat(peerList);
-             }
-             else
-             {
-                 this->mMegaChatApi->createPublicChat(peerList, title.c_str());
-             }
-         }
-         else
-         {
-             this->mMegaChatApi->createPublicChat(peerList);
-         }
-    }
-    msgBox.deleteLater();
+    megachat::MegaChatPeerList *peerList = megachat::MegaChatPeerList::createInstance();
+    createChatRoom(peerList, true, true);
+    delete peerList;
 }
 
 void MainWindow::loadChatLink()
@@ -757,6 +732,69 @@ int MainWindow::getNContacts() const
 void MainWindow::setNContacts(int nContacts)
 {
     this->nContacts = nContacts;
+}
+
+void MainWindow::createChatRoom(MegaChatPeerList *peerList, bool isGroup, bool isPublic)
+{
+    // check if another chatroom with same characteristics already exists
+     unsigned int i = 0;
+     const MegaChatListItem *similarChat = NULL;
+     MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
+     while (listItems->size() > i)
+     {
+         const MegaChatListItem *item = listItems->get(i);
+         if (item->isGroup() == isGroup && item->isPublic() == isPublic)
+         {
+             similarChat = item;
+             break;
+         }
+         i++;
+     }
+
+     // check if user wants to reuse existing chatroom, if any
+     bool reuseExistingRoom = false;
+     if (similarChat)
+     {
+         QMessageBox msgBoxAns;
+         msgBoxAns.setText("Another chatroom with same characteristics already exists: \""+QString(similarChat->getTitle())+"\".\nDo you want to reuse that room?");
+         msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+         if (msgBoxAns.exec() == QMessageBox::Yes)
+         {
+             if (similarChat->isArchived())
+             {
+                 QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(similarChat->getTitle())+"\" is going to be unarchived.");
+                 mMegaChatApi->archiveChat(similarChat->getChatId(), false);
+             }
+             else
+             {
+                 QMessageBox::warning(this, tr("Add chatRoom"), "Reusing chatroom \""+QString(similarChat->getTitle())+"\"");
+             }
+             reuseExistingRoom = true;
+         }
+     }
+     delete listItems;
+
+     if (!reuseExistingRoom)
+     {
+         char *title = NULL;
+         if (isGroup)
+         {
+             QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
+             if (!qTitle.isNull() && !qTitle.isEmpty())
+             {
+                 title = strdup(qTitle.toStdString().c_str());
+             }
+         }
+
+         if (isPublic)
+         {
+             mMegaChatApi->createPublicChat(peerList, title);
+         }
+         else
+         {
+             mMegaChatApi->createChat(isGroup, peerList, title);
+         }
+     }
 }
 
 void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char *firstname)
