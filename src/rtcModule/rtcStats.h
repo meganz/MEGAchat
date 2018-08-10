@@ -101,6 +101,7 @@ protected:
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
     std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
+    bool checkShouldAddSample();
 public:
     Session& mSession;
     std::unique_ptr<RtcStats> mStats;
