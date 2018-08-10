@@ -111,6 +111,7 @@ void Recorder::onStats(const webrtc::StatsReports &data)
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
+    mCurrSample->f = mSession.call().sentAv().value();
     for (const webrtc::StatsReport* item: data)
     {
         if (item->id()->type() == RPTYPE(Ssrc))
@@ -128,6 +129,9 @@ void Recorder::onStats(const webrtc::StatsReports &data)
 //              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
                 sample.width = width;
                 sample.height = getLongValue(VALNAME(FrameHeightReceived), item);
+                sample.nacktx = getLongValue(VALNAME(NacksSent), item);
+                sample.plitx = getLongValue(VALNAME(PlisSent), item);
+                sample.firtx = getLongValue(VALNAME(FirsSent), item);
             }
             else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
             {
@@ -144,8 +148,15 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 }
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.s.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.s.lcpu = (getStringValue(VALNAME(CpuLimitedResolution), item) == "true");
-                sample.s.lbw = (getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true");
+                if (getStringValue(VALNAME(CpuLimitedResolution), item) == "true")
+                {
+                    mCurrSample->f |= STATFLAG_SEND_CPU_LIMITED_RESOLUTION;
+                }
+                if (getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true")
+                {
+                    mCurrSample->f |= STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION;
+                }
+
                 mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
             }
             else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
@@ -351,6 +362,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_SUBOBJ("samples");
         JSON_ADD_SAMPLES(, ts);
         JSON_ADD_SAMPLES(, lq);
+         JSON_ADD_SAMPLES(, f);
         JSON_SUBOBJ("v");
             JSON_ADD_SAMPLES(vstats., rtt);
             JSON_SUBOBJ("s");
@@ -360,8 +372,6 @@ void RtcStats::toJson(std::string& json) const
                 JSON_ADD_SAMPLES(vstats.s., width);
                 JSON_ADD_SAMPLES(vstats.s., height);
                 JSON_ADD_DEC_SAMPLES(vstats.s., el);
-                JSON_ADD_SAMPLES(vstats.s., lcpu);
-                JSON_ADD_SAMPLES(vstats.s., lbw);
                 JSON_ADD_SAMPLES(vstats.s., bwav);
                 JSON_ADD_SAMPLES(vstats.s., gbps);
             JSON_END_SUBOBJ();
@@ -373,6 +383,9 @@ void RtcStats::toJson(std::string& json) const
                 JSON_ADD_SAMPLES(vstats.r., dly);
                 JSON_ADD_SAMPLES(vstats.r., width);
                 JSON_ADD_SAMPLES(vstats.r., height);
+                JSON_ADD_SAMPLES(vstats.r., firtx);
+                JSON_ADD_SAMPLES(vstats.r., plitx);
+                JSON_ADD_SAMPLES(vstats.r., nacktx);
             JSON_END_SUBOBJ(); //r
         JSON_END_SUBOBJ(); //v
         JSON_SUBOBJ("a");

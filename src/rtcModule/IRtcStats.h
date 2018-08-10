@@ -21,6 +21,7 @@ struct Sample
 {
     int64_t ts;
     int lq;         // network quality
+    long f;         // Av flags + cpu limit resolution + bandwith limit resolution
     struct
     {
         long rtt = 0;               // Round-Trip delay Time
@@ -34,6 +35,9 @@ struct Sample
             short width = 0;        // width of frame
             short height = 0;       // height of frame
             long bwav = 0;          // bandwidth available
+            long firtx = 0;
+            long plitx = 0;
+            long nacktx = 0;
         } r;    // receive
 
         struct : BwInfo
@@ -44,8 +48,6 @@ struct Sample
             short width = 0;        // width of frame
             short height = 0;       // height of frame
             float el = 0.0;         // encode-usage percentage
-            short lcpu = 0;         // CPU-limited resolution
-            short lbw = 0;          // bandwidth-limited resolution
             long bwav = 0;          // bandwidth available
             long targetEncBitrate = 0;
         } s;    // sent

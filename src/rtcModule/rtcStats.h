@@ -88,6 +88,8 @@ protected:
     int mMaxSamplePeriod;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
             webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
+    static const int STATFLAG_SEND_CPU_LIMITED_RESOLUTION = 4;
+    static const int STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION = 8;
     std::unique_ptr<Sample> mCurrSample;
     BwCalculator mVideoRxBwCalc;
     BwCalculator mVideoTxBwCalc;
