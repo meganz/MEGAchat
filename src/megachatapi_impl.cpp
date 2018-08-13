@@ -4273,6 +4273,13 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     {
         this->sessions[it->first] = it->second->copy();
     }
+
+    this->participants = call.participants;
+
+    this->termCode = call.termCode;
+    this->ignored = call.ignored;
+    this->localTermCode = call.localTermCode;
+    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
