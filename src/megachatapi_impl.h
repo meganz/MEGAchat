@@ -238,8 +238,6 @@ public:
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
-    void setSessionStatus(uint8_t status, MegaChatHandle peer);
-    void removeSession(MegaChatHandle peer);
     void setIgnoredCall(bool ignored);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
     void removeSession(karere::Id peerid);
@@ -247,7 +245,6 @@ public:
 
     bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool removeParticipant(karere::Id userid, uint32_t clientid);
-    int getCallParticipants();
     bool adjustAvFlagsToRestriction(karere::AvFlags &av);
     bool isParticipating(karere::Id userid);
     void removeAllParticipants();
@@ -264,7 +261,6 @@ protected:
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
-    std::map<MegaChatHandle, int> sessionStatus;
     std::map<karere::Id, MegaChatSession *> sessions;
     std::map<chatd::EndpointId, karere::AvFlags> participants;
     MegaChatHandle peerId;  // to identify the updated session
