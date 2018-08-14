@@ -365,7 +365,6 @@ public:
      * @brief Search all audio and video devices at system at that moment.
      */
     virtual void loadDeviceList() = 0;
-    virtual bool isCaptureActive() const = 0;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;

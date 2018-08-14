@@ -178,27 +178,31 @@ void RtcModule::updateConstraints(RtcModule::Resolution resolution)
     switch (resolution)
     {
         case Resolution::hd:
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 1080);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 576);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 1920);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 1024);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 1080);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 576);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 1920);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 1024);
             break;
 
         case Resolution::low:
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 288);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 240);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 352);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 320);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 288);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 240);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 352);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 320);
             break;
 
         case Resolution::vga:
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
-            mMediaConstraints.AddMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
             break;
 
         default:
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
             break;
     }
 }
@@ -368,64 +372,70 @@ void RtcModule::removeCall(Call& call)
 std::shared_ptr<artc::LocalStreamHandle>
 RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution)
 {
+    artc::InputVideoDevice videoInput;
+    artc::InputAudioDevice audioInput;
     const auto& devices = mDeviceManager.inputDevices();
-    if (devices.video.empty() || mVideoInDeviceName.empty())
-    {
-        mVideoInput.reset();
-    }
-    else if (!mVideoInput || mVideoInput.mediaOptions().device.name != mVideoInDeviceName)
-    try
-    {
-        auto device = getDevice(mVideoInDeviceName, devices.video);
-        if (!device)
-        {
-            device = &devices.video[0];
-            errors.append("Configured video input device '").append(mVideoInDeviceName)
-                  .append("' not present, using default device\n");
+
+    if (!devices.video.empty() && !mVideoInDeviceName.empty())
+     {
+
+        try
+         {
+
+            auto device = getDevice(mVideoInDeviceName, devices.video);
+            if (!device)
+            {
+                device = &devices.video[0];
+                errors.append("Configured video input device '").append(mVideoInDeviceName)
+                      .append("' not present, using default device\n");
+            }
+
+
+            updateConstraints(resolution);
+            auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
+
+
+            videoInput = mDeviceManager.getUserVideo(opts);
         }
-
-        updateConstraints(resolution);
-        auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
-
-        mVideoInput = mDeviceManager.getUserVideo(opts);
-    }
-    catch(exception& e)
-    {
-        mVideoInput.reset();
-        errors.append("Error getting video device: ")
-              .append(e.what()?e.what():"Unknown error")+='\n';
-    }
-
-    if (devices.audio.empty() || mAudioInDeviceName.empty())
-    {
-        mAudioInput.reset();
-    }
-    else if (!mAudioInput || mAudioInput.mediaOptions().device.name != mAudioInDeviceName)
-    try
-    {
-        auto device = getDevice(mAudioInDeviceName, devices.audio);
-        if (!device)
+        catch(exception& e)
         {
-            errors.append("Configured audio input device '").append(mAudioInDeviceName)
-                  .append("' not present, using default device\n");
-            device = &devices.audio[0];
+            videoInput.reset();
+            errors.append("Error getting video device: ")
+                  .append(e.what()?e.what():"Unknown error")+='\n';
         }
-        mAudioInput = mDeviceManager.getUserAudio(
-                std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
-    }
-    catch(exception& e)
-    {
-        mAudioInput.reset();
-        errors.append("Error getting audio device: ")
-              .append(e.what()?e.what():"Unknown error")+='\n';
-    }
-    if (!mAudioInput && !mVideoInput)
-        return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
+     }
 
-    std::shared_ptr<artc::LocalStreamHandle> localStream =
-        std::make_shared<artc::LocalStreamHandle>(
-            mAudioInput?mAudioInput.getTrack():nullptr,
-            mVideoInput?mVideoInput.getTrack():nullptr);
+
+    if (!devices.audio.empty() && !mAudioInDeviceName.empty())
+     {
+        try
+         {
+            auto device = getDevice(mAudioInDeviceName, devices.audio);
+            if (!device)
+            {
+                errors.append("Configured audio input device '").append(mAudioInDeviceName)
+                      .append("' not present, using default device\n");
+                device = &devices.audio[0];
+            }
+            audioInput = mDeviceManager.getUserAudio(
+                    std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
+        }
+        catch(exception& e)
+        {
+            audioInput.reset();
+            errors.append("Error getting audio device: ")
+                  .append(e.what()?e.what():"Unknown error")+='\n';
+         }
+
+     }
+
+   if (!audioInput && !videoInput)
+         return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
+
+     std::shared_ptr<artc::LocalStreamHandle> localStream =
+         std::make_shared<artc::LocalStreamHandle>(
+            audioInput ? audioInput.getTrack() : nullptr,
+            videoInput ? videoInput.getTrack() : nullptr);
     localStream->setAv(av);
     return localStream;
 }
@@ -460,10 +470,6 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     handler.setCall(call.get());
     call->startOrJoin(av);
     return call;
-}
-bool RtcModule::isCaptureActive() const
-{
-    return (mAudioInput || mVideoInput);
 }
 
 ICall& RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler& handler, karere::Id callid)
@@ -1313,6 +1319,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         assert(mSessions.empty());
         stopIncallPingTimer();
         mLocalPlayer.reset();
+        mLocalStream.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1796,6 +1803,7 @@ Call::~Call()
         }
 
         mLocalPlayer.reset();
+        mLocalStream.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
@@ -2946,5 +2954,6 @@ void globalCleanup()
     if (!artc::isInitialized())
         return;
     artc::cleanup();
+
 }
 }

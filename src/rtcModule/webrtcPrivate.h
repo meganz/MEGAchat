@@ -224,7 +224,6 @@ public:
     virtual bool selectVideoInDevice(const std::string& devname);
     virtual bool selectAudioInDevice(const std::string& devname);
     virtual void loadDeviceList();
-    virtual bool isCaptureActive() const;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress(karere::Id chatid) const;
@@ -248,8 +247,6 @@ protected:
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     artc::DeviceManager mDeviceManager;
-    artc::InputAudioDevice mAudioInput;
-    artc::InputVideoDevice mVideoInput;
     webrtc::FakeConstraints mPcConstraints;
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
