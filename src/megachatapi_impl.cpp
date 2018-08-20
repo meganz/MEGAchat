@@ -1418,8 +1418,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             chatCall->setLocalAudioVideoFlags(avFlags);
             API_LOG_INFO("Local audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
-                         call->chat().chatId().toString().c_str(),
-                         call->id().toString().c_str(),
+                         ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()),
                          currentFlags.toString().c_str(),
                          avFlags.toString().c_str());
 
@@ -1604,7 +1603,7 @@ void MegaChatApiImpl::removeChatRoomHandler(MegaChatHandle chatid)
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
     if (it == chatRoomHandler.end())
     {
-        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", ID_CSTR(chatid));
         return;
     }
 
@@ -3924,7 +3923,7 @@ void MegaChatApiImpl::onPresenceChanged(Id userid, Presence pres, bool inProgres
     }
     else
     {
-        API_LOG_INFO("Presence of user %s has been changed to %s", userid.toString().c_str(), pres.toString());
+        API_LOG_INFO("Presence of user %s has been changed to %s", ID_CSTR(userid), pres.toString());
     }
     fireOnChatOnlineStatusUpdate(userid.val, pres.status(), inProgress);
 }
@@ -6686,8 +6685,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     if (chatCall != NULL)
     {
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
-                     call->chat().chatId().toString().c_str(),
-                     call->id().toString().c_str(),
+                     ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()),
                      rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1
                      rtcModule::ICall::stateToStr(newState));
 
@@ -6720,7 +6718,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 chatCall->setTermCode(call->termCode());
                 chatCall->setFinalTimeStamp(time(NULL));
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
-                             call->chat().chatId().toString().c_str(), call->id().toString().c_str(),
+                             ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()),
                               rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
                 break;
@@ -6791,7 +6789,7 @@ void MegaChatCallHandler::onLocalMediaError(const string errors)
     {
         chatCall->setError(errors);
         API_LOG_INFO("Local media error at call. ChatId: %s, callid: %s, error: %s",
-                     call->chat().chatId().toString().c_str(), call->id().toString().c_str(), errors.c_str());
+                     ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()));
 
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
@@ -6811,7 +6809,7 @@ void MegaChatCallHandler::onRingOut(Id peer)
         {
             chatCall->setIsRinging(true);
             API_LOG_INFO("Call starts ringing at remote peer. ChatId: %s, callid: %s, peer: %s",
-                         call->chat().chatId().toString().c_str(), call->id().toString().c_str(), peer.toString().c_str());
+                         ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()), ID_CSTR(peer));
 
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
@@ -6880,8 +6878,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
             MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
             chatCall->setRemoteAudioVideoFlags(session->receivedAv());
             API_LOG_INFO("Initial remote audio/video flags. ChatId: %s, callid: %s, AV: %s",
-                         Id(chatCall->getChatid()).toString().c_str(),
-                         Id(chatCall->getId()).toString().c_str(),
+                         ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()),
                          session->receivedAv().toString().c_str());
 
             chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_IN_PROGRESS, session->peer());
@@ -6937,10 +6934,8 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     chatCall->setRemoteAudioVideoFlags(av);
     API_LOG_INFO("Remote audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
-                 Id(chatCall->getChatid()).toString().c_str(),
-                 Id(chatCall->getId()).toString().c_str(),
-                 oldAv.toString().c_str(),
-                 av.toString().c_str());
+                 ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()),
+                 oldAv.toString().c_str(), av.toString().c_str());
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }

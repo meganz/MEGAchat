@@ -23,6 +23,8 @@ namespace strongvelope { class ProtocolHandler; }
 struct sqlite3;
 class Buffer;
 
+#define ID_CSTR(id) Id(id).toString().c_str()
+
 namespace karere
 {
 namespace rh { class IRetryController; }

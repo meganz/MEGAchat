@@ -371,7 +371,7 @@ promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::st
         std::string title = result->getText() ? result->getText() : "";
         if (title.empty())
         {
-            KR_LOG_WARNING("Chat title is empty for chatid: %s", chatId.toString().c_str());
+            KR_LOG_WARNING("Chat title is empty for chatid: %s", ID_CSTR(chatId));
         }
 
         std::string url = result->getLink() ? result->getLink() : "";
@@ -473,7 +473,7 @@ void Client::onSyncReceived(Id chatid)
 {
     if (mSyncCount <= 0)
     {
-        KR_LOG_WARNING("Unexpected SYNC received for chat: %s", chatid.toString().c_str());
+        KR_LOG_WARNING("Unexpected SYNC received for chat: %s", ID_CSTR(chatid));
         return;
     }
 
@@ -968,12 +968,11 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
         if (room.isGroup())
         {
             KR_LOG_DEBUG("%s(group, ownPriv=%s):",
-                Id(room.getHandle()).toString().c_str(),
-                privToString((chatd::Priv)room.getOwnPrivilege()));
+                ID_CSTR(room.getHandle()), privToString((chatd::Priv)room.getOwnPrivilege()));
         }
         else
         {
-            KR_LOG_DEBUG("%s(1on1)", Id(room.getHandle()).toString().c_str());
+            KR_LOG_DEBUG("%s(1on1)", ID_CSTR(room.getHandle()));
         }
         auto peers = room.getPeerList();
         if (!peers)
@@ -982,7 +981,7 @@ void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
             continue;
         }
         for (int j = 0; j<peers->size(); j++)
-            KR_LOG_DEBUG("  %s: %s", Id(peers->getPeerHandle(j)).toString().c_str(),
+            KR_LOG_DEBUG("  %s: %s", ID_CSTR(peers->getPeerHandle(j)),
                 privToString((chatd::Priv)peers->getPeerPrivilege(j)));
     }
     KR_LOG_DEBUG("=== Chatroom list end ===");
@@ -995,9 +994,9 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
         auto& user = *clist.get(i);
         auto visibility = user.getVisibility();
         if (visibility != ::mega::MegaUser::VISIBILITY_VISIBLE)
-            KR_LOG_DEBUG("  %s (visibility = %d)", Id(user.getHandle()).toString().c_str(), visibility);
+            KR_LOG_DEBUG("  %s (visibility = %d)", ID_CSTR(user.getHandle()), visibility);
         else
-            KR_LOG_DEBUG("  %s", Id(user.getHandle()).toString().c_str());
+            KR_LOG_DEBUG("  %s", ID_CSTR(user.getHandle()));
     }
     KR_LOG_DEBUG("== Contactlist end ==");
 }
@@ -1045,7 +1044,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     assert(mSessionReadyPromise.succeeded());
     setConnState(kConnecting);
     mOwnPresence = pres;
-    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), ID_CSTR(mMyHandle));
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
@@ -1815,7 +1814,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         }
         else
         {
-            KR_LOG_ERROR("Error with unifiedKey format for chat %s:\n.", Id(this->mChatid).toString().c_str());
+            KR_LOG_ERROR("Error with unifiedKey format for chat %s:\n.", ID_CSTR(mChatid));
             this->mChat->disable(true);
         }
     }
@@ -1949,7 +1948,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
-    KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  Id(mChatid).toString().c_str());
+    KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  ID_CSTR(mChatid));
 
     initContact(mPeer);
     initWithChatd();
@@ -2097,7 +2096,7 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
 
 bool GroupChatRoom::removeMember(uint64_t userid)
 {
-    KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", Id(mChatid).toString().c_str(), Id(userid).toString().c_str());
+    KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", ID_CSTR(mChatid), ID_CSTR(userid));
 
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
@@ -2358,7 +2357,7 @@ void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
         }
         else
         {
-            KR_LOG_ERROR("Chatroom %s notified by API is not found", Id(chatid).toString().c_str());
+            KR_LOG_ERROR("Chatroom %s notified by API is not found", ID_CSTR(chatid));
         }
     }
 }
@@ -2494,7 +2493,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         }
         else
         {
-            KR_LOG_ERROR("Failed to base64-decode unified key for chat %s: invalid length", Id(mChatid).toString().c_str());
+            KR_LOG_ERROR("Failed to base64-decode unified key for chat %s: invalid length", ID_CSTR(mChatid));
             mChat->disable(true);
         }
     }
@@ -2547,7 +2546,8 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     catch(std::exception& e)
     {
         makeTitleFromMemberNames();
-        std::string err("Error base64-decoding chat title: ");
+        std::string err("Failed to base64-decode chat title for chat ");
+        err.append(ID_CSTR(mChatid)).append(": ");
         err.append(e.what()).append(". Falling back to member names");
         KR_LOG_ERROR("%s", err.c_str());
         return promise::Error(err);
@@ -2593,7 +2593,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     .fail([wptr, this](const promise::Error& err)
     {
         wptr.throwIfDeleted();
-        KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", karere::Id(chatid()).toString().c_str(), err.what());
+        KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", ID_CSTR(chatid()), err.what());
         makeTitleFromMemberNames();
         return err;
     });
@@ -2903,7 +2903,7 @@ void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 }
 void PeerChatRoom::onUserLeave(Id userid)
 {
-    KR_LOG_ERROR("PeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent chat, ignoring", userid.toString().c_str());
+    KR_LOG_ERROR("PeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent chat, ignoring", ID_CSTR(userid));
 }
 
 void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
@@ -2941,9 +2941,7 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
 void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::string &errmsg)
 {
     KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
-        karere::Id(mChatid).toString().c_str(),
-        msg.id().toString().c_str(), idx, msg.userid.toString().c_str(),
-        errmsg.c_str());
+        ID_CSTR(mChatid), ID_CSTR(msg.id()), idx, ID_CSTR(msg.userid), errmsg.c_str());
 }
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -3125,8 +3123,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
             if (member->mPriv != it->second)
             {
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
-                     Id(chatid()).toString().c_str(), Id(userid).toString().c_str(),
-                     member->mPriv, it->second);
+                     ID_CSTR(chatid()), ID_CSTR(userid), member->mPriv, it->second);
 
                 member->mPriv = it->second;
                 db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
@@ -3190,20 +3187,20 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                     KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
                     mChat->connect();
                 }
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
+                KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  ID_CSTR(mChatid));
                 notifyRejoinedChat();
             }
         }
         else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         {
             //we were excluded
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  Id(mChatid).toString().c_str());
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  ID_CSTR(mChatid));
             setRemoved(); // may delete 'this'
             return true;
         }
         else
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  Id(mChatid).toString().c_str());
+            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  ID_CSTR(mChatid));
             onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
         }
     }
@@ -3231,7 +3228,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     }
     else if (membersChanged && !mHasTitle)
     {
-        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", Id(mChatid).toString().c_str());
+        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", ID_CSTR(mChatid));
         clearTitle();
     }
 
@@ -3241,7 +3238,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         onArchivedChanged(mIsArchived);
     }
 
-    KR_LOG_DEBUG("Synced group chatroom %s with API.", Id(mChatid).toString().c_str());
+    KR_LOG_DEBUG("Synced group chatroom %s with API.", ID_CSTR(mChatid));
     return true;
 }
 
@@ -3642,7 +3639,7 @@ void Contact::attachChatRoom(PeerChatRoom& room)
     if (mChatRoom)
         throw std::runtime_error("attachChatRoom[room "+Id(room.chatid()).toString()+ "]: contact "+
             Id(mUserid).toString()+" already has a chat room attached");
-    KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", Id(room.chatid()).toString().c_str(), Id(mUserid).toString().c_str());
+    KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", ID_CSTR(room.chatid()), ID_CSTR(mUserid));
     setChatRoom(room);
 }
 

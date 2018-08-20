@@ -740,7 +740,7 @@ void Client::removePeer(karere::Id peer, bool force)
     auto it = mCurrentPeers.find(peer);
     if (it == mCurrentPeers.end())
     {
-        PRESENCED_LOG_DEBUG("removePeer: Unknown peer %s", peer.toString().c_str());
+        PRESENCED_LOG_DEBUG("removePeer: Unknown peer %s", ID_CSTR(peer));
         return;
     }
     if (--it->second > 0)
@@ -751,7 +751,7 @@ void Client::removePeer(karere::Id peer, bool force)
         }
         else
         {
-            PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", peer.toString().c_str());
+            PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", ID_CSTR(peer));
         }
     }
     else //refcount reched zero

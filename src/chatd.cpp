@@ -1587,7 +1587,7 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         const char *key = keybuf.readPtr(pos, keylen);  pos += keylen;
 
         CHATID_LOG_DEBUG("sending key %d for user %s with length %zu to crypto module",
-                         keyid, userid.toString().c_str(), keybuf.dataSize());
+                         keyid, ID_CSTR(userid), keybuf.dataSize());
         CALL_CRYPTO(onKeyReceived, keyid, userid, mClient.userId(), key, keylen);
     }
 
@@ -2685,7 +2685,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mServerFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
-            dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
+                     ID_CSTR(dbInfo.oldestDbId), ID_CSTR(dbInfo.newestDbId));
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + at(highnum()).id());
 }
@@ -2710,7 +2710,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mServerFetchState = kHistFetchingNewFromServer;
     CHATID_LOG_DEBUG("Sending HANDLEJOINRANGEHIST based on app db: %s - %s",
-            dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
+                     ID_CSTR(dbInfo.oldestDbId), ID_CSTR(dbInfo.newestDbId));
 
     Command comm (OP_HANDLEJOINRANGEHIST);
     comm.append(buff.buf(), ::mega::PUBLICHANDLE);
