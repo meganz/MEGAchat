@@ -2651,7 +2651,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
     }
 
     std::string stats = mStatRecorder->terminate(info);
-    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str(), 1380);
     return;
 }
 
