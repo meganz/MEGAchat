@@ -4265,7 +4265,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
     this->ignored = call.ignored;
-    this->sessionStatus = call.sessionStatus;
     this->peerId = call.peerId;
     this->callerId = call.callerId;
 
@@ -4273,6 +4272,13 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     {
         this->sessions[it->first] = it->second->copy();
     }
+
+    this->participants = call.participants;
+
+    this->termCode = call.termCode;
+    this->ignored = call.ignored;
+    this->localTermCode = call.localTermCode;
+    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -4556,18 +4562,6 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
     changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
 }
 
-void MegaChatCallPrivate::setSessionStatus(uint8_t status, MegaChatHandle peer)
-{
-    this->sessionStatus[peer] = status;
-    peerId = peer;
-    changed |= MegaChatCall::CHANGE_TYPE_SESSION_STATUS;
-}
-
-void MegaChatCallPrivate::removeSession(MegaChatHandle peer)
-{
-    this->sessionStatus.erase(peer);
-}
-
 void MegaChatCallPrivate::setIgnoredCall(bool ignored)
 {
     this->ignored = ignored;
@@ -4641,11 +4635,6 @@ bool MegaChatCallPrivate::removeParticipant(Id userid, uint32_t clientid)
     }
 
     return notify;
-}
-
-int MegaChatCallPrivate::getCallParticipants()
-{
-    return participants.size();
 }
 
 bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
@@ -6831,7 +6820,7 @@ void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags f
     {
         bool notify = chatCall->addOrUpdateParticipant(userid, clientid, flags);
 
-        if (chatCall->getCallParticipants() == 2 && !chatCall->getInitialTimeStamp())
+        if (chatCall->getNumParticipants() == 2 && !chatCall->getInitialTimeStamp())
         {
             chatCall->setInitialTimeStamp(time(NULL));
         }
@@ -6872,7 +6861,7 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
 int MegaChatCallHandler::callParticipants()
 {
     assert(chatCall);
-    return chatCall ? chatCall->getCallParticipants(): 0;
+    return chatCall ? chatCall->getNumParticipants(): 0;
 }
 
 bool MegaChatCallHandler::isParticipating(Id userid)
