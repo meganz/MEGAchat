@@ -658,6 +658,7 @@ public:
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
+    std::string mAppDir;
     WebsocketsIO *websocketIO;  // network-layer interface
     void *appCtx;               // app's context
     MyMegaApi api;              // MegaApi's instance
@@ -691,7 +692,6 @@ public:
     promise::Promise<void> mSyncPromise;    // resolved only when up to date    
 
 protected:
-    std::string mAppDir;
     Id mMyHandle = Id::null(); //mega::UNDEF
     std::string mMyName = std::string("\0", 1);
     std::string mMyEmail;

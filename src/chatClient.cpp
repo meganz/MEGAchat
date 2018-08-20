@@ -2494,9 +2494,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         }
         else
         {
-            std::string err("Error base64-decoding chat title: ");
-            KR_LOG_ERROR("%s", err.c_str());
-            this->mChat->disable(true);
+            KR_LOG_ERROR("Failed to base64-decode unified key for chat %s: invalid length", Id(mChatid).toString().c_str());
+            mChat->disable(true);
         }
     }
     else
@@ -2560,7 +2559,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 
     if (mPublicChat)
     {
-        std::string auxTitle = this->chat().crypto()->decryptPublicChatTitle(buf);
+        std::string auxTitle = chat().crypto()->decryptPublicChatTitle(buf);
         pms = promise::Promise<std::string>();
         pms.resolve(auxTitle);
     }

@@ -112,7 +112,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
         outMsg.clear();
         return;
     }
-    Id chatid = mProtoHandler.chatid;
+    Id chatid = mProtoHandler.chatid;   // for the log below
     STRONGVELOPE_LOG_DEBUG("Decrypting msg %s", outMsg.id().toString().c_str());
     Key<32> derivedNonce;
     // deriveNonceSecret() needs at least 32 bytes output buffer
@@ -525,7 +525,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, int chatMode, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode)
+ mUserAttrCache(userAttrCache), mDb(db), mChatMode(chatMode), chatid(aChatId)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     if (this->mChatMode == CHAT_MODE_PRIVATE)
@@ -1069,11 +1069,12 @@ ProtocolHandler::decryptPublicChatTitle(const Buffer& data)
         memcpy(unifiedKey->buf(), mUnifiedKey->buf(), AES::BLOCKSIZE);
 
         chatd::Message *decryptedMsg = parsedMsg->decryptPublicChatTitle(msg.get(), unifiedKey);
-        std::string res(decryptedMsg->buf(),decryptedMsg->size());
+        std::string res(decryptedMsg->buf(), decryptedMsg->size());
         return res;
     }
     catch(std::exception& e)
     {
+        STRONGVELOPE_LOG_ERROR("Failed to decrypt chat title: %s", e.what());
         return std::string();
     }
 }
@@ -1601,7 +1602,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
     auto wptr = weakHandle();
     SetOfIds participants = *mParticipants;
 
-    if(extraUser)
+    if (extraUser)
     {
         participants.insert(extraUser);
     }
@@ -1620,7 +1621,7 @@ chatd::Message*
 ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key)
 {
     symmetricDecrypt(*key, *msg);
-    msg->setEncrypted(0);
+    msg->setEncrypted(Message::kNotEncrypted);
     return msg;
 }
 promise::Promise<chatd::Message*>
