@@ -425,13 +425,13 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
 
    if (!audioInput && !videoInput)
    {
-         return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
+       return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
    }
 
-     std::shared_ptr<artc::LocalStreamHandle> localStream =
-         std::make_shared<artc::LocalStreamHandle>(
-            audioInput ? audioInput.getTrack() : nullptr,
-            videoInput ? videoInput.getTrack() : nullptr);
+   std::shared_ptr<artc::LocalStreamHandle> localStream =
+           std::make_shared<artc::LocalStreamHandle>(
+               audioInput ? audioInput.getTrack() : nullptr,
+               videoInput ? videoInput.getTrack() : nullptr);
 
     localStream->setAv(av);
     return localStream;
@@ -3180,6 +3180,5 @@ void globalCleanup()
     if (!artc::isInitialized())
         return;
     artc::cleanup();
-
 }
 }
