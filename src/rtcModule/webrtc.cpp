@@ -378,10 +378,8 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
 
     if (!devices.video.empty() && !mVideoInDeviceName.empty())
      {
-
         try
          {
-
             auto device = getDevice(mVideoInDeviceName, devices.video);
             if (!device)
             {
@@ -390,11 +388,8 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
                       .append("' not present, using default device\n");
             }
 
-
             updateConstraints(resolution);
             auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
-
-
             videoInput = mDeviceManager.getUserVideo(opts);
         }
         catch(exception& e)
@@ -404,7 +399,6 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
                   .append(e.what()?e.what():"Unknown error")+='\n';
         }
      }
-
 
     if (!devices.audio.empty() && !mAudioInDeviceName.empty())
      {
@@ -417,6 +411,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
                       .append("' not present, using default device\n");
                 device = &devices.audio[0];
             }
+
             audioInput = mDeviceManager.getUserAudio(
                     std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
         }
@@ -426,16 +421,18 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
             errors.append("Error getting audio device: ")
                   .append(e.what()?e.what():"Unknown error")+='\n';
          }
-
      }
 
    if (!audioInput && !videoInput)
+   {
          return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
+   }
 
      std::shared_ptr<artc::LocalStreamHandle> localStream =
          std::make_shared<artc::LocalStreamHandle>(
             audioInput ? audioInput.getTrack() : nullptr,
             videoInput ? videoInput.getTrack() : nullptr);
+
     localStream->setAv(av);
     return localStream;
 }
@@ -2143,7 +2140,6 @@ string Session::getDeviceInfo() const
         deviceType = "nsync";
         endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
     }
-
 
     size_t endVersionPosition = userAgent.find(" (");
     if (endVersionPosition != std::string::npos &&
