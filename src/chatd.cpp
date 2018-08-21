@@ -942,20 +942,7 @@ void Chat::join()
 
 void Chat::handlejoin()
 {
-    //Get public handle from mPhToChatId map
-    auto m = client().karereClient->mPhToChatId;
-    auto it = m.begin();
-    uint64_t auxph;
-    while (it != m.end())   // message is loaded in RAM
-    {
-        if (it->second == mChatId )
-        {
-            auxph = it->first;
-        }
-        it++;
-    }
-    Buffer buff;
-    buff.write(0,&auxph, ::mega::PUBLICHANDLE);
+    assert(mPh != Id::inval());
 
     //We don't have any local history, otherwise joinRangeHist() would be called instead of this
     //Reset handshake state, as we may be reconnecting
@@ -964,7 +951,7 @@ void Chat::handlejoin()
 
     //Create command `OPCODE_HANDLEJOIN(1) + chathandle(6) + userId(8) + priv(1)`
     Command comm (OP_HANDLEJOIN);
-    comm.append(buff.buf(), ::mega::PUBLICHANDLE);
+    comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
     sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
@@ -2454,6 +2441,16 @@ DbInterface* Chat::getDbInterface()
     return mDbInterface;
 }
 
+void Chat::setPublicHandle(uint64_t ph)
+{
+    mPh = ph;
+}
+
+uint64_t Chat::publicHandle()
+{
+    return mPh;
+}
+
 void Chat::onLastSeen(Id msgid)
 {
     Idx idx = CHATD_IDX_INVALID;
@@ -2693,19 +2690,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
 {
-    auto m = client().karereClient->mPhToChatId;
-    auto it = m.begin();
-    uint64_t auxph;
-    while (it != m.end())   // message is loaded in RAM
-    {
-        if (it->second == mChatId )
-        {
-            auxph = it->first;
-        }
-        it++;
-    }
-    Buffer buff;
-    buff.write(0,&auxph, ::mega::PUBLICHANDLE);
+    assert(mPh != Id::inval());
 
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mServerFetchState = kHistFetchingNewFromServer;
@@ -2713,7 +2698,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
                      ID_CSTR(dbInfo.oldestDbId), ID_CSTR(dbInfo.newestDbId));
 
     Command comm (OP_HANDLEJOINRANGEHIST);
-    comm.append(buff.buf(), ::mega::PUBLICHANDLE);
+    comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
     sendCommand(comm + dbInfo.oldestDbId + at(highnum()).id());
 }
 

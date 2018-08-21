@@ -348,15 +348,15 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 }
 
 
-promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
+promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
 {
     auto wptr = weakHandle();
     std::string chatKey = key;
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
-    .then([this, chatKey, wptr](ReqResult result) -> promise::Promise<void>
+    .then([this, chatKey, wptr](ReqResult result) -> promise::Promise<uint64_t>
     {
         if (wptr.deleted())
-            return promise::_Void();
+            return Id::inval().val;
 
         Id chatId = result->getParentHandle();
         if (chats->find(chatId) != chats->end())
@@ -380,11 +380,10 @@ promise::Promise<void> Client::loadChatLink(uint64_t publicHandle, const std::st
             return promise::Error("Chatlink Url returned for chatid "+chatId.toString()+" is not valid. ", kErrorTypeGeneric);
         }
 
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, true, ph, true, chatKey, numPeers, url);
-        mPhToChatId[ph] = chatId;
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, chatKey, numPeers, url);
         chats->emplace(chatId, room);
         room->connect();
-        return promise::_Void();
+        return chatId.val;
     });
 }
 
@@ -416,57 +415,47 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
             if (wptr.deleted())
                 return promise::_Void();
 
-            uint64_t ph = room->publicHandle();
-            eraseChatIdByPh(ph);
             room->setChatPrivateMode();
             return promise::_Void();
         });
     });
 }
 
-promise::Promise<void> Client::deleteChatLink(karere::Id chatid)
+promise::Promise<uint64_t> Client::deleteChatLink(karere::Id chatid)
 {
     auto wptr = weakHandle();
 
     return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
-    .then([this, wptr, chatid](ReqResult) -> promise::Promise<void>
+    .then([this, wptr, chatid](ReqResult) -> promise::Promise<uint64_t>
     {
         if (wptr.deleted())
-            return promise::_Void();
+            return Id::inval().val;
 
-        GroupChatRoom *room = (GroupChatRoom *) this->chats->at(chatid);
-
-        eraseChatIdByPh(room->publicHandle());
-        room->setPublicHandle(Id::inval());
-        return promise::_Void();
+        return Id::inval().val;
     });
 }
 
-promise::Promise<void> Client::getPublicHandle(Id chatid)
+promise::Promise<uint64_t> Client::getPublicHandle(Id chatid, bool createifmissing)
 {
-    //TODO TBD if API send actionpackets for ph changes
-    GroupChatRoom *room = static_cast<GroupChatRoom*> (chats->at(chatid));
-    if (room->publicHandle() != Id::inval())
+    auto wptr = weakHandle();
+
+    ApiPromise pms;
+    if (createifmissing)
     {
-        return promise::_Void();
+        pms = api.call(&::mega::MegaApi::chatLinkCreate, chatid);
     }
     else
     {
-        auto wptr = weakHandle();
-
-        return api.call(&::mega::MegaApi::chatLinkCreate, chatid)
-        .then([this, room, wptr](ReqResult result) -> promise::Promise<void>
-        {
-            if (wptr.deleted())
-                return promise::_Void();
-
-            //Set ph in room and map
-            uint64_t ph = result->getParentHandle();
-            room->setPublicHandle(ph);
-            mPhToChatId[ph] = room->chatid();
-            return promise::_Void();
-        });
+        pms = api.call(&::mega::MegaApi::chatLinkQuery, chatid);
     }
+
+    return pms.then([this, chatid, wptr](ReqResult result) -> promise::Promise<uint64_t>
+    {
+        if (wptr.deleted())
+            return Id::inval().val;
+
+        return result->getParentHandle();
+    });
 }
 
 void Client::onSyncReceived(Id chatid)
@@ -1806,7 +1795,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mPublicChat = !unifiedKey.empty();
     if (mPublicChat)
     {
-        mPublicHandle = Id::inval();
         if(unifiedKey.size() == strongvelope::SVCRYPTO_KEY_SIZE)
         {
             chat().crypto()->setUnifiedKey(unifiedKey);
@@ -1826,11 +1814,12 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,
-    bool aPublicChat, const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl)
-:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title), mRoomGui(nullptr), mPublicChat(aPublicChat),
-mPublicHandle(publicHandle), mPreviewMode(previewMode), mNumPeers(aNumPeers)
+    const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl)
+:ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
+  mRoomGui(nullptr), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 {
     initWithChatd();
+    mChat->setPublicHandle(publicHandle);
     mChat->crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
     mChat->crypto()->setUnifiedKey(unifiedKey);
     mChat->crypto()->setPreviewMode(previewMode);
@@ -2801,13 +2790,13 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
         std::string uKeyB64;
         mega::Base64::btoa(uKeyBin, uKeyB64);
 
-        return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin,
-                    mPublicHandle, uKeyB64.c_str());
+        uint64_t ph = mChat->publicHandle();
+        return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin, ph, uKeyB64.c_str());
     })
     .then([this, myHandle](ReqResult)
     {
         mPreviewMode = false;
-        parent.mKarereClient.eraseChatIdByPh(this->mPublicHandle);
+        mChat->setPublicHandle(Id::inval());
     });
  }
 
@@ -3048,16 +3037,6 @@ void GroupChatRoom::setPreviewMode(bool previewMode)
     mPreviewMode = previewMode;
 }
 
-uint64_t GroupChatRoom::publicHandle() const
-{
-    return mPublicHandle;
-}
-
-void GroupChatRoom::setPublicHandle(const uint64_t &publicHandle)
-{
-    mPublicHandle = publicHandle;
-}
-
 bool GroupChatRoom::publicChat() const
 {
     return mPublicChat;
@@ -3248,13 +3227,13 @@ void GroupChatRoom::setChatPrivateMode()
     {
         mPreviewMode = false;
         mPublicChat = false;
+        mChat->setPublicHandle(Id::inval());
         removeAppChatHandler();
         return;
     }
 
     //Update chatRoom
     mPublicChat = false;
-    mPublicHandle = Id::inval();
 
     //Update strongvelope
     chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PRIVATE);

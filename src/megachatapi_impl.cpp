@@ -784,26 +784,15 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            MegaChatHandle chatid = mClient->chatIdByPh(ph);
-            if (!ISUNDEF(chatid))   // already loaded
-            {
-                errorCode = MegaChatError::ERROR_EXIST;
-                break;
-            }
-
             mClient->loadChatLink(ph, key)
-            .then([request, this, ph]()
+            .then([request, this, ph](uint64_t chatid)
             {
-                MegaChatHandle loadedChatId = mClient->chatIdByPh(ph);
-                request->setChatHandle(loadedChatId);
+                GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatid);
+                assert(room);
 
-                ChatRoom *room = findChatRoom(loadedChatId);
-                assert(room->isGroup());
-                if (room)
-                {
-                    request->setText(room->titleString().c_str());
-                    request->setNumber(((GroupChatRoom*)room)->getNumPeers());
-                }
+                request->setChatHandle(chatid);
+                request->setText(room->titleString().c_str());
+                request->setNumber(room->getNumPeers());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -857,64 +846,16 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
-
-        case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
+        case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            bool del = request->getFlag();
+            bool createifmissing = request->getNumRetry();
 
             GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
-            if (!room)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            if (!room->publicChat())
+            if (!room || (del && createifmissing))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
-            if (room->ownPriv() != chatd::PRIV_OPER)
-            {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            MegaChatHandle ph = mClient->chatIdByPh(room->publicHandle());
-            if (ph == MEGACHAT_INVALID_HANDLE)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            mClient->deleteChatLink(chatid)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const promise::Error& err)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
-
-            break;
-        }
-        case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
-        {
-            MegaChatHandle chatid = request->getChatHandle();
-            GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
-
-            if (!room)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -926,40 +867,38 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            GroupChatRoom *groupRoom = (GroupChatRoom *) room;
-            if (!groupRoom->hasTitle())
+            if (!del && createifmissing && !room->hasTitle())
             {
+                API_LOG_DEBUG("Cannot create chat-links on chatrooms without title");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            promise::Promise<void> pms;
-            MegaChatHandle ph = mClient->chatIdByPh(room->publicHandle());
-            if (ph != MEGACHAT_INVALID_HANDLE)
+            promise::Promise<uint64_t> pms;
+            if (del)
             {
-                pms = promise::Promise<void>();
-                pms.resolve();
+                pms = mClient->deleteChatLink(chatid);
             }
-            else
+            else    // query or create
             {
-                pms = mClient->getPublicHandle(chatid);
+                pms = mClient->getPublicHandle(chatid, createifmissing);
             }
 
-            pms.then([request, this, groupRoom]
+            pms.then([request, this] (uint64_t ph)
             {
-                MegaChatHandle phbin = groupRoom->publicHandle();
-                char *auxphstr = new char[8];
-                Base64::btoa((byte*)&(phbin), MegaClient::CHATLINKHANDLE, auxphstr);
-                std::string phstr(auxphstr, 8);
-
-                string keybin(groupRoom->chatkey());
+                GroupChatRoom *room = (GroupChatRoom *) findChatRoom(request->getChatHandle());
+                string keybin(room->chatkey());
                 MegaChatErrorPrivate *megaChatError;
-                if (keybin.size() != 16)
+                if (keybin.size() != 16 || (!request->getFlag() && ph == Id::inval()))
                 {
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                 }
                 else
                 {
+                    char *ph64 = new char[8];
+                    Base64::btoa((byte*)&(ph), MegaClient::CHATLINKHANDLE, ph64);
+                    std::string phstr(ph64, 8);
+
                     string keystr;
                     Base64::btoa(keybin, keystr);
                     string link = "https://mega.nz/c/" + phstr + "#" + keystr;
@@ -970,7 +909,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error exporting chat-link: %s", err.what());
+                API_LOG_ERROR("Failed to query/create/delete chat-link: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -2528,10 +2467,12 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, const char *t
     waiter->notify();
 }
 
-void MegaChatApiImpl::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_EXPORT_CHAT_LINK, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_HANDLE, listener);
     request->setChatHandle(chatid);
+    request->setFlag(del);
+    request->setNumRetry(createifmissing ? 1 : 0);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2607,14 +2548,6 @@ void MegaChatApiImpl::closeChatLink(MegaChatHandle chatid, MegaChatRequestListen
     waiter->notify();
 }
 
-void MegaChatApiImpl::removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_REMOVE, listener);
-    request->setChatHandle(chatid);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
 void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ARCHIVE_CHATROOM, listener);
@@ -2658,7 +2591,6 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
         {
             //TODO clear records related to this chat in cache
             GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
-            mClient->eraseChatIdByPh(openChatRoom->publicHandle());
             mClient->chats->removeRoom(*openChatRoom);
             delete chatroom;
         }
@@ -4148,9 +4080,8 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
         case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
-        case TYPE_EXPORT_CHAT_LINK: return "EXPORT_CHAT_LINK";
+        case TYPE_CHAT_LINK_HANDLE: return "CHAT_LINK_HANDLE";
         case TYPE_CHAT_LINK_CLOSE: return "CHAT_LINK_CLOSE";
-        case TYPE_CHAT_LINK_REMOVE: return "CHAT_LINK_REMOVE";
     }
     return "UNKNOWN";
 }

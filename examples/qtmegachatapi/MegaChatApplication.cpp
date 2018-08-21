@@ -436,25 +436,63 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
 
-        case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
-            if (e->getErrorCode() == MegaChatError::ERROR_OK)
+        case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
             {
-                QMessageBox msg;
-                msg.setIcon(QMessageBox::Information);
-                msg.setText("The chat link has been generated successfully");
-                QString chatlink (request->getText());
-                msg.setDetailedText(chatlink);
-                msg.exec();
-            }
-            else
-            {
-                if(e->getErrorCode() == MegaChatError::ERROR_ARGS)
+                bool del = request->getFlag();
+                if (del)
                 {
-                    QMessageBox::warning(nullptr, tr("Export chat link"), tr("You need to set a chat title before"));
+                    if(e->getErrorCode() != MegaChatError::ERROR_OK)
+                    {
+                        QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
+                    }
+                    else
+                    {
+                        QMessageBox::information(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
+                    }
                 }
                 else
                 {
-                    QMessageBox::critical(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+                    QMessageBox msg;
+                    msg.setIcon(QMessageBox::Information);
+
+                    bool createifmissing = request->getNumRetry();
+                    if (createifmissing)
+                    {
+                        if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                        {
+                            msg.setText("The chat link has been generated successfully");
+                        }
+                        else if (e->getErrorCode() == MegaChatError::ERROR_ARGS)
+                        {
+                            QMessageBox::warning(nullptr, tr("Export chat link"), tr("You need to set a chat title before"));
+                        }
+                        else
+                        {
+                            QMessageBox::critical(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+                        }
+                    }
+                    else
+                    {
+                        if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                        {
+                            msg.setText("The chat link already exists");
+                        }
+                        else if (e->getErrorCode() == MegaChatError::ERROR_NOENT)
+                        {
+                            QMessageBox::warning(nullptr, tr("Query chat link"), tr("No chat-link exists in this chatroom"));
+                        }
+                        else
+                        {
+                            QMessageBox::critical(nullptr, tr("Query chat link"), tr("Error querying chat link ").append(e->getErrorString()));
+                        }
+                    }
+
+                    if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                    {
+                        QString chatlink (request->getText());
+                        msg.setDetailedText(chatlink);
+                        msg.exec();
+                    }
                 }
             }
             break;
@@ -483,19 +521,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             else
             {
                 QMessageBox::warning(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
-            }
-            break;
-        }
-
-        case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
-        {
-            if(e->getErrorCode() != MegaChatError::ERROR_OK)
-            {
-                QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
-            }
-            else
-            {
-                QMessageBox::warning(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
             }
             break;
         }

@@ -1233,8 +1233,8 @@ public:
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_LOAD_CHAT_LINK,
-        TYPE_EXPORT_CHAT_LINK, TYPE_CHAT_LINK_CLOSE,
-        TYPE_CHAT_LINK_JOIN, TYPE_CHAT_LINK_REMOVE,
+        TYPE_CHAT_LINK_HANDLE, TYPE_CHAT_LINK_CLOSE,
+        TYPE_CHAT_LINK_JOIN,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2607,6 +2607,35 @@ public:
     void createPublicChat(MegaChatPeerList *peers, const char *title = NULL, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Check if there is an existing chat-link for an public chat
+     *
+     * This function allows moderators to check whether a public handle for public chats exist and,
+     * if any, it returns a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createPublicChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 0
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom, if it already exist
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
+     * chatroom is a private chatroom or a 1on1 room.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat-link associated to the specified chatid
+     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Create a chat-link for an public chat
      *
      * This function allows moderators to create a public handle for public chats and returns
@@ -2614,9 +2643,11 @@ public:
      *
      * @see \c MegaChatApi::createPublicChat for more details.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_EXPORT_CHAT_LINK
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 1
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -2854,23 +2885,21 @@ public:
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Invalidates the currect public handl
+     * @brief Invalidates the currect public handle
      *
      * This function invalidates the currect public handle and set the chat mode to private
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_REMOVE
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getNumRetry - Returns 0
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to
      * invalidate the currect public handle
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chatid is invalid
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request

@@ -423,9 +423,14 @@ void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, M
     pImpl->createPublicChat(peers, title, listener);
 }
 
+void MegaChatApi::queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->chatLinkHandle(chatid, false, false, listener);
+}
+
 void MegaChatApi::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->exportChatLink(chatid, listener);
+    pImpl->chatLinkHandle(chatid, false, true, listener);
 }
 
 void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener)
@@ -480,7 +485,7 @@ void MegaChatApi::closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *
 
 void MegaChatApi::removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->removeChatLink(chatid, listener);
+    pImpl->chatLinkHandle(chatid, true, false, listener);
 }
 
 void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener)

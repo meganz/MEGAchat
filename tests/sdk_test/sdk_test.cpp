@@ -1438,7 +1438,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a1] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
 
     //--> Export chat link (ERR No title)
-    bool *flagExportChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_EXPORT_CHAT_LINK]; *flagExportChatLink = false;
+    bool *flagExportChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagExportChatLink = false;
     megaChatApi[a1]->exportChatLink(chatid, this);
     ASSERT_CHAT_TEST(waitForResponse(flagExportChatLink), "Timeout expired for export chat link");
 
@@ -1458,7 +1458,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()), "Title received doesn't match the title set");
 
     // --> Export chat link (OK)
-    flagExportChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_EXPORT_CHAT_LINK]; *flagExportChatLink = false;
+    flagExportChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagExportChatLink = false;
     megaChatApi[a1]->exportChatLink(chatid, this);
     ASSERT_CHAT_TEST(waitForResponse(flagExportChatLink), "Timeout expired for export chat link");
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error exporting public chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
@@ -3639,7 +3639,7 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 mChatEmail = request->getText() ? request->getText() : "";
                 break;
 
-            case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
+            case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
                 chatLinks[apiIndex] = request->getText();
                 break;
         }

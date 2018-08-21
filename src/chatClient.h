@@ -316,7 +316,6 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
     bool mPublicChat = false;
-    uint64_t mPublicHandle = Id::inval();
     bool mPreviewMode = false;
     int mNumPeers = 0; //Only for public chats in preview mode
 
@@ -350,7 +349,7 @@ protected:
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                bool aIsArchived, const std::string& title, bool aPublicChat,
+                bool aIsArchived, const std::string& title,
                 const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl);
     ~GroupChatRoom();
 
@@ -422,8 +421,6 @@ public:
 
     virtual bool previewMode() const;
     void setPreviewMode(bool previewMode);
-    uint64_t publicHandle() const;
-    void setPublicHandle(const uint64_t &publicHandle);
     virtual bool publicChat() const;
     void setPublicChat(bool publicChat);
 
@@ -681,7 +678,6 @@ public:
     unsigned short mMyPubRsaLen = 0;
 
     IApp::ILoginDialog::Handle mLoginDlg;
-    std::map <uint64_t, uint64_t> mPhToChatId;   
 
     /** @brief The contact list of the client */
     std::unique_ptr<ContactList> contactList;
@@ -765,8 +761,9 @@ public:
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
     /** @brief This function returns an url to connect to a public chat in preview mode
+     * @return The chatid associated to the public handle
      */
-    promise::Promise<void> loadChatLink(uint64_t publicHandle, const std::string &key);
+    promise::Promise<uint64_t> loadChatLink(uint64_t publicHandle, const std::string &key);
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */
@@ -774,26 +771,11 @@ public:
 
     /** @brief This function creates a public handle if not exists
      */
-    promise::Promise<void> getPublicHandle(karere::Id chatid);
+    promise::Promise<uint64_t> getPublicHandle(karere::Id chatid, bool createifmissing);
 
     /** @brief This function invalidates the current public handle
      */
-    promise::Promise<void> deleteChatLink(karere::Id chatid);
-
-    uint64_t chatIdByPh(uint64_t ph)
-    {
-        auto it = mPhToChatId.find(ph);
-        if (it != mPhToChatId.end())
-        {
-            return it->second;
-        }
-        return Id::inval();
-    }
-
-    void eraseChatIdByPh(uint64_t ph)
-    {
-        mPhToChatId.erase(ph);
-    }
+    promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
