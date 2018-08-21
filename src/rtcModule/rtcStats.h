@@ -88,6 +88,8 @@ protected:
     int mMaxSamplePeriod;
     webrtc::PeerConnectionInterface::StatsOutputLevel mStatsLevel =
             webrtc::PeerConnectionInterface::kStatsOutputLevelStandard;
+    static const int STATFLAG_SEND_CPU_LIMITED_RESOLUTION = 4;
+    static const int STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION = 8;
     std::unique_ptr<Sample> mCurrSample;
     BwCalculator mVideoRxBwCalc;
     BwCalculator mVideoTxBwCalc;
@@ -99,6 +101,7 @@ protected:
     void resetBwCalculators();
     int64_t getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
     std::string getStringValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport* item);
+    bool checkShouldAddSample();
 public:
     Session& mSession;
     std::unique_ptr<RtcStats> mStats;

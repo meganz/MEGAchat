@@ -91,6 +91,64 @@ std::string Recorder::getStringValue(webrtc::StatsReport::StatsValueName name, c
     return stringValue;
 }
 
+bool Recorder::checkShouldAddSample()
+{
+    if (mStats->mSamples.empty())
+    {
+        return true;
+    }
+
+    Sample* last = mStats->mSamples.back();
+
+    mCurrSample->astats.plDifference = mCurrSample->astats.r.pl - last->astats.r.pl;
+    if (mCurrSample->astats.plDifference)
+    {
+        return true;
+    }
+
+    if (mCurrSample->f != last->f)
+    {
+        return true;
+    }
+
+    if ((mCurrSample->ts - last->ts) >= mMaxSamplePeriod)
+    {
+        return true;
+    }
+
+    if (mCurrSample->vstats.r.width != last->vstats.r.width)
+    {
+        return true;
+    }
+
+    if (mCurrSample->vstats.s.width != last->vstats.s.width)
+    {
+        return true;
+    }
+
+    if (abs(mCurrSample->vstats.r.dly - last->vstats.r.dly) >= 100)
+    {
+        return true;
+    }
+
+    if (abs(mCurrSample->vstats.rtt - last->vstats.rtt) >= 50)
+    {
+        return true;
+    }
+
+    if (abs(mCurrSample->astats.rtt - last->astats.rtt) >= 50)
+    {
+        return true;
+    }
+
+    if (abs(mCurrSample->astats.r.jtr - last->astats.r.jtr) >= 40)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 void Recorder::BwCalculator::calculate(uint64_t periodMs, uint64_t newTotalBytes)
 {
     uint64_t deltaBytes = newTotalBytes - mBwInfo->bt;
@@ -111,6 +169,7 @@ void Recorder::onStats(const webrtc::StatsReports &data)
     long ts = karere::timestampMs() - mStats->mStartTs;
     long period = ts - mCurrSample->ts;
     mCurrSample->ts = ts;
+    mCurrSample->f = mSession.call().sentAv().value();
     for (const webrtc::StatsReport* item: data)
     {
         if (item->id()->type() == RPTYPE(Ssrc))
@@ -128,6 +187,9 @@ void Recorder::onStats(const webrtc::StatsReports &data)
 //              vstat.fpsSent = res.stat('googFrameRateOutput'); -- this should be for screen output
                 sample.width = width;
                 sample.height = getLongValue(VALNAME(FrameHeightReceived), item);
+                sample.nacktx = getLongValue(VALNAME(NacksSent), item);
+                sample.plitx = getLongValue(VALNAME(PlisSent), item);
+                sample.firtx = getLongValue(VALNAME(FirsSent), item);
             }
             else if (item->FindValue(VALNAME(FrameWidthSent))) //video tx
             {
@@ -144,8 +206,15 @@ void Recorder::onStats(const webrtc::StatsReports &data)
                 }
 //              s.et = stat('googAvgEncodeMs');
                 AVG(EncodeUsagePercent, sample.s.el); //(s.et*s.fps)/10; // (encTime*fps/1000ms)*100%
-                sample.s.lcpu = (getStringValue(VALNAME(CpuLimitedResolution), item) == "true");
-                sample.s.lbw = (getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true");
+                if (getStringValue(VALNAME(CpuLimitedResolution), item) == "true")
+                {
+                    mCurrSample->f |= STATFLAG_SEND_CPU_LIMITED_RESOLUTION;
+                }
+                if (getStringValue(VALNAME(BandwidthLimitedResolution), item) == "true")
+                {
+                    mCurrSample->f |= STATFLAG_SEND_BANDWIDTH_LIMITED_RESOLUTION;
+                }
+
                 mVideoTxBwCalc.calculate(period, getLongValue(VALNAME(BytesSent), item));
             }
             else if (item->FindValue(VALNAME(AudioInputLevel))) //audio rx
@@ -197,66 +266,16 @@ void Recorder::onStats(const webrtc::StatsReports &data)
             sample.targetEncBitrate = round((float)getLongValue(VALNAME(TargetEncBitrate), item)/1024);
         }
     } //end item loop
-    bool shouldAddSample = false;
 
-    if (mStats->mSamples.empty())
-    {
-        shouldAddSample = true;
-    }
-    else
-    {
-        auto& last = *mStats->mSamples.back();
-        long d_dly = 0;
-        if (last.vstats.r.dly)
-        {
-            d_dly = (mCurrSample->vstats.r.dly - last.vstats.r.dly);
-            if (d_dly < 0)
-                d_dly = -d_dly;
-        }
-        long d_vrtt = 0;
-        if (last.vstats.rtt)
-        {
-            d_vrtt = (mCurrSample->vstats.rtt - last.vstats.rtt);
-            if (d_vrtt < 0)
-                d_vrtt = -d_vrtt;
-        }
-        long d_auRtt = 0;
-        if (last.astats.rtt)
-        {
-            d_auRtt = mCurrSample->astats.rtt - last.astats.rtt;
-            if (d_auRtt < 0)
-                d_auRtt = -d_auRtt;
-        }
-        long d_auJtr = 0;
-        if (last.astats.r.jtr)
-        {
-            d_auJtr = mCurrSample->astats.r.jtr - last.astats.r.jtr;
-                    if (d_auJtr < 0)
-                        d_auJtr = -d_auJtr;
-        }
-
-        auto d_ts = mCurrSample->ts - last.ts;
-        auto d_apl = mCurrSample->astats.r.pl - last.astats.r.pl;
-        mCurrSample->astats.plDifference = d_apl;
-        shouldAddSample =
-            (mCurrSample->vstats.r.width != last.vstats.r.width)
-         || (mCurrSample->vstats.s.width != last.vstats.s.width)
-         || ((d_ts >= mMaxSamplePeriod)
-         || (d_dly > 100) || (d_auRtt > 100)
-         || (d_apl > 0) || (d_vrtt > 150) || (d_auJtr > 40));
-
-//        printf("dw = %d, dh = %d\n", mCurrSample->vstats.r.width != last.vstats.r.width, mCurrSample->vstats.r.height != last.vstats.r.height);
-//        printf("mOptions.maxSamplePeriod = %d\n", mOptions.maxSamplePeriod);
-//        printf("d_ts = %llu, d_dly = %ld, d_auRtt = %ld, d_vrtt = %ld, d_auJtr = %ld, d_apl = %ld", d_ts, d_dly, d_auRtt, d_vrtt, d_auJtr, d_apl);
-    }
 
     mCurrSample->lq = mSession.calculateNetworkQuality(mCurrSample.get());
 
+    bool shouldAddSample = checkShouldAddSample();
     if (shouldAddSample)
     {
-        //KR_LOG_DEBUG("Stats: add sample");
         addSample();
     }
+
     if (onSample)
     {
         if ((mStats->mSamples.size() == 1) && shouldAddSample) //first sample that we just added
@@ -351,6 +370,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_SUBOBJ("samples");
         JSON_ADD_SAMPLES(, ts);
         JSON_ADD_SAMPLES(, lq);
+        JSON_ADD_SAMPLES(, f);
         JSON_SUBOBJ("v");
             JSON_ADD_SAMPLES(vstats., rtt);
             JSON_SUBOBJ("s");
@@ -360,8 +380,6 @@ void RtcStats::toJson(std::string& json) const
                 JSON_ADD_SAMPLES(vstats.s., width);
                 JSON_ADD_SAMPLES(vstats.s., height);
                 JSON_ADD_DEC_SAMPLES(vstats.s., el);
-                JSON_ADD_SAMPLES(vstats.s., lcpu);
-                JSON_ADD_SAMPLES(vstats.s., lbw);
                 JSON_ADD_SAMPLES(vstats.s., bwav);
                 JSON_ADD_SAMPLES(vstats.s., gbps);
             JSON_END_SUBOBJ();
@@ -373,6 +391,9 @@ void RtcStats::toJson(std::string& json) const
                 JSON_ADD_SAMPLES(vstats.r., dly);
                 JSON_ADD_SAMPLES(vstats.r., width);
                 JSON_ADD_SAMPLES(vstats.r., height);
+                JSON_ADD_SAMPLES(vstats.r., firtx);
+                JSON_ADD_SAMPLES(vstats.r., plitx);
+                JSON_ADD_SAMPLES(vstats.r., nacktx);
             JSON_END_SUBOBJ(); //r
         JSON_END_SUBOBJ(); //v
         JSON_SUBOBJ("a");

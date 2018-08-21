@@ -2651,7 +2651,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
     }
 
     std::string stats = mStatRecorder->terminate(info);
-    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str());
+    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
     return;
 }
 
@@ -3035,36 +3035,24 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
 
     // check video frames per second
     long fps = sample->vstats.s.fps;
-    long result = 0;
     if (fps < 15)
     {
         if (fps < 3)
         {
-            result = 0;
+            return 0;
         }
         else if (fps < 5)
         {
-            result = 1;
+            return 1;
         }
         else if (fps < 10)
         {
-            result = 2;
+            return 2;
         }
         else
         {
-            result = 3;
+            return 3;
         }
-    }
-
-    if (sample->vstats.s.lbw && result > 2)
-    {
-        SUB_LOG_WARNING("Video send resolution capped by bandwidth, returning 2");
-        result = 2;
-    }
-
-    if (result)
-    {
-        return result;
     }
 
     // check connection's round-trip time
