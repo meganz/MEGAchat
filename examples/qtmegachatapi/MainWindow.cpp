@@ -777,7 +777,7 @@ void MainWindow::createChatRoom(MegaChatPeerList *peerList, bool isGroup, bool i
      if (!reuseExistingRoom)
      {
          char *title = NULL;
-         if (isGroup)
+         if (isGroup && isPublic)
          {
              QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
              if (!qTitle.isNull() && !qTitle.isEmpty())
