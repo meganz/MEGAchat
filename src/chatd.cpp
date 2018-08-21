@@ -303,7 +303,7 @@ void Chat::connect()
         });
 
     }
-    else if (mConnection.isConnected())
+    else if (mConnection.isOnline())
     {
         login();
     }
@@ -316,7 +316,7 @@ void Chat::disconnect()
 
 void Chat::login()
 {
-    assert(mConnection.isConnected());
+    assert(mConnection.isOnline());
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     // In both cases (join/joinrangehist), don't block history messages being sent to app
@@ -391,15 +391,10 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     {
         CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
-        assert(!mLoginPromise.succeeded());
         assert(!mConnectPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
-        }
-        if (!mLoginPromise.done())
-        {
-            mLoginPromise.reject(reason, errcode, errtype);
         }
     }
     else
@@ -443,6 +438,20 @@ void Connection::sendEcho()
     sendBuf(Command(OP_ECHO));
 }
 
+void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
+{
+    Command msg(OP_RTMSG_BROADCAST);
+    msg.write<uint64_t>(1, chatid.val);
+    msg.write<uint64_t>(9, 0);
+    msg.write<uint32_t>(17, 0);
+    msg.write<uint16_t>(21, 10);        // Payload length -> opCode(1) + callid(8) + termCode(1)
+    msg.write<uint8_t>(23, rtcModule::RTCMD_CALL_REQ_DECLINE);          // RTCMD_CALL_REQ_DECLINE
+    msg.write<uint64_t>(24, callid.val);
+    msg.write<uint8_t>(32, rtcModule::kErrNotSupported);         // Termination code kErrNotSupported = 37
+    auto& chat = mChatdClient.chats(chatid);
+    chat.sendCommand(std::move(msg));
+}
+
 Promise<void> Connection::reconnect()
 {
     mChatdClient.karereClient->setCommitMode(false);
@@ -477,7 +486,6 @@ Promise<void> Connection::reconnect()
 #endif
             disconnect();
             mConnectPromise = Promise<void>();
-            mLoginPromise = Promise<void>();
 
             string ipv4, ipv6;
             bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
@@ -515,14 +523,18 @@ Promise<void> Connection::reconnect()
                         errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
                     }
 
-                    if (!mConnectPromise.done())
+                    if (isOnline() && cachedIPs)
                     {
-                        mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        return;
                     }
-                    if (!mLoginPromise.done())
+
+                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
                     {
-                        mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+                        wsDisconnect(true);
                     }
+                    onSocketClose(0, 0, "Async DNS error (chatd)");
                     return;
                 }
 
@@ -549,7 +561,11 @@ Promise<void> Connection::reconnect()
                                   ipsv6.size() ? ipsv6.at(0) : "");
                     assert(!ret);
 
-                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
+                    {
+                        wsDisconnect(true);
+                    }
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
             });
@@ -559,14 +575,9 @@ Promise<void> Connection::reconnect()
             {
                 CHATDS_LOG_ERROR("Sync DNS error in chatd. Error code: %d", statusDNS);
                 string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
-                if (!mConnectPromise.done())
-                {
-                    mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                }
-                if (!mLoginPromise.done())
-                {
-                    mLoginPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-                }
+
+                assert(!mConnectPromise.done());
+                mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
             }
             else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
             // no network connetion, so it's futile to attempt to connect
@@ -575,17 +586,17 @@ Promise<void> Connection::reconnect()
             }
 
             return mConnectPromise
-            .then([wptr, this]() -> promise::Promise<void>
+            .then([wptr, this]()
             {
                 if (wptr.deleted())
-                    return promise::_Void();
+                    return;
 
-                assert(isConnected());
+                assert(isOnline());
                 sendCommand(Command(OP_CLIENTID)+mChatdClient.karereClient->myIdentity());
                 mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
                 mHeartbeatEnabled = true;
                 sendKeepalive(mChatdClient.mKeepaliveType);
-                return rejoinExistingChats();
+                rejoinExistingChats();
             });
         }, wptr, mChatdClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
     }
@@ -722,7 +733,7 @@ void Client::heartbeat()
 
 bool Connection::sendBuf(Buffer&& buf)
 {
-    if (!isConnected())
+    if (!isOnline())
         return false;
 
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
@@ -883,7 +894,7 @@ string KeyCommand::toString() const
     return tmpString;
 }
 // rejoin all open chats after reconnection (this is mandatory)
-promise::Promise<void> Connection::rejoinExistingChats()
+bool Connection::rejoinExistingChats()
 {
     for (auto& chatid: mChatIds)
     {
@@ -895,10 +906,11 @@ promise::Promise<void> Connection::rejoinExistingChats()
         }
         catch(std::exception& e)
         {
-            mLoginPromise.reject(std::string("rejoinExistingChats: Exception: ")+e.what());
+            CHATDS_LOG_ERROR("rejoinExistingChats: Exception: %s", e.what());
+            return false;
         }
     }
-    return mLoginPromise;
+    return true;
 }
 
 // send JOIN
@@ -1038,7 +1050,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 void Chat::requestHistoryFromServer(int32_t count)
 {
     // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
-    assert(mConnection.isConnected());
+    assert(mConnection.isOnline());
     mLastServerHistFetchCount = mLastHistDecryptCount = 0;
     mServerFetchState = (count > 0)
         ? kHistFetchingNewFromServer
@@ -1397,7 +1409,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
-                pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
@@ -1405,7 +1416,19 @@ void Connection::execCommand(const StaticBuffer& buf)
                     auto& chat = mChatdClient.chats(chatid);
                     mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
+
+                pos += payloadLen;
+#else
+                READ_ID(callid, 22);
+                READ_8(state, 30);
+                if (state == rtcModule::kCallDataRinging) // Ringing state
+                {
+                    sendCallReqDeclineNoSupport(chatid, callid);
+                }
+
+                pos += payloadLen - 9;  // 9 -> callid(8) + state(1)
 #endif
+
                 break;
             }
             case OP_RTMSG_ENDPOINT:
@@ -1840,7 +1863,7 @@ void Chat::requestRichLink(Message &message)
                 textMessage.reserve(originalMessage.size());
                 for (std::string::size_type i = 0; i < originalMessage.size(); i++)
                 {
-                    char character = originalMessage[i];
+                    unsigned char character = originalMessage[i];
                     switch (character)
                     {
                         case '\n':
@@ -2090,17 +2113,20 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
             idx = rangeStart;
         }
 
-        uint64_t backref;
-        if (idx < (Idx)sendingIdx.size())
+        Message &msg = (idx < (Idx)sendingIdx.size())
+                ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
+                : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+
+        if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
         {
-            backref = sendingIdx[sendingIdx.size()-1-idx]->msg->backRefId; // reference a not-yet confirmed message
+            msgit->msg->backRefs.push_back(msg.backRefId);
         }
         else
         {
-            backref = at(highnum()-(idx-sendingIdx.size())).backRefId; // reference a regular history message
+            CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
+            // TODO: instead of skipping the backrefid for this range, we should try to find another
+            // message with a valid backrefid within the current range
         }
-
-        msgit->msg->backRefs.push_back(backref);
 
         if (rangeEnd == maxEnd)
         {
@@ -2117,7 +2143,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
     assert((opcode == OP_NEWMSG && recipients == mUsers)
-           || (opcode == OP_MSGUPDX && isLocalKeyId(msg->keyid))
+           || (opcode == OP_MSGUPDX)    // can use unconfirmed or confirmed key
            || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
     mSending.emplace_back(opcode, msg, recipients);
@@ -2419,7 +2445,7 @@ void Chat::onLastSeen(Id msgid)
     {
         if (mLastSeenIdx == CHATD_IDX_INVALID)  // don't have a previous idx yet --> initialization
         {
-            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
+            CHATID_LOG_DEBUG("onLastSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
@@ -2733,6 +2759,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
+
+    assert(msg->backRefId);
+    if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, *msg, idx, "A message with that backrefId "+std::to_string(msg->backRefId)+" already exists");
+    }
 
     //update any following MSGUPDX-s referring to this msgxid
     int count = 0;
@@ -3048,8 +3080,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
-            if (msg->userid != client().userId() && // is not our own message
-                    msg->updated && !msg->size())   // is deleted
+            if (msg->isDeleted() && msg->isOwnMessage(client().userId()))
             {
                 CALL_LISTENER(onUnreadChanged);
             }
@@ -3065,8 +3096,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 {
                     onLastTextMsgUpdated(histmsg, idx);
                 }
-                else //our last text msg was deleted or changed to management
-                {    //message, find another one
+                else //our last text msg is not valid anymore, find another one
+                {
                     findAndNotifyLastTextMsg();
                 }
             }
@@ -3635,6 +3666,7 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
         if (targetIdx >= idx)
         {
             CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "Message order verification failed, possible history tampering");
+            client().karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99000, "order tampering native");
             return;
         }
     }
@@ -3701,21 +3733,8 @@ void Chat::onUserLeave(Id userid)
     }
 }
 
-void Connection::notifyLoggedIn()
-{
-    if (mLoginPromise.done())
-        return;
-
-    assert(mConnectPromise.succeeded());
-    if (mChatdClient.areAllChatsLoggedIn())
-    {
-        mLoginPromise.resolve();
-    }
-}
-
 void Chat::onJoinComplete()
 {
-    mConnection.notifyLoggedIn();
     if (mUsers != mUserDump)
     {
         mUsers.swap(mUserDump);

@@ -2,6 +2,8 @@
 #import "MEGAChatCall.h"
 #import "megachatapi.h"
 #import "MEGASdk.h"
+#import "MEGAHandleList+init.h"
+#import "MEGAChatSession+init.h"
 
 using namespace megachat;
 
@@ -46,11 +48,11 @@ using namespace megachat;
     NSString *base64CallId = [MEGASdk base64HandleForUserHandle:self.callId];
     NSString *localAudio = [self hasLocalAudio] ? @"ON" : @"OFF";
     NSString *localVideo = [self hasLocalVideo] ? @"ON" : @"OFF";
-    NSString *remoteAudio = [self hasRemoteAudio] ? @"ON" : @"OFF";
-    NSString *remoteVideo = [self hasRemoteVideo] ? @"ON" : @"OFF";
+    NSString *remoteAudio = [self hasAudioInitialCall] ? @"ON" : @"OFF";
+    NSString *remoteVideo = [self hasVideoInitialCall] ? @"ON" : @"OFF";
     NSString *localTermCode = [self isLocalTermCode] ? @"YES" : @"NO";
     NSString *ringing = [self isRinging] ? @"YES" : @"NO";
-    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing];
+    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@, sessions: %@, participants: %@, numParticipants: %ld>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing, [self sessions], self.participants, (long)self.numParticipants];
 }
 
 - (MEGAChatCallStatus)status {
@@ -99,12 +101,12 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->hasLocalVideo() : NO;
 }
 
-- (BOOL)hasRemoteAudio {
-    return self.megaChatCall ? self.megaChatCall->hasRemoteAudio() : NO;
+- (BOOL)hasAudioInitialCall {
+    return self.megaChatCall ? self.megaChatCall->hasAudioInitialCall() : NO;
 }
 
-- (BOOL)hasRemoteVideo {
-    return self.megaChatCall ? self.megaChatCall->hasRemoteVideo() : NO;
+- (BOOL)hasVideoInitialCall {
+    return self.megaChatCall ? self.megaChatCall->hasVideoInitialCall() : NO;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType {
@@ -127,8 +129,20 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getPeerSessionStatusChange() : MEGACHAT_INVALID_HANDLE;
 }
 
-- (MEGAChatCallSessionStatus)sessionStatusForPeer:(uint64_t)peerId {
-    return (MEGAChatCallSessionStatus) (self.megaChatCall ? self.megaChatCall->getSessionStatus(peerId) : 0);
+- (MEGAHandleList *)sessions {
+    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getSessions() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)participants {
+    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getParticipants() cMemoryOwn:YES] : nil;
+}
+
+- (NSInteger)numParticipants {
+    return self.megaChatCall ? self.megaChatCall->getNumParticipants() : 0;
+}
+
+- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId {
+    return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(peerId) cMemoryOwn:NO] : nil;
 }
 
 + (NSString *)stringForStatus:(MEGAChatCallStatus)status {
@@ -152,11 +166,14 @@ using namespace megachat;
         case MEGAChatCallStatusInProgress:
             result = @"In progress";
             break;
-        case MEGAChatCallStatusTerminating:
-            result = @"Terminating";
+        case MEGAChatCallStatusTerminatingUserParticipation:
+            result = @"Terminating user participation";
             break;
         case MEGAChatCallStatusDestroyed:
             result = @"Destroyed";
+            break;
+        case MEGAChatCallStatusUserNoPresent:
+            result = @"User no present";
             break;
             
         default:

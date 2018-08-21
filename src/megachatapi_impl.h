@@ -172,15 +172,21 @@ public:
     virtual MegaChatHandle getPeerid() const;
     virtual bool hasAudio() const;
     virtual bool hasVideo() const;
+    virtual int getNetworkQuality() const;
+    virtual bool getAudioDetected() const;
     static uint8_t convertSessionState(uint8_t state);
 
     void setState(uint8_t state);
     void setAvFlags(karere::AvFlags flags);
+    void setNetworkQuality(int quality);
+    void setAudioDetected(bool audioDetected);
 
 private:
+    uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id peerid;
     karere::AvFlags av;
-    uint8_t state = MegaChatSession::SESSION_STATUS_INVALID;
+    int networkQuality = rtcModule::kNetworkQualityDefault;
+    bool audioDetected = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -219,6 +225,9 @@ public:
     virtual int getNumParticipants() const;
     virtual mega::MegaHandleList *getParticipants() const;
     virtual bool isIgnored() const;
+    virtual bool isIncoming() const;
+    virtual bool isOutgoing() const;
+    virtual MegaChatHandle getCaller() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -229,20 +238,18 @@ public:
     void setError(const std::string &temporaryError);
     void setTermCode(rtcModule::TermCode termCode);
     void setIsRinging(bool ringing);
-    void setSessionStatus(uint8_t status, MegaChatHandle peer);
-    void removeSession(MegaChatHandle peer);
     void setIgnoredCall(bool ignored);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
     void removeSession(karere::Id peerid);
-    void sessionUpdated(karere::Id peerid, uint8_t changeType);
+    void sessionUpdated(karere::Id peerid, int changeType);
 
     bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool removeParticipant(karere::Id userid, uint32_t clientid);
-    int getCallParticipants();
     bool adjustAvFlagsToRestriction(karere::AvFlags &av);
     bool isParticipating(karere::Id userid);
     void removeAllParticipants();
     void setId(karere::Id callid);
+    void setCaller(karere::Id caller);
 
 protected:
     MegaChatHandle chatid;
@@ -254,10 +261,10 @@ protected:
     int64_t initialTs;
     int64_t finalTs;
     std::string temporaryError;
-    std::map<MegaChatHandle, int> sessionStatus;
     std::map<karere::Id, MegaChatSession *> sessions;
     std::map<chatd::EndpointId, karere::AvFlags> participants;
     MegaChatHandle peerId;  // to identify the updated session
+    MegaChatHandle callerId;
 
     int termCode;
     bool ignored;
@@ -265,6 +272,7 @@ protected:
     void convertTermCode(rtcModule::TermCode termCode);
 
     bool ringing;
+    bool mIsCaller;
 };
 
 class MegaChatVideoFrame
@@ -558,6 +566,8 @@ public:
     virtual void onRemoteStreamRemoved();
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv);
     virtual void onVideoRecv();
+    virtual void onSessionNetworkQualityChange(int currentQuality);
+    virtual void onSessionAudioDetected(bool audioDetected);
 
 private:
     MegaChatApiImpl *megaChatApi;

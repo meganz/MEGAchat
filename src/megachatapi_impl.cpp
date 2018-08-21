@@ -4103,7 +4103,8 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
 }
 
 MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &session)
-    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo())
+    : state(session.getStatus()), peerid(session.getPeerid()), av(session.hasAudio(), session.hasVideo()),
+      networkQuality(session.getNetworkQuality()), audioDetected(session.getAudioDetected())
 {
 }
 
@@ -4134,6 +4135,16 @@ bool MegaChatSessionPrivate::hasAudio() const
 bool MegaChatSessionPrivate::hasVideo() const
 {
     return av.video();
+}
+
+int MegaChatSessionPrivate::getNetworkQuality() const
+{
+    return networkQuality;
+}
+
+bool MegaChatSessionPrivate::getAudioDetected() const
+{
+    return audioDetected;
 }
 
 uint8_t MegaChatSessionPrivate::convertSessionState(uint8_t state)
@@ -4181,11 +4192,22 @@ void MegaChatSessionPrivate::setAvFlags(AvFlags flags)
     av = flags;
 }
 
+void MegaChatSessionPrivate::setNetworkQuality(int quality)
+{
+    networkQuality = quality;
+}
+
+void MegaChatSessionPrivate::setAudioDetected(bool audioDetected)
+{
+    this->audioDetected = audioDetected;
+}
+
 MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
 {
     status = call.state();
     chatid = call.chat().chatId();
     callid = call.id();
+    mIsCaller = call.isCaller();
     // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
     localAVFlags = call.sentAv();
     initialAVFlags = karere::AvFlags(false, false);
@@ -4198,6 +4220,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     ignored = false;
     changed = 0;
     peerId = 0;
+    callerId = call.caller() ? call.caller().val : MEGACHAT_INVALID_HANDLE;
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
@@ -4223,6 +4246,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration
     ignored = false;
     changed = 0;
     peerId = 0;
+    callerId = MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
@@ -4230,6 +4254,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->status = call.getStatus();
     this->chatid = call.getChatid();
     this->callid = call.getId();
+    this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
     this->initialAVFlags = call.initialAVFlags;
     this->changed = call.changed;
@@ -4240,13 +4265,20 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
     this->ignored = call.ignored;
-    this->sessionStatus = call.sessionStatus;
     this->peerId = call.peerId;
+    this->callerId = call.callerId;
 
     for (std::map<karere::Id, MegaChatSession *>::const_iterator it = call.sessions.begin(); it != call.sessions.end(); it++)
     {
         this->sessions[it->first] = it->second->copy();
     }
+
+    this->participants = call.participants;
+
+    this->termCode = call.termCode;
+    this->ignored = call.ignored;
+    this->localTermCode = call.localTermCode;
+    this->ringing = call.ringing;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -4389,7 +4421,7 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerId)
 
 int MegaChatCallPrivate::getNumParticipants() const
 {
-    return sessions.size();
+    return participants.size();
 }
 
 MegaHandleList *MegaChatCallPrivate::getParticipants() const
@@ -4408,6 +4440,21 @@ MegaHandleList *MegaChatCallPrivate::getParticipants() const
 bool MegaChatCallPrivate::isIgnored() const
 {
     return ignored;
+}
+
+bool MegaChatCallPrivate::isIncoming() const
+{
+    return !mIsCaller;
+}
+
+bool MegaChatCallPrivate::isOutgoing() const
+{
+    return mIsCaller;
+}
+
+MegaChatHandle MegaChatCallPrivate::getCaller() const
+{
+    return callerId;
 }
 
 void MegaChatCallPrivate::setStatus(int status)
@@ -4515,18 +4562,6 @@ void MegaChatCallPrivate::setIsRinging(bool ringing)
     changed |= MegaChatCall::CHANGE_TYPE_RINGING_STATUS;
 }
 
-void MegaChatCallPrivate::setSessionStatus(uint8_t status, MegaChatHandle peer)
-{
-    this->sessionStatus[peer] = status;
-    peerId = peer;
-    changed |= MegaChatCall::CHANGE_TYPE_SESSION_STATUS;
-}
-
-void MegaChatCallPrivate::removeSession(MegaChatHandle peer)
-{
-    this->sessionStatus.erase(peer);
-}
-
 void MegaChatCallPrivate::setIgnoredCall(bool ignored)
 {
     this->ignored = ignored;
@@ -4560,7 +4595,7 @@ void MegaChatCallPrivate::removeSession(Id peerid)
     }
 }
 
-void MegaChatCallPrivate::sessionUpdated(Id peerid, uint8_t changeType)
+void MegaChatCallPrivate::sessionUpdated(Id peerid, int changeType)
 {
     this->peerId = peerid;
     changed |= changeType;
@@ -4600,11 +4635,6 @@ bool MegaChatCallPrivate::removeParticipant(Id userid, uint32_t clientid)
     }
 
     return notify;
-}
-
-int MegaChatCallPrivate::getCallParticipants()
-{
-    return participants.size();
 }
 
 bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
@@ -4662,6 +4692,11 @@ void MegaChatCallPrivate::removeAllParticipants()
 void MegaChatCallPrivate::setId(Id callid)
 {
     this->callid = callid;
+}
+
+void MegaChatCallPrivate::setCaller(Id caller)
+{
+    this->callerId = caller;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, rtcModule::ICall *call, MegaChatHandle peerid)
@@ -6611,10 +6646,10 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
 
 void MegaChatCallHandler::onStateChange(uint8_t newState)
 {
-    assert(chatCall != NULL);
-    if (chatCall != NULL)
+    assert(chatCall);
+    if (chatCall)
     {
-        API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %d --> %d",
+        API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
                      karere::Id(chatCall->getChatid()).toString().c_str(),
                      karere::Id(chatCall->getId()).toString().c_str(),
                      rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1
@@ -6634,6 +6669,8 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 state = MegaChatCall::CALL_STATUS_REQUEST_SENT;
                 break;
             case rtcModule::ICall::kStateRingIn:
+                assert(call);
+                chatCall->setCaller(call->caller());
                 state = MegaChatCall::CALL_STATUS_RING_IN;
                 break;
             case rtcModule::ICall::kStateJoining:
@@ -6679,7 +6716,8 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
     {
         chatid = chatCall->getChatid();
         MegaHandleList *participants = chatCall->getParticipants();
-        if (participants && participants->size() > 0)
+        bool uniqueParticipant = (participants && participants->size() == 1 && participants->get(0) == megaChatApi->getMyUserHandle());
+        if (participants && participants->size() > 0 && !uniqueParticipant)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -6782,7 +6820,7 @@ void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags f
     {
         bool notify = chatCall->addOrUpdateParticipant(userid, clientid, flags);
 
-        if (chatCall->getCallParticipants() == 2 && !chatCall->getInitialTimeStamp())
+        if (chatCall->getNumParticipants() == 2 && !chatCall->getInitialTimeStamp())
         {
             chatCall->setInitialTimeStamp(time(NULL));
         }
@@ -6823,7 +6861,7 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
 int MegaChatCallHandler::callParticipants()
 {
     assert(chatCall);
-    return chatCall ? chatCall->getCallParticipants(): 0;
+    return chatCall ? chatCall->getNumParticipants(): 0;
 }
 
 bool MegaChatCallHandler::isParticipating(Id userid)
@@ -6973,6 +7011,32 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 void MegaChatSessionHandler::onVideoRecv()
 {
 
+}
+
+void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
+{
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setNetworkQuality(currentQuality);
+    chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
+    API_LOG_INFO("Network quality change. ChatId: %s, peer: %s, value: %d",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 currentQuality);
+
+    megaChatApi->fireOnChatCallUpdate(chatCall);
+}
+
+void MegaChatSessionHandler::onSessionAudioDetected(bool audioDetected)
+{
+    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    megaChatSession->setAudioDetected(audioDetected);
+    chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_AUDIO_LEVEL);
+    API_LOG_INFO("Change Audio level. ChatId: %s, peer: %s, value: %s",
+                 Id(chatCall->getChatid()).toString().c_str(),
+                 session->peer().toString().c_str(),
+                 audioDetected ? "Active" : "Inactive");
+
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 #endif

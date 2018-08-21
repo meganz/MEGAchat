@@ -73,6 +73,16 @@ bool MegaChatSession::hasVideo() const
     return false;
 }
 
+int MegaChatSession::getNetworkQuality() const
+{
+    return 0;
+}
+
+bool MegaChatSession::getAudioDetected() const
+{
+    return false;
+}
+
 MegaChatCall::~MegaChatCall()
 {
 }
@@ -190,6 +200,21 @@ int MegaChatCall::getNumParticipants() const
 bool MegaChatCall::isIgnored() const
 {
     return false;
+}
+
+bool MegaChatCall::isIncoming() const
+{
+    return false;
+}
+
+bool MegaChatCall::isOutgoing() const
+{
+    return false;
+}
+
+MegaChatHandle MegaChatCall::getCaller() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)

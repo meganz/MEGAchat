@@ -32,6 +32,9 @@ class ICall {};
 class IRtcModule;
 class RtcModule;
 typedef uint8_t TermCode;
+uint8_t kErrNotSupported = 37;
+uint8_t RTCMD_CALL_REQ_DECLINE = 2;
+uint8_t kCallDataRinging = 1;
 }
 
 #else
@@ -40,6 +43,8 @@ typedef uint8_t TermCode;
 #include <karereId.h>
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
+
+#define CHATSTATS_PORT 1380
 
 namespace chatd
 {
@@ -115,12 +120,18 @@ enum TermCode: uint8_t
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
     kErrAlready = 36,           // < There is already a call in this chatroom
-    kErrorLast = 36,            // < Last enum indicating call termination due to error
-    kLast = 36,                 // < Last call terminate enum value
+    kErrNotSupported = 37,      // < Clients that don't support calls send CALL_REQ_CANCEL with this code
+    kErrorLast = 37,            // < Last enum indicating call termination due to error
+    kLast = 37,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
 };
+
+static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
+static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
+static const unsigned int kStatsPeriod = 1;         // Timeout to get new stats (in seconds)
+static const unsigned int kMaxStatsPeriod = 5;      // Maximum timeout without adding new sample to stats (in seconds)
 
 static inline bool isTermError(TermCode code)
 {
@@ -142,6 +153,29 @@ public:
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
     virtual void onVideoRecv() {}
+
+    /**
+     * @brief Notifies about changes in network quality
+     *
+     * This callback is received when the network quality changes. The
+     * worst value is 0, the best value is 5. The default value at the
+     * beginning (without enough samples) is 2.
+     *
+     * @param currentQuality Value from 0 to 5 representing the quality.
+     */
+    virtual void onSessionNetworkQualityChange(int currentQuality) = 0;
+
+    /**
+     * @brief Notifies about changes on the audio
+     *
+     * This callback is received when a user participating in the call
+     * with us starts and/or stops talking. It can be used for nice UX/UI
+     * configurations, like getting the video of the peer larger when the
+     * user speaks.
+     *
+     * @param Whether the peer is speaking or not.
+     */
+    virtual void onSessionAudioDetected(bool audioDetected) = 0;
 };
 
 class ICallHandler
@@ -225,7 +259,6 @@ public:
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
     karere::Id peer() const { return mPeer; }
-    virtual bool isRelayed() const { return false; } //TODO: Implement
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
 };

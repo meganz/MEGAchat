@@ -86,7 +86,8 @@ enum Opcode
       *   managed across devices.
       * Send: <chatid> <msgid>
       *
-      * S->C: The last seen message has been updated from another device.
+      * S->C: The last seen message has been updated (from another device or current
+      * device). Also received as part of the login process.
       * Receive: <chatid> <msgid>
       */
     OP_SEEN = 5,
@@ -339,10 +340,10 @@ enum Opcode
     OP_SYNC = 38,
 
     /**
-      ** @brief <chatid> <callDuration 4 Bytes>
+      ** @brief <chatid> <callDuration.4>
       *
       * S->C: inform about call duration in seconds for a call that exists before we get online.
-      * It is sent before any INCALL or CALLDATA
+      * It is sent before any INCALL or CALLDATA.
       */
     OP_CALLTIME = 42,
 
