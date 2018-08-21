@@ -370,7 +370,7 @@ void RtcStats::toJson(std::string& json) const
     JSON_SUBOBJ("samples");
         JSON_ADD_SAMPLES(, ts);
         JSON_ADD_SAMPLES(, lq);
-         JSON_ADD_SAMPLES(, f);
+        JSON_ADD_SAMPLES(, f);
         JSON_SUBOBJ("v");
             JSON_ADD_SAMPLES(vstats., rtt);
             JSON_SUBOBJ("s");

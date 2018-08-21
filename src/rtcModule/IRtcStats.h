@@ -35,9 +35,9 @@ struct Sample
             short width = 0;        // width of frame
             short height = 0;       // height of frame
             long bwav = 0;          // bandwidth available
-            long firtx = 0;
-            long plitx = 0;
-            long nacktx = 0;
+            long firtx = 0;         // full intra request
+            long plitx = 0;         // picture loss indication
+            long nacktx = 0;        // Negative Acknowledgement
         } r;    // receive
 
         struct : BwInfo
