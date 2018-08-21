@@ -1826,7 +1826,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mUrl = aUrl;
 
     //Add my own handle to peers list
-    const Id myHandle = this->chat().client().karereClient->myHandle();
+    const Id myHandle = parent.mKarereClient.myHandle();
     mPeers[myHandle] = new Member(*this, myHandle, chatd::PRIV_RDONLY);
     //save to db
     auto db = parent.mKarereClient.db;
@@ -2378,6 +2378,22 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     }
     initWithChatd();
 
+    //save to db
+    auto db = parent.mKarereClient.db;
+    db.query("delete from chat_peers where chatid=?", mChatid);
+    db.query(
+        "insert or replace into chats(chatid, shard, peer, peer_priv, "
+        "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
+        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
+
+    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
+    for (auto& m: mPeers)
+    {
+        stmt << mChatid << m.first << m.second->mPriv;
+        stmt.step();
+        stmt.reset().clearBind();
+    }
+
     auto ct = aChat.getTitle();
     bool hasCt = (ct && ct[0]);
     if (hasCt)
@@ -2496,22 +2512,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
                 KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
             });
         }
-    }
-
-    //save to db
-    auto db = parent.mKarereClient.db;
-    db.query("delete from chat_peers where chatid=?", mChatid);
-    db.query(
-        "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
-        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
-
-    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
-    for (auto& m: mPeers)
-    {
-        stmt << mChatid << m.first << m.second->mPriv;
-        stmt.step();
-        stmt.reset().clearBind();
     }
 
     mRoomGui = addAppItem();
