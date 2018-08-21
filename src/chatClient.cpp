@@ -751,6 +751,11 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                     api.sdk.resumeActionPackets();
                 });
             }
+            else
+            {
+                assert(state == kInitHasOnlineSession);
+                api.sdk.resumeActionPackets();
+            }
         }, appCtx);
         break;
     }
