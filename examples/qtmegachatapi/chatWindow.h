@@ -89,6 +89,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMembersBtn(bool);
         void onLeaveGroupChat();
         void onChangeTitle();
+        void onQueryChatLink();
         void onExportChatLink();
         void onRemoveChatLink();
         void onCloseChatLink();

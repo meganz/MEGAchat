@@ -631,6 +631,11 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     if (mChatRoom->isPublic())
     {
+        //Query chat link
+        auto queryChatLink = menu.addAction("Query chat link");
+        queryChatLink->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+        connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
+
         //Export chat link
         auto exportChatLink = menu.addAction("Export chat link");
         exportChatLink->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
@@ -646,7 +651,14 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
         closeChatLink->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
         connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
     }
+}
 
+void ChatWindow::onQueryChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->queryChatLink(mChatRoom->getChatId());
+    }
 }
 
 void ChatWindow::onExportChatLink()
@@ -655,7 +667,6 @@ void ChatWindow::onExportChatLink()
     {
         mMegaChatApi->exportChatLink(mChatRoom->getChatId());
     }
-
 }
 void ChatWindow::onRemoveChatLink()
 {

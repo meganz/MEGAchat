@@ -456,6 +456,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     if (auxItem->isPublic())
     {
+        auto actQueryLink = menu.addAction(tr("Query chat link"));
+        connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
+
         auto actExportLink = menu.addAction(tr("Export chat link"));
         connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
 
@@ -487,6 +490,14 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 void ChatItemWidget::truncateChat()
 {
     this->mMegaChatApi->clearChatHistory(mChatId);
+}
+
+void ChatItemWidget::queryChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->queryChatLink(mChatId);
+    }
 }
 
 void ChatItemWidget::exportChatLink()

@@ -50,6 +50,7 @@ class ChatItemWidget : public QWidget
         void leaveGroupChat();
         void setTitle();
         void truncateChat();
+        void queryChatLink();
         void exportChatLink();
         void closeChatLink();
         void removeChatLink();
