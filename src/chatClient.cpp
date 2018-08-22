@@ -1803,7 +1803,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         else
         {
             KR_LOG_ERROR("Error with unifiedKey format for chat %s:\n.", ID_CSTR(mChatid));
-            this->mChat->disable(true);
+            mChat->disable(true);
         }
     }
 
@@ -2194,6 +2194,7 @@ void ChatRoomList::loadFromDb()
             {
                 unifiedKey.assign(auxstmt.stringCol(0));
             }
+            // else  --> not public chat anymore
 
             room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(6), unifiedKey);
         }
@@ -2235,10 +2236,6 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     {
         //We need to ensure that unified key exists before decrypt title for public chats. So we decrypt title inside ctor
         room = new GroupChatRoom(*this, apiRoom); //also writes it to cache
-        if (mKarereClient.connected())
-        {
-            GroupChatRoom *groupchat = static_cast<GroupChatRoom*>(room);
-        }
     }
     else    // 1on1
     {
@@ -2429,76 +2426,79 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         const char *bufB64 = aChat.getUnifiedKey();
         if (bufB64)
         {
-            try
+            //Convert received key from B64 to Bin
+            int lenKey = strongvelope::SVCRYPTO_KEY_SIZE;
+            int lenPair = mega::MegaClient::CHATLINKHANDLE + lenKey;
+            char *bufBin = new char[lenPair];
+            int len = mega::Base64::atob(bufB64, (byte *)bufBin, lenPair);
+            if (len == lenPair)
             {
-                //Convert received key from B64 to Bin
-                int lenKey = strongvelope::SVCRYPTO_KEY_SIZE;
-                int lenPair = mega::MegaClient::CHATLINKHANDLE + lenKey;
-                char *bufBin = new char[lenPair];
-                int len = mega::Base64::atob(bufB64, (byte *)bufBin, lenPair);
-                if (len == lenPair)
+                //Parse invitor handle (First 8 Bytes)
+                uint64_t invitorHandle;
+                memcpy(&invitorHandle, bufBin, sizeof invitorHandle);
+
+                //Parse unified key (Last 16 Bytes)
+                auto bufunifiedkey = std::make_shared<Buffer>(lenKey);
+                bufunifiedkey->assign(&bufBin[mega::USERHANDLE], lenKey);
+                auto wptr = getDelTracker();
+
+                try
                 {
-                    //Parse invitor handle (First 8 Bytes)
-                    uint64_t invitorHandle;
-                    memcpy(&invitorHandle, bufBin, sizeof invitorHandle);
-
-                    //Parse unified key (Last 16 Bytes)
-                    auto bufunifiedkey = std::make_shared<Buffer>(lenKey);
-                    bufunifiedkey->assign(&bufBin[mega::USERHANDLE], lenKey);
-                    auto wptr = getDelTracker();
-
                     //Decrypt unifiedkey
                     chat().crypto()->decryptUnifiedKey(bufunifiedkey, invitorHandle, invitorHandle)
-                    .then([this, wptr, invitorHandle](std::string result)
-                    {
-                       if (wptr.deleted())
-                            return;
-
-                       //Set unifiedkey in strongvelope
-                       chat().crypto()->setUnifiedKey(result);
-                       chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
-
-                       // Save Unified key decrypted
-                       this->parent.mKarereClient.db.query(
-                           "insert or replace into chat_vars(chatid, name, value)"
-                           " values(?,'unified_key',?)",
-                           this->mChatid, result.c_str());
-
-                       if (mHasTitle)
-                       {
-                           decryptTitle()
-                           .fail([](const promise::Error& )
-                           {
-                               KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
-                           });
-                       }
-                    })
-                    .fail([wptr, this](const promise::Error& )
+                    .then([this, wptr, invitorHandle](std::string unifiedKey)
                     {
                         if (wptr.deleted())
-                             return;
+                            return;
 
-                        KR_LOG_ERROR("Error decrypting unifiedKey for chat %s", Id(this->mChatid).toString().c_str());
-                        this->mChat->disable(true);
+                        //Set unifiedkey in strongvelope
+                        chat().crypto()->setUnifiedKey(unifiedKey);
+                        chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
+
+                        // Save Unified key decrypted
+                        this->parent.mKarereClient.db.query(
+                                    "insert or replace into chat_vars(chatid, name, value)"
+                                    " values(?,'unified_key',?)",
+                                    mChatid, unifiedKey.c_str());
+
+                        if (mHasTitle)
+                        {
+                            decryptTitle()
+                            .fail([wptr, this](const promise::Error& e)
+                            {
+                                if (wptr.deleted())
+                                    return;
+
+                                KR_LOG_ERROR("Failed to decrypt title for public chat %s: %s", ID_CSTR(mChatid), e.what());
+                            });
+                        }
+                    })
+                    .fail([wptr, this](const promise::Error& e)
+                    {
+                        if (wptr.deleted())
+                            return;
+
+                        KR_LOG_ERROR("Error decrypting unifiedKey for chat %s: %s", ID_CSTR(mChatid), e.what());
+                        mChat->disable(true);
                     });
+
                 }
-                else
+                catch(std::exception& e)
                 {
-                    KR_LOG_ERROR("Error obtaining unifiedKey for chat %s", Id(this->mChatid).toString().c_str());
-                    this->mChat->disable(true);
+                    KR_LOG_ERROR("Failed to base64-decode unified key for chat %s: %s", ID_CSTR(mChatid), e.what());
+                    mChat->disable(true);
                 }
-                delete [] bufBin;
             }
-            catch(std::exception& e)
+            else
             {
-                std::string err("Error base64-decoding chat title: ");
-                KR_LOG_ERROR("%s", err.c_str());
-                this->mChat->disable(true);
+                KR_LOG_ERROR("Invalid length of unified key for chat %s", ID_CSTR(mChatid));
+                mChat->disable(true);
             }
+            delete [] bufBin;
         }
         else
         {
-            KR_LOG_ERROR("Failed to base64-decode unified key for chat %s: invalid length", ID_CSTR(mChatid));
+            KR_LOG_ERROR("Public chat %s don't have a unified key", ID_CSTR(mChatid));
             mChat->disable(true);
         }
     }
@@ -2507,9 +2507,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         if (mHasTitle)
         {
             decryptTitle()
-            .fail([](const promise::Error&)
+            .fail([this](const promise::Error& e)
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: ChatRoomList::addRoom");
+                KR_LOG_ERROR("Failed to decrypt title for private chat %s: %s", ID_CSTR(mChatid), e.what());
             });
         }
     }
@@ -2557,7 +2557,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         pms = chat().crypto()->decryptChatTitle(buf);
     }
 
-    return pms.then([wptr, this](const std::string& title)
+    return pms.then([wptr, this](const std::string title)
     {
         wptr.throwIfDeleted();
         if (mTitleString == title)
@@ -2569,6 +2569,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
             mTitleString = title;
             if (!mTitleString.empty())
             {
+                KR_LOG_DEBUG("Title decrypted succesfully. Update in cache");
                 mHasTitle = true;
                 parent.mKarereClient.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
             }

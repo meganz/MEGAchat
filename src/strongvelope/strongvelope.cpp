@@ -1617,8 +1617,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
     });
 }
 
-chatd::Message*
-ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key)
+chatd::Message* ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key)
 {
     symmetricDecrypt(*key, *msg);
     msg->setEncrypted(Message::kNotEncrypted);
