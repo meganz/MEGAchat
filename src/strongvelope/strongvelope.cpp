@@ -191,7 +191,7 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
                 messageStr.dataSize(), pubKey.ubuf()) == 0);
     }
 
-    assert(sendKey.dataSize() == 16);
+    assert(sendKey.dataSize() == SVCRYPTO_KEY_SIZE);
     Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize()+2);
 
     messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size())
@@ -604,8 +604,8 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
 
             if (receiver == mOwnHandle)
             {
-                encryptedKey = std::make_shared<Buffer>(16);
-                encryptedKey->assign(pos, 16);
+                encryptedKey = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+                encryptedKey->assign(pos, SVCRYPTO_KEY_SIZE);
                 break;
             }
 
@@ -814,7 +814,7 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
     .then([this, wptr](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
-        std::string keybuff(key->buf(), 16);
+        std::string keybuff(key->buf(), SVCRYPTO_KEY_SIZE);
         return keybuff;
     });
 }
@@ -1010,10 +1010,10 @@ ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
 
     if (pos >= end)
         throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < 16)
+    if (end-pos < SVCRYPTO_KEY_SIZE)
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(16);
-    buf->assign(pos, 16);
+    auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+    buf->assign(pos, SVCRYPTO_KEY_SIZE);
     auto wptr = weakHandle();
     return mProtoHandler.decryptKey(buf, msg->userid, receiver)
     .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
@@ -1644,10 +1644,10 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
     if (pos >= end)
         throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < 16)
-        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(16);
-    buf->assign(pos, 16);
+    if (end-pos < SVCRYPTO_KEY_SIZE)
+        throw std::runtime_error("Unexpected key entry length - must be 16 bytes, but is "+std::to_string(end-pos)+" bytes");
+    auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+    buf->assign(pos, SVCRYPTO_KEY_SIZE);
     auto wptr = weakHandle();
     unsigned int cacheVersion = mProtoHandler.getCacheVersion();
     return mProtoHandler.decryptKey(buf, sender, receiver)
