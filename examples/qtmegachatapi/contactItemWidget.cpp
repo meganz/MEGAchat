@@ -19,7 +19,12 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     QString text = QString::fromUtf8(contactEmail);
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
-    this->mMegaChatApi->getUserFirstname(contact->getHandle());
+    const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle());
+    if (firstname)
+    {
+        mMainWin->updateContactFirstname(contact->getHandle(), firstname);
+    }
+    delete [] firstname;
     int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
 }
@@ -40,9 +45,11 @@ void ContactItemWidget::setAvatarStyle()
 void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     QMenu menu(this);
+    auto chatPeerInviteAction = menu.addAction(tr("Invite to 1on1 chat"));
+    connect(chatPeerInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePeerChat()));
     auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
-    auto removeAction = menu.addAction(tr("Remove contact"));
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
+    auto removeAction = menu.addAction(tr("Remove contact"));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
     menu.exec(event->globalPos());
     menu.deleteLater();
@@ -89,54 +96,81 @@ void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 
 void ContactItemWidget::onCreateGroupChat()
 {
-   QMessageBox msgBox;
-   msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat.");
-   msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-   msgBox.setDefaultButton(QMessageBox::Save);
-   int ret = msgBox.exec();
+    createChatRoom(mUserHandle, true);
+}
 
-   if (ret == QMessageBox::Ok)
-   {
-        megachat::MegaChatPeerList *peerList;
-        peerList = megachat::MegaChatPeerList::createInstance();
-        peerList->addPeer(mUserHandle, 2);
-        megachat::MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
-        if (listItems)
-        {
-            QMessageBox msgBoxAns;
-            msgBoxAns.setText("You have another chatroom with same participants do you want to reuse it ");
-            msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-            int retVal = msgBoxAns.exec();
-            if (retVal == QMessageBox::Yes)
-            {
-                if (listItems->get(0)->isArchived())
-                {
-                    ChatItemWidget *item = mMainWin->getChatItemWidget(listItems->get(0)->getChatId(), false);
+void ContactItemWidget::onCreatePeerChat()
+{
+    createChatRoom(mUserHandle, false);
+}
 
-                    if (item)
-                    {
-                        item->unarchiveChat();
-                        QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
-                    }
-                }
-                else
-                {
-                    QMessageBox::warning(this, tr("Add chatRoom"), tr("You have decide to reuse the chatroom"));
-                }
-            }
-            else
-            {
-                this->mMegaChatApi->createChat(true, peerList);
-            }
-            msgBoxAns.deleteLater();
-        }
-        else
-        {
-            this->mMegaChatApi->createChat(true, peerList);
-        }
-        delete listItems;
-   }
-   msgBox.deleteLater();
+void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
+{
+    QMessageBox msgBox;
+    if (isGroup)
+    {
+        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat.");
+    }
+    else
+    {
+        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new 1on1 chat.");
+    }
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Cancel);
+    int ret = msgBox.exec();
+
+    if (ret == QMessageBox::Ok)
+    {
+         megachat::MegaChatPeerList *peerList;
+         peerList = megachat::MegaChatPeerList::createInstance();
+         peerList->addPeer(mUserHandle, 2);
+         megachat::MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
+
+         int i = 0;
+         bool exists = false;
+         while (listItems->size() > i)
+         {
+              if (listItems->get(i)->isGroup() == isGroup)
+              {
+                 exists = true;
+                 break;
+              }
+              i++;
+         }
+
+         if (exists)
+         {
+             auto item = listItems->get(i);
+             QMessageBox msgBoxAns;
+             msgBoxAns.setText("Another chatroom with "+ui->mName->text()+" already exists: \""+item->getTitle()+"\".\nDo you want to reuse that room?");
+             msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+             int retVal = msgBoxAns.exec();
+             if (retVal == QMessageBox::Yes)
+             {
+                 if (item->isArchived())
+                 {
+                     QMessageBox::warning(this, tr("Add chatRoom"), "Chatroom \""+QString(item->getTitle())+"\" is going to be unarchived.");
+                     mMegaChatApi->archiveChat(item->getChatId(), false);
+                 }
+                 else
+                 {
+                     QMessageBox::warning(this, tr("Add chatRoom"), "Reusing chatroom \""+QString(item->getTitle())+"\"");
+                 }
+             }
+             else
+             {
+                 mMegaChatApi->createChat(isGroup, peerList);
+             }
+             msgBoxAns.deleteLater();
+         }
+         else
+         {
+             mMegaChatApi->createChat(isGroup, peerList);
+         }
+         delete listItems;
+         delete peerList;
+    }
+    msgBox.deleteLater();
 }
 
 void ContactItemWidget::onContactRemove()

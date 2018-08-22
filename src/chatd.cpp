@@ -1487,6 +1487,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 mChatdClient.karereClient->onSyncReceived(chatid);
                 break;
             }
+            case OP_CALLTIME:
+            {
+                READ_CHATID(0);
+                READ_32(duration, 8);
+                CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
+                // TODO: add management of calltime (for groupcalling)
+                break;
+            }
             default:
             {
                 CHATDS_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -2071,17 +2079,20 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
             idx = rangeStart;
         }
 
-        uint64_t backref;
-        if (idx < (Idx)sendingIdx.size())
+        Message &msg = (idx < (Idx)sendingIdx.size())
+                ? *(sendingIdx[sendingIdx.size()-1-idx]->msg)   // msg is from sending queue
+                : at(highnum()-(idx-sendingIdx.size()));        // msg is from history buffer
+
+        if (!msg.isManagementMessage()) // management-msgs don't have a valid backrefid
         {
-            backref = sendingIdx[sendingIdx.size()-1-idx]->msg->backRefId; // reference a not-yet confirmed message
+            msgit->msg->backRefs.push_back(msg.backRefId);
         }
         else
         {
-            backref = at(highnum()-(idx-sendingIdx.size())).backRefId; // reference a regular history message
+            CHATID_LOG_WARNING("Skipping backrefid for a management message: %s", ID_CSTR(msg.id()));
+            // TODO: instead of skipping the backrefid for this range, we should try to find another
+            // message with a valid backrefid within the current range
         }
-
-        msgit->msg->backRefs.push_back(backref);
 
         if (rangeEnd == maxEnd)
         {
@@ -2098,7 +2109,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
     assert((opcode == OP_NEWMSG && recipients == mUsers)
-           || (opcode == OP_MSGUPDX && isLocalKeyId(msg->keyid))
+           || (opcode == OP_MSGUPDX)    // can use unconfirmed or confirmed key
            || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
     mSending.emplace_back(opcode, msg, recipients);
@@ -2400,7 +2411,7 @@ void Chat::onLastSeen(Id msgid)
     {
         if (mLastSeenIdx == CHATD_IDX_INVALID)  // don't have a previous idx yet --> initialization
         {
-            CHATID_LOG_DEBUG("setMessageSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
+            CHATID_LOG_DEBUG("onLastSeen: Setting last seen msgid to %s", ID_CSTR(msgid));
             mLastSeenId = msgid;
             CALL_DB(setLastSeen, msgid);
 
@@ -2715,6 +2726,12 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     auto idx = mIdToIndexMap[msgid] = highnum();
     CALL_DB(addMsgToHistory, *msg, idx);
 
+    assert(msg->backRefId);
+    if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
+    {
+        CALL_LISTENER(onMsgOrderVerificationFail, *msg, idx, "A message with that backrefId "+std::to_string(msg->backRefId)+" already exists");
+    }
+
     //update any following MSGUPDX-s referring to this msgxid
     int count = 0;
     for (auto& item: mSending)
@@ -2814,7 +2831,7 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     {
         int countDb = mDbInterface->updateSendingItemsKeyid(localKeyid, keyid);
         assert(countDb == count);
-        CHATD_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
+        CHATID_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
     }
 }
 
@@ -3029,8 +3046,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
-            if (msg->userid != client().userId() && // is not our own message
-                    msg->updated && !msg->size())   // is deleted
+            if (msg->isDeleted() && msg->isOwnMessage(client().userId()))
             {
                 CALL_LISTENER(onUnreadChanged);
             }
@@ -3046,8 +3062,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 {
                     onLastTextMsgUpdated(histmsg, idx);
                 }
-                else //our last text msg was deleted or changed to management
-                {    //message, find another one
+                else //our last text msg is not valid anymore, find another one
+                {
                     findAndNotifyLastTextMsg();
                 }
             }
@@ -3616,6 +3632,7 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
         if (targetIdx >= idx)
         {
             CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "Message order verification failed, possible history tampering");
+            client().karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99000, "order tampering native");
             return;
         }
     }
@@ -3742,7 +3759,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     //idx == CHATD_IDX_INVALID when we notify about a message in the send queue
     //either (msg.isSending() && idx-is-invalid) or (!msg.isSending() && index-is-valid)
     assert(!((idx == CHATD_IDX_INVALID) ^ msg.isSending()));
-    assert(!msg.empty());
+    assert(!msg.empty() || msg.isManagementMessage());
     assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
     notifyLastTextMsg();
