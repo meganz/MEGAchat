@@ -1463,22 +1463,22 @@ promise::Promise<karere::Id>
 Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title)
 {
     const Id myhandle = myHandle();
-    SetOfIds users;
+    std::shared_ptr<SetOfIds> users = std::make_shared<SetOfIds>();
     auto wptr = getDelTracker();
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
     for (auto& peer: peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
-        users.insert(peer.first);
+        users->insert(peer.first);
     }
 
     //Add own user to strongvelope set of users to encrypt unified key for us
-    users.insert(myhandle);
+    users->insert(myhandle);
     std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
             StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
             StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), strongvelope::CHAT_MODE_PUBLIC, appCtx));
 
-    crypto->setUsers(&users);
+    crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     crypto->createUnifiedKey();
 
     promise::Promise<std::shared_ptr<Buffer>> pms;
@@ -1493,7 +1493,8 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         pms.resolve(std::make_shared<Buffer>());
     }
 
-    return pms.then([wptr, this, peers, crypto, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
+    // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
+    return pms.then([wptr, this, peers, crypto, users, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
     {
         std::string enctitleB64;
         if (!encTitle->empty())
