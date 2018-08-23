@@ -351,9 +351,9 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
 {
     auto wptr = weakHandle();
-    std::string chatKey = key;
+    std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
-    .then([this, chatKey, wptr](ReqResult result) -> promise::Promise<uint64_t>
+    .then([this, unifiedKey, wptr](ReqResult result) -> promise::Promise<uint64_t>
     {
         if (wptr.deleted())
             return Id::inval().val;
@@ -380,7 +380,7 @@ promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std
             return promise::Error("Chatlink Url returned for chatid "+chatId.toString()+" is not valid. ", kErrorTypeGeneric);
         }
 
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, chatKey, numPeers, url);
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, unifiedKey, numPeers, url);
         chats->emplace(chatId, room);
         room->connect();
         return chatId.val;
@@ -1474,12 +1474,15 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     //Add own user to strongvelope set of users to encrypt unified key for us
     users->insert(myhandle);
+    Buffer *buf = strongvelope::ProtocolHandler::createUnifiedKey();
+    std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(buf->buf(), buf->dataSize());
+    delete buf;
     std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
             StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-            StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), strongvelope::CHAT_MODE_PUBLIC, appCtx));
+            StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(),
+            unifiedKey, false, appCtx));
 
     crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
-    crypto->createUnifiedKey();
 
     promise::Promise<std::shared_ptr<Buffer>> pms;
     if (title)
@@ -1635,18 +1638,21 @@ ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle 
     return parent.mKarereClient.api.call(&::mega::MegaApi::removeAccessInChat, chatid(), node, userHandle);
 }
 
-strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid)
+strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid,
+        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
-        StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-        StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid, appCtx);
+         StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
+         StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid,
+         unifiedKey, isUnifiedKeyEncrypted, appCtx);
 }
 
-void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers)
+void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers,
+        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.mKarereClient.newStrongvelope(chatid()), mCreationTs, mIsGroup);
+        parent.mKarereClient.newStrongvelope(mChatid, unifiedKey, isUnifiedKeyEncrypted), mCreationTs, mIsGroup);
 }
 
 template <class T, typename F>
@@ -1759,12 +1765,94 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
     return list ? list->addGroupChatItem(*this) : nullptr;
 }
 
+//Create chat or receive an invitation
+GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
+:ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
+  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
+  mRoomGui(nullptr), mIsUnifiedKeyEncrypted(false), mPreviewMode(false), mNumPeers(0)
+{
+    // Initialize list of peers and fetch their names
+    auto peers = aChat.getPeerList();
+    std::vector<promise::Promise<void>> promises;
+    if (peers)
+    {
+        mNumPeers = peers->size();
+        for (int i = 0; i < mNumPeers; i++)
+        {
+            auto handle = peers->getPeerHandle(i);
+            assert(handle != parent.mKarereClient.myHandle());
+            mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
+            promises.push_back(mPeers[handle]->nameResolved());
+        }
+    }
+    // If there is not any promise at vector promise, promise::when is resolved directly
+    mMemberNamesResolved = promise::when(promises);
+
+    // Initialize title, if any
+    std::string title = aChat.getTitle() ? aChat.getTitle() : "";
+    initChatTitle(title);
+
+    // Initialize unified-key, if any
+    if (aChat.getUnifiedKey()) // --> only public chats should bring a unified key
+    {
+        assert(aChat.isPublicChat());
+
+        std::string unifiedKeyB64(aChat.getUnifiedKey());
+        mUnifiedKey.reset(new std::string);
+        int len = ::mega::Base64::atob(unifiedKeyB64, *mUnifiedKey);
+        assert(len == strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE);
+        mIsUnifiedKeyEncrypted = true;
+    }
+    assert(!(aChat.isPublicChat() && !aChat.getUnifiedKey()));
+
+    // Save Chatroom into DB
+    auto db = parent.mKarereClient.db;
+    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
+             "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
+    // Save (still) encrypted unified key
+    if (isPublicChat())
+    {
+        std::string auxBuf(*mUnifiedKey);
+        auxBuf.insert(auxBuf.begin(), '1');  // prefix to indicate it's encrypted
+        db.query("insert or replace into chat_vars(chatid, name, value)"
+                 " values(?,'unified_key',?)", mChatid, auxBuf.c_str());
+    }
+    db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
+    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
+    for (auto& m: mPeers)
+    {
+        stmt << mChatid << m.first << m.second->mPriv;
+        stmt.step();
+        stmt.reset().clearBind();
+    }
+    // TODO: save the encrypted title, if any
+
+    // Initialize chatd::Client (and strongvelope)
+    initWithChatd();
+
+    if (mHasTitle)
+    {
+        decryptTitle()
+        .fail([this](const promise::Error& e)
+        {
+            KR_LOG_ERROR("Failed to decrypt title for private chat %s: %s", ID_CSTR(mChatid), e.what());
+        });
+    }
+
+    mRoomGui = addAppItem();
+    mIsInitializing = false;
+}
+
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,  const std::string& unifiedKey)
-    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title), mRoomGui(nullptr)
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived,
+    const std::string& title, std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted)
+    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
+    mRoomGui(nullptr), mUnifiedKey(unifiedKey), mIsUnifiedKeyEncrypted(isUnifiedKeyEncrypted),
+    mPreviewMode(false), mNumPeers(0)
 {
-    mPreviewMode = false;
+    // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
     std::vector<promise::Promise<void> > promises;
@@ -1774,39 +1862,12 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     }
     mMemberNamesResolved = promise::when(promises);
 
-    bool hasCustomTitle = (!title.empty() && title.at(0));
-    if (hasCustomTitle)
-    {
-        mEncryptedTitle = title;
-        mHasTitle = true;
-    }
-    else
-    {
-        auto wptr = weakHandle();
-        mMemberNamesResolved.then([wptr, this]()
-        {
-            wptr.throwIfDeleted();
-            makeTitleFromMemberNames();
-        });
-    }
-
+    // Initialize title, if any
+    initChatTitle(mTitleString);
     notifyTitleChanged();
-    initWithChatd();
 
-    mPublicChat = !unifiedKey.empty();
-    if (mPublicChat)
-    {
-        if(unifiedKey.size() == strongvelope::SVCRYPTO_KEY_SIZE)
-        {
-            chat().crypto()->setUnifiedKey(unifiedKey);
-            chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
-        }
-        else
-        {
-            KR_LOG_ERROR("Error with unifiedKey format for chat %s:\n.", ID_CSTR(mChatid));
-            mChat->disable(true);
-        }
-    }
+    // Initialize chatd::Client (and strongvelope)
+    initWithChatd();
 
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -1815,28 +1876,28 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl)
+    const uint64_t &publicHandle, bool previewMode, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr), mPreviewMode(previewMode), mNumPeers(aNumPeers)
+  mRoomGui(nullptr), mUnifiedKey(unifiedKey), mIsUnifiedKeyEncrypted(false), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 {
     initWithChatd();
     mChat->setPublicHandle(publicHandle);
-    mChat->crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
-    mChat->crypto()->setUnifiedKey(unifiedKey);
     mChat->crypto()->setPreviewMode(previewMode);
     mUrl = aUrl;
 
     //Add my own handle to peers list
     const Id myHandle = parent.mKarereClient.myHandle();
     mPeers[myHandle] = new Member(*this, myHandle, chatd::PRIV_RDONLY);
+
     //save to db
     auto db = parent.mKarereClient.db;
-    db.query("delete from chat_peers where chatid=?", mChatid);
 
+    std::string auxBuf(*unifiedKey);
+    auxBuf.insert(auxBuf.begin(), '0');  // prefix to indicate it's encrypted
     db.query(
         "insert or replace into chat_vars(chatid, name, value)"
         " values(?,'unified_key',?)",
-        this->mChatid, unifiedKey);
+        mChatid, auxBuf.c_str());
 
     db.query(
         "insert or replace into chat_vars(chatid, name, value)"
@@ -1848,6 +1909,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         "own_priv, ts_created) values(?,?,-1,0,?,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs);
 
+    db.query("delete from chat_peers where chatid=?", mChatid);
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)
     {
@@ -1886,7 +1948,7 @@ void GroupChatRoom::initWithChatd()
     {
         users.insert(peer.first);
     }
-    createChatdChat(users);
+    createChatdChat(users, mUnifiedKey, mIsUnifiedKeyEncrypted);
 }
 
 void GroupChatRoom::connect()
@@ -2190,14 +2252,18 @@ void ChatRoomList::loadFromDb()
             SqliteStmt auxstmt(mKarereClient.db, "select value from chat_vars where chatid=? and name ='unified_key'");
             auxstmt << chatid;
 
-            std::string unifiedKey;
+            std::shared_ptr<std::string> unifiedKey(new std::string);
+            bool isUnifiedKeyEncrypted = false;
             if(auxstmt.step())
             {
-                unifiedKey.assign(auxstmt.stringCol(0));
+                unifiedKey->assign(auxstmt.stringCol(0));
+                assert(unifiedKey->size() == 17);
+                isUnifiedKeyEncrypted = (unifiedKey->at(0) == '1');
+                unifiedKey->assign(unifiedKey->substr(1));
             }
             // else  --> not public chat anymore
 
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(6), unifiedKey);
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(6), unifiedKey, isUnifiedKeyEncrypted);
         }
         emplace(chatid, room);
     }
@@ -2240,10 +2306,6 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     }
     else    // 1on1
     {
-        auto peers = apiRoom.getPeerList();
-        assert(peers);
-        assert(peers->size() == 1);
-
         room = new PeerChatRoom(*this, apiRoom);
     }
 
@@ -2355,170 +2417,6 @@ ChatRoomList::~ChatRoomList()
         delete room.second;
 }
 
-//Create chat or receive an invitation
-GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
-:ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
-  (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()), mRoomGui(nullptr), mPublicChat(aChat.isPublicChat())
-{
-    mPreviewMode = false;
-    auto peers = aChat.getPeerList();
-    std::vector<promise::Promise<void> > promises;
-    if (peers)
-    {
-        auto size = peers->size();
-        for (int i = 0; i < size; i++)
-        {
-            auto handle = peers->getPeerHandle(i);
-            assert(handle != parent.mKarereClient.myHandle());
-            mPeers[handle] = new Member(*this, handle, (chatd::Priv)peers->getPeerPrivilege(i)); //may try to access mContactGui, but we have set it to nullptr, so it's ok
-            promises.push_back(mPeers[handle]->nameResolved());
-        }
-    }
-    initWithChatd();
-
-    //save to db
-    auto db = parent.mKarereClient.db;
-    db.query("delete from chat_peers where chatid=?", mChatid);
-    db.query(
-        "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
-        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
-
-    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
-    for (auto& m: mPeers)
-    {
-        stmt << mChatid << m.first << m.second->mPriv;
-        stmt.step();
-        stmt.reset().clearBind();
-    }
-
-    auto ct = aChat.getTitle();
-    bool hasCt = (ct && ct[0]);
-    if (hasCt)
-    {
-        mEncryptedTitle = ct;
-        mHasTitle = true;
-    }
-
-    if (!mHasTitle)
-    {
-        if (peers)
-        {
-            auto wptr = weakHandle();
-            // If there is not any promise at vector promise, promise::when is resolved directly
-            mMemberNamesResolved = promise::when(promises)
-            .then([wptr, this]()
-            {
-                if (wptr.deleted())
-                    return;
-
-                clearTitle();
-            });
-        }
-        else
-        {
-            clearTitle();
-        }
-    }
-
-    if (mPublicChat)
-    {
-        //Get B64 unified key
-        const char *bufB64 = aChat.getUnifiedKey();
-        if (bufB64)
-        {
-            //Convert received key from B64 to Bin
-            int lenKey = strongvelope::SVCRYPTO_KEY_SIZE;
-            int lenPair = mega::MegaClient::CHATLINKHANDLE + lenKey;
-            char *bufBin = new char[lenPair];
-            int len = mega::Base64::atob(bufB64, (byte *)bufBin, lenPair);
-            if (len == lenPair)
-            {
-                //Parse invitor handle (First 8 Bytes)
-                uint64_t invitorHandle;
-                memcpy(&invitorHandle, bufBin, sizeof invitorHandle);
-
-                //Parse unified key (Last 16 Bytes)
-                auto bufunifiedkey = std::make_shared<Buffer>(lenKey);
-                bufunifiedkey->assign(&bufBin[mega::USERHANDLE], lenKey);
-                auto wptr = getDelTracker();
-
-                try
-                {
-                    //Decrypt unifiedkey
-                    chat().crypto()->decryptUnifiedKey(bufunifiedkey, invitorHandle, invitorHandle)
-                    .then([this, wptr, invitorHandle](std::string unifiedKey)
-                    {
-                        if (wptr.deleted())
-                            return;
-
-                        //Set unifiedkey in strongvelope
-                        chat().crypto()->setUnifiedKey(unifiedKey);
-                        chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PUBLIC);
-
-                        // Save Unified key decrypted
-                        this->parent.mKarereClient.db.query(
-                                    "insert or replace into chat_vars(chatid, name, value)"
-                                    " values(?,'unified_key',?)",
-                                    mChatid, unifiedKey.c_str());
-
-                        if (mHasTitle)
-                        {
-                            decryptTitle()
-                            .fail([wptr, this](const promise::Error& e)
-                            {
-                                if (wptr.deleted())
-                                    return;
-
-                                KR_LOG_ERROR("Failed to decrypt title for public chat %s: %s", ID_CSTR(mChatid), e.what());
-                            });
-                        }
-                    })
-                    .fail([wptr, this](const promise::Error& e)
-                    {
-                        if (wptr.deleted())
-                            return;
-
-                        KR_LOG_ERROR("Error decrypting unifiedKey for chat %s: %s", ID_CSTR(mChatid), e.what());
-                        mChat->disable(true);
-                    });
-
-                }
-                catch(std::exception& e)
-                {
-                    KR_LOG_ERROR("Failed to base64-decode unified key for chat %s: %s", ID_CSTR(mChatid), e.what());
-                    mChat->disable(true);
-                }
-            }
-            else
-            {
-                KR_LOG_ERROR("Invalid length of unified key for chat %s", ID_CSTR(mChatid));
-                mChat->disable(true);
-            }
-            delete [] bufBin;
-        }
-        else
-        {
-            KR_LOG_ERROR("Public chat %s don't have a unified key", ID_CSTR(mChatid));
-            mChat->disable(true);
-        }
-    }
-    else
-    {
-        if (mHasTitle)
-        {
-            decryptTitle()
-            .fail([this](const promise::Error& e)
-            {
-                KR_LOG_ERROR("Failed to decrypt title for private chat %s: %s", ID_CSTR(mChatid), e.what());
-            });
-        }
-    }
-
-    mRoomGui = addAppItem();
-    mIsInitializing = false;
-}
-
 promise::Promise<void> GroupChatRoom::decryptTitle()
 {
     if (mEncryptedTitle.empty())
@@ -2526,12 +2424,11 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         return promise::_Void();
     }
 
-    Buffer buf(mEncryptedTitle.size());
-    size_t decLen;
+    Buffer buf(mEncryptedTitle.size());    
     try
     {
-        decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(),
-            buf.buf(), buf.bufSize());
+        size_t decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(), buf.buf(), buf.bufSize());
+        buf.setDataSize(decLen);
     }
     catch(std::exception& e)
     {
@@ -2543,21 +2440,8 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         return promise::Error(err);
     }
 
-    buf.setDataSize(decLen);
     auto wptr = getDelTracker();
-    promise::Promise<std::string> pms;
-
-    if (mPublicChat)
-    {
-        std::string auxTitle = chat().crypto()->decryptPublicChatTitle(buf);
-        pms = promise::Promise<std::string>();
-        pms.resolve(auxTitle);
-    }
-    else
-    {
-        pms = chat().crypto()->decryptChatTitle(buf);
-    }
-
+    promise::Promise<std::string> pms = chat().crypto()->decryptChatTitle(buf);
     return pms.then([wptr, this](const std::string title)
     {
         wptr.throwIfDeleted();
@@ -2728,7 +2612,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     {
         wptr.throwIfDeleted();
         ApiPromise invitePms;
-        if(mPublicChat)
+        if(isPublicChat())
         {
             std::string titleCpy = title;
             invitePms = chat().crypto()->encryptUnifiedKeyForAllParticipants(userid)
@@ -3039,26 +2923,9 @@ void GroupChatRoom::setPreviewMode(bool previewMode)
     mPreviewMode = previewMode;
 }
 
-bool GroupChatRoom::publicChat() const
+std::shared_ptr<std::string> GroupChatRoom::unifiedKey()
 {
-    return mPublicChat;
-}
-
-void GroupChatRoom::setPublicChat(bool publicChat)
-{
-    mPublicChat = publicChat;
-}
-
-std::string GroupChatRoom::chatkey()
-{
-    if (mPublicChat)
-    {
-        return chat().crypto()->getUnifiedKey();
-    }
-    else
-    {
-        return std::string();
-    }
+    return mUnifiedKey;
 }
 
 int GroupChatRoom::getNumPeers() const
@@ -3139,6 +3006,28 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 
     return peersChanged;
 }
+
+void GroupChatRoom::initChatTitle(std::string &title)
+{
+    bool hasCustomTitle = (!title.empty() && title.at(0));
+    if (hasCustomTitle)
+    {
+        mEncryptedTitle = title;
+        mHasTitle = true;
+    }
+    else
+    {
+        auto wptr = weakHandle();
+        mMemberNamesResolved.then([wptr, this]()
+        {
+            if (wptr.deleted())
+                return;
+
+            makeTitleFromMemberNames();
+        });
+    }
+}
+
 void GroupChatRoom::clearTitle()
 {
     makeTitleFromMemberNames();
@@ -3147,15 +3036,16 @@ void GroupChatRoom::clearTitle()
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
+    // Mode changed
+    if (!chat.isPublicChat() && isPublicChat())
+    {
+        KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
+        setChatPrivateMode();
+    }
+
     // Own privilege changed
     auto oldPriv = mOwnPriv;
     bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
-
-    if (!chat.isPublicChat() && mPublicChat)
-    {
-        this->setChatPrivateMode();
-    }
-
     if (ownPrivChanged)
     {
         if (oldPriv == chatd::PRIV_NOTPRESENT)
@@ -3175,7 +3065,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
         {
             //we were excluded
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed",  ID_CSTR(mChatid));
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed", ID_CSTR(mChatid));
             setRemoved(); // may delete 'this'
             return true;
         }
@@ -3228,17 +3118,14 @@ void GroupChatRoom::setChatPrivateMode()
     if (mPreviewMode)
     {
         mPreviewMode = false;
-        mPublicChat = false;
         mChat->setPublicHandle(Id::inval());
         removeAppChatHandler();
         return;
     }
 
-    //Update chatRoom
-    mPublicChat = false;
-
     //Update strongvelope
     chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PRIVATE);
+    // TODO: reset unified-key and send-key must be done atomically in setChatMode() to avoid mistakes
     chat().crypto()->resetUnifiedKey();
     chat().crypto()->resetSendKey();
 
