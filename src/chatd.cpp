@@ -544,7 +544,7 @@ Promise<void> Connection::reconnect()
                     bool ret = mDNScache.set(mUrl.host,
                                   ipsv4.size() ? ipsv4.at(0) : "",
                                   ipsv6.size() ? ipsv6.at(0) : "");
-                    assert(!ret);
+                    assert(ret);
 
                     CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");                    // if connection already started, first abort/cancel
                     if (wsIsConnected())
