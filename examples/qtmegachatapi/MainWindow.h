@@ -84,7 +84,7 @@ class MainWindow :
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
-        const char *getAuthCode();
+        std::string getAuthCode();
         void enableTwoFactorBtn(bool active);
         bool eventFilter(QObject *obj, QEvent *event);
         void contextMenuEvent(QContextMenuEvent* event);

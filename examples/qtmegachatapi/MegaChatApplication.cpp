@@ -282,12 +282,12 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_LOGIN:
             if (e->getErrorCode() == MegaError::API_EMFAREQUIRED)
             {
-                const char *auxcode = this->mMainWin->getAuthCode();
-                if (auxcode)
+                std::string auxcode = this->mMainWin->getAuthCode();
+                if (!auxcode.empty())
                 {
                     QString email(request->getEmail());
                     QString password(request->getPassword());
-                    QString code(auxcode);
+                    QString code(auxcode.c_str());
                     mMegaApi->multiFactorAuthLogin(email.toUtf8().constData(), password.toUtf8().constData(), code.toUtf8().constData());
                 }
                 else
@@ -366,10 +366,10 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
                 msg.exec();
 
-                const char *auxcode = this->mMainWin->getAuthCode();
-                if (auxcode)
+                std::string auxcode = this->mMainWin->getAuthCode();
+                if (!auxcode.empty())
                 {
-                    QString code(auxcode);
+                    QString code(auxcode.c_str());
                     mMegaApi->multiFactorAuthEnable(code.toUtf8().constData());
                 }
             }

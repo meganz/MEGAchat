@@ -70,10 +70,9 @@ mega::MegaUserList * MainWindow::getUserContactList()
     return mMegaApi->getContacts();
 }
 
-const char *MainWindow::getAuthCode()
+std::string MainWindow::getAuthCode()
 {
     bool ok;
-    std::string code;
     QString qCode;
 
     while (1)
@@ -83,15 +82,14 @@ const char *MainWindow::getAuthCode()
 
         if (ok)
         {
-            code = qCode.toStdString();
-            if (code.size() == 6)
+            if (qCode.size() == 6)
             {
-                return code.c_str();
+                return qCode.toStdString();
             }
         }
         else
         {
-            return NULL;
+            return "";
         }
     }
 }
@@ -124,10 +122,10 @@ void MainWindow::onTwoFactorGetCode()
 
 void MainWindow::onTwoFactorDisable()
 {
-    const char *auxcode = getAuthCode();
-    if (auxcode)
+    std::string auxcode = getAuthCode();
+    if (!auxcode.empty())
     {
-        QString code(auxcode);
+        QString code(auxcode.c_str());
         mMegaApi->multiFactorAuthDisable(code.toUtf8().constData());
     }
 }
