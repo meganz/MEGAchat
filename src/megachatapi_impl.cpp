@@ -4247,6 +4247,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(Id chatid, Id callid, uint32_t duration
     changed = 0;
     peerId = 0;
     callerId = MEGACHAT_INVALID_HANDLE;
+    mIsCaller = false;
 }
 
 MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
