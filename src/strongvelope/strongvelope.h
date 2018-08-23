@@ -174,8 +174,6 @@ struct ParsedMessage: public karere::DeleteTrackable
     Buffer signedContent;
     Buffer signature;
     unsigned char type;
-    chatd::BackRefId backRefId = 0;
-    std::vector<chatd::BackRefId> backRefs;
     //legacy key stuff
     uint64_t keyId;
     uint64_t prevKeyId;
@@ -432,7 +430,7 @@ public:
     virtual bool handleLegacyKeys(chatd::Message& msg);
     virtual void randomBytes(void* buf, size_t bufsize) const;
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
-    virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = NULL);
+    virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
 
     virtual std::string decryptPublicChatTitle(const Buffer& data);

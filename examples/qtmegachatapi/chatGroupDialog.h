@@ -8,7 +8,7 @@ namespace Ui {
 class ChatGroupDialog;
 }
 class MainWindow;
-class ChatGroupDialog : public QDialog
+class CreateChatDialog : public QDialog
 {
     Q_OBJECT
     protected:
@@ -16,10 +16,13 @@ class ChatGroupDialog : public QDialog
         MainWindow *mMainWin;
         Ui::ChatGroupDialog *ui;
         bool mPublic;
+        bool mGroup;
+
     public:
-        ChatGroupDialog(QWidget *parent, megachat::MegaChatApi *megachatApi, bool aPub);
-        ~ChatGroupDialog();
+        CreateChatDialog(QWidget *parent, megachat::MegaChatApi *megachatApi, bool aGroup, bool aPub);
+        ~CreateChatDialog();
         void createChatList(mega::MegaUserList* contactList);
+
     private slots:
         void on_buttonBox_accepted();
         void on_buttonBox_rejected();

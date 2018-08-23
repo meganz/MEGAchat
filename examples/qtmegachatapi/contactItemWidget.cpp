@@ -19,7 +19,12 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     QString text = QString::fromUtf8(contactEmail);
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
-    this->mMegaChatApi->getUserFirstname(contact->getHandle());
+    const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle());
+    if (firstname)
+    {
+        mMainWin->updateContactFirstname(contact->getHandle(), firstname);
+    }
+    delete [] firstname;
     int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
 }
@@ -40,14 +45,19 @@ void ContactItemWidget::setAvatarStyle()
 void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     QMenu menu(this);
-    auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
-    auto publicChatInviteAction = menu.addAction(tr("Invite to PUBLIC group chat"));
-    auto removeAction = menu.addAction(tr("Remove contact"));
-    auto printAction = menu.addAction(tr("Print contact info"));
+    auto chatPeerInviteAction = menu.addAction(tr("Invite to 1on1 chat"));
+    connect(chatPeerInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePeerChat()));
 
+    auto chatInviteAction = menu.addAction(tr("Invite to group chat"));
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
+
+    auto publicChatInviteAction = menu.addAction(tr("Invite to PUBLIC group chat"));
     connect(publicChatInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePublicGroupChat()));
+
+    auto removeAction = menu.addAction(tr("Remove contact"));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
+
+    auto printAction = menu.addAction(tr("Print contact info"));
     connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
 
     menu.exec(event->globalPos());
@@ -97,106 +107,44 @@ void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
 
 void ContactItemWidget::onCreatePublicGroupChat()
 {
-   megachat::MegaChatPeerList *peerList;
-   peerList = megachat::MegaChatPeerList::createInstance();
-   peerList->addPeer(mUserHandle, 2);
-
-   QMessageBox msgBox;
-   msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new public group chat.");
-   msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-   msgBox.setDefaultButton(QMessageBox::Save);
-   int ret = msgBox.exec();
-
-   if (ret == QMessageBox::Ok)
-   {
-        std::string title;
-        QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
-        if (!qTitle.isNull())
-        {
-            title = qTitle.toStdString();
-            if (title.empty() || title.size() == 1)
-            {
-                this->mMegaChatApi->createPublicChat(peerList);
-            }
-            else
-            {
-                this->mMegaChatApi->createPublicChat(peerList, title.c_str());
-            }
-        }
-        else
-        {
-            this->mMegaChatApi->createPublicChat(peerList);
-        }
-   }
-   msgBox.deleteLater();
+    createChatRoom(mUserHandle, true, true);
 }
 
 void ContactItemWidget::onCreateGroupChat()
 {
-   megachat::MegaChatPeerList *peerList;
-   peerList = megachat::MegaChatPeerList::createInstance();
-   peerList->addPeer(mUserHandle, 2);
-   QMessageBox msgBox;
-
-   msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat.");
-   msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-   msgBox.setDefaultButton(QMessageBox::Save);
-   int ret = msgBox.exec();
-
-   if(ret == QMessageBox::Ok)
-   {
-        megachat::MegaChatListItemList *listItems = mMegaChatApi->getChatListItemsByPeers(peerList);
-        if (listItems)
-        {
-            QMessageBox msgBoxAns;
-            msgBoxAns.setText("You have another chatroom with same participants do you want to reuse it ");
-            msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-            int retVal = msgBoxAns.exec();
-            if (retVal == QMessageBox::Yes)
-            {
-                if (listItems->get(0)->isArchived())
-                {
-                    ChatItemWidget *item = mMainWin->getChatItemWidget(listItems->get(0)->getChatId(), false);
-
-                    if (item)
-                    {
-                        item->unarchiveChat();
-                        QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
-                    }
-                }
-                else
-                {
-                    QMessageBox::warning(this, tr("Add chatRoom"), tr("You have decide to reuse the chatroom"));
-                }
-            }
-            else
-            {
-
-                std::string title;
-                QString qTitle = QInputDialog::getText(this, tr("Set chat topic"), tr("Leave blank for default title"));
-                if (!qTitle.isNull())
-                {
-                   title = qTitle.toStdString();
-                   if (title.empty() || title.size() == 1)
-                   {
-                       this->mMegaChatApi->createChat(true, peerList);
-                   }
-                   else
-                   {
-                       this->mMegaChatApi->createChat(true, peerList, title.c_str());
-                   }
-                }
-                else
-                {
-                    this->mMegaChatApi->createChat(true, peerList);
-                }
-            }
-        }
-        delete listItems;
-   }
-   msgBox.deleteLater();
+    createChatRoom(mUserHandle, true, false);
 }
 
+void ContactItemWidget::onCreatePeerChat()
+{
+    createChatRoom(mUserHandle, false, false);
+}
+
+void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup, bool isPublic)
+{
+    QMessageBox msgBox;
+    if (isGroup)
+    {
+        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new group chat?");
+    }
+    else
+    {
+        msgBox.setText("Do you want to invite "+ui->mName->text() +" to a new 1on1 chat?");
+    }
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Cancel);
+
+    if (msgBox.exec() == QMessageBox::Cancel)
+    {
+        return;
+    }
+
+    MegaChatPeerList *peerList = MegaChatPeerList::createInstance();
+    peerList->addPeer(uh, MegaChatRoom::PRIV_STANDARD);
+
+    mMainWin->createChatRoom(peerList, isGroup, isPublic);
+    delete peerList;
+}
 
 void ContactItemWidget::onPrintContactInfo()
 {

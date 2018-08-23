@@ -39,20 +39,21 @@ class ChatItemWidget : public QWidget
         Ui::ChatItem *ui;
         int mLastOverlayCount;
         megachat::MegaChatHandle mChatId;
-        megachat::MegaChatApi * mMegaChatApi;
-        mega::MegaApi * mMegaApi;
-        ChatWindow * mChatWindow;
+        megachat::MegaChatApi *mMegaChatApi;
+        mega::MegaApi *mMegaApi;
+        ChatWindow *mChatWindow;
         QListWidgetItem *mListWidgetItem;
         bool mAnonymous;
 
     protected:
-        MainWindow * mMainWin;
+        MainWindow *mMainWin;
         std::string mLastMsgAuthor;
 
     protected slots:
         void leaveGroupChat();
         void setTitle();
         void truncateChat();
+        void queryChatLink();
         void exportChatLink();
         void closeChatLink();
         void removeChatLink();
@@ -62,7 +63,7 @@ class ChatItemWidget : public QWidget
     friend class ChatWindow;
     friend class MainWindow;
     friend class ContactItemWidget;
-    friend class ChatGroupDialog;
+    friend class CreateChatDialog;
     friend class CallAnswerGui;
 };
 #endif // CHATITEM_H

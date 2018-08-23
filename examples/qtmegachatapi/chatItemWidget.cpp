@@ -107,6 +107,17 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             char *uh = mMainWin->mMegaApi->userHandleToBase64(lastMessageSender);
             senderHandle.assign(uh);
             delete uh;
+
+            const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
+            {
+                mLastMsgAuthor.assign(msgAuthor);
+            }
+            else
+            {
+                mLastMsgAuthor = "Loading firstname...";
+            }
+            delete [] msgAuthor;
         }
 
         if (author)
@@ -393,7 +404,7 @@ ChatWindow *ChatItemWidget::getChatWindow()
     return mChatWindow;
 }
 
-void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
+void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
     showChatWindow();
 }
@@ -465,6 +476,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     if (auxItem->isPublic())
     {
+        auto actQueryLink = menu.addAction(tr("Query chat link"));
+        connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
+
         auto actExportLink = menu.addAction(tr("Export chat link"));
         connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
 
@@ -475,15 +489,18 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
         connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));        
     }
 
-    if (auxItem->isArchived() && !auxItem->isPreview())
+    if (!auxItem->isPreview())  // cannot un/archive rooms in preview mode
     {
-        auto actArchive = menu.addAction(tr("Unarchive chat"));
-        connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
-    }
-    else
-    {
-        auto actArchive = menu.addAction(tr("Archive chat"));
-        connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+        if (auxItem->isArchived())
+        {
+            auto actArchive = menu.addAction(tr("Unarchive chat"));
+            connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
+        }
+        else
+        {
+            auto actArchive = menu.addAction(tr("Archive chat"));
+            connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+        }
     }
 
     menu.exec(event->globalPos());
@@ -493,6 +510,14 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 void ChatItemWidget::truncateChat()
 {
     this->mMegaChatApi->clearChatHistory(mChatId);
+}
+
+void ChatItemWidget::queryChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->queryChatLink(mChatId);
+    }
 }
 
 void ChatItemWidget::exportChatLink()

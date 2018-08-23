@@ -368,6 +368,18 @@ public:
      * @return True if the call has been ignored, false otherwise.
      */
     virtual bool isIgnored() const;
+
+    /**
+     * @brief Returns if call is incoming
+     * @return Ture if incoming call, false if outgoing
+     */
+    virtual bool isIncoming() const;
+
+    /**
+     * @brief Returns if call is outgoing
+     * @return Ture if outgoing call, false if incoming
+     */
+    virtual bool isOutgoing() const;
 };
 
 /**
@@ -1219,10 +1231,10 @@ public:
         TYPE_SET_BACKGROUND_STATUS, TYPE_RETRY_PENDING_CONNECTIONS,
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
-        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_PUSH_RECEIVED,
-        TYPE_LOAD_CHAT_LINK, TYPE_EXPORT_CHAT_LINK,
-        TYPE_CHAT_LINK_CLOSE, TYPE_CHAT_LINK_JOIN,
-        TYPE_CHAT_LINK_REMOVE, TYPE_ARCHIVE_CHATROOM,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
+        TYPE_PUSH_RECEIVED, TYPE_LOAD_CHAT_LINK,
+        TYPE_CHAT_LINK_HANDLE, TYPE_CHAT_LINK_CLOSE,
+        TYPE_CHAT_LINK_JOIN,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2606,6 +2618,35 @@ public:
     void createPublicChat(MegaChatPeerList *peers, const char *title = NULL, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Check if there is an existing chat-link for an public chat
+     *
+     * This function allows moderators to check whether a public handle for public chats exist and,
+     * if any, it returns a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createPublicChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 0
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom, if it already exist
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
+     * chatroom is a private chatroom or a 1on1 room.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat-link associated to the specified chatid
+     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Create a chat-link for an public chat
      *
      * This function allows moderators to create a public handle for public chats and returns
@@ -2613,9 +2654,11 @@ public:
      *
      * @see \c MegaChatApi::createPublicChat for more details.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_EXPORT_CHAT_LINK
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 1
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -2800,10 +2843,10 @@ public:
     /**
      * @brief Allows any user to preview an public chat without be part of
      *
-     * This function loads the required data required to preview an public chat referenced by a
-     * chat-link. It returns the actual \c chatid and also the title, if any. If this request
-     * success, the caller can proceed as usual with \c MegaChatApi::openChatRoom to preview
-     * the chatroom in read-only mode.
+     * This function loads the required data to preview a public chat referenced by a
+     * chat-link. It returns the actual \c chatid, the number of peers and also the title,
+     * if any. If this request success, the caller can proceed as usual with
+     * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2817,7 +2860,8 @@ public:
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
-     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
+     * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
@@ -2852,23 +2896,21 @@ public:
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Invalidates the currect public handl
+     * @brief Invalidates the currect public handle
      *
      * This function invalidates the currect public handle and set the chat mode to private
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_REMOVE
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getNumRetry - Returns 0
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to
      * invalidate the currect public handle
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chatid is invalid
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -3820,16 +3862,17 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01,  /// obsolete
-        CHANGE_TYPE_OWN_PRIV        = 0x02,  /// Our privilege level has changed
-        CHANGE_TYPE_UNREAD_COUNT    = 0x04,  /// Unread count updated
-        CHANGE_TYPE_PARTICIPANTS    = 0x08,  /// A participant joined/left the chatroom or its privilege changed
-        CHANGE_TYPE_TITLE           = 0x10,  /// Title updated
-        CHANGE_TYPE_CLOSED          = 0x20,  /// The chatroom has been left by own user
-        CHANGE_TYPE_LAST_MSG        = 0x40,  /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80,  /// Timestamp of the last activity
-        CHANGE_TYPE_ARCHIVE         = 0X100, /// Archived or unarchived
-        CHANGE_TYPE_CHAT_MODE       = 0x200  /// User has set chat mode to private
+        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
+        CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
+        CHANGE_TYPE_UNREAD_COUNT    = 0x04, /// Unread count updated
+        CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
+        CHANGE_TYPE_TITLE           = 0x10, /// Title updated
+        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
+        CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
+        CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
+        CHANGE_TYPE_ARCHIVE         = 0x100,/// Archived or unarchived
+        CHANGE_TYPE_CALL            = 0x200,/// There's a new call or a call has finished
+        CHANGE_TYPE_CHAT_MODE       = 0x400 /// User has set chat mode to private
     };
 
     virtual ~MegaChatListItem() {}
@@ -3995,6 +4038,12 @@ public:
      * @return True if the chat is archived, false otherwise.
      */
     virtual bool isArchived() const;
+
+    /**
+     * @brief Returns whether the chat has a call in progress or not.
+     * @return True if a call is in progress in this chat, false otherwise.
+     */
+    virtual bool isCallInProgress() const;
 
     /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms

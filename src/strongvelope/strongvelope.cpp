@@ -112,7 +112,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
         outMsg.clear();
         return;
     }
-    Id chatid = mProtoHandler.chatid;
+    Id chatid = mProtoHandler.chatid;   // for the log below
     STRONGVELOPE_LOG_DEBUG("Decrypting msg %s", outMsg.id().toString().c_str());
     Key<32> derivedNonce;
     // deriveNonceSecret() needs at least 32 bytes output buffer
@@ -191,7 +191,7 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
                 messageStr.dataSize(), pubKey.ubuf()) == 0);
     }
 
-    assert(sendKey.dataSize() == 16);
+    assert(sendKey.dataSize() == SVCRYPTO_KEY_SIZE);
     Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize()+2);
 
     messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size())
@@ -525,7 +525,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, int chatMode, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId), mChatMode(chatMode)
+ mUserAttrCache(userAttrCache), mDb(db), mChatMode(chatMode), chatid(aChatId)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     if (this->mChatMode == CHAT_MODE_PRIVATE)
@@ -604,8 +604,8 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
 
             if (receiver == mOwnHandle)
             {
-                encryptedKey = std::make_shared<Buffer>(16);
-                encryptedKey->assign(pos, 16);
+                encryptedKey = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+                encryptedKey->assign(pos, SVCRYPTO_KEY_SIZE);
                 break;
             }
 
@@ -814,7 +814,7 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
     .then([this, wptr](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
-        std::string keybuff(key->buf(), 16);
+        std::string keybuff(key->buf(), SVCRYPTO_KEY_SIZE);
         return keybuff;
     });
 }
@@ -864,6 +864,7 @@ void ProtocolHandler::createUnifiedKey()
 
 void ProtocolHandler::setUnifiedKey(const std::string &key)
 {
+    assert(key.size() == SVCRYPTO_KEY_SIZE);
     mUnifiedKey.reset(new UnifiedKey(key.data(), key.size()));
 }
 
@@ -895,10 +896,9 @@ bool ProtocolHandler::getAnonymousMode()
 std::string ProtocolHandler::getUnifiedKey()
 {
     std::string key;
-    const char *buf = mUnifiedKey->buf();
-    if (buf)
+    if (!mUnifiedKey->empty())
     {
-        key.assign(buf, mega::UNIFIEDKEY);
+        key.assign(mUnifiedKey->buf(), mUnifiedKey->size());
     }
     return key;
 }
@@ -977,7 +977,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     }
     else    // confirmed keyid
     {
-        assert(msgCmd->opcode() == OP_MSGUPD);  // edits always have a confirmed keyid
+        assert(msgCmd->opcode() != OP_NEWMSG);  // new messages, at this stage, have an invalid keyid
 
         auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
@@ -1020,10 +1020,10 @@ ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
 
     if (pos >= end)
         throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < 16)
+    if (end-pos < SVCRYPTO_KEY_SIZE)
         throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(16);
-    buf->assign(pos, 16);
+    auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+    buf->assign(pos, SVCRYPTO_KEY_SIZE);
     auto wptr = weakHandle();
     return mProtoHandler.decryptKey(buf, msg->userid, receiver)
     .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
@@ -1079,11 +1079,12 @@ ProtocolHandler::decryptPublicChatTitle(const Buffer& data)
         memcpy(unifiedKey->buf(), mUnifiedKey->buf(), AES::BLOCKSIZE);
 
         chatd::Message *decryptedMsg = parsedMsg->decryptPublicChatTitle(msg.get(), unifiedKey);
-        std::string res(decryptedMsg->buf(),decryptedMsg->size());
+        std::string res(decryptedMsg->buf(), decryptedMsg->size());
         return res;
     }
     catch(std::exception& e)
     {
+        STRONGVELOPE_LOG_ERROR("Failed to decrypt chat title: %s", e.what());
         return std::string();
     }
 }
@@ -1623,7 +1624,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
     auto wptr = weakHandle();
     SetOfIds participants = *mParticipants;
 
-    if(extraUser)
+    if (extraUser)
     {
         participants.insert(extraUser);
     }
@@ -1638,11 +1639,10 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
     });
 }
 
-chatd::Message*
-ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key)
+chatd::Message* ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key)
 {
     symmetricDecrypt(*key, *msg);
-    msg->setEncrypted(0);
+    msg->setEncrypted(Message::kNotEncrypted);
     return msg;
 }
 promise::Promise<chatd::Message*>
@@ -1666,10 +1666,10 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
     if (pos >= end)
         throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < 16)
-        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(16);
-    buf->assign(pos, 16);
+    if (end-pos < SVCRYPTO_KEY_SIZE)
+        throw std::runtime_error("Unexpected key entry length - must be 16 bytes, but is "+std::to_string(end-pos)+" bytes");
+    auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+    buf->assign(pos, SVCRYPTO_KEY_SIZE);
     auto wptr = weakHandle();
     unsigned int cacheVersion = mProtoHandler.getCacheVersion();
     return mProtoHandler.decryptKey(buf, sender, receiver)

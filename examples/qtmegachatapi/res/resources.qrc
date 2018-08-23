@@ -20,9 +20,10 @@
         <file>videocall-hover.svg</file>
         <file>groupchat-members.svg</file>
         <file>groupchat-members-hover.svg</file>
-		<file>settings-hover.svg</file>
-		<file>settings.svg</file>
+        <file>settings-hover.svg</file>
+        <file>settings.svg</file>
         <file>link.svg</file>
+        <file>logout.svg</file>
         <file>icq-incoming-msg.mp3</file>
     </qresource>
 </RCC>

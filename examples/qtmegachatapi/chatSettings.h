@@ -11,11 +11,11 @@ namespace Ui
     class MainWindow;
 }
 class MainWindow;
-class ChatSettings
+class WebRTCSettings
 {
     public:
-        ChatSettings();
-        virtual ~ChatSettings();
+        WebRTCSettings();
+        virtual ~WebRTCSettings();
         int getAudioInIdx() const;
         void setAudioInIdx(int audioInIdx);
         int getVideoInIdx() const;
@@ -26,18 +26,18 @@ class ChatSettings
         int mVideoInIdx;
 };
 
-class ChatSettingsDialog : public QDialog
+class WebRTCSettingsDialog : public QDialog
 {
     Q_OBJECT
     public:
-        ChatSettingsDialog(QMainWindow *parent, ChatSettings *chatSettings);
-        virtual ~ChatSettingsDialog();
+        WebRTCSettingsDialog(QMainWindow *parent, WebRTCSettings *chatSettings);
+        virtual ~WebRTCSettingsDialog();
         void applySettings();
 
     protected:
         MainWindow *mMainWin;
         Ui::SettingsDialog *ui;
-        ChatSettings *mChatSettings;
+        WebRTCSettings *mChatSettings;
 #ifndef KARERE_DISABLE_WEBRTC
         void setDevices();
 #endif

@@ -784,24 +784,15 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            MegaChatHandle chatid = mClient->chatIdByPh(ph);
-            if (!ISUNDEF(chatid))   // already loaded
-            {
-                errorCode = MegaChatError::ERROR_EXIST;
-                break;
-            }
-
             mClient->loadChatLink(ph, key)
-            .then([request, this, ph]()
+            .then([request, this, ph](uint64_t chatid)
             {
-                MegaChatHandle loadedChatId = mClient->chatIdByPh(ph);
-                request->setChatHandle(loadedChatId);
+                GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatid);
+                assert(room);
 
-                ChatRoom *room = findChatRoom(loadedChatId);
-                if (room)
-                {
-                   request->setText(room->titleString());
-                }
+                request->setChatHandle(chatid);
+                request->setText(room->titleString().c_str());
+                request->setNumber(room->getNumPeers());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -855,64 +846,16 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
-
-        case MegaChatRequest::TYPE_CHAT_LINK_REMOVE:
+        case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
+            bool del = request->getFlag();
+            bool createifmissing = request->getNumRetry();
 
             GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
-            if (!room)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            if (!room->publicChat())
+            if (!room || (del && createifmissing))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
-            if (room->ownPriv() != chatd::PRIV_OPER)
-            {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            MegaChatHandle ph = mClient->chatIdByPh(room->publicHandle());
-            if (ph == MEGACHAT_INVALID_HANDLE)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
-            }
-
-            mClient->deleteChatLink(chatid)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const promise::Error& err)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
-
-            break;
-        }
-        case MegaChatRequest::TYPE_EXPORT_CHAT_LINK:
-        {
-            MegaChatHandle chatid = request->getChatHandle();
-            GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
-
-            if (!room)
-            {
-                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -924,40 +867,38 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            GroupChatRoom *groupRoom = (GroupChatRoom *) room;
-            if (!groupRoom->hasTitle())
+            if (!del && createifmissing && !room->hasTitle())
             {
+                API_LOG_DEBUG("Cannot create chat-links on chatrooms without title");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            promise::Promise<void> pms;
-            MegaChatHandle ph = mClient->chatIdByPh(room->publicHandle());
-            if (ph != MEGACHAT_INVALID_HANDLE)
+            promise::Promise<uint64_t> pms;
+            if (del)
             {
-                pms = promise::Promise<void>();
-                pms.resolve();
+                pms = mClient->deleteChatLink(chatid);
             }
-            else
+            else    // query or create
             {
-                pms = mClient->getPublicHandle(chatid);
+                pms = mClient->getPublicHandle(chatid, createifmissing);
             }
 
-            pms.then([request, this, groupRoom]
+            pms.then([request, this] (uint64_t ph)
             {
-                MegaChatHandle phbin = groupRoom->publicHandle();
-                char *auxphstr = new char[8];
-                Base64::btoa((byte*)&(phbin),MegaClient::CHATLINKHANDLE,auxphstr);
-                std::string phstr(auxphstr, 8);
-
-                string keybin(groupRoom->chatkey());
+                GroupChatRoom *room = (GroupChatRoom *) findChatRoom(request->getChatHandle());
+                string keybin(room->chatkey());
                 MegaChatErrorPrivate *megaChatError;
-                if (keybin.size() != mega::UNIFIEDKEY)
+                if (keybin.size() != 16 || (!request->getFlag() && ph == Id::inval()))
                 {
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                 }
                 else
                 {
+                    char *ph64 = new char[8];
+                    Base64::btoa((byte*)&(ph), MegaClient::CHATLINKHANDLE, ph64);
+                    std::string phstr(ph64, 8);
+
                     string keystr;
                     Base64::btoa(keybin, keystr);
                     string link = "https://mega.nz/c/" + phstr + "#" + keystr;
@@ -968,7 +909,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Error exporting chat-link: %s", err.what());
+                API_LOG_ERROR("Failed to query/create/delete chat-link: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -1416,8 +1357,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             chatCall->setLocalAudioVideoFlags(avFlags);
             API_LOG_INFO("Local audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
-                         call->chat().chatId().toString().c_str(),
-                         call->id().toString().c_str(),
+                         ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()),
                          currentFlags.toString().c_str(),
                          avFlags.toString().c_str());
 
@@ -1649,7 +1589,7 @@ void MegaChatApiImpl::removeChatRoomHandler(MegaChatHandle chatid)
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
     if (it == chatRoomHandler.end())
     {
-        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", ID_CSTR(chatid));
         return;
     }
 
@@ -1832,6 +1772,19 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
     for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
         (*it)->onChatCallUpdate(chatApi, call);
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
+            && (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN          // for callee, incoming call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_REQUEST_SENT  // for caller, outgoing call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_TERMINATING)) // call finished
+    {
+        // notify at MegaChatListItem level about new calls and calls being terminated
+        ChatRoom *room = findChatRoom(call->getChatid());
+        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
+        item->setCallInProgress();
+
+        fireOnChatListItemUpdate(item);
     }
 
     call->removeChanges();
@@ -2561,10 +2514,12 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, const char *t
     waiter->notify();
 }
 
-void MegaChatApiImpl::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_EXPORT_CHAT_LINK, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_HANDLE, listener);
     request->setChatHandle(chatid);
+    request->setFlag(del);
+    request->setNumRetry(createifmissing ? 1 : 0);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2640,14 +2595,6 @@ void MegaChatApiImpl::closeChatLink(MegaChatHandle chatid, MegaChatRequestListen
     waiter->notify();
 }
 
-void MegaChatApiImpl::removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_REMOVE, listener);
-    request->setChatHandle(chatid);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
 void MegaChatApiImpl::archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ARCHIVE_CHATROOM, listener);
@@ -2691,7 +2638,6 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
         {
             //TODO clear records related to this chat in cache
             GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
-            mClient->eraseChatIdByPh(openChatRoom->publicHandle());
             mClient->chats->removeRoom(*openChatRoom);
             delete chatroom;
         }
@@ -3957,7 +3903,7 @@ void MegaChatApiImpl::onPresenceChanged(Id userid, Presence pres, bool inProgres
     }
     else
     {
-        API_LOG_INFO("Presence of user %s has been changed to %s", userid.toString().c_str(), pres.toString());
+        API_LOG_INFO("Presence of user %s has been changed to %s", ID_CSTR(userid), pres.toString());
     }
     fireOnChatOnlineStatusUpdate(userid.val, pres.status(), inProgress);
 }
@@ -4182,9 +4128,8 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
         case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
-        case TYPE_EXPORT_CHAT_LINK: return "EXPORT_CHAT_LINK";
+        case TYPE_CHAT_LINK_HANDLE: return "CHAT_LINK_HANDLE";
         case TYPE_CHAT_LINK_CLOSE: return "CHAT_LINK_CLOSE";
-        case TYPE_CHAT_LINK_REMOVE: return "CHAT_LINK_REMOVE";
     }
     return "UNKNOWN";
 }
@@ -4404,6 +4349,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     status = call.state();
     chatid = call.chat().chatId();
     callid = call.id();
+    mIsCaller = call.isCaller();
     // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
     localAVFlags = call.sentAv();
     std::map<karere::Id, karere::AvFlags> remoteFlags = call.avFlagsRemotePeers();
@@ -4431,6 +4377,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->status = call.getStatus();
     this->chatid = call.getChatid();
     this->callid = call.getId();
+    this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
     this->remoteAVFlags = call.remoteAVFlags;
     this->changed = call.changed;
@@ -4569,6 +4516,16 @@ MegaChatHandle MegaChatCallPrivate::getPeerSessionStatusChange() const
 bool MegaChatCallPrivate::isIgnored() const
 {
     return ignored;
+}
+
+bool MegaChatCallPrivate::isIncoming() const
+{
+    return !mIsCaller;
+}
+
+bool MegaChatCallPrivate::isOutgoing() const
+{
+    return mIsCaller;
 }
 
 void MegaChatCallPrivate::setStatus(int status)
@@ -5412,17 +5369,27 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
-        string name = peerchat.completeTitleString();
-
         this->peers.push_back(userpriv_pair(uh, priv));
 
-        const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
-        this->peerFirstnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
+        Contact *contact = peerchat.contact();
+        if (contact)
+        {
+            string name = contact->titleString();
 
-        buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
-        this->peerLastnames.push_back(buffer ? buffer : "");
-        delete [] buffer;
+            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
+            this->peerFirstnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+
+            buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
+            this->peerLastnames.push_back(buffer ? buffer : "");
+            delete [] buffer;
+        }
+        else    // we don't have firstname and lastname individually
+        {
+            this->peerFirstnames.push_back(title);
+            this->peerLastnames.push_back("");
+        }
+
 
         this->peerEmails.push_back(peerchat.email());
     }
@@ -5855,6 +5822,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
+    this->mIsCallInProgress = chatroom.isCallInProgress();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
     this->lastMsgPriv = Priv::PRIV_INVALID;
@@ -5950,6 +5918,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
     this->archived = item->isArchived();
+    this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
 }
@@ -6043,6 +6012,11 @@ bool MegaChatListItemPrivate::isArchived() const
     return archived;
 }
 
+bool MegaChatListItemPrivate::isCallInProgress() const
+{
+    return mIsCallInProgress;
+}
+
 MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
 {
     return peerHandle;
@@ -6096,6 +6070,11 @@ void MegaChatListItemPrivate::setArchived(bool archived)
 {
     this->archived = archived;
     this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
+}
+
+void MegaChatListItemPrivate::setCallInProgress()
+{
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CALL;
 }
 
 void MegaChatListItemPrivate::setLastMessage()
@@ -6685,8 +6664,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     if (chatCall != NULL)
     {
         API_LOG_INFO("Call state changed. ChatId: %s, callid: %s, state: %s --> %s",
-                     call->chat().chatId().toString().c_str(),
-                     call->id().toString().c_str(),
+                     ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()),
                      rtcModule::ICall::stateToStr(chatCall->getStatus()),      // assume states are mapped 1 to 1
                      rtcModule::ICall::stateToStr(newState));
 
@@ -6719,7 +6697,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 chatCall->setTermCode(call->termCode());
                 chatCall->setFinalTimeStamp(time(NULL));
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
-                             call->chat().chatId().toString().c_str(), call->id().toString().c_str(),
+                             ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()),
                               rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
                 break;
@@ -6790,7 +6768,7 @@ void MegaChatCallHandler::onLocalMediaError(const string errors)
     {
         chatCall->setError(errors);
         API_LOG_INFO("Local media error at call. ChatId: %s, callid: %s, error: %s",
-                     call->chat().chatId().toString().c_str(), call->id().toString().c_str(), errors.c_str());
+                     ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()));
 
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
@@ -6810,7 +6788,7 @@ void MegaChatCallHandler::onRingOut(Id peer)
         {
             chatCall->setIsRinging(true);
             API_LOG_INFO("Call starts ringing at remote peer. ChatId: %s, callid: %s, peer: %s",
-                         call->chat().chatId().toString().c_str(), call->id().toString().c_str(), peer.toString().c_str());
+                         ID_CSTR(call->chat().chatId()), ID_CSTR(call->id()), ID_CSTR(peer));
 
             megaChatApi->fireOnChatCallUpdate(chatCall);
         }
@@ -6879,8 +6857,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
             MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
             chatCall->setRemoteAudioVideoFlags(session->receivedAv());
             API_LOG_INFO("Initial remote audio/video flags. ChatId: %s, callid: %s, AV: %s",
-                         Id(chatCall->getChatid()).toString().c_str(),
-                         Id(chatCall->getId()).toString().c_str(),
+                         ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()),
                          session->receivedAv().toString().c_str());
 
             chatCall->setSessionStatus(MegaChatCall::SESSION_STATUS_IN_PROGRESS, session->peer());
@@ -6936,10 +6913,8 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
     MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
     chatCall->setRemoteAudioVideoFlags(av);
     API_LOG_INFO("Remote audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
-                 Id(chatCall->getChatid()).toString().c_str(),
-                 Id(chatCall->getId()).toString().c_str(),
-                 oldAv.toString().c_str(),
-                 av.toString().c_str());
+                 ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()),
+                 oldAv.toString().c_str(), av.toString().c_str());
 
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }

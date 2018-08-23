@@ -194,6 +194,8 @@ public:
     virtual int getSessionStatus(MegaChatHandle peerId) const;
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual bool isIgnored() const;
+    virtual bool isIncoming() const;
+    virtual bool isOutgoing() const;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -227,6 +229,7 @@ protected:
     void convertTermCode(rtcModule::TermCode termCode);
 
     bool ringing;
+    bool mIsCaller;
 };
 
 class MegaChatVideoFrame
@@ -287,6 +290,7 @@ private:
     bool mPreviewMode;
     bool active;
     bool archived;
+    bool mIsCallInProgress;
     MegaChatHandle peerHandle;  // only for 1on1 chatrooms
     MegaChatHandle mLastMsgId;
     int lastMsgPriv;
@@ -310,6 +314,7 @@ public:
     virtual bool isPreview() const;
     virtual bool isActive() const;
     virtual bool isArchived() const;
+    virtual bool isCallInProgress() const;
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
     virtual MegaChatHandle getLastMessageHandle() const;
@@ -321,6 +326,7 @@ public:
     void setClosed();
     void setLastTimestamp(int64_t ts);
     void setArchived(bool);
+    void setCallInProgress();
 
     /**
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
@@ -351,6 +357,7 @@ public:
     virtual void onChatOnlineState(const chatd::ChatState state);
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
+
     virtual const karere::ChatRoom& getChatRoom() const;
 
 protected:
@@ -972,7 +979,7 @@ public:
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
     void createPublicChat(MegaChatPeerList *peerList, const char *title = NULL, MegaChatRequestListener *listener = NULL);
-    void exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeFromChat(MegaChatHandle chatid, MegaChatHandle uh = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
@@ -983,6 +990,7 @@ public:
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);
+
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
 

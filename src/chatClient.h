@@ -23,6 +23,8 @@ namespace strongvelope { class ProtocolHandler; }
 struct sqlite3;
 class Buffer;
 
+#define ID_CSTR(id) Id(id).toString().c_str()
+
 namespace karere
 {
 namespace rh { class IRetryController; }
@@ -66,9 +68,9 @@ protected:
     uint32_t mCreationTs;
     bool mIsArchived;
     std::string mTitleString;
+    bool mHasTitle;
     void notifyTitleChanged();
     void notifyChatModeChanged();
-    bool syncRoomPropertiesWithApi(const ::mega::MegaTextChat& chat);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
@@ -87,7 +89,14 @@ public:
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual const char *titleString() const = 0;
+    virtual const std::string &titleString() const  { return mTitleString; }
+
+    /** @brief Returns whether the chatroom has a title set. If not, then
+      * its title string will be composed from the first names of the room members.
+      * This method will return false for PeerChatRoom, only GroupChatRoom are
+      * capable to have a custom title.
+      */
+    virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
     virtual void connect(const char *url = NULL) = 0;
@@ -112,6 +121,9 @@ public:
 
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
+
+    /** @brief True if there's a call in progress */
+    bool isCallInProgress() const;
 
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
@@ -239,15 +251,6 @@ public:
      */
     Contact *contact() const { return mContact; }
 
-    /** @brief The screen name of the peer */
-    virtual const char *titleString() const;
-
-    /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
-      * First byte indicate first name length
-      */
-    const std::string& completeTitleString() const;
-
-
     /** @brief The screen email address of the peer */
     virtual const std::string& email() const { return mEmail; }
 
@@ -257,7 +260,6 @@ public:
     //chatd::Listener interface
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onUnreadChanged();
 /** @endcond */
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
@@ -280,8 +282,8 @@ public:
         std::string mName;
         std::string mEmail;
         Presence mPresence;
-        void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
+
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -310,20 +312,15 @@ public:
     /** @cond PRIVATE */
 protected:
     MemberMap mPeers;
-    bool mHasTitle;
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    uint64_t mPublicHandle;
-    bool mPublicChat;
-    bool mPreviewMode;
+    bool mPublicChat = false;
+    bool mPreviewMode = false;
     int mNumPeers = 0; //Only for public chats in preview mode
 
-    void syncRoomPropertiesWithApi(const mega::MegaTextChat &chat);
-    bool syncMembers(const UserPrivMap& users);
-    static UserPrivMap& apiMembersToMap(const mega::MegaTextChat& chat, UserPrivMap& membs);
     void setChatPrivateMode();
-    bool syncMembers(const mega::MegaTextChat& chat);
+    bool syncMembers(const mega::MegaTextChat& chat);   
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
@@ -352,30 +349,19 @@ protected:
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                bool aIsArchived, const std::string& title, bool aPublicChat,
+                bool aIsArchived, const std::string& title,
                 const uint64_t &publicHandle, bool previewMode, const std::string& unifiedKey, int aNumPeers, std::string aUrl);
-
-
-
     ~GroupChatRoom();
+
 public:
 //chatd::Listener
     virtual void onUserJoin(Id userid, chatd::Priv priv);
     virtual void onUserLeave(Id userid);
-    virtual void onUnreadChanged();
 //====
     /** @endcond PRIVATE */
 
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
-
-    /** @brief Returns whether the group chatroom has a title set. If not, then
-      * its title string will be composed from the first names of the room members
-      */
-    bool hasTitle() const { return mHasTitle; }
-
-    /** @brief The title of the chatroom */
-    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief The 'presence' of the chatroom - it's actually the online state,
      * and can be only online or offline, depending on whether we are connected
@@ -435,8 +421,6 @@ public:
 
     virtual bool previewMode() const;
     void setPreviewMode(bool previewMode);
-    uint64_t publicHandle() const;
-    void setPublicHandle(const uint64_t &publicHandle);
     virtual bool publicChat() const;
     void setPublicChat(bool publicChat);
 
@@ -679,6 +663,7 @@ public:
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
+    std::string mAppDir;
     WebsocketsIO *websocketIO;  // network-layer interface
     void *appCtx;               // app's context
     MyMegaApi api;              // MegaApi's instance
@@ -699,7 +684,6 @@ public:
     unsigned short mMyPubRsaLen = 0;
 
     IApp::ILoginDialog::Handle mLoginDlg;
-    std::map <uint64_t, uint64_t> mPhToChatId;   
 
     /** @brief The contact list of the client */
     std::unique_ptr<ContactList> contactList;
@@ -712,7 +696,6 @@ public:
     promise::Promise<void> mSyncPromise;    // resolved only when up to date    
 
 protected:
-    std::string mAppDir;
     Id mMyHandle = Id::null(); //mega::UNDEF
     std::string mMyName = std::string("\0", 1);
     std::string mMyEmail;
@@ -787,8 +770,9 @@ public:
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
     /** @brief This function returns an url to connect to a public chat in preview mode
+     * @return The chatid associated to the public handle
      */
-    promise::Promise<void> loadChatLink(uint64_t publicHandle, const std::string &key);
+    promise::Promise<uint64_t> loadChatLink(uint64_t publicHandle, const std::string &key);
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */
@@ -796,26 +780,11 @@ public:
 
     /** @brief This function creates a public handle if not exists
      */
-    promise::Promise<void> getPublicHandle(karere::Id chatid);
+    promise::Promise<uint64_t> getPublicHandle(karere::Id chatid, bool createifmissing);
 
     /** @brief This function invalidates the current public handle
      */
-    promise::Promise<void> deleteChatLink(karere::Id chatid);
-
-    uint64_t chatIdByPh(uint64_t ph)
-    {
-        auto it = mPhToChatId.find(ph);
-        if (it != mPhToChatId.end())
-        {
-            return it->second;
-        }
-        return Id::inval();
-    }
-
-    void eraseChatIdByPh(uint64_t ph)
-    {
-        mPhToChatId.erase(ph);
-    }
+    promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
@@ -925,7 +894,7 @@ public:
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
-    bool isCallInProgress() const;
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif

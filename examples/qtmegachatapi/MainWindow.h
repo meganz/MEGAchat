@@ -11,10 +11,13 @@
 #include "megaLoggerApplication.h"
 #include "chatGroupDialog.h"
 #include "QTMegaChatCallListener.h"
+#include "MegaChatApplication.h"
 
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
 const int chatArchivedStatus = 2;
+
+class MegaChatApplication;
 
 struct Chat
 {
@@ -37,8 +40,8 @@ struct ChatComparator
     }
 };
 
-class ChatSettings;
-class ChatSettingsDialog;
+class WebRTCSettings;
+class WebRTCSettingsDialog;
 class ChatItemWidget;
 class ContactItemWidget;
 class QTMegaChatCallListener;
@@ -59,14 +62,13 @@ class MainWindow :
         virtual ~MainWindow();
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
-        void addChatListener();
         void clearContactChatList();
-        void orderContactChatList(bool showInactive, bool showArchived);
+        void orderContactChatList();
         void addContacts();
         void addInactiveChats();
         void addArchivedChats();
         void addActiveChats();
-        void createSettingsMenu();
+        void createWebRTCSettingsDialog();
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
@@ -83,7 +85,6 @@ class MainWindow :
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
         bool eventFilter(QObject *obj, QEvent *event);
-        void contextMenuEvent(QContextMenuEvent* event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
         void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
@@ -92,19 +93,20 @@ class MainWindow :
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
         void updateToolTipMyInfo(megachat::MegaChatHandle myHandle);
         void activeControls(bool active);
-    public:
-        MegaLoggerApplication *mLogger;
         int getNContacts() const;
         void setNContacts(int nContacts);
+        void createChatRoom(megachat::MegaChatPeerList *peerList, bool isGroup, bool isPublic);
+        MegaLoggerApplication *mLogger;
 
     protected:
         Ui::MainWindow *ui;
-        bool allItemsVisibility;
-        bool archivedItemsVisibility = false;
+        bool mShowInactive;
+        bool mShowArchived = false;
         QMenu *onlineStatus;
-        ChatSettings *mChatSettings;
-        mega::MegaApi * mMegaApi;
-        megachat::MegaChatApi * mMegaChatApi;
+        WebRTCSettings *mWebRTCSettings;
+        MegaChatApplication *mApp;
+        mega::MegaApi *mMegaApi;
+        megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
         std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
@@ -119,27 +121,29 @@ class MainWindow :
     private slots:
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
+        void on_mLogout_clicked();
+
+        void onShowInactiveChats();
+        void onShowArchivedChats();
         void onAddContact();
-        void onAddChatGroup();
+        void onAddPeerChatGroup();
+        void onAddGroupChat();
         void onAddPubChatGroup();
-        void onAddPublicChatGroup();
+        void onWebRTCsetting();
+
         void setOnlineStatus();
-        void onChangeItemsVisibility();
         void loadChatLink();
-        void on_bHiddenChats_clicked();
-        void on_bArchivedChats_clicked();
-        void on_bChatGroup_clicked();
-        void onPrintMyInfo();
-        void on_bPubChatGroup_clicked();
 
     signals:
         void esidLogout();
 
      friend class ChatItemWidget;
+     friend class ContactItemWidget;
      friend class MegaChatApplication;
-     friend class ChatSettingsDialog;
+     friend class WebRTCSettingsDialog;
      friend class CallAnswerGui;
      friend class ChatWindow;
+     friend class ChatMessage;
 };
 
 #endif // MAINWINDOW_H
