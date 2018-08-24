@@ -235,7 +235,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMess
                 megachat::MegaChatMessage *auxMsg = msg->copy();
                 addMsgWidget(auxMsg, loadedMessages);
 
-                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle())
+                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle() && !mMegaChatApi->anonymousMode())
                 {
                     mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
                 }
@@ -469,8 +469,11 @@ QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int in
     ui->mMessageList->setItemWidget(item, widget);
     ui->mMessageList->scrollToBottom();
 
-    if (!widget->isMine() && msg->getStatus() == megachat::MegaChatMessage::STATUS_NOT_SEEN)
+    if (!widget->isMine() && msg->getStatus() == megachat::MegaChatMessage::STATUS_NOT_SEEN
+            && !mMegaChatApi->anonymousMode())
+    {
         mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
+    }
 
     return item;
 }
