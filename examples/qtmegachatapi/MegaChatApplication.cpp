@@ -100,16 +100,16 @@ void MegaChatApplication::init()
     mSid = NULL;
 
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
-
     mSid = readSid();
-    int initState = mMegaChatApi->init(mSid);
+
+
     if (!mSid)
     {
-        assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
         login();
     }
     else
     {
+        int initState = mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
@@ -146,9 +146,9 @@ std::string MegaChatApplication::getChatLink()
 void MegaChatApplication::initAnonymous(std::string chatlink)
 {
     delete [] mSid;
-    mSid = (char *)chatlink.c_str();
 
     QMessageBox::information(nullptr, tr("Anonymous mode"), tr("Anonymous mode: "));
+    mSid = strdup(chatlink.c_str());
     int initState = mMegaChatApi->initAnonymous(mSid);
     if (initState == MegaChatApi::INIT_ERROR)
     {
@@ -176,6 +176,8 @@ void MegaChatApplication::login()
 
 void MegaChatApplication::onLoginClicked()
 {
+    int initState = mMegaChatApi->init(mSid);
+    assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);

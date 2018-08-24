@@ -1525,6 +1525,10 @@ int MegaChatApiImpl::initAnonymous(const char *link)
     string parsedLink (link);
     string separator = "c/";
     size_t pos = parsedLink.find(separator);
+
+    string separatorEnd = "#";
+    size_t posEnd = parsedLink.find(separatorEnd);
+
     int state;
     if (pos == string::npos)
     {
@@ -1533,7 +1537,7 @@ int MegaChatApiImpl::initAnonymous(const char *link)
     else
     {
         pos += separator.length();
-        parsedLink = parsedLink.substr(pos);
+        parsedLink = parsedLink.substr(pos, posEnd-pos);
         state = karere::Client::kInitHasAnonymousSession;
         mClient->initWithAnonymousSession(parsedLink.c_str());
     }

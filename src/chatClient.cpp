@@ -145,10 +145,10 @@ std::string Client::dbPath(const std::string& sid) const
     }
     else
     {
-        if (sid.size() < 31)
+        if (sid.size() < 8)
             throw std::runtime_error("dbPath: sid is too small");
-        path.reserve(43);
-        path.append("/karere-").append(sid.c_str()+31).append(".db");
+        path.reserve(20);
+        path.append("/karere-").append(sid.c_str()).append(".db");
     }
     return path;
 }
@@ -402,7 +402,7 @@ promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std
 
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, chatKey, numPeers, url);
         chats->emplace(chatId, room);
-        room->connect();
+        room->connect(url.c_str());
         return chatId.val;
     });
 }
