@@ -1792,6 +1792,21 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     std::string title = aChat.getTitle() ? aChat.getTitle() : "";
     initChatTitle(title);
 
+    // Save Chatroom into DB
+    auto db = parent.mKarereClient.db;
+    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
+             "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
+             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
+    db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
+    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
+    for (auto& m: mPeers)
+    {
+        stmt << mChatid << m.first << m.second->mPriv;
+        stmt.step();
+        stmt.reset().clearBind();
+    }
+    // TODO: save the encrypted title, if any
+
     // Initialize unified-key, if any
     if (aChat.getUnifiedKey()) // --> only public chats should bring a unified key
     {
@@ -1802,31 +1817,15 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         int len = ::mega::Base64::atob(unifiedKeyB64, *mUnifiedKey);
         assert(len == strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE);
         mIsUnifiedKeyEncrypted = true;
+
+        // Save (still) encrypted unified key
+        Buffer auxBuf;
+        auxBuf.write(0, '1');  // prefix to indicate it's not encrypted
+        auxBuf.append(mUnifiedKey->data(), mUnifiedKey->size());
+        db.query("insert or replace into chat_vars(chatid, name, value)"
+                 " values(?,'unified_key',?)", mChatid, auxBuf);
     }
     assert(!(aChat.isPublicChat() && !aChat.getUnifiedKey()));
-
-    // Save Chatroom into DB
-    auto db = parent.mKarereClient.db;
-    db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
-             mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
-    // Save (still) encrypted unified key
-    if (isPublicChat())
-    {
-        std::string auxBuf(*mUnifiedKey);
-        auxBuf.insert(auxBuf.begin(), '1');  // prefix to indicate it's encrypted
-        db.query("insert or replace into chat_vars(chatid, name, value)"
-                 " values(?,'unified_key',?)", mChatid, auxBuf.c_str());
-    }
-    db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
-    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
-    for (auto& m: mPeers)
-    {
-        stmt << mChatid << m.first << m.second->mPriv;
-        stmt.step();
-        stmt.reset().clearBind();
-    }
-    // TODO: save the encrypted title, if any
 
     // Initialize chatd::Client (and strongvelope)
     initWithChatd();
@@ -2256,10 +2255,13 @@ void ChatRoomList::loadFromDb()
             bool isUnifiedKeyEncrypted = false;
             if(auxstmt.step())
             {
-                unifiedKey->assign(auxstmt.stringCol(0));
-                assert(unifiedKey->size() == 17);
-                isUnifiedKeyEncrypted = (unifiedKey->at(0) == '1');
-                unifiedKey->assign(unifiedKey->substr(1));
+                Buffer auxBuf;
+                auxstmt.blobCol(0, auxBuf);
+                const char *pos = auxBuf.buf();
+                int len = auxBuf.size();
+                isUnifiedKeyEncrypted = (*pos == '1');  pos++;
+                assert(isUnifiedKeyEncrypted ? (len == 25) : 17);   // encrypted version includes invitor's userhandle (8 bytes)
+                unifiedKey->assign(pos, len - 1);
             }
             // else  --> not public chat anymore
 

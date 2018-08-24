@@ -542,10 +542,11 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
                 mUnifiedKey = unifiedKey;
 
                 // Save Unified key decrypted
-                std::string auxBuf(unifiedKey->buf(), unifiedKey->size());
-                auxBuf.insert(auxBuf.begin(), '0');  // prefix to indicate it's encrypted
+                Buffer auxBuf;
+                auxBuf.write(0, '0');  // prefix to indicate it's encrypted
+                auxBuf.append(*unifiedKey);
                 mDb.query("insert or replace into chat_vars(chatid, name, value)"
-                         " values(?,'unified_key',?)", chatid, auxBuf.c_str());
+                         " values(?,'unified_key',?)", chatid, auxBuf);
             });
         }
         else
@@ -1063,6 +1064,7 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
             case promise::kSucceeded:   // if already decrypted...
                 assert(mUnifiedKey);
                 pms = parsedMsg->decryptPublicChatTitle(msg.get(), mUnifiedKey);
+                break;
 
             case promise::kFailed:
                 STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key decryption failed. Cannot decrypt chat title");
@@ -1077,6 +1079,7 @@ ProtocolHandler::decryptChatTitle(const Buffer& data)
                 {
                     return parsedMsg->decryptPublicChatTitle(msg.get(), unifiedKey);
                 });
+                break;
             }
         }
 
