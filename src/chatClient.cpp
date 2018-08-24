@@ -2608,7 +2608,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     {
         wptr.throwIfDeleted();
         ApiPromise invitePms;
-        if(isPublicChat())
+        if (publicChat())
         {
             std::string titleCpy = title;
             invitePms = chat().crypto()->encryptUnifiedKeyForAllParticipants(userid)
@@ -2908,6 +2908,11 @@ void ChatRoom::notifyChatModeChanged()
     }, parent.mKarereClient.appCtx);
 }
 
+bool GroupChatRoom::publicChat()
+{
+    return mUnifiedKey != nullptr;
+}
+
 // return true if new peer, peer removed or peer's privilege updated
 bool GroupChatRoom::previewMode() const
 {
@@ -3033,7 +3038,7 @@ void GroupChatRoom::clearTitle()
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
     // Mode changed
-    if (!chat.isPublicChat() && isPublicChat())
+    if (!chat.isPublicChat() && publicChat())
     {
         KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
         setChatPrivateMode();
