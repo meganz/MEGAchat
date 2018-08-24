@@ -13,6 +13,7 @@
 
 #define MAX_RETRIES 5
 class MegaLoggerApplication;
+class LoginDialog;
 
 class MegaChatApplication : public QApplication,
     public mega::MegaListener,
@@ -63,6 +64,7 @@ class MegaChatApplication : public QApplication,
 
     public slots:
         void onLoginClicked();
+        void onPreviewClicked();
 
 };
 #endif // MEGACHATAPPLICATION_H

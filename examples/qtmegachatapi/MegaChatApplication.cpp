@@ -69,12 +69,6 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
 
-    const QObjectList lstChildren  = mMainWin->children();
-    foreach(QObject* pWidget, lstChildren)
-    {
-        pWidget->deleteLater();
-    }
-
     mMainWin->deleteLater();
     delete mMegaChatApi;
     delete mMegaApi;
@@ -125,7 +119,7 @@ std::string MegaChatApplication::getChatLink()
 
     while (1)
     {
-        qLink = QInputDialog::getText((QWidget *)this->mMainWin, tr("Anonymous preview mode"),
+        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
                 tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
 
         if (ok)
@@ -146,9 +140,8 @@ std::string MegaChatApplication::getChatLink()
 void MegaChatApplication::initAnonymous(std::string chatlink)
 {
     delete [] mSid;
-
-    QMessageBox::information(nullptr, tr("Anonymous mode"), tr("Anonymous mode: "));
     mSid = strdup(chatlink.c_str());
+    mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
     int initState = mMegaChatApi->initAnonymous(mSid);
     if (initState == MegaChatApi::INIT_ERROR)
     {
@@ -171,6 +164,7 @@ void MegaChatApplication::login()
 {
     mLoginDialog = new LoginDialog();
     connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
+    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
     mLoginDialog->show();
 }
 
@@ -182,6 +176,13 @@ void MegaChatApplication::onLoginClicked()
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
+}
+
+void MegaChatApplication::onPreviewClicked()
+{
+    std::string chatLink = mLoginDialog->getChatLink();
+    mLoginDialog->deleteLater();
+    initAnonymous(chatLink);
 }
 
 void MegaChatApplication::logout()

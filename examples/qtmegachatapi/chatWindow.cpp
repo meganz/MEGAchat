@@ -147,6 +147,7 @@ ChatWindow::~ChatWindow()
     if (mChatRoom->isPreview())
     {
         mMainWin->removeLocalChatListItem(item);
+        mMainWin->clearContactChatList();
     }
 
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);

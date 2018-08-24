@@ -73,7 +73,7 @@ void MainWindow::activeControls(bool active)
     else
     {
         ui->bOnlineStatus->hide();
-        ui->bSettings->hide();
+        ui->mLogout->hide();
     }
 }
 
