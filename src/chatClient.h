@@ -340,7 +340,6 @@ protected:
     virtual void connect();
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(std::string &title);
-    bool isPublicChat() { return mUnifiedKey != nullptr; }
 
     friend class ChatRoomList;
     friend class Member;
@@ -423,6 +422,8 @@ public:
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+
+    virtual bool publicChat();
 
     virtual bool previewMode() const;
     void setPreviewMode(bool previewMode);

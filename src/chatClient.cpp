@@ -1462,27 +1462,35 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
 promise::Promise<karere::Id>
 Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title)
 {
-    const Id myhandle = myHandle();
-    std::shared_ptr<SetOfIds> users = std::make_shared<SetOfIds>();
-    auto wptr = getDelTracker();
+    // prepare set of participants
     std::shared_ptr<mega::MegaTextChatPeerList> sdkPeers(mega::MegaTextChatPeerList::createInstance());
+    std::shared_ptr<SetOfIds> users = std::make_shared<SetOfIds>();
+    users->insert(mMyHandle);
     for (auto& peer: peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
         users->insert(peer.first);
     }
 
-    //Add own user to strongvelope set of users to encrypt unified key for us
-    users->insert(myhandle);
-    Buffer *buf = strongvelope::ProtocolHandler::createUnifiedKey();
-    std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(buf->buf(), buf->dataSize());
-    delete buf;
-    std::shared_ptr<strongvelope::ProtocolHandler> crypto(new strongvelope::ProtocolHandler(mMyHandle,
-            StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
-            StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(),
-            unifiedKey, false, appCtx));
+    // prepare unified key (if public chat)
+    std::shared_ptr<std::string> unifiedKey;
+    if (publicchat)
+    {
+        Buffer *buf = strongvelope::ProtocolHandler::createUnifiedKey();
+        unifiedKey.reset(new std::string(buf->buf(), buf->dataSize()));
+        delete buf;
+    }
 
-    crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
+    // create strongvelope for encryption of title/unified-key
+    std::shared_ptr<strongvelope::ProtocolHandler> crypto;
+    if (publicchat || title)
+    {
+        crypto.reset(new strongvelope::ProtocolHandler(mMyHandle,
+                StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
+                StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(),
+                unifiedKey, false, appCtx));
+        crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
+    }
 
     promise::Promise<std::shared_ptr<Buffer>> pms;
     if (title)
@@ -1497,7 +1505,8 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     }
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
-    return pms.then([wptr, this, peers, crypto, users, title, myhandle, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
+    auto wptr = getDelTracker();
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
     {
         std::string enctitleB64;
         if (!encTitle->empty())
@@ -1526,15 +1535,9 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                     //Get peer unified key
                     auto useruk = keyCmd->getKeyByUserId(peerHandle);
 
-                    //Get creator handle in binary
-                    uint64_t auxcreatorHandle = this->myHandle().val;
-                    char *auxcreatorHandleBin = new char[mega::USERHANDLE];
-                    memcpy(auxcreatorHandleBin, &(auxcreatorHandle), mega::USERHANDLE);
-
                     //Append [creatorhandle+uk]
-                    std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
+                    std::string uKeyBin((const char*)&mMyHandle, mega::USERHANDLE);
                     uKeyBin.append(useruk->buf(), useruk->size());
-                    delete auxcreatorHandleBin;
 
                     //Encode [creatorhandle+uk] to B64
                     std::string uKeyB64;
@@ -1544,28 +1547,19 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                     userKeyMap->set(uhB64, uKeyB64.c_str());
                 }
 
-                //Get own Handle in B64
-                uint64_t creatorHandle = this->myHandle().val;
-                char ohB64[12];
-                mega::Base64::btoa((byte *)&creatorHandle, mega::USERHANDLE, ohB64);
-                ohB64[11] = '\0';
-
                 //Get own unified key
-                auto ownKey = keyCmd->getKeyByUserId(myHandle());
+                auto ownKey = keyCmd->getKeyByUserId(mMyHandle);
 
                 //Append [creatorhandle+uk]
-                char *creatorHandleBin = new char[mega::USERHANDLE];
-                memcpy(creatorHandleBin, &(creatorHandle), mega::USERHANDLE);
-                std::string okeyBin (creatorHandleBin, mega::USERHANDLE);
+                std::string okeyBin((const char*)&mMyHandle, mega::USERHANDLE);
                 okeyBin.append(ownKey->buf(), ownKey->size());
-                delete creatorHandleBin;
 
                 //Encode [creatorhandle+uk] to B64
                 std::string oKeyB64;
                 mega::Base64::btoa(okeyBin, oKeyB64);
 
                 //Add entry to map
-                userKeyMap->set(ohB64, oKeyB64.c_str());
+                userKeyMap->set(mMyHandle.toString().c_str(), oKeyB64.c_str());
                 return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
                                 !enctitleB64.empty() ? enctitleB64.c_str() : NULL);
             });
@@ -1820,7 +1814,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
         // Save (still) encrypted unified key
         Buffer auxBuf;
-        auxBuf.write(0, '1');  // prefix to indicate it's not encrypted
+        auxBuf.write(0, '1');  // prefix to indicate it's encrypted
         auxBuf.append(mUnifiedKey->data(), mUnifiedKey->size());
         db.query("insert or replace into chat_vars(chatid, name, value)"
                  " values(?,'unified_key',?)", mChatid, auxBuf);
