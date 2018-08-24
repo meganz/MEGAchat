@@ -15,21 +15,7 @@ using namespace megachat;
 int main(int argc, char **argv)
 {
     MegaChatApplication app(argc,argv);
-    if (argc > 2)
-    {
-        QApplication::quit();
-    }
-    else if (argc == 2)
-    {
-        std::string chatlink = argv[1];
-        app.initAnonymous(chatlink);
-    }
-    else
-    {
-        app.readSid();
-        app.init();
-    }
-
+    app.init();
     return app.exec();
 }
 
@@ -94,21 +80,7 @@ void MegaChatApplication::init()
     mSid = NULL;
 
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
-    mSid = readSid();
-
-
-    if (!mSid)
-    {
-        login();
-    }
-    else
-    {
-        int initState = mMegaChatApi->init(mSid);
-        assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
-               || initState == MegaChatApi::INIT_NO_CACHE);
-
-        mMegaApi->fastLogin(mSid);
-    }
+    login();
 }
 
 std::string MegaChatApplication::getChatLink()
@@ -162,10 +134,22 @@ void MegaChatApplication::initAnonymous(std::string chatlink)
 
 void MegaChatApplication::login()
 {
-    mLoginDialog = new LoginDialog();
-    connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
-    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
-    mLoginDialog->show();
+    mSid = readSid();
+    if (!mSid)
+    {
+        mLoginDialog = new LoginDialog();
+        connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
+        connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
+        mLoginDialog->show();
+    }
+    else
+    {
+        int initState = mMegaChatApi->init(mSid);
+        assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
+               || initState == MegaChatApi::INIT_NO_CACHE);
+
+        mMegaApi->fastLogin(mSid);
+    }
 }
 
 void MegaChatApplication::onLoginClicked()
