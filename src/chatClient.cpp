@@ -62,8 +62,18 @@ std::string encodeFirstName(const std::string& first);
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-    Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
-        : mAppDir(appDir),
+bool Client::anonymousMode() const
+{
+    return mAnonymousMode;
+}
+
+void Client::setAnonymousMode(bool value)
+{
+    mAnonymousMode = value;
+}
+
+Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
+    : mAppDir(appDir),
           websocketIO(websocketsIO),
           appCtx(ctx),
           api(sdk, ctx),
@@ -125,11 +135,21 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
 
 std::string Client::dbPath(const std::string& sid) const
 {
-    if (sid.size() < 50)
-        throw std::runtime_error("dbPath: sid is too small");
     std::string path = mAppDir;
-    path.reserve(56);
-    path.append("/karere-").append(sid.c_str()+44).append(".db");
+    if (!anonymousMode())
+    {
+        if (sid.size() < 50)
+            throw std::runtime_error("dbPath: sid is too small");
+        path.reserve(56);
+        path.append("/karere-").append(sid.c_str()+44).append(".db");
+    }
+    else
+    {
+        if (sid.size() < 8)
+            throw std::runtime_error("dbPath: sid is too small");
+        path.reserve(20);
+        path.append("/karere-").append(sid.c_str()).append(".db");
+    }
     return path;
 }
 
@@ -382,7 +402,7 @@ promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std
 
         GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, unifiedKey, numPeers, url);
         chats->emplace(chatId, room);
-        room->connect();
+        room->connect(url.c_str());
         return chatId.val;
     });
 }
@@ -556,6 +576,14 @@ void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
 #endif
     contactList->syncWithApi(contacts);
     mContactsLoaded = true;
+}
+
+void Client::initWithAnonymousSession(const char* sid)
+{
+    mSid = sid;
+    createDb();
+    mUserAttrCache.reset(new UserAttrCache(*this));
+    mChatdClient.reset(new chatd::Client(this, mMyHandle));
 }
 
 promise::Promise<void> Client::initWithNewSession(const char* sid, const std::string& scsn,
@@ -1677,7 +1705,7 @@ void PeerChatRoom::initWithChatd()
     createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
-void PeerChatRoom::connect()
+void PeerChatRoom::connect(const char *url)
 {
     mChat->connect();
 }
@@ -1882,6 +1910,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     initWithChatd(unifiedKey, false);
     mChat->setPublicHandle(publicHandle);
     mChat->crypto()->setPreviewMode(previewMode);
+    mChat->crypto()->setAnonymousMode(chat().client().karereClient->anonymousMode());
     mUrl = aUrl;
 
     //Add my own handle to peers list
@@ -1942,20 +1971,24 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted)
 {
     karere::SetOfIds users;
-    users.insert(parent.mKarereClient.myHandle());
-    for (auto& peer: mPeers)
+    Id myHandle = parent.mKarereClient.myHandle();
+    if(myHandle != Id::null())
     {
-        users.insert(peer.first);
+        users.insert(myHandle);
+        for (auto& peer: mPeers)
+        {
+            users.insert(peer.first);
+        }
     }
     createChatdChat(users, unifiedKey, isUnifiedKeyEncrypted);
 }
 
-void GroupChatRoom::connect()
+void GroupChatRoom::connect(const char *url)
 {
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
 
-    mChat->connect();
+    mChat->connect(url);
     if (mHasTitle)
     {
         decryptTitle()

@@ -100,7 +100,7 @@ public:
     virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
-    virtual void connect() = 0;
+    virtual void connect(const char *url = NULL) = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
              unsigned char shard, chatd::Priv ownPriv, uint32_t ts, bool isArchived,
@@ -229,7 +229,7 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
@@ -335,7 +335,7 @@ protected:
     void makeTitleFromMemberNames();
     void initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted);
     void setRemoved();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(std::string &title);
 
@@ -653,7 +653,13 @@ public:
         kInitErrAlready,
 
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid
+        kInitErrSidInvalid,
+
+        /** \c init() */
+        kInitErrAnonymousMode,
+
+        /** \c init() */
+        kInitHasAnonymousSession
     };
 
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
@@ -716,6 +722,7 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
+    bool mAnonymousMode = false;
 
 public:
     /**
@@ -753,6 +760,8 @@ public:
      * with an existing session.
      */
     void initWithDbSession(const char* sid);
+
+    void initWithAnonymousSession(const char *sid);
 
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
@@ -897,6 +906,9 @@ public:
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
+
+    bool anonymousMode() const;
+    void setAnonymousMode(bool value);
 
 protected:
     void heartbeat();

@@ -860,7 +860,9 @@ public:
     static void setLogToConsole(bool enable);
 
     int init(const char *sid);
+    int initAnonymous(const char *link);
     int getInitState();
+    bool anonymousMode();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);
