@@ -143,11 +143,7 @@ public:
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) = 0;
 
-    virtual void setUnifiedKey(const std::string &key) = 0;
-
-    virtual std::string getUnifiedKey() = 0;
-
-    virtual void resetUnifiedKey() = 0;
+    virtual std::shared_ptr<std::string> getUnifiedKey() = 0;
 
     virtual void setPreviewMode(bool previewMode) = 0;
 
@@ -155,7 +151,7 @@ public:
 
     virtual unsigned int getChatMode() const = 0;
 
-    virtual void setChatMode(unsigned int chatMode) = 0;
+    virtual void setPrivateChatMode() = 0;
 
     virtual void onHistoryReload() = 0;
 

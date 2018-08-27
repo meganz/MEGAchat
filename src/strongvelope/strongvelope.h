@@ -321,7 +321,6 @@ protected:
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
     bool mPreviewMode = false;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
-    bool mIsUnifiedKeyEncrypted;
     promise::Promise<std::shared_ptr<UnifiedKey>> mUnifiedKeyDecrypted;
 
 public:
@@ -434,15 +433,13 @@ public:
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
 
     static Buffer* createUnifiedKey();
-    virtual void setUnifiedKey(const std::string &key);
-    virtual std::string getUnifiedKey();
-    virtual void resetUnifiedKey();
+    virtual std::shared_ptr<std::string> getUnifiedKey();
 
     virtual void setPreviewMode(bool previewMode);
     virtual bool getPreviewMode();
 
     unsigned int getChatMode() const;
-    void setChatMode(unsigned int chatMode);
+    void setPrivateChatMode();
 
     virtual void onHistoryReload();
 };

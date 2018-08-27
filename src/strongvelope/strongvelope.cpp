@@ -493,9 +493,13 @@ unsigned int ProtocolHandler::getChatMode() const
     return mChatMode;
 }
 
-void ProtocolHandler::setChatMode(unsigned int chatMode)
+void ProtocolHandler::setPrivateChatMode()
 {
-    mChatMode = chatMode;
+    assert(mChatMode == CHAT_MODE_PUBLIC);
+
+    mChatMode = CHAT_MODE_PRIVATE;
+    mUnifiedKey.reset();
+    resetSendKey();
 }
 
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
@@ -504,8 +508,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
-  mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId),
-  mIsUnifiedKeyEncrypted(isUnifiedKeyEncrypted)
+  mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -520,7 +523,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     mChatMode = unifiedKey ? CHAT_MODE_PUBLIC : CHAT_MODE_PRIVATE;
     if (mChatMode == CHAT_MODE_PUBLIC)
     {
-        if (mIsUnifiedKeyEncrypted)
+        if (isUnifiedKeyEncrypted)
         {
             //Parse invitor handle (First 8 Bytes)
             uint64_t invitorHandle;
@@ -538,7 +541,6 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
                 if (wptr.deleted())
                     return;
 
-                mIsUnifiedKeyEncrypted = false;
                 mUnifiedKey = unifiedKey;
 
                 // Save Unified key decrypted
@@ -548,6 +550,8 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
                 mDb.query("insert or replace into chat_vars(chatid, name, value)"
                          " values(?,'unified_key',?)", chatid, auxBuf);
             });
+            // TODO: need to handle possible failure of promise (due to retrieval or public key of invitor, i.e.)
+            // and somehow tell karere::Client to disable this chatroom, or at least log an error message and assert(false)
         }
         else
         {
@@ -880,17 +884,6 @@ Buffer* ProtocolHandler::createUnifiedKey()
     return unifiedKey;
 }
 
-void ProtocolHandler::setUnifiedKey(const std::string &key)
-{
-    assert(key.size() == SVCRYPTO_KEY_SIZE);
-    mUnifiedKey.reset(new UnifiedKey(key.data(), key.size()));
-}
-
-void ProtocolHandler::resetUnifiedKey()
-{
-    mUnifiedKey.reset();
-}
-
 void ProtocolHandler::setPreviewMode(bool previewMode)
 {
     mPreviewMode = previewMode;
@@ -901,12 +894,17 @@ bool ProtocolHandler::getPreviewMode()
     return mPreviewMode;
 }
 
-std::string ProtocolHandler::getUnifiedKey()
+std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
 {
-    std::string key;
+    if (mChatMode == CHAT_MODE_PRIVATE)
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<std::string> key;
     if (!mUnifiedKey->empty())
     {
-        key.assign(mUnifiedKey->buf(), mUnifiedKey->size());
+        key.reset(new std::string(mUnifiedKey->buf(), mUnifiedKey->size()));
     }
     return key;
 }

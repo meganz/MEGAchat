@@ -3126,10 +3126,7 @@ void GroupChatRoom::setChatPrivateMode()
     }
 
     //Update strongvelope
-    chat().crypto()->setChatMode(strongvelope::CHAT_MODE_PRIVATE);
-    // TODO: reset unified-key and send-key must be done atomically in setChatMode() to avoid mistakes
-    chat().crypto()->resetUnifiedKey();
-    chat().crypto()->resetSendKey();
+    chat().crypto()->setPrivateChatMode();
 
     //Update cache
     auto db = parent.mKarereClient.db;
