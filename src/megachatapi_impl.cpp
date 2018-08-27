@@ -887,21 +887,22 @@ void MegaChatApiImpl::sendPendingRequests()
             pms.then([request, this] (uint64_t ph)
             {
                 GroupChatRoom *room = (GroupChatRoom *) findChatRoom(request->getChatHandle());
-                string keybin(room->chatkey());
+                shared_ptr<string> unifiedKey(room->unifiedKey());
                 MegaChatErrorPrivate *megaChatError;
-                if (keybin.size() != 16 || (!request->getFlag() && ph == Id::inval()))
+                if (!unifiedKey || unifiedKey->size() != 16 || (!request->getFlag() && ph == Id::inval()))
                 {
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                 }
                 else
                 {
-                    char *ph64 = new char[8];
-                    Base64::btoa((byte*)&(ph), MegaClient::CHATLINKHANDLE, ph64);
-                    std::string phstr(ph64, 8);
+                    string unifiedKeyB64;
+                    Base64::btoa(*unifiedKey, unifiedKeyB64);
 
-                    string keystr;
-                    Base64::btoa(keybin, keystr);
-                    string link = "https://mega.nz/c/" + phstr + "#" + keystr;
+                    string phBin((const char*)&ph, MegaClient::CHATLINKHANDLE);
+                    string phB64;
+                    Base64::btoa(phBin, phB64);
+
+                    string link = "https://mega.nz/c/" + phB64 + "#" + unifiedKeyB64;
                     request->setText(link.c_str());
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 }
