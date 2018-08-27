@@ -2245,7 +2245,7 @@ void ChatRoomList::loadFromDb()
             SqliteStmt auxstmt(mKarereClient.db, "select value from chat_vars where chatid=? and name ='unified_key'");
             auxstmt << chatid;
 
-            std::shared_ptr<std::string> unifiedKey(new std::string);
+            std::shared_ptr<std::string> unifiedKey;
             bool isUnifiedKeyEncrypted = false;
             if(auxstmt.step())
             {
@@ -2255,7 +2255,7 @@ void ChatRoomList::loadFromDb()
                 int len = auxBuf.size();
                 isUnifiedKeyEncrypted = (*pos == '1');  pos++;
                 assert(isUnifiedKeyEncrypted ? (len == 25) : 17);   // encrypted version includes invitor's userhandle (8 bytes)
-                unifiedKey->assign(pos, len - 1);
+                unifiedKey.reset(new std::string(pos, len - 1));
             }
             // else  --> not public chat anymore
 
