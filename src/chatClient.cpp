@@ -2914,7 +2914,7 @@ void ChatRoom::notifyChatModeChanged()
     }, parent.mKarereClient.appCtx);
 }
 
-bool GroupChatRoom::publicChat()
+bool GroupChatRoom::publicChat() const
 {
     return (mChat->crypto()->getChatMode() == strongvelope::CHAT_MODE_PUBLIC);
 }

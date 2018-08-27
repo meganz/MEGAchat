@@ -421,7 +421,7 @@ public:
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
 
-    virtual bool publicChat();
+    virtual bool publicChat() const;
 
     virtual bool previewMode() const;
     void setPreviewMode(bool previewMode);
