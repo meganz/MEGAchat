@@ -1,4 +1,4 @@
-#import "MEGAChatDelegate.h"
+
 #import "megachatapi.h"
 #import "MEGAChatSdk.h"
 

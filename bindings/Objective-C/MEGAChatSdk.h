@@ -14,6 +14,7 @@
 #import "MEGAChatDelegate.h"
 #import "MEGAChatCallDelegate.h"
 #import "MEGAChatVideoDelegate.h"
+#import "MEGAChatNotificationDelegate.h"
 
 #import "MEGASdk.h"
 
@@ -124,6 +125,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate;
+
+- (void)addChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
+- (void)removeChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
