@@ -185,7 +185,7 @@ struct ParsedMessage: public karere::DeleteTrackable
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
 
-    chatd::Message *decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<SendKey>& key);
+    promise::Promise<chatd::Message *> decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<UnifiedKey> &key);
     promise::Promise<std::string> extractUnifiedKeyFromCt(chatd::Message *msg);
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
     std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
@@ -322,6 +322,7 @@ protected:
     bool mPreviewMode = false;
     bool mAnonymousMode = false;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
+    promise::Promise<std::shared_ptr<UnifiedKey>> mUnifiedKeyDecrypted;
 
 public:
     karere::Id chatid;
@@ -330,12 +331,8 @@ public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        SqliteDb& db, karere::Id aChatId, void *ctx);
-
-    ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
-        const StaticBuffer& privEd25519,
-        const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        SqliteDb& db, karere::Id aChatId, int chatMode, void *ctx);
+        SqliteDb& db, karere::Id aChatId, std::shared_ptr<std::string> unifiedKey,
+        bool isUnifiedKeyEncrypted, void *ctx);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
@@ -433,15 +430,11 @@ public:
     virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
 
-    virtual std::string decryptPublicChatTitle(const Buffer& data);
-
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
 
-    virtual void createUnifiedKey();
-    virtual void setUnifiedKey(const std::string &key);
-    virtual std::string getUnifiedKey();
-    virtual void resetUnifiedKey();
+    static Buffer* createUnifiedKey();
+    virtual std::shared_ptr<std::string> getUnifiedKey();
 
     virtual void setPreviewMode(bool previewMode);
     virtual bool getPreviewMode();
@@ -449,10 +442,9 @@ public:
     virtual void setAnonymousMode(bool anonymousMode);
 
     unsigned int getChatMode() const;
-    void setChatMode(unsigned int chatMode);
+    void setPrivateChatMode();
 
     virtual void onHistoryReload();
-
 };
 }
 namespace chatd

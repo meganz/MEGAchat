@@ -84,6 +84,7 @@ class MainWindow :
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
+        std::string getAuthCode();
         bool eventFilter(QObject *obj, QEvent *event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
         void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
@@ -96,10 +97,12 @@ class MainWindow :
         int getNContacts() const;
         void setNContacts(int nContacts);
         void createChatRoom(megachat::MegaChatPeerList *peerList, bool isGroup, bool isPublic);
+        void setTwoFactorAvailable(bool twoFactorAvailable);
         MegaLoggerApplication *mLogger;
 
     protected:
         Ui::MainWindow *ui;
+        bool mTwoFactorAvailable = false;
         bool mShowInactive;
         bool mShowArchived = false;
         QMenu *onlineStatus;
@@ -122,7 +125,6 @@ class MainWindow :
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
         void on_mLogout_clicked();
-
         void onShowInactiveChats();
         void onShowArchivedChats();
         void onAddContact();
@@ -130,9 +132,11 @@ class MainWindow :
         void onAddGroupChat();
         void onAddPubChatGroup();
         void onWebRTCsetting();
-
         void setOnlineStatus();
         void loadChatLink();
+        void twoFactorCheck();
+        void twoFactorEnable();
+        void twoFactorDisable();
 
     signals:
         void esidLogout();

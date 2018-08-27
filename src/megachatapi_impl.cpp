@@ -887,21 +887,22 @@ void MegaChatApiImpl::sendPendingRequests()
             pms.then([request, this] (uint64_t ph)
             {
                 GroupChatRoom *room = (GroupChatRoom *) findChatRoom(request->getChatHandle());
-                string keybin(room->chatkey());
+                shared_ptr<string> unifiedKey(room->unifiedKey());
                 MegaChatErrorPrivate *megaChatError;
-                if (keybin.size() != 16 || (!request->getFlag() && ph == Id::inval()))
+                if (!unifiedKey || unifiedKey->size() != 16 || (!request->getFlag() && ph == Id::inval()))
                 {
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                 }
                 else
                 {
-                    char *ph64 = new char[8];
-                    Base64::btoa((byte*)&(ph), MegaClient::CHATLINKHANDLE, ph64);
-                    std::string phstr(ph64, 8);
+                    string unifiedKeyB64;
+                    Base64::btoa(*unifiedKey, unifiedKeyB64);
 
-                    string keystr;
-                    Base64::btoa(keybin, keystr);
-                    string link = "https://mega.nz/c/" + phstr + "#" + keystr;
+                    string phBin((const char*)&ph, MegaClient::CHATLINKHANDLE);
+                    string phB64;
+                    Base64::btoa(phBin, phB64);
+
+                    string link = "https://mega.nz/c/" + phB64 + "#" + unifiedKeyB64;
                     request->setText(link.c_str());
                     megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 }
@@ -5338,8 +5339,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->chatid = chat.chatid();
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
-    this->mPublicChat = ((GroupChatRoom &)chat).publicChat();
-    this->mPreviewMode = ((GroupChatRoom &)chat).previewMode();
+    this->mPublicChat = chat.publicChat();
+    this->mPreviewMode = chat.previewMode();
     this->title = chat.titleString();
     this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
     this->unreadCount = chat.chat().unreadMsgCount();
@@ -5821,8 +5822,8 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->title = chatroom.titleString();
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
-    this->mPublicChat = ((GroupChatRoom &)chatroom).publicChat();
-    this->mPreviewMode = ((GroupChatRoom &)chatroom).previewMode();
+    this->mPublicChat = chatroom.publicChat();
+    this->mPreviewMode = chatroom.previewMode();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
