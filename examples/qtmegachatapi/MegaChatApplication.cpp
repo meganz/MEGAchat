@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include "signal.h"
+#include <QClipboard>
 
 using namespace std;
 using namespace mega;
@@ -286,7 +287,22 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     switch (request->getType())
     {
         case MegaRequest::TYPE_LOGIN:
-            if (e->getErrorCode() == MegaError::API_OK)
+            if (e->getErrorCode() == MegaError::API_EMFAREQUIRED)
+            {
+                std::string auxcode = this->mMainWin->getAuthCode();
+                if (!auxcode.empty())
+                {
+                    QString email(request->getEmail());
+                    QString password(request->getPassword());
+                    QString code(auxcode.c_str());
+                    mMegaApi->multiFactorAuthLogin(email.toUtf8().constData(), password.toUtf8().constData(), code.toUtf8().constData());
+                }
+                else
+                {
+                    login();
+                }
+            }
+            else if (e->getErrorCode() == MegaError::API_OK)
             {
                 if (mLoginDialog)
                 {
@@ -316,6 +332,8 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     saveSid(mSid);
                 }
                 mMegaChatApi->connect();
+                bool twoFactorAvailable = mMegaApi->multiFactorAuthAvailable();
+                this->mMainWin->setTwoFactorAvailable(twoFactorAvailable);
             }
             else
             {
@@ -331,6 +349,74 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_INVITE_CONTACT:
             if (e->getErrorCode() != MegaError::API_OK)
                 QMessageBox::critical(nullptr, tr("Invite contact"), tr("Error inviting contact: ").append(e->getErrorString()));
+            break;
+
+        case MegaRequest::TYPE_MULTI_FACTOR_AUTH_CHECK:
+            if (e->getErrorCode() == MegaError::API_OK)
+            {
+                bool enabled = request->getFlag();
+                QMessageBox msgBox;
+                msgBox.setText(tr("2FA is ").append(enabled?" Enabled": "Disabled").append("\nDo you want to ").append(enabled ?" disable": "enable").append(" it?"));
+                msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                msgBox.setDefaultButton(QMessageBox::Cancel);
+                int ret = msgBox.exec();
+                if (ret == QMessageBox::Ok)
+                {
+                    if (enabled)
+                    {
+                        this->mMainWin->twoFactorEnable();
+                    }
+                    else
+                    {
+                        this->mMainWin->twoFactorDisable();
+                    }
+                }
+            }
+            break;
+
+        case MegaRequest::TYPE_MULTI_FACTOR_AUTH_GET:
+            if (e->getErrorCode() == MegaError::API_OK)
+            {
+                QClipboard *clipboard = QApplication::clipboard();
+                QMessageBox msg;
+                msg.setIcon(QMessageBox::Information);
+                msg.setWindowTitle("2FA Code:");
+                msg.setText(request->getText());
+
+                QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
+                copyButton->disconnect();
+                connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(request->getText());});
+                QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
+                msg.exec();
+
+                std::string auxcode = this->mMainWin->getAuthCode();
+                if (!auxcode.empty())
+                {
+                    QString code(auxcode.c_str());
+                    mMegaApi->multiFactorAuthEnable(code.toUtf8().constData());
+                }
+            }
+            break;
+
+        case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
+            QString text;
+            if (request->getFlag())
+            {
+                text.append("Enable 2FA");
+            }
+            else
+            {
+                text.append("Disable 2FA");
+            }
+
+            if (e->getErrorCode() == MegaError::API_OK)
+            {
+                QMessageBox::warning(nullptr, tr(text.toStdString().c_str()), tr("The operation has been completed successfully"));
+            }
+            else
+            {
+                QMessageBox::warning(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
+            }
             break;
     }
 }
