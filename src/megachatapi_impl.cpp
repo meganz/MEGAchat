@@ -5287,7 +5287,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->chatid = chat.chatid();
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
-    this->mPublicChat = ((GroupChatRoom &)chat).publicChat();
+    this->mPublicChat = this->group ?((GroupChatRoom &)chat).publicChat() :false;
     this->mPreviewMode = ((GroupChatRoom &)chat).previewMode();
     this->title = chat.titleString();
     this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
@@ -5770,7 +5770,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->title = chatroom.titleString();
     this->unreadCount = chatroom.chat().unreadMsgCount();
     this->group = chatroom.isGroup();
-    this->mPublicChat = ((GroupChatRoom &)chatroom).publicChat();
+    this->mPublicChat = this->group ?((GroupChatRoom &)chatroom).publicChat() :false;
     this->mPreviewMode = ((GroupChatRoom &)chatroom).previewMode();
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
