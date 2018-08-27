@@ -317,8 +317,6 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
-    std::shared_ptr<std::string> mUnifiedKey;
-    bool mIsUnifiedKeyEncrypted;
     bool mPreviewMode = false;
     int mNumPeers = 0; //Only for public chats in preview mode
 
@@ -335,7 +333,7 @@ protected:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    void initWithChatd();
+    void initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted);
     void setRemoved();
     virtual void connect();
     promise::Promise<void> memberNamesResolved() const;
