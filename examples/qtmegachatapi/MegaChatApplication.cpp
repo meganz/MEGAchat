@@ -56,12 +56,6 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
 
-    const QObjectList lstChildren  = mMainWin->children();
-    foreach(QObject* pWidget, lstChildren)
-    {
-        pWidget->deleteLater();
-    }
-
     mMainWin->deleteLater();
     delete mMegaChatApi;
     delete mMegaApi;
@@ -87,16 +81,71 @@ void MegaChatApplication::init()
     mSid = NULL;
 
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
+    login();
+}
 
-    mSid = readSid();
-    int initState = mMegaChatApi->init(mSid);
-    if (!mSid)
+std::string MegaChatApplication::getChatLink()
+{
+    bool ok;
+    std::string link;
+    QString qLink;
+
+    while (1)
     {
-        assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
-        login();
+        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
+                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
+
+        if (ok)
+        {
+            link = qLink.toStdString();
+            if (link.size() > 1)
+            {
+                return link;
+            }
+        }
+        else
+        {
+            return std::string();
+        }
+    }
+}
+
+void MegaChatApplication::initAnonymous(std::string chatlink)
+{
+    delete [] mSid;
+    mSid = strdup(chatlink.c_str());
+    mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
+    int initState = mMegaChatApi->initAnonymous(mSid);
+    if (initState == MegaChatApi::INIT_ERROR)
+    {
+        QApplication::quit();
+    }
+
+    mMainWin->setWindowTitle("Anonymous mode");
+    if (chatlink.size() > 1)
+    {
+        mMegaChatApi->loadChatLink(chatlink.c_str());
+        mMainWin->show();
     }
     else
     {
+        QApplication::quit();
+    }
+}
+
+void MegaChatApplication::login()
+{
+    mSid = readSid();
+    if (!mSid)
+    {
+        mLoginDialog = new LoginDialog();
+        connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
+        connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
+        mLoginDialog->show();
+    }
+    else
+    {
+        int initState = mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
@@ -104,19 +153,21 @@ void MegaChatApplication::init()
     }
 }
 
-void MegaChatApplication::login()
-{
-    mLoginDialog = new LoginDialog();
-    connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
-    mLoginDialog->show();
-}
-
 void MegaChatApplication::onLoginClicked()
 {
+    int initState = mMegaChatApi->init(mSid);
+    assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
+}
+
+void MegaChatApplication::onPreviewClicked()
+{
+    std::string chatLink = mLoginDialog->getChatLink();
+    mLoginDialog->deleteLater();
+    initAnonymous(chatLink);
 }
 
 void MegaChatApplication::logout()
@@ -431,6 +482,12 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                 init();
             }
+            else
+            {
+                MegaChatHandle myHandle = mMegaChatApi->getMyUserHandle();
+                addChats();
+                mMainWin->updateToolTipMyInfo(myHandle);
+            }
             break;
 
         case MegaChatRequest::TYPE_LOGOUT:
@@ -589,6 +646,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 MegaChatHandle chatid = request->getChatHandle();
                 MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                if (mMegaChatApi->anonymousMode())
+                {
+                    mMainWin->activeControls(false);
+                    mMainWin->addLocalChatListItem(chatListItem);
+                }
                 mMainWin->addChat(chatListItem);
             }
             else

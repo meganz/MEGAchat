@@ -1,11 +1,13 @@
 #ifndef LOGINDIALOG_H
 #define LOGINDIALOG_H
 #include <QDialog>
+#include "MegaChatApplication.h"
 
 namespace Ui
 {
     class LoginDialog;
 }
+class MegaChatApplication;
 
 class LoginDialog : public QDialog
 {
@@ -27,9 +29,12 @@ class LoginDialog : public QDialog
         void enableControls(bool enable);
         QString getEmail();
         QString getPassword();
+        std::string getChatLink() const;
 
     private:
         Ui::LoginDialog *ui;
+        MegaChatApplication *mApp;
+        std::string mChatLink;
         void onType();
         static QString sLoginStageStrings[last+1];
 
@@ -38,9 +43,11 @@ class LoginDialog : public QDialog
         void on_bCancel_clicked();
         void on_eEmail_textChanged(const QString &arg1);
         void on_ePassword_textChanged(const QString &arg1);
+        void on_bAnonymous_clicked();
 
     signals:
         void onLoginClicked();
+        void onPreviewClicked();
 };
 
 #endif // LOGINDIALOG_H

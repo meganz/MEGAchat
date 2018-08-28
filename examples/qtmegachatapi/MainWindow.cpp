@@ -61,6 +61,20 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::activeControls(bool active)
+{
+    if (active)
+    {
+        ui->bOnlineStatus->show();
+        ui->bSettings->show();
+    }
+    else
+    {
+        ui->bOnlineStatus->hide();
+        ui->mLogout->hide();
+    }
+}
+
 void MainWindow::updateToolTipMyInfo(megachat::MegaChatHandle myHandle)
 {
     QString text = NULL;
@@ -187,42 +201,47 @@ void MainWindow::clearContactChatList()
 
 void MainWindow::orderContactChatList()
 {
-    auxChatWidgets = chatWidgets;
-    clearContactChatList();
+    if (!mMegaChatApi->anonymousMode())
+    {
+        auxChatWidgets = chatWidgets;
+        clearContactChatList();
 
-    // add items to the list
-    addContacts();
-    if (mShowArchived)
-    {
-        addArchivedChats();
-    }
-    if(mShowInactive)
-    {
-        addInactiveChats();
-    }
-    addActiveChats();
+        // add items to the list
+        addContacts();
 
-    auxChatWidgets.clear();
+        if (mShowArchived)
+        {
+            addArchivedChats();
+        }
 
-    // prepare tag to indicate chatrooms shown
-    QString text;
-    if (mShowArchived && mShowInactive)
-    {
-        text.append(" Showing <all> chatrooms");
+        if(mShowInactive)
+        {
+            addInactiveChats();
+        }
+        addActiveChats();
+
+        auxChatWidgets.clear();
+
+        // prepare tag to indicate chatrooms shown
+        QString text;
+        if (mShowArchived && mShowInactive)
+        {
+            text.append(" Showing <all> chatrooms");
+        }
+        else if (mShowArchived)
+        {
+            text.append(" Showing <active+archived> chatrooms");
+        }
+        else if (mShowInactive)
+        {
+            text.append(" Showing <active+inactive> chatrooms");
+        }
+        else
+        {
+            text.append(" Showing <active> chatrooms");
+        }
+        ui->mOnlineStatusDisplay->setText(text);
     }
-    else if (mShowArchived)
-    {
-        text.append(" Showing <active+archived> chatrooms");
-    }
-    else if (mShowInactive)
-    {
-        text.append(" Showing <active+inactive> chatrooms");
-    }
-    else
-    {
-        text.append(" Showing <active> chatrooms");
-    }
-    ui->mOnlineStatusDisplay->setText(text);
 }
 
 void MainWindow::addContacts()
@@ -294,41 +313,48 @@ bool MainWindow::eventFilter(QObject *, QEvent *event)
 void MainWindow::on_bSettings_clicked()
 {
     QMenu menu(this);
-    menu.setAttribute(Qt::WA_DeleteOnClose);
+    if (!mMegaChatApi->anonymousMode())
+    {
+        menu.setAttribute(Qt::WA_DeleteOnClose);
 
-    auto actInactive = menu.addAction(tr("Show/Hide inactive chats"));
-    connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
+        auto actInactive = menu.addAction(tr("Show/Hide inactive chats"));
+        connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
 
-    auto actArchived = menu.addAction(tr("Show/Hide archived chats"));
-    connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
+        auto actArchived = menu.addAction(tr("Show/Hide archived chats"));
+        connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
 
-    menu.addSeparator();
+        menu.addSeparator();
 
-    auto addAction = menu.addAction(tr("Add user to contacts"));
-    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+        auto addAction = menu.addAction(tr("Add user to contacts"));
+        connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
-    auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
-    connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChatGroup()));
+        auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
+        connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChatGroup()));
 
-    auto actGroupChat = menu.addAction(tr("Create group chat"));
-    connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
+        auto actGroupChat = menu.addAction(tr("Create group chat"));
+        connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
 
-    auto actPubChat = menu.addAction(tr("Create public chat"));
-    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
+        auto actPubChat = menu.addAction(tr("Create public chat"));
+        connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
 
+        auto actPrintMyInfo = menu.addAction(tr("Print my info"));
+        connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
+      
+        if (mTwoFactorAvailable)
+        {
+           menu.addSeparator();
+           auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
+           connect(actTwoFactCheck, SIGNAL(triggered()), this, SLOT(twoFactorCheck()));
+        }
+      
+        menu.addSeparator();
+        auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
+        connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
+    }
+  
     auto actLoadLink = menu.addAction(tr("Preview chat-link"));
     connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
 
-    if (mTwoFactorAvailable)
-    {
-        menu.addSeparator();
-        auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
-        connect(actTwoFactCheck, SIGNAL(triggered()), this, SLOT(twoFactorCheck()));
-    }
-
-    menu.addSeparator();
-    auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
-    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());

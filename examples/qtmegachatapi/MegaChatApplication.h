@@ -13,6 +13,7 @@
 
 #define MAX_RETRIES 5
 class MegaLoggerApplication;
+class LoginDialog;
 
 class MegaChatApplication : public QApplication,
     public mega::MegaListener,
@@ -29,12 +30,12 @@ class MegaChatApplication : public QApplication,
         void addChats();
         void addContacts();
         void configureLogs();
-
+        void initAnonymous(std::string chatlink);
+        std::string getChatLink();
         const char *readSid();
         const char *sid() const;
         void saveSid(const char *sid);
         void removeSid();
-
         LoginDialog *loginDialog() const;
         void resetLoginDialog();
 
@@ -63,6 +64,7 @@ class MegaChatApplication : public QApplication,
 
     public slots:
         void onLoginClicked();
+        void onPreviewClicked();
 
 };
 #endif // MEGACHATAPPLICATION_H

@@ -14,6 +14,7 @@ LoginDialog::LoginDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::LoginDialog)
 {
+    mApp = (MegaChatApplication *) parent;
     ui->setupUi(this);
     ui->bOK->setEnabled(false);
     enableControls(true);
@@ -59,6 +60,11 @@ QString LoginDialog::getPassword()
     return ui->ePassword->text();
 }
 
+std::string LoginDialog::getChatLink() const
+{
+    return mChatLink;
+}
+
 void LoginDialog::onType()
 {
     QString email = ui->eEmail->text();
@@ -76,4 +82,15 @@ void LoginDialog::on_eEmail_textChanged(const QString &)
 void LoginDialog::on_ePassword_textChanged(const QString &)
 {
     onType();
+}
+
+void LoginDialog::on_bAnonymous_clicked()
+{
+  setEnabled(false);
+  mChatLink.assign(mApp->getChatLink());
+  setEnabled(true);
+  if(!mChatLink.empty())
+  {
+    emit onPreviewClicked();
+  }
 }

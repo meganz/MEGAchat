@@ -320,6 +320,7 @@ protected:
     unsigned int mCacheVersion = 0; // updated if history is reloaded
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
     bool mPreviewMode = false;
+    bool mAnonymousMode = false;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
     promise::Promise<std::shared_ptr<UnifiedKey>> mUnifiedKeyDecrypted;
 
@@ -437,6 +438,8 @@ public:
 
     virtual void setPreviewMode(bool previewMode);
     virtual bool getPreviewMode();
+    virtual bool getAnonymousMode();
+    virtual void setAnonymousMode(bool anonymousMode);
 
     unsigned int getChatMode() const;
     void setPrivateChatMode();

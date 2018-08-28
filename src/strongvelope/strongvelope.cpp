@@ -894,6 +894,16 @@ bool ProtocolHandler::getPreviewMode()
     return mPreviewMode;
 }
 
+void ProtocolHandler::setAnonymousMode(bool anonymousMode)
+{
+    mAnonymousMode = anonymousMode;
+}
+
+bool ProtocolHandler::getAnonymousMode()
+{
+    return mAnonymousMode;
+}
+  
 std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
 {
     if (mChatMode == CHAT_MODE_PRIVATE)
@@ -1229,12 +1239,21 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Get signing key
-        auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,
-            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
-        .then([ctx](Buffer* key)
+        promise::Promise<void> edPms;
+        if (!mAnonymousMode)
         {
-            ctx->edKey.assign(key->buf(), key->dataSize());
-        });
+            edPms = mUserAttrCache.getAttr(parsedMsg->sender,
+                ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
+            .then([ctx](Buffer* key)
+            {
+                ctx->edKey.assign(key->buf(), key->dataSize());
+            });
+        }
+        else
+        {
+            edPms = promise::Promise<void>();
+            edPms.resolve();
+        }
 
         // Verify signature and decrypt
         auto wptr = weakHandle();
@@ -1251,10 +1270,13 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
                 return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
             }
 
-            if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
+            if (!mAnonymousMode)
             {
-                return promise::Error("Signature invalid for message "+
-                                      message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+                if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
+                {
+                    return promise::Error("Signature invalid for message "+
+                                          message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
+                }
             }
 
             if (isLegacy)
