@@ -1157,7 +1157,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     assert(mChatId);
     assert(mListener);
     assert(mCrypto);
-    assert(!mUsers.empty());
+    assert(!mUsers.empty() || mClient.karereClient->anonymousMode());    // anonymous don't even have an own userid
     mNextUnsent = mSending.begin();
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
