@@ -585,15 +585,15 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 
         case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
-            MegaChatHandle chatid = request->getChatHandle();
-            MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-            if (!chatListItem)
+            if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
-                QMessageBox::critical(nullptr, tr("Export chat link"), tr("Chat Item does not exists"));
+                MegaChatHandle chatid = request->getChatHandle();
+                MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                mMainWin->addChat(chatListItem);
             }
             else
             {
-                mMainWin->addChat(chatListItem);
+                QMessageBox::critical(nullptr, tr("Export chat link"), e->getErrorString());
             }
             break;
         }
