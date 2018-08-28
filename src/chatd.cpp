@@ -775,6 +775,23 @@ string Command::toString(const StaticBuffer& data)
     auto opcode = data.read<uint8_t>(0);
     switch(opcode)
     {
+        case OP_JOINRANGEHIST:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id oldestMsgid = data.read<uint64_t>(7);
+            karere::Id newestId = data.read<uint64_t>(15);
+
+            tmpString.append("JOINRNAGEHIST chatid: ");
+            tmpString.append(chatid.toString());
+
+            tmpString.append(" oldest: ");
+            tmpString.append(oldestMsgid.toString());
+
+            tmpString.append(" newest: ");
+            tmpString.append(newestId.toString());
+            return tmpString;
+        }
         case OP_NEWMSG:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(data);
@@ -868,7 +885,7 @@ string Command::toString(const StaticBuffer& data)
         case OP_HANDLEJOIN:
         {
             string tmpString;
-            karere::Id ph =  *((uint64_t *) data.readPtr(1,6));
+            karere::Id ph =  *((uint64_t *) data.readPtr(1,::mega::PUBLICHANDLE));
             karere::Id userId = data.read<uint64_t>(7);
             uint8_t priv = data.read<uint8_t>(15);
 
@@ -880,6 +897,23 @@ string Command::toString(const StaticBuffer& data)
 
             tmpString.append(" priv: ");
             tmpString.append(std::to_string(priv));
+            return tmpString;
+        }
+        case OP_HANDLEJOINRANGEHIST:
+        {
+            string tmpString;
+            karere::Id ph =  *((uint64_t *) data.readPtr(1,::mega::PUBLICHANDLE));
+            karere::Id oldestMsgid = data.read<uint64_t>(7);
+            karere::Id newestId = data.read<uint64_t>(15);
+
+            tmpString.append("HANDLEJOINRNAGEHIST ph: ");
+            tmpString.append(ID_CSTR(ph), 8);
+
+            tmpString.append(" oldest: ");
+            tmpString.append(oldestMsgid.toString());
+
+            tmpString.append(" newest: ");
+            tmpString.append(newestId.toString());
             return tmpString;
         }
 
@@ -2681,8 +2715,6 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mServerFetchState = kHistFetchingNewFromServer;
-    CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
-                     ID_CSTR(dbInfo.oldestDbId), ID_CSTR(dbInfo.newestDbId));
 
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + at(highnum()).id());
 }
@@ -2691,11 +2723,8 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
 {
     assert(mPh != Id::inval());
-
     assert(dbInfo.oldestDbId && dbInfo.newestDbId);
     mServerFetchState = kHistFetchingNewFromServer;
-    CHATID_LOG_DEBUG("Sending HANDLEJOINRANGEHIST based on app db: %s - %s",
-                     ID_CSTR(dbInfo.oldestDbId), ID_CSTR(dbInfo.newestDbId));
 
     Command comm (OP_HANDLEJOINRANGEHIST);
     comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
