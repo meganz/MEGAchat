@@ -131,6 +131,7 @@ class MainWindow :
         void onAddPeerChatGroup();
         void onAddGroupChat();
         void onAddPubChatGroup();
+        void onPrintMyInfo();
         void onWebRTCsetting();
         void setOnlineStatus();
         void loadChatLink();

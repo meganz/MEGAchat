@@ -66,7 +66,7 @@ void MainWindow::activeControls(bool active)
     if (active)
     {
         ui->bOnlineStatus->show();
-        ui->bSettings->show();
+        ui->mLogout->show();
     }
     else
     {
@@ -351,7 +351,8 @@ void MainWindow::on_bSettings_clicked()
         auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
         connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
     }
-  
+
+    menu.addSeparator();
     auto actLoadLink = menu.addAction(tr("Preview chat-link"));
     connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
 
@@ -359,6 +360,14 @@ void MainWindow::on_bSettings_clicked()
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
     menu.exec(mapToGlobal(pos));
+}
+
+void MainWindow::onPrintMyInfo()
+{
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(this->ui->bOnlineStatus->toolTip());
+    msg.exec();
 }
 
 void MainWindow::createWebRTCSettingsDialog()
