@@ -1884,10 +1884,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mChat->crypto()->setPreviewMode(previewMode);
     mUrl = aUrl;
 
-    //Add my own handle to peers list
-    const Id myHandle = parent.mKarereClient.myHandle();
-    mPeers[myHandle] = new Member(*this, myHandle, chatd::PRIV_RDONLY);
-
     //save to db
     auto db = parent.mKarereClient.db;
 
@@ -1895,27 +1891,16 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     auxBuf.insert(auxBuf.begin(), '0');  // prefix to indicate it's encrypted
     db.query(
         "insert or replace into chat_vars(chatid, name, value)"
-        " values(?,'unified_key',?)",
-        mChatid, auxBuf.c_str());
+        " values(?,'unified_key',?)", mChatid, auxBuf.c_str());
 
     db.query(
         "insert or replace into chat_vars(chatid, name, value)"
-        " values(?,'preview_mode','1')",
-        this->mChatid);
+        " values(?,'preview_mode','1')", mChatid);
 
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
         "own_priv, ts_created) values(?,?,-1,0,?,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs);
-
-    db.query("delete from chat_peers where chatid=?", mChatid);
-    SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
-    for (auto& m: mPeers)
-    {
-        stmt << mChatid << m.first << m.second->mPriv;
-        stmt.step();
-        stmt.reset().clearBind();
-    }
 
     bool hasCustomTitle = (!title.empty() && title.at(0));
     if (hasCustomTitle)
