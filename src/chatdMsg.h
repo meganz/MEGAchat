@@ -347,6 +347,17 @@ enum Opcode
       */
     OP_CALLTIME = 42,
 
+    /**
+      ** @brief
+      *
+      * C->S: Add new message to this chat. msgid is a temporary random 64-bit
+      *    integer ("msgxid"). No two such msgxids must be generated in the same chat
+      *    in the same server-time second, or only the first NEWMSG will be written.
+      *    This opcode is used to send messages from node attachment type instead of
+      *    OP_NEWMSG
+      */
+    OP_NEWNODEMSG = 44,
+
     OP_LAST = OP_CALLTIME
 };
 
@@ -684,7 +695,7 @@ public:
     bool isMessage() const
     {
         auto op = opcode();
-        return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
+        return ((op == OP_NEWMSG) || (op == OP_NEWNODEMSG)|| (op == OP_MSGUPD) || (op == OP_MSGUPDX));
     }
     uint8_t opcode() const { return read<uint8_t>(0); }
     static const char* opcodeToStr(uint8_t opcode);

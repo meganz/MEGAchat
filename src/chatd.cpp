@@ -764,6 +764,7 @@ string Command::toString(const StaticBuffer& data)
     switch(opcode)
     {
         case OP_NEWMSG:
+        case OP_NEWNODEMSG:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(data);
             string tmpString;
@@ -1305,7 +1306,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mChatdClient.chats(chatid);
-                if (op == OP_NEWMSG) // the message was rejected
+                if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
                 {
                     chat.msgConfirm(id, Id::null());
                 }
@@ -1646,7 +1647,7 @@ void Chat::replayUnsentNotifications()
     for (auto it = mSending.begin(); it != mSending.end(); it++)
     {
         auto& item = *it;
-        if (item.opcode() == OP_NEWMSG)
+        if (item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWMSG)
         {
             CALL_LISTENER(onUnsentMsgLoaded, *item.msg);
         }
@@ -2019,7 +2020,14 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     }
     onMsgTimestamp(msg->ts);
 
-    postMsgToSending(OP_NEWMSG, msg, recipients);
+    if (msg->size() > 2 && msg->buf()[0] == 0 && msg->buf()[1] == Message::Type::kMsgAttachment)
+    {
+        postMsgToSending(OP_NEWNODEMSG, msg, recipients);
+    }
+    else
+    {
+        postMsgToSending(OP_NEWMSG, msg, recipients);
+    }
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -2108,7 +2116,7 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
     // for NEWMSG, recipients is always current set of participants
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
-    assert((opcode == OP_NEWMSG && recipients == mUsers)
+    assert(((opcode == OP_NEWMSG || opcode == OP_NEWNODEMSG ) && recipients == mUsers)
            || (opcode == OP_MSGUPDX)    // can use unconfirmed or confirmed key
            || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
@@ -2146,7 +2154,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     assert(msg->id());
 
     //opcode can be NEWMSG, MSGUPD or MSGUPDX
-    if (it->opcode() == OP_NEWMSG && msg->backRefs.empty())
+    if ((it->opcode() == OP_NEWMSG || it->opcode() == OP_NEWNODEMSG) && msg->backRefs.empty())
     {
         createMsgBackRefs(it);
     }
@@ -2257,6 +2265,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         switch (item->opcode())
         {
             case OP_NEWMSG:
+            case OP_NEWNODEMSG:
                 if (age == 0)
                 {
                     age++;
@@ -2677,7 +2686,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
         return nullptr;
     }
     Id msgxidOri = item.msg->id();
-    if ((item.opcode() == OP_NEWMSG) && (msgxidOri != msgxid))
+    if ((item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWNODEMSG) && (msgxidOri != msgxid))
     {
         CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different"
                          " (sent msgxid: '%s', received '%s')", ID_CSTR(msgxidOri), ID_CSTR(msgxid));

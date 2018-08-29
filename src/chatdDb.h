@@ -64,6 +64,7 @@ public:
         assert(item.msg);
         uint8_t opcode = item.opcode();
         assert((opcode == chatd::OP_NEWMSG)
+               || (opcode == chatd::OP_NEWNODEMSG)
                || (opcode == chatd::OP_MSGUPD)
                || (opcode == chatd::OP_MSGUPDX));
 
@@ -186,6 +187,7 @@ public:
             uint16_t updated = stmt.intCol(7);
 
             assert((opcode == chatd::OP_NEWMSG)
+                   || (opcode == chatd::OP_NEWNODEMSG)
                    || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
@@ -223,7 +225,7 @@ public:
             if (stmt.hasBlobCol(12))
             {
                 assert(queue.back().msgCmd);    // a NEWKEY must always indicate there's an encrypted NEWMSG
-                assert(opcode == chatd::OP_NEWMSG);
+                assert(opcode == chatd::OP_NEWMSG || opcode == chatd::OP_NEWNODEMSG);
 
                 chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
                 Buffer buf;
