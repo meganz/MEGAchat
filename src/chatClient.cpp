@@ -670,7 +670,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
-        bool loggedOut = (errorCode == ::mega::MegaError::API_OK && request->getFlag());    // SDK has been logged out normally closing session
+        bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
+                          && request->getFlag());    // SDK has been logged out normally closing session
+
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
             KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
