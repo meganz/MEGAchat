@@ -505,10 +505,11 @@ void ProtocolHandler::setPrivateChatMode()
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
-    SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, void *ctx)
+    SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey,
+    bool isUnifiedKeyEncrypted, bool preview, bool anonymous, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
-  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
-  mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
+  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
+  mDb(db), chatid(aChatId), mAnonymousMode(anonymous), mPreviewMode(preview)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -884,24 +885,9 @@ Buffer* ProtocolHandler::createUnifiedKey()
     return unifiedKey;
 }
 
-void ProtocolHandler::setPreviewMode(bool previewMode)
-{
-    mPreviewMode = previewMode;
-}
-
 bool ProtocolHandler::getPreviewMode()
 {
     return mPreviewMode;
-}
-
-void ProtocolHandler::setAnonymousMode(bool anonymousMode)
-{
-    mAnonymousMode = anonymousMode;
-}
-
-bool ProtocolHandler::getAnonymousMode()
-{
-    return mAnonymousMode;
 }
   
 std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
@@ -1725,6 +1711,9 @@ void ProtocolHandler::resetSendKey()
 
 void ProtocolHandler::setUsers(karere::SetOfIds* users)
 {
+    if (mAnonymousMode)
+        return;
+
     assert(users);
     mParticipants = users;
 

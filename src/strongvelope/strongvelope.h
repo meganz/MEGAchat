@@ -332,7 +332,7 @@ public:
         const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, std::shared_ptr<std::string> unifiedKey,
-        bool isUnifiedKeyEncrypted, void *ctx);
+        bool isUnifiedKeyEncrypted, bool preview, bool anonymous, void *ctx);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
@@ -429,21 +429,13 @@ public:
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
     virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
-
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
-
     static Buffer* createUnifiedKey();
     virtual std::shared_ptr<std::string> getUnifiedKey();
-
-    virtual void setPreviewMode(bool previewMode);
     virtual bool getPreviewMode();
-    virtual bool getAnonymousMode();
-    virtual void setAnonymousMode(bool anonymousMode);
-
     unsigned int getChatMode() const;
     void setPrivateChatMode();
-
     virtual void onHistoryReload();
 };
 }

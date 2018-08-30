@@ -387,7 +387,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE))
+    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE) && !mClient.anonymousMode())
         return;
     switch (key.attrType)
     {

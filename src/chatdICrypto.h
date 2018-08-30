@@ -145,13 +145,7 @@ public:
 
     virtual std::shared_ptr<std::string> getUnifiedKey() = 0;
 
-    virtual void setPreviewMode(bool previewMode) = 0;
-
     virtual bool getPreviewMode() = 0;
-
-    virtual bool getAnonymousMode() = 0;
-
-    virtual void setAnonymousMode(bool anonymousMode) = 0;
 
     virtual unsigned int getChatMode() const = 0;
 
