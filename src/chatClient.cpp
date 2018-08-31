@@ -400,7 +400,7 @@ promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std
             return promise::Error("Chatlink Url returned for chatid "+chatId.toString()+" is not valid. ", kErrorTypeGeneric);
         }
 
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, unifiedKey, numPeers, url);
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, unifiedKey, numPeers, url);
         chats->emplace(chatId, room);
         room->connect(url.c_str());
         return chatId.val;
@@ -1521,7 +1521,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         crypto.reset(new strongvelope::ProtocolHandler(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
                 StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(),
-                unifiedKey, false, false, Id::inval(), appCtx));
+                unifiedKey, false, Id::inval(), appCtx));
         crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     }
 
@@ -1666,20 +1666,20 @@ ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle 
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid,
-        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, karere::Id ph)
+        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, karere::Id ph)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
          StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid,
-         unifiedKey, isUnifiedKeyEncrypted, preview, ph, appCtx);
+         unifiedKey, isUnifiedKeyEncrypted, ph, appCtx);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers,
-        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, const karere::Id ph)
+        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, const karere::Id ph)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.mKarereClient.newStrongvelope(mChatid, unifiedKey, isUnifiedKeyEncrypted, preview, ph), mCreationTs, mIsGroup);
+        parent.mKarereClient.newStrongvelope(mChatid, unifiedKey, isUnifiedKeyEncrypted, ph), mCreationTs, mIsGroup);
 }
 
 template <class T, typename F>
@@ -1796,7 +1796,7 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aChat)
 :ChatRoom(parent, aChat.getHandle(), true, aChat.getShard(),
   (chatd::Priv)aChat.getOwnPrivilege(), aChat.getCreationTime(), aChat.isArchived()),
-  mRoomGui(nullptr), mPreviewMode(false), mNumPeers(0)
+  mRoomGui(nullptr)
 {
     // Initialize list of peers and fetch their names
     auto peers = aChat.getPeerList();
@@ -1877,7 +1877,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived,
     const std::string& title, std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted)
     :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-    mRoomGui(nullptr), mPreviewMode(false), mNumPeers(0)
+    mRoomGui(nullptr)
 {
     // Initialize list of peers
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
@@ -1903,9 +1903,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t &publicHandle, bool previewMode, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr), mPreviewMode(previewMode), mNumPeers(aNumPeers)
+  mRoomGui(nullptr), mPreviewMode(true), mNumPeers(aNumPeers)
 {
     Id ph(Id::inval());
     if (parent.mKarereClient.anonymousMode())
@@ -1913,8 +1913,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         ph = publicHandle;
     }
 
-    initWithChatd(unifiedKey, false, previewMode, publicHandle);
-    mChat->setPublicHandle(publicHandle);
+    initWithChatd(unifiedKey, false, ph);   // strongvelope only needs the public handle in anonymous mode (to fetch user attributes via `mcuga`)
+    mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
     mUrl = aUrl;
 
     //save to db
@@ -1956,7 +1956,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mIsInitializing = false;
 }
 
-void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, Id ph)
+void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, Id ph)
 {
     karere::SetOfIds users;
     Id myHandle = parent.mKarereClient.myHandle();
@@ -1968,7 +1968,7 @@ void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool 
             users.insert(peer.first);
         }
     }
-    createChatdChat(users, unifiedKey, isUnifiedKeyEncrypted, preview, ph);
+    createChatdChat(users, unifiedKey, isUnifiedKeyEncrypted, ph);
 }
 
 void GroupChatRoom::connect(const char *url)
@@ -2243,7 +2243,11 @@ void GroupChatRoom::deleteSelf()
         {
             return;
         }
-        chat().getDbInterface()->chatCleanup();
+        //If room is in preview mode we can remove all records from db at this moment
+        if (previewMode())
+        {
+            chat().getDbInterface()->chatCleanup();
+        }
         delete this;
     }, parent.mKarereClient.appCtx);
 }

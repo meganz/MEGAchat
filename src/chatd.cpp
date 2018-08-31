@@ -347,8 +347,7 @@ void Chat::login()
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
 
-    bool previewMode = crypto()->getPreviewMode();
-    if (previewMode)
+    if (previewMode())
     {
         if (mOldestKnownMsgId) //if we have local history
             handlejoinRangeHist(info);

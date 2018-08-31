@@ -60,7 +60,7 @@ extern UserAttrDesc gUserAttrDescs[21];
 struct UserAttrPair
 {
     Id user;
-    Id mPh;
+    Id mPh; // only valid in anonymous preview mode to retrieve user-attributes without valid session
     uint8_t attrType;
     bool operator<(const UserAttrPair& other) const
     {

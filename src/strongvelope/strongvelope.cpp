@@ -506,10 +506,10 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
     SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey,
-    bool isUnifiedKeyEncrypted, bool preview, karere::Id ph, void *ctx)
+    bool isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
-  mDb(db), chatid(aChatId), mPreviewMode(preview), mPh(ph)
+  mDb(db), chatid(aChatId), mPh(ph)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -885,11 +885,6 @@ Buffer* ProtocolHandler::createUnifiedKey()
     return unifiedKey;
 }
 
-bool ProtocolHandler::getPreviewMode()
-{
-    return mPreviewMode;
-}
-  
 std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
 {
     if (mChatMode == CHAT_MODE_PRIVATE)
@@ -907,7 +902,7 @@ std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
 
 bool ProtocolHandler::anonymousMode()
 {
-    return mPh != Id::inval();
+    return mPh.isValid();
 }
 
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)

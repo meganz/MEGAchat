@@ -1071,6 +1071,7 @@ public:
     DbInterface* getDbInterface();
     void setPublicHandle(uint64_t ph);
     uint64_t publicHandle();
+    bool previewMode() { return mPh.isValid(); }
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

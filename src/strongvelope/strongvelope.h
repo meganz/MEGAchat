@@ -319,20 +319,19 @@ protected:
     bool mIsDestroying = false;
     unsigned int mCacheVersion = 0; // updated if history is reloaded
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
-    bool mPreviewMode = false;
     std::shared_ptr<UnifiedKey> mUnifiedKey;
     promise::Promise<std::shared_ptr<UnifiedKey>> mUnifiedKeyDecrypted;
 
 public:
     karere::Id chatid;
-    karere::Id mPh;
+    karere::Id mPh;     // it's only valid when the preview is done in anonymous mode (required to fetch user-attributes)
     karere::Id ownHandle() const { return mOwnHandle; }
 
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, std::shared_ptr<std::string> unifiedKey,
-        bool isUnifiedKeyEncrypted, bool preview, karere::Id ph, void *ctx);
+        bool isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
@@ -434,7 +433,6 @@ public:
     static Buffer* createUnifiedKey();
     virtual std::shared_ptr<std::string> getUnifiedKey();
     virtual bool anonymousMode();
-    virtual bool getPreviewMode();
     unsigned int getChatMode() const;
     void setPrivateChatMode();
     virtual void onHistoryReload();
