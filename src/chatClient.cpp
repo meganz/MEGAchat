@@ -1977,14 +1977,6 @@ void GroupChatRoom::connect(const char *url)
         return;
 
     mChat->connect(url);
-    if (mHasTitle)
-    {
-        decryptTitle()
-        .fail([](const promise::Error& err)
-        {
-            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::connect. Error: %s", err.what());
-        });
-    }
 }
 
 promise::Promise<void> GroupChatRoom::memberNamesResolved() const
