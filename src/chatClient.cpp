@@ -400,7 +400,7 @@ promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std
             return promise::Error("Chatlink Url returned for chatid "+chatId.toString()+" is not valid. ", kErrorTypeGeneric);
         }
 
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, unifiedKey, mAnonymousMode, numPeers, url);
+        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, true, unifiedKey, numPeers, url);
         chats->emplace(chatId, room);
         room->connect(url.c_str());
         return chatId.val;
@@ -1521,7 +1521,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         crypto.reset(new strongvelope::ProtocolHandler(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
                 StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(),
-                unifiedKey, false, false, mAnonymousMode, appCtx));
+                unifiedKey, false, false, Id::inval(), appCtx));
         crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     }
 
@@ -1666,20 +1666,20 @@ ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle 
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid,
-        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, bool anonymous)
+        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, karere::Id ph)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
          StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, chatid,
-         unifiedKey, isUnifiedKeyEncrypted, preview, anonymous, appCtx);
+         unifiedKey, isUnifiedKeyEncrypted, preview, ph, appCtx);
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers,
-        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, bool anonymous)
+        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, const karere::Id ph)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
-        parent.mKarereClient.newStrongvelope(mChatid, unifiedKey, isUnifiedKeyEncrypted, preview, anonymous), mCreationTs, mIsGroup);
+        parent.mKarereClient.newStrongvelope(mChatid, unifiedKey, isUnifiedKeyEncrypted, preview, ph), mCreationTs, mIsGroup);
 }
 
 template <class T, typename F>
@@ -1903,17 +1903,22 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t &publicHandle, bool previewMode, std::shared_ptr<std::string> unifiedKey, bool anonymous, int aNumPeers, std::string aUrl)
+    const uint64_t &publicHandle, bool previewMode, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr), mPreviewMode(previewMode), mNumPeers(aNumPeers)
 {
-    initWithChatd(unifiedKey, false, previewMode, anonymous);
+    Id ph(Id::inval());
+    if (parent.mKarereClient.anonymousMode())
+    {
+        ph = publicHandle;
+    }
+
+    initWithChatd(unifiedKey, false, previewMode, publicHandle);
     mChat->setPublicHandle(publicHandle);
     mUrl = aUrl;
 
     //save to db
     auto db = parent.mKarereClient.db;
-mChat->setPublicHandle(publicHandle);
     std::string auxBuf(*unifiedKey);
     auxBuf.insert(auxBuf.begin(), '0');  // prefix to indicate it's encrypted
     db.query(
@@ -1951,7 +1956,7 @@ mChat->setPublicHandle(publicHandle);
     mIsInitializing = false;
 }
 
-void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, bool anonymous)
+void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, bool preview, Id ph)
 {
     karere::SetOfIds users;
     Id myHandle = parent.mKarereClient.myHandle();
@@ -1963,7 +1968,7 @@ void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool 
             users.insert(peer.first);
         }
     }
-    createChatdChat(users, unifiedKey, isUnifiedKeyEncrypted, preview, anonymous);
+    createChatdChat(users, unifiedKey, isUnifiedKeyEncrypted, preview, ph);
 }
 
 void GroupChatRoom::connect(const char *url)

@@ -60,6 +60,7 @@ extern UserAttrDesc gUserAttrDescs[21];
 struct UserAttrPair
 {
     Id user;
+    Id mPh;
     uint8_t attrType;
     bool operator<(const UserAttrPair& other) const
     {
@@ -68,7 +69,7 @@ struct UserAttrPair
         else
             return user < other.user;
     }
-    UserAttrPair(uint64_t aUser, uint8_t aType): user(aUser), attrType(aType)
+    UserAttrPair(uint64_t aUser, uint8_t aType, uint64_t ph = Id::inval()): user(aUser), attrType(aType), mPh(ph)
     {
         if ((attrType >= sizeof(gUserAttrDescs)/sizeof(gUserAttrDescs[0]))
          && (attrType != USER_ATTR_RSA_PUBKEY) && (attrType != USER_ATTR_FULLNAME)
@@ -170,7 +171,7 @@ public:
      * every time the attribute changes on the server and the new value is fetched.
      */
     Handle getAttr(uint64_t user, unsigned attrType, void* userp,
-                             UserAttrReqCbFunc cb, bool oneShot=false);
+                             UserAttrReqCbFunc cb, bool oneShot=false, uint64_t ph = Id::inval());
     /** @brief A promise-based version of \c getAttr. The request
      * is implicitly one-shot, as a promise can be resolved only once.
      */

@@ -347,9 +347,9 @@ bool UserAttrCache::removeCb(Handle h)
 }
 
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
-            void* userp, UserAttrReqCbFunc cb, bool oneShot)
+            void* userp, UserAttrReqCbFunc cb, bool oneShot, uint64_t ph)
 {
-    UserAttrPair key(userHandle, type);
+    UserAttrPair key(userHandle, type, ph);
     auto it = find(key);
     if (it != end())
     {
@@ -408,8 +408,9 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     auto wptr = weakHandle();
-    mClient.api.call(&::mega::MegaApi::getUserAttribute,
-        key.user.toString().c_str(), (int)key.attrType)
+    const char *ph = (key.mPh == Id::inval()) ?NULL :key.mPh.toString(::mega::PUBLICHANDLE).c_str();
+    mClient.api.call(&::mega::MegaApi::getChatUserAttribute,
+        key.user.toString().c_str(), (int)key.attrType, ph)
     .then([wptr, this, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();

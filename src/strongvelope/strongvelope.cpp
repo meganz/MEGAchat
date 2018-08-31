@@ -506,10 +506,10 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
     SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey,
-    bool isUnifiedKeyEncrypted, bool preview, bool anonymous, void *ctx)
+    bool isUnifiedKeyEncrypted, bool preview, karere::Id ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
-  mDb(db), chatid(aChatId), mAnonymousMode(anonymous), mPreviewMode(preview)
+  mDb(db), chatid(aChatId), mPreviewMode(preview), mPh(ph)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -905,6 +905,11 @@ std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
     return key;
 }
 
+bool ProtocolHandler::anonymousMode()
+{
+    return mPh != Id::inval();
+}
+
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 {
     assert(!myPrivRsaKey.empty());
@@ -1225,21 +1230,12 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // Get signing key
-        promise::Promise<void> edPms;
-        if (!mAnonymousMode)
+        promise::Promise<void> edPms = mUserAttrCache.getAttr(parsedMsg->sender,
+            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
+        .then([ctx](Buffer* key)
         {
-            edPms = mUserAttrCache.getAttr(parsedMsg->sender,
-                ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
-            .then([ctx](Buffer* key)
-            {
-                ctx->edKey.assign(key->buf(), key->dataSize());
-            });
-        }
-        else
-        {
-            edPms = promise::Promise<void>();
-            edPms.resolve();
-        }
+            ctx->edKey.assign(key->buf(), key->dataSize());
+        });
 
         // Verify signature and decrypt
         auto wptr = weakHandle();
@@ -1256,13 +1252,10 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
                 return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
             }
 
-            if (!mAnonymousMode)
+            if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
-                if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
-                {
-                    return promise::Error("Signature invalid for message "+
-                                          message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
-                }
+                return promise::Error("Signature invalid for message "+
+                                      message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
             if (isLegacy)
@@ -1692,10 +1685,19 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
 void ProtocolHandler::onUserJoin(Id userid)
 {
-    // preload keys for the new participant
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-    mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+    if (anonymousMode())
+    {
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+    }
+    else
+    {
+        // preload keys for the new participant
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
+        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+    }
 }
 
 void ProtocolHandler::onUserLeave(Id /*userid*/)
@@ -1711,18 +1713,24 @@ void ProtocolHandler::resetSendKey()
 
 void ProtocolHandler::setUsers(karere::SetOfIds* users)
 {
-    if (mAnonymousMode)
-        return;
-
     assert(users);
     mParticipants = users;
 
     //pre-fetch user attributes
     for (auto userid: *users)
     {
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+        if (anonymousMode())
+        {
+            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
+            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
+            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+        }
+        else
+        {
+            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
+            mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+        }
     }
 }
 

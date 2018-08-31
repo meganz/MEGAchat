@@ -147,6 +147,8 @@ public:
 
     virtual bool getPreviewMode() = 0;
 
+    virtual bool anonymousMode() = 0;
+
     virtual unsigned int getChatMode() const = 0;
 
     virtual void setPrivateChatMode() = 0;
