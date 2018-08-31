@@ -563,7 +563,7 @@ void UserAttrCache::onLogOut()
 }
 
 promise::Promise<Buffer*>
-UserAttrCache::getAttr(uint64_t user, unsigned attrType)
+UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;
@@ -575,7 +575,7 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType)
         else
             p->reject("User attribute fetch failed");
         delete p;
-    }, true);
+    }, true, ph);
     return ret;
 }
 

@@ -1231,7 +1231,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
         // Get signing key
         promise::Promise<void> edPms = mUserAttrCache.getAttr(parsedMsg->sender,
-            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
+            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mPh)
         .then([ctx](Buffer* key)
         {
             ctx->edKey.assign(key->buf(), key->dataSize());

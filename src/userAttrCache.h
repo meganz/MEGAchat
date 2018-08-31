@@ -175,7 +175,7 @@ public:
     /** @brief A promise-based version of \c getAttr. The request
      * is implicitly one-shot, as a promise can be resolved only once.
      */
-    promise::Promise<Buffer*> getAttr(uint64_t user, unsigned attrType);
+    promise::Promise<Buffer*> getAttr(uint64_t user, unsigned attrType, uint64_t ph = Id::inval());
     /** @brief Unregisters an attribute request/subsequent callbacks.
      * It can be a not-yet-fetched single shot request as well. Use this method
      * to unsubscribe from further calling the corresponding callback.
