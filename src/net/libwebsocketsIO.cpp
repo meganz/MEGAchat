@@ -24,6 +24,7 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, :
     
     info.port = CONTEXT_PORT_NO_LISTEN;
     info.protocols = protocols;
+    info.pcontext = &wscontext;
     info.gid = -1;
     info.uid = -1;
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
@@ -31,7 +32,8 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, :
     info.options |= LWS_SERVER_OPTION_LIBUV;
     info.options |= LWS_SERVER_OPTION_UV_NO_SIGSEGV_SIGFPE_SPIN;
     
-    lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+//    lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
+    lws_set_log_level(LLL_DEBUG | LLL_CLIENT | LLL_LATENCY, NULL);
     wscontext = lws_create_context(&info);
 
     ::mega::LibuvWaiter *libuvWaiter = dynamic_cast<::mega::LibuvWaiter *>(waiter);
@@ -41,7 +43,11 @@ LibwebsocketsIO::LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, :
         exit(0);
     }
     eventloop = libuvWaiter->eventloop;
+#if LWS_LIBRARY_VERSION_NUMBER >= 3000000
+
+#else
     lws_uv_initloop(wscontext, libuvWaiter->eventloop, 0);
+#endif
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
 
@@ -121,7 +127,7 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
     i.context = wscontext;
     i.address = cip.c_str();
     i.port = port;
-    i.ssl_connection = ssl ? 2 : 0;
+    i.ssl_connection = ssl ? LCCSCF_USE_SSL : 0;
     string urlpath = "/";
     urlpath.append(path);
     i.path = urlpath.c_str();
@@ -334,10 +340,43 @@ static bool check_public_key(X509_STORE_CTX* ctx)
 int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons reason,
                                     void *user, void *data, size_t len)
 {
-//    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
+    WEBSOCKETS_LOG_DEBUG("wsCallback() received: %d", reason);
 
     switch (reason)
     {
+    case LWS_CALLBACK_PROTOCOL_INIT:
+        WEBSOCKETS_LOG_DEBUG("Protocol init");
+        break;
+    case LWS_CALLBACK_LOCK_POLL:
+        WEBSOCKETS_LOG_DEBUG("Lock poll");
+        break;
+    case LWS_CALLBACK_ADD_POLL_FD:
+    {
+        WEBSOCKETS_LOG_DEBUG("Add poll fd");
+        lws_pollargs *args = (lws_pollargs*)data;
+        break;
+    }
+    case LWS_CALLBACK_UNLOCK_POLL:
+        WEBSOCKETS_LOG_DEBUG("Unlock poll");
+        break;
+    case LWS_CALLBACK_CHANGE_MODE_POLL_FD:
+    {
+        WEBSOCKETS_LOG_DEBUG("Change mode poll fd");
+
+        LibwebsocketsClient* client = (LibwebsocketsClient*)user;
+        lws_pollargs *args = (lws_pollargs*)data;
+        // TODO: add this socket to the libuv events: args->fd;
+//        client->client->ctx
+        break;
+    }
+    case LWS_CALLBACK_WSI_CREATE:
+        WEBSOCKETS_LOG_DEBUG("Earlier WSI create notification");
+        break;
+
+    case LWS_CALLBACK_OPENSSL_LOAD_EXTRA_CLIENT_VERIFY_CERTS:
+        // TODO: maybe it's the same than below???
+        break;
+
         case LWS_CALLBACK_OPENSSL_PERFORM_SERVER_CERT_VERIFICATION:
         {
             if (check_public_key((X509_STORE_CTX*)user))
@@ -358,6 +397,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
         }
         case LWS_CALLBACK_CLOSED:
+        case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;

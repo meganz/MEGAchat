@@ -2759,7 +2759,7 @@ void Client::connectToChatd(bool isInBackground)
         auto& chat = *item.second;
         if (!chat.chat().isDisabled())
         {
-            chat.connect();
+//            chat.connect();
         }
     }
 }
