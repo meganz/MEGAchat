@@ -487,6 +487,12 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
         auto actSetPrivate = menu.addAction(tr("Set chat private"));
         connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));        
+
+        if(auxItem->isPreview())
+        {
+            auto actSetPrivate = menu.addAction(tr("Close preview"));
+            connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closePreview()));
+        }
     }
 
     if (!auxItem->isPreview())  // cannot un/archive rooms in preview mode
@@ -534,6 +540,21 @@ void ChatItemWidget::closeChatLink()
     {
         mMegaChatApi->closeChatLink(mChatId);
     }
+}
+
+void ChatItemWidget::closePreview()
+{
+    ChatWindow *auxWindow;
+    if(auxWindow = getChatWindow())
+    {
+        invalidChatWindowHandle();
+        delete auxWindow;
+    }
+
+    mMegaChatApi->removeChatRoom(mChatId);
+    mMainWin->removeLocalChatListItemById(mChatId);
+    mMainWin->clearContactChatList();
+    mMainWin->orderContactChatList();
 }
 
 void ChatItemWidget::removeChatLink()

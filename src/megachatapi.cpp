@@ -513,6 +513,11 @@ void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *lis
     pImpl->closeChatRoom(chatid, listener);
 }
 
+void MegaChatApi::removeChatRoom(MegaChatHandle chatid)
+{
+    pImpl->removeChatRoom(chatid);
+}
+
 int MegaChatApi::loadMessages(MegaChatHandle chatid, int count)
 {
     return pImpl->loadMessages(chatid, count);

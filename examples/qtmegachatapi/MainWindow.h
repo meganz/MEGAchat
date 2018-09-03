@@ -81,6 +81,7 @@ class MainWindow :
         void updateLocalChatListItems();
         void updateLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
+        void removeLocalChatListItemById(megachat::MegaChatHandle id);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();

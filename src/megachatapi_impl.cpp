@@ -2623,16 +2623,25 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     if (chatroom)
     {
         chatroom->removeAppChatHandler();
+
         removeChatRoomListener(chatid, listener);
         removeChatRoomHandler(chatid);
-        if (chatroom->previewMode())
-        {
-            //TODO clear records related to this chat in cache
-            GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
-            mClient->chats->removeRoom(*openChatRoom);
-            delete chatroom;
-        }
     }
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeChatRoom(MegaChatHandle chatid)
+{
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
+        mClient->chats->removeRoom(*openChatRoom);
+        delete chatroom;
+    }
+
     sdkMutex.unlock();
 }
 

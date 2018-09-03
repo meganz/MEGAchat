@@ -2973,6 +2973,16 @@ public:
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener);
 
     /**
+     * @brief This method should be called when we want to close a public chat preview
+     *
+     * It automatically remove all internal data related to this chat, and make a cache
+     * cleanup in order to clean all the related records.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void removeChatRoom(MegaChatHandle chatid);
+
+    /**
      * @brief Initiates fetching more history of the specified chatroom.
      *
      * The loaded messages will be notified one by one through the MegaChatRoomListener

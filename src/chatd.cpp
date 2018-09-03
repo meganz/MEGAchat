@@ -3820,6 +3820,12 @@ void Chat::onUserLeave(Id userid)
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
     {
+        //We have to cleanup this chat from cache if we are in preview mode
+        if (previewMode())
+        {
+            getDbInterface()->chatCleanup();
+        }
+
         mUsers.erase(userid);
         CALL_CRYPTO(onUserLeave, userid);
         CALL_LISTENER(onUserLeave, userid);

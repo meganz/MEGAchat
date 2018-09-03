@@ -56,6 +56,7 @@ class ChatItemWidget : public QWidget
         void queryChatLink();
         void exportChatLink();
         void closeChatLink();
+        void closePreview();
         void removeChatLink();
         void archiveChat();
         void unarchiveChat();

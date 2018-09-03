@@ -958,6 +958,19 @@ void MainWindow::removeLocalChatListItem(MegaChatListItem *item)
     orderContactChatList();
 }
 
+void MainWindow::removeLocalChatListItemById(MegaChatHandle id)
+{
+    std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator itItem;
+    itItem = mLocalChatListItems.find(id);
+    if (itItem != mLocalChatListItems.end())
+    {
+        const megachat::MegaChatListItem *auxItem = itItem->second;
+        mLocalChatListItems.erase(itItem);
+        delete auxItem;
+    }
+    orderContactChatList();
+}
+
 const megachat::MegaChatListItem *MainWindow::getLocalChatListItem(megachat::MegaChatHandle chatId)
 {
     std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator itItem;

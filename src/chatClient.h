@@ -446,6 +446,7 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
+    void previewsCleanup();
     void onChatsUpdate(mega::MegaTextChatList& chats);
 /** @endcond PRIVATE */
 };

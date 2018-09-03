@@ -748,6 +748,9 @@ void Client::initWithDbSession(const char* sid)
         contactList->loadFromDb();
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this, mMyHandle));
+
+        //We need to ensure that the DB does not contain any record related with a preview
+        chats->previewsCleanup();
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -1419,6 +1422,9 @@ void Client::terminate(bool deleteDb)
 
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
+
+    //We need to clean all previews records from cache
+    chats->previewsCleanup();
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
@@ -2235,11 +2241,6 @@ void GroupChatRoom::deleteSelf()
         {
             return;
         }
-        //If room is in preview mode we can remove all records from db at this moment
-        if (previewMode())
-        {
-            chat().getDbInterface()->chatCleanup();
-        }
         delete this;
     }, parent.mKarereClient.appCtx);
 }
@@ -2247,6 +2248,22 @@ void GroupChatRoom::deleteSelf()
 ChatRoomList::ChatRoomList(Client& aClient)
 :mKarereClient(aClient)
 {}
+
+void ChatRoomList::previewsCleanup()
+{
+    SqliteStmt stmt(mKarereClient.db, "select chatid from chat_vars where name = 'preview_mode' and value = '1'");
+    while(stmt.step())
+    {
+        auto chatid = stmt.uint64Col(0);
+        mKarereClient.db.query("delete from chat_peers where chatid = ?", chatid);
+        mKarereClient.db.query("delete from chat_vars where chatid = ?", chatid);
+        mKarereClient.db.query("delete from chats where chatid = ?", chatid);
+        mKarereClient.db.query("delete from history where chatid = ?",chatid);
+        mKarereClient.db.query("delete from manual_sending where chatid = ?", chatid);
+        mKarereClient.db.query("delete from sending where chatid = ?", chatid);
+        mKarereClient.db.query("delete from sendkeys where chatid = ?", chatid);
+    }
+}
 
 void ChatRoomList::loadFromDb()
 {
