@@ -617,6 +617,9 @@ public:
         /** Client has disconnected and terminated */
         kInitTerminated,
 
+        /** \c Karere has sucessfully initialized in anonymous mode */
+        kInitHasAnonymousSession,
+
         /** The first init state error code. All values equal or greater than this
          * represent error states
          */
@@ -653,13 +656,7 @@ public:
         kInitErrAlready,
 
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid,
-
-        /** \c init() */
-        kInitErrAnonymousMode,
-
-        /** \c init() */
-        kInitHasAnonymousSession
+        kInitErrSidInvalid
     };
 
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */

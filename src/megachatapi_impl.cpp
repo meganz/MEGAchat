@@ -1495,55 +1495,41 @@ int MegaChatApiImpl::init(const char *sid)
         terminating = false;
     }
 
-    int state = mClient->init(sid);
-    if (state != karere::Client::kInitErrNoCache &&
-            state != karere::Client::kInitWaitingNewSession &&
-            state != karere::Client::kInitHasOfflineSession)
-    {
-        // there's been an error during initialization
-        localLogout();
-    }
-    sdkMutex.unlock();
-
-    return MegaChatApiImpl::convertInitState(state);
-}
-
-int MegaChatApiImpl::initAnonymous(const char *link)
-{
-    sdkMutex.lock();
-    if (!mClient)
-    {
-#ifndef KARERE_DISABLE_WEBRTC
-        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc;
-#else
-        uint8_t caps = karere::kClientIsMobile;
-#endif
-        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);
-        mClient->setAnonymousMode(true);
-        terminating = false;
-    }
-
-    string parsedLink (link);
-    string separator = "c/";
-    size_t pos = parsedLink.find(separator);
-
-    string separatorEnd = "#";
-    size_t posEnd = parsedLink.find(separatorEnd);
-
     int state;
-    if (pos == string::npos)
+    size_t pos, posEnd;
+    bool anonymous = false;
+    string separator, separatorEnd, parsedLink;
+    if (sid)
     {
-        state = karere::Client::kInitErrAnonymousMode;
+        parsedLink.append(sid);
+        separator = "c/";
+        pos = parsedLink.find(separator);
+        separatorEnd = "#";
+        posEnd = parsedLink.find(separatorEnd);
+        anonymous = pos != string::npos && posEnd != string::npos;
     }
-    else
+
+    if (anonymous) //init in Anonymous mode
     {
+        mClient->setAnonymousMode(true);
         pos += separator.length();
         parsedLink = parsedLink.substr(pos, posEnd-pos);
         state = karere::Client::kInitHasAnonymousSession;
         mClient->initWithAnonymousSession(parsedLink.c_str());
     }
-
+    else //Init with a normal login or resume from cache
+    {
+        state = mClient->init(sid);
+        if (state != karere::Client::kInitErrNoCache &&
+                state != karere::Client::kInitWaitingNewSession &&
+                state != karere::Client::kInitHasOfflineSession)
+        {
+            // there's been an error during initialization
+            localLogout();
+        }
+    }
     sdkMutex.unlock();
+
     return MegaChatApiImpl::convertInitState(state);
 }
 
@@ -3777,7 +3763,6 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
     case karere::Client::kInitErrAlready:
-    case karere::Client::kInitErrAnonymousMode:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitCreated:

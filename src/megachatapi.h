@@ -1884,6 +1884,13 @@ public:
 
     /**
      * @brief Initializes karere in anonymous mode
+     *
+     * If a session chatlink is provided, karere will create its cache.
+     *
+     * This function should be called to preview a chat link without a session (anonymous mode).
+     *
+     * @param chatlink to preview in anonymous mode.
+     * @return The initialization state
      */
     int initAnonymous(const char *chatlink);
 
