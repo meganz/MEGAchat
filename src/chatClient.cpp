@@ -263,11 +263,12 @@ Client::~Client()
 
 promise::Promise<void> Client::retryPendingConnections()
 {
-    if (mConnState == kConnecting)
+    if (mConnState == kConnecting)  // already a connection attempt in-progress
+    {
         return mConnectPromise;
+    }
 
     std::vector<Promise<void>> promises;
-
     promises.push_back(mPresencedClient.retryPendingConnection());
     if (mChatdClient)
     {
@@ -868,46 +869,46 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
-    if (mConnState == kConnecting)
+    if (mConnState == kConnecting)      // already connecting, wait for completion
+    {
         return mConnectPromise;
-    else if (mConnState == kConnected)
+    }
+    else if (mConnState == kConnected)  // nothing to do
+    {
         return promise::_Void();
+    }
 
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
-    case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres, isInBackground);
-    case promise::kFailed:
-        return mSessionReadyPromise.error();
-    default:                    // if session is not ready yet
-        assert(sessDone == promise::kNotResolved);
-        mConnectPromise = mSessionReadyPromise
+        case promise::kSucceeded:   // if session is ready...
+            return doConnect(pres, isInBackground);
+
+        case promise::kFailed:      // if session failed...
+            return mSessionReadyPromise.error();
+
+        default:                    // if session is not ready yet... wait for it and then connect
+            assert(sessDone == promise::kNotResolved);
+            mConnectPromise = mSessionReadyPromise
             .then([this, pres, isInBackground]() mutable
             {
                 return doConnect(pres, isInBackground);
-            })
-            .then([this]()
-            {
-                setConnState(kConnected);
-            })
-            .fail([this](const promise::Error& err)
-            {
-                setConnState(kDisconnected);
-                return err;
             });
-        return mConnectPromise;
+            return mConnectPromise;
     }
 }
 
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
-    assert(mSessionReadyPromise.succeeded());
+    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
     setConnState(kConnecting);
     mOwnPresence = pres;
-    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
+    assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
+
     mUserAttrCache->onLogin();
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
@@ -953,7 +954,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         }
 
         heartbeat();
-    }, 10000, appCtx);
+    }, kHeartbeatTimeout, appCtx);
     return pms;
 }
 
@@ -961,6 +962,7 @@ void Client::disconnect()
 {
     if (mConnState == kDisconnected)
         return;
+
     setConnState(kDisconnected);
     // stop sync of user attributes in cache
     assert(mOwnNameAttrHandle.isValid());
@@ -979,6 +981,7 @@ void Client::disconnect()
     mChatdClient->disconnect();
     mPresencedClient.disconnect();
 }
+
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;

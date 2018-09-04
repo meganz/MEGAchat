@@ -65,10 +65,13 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
 };
-/** Timeout to send SEEN (Milliseconds)**/
-enum { kSeenTimeout = 200 };
-/** Timeout to recv SYNC (Milliseconds)**/
-enum { kSyncTimeout = 2500 };
+
+enum
+{
+    kSeenTimeout = 200,     /// Delay to send SEEN (ms)
+    kSyncTimeout = 2500     /// Timeout to recv SYNC (ms)
+};
+
 enum { kMaxMsgSize = 120000 };  // (in bytes)
 
 class DbInterface;
@@ -749,7 +752,6 @@ public:
       */
     void connect();
 
-    void disconnect();
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
 

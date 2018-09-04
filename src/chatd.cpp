@@ -309,11 +309,6 @@ void Chat::connect()
     }
 }
 
-void Chat::disconnect()
-{
-    setOnlineState(kChatStateOffline);
-}
-
 void Chat::login()
 {
     assert(mConnection.isOnline());
