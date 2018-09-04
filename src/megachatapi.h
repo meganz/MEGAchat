@@ -1770,6 +1770,7 @@ public:
         INIT_WAITING_NEW_SESSION    = 1,    /// No \c sid provided at init() --> force a login+fetchnodes
         INIT_OFFLINE_SESSION        = 2,    /// Initialization successful for offline operation
         INIT_ONLINE_SESSION         = 3,    /// Initialization successful for online operation --> login+fetchnodes completed
+        INIT_ANONYMOUS              = 4,    /// Initialization successful for anonymous operation
         INIT_NO_CACHE               = 7     /// Cache not available for \c sid provided --> it requires login+fetchnodes
     };
 

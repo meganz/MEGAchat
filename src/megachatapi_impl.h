@@ -860,6 +860,8 @@ public:
     static void setLogToConsole(bool enable);
 
     int init(const char *sid);
+    int initAnonymous(const char *link);
+    void createKarereClient();
     int getInitState();
     bool anonymousMode();
 

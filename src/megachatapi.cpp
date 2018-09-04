@@ -200,7 +200,7 @@ int MegaChatApi::init(const char *sid)
 
 int MegaChatApi::initAnonymous(const char *chatlink)
 {
-    return pImpl->init(chatlink);
+    return pImpl->initAnonymous(chatlink);
 }
 
 int MegaChatApi::getInitState()

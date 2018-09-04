@@ -397,6 +397,12 @@ protected:
     chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
         chatd::Message* msg, const SendKey& key);
 
+
+    /**
+     * @brief Load public attributes when we are in preview mode.
+     */
+    void prefetchAnonymousAttributes(karere::Id userId);
+
 // legacy RSA encryption methods
     promise::Promise<std::shared_ptr<Buffer>>
         rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, karere::Id toUser);
@@ -432,7 +438,7 @@ public:
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
     static Buffer* createUnifiedKey();
     virtual std::shared_ptr<std::string> getUnifiedKey();
-    virtual bool anonymousMode();
+    virtual bool previewMode();
     unsigned int getChatMode() const;
     void setPrivateChatMode();
     virtual void onHistoryReload();

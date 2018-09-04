@@ -529,7 +529,14 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             //Own priv update
             case (megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV):
             {
-                chatItemWidget->updateToolTip(item, NULL);
+                if (item->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)
+                {
+                    chatItemWidget->closePreview();
+                }
+                else
+                {
+                    chatItemWidget->updateToolTip(item, NULL);
+                }
                 break;
             }
 
@@ -558,7 +565,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             //The chatroom is private now
             case (megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE):
             {
-                orderContactChatList();
+                chatItemWidget->closePreview();
                 break;
             }
 

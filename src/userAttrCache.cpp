@@ -353,9 +353,10 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
     auto it = find(key);
     if (it != end())
     {
-        auto& item = *it->second;
         if (cb)
-        { // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
+        {
+            auto& item = *it->second;
+            // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             if (item.pending != kCacheFetchNewPending)
             {
                 // we have something in the cache, call the cb
