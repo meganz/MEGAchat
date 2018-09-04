@@ -518,53 +518,29 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db.isOpen())
+        const char *pscsn = event->getText();
+        if (!pscsn)
         {
-            auto pscsn = event->getText();
-            if (!pscsn)
+            KR_LOG_ERROR("EVENT_COMMIT_DB --> DB commit triggered by SDK without a valid scsn");
+            return;
+        }
+
+        std::string scsn = pscsn;
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, scsn]()
+        {
+            if (wptr.deleted())
             {
                 return;
             }
-            std::string scsn = pscsn;
-            auto wptr = weakHandle();
-            marshallCall([wptr, this, scsn]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
 
+            if (db.isOpen())
+            {
                 KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
                 commit(scsn);
-            }, appCtx);
-        }
-        break;
-    }
-
-    case ::mega::MegaEvent::EVENT_DISCONNECT:
-    {
-        if (connState() == kConnecting || connState() == kConnected)
-        {            
-#ifndef KARERE_DISABLE_WEBRTC
-            if (rtc && rtc->isCallInProgress())
-            {
-                KR_LOG_WARNING("EVENT_DISCONNECT --> skipping reconnection triggered by SDK because there's a call in progress");
-                break;
             }
-#endif
-            auto wptr = weakHandle();
-            marshallCall([wptr, this]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
 
-                KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
-                retryPendingConnections();
-
-            }, appCtx);
-        }
+        }, appCtx);
         break;
     }
 
