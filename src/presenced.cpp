@@ -425,7 +425,7 @@ promise::Promise<void> Client::retryPendingConnection()
     {
         setConnState(kDisconnected);
         mHeartbeatEnabled = false;
-        PRESENCED_LOG_WARNING("Retry pending connections...");
+        PRESENCED_LOG_WARNING("Retry pending connection...");
         return reconnect();
     }
     return promise::Error("No valid URL provided to retry pending connections");
