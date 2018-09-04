@@ -900,7 +900,7 @@ std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
     return key;
 }
 
-bool ProtocolHandler::anonymousMode()
+bool ProtocolHandler::previewMode()
 {
     return mPh.isValid();
 }
@@ -1107,6 +1107,11 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
     // else --> it's important to not clear the message, so future executions can
     // retry to decode it in case the new type is supported
 
+    if (previewMode())
+    {
+        prefetchAnonymousAttributes(msg->userid);
+    }
+
     switch(parsedMsg->type)
     {
         case Message::kMsgAlterParticipants:
@@ -1152,6 +1157,12 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
     }
 }
 
+void ProtocolHandler::prefetchAnonymousAttributes(karere::Id userId)
+{
+    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
+    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
+    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+}
 
 //We should have already received and decrypted the key in advance
 //(which is also async). This will have fetched the public Cu25519 key of
@@ -1186,6 +1197,11 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
                                   " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
+        }
+
+        if (previewMode())
+        {
+            prefetchAnonymousAttributes(message->userid);
         }
 
         // Get keyid
@@ -1260,6 +1276,8 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
             // Decrypt message payload.
             parsedMsg->symmetricDecrypt(*ctx->sendKey, *message);
+
+            //Get sender attributes
             return message;
         });
     }
@@ -1680,11 +1698,9 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
 void ProtocolHandler::onUserJoin(Id userid)
 {
-    if (anonymousMode())
+    if (previewMode())
     {
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+        prefetchAnonymousAttributes(userid);
     }
     else
     {
@@ -1714,11 +1730,9 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     //pre-fetch user attributes
     for (auto userid: *users)
     {
-        if (anonymousMode())
+        if (previewMode())
         {
-            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
-            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
-            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+            prefetchAnonymousAttributes(userid);
         }
         else
         {

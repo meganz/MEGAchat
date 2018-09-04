@@ -229,7 +229,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMess
                 megachat::MegaChatMessage *auxMsg = msg->copy();
                 addMsgWidget(auxMsg, loadedMessages);
 
-                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle() && !mMegaChatApi->anonymousMode())
+                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle() && !mChatRoom->isPreview())
                 {
                     mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
                 }

@@ -1913,12 +1913,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr), mPreviewMode(true), mNumPeers(aNumPeers)
 {
-    Id ph(Id::inval());
-    if (parent.mKarereClient.anonymousMode())
-    {
-        ph = publicHandle;
-    }
-
+    Id ph(publicHandle);
     initWithChatd(unifiedKey, false, ph);   // strongvelope only needs the public handle in anonymous mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
     mUrl = aUrl;
