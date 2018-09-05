@@ -39,7 +39,8 @@ enum { kErrorType = 0x2e7294d1 };//should resemble 'retryhdl'
 enum
 {
     kDefaultMaxAttemptCount = 0,
-    kDefaultMaxSingleWaitTime = 60000
+    kDefaultMaxSingleWaitTime = 60000,
+    kDefaultMinInitialDelay = 1000
 };
 
 class IRetryController
@@ -419,7 +420,7 @@ static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable:
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
-    short backoffStart = 1000)
+    short backoffStart = rh::kDefaultMinInitialDelay)
 ->decltype(func(0, wptr))
 {
     auto self = new rh::RetryController<Func, CancelFunc>(aName,
@@ -437,7 +438,7 @@ static inline rh::RetryController<Func, CancelFunc>* createRetryController(
     const std::string& aName, Func&& func,CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
-    short backoffStart = 1000)
+    short backoffStart = rh::kDefaultMinInitialDelay)
 {
     auto retryController = new rh::RetryController<Func, CancelFunc>(aName,
         std::forward<Func>(func),
