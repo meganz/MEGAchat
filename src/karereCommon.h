@@ -45,8 +45,8 @@
 #endif
 
 #define KARERE_LOGIN_TIMEOUT 15000
-#define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
+#define KARERE_RECONNECT_DELAY_MAX 5000
 
 #define KARERE_DEFAULT_TURN_SERVERS \
    "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
