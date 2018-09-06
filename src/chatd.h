@@ -501,6 +501,25 @@ protected:
     uint8_t mState = kNone;
 };
 
+class FilteredHistory
+{
+public:
+    FilteredHistory(DbInterface *db);
+    void addMessage(const Message &msg, bool isNew);
+    void deleteMessage(const Message &msg);
+    void truncateHistory(karere::Id id);
+    Idx getNewestIdx() const;
+    Idx getOldestIdx() const;
+    Idx getOldestLoadedIdx() const;
+protected:
+    std::list<std::unique_ptr<Message>> mBuffer;
+    DbInterface *mDb;
+    Idx mNewest = -1;
+    Idx mOldest = 0;
+    Idx mOldestLoaded = 0;
+    std::list<std::unique_ptr<Message>>::iterator find(karere::Id id);
+};
+
 struct ChatDbInfo;
 
 /** @brief Represents a single chatroom together with the message history.
@@ -563,6 +582,7 @@ protected:
     Idx mForwardStart;
     std::vector<std::unique_ptr<Message>> mForwardList;
     std::vector<std::unique_ptr<Message>> mBackwardList;
+    std::unique_ptr<FilteredHistory> mAttachmentNodes;
     OutputQueue mSending;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
@@ -1295,6 +1315,11 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
+
+    virtual void addAttachmentMessageToHistoryNode(const Message& msg, Idx idx) = 0;
+    virtual void removeAttachmentMessageToHistoryNode(const Message& msg) = 0;
+    virtual void truncateHistoryNode(karere::Id id) = 0;
+    virtual void getHistoryNodeIndex(Idx &newest, Idx &oldest) = 0;
 };
 
 }

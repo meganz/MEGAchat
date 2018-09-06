@@ -1061,6 +1061,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
+    mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(mDbInterface));
     initChat();
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
@@ -2020,7 +2021,7 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     }
     onMsgTimestamp(msg->ts);
 
-    if (msg->size() > 2 && msg->buf()[0] == 0 && msg->buf()[1] == Message::Type::kMsgAttachment)
+    if (msg->size() > 2 && msg->buf()[0] == 0 && msg->type == Message::Type::kMsgAttachment)
     {
         postMsgToSending(OP_NEWNODEMSG, msg, recipients);
     }
@@ -2800,6 +2801,11 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
+    if (msg->type == Message::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(*msg, true);
+    }
+
     return idx;
 }
 
@@ -3005,6 +3011,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
+            unsigned char histType = histmsg.type;
 
             if ( (msg->type == Message::kMsgTruncate
                   && histmsg.type == msg->type
@@ -3076,6 +3083,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                     findAndNotifyLastTextMsg();
                 }
             }
+
+            if (histType == Message::kMsgAttachment && msg->size() == 0)
+            {
+                mAttachmentNodes->deleteMessage(*msg);
+            }
         }
         else    // message not loaded in RAM
         {
@@ -3089,6 +3101,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             {
                 //update in db
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
+            }
+
+            if (msg->size() == 0)
+            {
+                mAttachmentNodes->deleteMessage(*msg);
             }
         }
 
@@ -3181,6 +3198,8 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
+
+    mAttachmentNodes->truncateHistory(msg.id());
 }
 
 Id Chat::makeRandomId()
@@ -3620,6 +3639,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
     onMsgTimestamp(msg.ts);
+
+    if (msg.type == Message::Type::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(msg, isNew);
+    }
 }
 
 void Chat::onMsgTimestamp(uint32_t ts)
@@ -4151,6 +4175,83 @@ bool Message::isValidEmail(const string &buf)
 {
     std::regex regularExpresion("^[a-z0-9A-Z._%+-]+@[a-z0-9A-Z.-]+[.][a-zA-Z]{2,6}");
     return regex_match(buf, regularExpresion);
+}
+
+FilteredHistory::FilteredHistory(DbInterface *db)
+    : mDb(db)
+{
+    mDb->getHistoryNodeIndex(mNewest, mOldest);
+}
+
+void FilteredHistory::addMessage(const Message &msg, bool isNew)
+{
+    Message* message = new Message(msg);
+    if (isNew)
+    {
+        mBuffer.emplace_front(message);
+        mNewest ++;
+        mDb->addAttachmentMessageToHistoryNode(msg, mNewest);
+    }
+    else
+    {
+        if (find(msg.id()) == mBuffer.end())
+        {
+            mBuffer.emplace_back(message);
+            mOldest --;
+            mDb->addAttachmentMessageToHistoryNode(msg, mOldest);
+        }
+    }
+}
+
+void FilteredHistory::deleteMessage(const Message &msg)
+{
+    auto it = find(msg.id());
+    if (it != mBuffer.end())
+    {
+        it->reset(new Message(msg));
+    }
+
+    mDb->removeAttachmentMessageToHistoryNode(msg);
+}
+
+void FilteredHistory::truncateHistory(Id id)
+{
+    auto it = find(id);
+    if (it != mBuffer.end())
+    {
+        mBuffer.erase(it, mBuffer.end());
+    }
+
+    mDb->truncateHistoryNode(id);
+}
+
+Idx FilteredHistory::getNewestIdx() const
+{
+    return mNewest;
+}
+
+Idx FilteredHistory::getOldestIdx() const
+{
+    return mOldest;
+}
+
+Idx FilteredHistory::getOldestLoadedIdx() const
+{
+    return mOldestLoaded;
+}
+
+std::list<std::unique_ptr<Message>>::iterator FilteredHistory::find(karere::Id id)
+{
+    std::list<std::unique_ptr<Message>>::iterator it;
+    for (it = mBuffer.begin(); it != mBuffer.end(); it++)
+    {
+        if (it->get()->id() == id)
+        {
+            return it;
+        }
+    }
+
+    return mBuffer.end();
 }
 
 } // end chatd namespace

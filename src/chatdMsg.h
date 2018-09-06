@@ -543,6 +543,12 @@ public:
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
 
+    Message(const Message& msg)
+        : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
+          userid(msg.userid), ts(msg.ts), updated(msg.updated), keyid(msg.keyid), type(msg.type), backRefId(msg.backRefId),
+          backRefs(msg.backRefs), userp(msg.userp), userFlags(msg.userFlags), richLinkRemoved(msg.richLinkRemoved)
+    {}
+
     /** @brief Returns the ManagementInfo structure contained within the message
      * content. Throws if the message is not a management message, or if the
      * size of the message contents is smaller than the size of ManagementInfo,
