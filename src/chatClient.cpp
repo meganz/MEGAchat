@@ -208,6 +208,48 @@ bool Client::openDb(const std::string& sid)
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
+            else if (cachedVersionSuffix == "4" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            {
+                // clients with version 4 need to create a new table history_node, and full it with
+                // attachment messages in cache. Futhermore we are going to change the types for
+                // attach node, attch contact, and rich links
+
+                int oldAttachmentType = 0x10;
+                int oldRevokeType = 0x11;
+                int oldContactType = 0x12;
+                int oldContainsMetaType = 0x13;
+
+                std::string queryAttachment = "update history set type = " + std::to_string(chatd::Message::Type::kMsgAttachment)
+                        + " where type = " + std::to_string(oldAttachmentType);
+
+                db.simpleQuery(queryAttachment.c_str());
+
+                std::string queryRevoke = "update history set type = " + std::to_string(chatd::Message::Type::kMsgRevokeAttachment)
+                        + " where type = " + std::to_string(oldRevokeType);
+
+                db.simpleQuery(queryRevoke.c_str());
+
+                std::string queryContact = "update history set type = " + std::to_string(chatd::Message::Type::kMsgContact)
+                        + " where type = " + std::to_string(oldContactType);
+
+                db.simpleQuery(queryContact.c_str());
+
+                std::string queryContainstMeta = "update history set type = " + std::to_string(chatd::Message::Type::kMsgContainsMeta)
+                        + " where type = " + std::to_string(oldContainsMetaType);
+
+                db.simpleQuery(queryContainstMeta.c_str());
+
+                db.simpleQuery("CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 not null,"
+                               "    userid int64, keyid int not null, type tinyint, updated smallint, ts int,"
+                               "    is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx))");
+
+                std::string queryAllAttachment = "insert into node_history select * from history where type = " + std::to_string(chatd::Message::Type::kMsgAttachment);
+                db.simpleQuery(queryAllAttachment.c_str());
+
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                ok = true;
+            }
         }
     }
 

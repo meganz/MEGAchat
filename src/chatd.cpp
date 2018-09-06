@@ -1873,7 +1873,7 @@ void Chat::requestRichLink(Message &message)
                 }
 
                 updateText.insert(updateText.begin(), 0x0);
-                updateText.insert(updateText.begin(), Message::kMsgContainsMeta);
+                updateText.insert(updateText.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
                 updateText.insert(updateText.begin(), 0x0);
                 std::string::size_type size = updateText.size();
 
@@ -3544,7 +3544,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg.type = msg.buf()[1];
+                msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
         }
 
         verifyMsgOrder(msg, idx);
