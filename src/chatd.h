@@ -11,10 +11,11 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include <base/trackDelete.h>
-#include "chatdMsg.h"
-#include "url.h"
-#include "net/websocketsIO.h"
-#include "userAttrCache.h"
+#include <chatdMsg.h>
+#include <url.h>
+#include <net/websocketsIO.h>
+#include <userAttrCache.h>
+#include <base/retryHandler.h>
 
 namespace karere {
     class Client;
@@ -358,6 +359,7 @@ protected:
     std::string mTargetIp;
     DNScache &mDNScache;
     bool mHeartbeatEnabled = false;
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
@@ -371,6 +373,7 @@ protected:
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
+    void abortRetryController();
     void disconnect();
     void doConnect();
 // Destroys the buffer content

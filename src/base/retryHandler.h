@@ -435,14 +435,17 @@ static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable:
 /** Similar to retry(), but returns a heap-allocated RetryController object */
 template <class Func, class CancelFunc=void*>
 static inline rh::RetryController<Func, CancelFunc>* createRetryController(
-    const std::string& aName, Func&& func,CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
+    const std::string& aName, Func&& func,
+    DeleteTrackable::Handle wptr, void *ctx,
+    CancelFunc&& cancelFunc = nullptr,
+    unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
     short backoffStart = rh::kDefaultMinInitialDelay)
 {
-    auto retryController = new rh::RetryController<Func, CancelFunc>(aName,
+    rh::RetryController<Func, CancelFunc>* retryController = new rh::RetryController<Func, CancelFunc>(aName,
         std::forward<Func>(func),
-        std::forward<CancelFunc>(cancelFunc), attemptTimeout,
+        std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr, ctx,
         maxSingleWaitTime, maxRetries, backoffStart);
     return retryController;
 }
