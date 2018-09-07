@@ -379,9 +379,17 @@ promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std
             return Id::inval().val;
 
         Id chatId = result->getParentHandle();
-        if (chats->find(chatId) != chats->end())
+        auto it = chats->find(chatId);
+        if (it != chats->end())
         {
-            return promise::Error("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
+            if (!it->second->isActive())
+            {
+                return chatId.val;
+            }
+            else
+            {
+                return promise::Error("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
+            }
         }
 
         Id ph = result->getNodeHandle();
@@ -2692,12 +2700,12 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     });
 }
 
-promise::Promise<void> GroupChatRoom::joinChatLink()
+promise::Promise<void> GroupChatRoom::joinChatLink(uint64_t ph)
 {
     Id myHandle(parent.mKarereClient.myHandle());
 
     return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
-    .then([this, myHandle](std::string key) -> ApiPromise
+    .then([this, myHandle, ph](std::string key) -> ApiPromise
     {
         //Append [invitorhandle+uk]
         std::string uKeyBin((char*)&myHandle, mega::USERHANDLE);
@@ -2707,15 +2715,32 @@ promise::Promise<void> GroupChatRoom::joinChatLink()
         std::string uKeyB64;
         mega::Base64::btoa(uKeyBin, uKeyB64);
 
-        uint64_t ph = mChat->publicHandle();
         return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin, ph, uKeyB64.c_str());
     })
     .then([this, myHandle](ReqResult)
     {
-        mPreviewMode = false;
         mChat->setPublicHandle(Id::inval());
+
+        //If we aren't in preview mode we need to clean history and retrieve it again
+        if (!mPreviewMode)
+        {
+            mChat->rejoin();
+        }
+        else
+        {
+            mPreviewMode = false;
+        }
+
+        //Remove preview mode flag from DB
+        auto db = parent.mKarereClient.db;
+        db.query("delete from chat_vars where chatid=? and name='preview_mode'", mChatid);
     });
  }
+
+uint64_t ChatRoom::publicHandle()
+{
+    return mChat->publicHandle();
+}
 
 //chatd::Listener::init
 void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)

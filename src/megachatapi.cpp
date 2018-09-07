@@ -453,6 +453,11 @@ void MegaChatApi::joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *l
     pImpl->joinChatLink(chatid, listener);
 }
 
+void MegaChatApi::rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener)
+{
+    pImpl->rejoinChatLink(chatid, ph, listener);
+}
+
 void MegaChatApi::removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener)
 {
     pImpl->removeFromChat(chatid, uh, listener);

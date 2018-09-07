@@ -2505,6 +2505,17 @@ uint64_t Chat::publicHandle()
     return mPh;
 }
 
+bool Chat::previewMode()
+{
+    return mPh.isValid();
+}
+
+void Chat::rejoin()
+{
+    clearHistory();
+    join();
+}
+
 void Chat::onLastSeen(Id msgid)
 {
     Idx idx = CHATD_IDX_INVALID;

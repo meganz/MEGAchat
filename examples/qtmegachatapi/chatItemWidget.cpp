@@ -459,7 +459,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     if (auxItem->isGroup())
     {
         auto actLeave = menu.addAction(tr("Leave group chat"));
-        if (!auxItem->isActive())
+        if (!auxItem->isActive() || auxItem->isPreview())
         {
             actLeave->setEnabled(false);
         }

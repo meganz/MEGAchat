@@ -497,7 +497,6 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
         {
             handle chatid = request->getChatHandle();
-
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -513,13 +512,25 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!chatroom->isGroup()
                 || !chatroom->publicChat()
-                || !chatroom->previewMode())   // Join only for public group chats in preview mode
+                || (!chatroom->previewMode() && chatroom->isActive()))   // Join only for public group chats in preview mode
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            ((GroupChatRoom *)chatroom)->joinChatLink()
+            handle phTmp = request->getUserHandle();
+            handle ph;
+            if (phTmp != MEGACHAT_INVALID_HANDLE)
+            // rejoin inactive/left public chat
+            {
+                ph = phTmp;
+            }
+            else  // join chat in preview (previously loaded)
+            {
+                ph = chatroom->publicHandle();
+            }
+
+            ((GroupChatRoom *)chatroom)->joinChatLink(ph)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -793,8 +804,19 @@ void MegaChatApiImpl::sendPendingRequests()
                 request->setChatHandle(chatid);
                 request->setText(room->titleString().c_str());
                 request->setNumber(room->getNumPeers());
+                request->setUserHandle(ph);
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                MegaChatErrorPrivate *megaChatError;
+
+                if (room->isActive())
+                {
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                }
+                else
+                {
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+                }
+
                 fireOnChatRequestFinish(request, megaChatError);
             })
             .fail([request, this](const promise::Error& err)
@@ -2547,6 +2569,15 @@ void MegaChatApiImpl::joinChatLink(MegaChatHandle chatid, MegaChatRequestListene
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_JOIN, listener);
     request->setChatHandle(chatid);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_JOIN, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(ph);
     requestQueue.push(request);
     waiter->notify();
 }

@@ -42,8 +42,9 @@ ChatMessage::~ChatMessage()
 void ChatMessage::updateToolTip()
 {
     QString tooltip;
-
     megachat::MegaChatHandle msgId;
+    std::string msgIdBin;
+
     int status = mMessage->getStatus();
     switch (status)
     {
@@ -58,12 +59,15 @@ void ChatMessage::updateToolTip()
     default:
         tooltip.append(tr("msgId: "));
         msgId = mMessage->getMsgId();
+        msgIdBin = std::to_string(mMessage->getMsgId());
         break;
     }
 
     const char *auxMsgId_64 = mChatWindow->mMegaApi->userHandleToBase64(msgId);
     const char *auxUserId_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
     tooltip.append(QString::fromStdString(auxMsgId_64))
+            .append(tr("\nMsg handle bin: "))
+            .append(msgIdBin.c_str())
             .append(tr("\ntype: "))
             .append(QString::fromStdString(std::to_string(mMessage->getType())))
             .append(tr("\nuserid: "))

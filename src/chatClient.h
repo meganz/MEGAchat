@@ -180,6 +180,7 @@ public:
     bool isInitializing() const { return mIsInitializing; }
 
     bool hasChatHandler() const;
+    uint64_t publicHandle();
 
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
@@ -416,7 +417,7 @@ public:
     /** TODO
      *
      */
-    promise::Promise<void> joinChatLink();
+    promise::Promise<void> joinChatLink(uint64_t ph);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);

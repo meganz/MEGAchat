@@ -2709,10 +2709,45 @@ public:
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief TODO documentation
+     * @brief Allow a user to add himself to an existing public chat. To do this the public chat
+     * must have a valid public handle.
      *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
+     * the chatroom is not public or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
      */
     void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allow a user to rejoin to an existing public chat. To do this the public chat
+     * must have a valid public handle.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::loadChatLink and receive MegaChatError::ERROR_ACCESS (You are trying to
+     *  preview a public chat wich you were part of, so you have to rejoin it)
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
+     * the chatroom is not public or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Remove another user from a chat. To remove a user you need to have the

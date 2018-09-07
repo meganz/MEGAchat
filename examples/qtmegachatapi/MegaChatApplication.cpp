@@ -642,9 +642,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 
         case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
+            MegaChatHandle chatid = request->getChatHandle();
+
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
-                MegaChatHandle chatid = request->getChatHandle();
                 MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
                 if (mMegaChatApi->anonymousMode())
                 {
@@ -655,7 +656,23 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             }
             else
             {
-                QMessageBox::critical(nullptr, tr("Export chat link"), e->getErrorString());
+                if (e->getErrorCode() == MegaChatError::ERROR_ACCESS)
+                {
+                    QMessageBox msgBox;
+                    msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
+                    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                    msgBox.setDefaultButton(QMessageBox::Cancel);
+                    int ret = msgBox.exec();
+                    if (ret == QMessageBox::Ok)
+                    {
+                        MegaChatHandle ph = request->getUserHandle();
+                        this->mMegaChatApi->rejoinChatLink(chatid, ph);
+                    }
+                }
+                else
+                {
+                    QMessageBox::critical(nullptr, tr("Export chat link"), e->getErrorString());
+                }
             }
             break;
         }
