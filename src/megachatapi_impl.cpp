@@ -230,17 +230,11 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
-            mClient->retryPendingConnections()
-            .then([this, request]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([this, request](const promise::Error& e)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            bool disconnect = request->getFlag();
+            mClient->retryPendingConnections(disconnect);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
@@ -1648,9 +1642,10 @@ int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
     return ret;
 }
 
-void MegaChatApiImpl::retryPendingConnections(MegaChatRequestListener *listener)
+void MegaChatApiImpl::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
+    request->setFlag(disconnect);
     requestQueue.push(request);
     waiter->notify();
 }
