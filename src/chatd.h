@@ -396,7 +396,7 @@ public:
     }
     const std::set<karere::Id>& chatIds() const { return mChatIds; }
     uint32_t clientId() const { return mClientId; }
-    promise::Promise<void> retryPendingConnection();
+    void retryPendingConnection(bool disconnect);
     virtual ~Connection()
     {
         disconnect();
@@ -1165,7 +1165,7 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     void disconnect();
-    promise::Promise<void> retryPendingConnections();
+    void retryPendingConnections(bool disconnect);
     void heartbeat();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();

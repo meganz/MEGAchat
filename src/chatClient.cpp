@@ -261,20 +261,19 @@ Client::~Client()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnections()
+void Client::retryPendingConnections(bool disconnect)
 {
-    if (mConnState == kConnecting)  // already a connection attempt in-progress
+    if (mConnState == kDisconnected)  // already a connection attempt in-progress
     {
-        return mConnectPromise;
+        KR_LOG_WARNING("Retry pending connections called without previous connect");
+        return;
     }
 
-    std::vector<Promise<void>> promises;
-    promises.push_back(mPresencedClient.retryPendingConnection());
+    mPresencedClient.retryPendingConnection(disconnect);
     if (mChatdClient)
     {
-        promises.push_back(mChatdClient->retryPendingConnections());
+        mChatdClient->retryPendingConnections(disconnect);
     }
-    return promise::when(promises);
 }
 
 #define TOKENPASTE2(a,b) a##b
@@ -416,7 +415,7 @@ promise::Promise<void> Client::pushReceived()
         mSyncTimer = 0;
         mSyncCount = -1;
 
-        mChatdClient->retryPendingConnections();
+        mChatdClient->retryPendingConnections(true);
 
     }, chatd::kSyncTimeout, appCtx);
 
