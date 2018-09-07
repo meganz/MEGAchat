@@ -439,17 +439,28 @@ void Client::doConnect()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnection()
+void Client::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        setConnState(kDisconnected);
-        mHeartbeatEnabled = false;
-        abortRetryController();
-        PRESENCED_LOG_WARNING("Retry pending connection...");
-        return reconnect();
+        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+        {
+            PRESENCED_LOG_WARNING("Abort backoff and reconnect immediately");
+            mRetryCtrl->restart();
+        }
+        else if (disconnect)
+        {
+            setConnState(kDisconnected);
+            mHeartbeatEnabled = false;
+            abortRetryController();
+            PRESENCED_LOG_WARNING("Retry pending connection...");
+            reconnect();
+        }
     }
-    return promise::Error("No valid URL provided to retry pending connections");
+    else
+    {
+        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+    }
 }
 
 bool Client::sendBuf(Buffer&& buf)

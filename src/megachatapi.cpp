@@ -228,9 +228,9 @@ int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
     return pImpl->getChatConnectionState(chatid);
 }
 
-void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
+void MegaChatApi::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
-    pImpl->retryPendingConnections(listener);
+    pImpl->retryPendingConnections(disconnect, listener);
 }
 
 void MegaChatApi::logout(MegaChatRequestListener *listener)
