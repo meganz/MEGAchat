@@ -1770,6 +1770,7 @@ void Chat::initChat()
     mBackwardList.clear();
     mForwardList.clear();
     mIdToIndexMap.clear();
+    mAttachmentNodes->clear();
 
     mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
@@ -4180,6 +4181,7 @@ bool Message::isValidEmail(const string &buf)
 FilteredHistory::FilteredHistory(DbInterface *db)
     : mDb(db)
 {
+    initVaraiables();
     mDb->getHistoryNodeIndex(mNewest, mOldest);
 }
 
@@ -4223,6 +4225,7 @@ void FilteredHistory::truncateHistory(Id id)
     }
 
     mDb->truncateHistoryNode(id);
+    mDb->getHistoryNodeIndex(mNewest, mOldest);
 }
 
 Idx FilteredHistory::getNewestIdx() const
@@ -4240,6 +4243,13 @@ Idx FilteredHistory::getOldestLoadedIdx() const
     return mOldestLoaded;
 }
 
+void FilteredHistory::clear()
+{
+    mBuffer.clear();
+    mDb->clearHistoryNode();
+    initVaraiables();
+}
+
 std::list<std::unique_ptr<Message>>::iterator FilteredHistory::find(karere::Id id)
 {
     std::list<std::unique_ptr<Message>>::iterator it;
@@ -4252,6 +4262,13 @@ std::list<std::unique_ptr<Message>>::iterator FilteredHistory::find(karere::Id i
     }
 
     return mBuffer.end();
+}
+
+void FilteredHistory::initVaraiables()
+{
+    mNewest = -1;
+    mOldest = 0;
+    mOldestLoaded = 0;
 }
 
 } // end chatd namespace

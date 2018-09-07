@@ -449,6 +449,11 @@ public:
         mDb.query("delete from node_history where chatid = ? and idx <= ?", mChat.chatId(), idx);
     }
 
+    virtual void clearHistoryNode()
+    {
+        mDb.query("delete from node_history where chatid = ?", mChat.chatId());
+    }
+
     virtual void getHistoryNodeIndex(chatd::Idx &newest, chatd::Idx &oldest)
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from node_history where chatid=?1");

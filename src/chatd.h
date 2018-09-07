@@ -511,13 +511,15 @@ public:
     Idx getNewestIdx() const;
     Idx getOldestIdx() const;
     Idx getOldestLoadedIdx() const;
+    void clear();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
     DbInterface *mDb;
-    Idx mNewest = -1;
-    Idx mOldest = 0;
-    Idx mOldestLoaded = 0;
+    Idx mNewest;
+    Idx mOldest;
+    Idx mOldestLoaded;
     std::list<std::unique_ptr<Message>>::iterator find(karere::Id id);
+    void initVaraiables();
 };
 
 struct ChatDbInfo;
@@ -1320,6 +1322,7 @@ public:
     virtual void removeAttachmentMessageToHistoryNode(const Message& msg) = 0;
     virtual void truncateHistoryNode(karere::Id id) = 0;
     virtual void getHistoryNodeIndex(Idx &newest, Idx &oldest) = 0;
+    virtual void clearHistoryNode() = 0;
 };
 
 }
