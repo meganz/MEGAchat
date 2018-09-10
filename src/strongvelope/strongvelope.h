@@ -434,7 +434,7 @@ public:
     virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
 
     virtual promise::Promise<std::string> decryptChatTitleFromApi(const Buffer& data);
-    promise::Promise<chatd::Message*> decryptChatTitle(ParsedMessage *parsedMessage, chatd::Message *msg, bool msgCanBeDeleted);
+    promise::Promise<chatd::Message*> decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMessage, chatd::Message *msg, bool msgCanBeDeleted);
 
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);

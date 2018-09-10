@@ -1074,13 +1074,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case Message::kMsgChatTitle:
         {
-            //We need to capture the parsed message and message until the promise has been resolved
-            return decryptChatTitle(parsedMsg.get(), msg, true)
-            .then([this, parsedMsg, msg](Message *retMsg)
-            {
-                STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from chatd.");
-                return retMsg;
-            });
+            return decryptChatTitle(parsedMsg, msg, true);
         }
         case Message::kMsgCallEnd:
         {
@@ -1603,27 +1597,28 @@ ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
     auto wptr = weakHandle();
     Buffer copy(data.dataSize());
     copy.copyFrom(data);
-    auto msg = std::make_shared<chatd::Message>(Id::null(), Id::null(), 0, 0, std::move(copy));
-    auto parsedMsg = std::make_shared<ParsedMessage>(*msg.get(), *this);
-    promise::Promise<Message*> pms = decryptChatTitle(parsedMsg.get(), msg.get(), false);
-
-    //We need to capture the parsed message and message until the promise has been resolved
-    return pms.then([wptr, parsedMsg, msg, this](Message *retMsg)
+    auto msg = new Message(Id::null(), Id::null(), 0, 0, std::move(copy));
+    auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+    return decryptChatTitle(parsedMsg, msg, false)
+    .then([wptr, this](Message *retMsg)
+    //We need to capture the message in order to keep it alive until the promise has been resolved
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from API");
-        return std::string(retMsg->buf(), retMsg->dataSize());
+        std::string ret(retMsg->buf(), retMsg->dataSize());
+        delete retMsg;
+        return ret;
     })
     .fail([wptr, this](const promise::Error& err)
     {
         wptr.throwIfDeleted();
-        STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. ", err.what());
+        STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. Error: ", err.what());
         return err;
     });
 }
 
 promise::Promise<Message *>
-ProtocolHandler::decryptChatTitle(ParsedMessage *parsedMsg, Message *msg, bool msgCanBeDeleted)
+ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Message *msg, bool msgCanBeDeleted)
 {
     try
     {
@@ -1652,6 +1647,8 @@ ProtocolHandler::decryptChatTitle(ParsedMessage *parsedMsg, Message *msg, bool m
                 assert(unifiedKeyDecrypted == promise::kNotResolved);
                 pms = mUnifiedKeyDecrypted
                 .then([this, parsedMsg, msg](std::shared_ptr<UnifiedKey> unifiedKey) -> promise::Promise<Message*>
+                // warning: parsedMsg must be kept alive when .then() is executed while the
+                // unified-key is decrypted, so we capture the shared pointer
                 {
                     return parsedMsg->decryptPublicChatTitle(msg, unifiedKey);
                 });
@@ -1659,13 +1656,7 @@ ProtocolHandler::decryptChatTitle(ParsedMessage *parsedMsg, Message *msg, bool m
             }
         }
 
-        // warning: parsedMsg must be kept alive when .then() is executed, so we
-        // capture the shared pointer to it. Msg also must be kept alive, as
-        // the promise returns it
-        return pms.then([](Message *retMsg)
-        {
-            return retMsg;
-        });
+        return pms;
     }
     catch(std::exception& e)
     {
@@ -1677,6 +1668,8 @@ promise::Promise<chatd::Message*> ParsedMessage::decryptPublicChatTitle(chatd::M
 {
     symmetricDecrypt(*key, *msg);
     msg->setEncrypted(Message::kNotEncrypted);
+    Id chatid = mProtoHandler.chatid;
+    STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully (public chat).");
     return msg;
 }
 
@@ -1719,6 +1712,8 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
         symmetricDecrypt(*key, *msg);
         msg->setEncrypted(Message::kNotEncrypted);
+        Id chatid = mProtoHandler.chatid;
+        STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully (private chat).");
         return msg;
     });
 }
