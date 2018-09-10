@@ -1035,62 +1035,6 @@ ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
     });
 }
 
-promise::Promise<std::string>
-ProtocolHandler::decryptChatTitle(const Buffer& data)
-{
-    try
-    {
-        Buffer copy(data.dataSize());
-        copy.copyFrom(data);
-        auto msg = std::make_shared<chatd::Message>(Id::null(), Id::null(), 0, 0, std::move(copy));
-        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-
-        promise::Promise<Message*> pms;
-        if (mChatMode == CHAT_MODE_PRIVATE)
-        {
-            pms = parsedMsg->decryptChatTitle(msg.get(), false);
-        }
-        else    // public mode
-        {
-            auto unifiedKeyDecrypted = mUnifiedKeyDecrypted.done();    // wait for unified key decryption
-            switch (unifiedKeyDecrypted)
-            {
-            case promise::kSucceeded:   // if already decrypted...
-                assert(mUnifiedKey);
-                pms = parsedMsg->decryptPublicChatTitle(msg.get(), mUnifiedKey);
-                break;
-
-            case promise::kFailed:
-                STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key decryption failed. Cannot decrypt chat title");
-                return mUnifiedKeyDecrypted.error();
-
-            default:
-                STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key is not decrypted yet");
-
-                assert(unifiedKeyDecrypted == promise::kNotResolved);
-                pms = mUnifiedKeyDecrypted
-                .then([this, msg, parsedMsg](std::shared_ptr<UnifiedKey> unifiedKey) -> promise::Promise<Message*>
-                {
-                    return parsedMsg->decryptPublicChatTitle(msg.get(), unifiedKey);
-                });
-                break;
-            }
-        }
-
-        // warning: parsedMsg must be kept alive when .then() is executed, so we
-        // capture the shared pointer to it. Msg also must be kept alive, as
-        // the promise returns it
-        return pms.then([msg, parsedMsg](Message* retMsg)
-        {
-            return std::string(retMsg->buf(), retMsg->dataSize());
-        });
-    }
-    catch(std::exception& e)
-    {
-        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
-    }
-}
-
 void ProtocolHandler::onHistoryReload()
 {
     mCacheVersion++;
@@ -1130,7 +1074,13 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case Message::kMsgChatTitle:
         {
-            return parsedMsg->decryptChatTitle(msg, true);
+            //We need to capture the parsed message and message until the promise has been resolved
+            return decryptChatTitle(parsedMsg.get(), msg, true)
+            .then([this, parsedMsg, msg](Message *retMsg)
+            {
+                STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from chatd.");
+                return retMsg;
+            });
         }
         case Message::kMsgCallEnd:
         {
@@ -1647,12 +1597,89 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
     });
 }
 
+promise::Promise<std::string>
+ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
+{
+    auto wptr = weakHandle();
+    Buffer copy(data.dataSize());
+    copy.copyFrom(data);
+    auto msg = std::make_shared<chatd::Message>(Id::null(), Id::null(), 0, 0, std::move(copy));
+    auto parsedMsg = std::make_shared<ParsedMessage>(*msg.get(), *this);
+    promise::Promise<Message*> pms = decryptChatTitle(parsedMsg.get(), msg.get(), false);
+
+    //We need to capture the parsed message and message until the promise has been resolved
+    return pms.then([wptr, parsedMsg, msg, this](Message *retMsg)
+    {
+        wptr.throwIfDeleted();
+        STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from API");
+        return std::string(retMsg->buf(), retMsg->dataSize());
+    })
+    .fail([wptr, this](const promise::Error& err)
+    {
+        wptr.throwIfDeleted();
+        STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. ", err.what());
+        return err;
+    });
+}
+
+promise::Promise<Message *>
+ProtocolHandler::decryptChatTitle(ParsedMessage *parsedMsg, Message *msg, bool msgCanBeDeleted)
+{
+    try
+    {
+        promise::Promise<Message *> pms;
+        if (mChatMode == CHAT_MODE_PRIVATE)
+        {
+            pms = parsedMsg->decryptChatTitle(msg, false);
+        }
+        else    // public mode
+        {
+            auto unifiedKeyDecrypted = mUnifiedKeyDecrypted.done();    // wait for unified key decryption
+            switch (unifiedKeyDecrypted)
+            {
+            case promise::kSucceeded:   // if already decrypted...
+                assert(mUnifiedKey);
+                pms = parsedMsg->decryptPublicChatTitle(msg, mUnifiedKey);
+                break;
+
+            case promise::kFailed:
+                STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key decryption failed. Cannot decrypt chat title");
+                return mUnifiedKeyDecrypted.error();
+
+            default:
+                STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key is not decrypted yet");
+
+                assert(unifiedKeyDecrypted == promise::kNotResolved);
+                pms = mUnifiedKeyDecrypted
+                .then([this, parsedMsg, msg](std::shared_ptr<UnifiedKey> unifiedKey) -> promise::Promise<Message*>
+                {
+                    return parsedMsg->decryptPublicChatTitle(msg, unifiedKey);
+                });
+                break;
+            }
+        }
+
+        // warning: parsedMsg must be kept alive when .then() is executed, so we
+        // capture the shared pointer to it. Msg also must be kept alive, as
+        // the promise returns it
+        return pms.then([](Message *retMsg)
+        {
+            return retMsg;
+        });
+    }
+    catch(std::exception& e)
+    {
+        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
+    }
+}
+
 promise::Promise<chatd::Message*> ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<UnifiedKey>& key)
 {
     symmetricDecrypt(*key, *msg);
     msg->setEncrypted(Message::kNotEncrypted);
     return msg;
 }
+
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {

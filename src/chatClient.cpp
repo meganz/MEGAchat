@@ -2480,7 +2480,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
 
     auto wptr = getDelTracker();
-    promise::Promise<std::string> pms = chat().crypto()->decryptChatTitle(buf);
+    promise::Promise<std::string> pms = chat().crypto()->decryptChatTitleFromApi(buf);
     return pms.then([wptr, this](const std::string title)
     {
         wptr.throwIfDeleted();
@@ -2493,7 +2493,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
             mTitleString = title;
             if (!mTitleString.empty())
             {
-                KR_LOG_DEBUG("Title decrypted succesfully. Update in cache");
+                KR_LOG_DEBUG("Title update in cache");
                 mHasTitle = true;
                 parent.mKarereClient.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
             }

@@ -184,7 +184,6 @@ struct ParsedMessage: public karere::DeleteTrackable
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
-
     promise::Promise<chatd::Message *> decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<UnifiedKey> &key);
     promise::Promise<std::string> extractUnifiedKeyFromCt(chatd::Message *msg);
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
@@ -433,7 +432,10 @@ public:
     virtual void randomBytes(void* buf, size_t bufsize) const;
     virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
     virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
-    virtual promise::Promise<std::string> decryptChatTitle(const Buffer& data);
+
+    virtual promise::Promise<std::string> decryptChatTitleFromApi(const Buffer& data);
+    promise::Promise<chatd::Message*> decryptChatTitle(ParsedMessage *parsedMessage, chatd::Message *msg, bool msgCanBeDeleted);
+
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
     static Buffer* createUnifiedKey();
