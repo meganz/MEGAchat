@@ -189,7 +189,10 @@ void Client::sendEcho()
 {
     for (auto& conn: mConnections)
     {
-        conn.second->sendEcho();
+        if (conn.second->isOnline())
+        {
+            conn.second->sendEcho();
+        }
     }
 }
 
@@ -422,6 +425,7 @@ void Connection::sendEcho()
         mEchoTimer = 0;
 
         CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
+        mChatdClient.karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
 
         mState = kStateDisconnected;
         mHeartbeatEnabled = false;
