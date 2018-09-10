@@ -389,9 +389,9 @@ public:
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
         kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
-        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachmen   = 0x10
-        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x11
-        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x12
+        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
+        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
+        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
     };
     enum Status
     {

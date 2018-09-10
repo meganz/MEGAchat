@@ -768,7 +768,10 @@ string Command::toString(const StaticBuffer& data)
         {
             auto& msgcmd = static_cast<const MsgCommand&>(data);
             string tmpString;
-            tmpString.append("NEWMSG - msgxid: ");
+            if (opcode == OP_NEWMSG)
+                tmpString.append("NEWMSG - msgxid: ");
+            else
+                tmpString.append("NEWNODEMSG - msgxid: ");
             tmpString.append(ID_CSTR(msgcmd.msgid()));
             tmpString.append(", keyid: ");
             tmpString.append(to_string(msgcmd.keyId()));
@@ -1648,7 +1651,7 @@ void Chat::replayUnsentNotifications()
     for (auto it = mSending.begin(); it != mSending.end(); it++)
     {
         auto& item = *it;
-        if (item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWMSG)
+        if (item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWNODEMSG)
         {
             CALL_LISTENER(onUnsentMsgLoaded, *item.msg);
         }
@@ -2022,14 +2025,8 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     }
     onMsgTimestamp(msg->ts);
 
-    if (msg->size() > 2 && msg->buf()[0] == 0 && msg->type == Message::Type::kMsgAttachment)
-    {
-        postMsgToSending(OP_NEWNODEMSG, msg, recipients);
-    }
-    else
-    {
-        postMsgToSending(OP_NEWMSG, msg, recipients);
-    }
+    int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
+    postMsgToSending(opcode, msg, recipients);
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -2115,7 +2112,7 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 
 Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds recipients)
 {
-    // for NEWMSG, recipients is always current set of participants
+    // for NEWMSG/NEWNODEMSG, recipients is always current set of participants
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
     assert(((opcode == OP_NEWMSG || opcode == OP_NEWNODEMSG ) && recipients == mUsers)
@@ -3063,9 +3060,17 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
-            if (msg->isDeleted() && msg->isOwnMessage(client().userId()))
+            if (msg->isDeleted())
             {
-                CALL_LISTENER(onUnreadChanged);
+                if (msg->isOwnMessage(client().userId()))
+                {
+                    CALL_LISTENER(onUnreadChanged);
+                }
+
+                if (histType == Message::kMsgAttachment)
+                {
+                    mAttachmentNodes->deleteMessage(*msg);
+                }
             }
 
             if (msg->type == Message::kMsgTruncate)
@@ -3084,11 +3089,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                     findAndNotifyLastTextMsg();
                 }
             }
-
-            if (histType == Message::kMsgAttachment && msg->size() == 0)
-            {
-                mAttachmentNodes->deleteMessage(*msg);
-            }
         }
         else    // message not loaded in RAM
         {
@@ -3104,7 +3104,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
             }
 
-            if (msg->size() == 0)
+            if (msg->isDeleted())
             {
                 mAttachmentNodes->deleteMessage(*msg);
             }
@@ -4181,8 +4181,8 @@ bool Message::isValidEmail(const string &buf)
 FilteredHistory::FilteredHistory(DbInterface *db)
     : mDb(db)
 {
-    initVaraiables();
-    mDb->getHistoryNodeIndex(mNewest, mOldest);
+    init();
+    mDb->getNodeHistoryInfo(mNewest, mOldest);
 }
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
@@ -4191,16 +4191,16 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
     if (isNew)
     {
         mBuffer.emplace_front(message);
-        mNewest ++;
-        mDb->addAttachmentMessageToHistoryNode(msg, mNewest);
+        mNewest++;
+        mDb->addMsgToNodeHistory(msg, mNewest);
     }
     else
     {
-        if (find(msg.id()) == mBuffer.end())
+        if (find(msg.id()) == mBuffer.end())  // if it doesn't exist
         {
             mBuffer.emplace_back(message);
-            mOldest --;
-            mDb->addAttachmentMessageToHistoryNode(msg, mOldest);
+            mOldest--;
+            mDb->addMsgToNodeHistory(msg, mOldest);
         }
     }
 }
@@ -4213,7 +4213,7 @@ void FilteredHistory::deleteMessage(const Message &msg)
         it->reset(new Message(msg));
     }
 
-    mDb->removeAttachmentMessageToHistoryNode(msg);
+    mDb->deleteMsgFromNodeHistory(msg);
 }
 
 void FilteredHistory::truncateHistory(Id id)
@@ -4224,21 +4224,21 @@ void FilteredHistory::truncateHistory(Id id)
         mBuffer.erase(it, mBuffer.end());
     }
 
-    mDb->truncateHistoryNode(id);
-    mDb->getHistoryNodeIndex(mNewest, mOldest);
+    mDb->truncateNodeHistory(id);
+    mDb->getNodeHistoryInfo(mNewest, mOldest);
 }
 
-Idx FilteredHistory::getNewestIdx() const
+Idx FilteredHistory::newestIdx() const
 {
     return mNewest;
 }
 
-Idx FilteredHistory::getOldestIdx() const
+Idx FilteredHistory::oldestIdx() const
 {
     return mOldest;
 }
 
-Idx FilteredHistory::getOldestLoadedIdx() const
+Idx FilteredHistory::oldestLoadedIdx() const
 {
     return mOldestLoaded;
 }
@@ -4246,8 +4246,8 @@ Idx FilteredHistory::getOldestLoadedIdx() const
 void FilteredHistory::clear()
 {
     mBuffer.clear();
-    mDb->clearHistoryNode();
-    initVaraiables();
+    mDb->clearNodeHistory();
+    init();
 }
 
 std::list<std::unique_ptr<Message>>::iterator FilteredHistory::find(karere::Id id)
@@ -4264,7 +4264,7 @@ std::list<std::unique_ptr<Message>>::iterator FilteredHistory::find(karere::Id i
     return mBuffer.end();
 }
 
-void FilteredHistory::initVaraiables()
+void FilteredHistory::init()
 {
     mNewest = -1;
     mOldest = 0;

@@ -508,9 +508,9 @@ public:
     void addMessage(const Message &msg, bool isNew);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
-    Idx getNewestIdx() const;
-    Idx getOldestIdx() const;
-    Idx getOldestLoadedIdx() const;
+    Idx newestIdx() const;
+    Idx oldestIdx() const;
+    Idx oldestLoadedIdx() const;
     void clear();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
@@ -519,7 +519,8 @@ protected:
     Idx mOldest;
     Idx mOldestLoaded;
     std::list<std::unique_ptr<Message>>::iterator find(karere::Id id);
-    void initVaraiables();
+
+    void init();
 };
 
 struct ChatDbInfo;
@@ -1299,6 +1300,15 @@ public:
     virtual void loadManualSendItem(uint64_t rowid, Chat::ManualSendItem& item) = 0;
 
 
+    //  <<<--- Management of the FILTERED HISTORY --->>>
+
+    virtual void addMsgToNodeHistory(const Message& msg, Idx idx) = 0;
+    virtual void deleteMsgFromNodeHistory(const Message& msg) = 0;
+    virtual void truncateNodeHistory(karere::Id id) = 0;
+    virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
+    virtual void clearNodeHistory() = 0;
+
+
 //  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
 
     virtual void getHistoryInfo(ChatDbInfo& info) = 0;
@@ -1317,12 +1327,6 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
-
-    virtual void addAttachmentMessageToHistoryNode(const Message& msg, Idx idx) = 0;
-    virtual void removeAttachmentMessageToHistoryNode(const Message& msg) = 0;
-    virtual void truncateHistoryNode(karere::Id id) = 0;
-    virtual void getHistoryNodeIndex(Idx &newest, Idx &oldest) = 0;
-    virtual void clearHistoryNode() = 0;
 };
 
 }

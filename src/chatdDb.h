@@ -429,39 +429,41 @@ public:
         setHaveAllHistory(false);
     }
 
-    virtual void addAttachmentMessageToHistoryNode(const chatd::Message& msg, chatd::Idx idx)
+    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx idx)
     {
         if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
         {
             addMessage(msg, idx, "node_history");
+            assertAffectedRowCount(1);
         }
     }
 
-    virtual void removeAttachmentMessageToHistoryNode(const chatd::Message& msg)
+    virtual void deleteMsgFromNodeHistory(const chatd::Message& msg)
     {
-        mDb.query("update node_history set type = ?, data = ?, updated = ?, userid = ?, is_encrypted = ? where chatid = ? and msgid = ?",
-                  msg.type, msg, msg.updated, msg.userid, msg.isEncrypted(), mChat.chatId(), msg.id());
+        mDb.query("update node_history set data = ?, updated = ? where chatid = ? and msgid = ?",
+                  msg, msg.updated, mChat.chatId(), msg.id());
+        assertAffectedRowCount(1);
     }
 
-    virtual void truncateHistoryNode(karere::Id id)
+    virtual void truncateNodeHistory(karere::Id id)
     {
         auto idx = getIdxOfMsgid(id, "node_history");
         mDb.query("delete from node_history where chatid = ? and idx <= ?", mChat.chatId(), idx);
     }
 
-    virtual void clearHistoryNode()
+    virtual void clearNodeHistory()
     {
         mDb.query("delete from node_history where chatid = ?", mChat.chatId());
     }
 
-    virtual void getHistoryNodeIndex(chatd::Idx &newest, chatd::Idx &oldest)
+    virtual void getNodeHistoryInfo(chatd::Idx &newest, chatd::Idx &oldest)
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from node_history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
         if (stmt.intCol(2) > 0)
         {
             oldest = (stmt.intCol(0) < 0) ? stmt.intCol(0) : 0;
-            newest = stmt.intCol(1) ;
+            newest = stmt.intCol(1);
         }
     }
 };
