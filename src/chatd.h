@@ -514,11 +514,11 @@ public:
     void clear();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIndexMap;
     DbInterface *mDb;
     Idx mNewest;
     Idx mOldest;
     Idx mOldestLoaded;
-    std::list<std::unique_ptr<Message>>::iterator find(karere::Id id);
 
     void init();
 };

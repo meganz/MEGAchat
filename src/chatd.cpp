@@ -3210,7 +3210,18 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
 
-    mAttachmentNodes->truncateHistory(msg.id());
+
+    Id nextAttachmentId = Id::inval();
+    for (Idx i = lownum(); i < highnum(); i++)
+    {
+        if (at(i).type == Message::kMsgAttachment)
+        {
+            nextAttachmentId = at(i).id();
+            break;
+        }
+    }
+
+    mAttachmentNodes->truncateHistory(nextAttachmentId);
 }
 
 Id Chat::makeRandomId()
@@ -4201,14 +4212,16 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
     if (isNew)
     {
         mBuffer.emplace_front(message);
+        mIndexMap[message->id()] =  mBuffer.begin();
         mNewest++;
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
     }
     else
     {
-        if (find(msg.id()) == mBuffer.end())  // if it doesn't exist
+        if (mIndexMap.find(message->id()) == mIndexMap.end())  // if it doesn't exist
         {
             mBuffer.emplace_back(message);
+            mIndexMap[message->id()] = mBuffer.end();
             mOldest--;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
         }
@@ -4217,10 +4230,12 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
 
 void FilteredHistory::deleteMessage(const Message &msg)
 {
-    auto it = find(msg.id());
-    if (it != mBuffer.end())
+    auto it = mIndexMap.find(msg.id());
+    if (it != mIndexMap.end())
     {
-        it->reset(new Message(msg));
+        // Remove message contain and modify updated field, it is the same that delete a file
+        it->second->get()->free();
+        it->second->get()->updated = msg.updated;
     }
 
     CALL_DB_FH(deleteMsgFromNodeHistory, msg);
@@ -4228,14 +4243,28 @@ void FilteredHistory::deleteMessage(const Message &msg)
 
 void FilteredHistory::truncateHistory(Id id)
 {
-    auto it = find(id);
-    if (it != mBuffer.end())
+    if (id != Id::inval())
     {
-        mBuffer.erase(it, mBuffer.end());
-    }
+        auto it = mIndexMap.find(id);
+        if (it != mIndexMap.end())
+        {
+            auto loopIterator = it->second;
+            loopIterator++;
+            for ( ; loopIterator != mBuffer.end(); loopIterator++)
+            {
+                mIndexMap.erase(loopIterator->get()->id());
+            }
 
-    CALL_DB_FH(truncateNodeHistory, id);
-    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+            mBuffer.erase(it->second, mBuffer.end());
+        }
+
+        CALL_DB_FH(truncateNodeHistory, id);
+        CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+    }
+    else
+    {
+        clear();
+    }
 }
 
 Idx FilteredHistory::newestIdx() const
@@ -4256,22 +4285,9 @@ Idx FilteredHistory::oldestLoadedIdx() const
 void FilteredHistory::clear()
 {
     mBuffer.clear();
+    mIndexMap.clear();
     CALL_DB_FH(clearNodeHistory);
     init();
-}
-
-std::list<std::unique_ptr<Message>>::iterator FilteredHistory::find(karere::Id id)
-{
-    std::list<std::unique_ptr<Message>>::iterator it;
-    for (it = mBuffer.begin(); it != mBuffer.end(); it++)
-    {
-        if (it->get()->id() == id)
-        {
-            return it;
-        }
-    }
-
-    return mBuffer.end();
 }
 
 void FilteredHistory::init()
