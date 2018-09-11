@@ -460,11 +460,11 @@ public:
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from node_history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
-        if (stmt.intCol(2) > 0)
-        {
-            oldest = (stmt.intCol(0) < 0) ? stmt.intCol(0) : 0;
-            newest = stmt.intCol(1);
-        }
+
+        int count = stmt.intCol(2);
+
+        oldest = count ? stmt.intCol(0) : 0;
+        newest = count ? stmt.intCol(1) : -1;
     }
 };
 
