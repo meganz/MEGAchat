@@ -3212,6 +3212,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
 
     Id nextAttachmentId = Id::inval();
+    // lownum is the message where the history has been truncate
     for (Idx i = lownum(); i < highnum(); i++)
     {
         if (at(i).type == Message::kMsgAttachment)
@@ -4248,9 +4249,8 @@ void FilteredHistory::truncateHistory(Id id)
         auto it = mIndexMap.find(id);
         if (it != mIndexMap.end())
         {
-            auto loopIterator = it->second;
-            loopIterator++;
-            for ( ; loopIterator != mBuffer.end(); loopIterator++)
+            // id is a message in the history, we want to remove from the next message until the oldest
+            for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
             {
                 mIndexMap.erase(loopIterator->get()->id());
             }
