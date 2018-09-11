@@ -224,6 +224,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
 - (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
 - (void)saveCurrentState;
+- (void)pushReceivedWithBeep:(BOOL)beep delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)pushReceivedWithBeep:(BOOL)beep;
 
 #pragma mark - Audio and video calls
 
