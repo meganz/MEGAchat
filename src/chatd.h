@@ -544,7 +544,7 @@ public:
         SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts, uint64_t aRowid=0);
         ~SendingItem();
 
-        uint8_t mOpcode;    // NEWMSG, MSGUPDX or MSGUPD
+        uint8_t mOpcode;    // NEWMSG, NEWNODEMSG, MSGUPDX or MSGUPD
 
         /** When sending a message, we attach the Message object here to avoid
         * double-converting it when queued as a raw command in Sending, and after
@@ -553,12 +553,12 @@ public:
         karere::SetOfIds recipients;
         uint64_t rowid; // in the sending table of DB cache
 
-        MsgCommand *msgCmd = NULL;  // stores the encrypted NEWMSG/MSGUPDX/MSGUPD
+        MsgCommand *msgCmd = NULL;  // stores the encrypted NEWMSG/NEWNODEMSG/MSGUPDX/MSGUPD
         KeyCommand *keyCmd = NULL;  // stores the encrypted NEWKEY, if needed
         uint8_t opcode() const { return mOpcode; }
         void setOpcode(uint8_t op) { mOpcode = op; }
 
-        bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
+        bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_NEWNODEMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
         bool isEdit() const { return mOpcode == OP_MSGUPD || mOpcode == OP_MSGUPDX; }
         void setKeyId(KeyId keyid)
         {

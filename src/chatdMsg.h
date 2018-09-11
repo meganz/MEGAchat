@@ -352,9 +352,13 @@ enum Opcode
       *
       * C->S: Add new message to this chat. msgid is a temporary random 64-bit
       *    integer ("msgxid"). No two such msgxids must be generated in the same chat
-      *    in the same server-time second, or only the first NEWMSG will be written.
-      *    This opcode is used to send messages from node attachment type instead of
-      *    OP_NEWMSG
+      *    in the same server-time second, or only the first NEWNODEMSG will be written.
+      *
+      *    This opcode must be used, instead of OP_NEWMSG, to send messages that include
+      *    node/s attachment/s (type kMsgNodeAttachment). Messages sent with this opcode
+      *    will behave exactly as the ones sent with OP_NEWMSG, but chatd will mark them
+      *    as attachments. In result, client can use OP_NODEHIST to retrieve messages of
+      *    this type.
       */
     OP_NEWNODEMSG = 44,
 

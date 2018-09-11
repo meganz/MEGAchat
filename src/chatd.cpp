@@ -2152,10 +2152,10 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     uint64_t rowid = it->rowid;
     assert(msg->id());
 
-    //opcode can be NEWMSG, MSGUPD or MSGUPDX
+    //opcode can be NEWMSG, NEWNODEMSG, MSGUPD or MSGUPDX
     if ((it->opcode() == OP_NEWMSG || it->opcode() == OP_NEWNODEMSG) && msg->backRefs.empty())
     {
-        createMsgBackRefs(it);
+        createMsgBackRefs(it);  // only for new messages
     }
 
     if (mEncryptionHalted)
