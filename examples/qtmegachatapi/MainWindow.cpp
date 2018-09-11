@@ -551,8 +551,16 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             //The chatroom has been left by own user
             case (megachat::MegaChatListItem::CHANGE_TYPE_CLOSED):
             {
-                chatItemWidget->showAsHidden();
-                break;
+                if (item->isPreview())
+                {
+                    chatItemWidget->closePreview();
+                    break;
+                }
+                else
+                {
+                    chatItemWidget->showAsHidden();
+                    break;
+                }
             }
 
             //Timestamp of the last activity update

@@ -6164,7 +6164,16 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-    item->setMembersUpdated();
+
+    if (mRoom.previewMode())
+    {
+        //If we are in preview mode we need to notify app that chatroom can't be previewed
+        item->setClosed();
+    }
+    else
+    {
+        item->setMembersUpdated();
+    }
 
     chatApi.fireOnChatListItemUpdate(item);
 }
