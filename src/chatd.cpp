@@ -74,6 +74,16 @@ using namespace karere;
       }                                                                                         \
     } while(0)
 
+#define CALL_DB_FH(methodName,...)                                                           \
+    do {                                                                                        \
+      try {                                                                                     \
+          CHATD_LOG_DB_CALL("Calling DbInterface::" #methodName "()");                               \
+          mDb->methodName(__VA_ARGS__);                                                   \
+      } catch(std::exception& e) {                                                              \
+          CHATD_LOG_ERROR("Exception thrown from DbInterface::" #methodName "():\n%s", e.what());\
+      }                                                                                         \
+    } while(0)
+
 #ifndef CHATD_ASYNC_MSG_CALLBACKS
     #define CHATD_ASYNC_MSG_CALLBACKS 1
 #endif
@@ -4182,7 +4192,7 @@ FilteredHistory::FilteredHistory(DbInterface *db)
     : mDb(db)
 {
     init();
-    mDb->getNodeHistoryInfo(mNewest, mOldest);
+    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
 }
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
@@ -4192,7 +4202,7 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
     {
         mBuffer.emplace_front(message);
         mNewest++;
-        mDb->addMsgToNodeHistory(msg, mNewest);
+        CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
     }
     else
     {
@@ -4200,7 +4210,7 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
         {
             mBuffer.emplace_back(message);
             mOldest--;
-            mDb->addMsgToNodeHistory(msg, mOldest);
+            CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
         }
     }
 }
@@ -4213,7 +4223,7 @@ void FilteredHistory::deleteMessage(const Message &msg)
         it->reset(new Message(msg));
     }
 
-    mDb->deleteMsgFromNodeHistory(msg);
+    CALL_DB_FH(deleteMsgFromNodeHistory, msg);
 }
 
 void FilteredHistory::truncateHistory(Id id)
@@ -4224,8 +4234,8 @@ void FilteredHistory::truncateHistory(Id id)
         mBuffer.erase(it, mBuffer.end());
     }
 
-    mDb->truncateNodeHistory(id);
-    mDb->getNodeHistoryInfo(mNewest, mOldest);
+    CALL_DB_FH(truncateNodeHistory, id);
+    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
 }
 
 Idx FilteredHistory::newestIdx() const
@@ -4246,7 +4256,7 @@ Idx FilteredHistory::oldestLoadedIdx() const
 void FilteredHistory::clear()
 {
     mBuffer.clear();
-    mDb->clearNodeHistory();
+    CALL_DB_FH(clearNodeHistory);
     init();
 }
 
