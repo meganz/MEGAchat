@@ -189,7 +189,10 @@ void Client::sendEcho()
 {
     for (auto& conn: mConnections)
     {
-        conn.second->sendEcho();
+        if (conn.second->isOnline())
+        {
+            conn.second->sendEcho();
+        }
     }
 }
 
@@ -309,11 +312,6 @@ void Chat::connect()
     }
 }
 
-void Chat::disconnect()
-{
-    setOnlineState(kChatStateOffline);
-}
-
 void Chat::login()
 {
     assert(mConnection.isOnline());
@@ -343,6 +341,7 @@ void Connection::wsConnectCb()
     mState = kStateConnected;
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
+    mRetryCtrl.reset();
 }
 
 void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
@@ -426,6 +425,7 @@ void Connection::sendEcho()
         mEchoTimer = 0;
 
         CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
+        mChatdClient.karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
 
         mState = kStateDisconnected;
         mHeartbeatEnabled = false;
@@ -451,16 +451,17 @@ Promise<void> Connection::reconnect()
 
         mState = kStateResolving;
 
+        // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
+        abortRetryController();
+
+        // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        return retry("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr)
+        mRetryCtrl.reset(createRetryController("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
                 CHATDS_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
-
-                promise::Promise<void> pms = Promise<void>();
-                pms.resolve();
-                return pms;
+                return promise::_Void();
             }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -583,9 +584,25 @@ Promise<void> Connection::reconnect()
                 sendKeepalive(mChatdClient.mKeepaliveType);
                 rejoinExistingChats();
             });
-        }, wptr, mChatdClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, mChatdClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+
+        return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
+}
+
+void Connection::abortRetryController()
+{
+    if (!mRetryCtrl)
+    {
+        return;
+    }
+
+    assert(!isOnline());
+
+    CHATDS_LOG_DEBUG("Reconnection was aborted");
+    mRetryCtrl->abort();
+    mRetryCtrl.reset();
 }
 
 void Connection::disconnect()
@@ -648,21 +665,33 @@ void Connection::doConnect()
     }
 }
 
-promise::Promise<void> Connection::retryPendingConnection()
+void Connection::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        mState = kStateDisconnected;
-        mHeartbeatEnabled = false;
-        if (mEchoTimer)
+        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
         {
-            cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
-            mEchoTimer = 0;
+            CHATD_LOG_WARNING("Abort backoff and reconnect immediately");
+            mRetryCtrl->restart();
         }
-        CHATDS_LOG_WARNING("Retrying pending connection...");
-        return reconnect();
+        else if (disconnect)
+        {
+            mState = kStateDisconnected;
+            mHeartbeatEnabled = false;
+            if (mEchoTimer)
+            {
+                cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
+                mEchoTimer = 0;
+            }
+            abortRetryController();
+            CHATDS_LOG_WARNING("Retrying pending connection...");
+            reconnect();
+        }
     }
-    return promise::Error("No valid URL provided to retry pending connections");
+    else
+    {
+        CHATDS_LOG_WARNING("No valid URL provided to retry pending connections");
+    }
 }
 
 void Connection::heartbeat()
@@ -698,14 +727,12 @@ void Client::disconnect()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnections()
+void Client::retryPendingConnections(bool disconnect)
 {
-    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        promises.push_back(conn.second->retryPendingConnection());
+        conn.second->retryPendingConnection(disconnect);
     }
-    return promise::when(promises);
 }
 
 void Client::heartbeat()
