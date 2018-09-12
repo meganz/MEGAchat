@@ -4234,9 +4234,9 @@ void FilteredHistory::deleteMessage(const Message &msg)
     auto it = mIndexMap.find(msg.id());
     if (it != mIndexMap.end())
     {
-        // Remove message contain and modify updated field, it is the same that delete a file
-        it->second->get()->free();
-        it->second->get()->updated = msg.updated;
+        // Remove message's content and modify updated field, it is the same that delete a file
+        (*it->second)->free();
+        (*it->second)->updated = msg.updated;
     }
 
     CALL_DB_FH(deleteMsgFromNodeHistory, msg);
@@ -4252,7 +4252,7 @@ void FilteredHistory::truncateHistory(Id id)
             // id is a message in the history, we want to remove from the next message until the oldest
             for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
             {
-                mIndexMap.erase(loopIterator->get()->id());
+                mIndexMap.erase((*loopIterator)->id());
             }
 
             mBuffer.erase(it->second, mBuffer.end());
