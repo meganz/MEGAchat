@@ -76,6 +76,8 @@ int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const w
         }
         else if (failTypeLog)
         {
+            //This fail is almost always produced due to incompatibilities between webRtc
+            // in release mode and karere in debug mode. We only report once to avoid unnecessary log output
             KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
             failTypeLog = false;
         }
