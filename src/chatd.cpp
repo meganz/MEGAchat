@@ -4222,7 +4222,7 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
         if (mIndexMap.find(message->id()) == mIndexMap.end())  // if it doesn't exist
         {
             mBuffer.emplace_back(message);
-            mIndexMap[message->id()] = mBuffer.end();
+            mIndexMap[message->id()] = --mBuffer.end();
             mOldest--;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
         }
