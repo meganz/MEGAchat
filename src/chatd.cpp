@@ -3824,7 +3824,8 @@ void Chat::onUserLeave(Id userid)
     if (mOnlineState < kChatStateJoining)
         throw std::runtime_error("onUserLeave received while not joining and not online");
 
-    if (userid == client().userId())
+    if (userid == client().userId()
+            || (previewMode() && userid == Id::null()))
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
     }

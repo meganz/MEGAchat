@@ -318,7 +318,6 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
-    bool mPreviewMode = false;
     int mNumPeers = 0; //Only for public chats in preview mode
 
     void setChatPrivateMode();
@@ -425,7 +424,6 @@ public:
     virtual bool publicChat() const;
 
     virtual bool previewMode() const;
-    void setPreviewMode(bool previewMode);
 
     std::shared_ptr<std::string> unifiedKey();
     int getNumPeers() const;

@@ -502,108 +502,94 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     if (itChats != chatWidgets.end())
     {
         ChatItemWidget * chatItemWidget = itChats->second;
-        int change = item->getChanges();
-        switch (change)
+
+        //Last Message update
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG))
         {
-            //Last Message update
-            case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_MSG):
-            {
-                chatItemWidget->updateToolTip(item, NULL);
-                break;
-            }
+            chatItemWidget->updateToolTip(item, NULL);
+        }
 
-            //Unread count update
-            case (megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT):
-            {
-                chatItemWidget->onUnreadCountChanged(item->getUnreadCount());
-                break;
-            }
+        //Unread count update
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT))
+        {
+            chatItemWidget->onUnreadCountChanged(item->getUnreadCount());
+        }
 
-            //Title update
-            case (megachat::MegaChatListItem::CHANGE_TYPE_TITLE):
-            {
-                chatItemWidget->onTitleChanged(item->getTitle());
-                break;
-            }
+        //Title update
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_TITLE))
+        {
+            chatItemWidget->onTitleChanged(item->getTitle());
+        }
 
-            //Own priv update
-            case (megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV):
+        //Own priv update
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_OWN_PRIV))
+        {
+            chatItemWidget->updateToolTip(item, NULL);
+        }
+
+        //Participants update
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
+        {
+            if (item->isPreview())
             {
                 if (item->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)
                 {
                     chatItemWidget->closePreview();
                 }
-                else
+                else if (item->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RO)
                 {
-                    chatItemWidget->updateToolTip(item, NULL);
-                }
-                break;
-            }
-
-            //Participants update
-            case (megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS):
-            {
-                chatItemWidget->updateToolTip(item, NULL);
-                orderContactChatList();
-                break;
-            }
-
-            //The chatroom has been left by own user
-            case (megachat::MegaChatListItem::CHANGE_TYPE_CLOSED):
-            {
-                if (item->isPreview())
-                {
-                    chatItemWidget->closePreview();
-                    break;
-                }
-                else
-                {
-                    chatItemWidget->showAsHidden();
-                    break;
+                    //Remove preview and add normat item widget
                 }
             }
+            chatItemWidget->updateToolTip(item, NULL);
+        }
 
-            //Timestamp of the last activity update
-            case (megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS):
-            {
-                orderContactChatList();
-                break;
-            }
-
-            //The chatroom is private now
-            case (megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE):
+        //The chatroom has been left by own user
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CLOSED))
+        {
+            if (item->isPreview())
             {
                 chatItemWidget->closePreview();
-                break;
             }
-
-            //The Chatroom has been un/archived
-            case (megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE):
+            else
             {
-                if (!mShowArchived)
+                chatItemWidget->showAsHidden();
+            }
+        }
+
+        //Timestamp of the last activity update
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS))
+        {
+            chatItemWidget->updateToolTip(item, NULL);
+        }
+
+        //The chatroom is private now
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE))
+        {
+            if (item->isPreview())
+            {
+                chatItemWidget->closePreview();
+            }
+        }
+
+        //The Chatroom has been un/archived
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE))
+        {
+            if (!mShowArchived)
+            {
+                ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
+                if(auxChatItemWidget)
                 {
-                    ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
-                    if(auxChatItemWidget)
+                    if (auxChatItemWidget->mChatWindow)
                     {
-                        if (auxChatItemWidget->mChatWindow)
-                        {
-                            auxChatItemWidget->mChatWindow->deleteLater();
-                            auxChatItemWidget->invalidChatWindowHandle();
-                        }
+                        auxChatItemWidget->mChatWindow->deleteLater();
+                        auxChatItemWidget->invalidChatWindowHandle();
                     }
                 }
-                orderContactChatList();
-                break;
             }
         }
     }
-    else    // new chatroom
-    {
-        if (!item->isArchived() && item->isActive())
-        {
-            orderContactChatList();
-        }
-    }
+    orderContactChatList();
 }
 
 void MainWindow::onShowInactiveChats()

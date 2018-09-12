@@ -2897,8 +2897,11 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
-     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat or has
-     * already been loaded
+     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat.
+     * - MegaChatError::ERROR_ACCESS If the user is trying to preview a public chat wich he
+     * was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
+     * to the chat again. Note that you won't be able to preview a public chat any more, once
+     * you have been part of the chat.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:

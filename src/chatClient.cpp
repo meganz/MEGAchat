@@ -1919,7 +1919,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,
     const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr), mPreviewMode(true), mNumPeers(aNumPeers)
+  mRoomGui(nullptr), mNumPeers(aNumPeers)
 {
     Id ph(publicHandle);
     initWithChatd(unifiedKey, false, ph);   // strongvelope only needs the public handle in anonymous mode (to fetch user attributes via `mcuga`)
@@ -2092,9 +2092,18 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
     if (mOwnPriv == priv)
         return false;
 
+    if(chat().previewMode() && mOwnPriv == chatd::PRIV_RDONLY)
+    {
+        //Join
+        mChat->setPublicHandle(Id::inval());
+
+        //Remove preview mode flag from DB
+        auto db = parent.mKarereClient.db;
+        db.query("delete from chat_vars where chatid=? and name='preview_mode'", mChatid);
+    }
+
     mOwnPriv = priv;
     parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
-
     return true;
 }
 
@@ -2719,21 +2728,7 @@ promise::Promise<void> GroupChatRoom::joinChatLink(uint64_t ph)
     })
     .then([this, myHandle](ReqResult)
     {
-        mChat->setPublicHandle(Id::inval());
-
-        //If we aren't in preview mode we need to clean history and retrieve it again
-        if (!mPreviewMode)
-        {
-            mChat->rejoin();
-        }
-        else
-        {
-            mPreviewMode = false;
-        }
-
-        //Remove preview mode flag from DB
-        auto db = parent.mKarereClient.db;
-        db.query("delete from chat_vars where chatid=? and name='preview_mode'", mChatid);
+        onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
     });
  }
 
@@ -2807,7 +2802,8 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
-    if (userid == parent.mKarereClient.myHandle())
+    if (userid == parent.mKarereClient.myHandle()
+            || (previewMode() && userid == Id::null()))
     {
         setRemoved();
     }
@@ -2976,12 +2972,7 @@ bool GroupChatRoom::publicChat() const
 // return true if new peer, peer removed or peer's privilege updated
 bool GroupChatRoom::previewMode() const
 {
-    return mPreviewMode;
-}
-
-void GroupChatRoom::setPreviewMode(bool previewMode)
-{
-    mPreviewMode = previewMode;
+    return mChat->previewMode();
 }
 
 std::shared_ptr<std::string> GroupChatRoom::unifiedKey()
@@ -3176,9 +3167,8 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
-    if (mPreviewMode)
+    if (mChat->previewMode())
     {
-        mPreviewMode = false;
         mChat->setPublicHandle(Id::inval());
         removeAppChatHandler();
         return;

@@ -808,13 +808,13 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 MegaChatErrorPrivate *megaChatError;
 
-                if (room->isActive())
+                if (!room->isActive())  // a public chat already left cannot be previewed: join it directly.
                 {
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
                 }
                 else
                 {
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 }
 
                 fireOnChatRequestFinish(request, megaChatError);
@@ -6164,17 +6164,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
     MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
-
-    if (mRoom.previewMode())
-    {
-        //If we are in preview mode we need to notify app that chatroom can't be previewed
-        item->setClosed();
-    }
-    else
-    {
-        item->setMembersUpdated();
-    }
-
+    item->setMembersUpdated();
     chatApi.fireOnChatListItemUpdate(item);
 }
 
