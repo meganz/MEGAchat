@@ -64,6 +64,7 @@ void Client::wsConnectCb()
     setConnState(kConnected);
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
+    mRetryCtrl.reset();
 }
 
 void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
@@ -165,6 +166,20 @@ void Client::signalActivity(bool force)
         sendUserActive(true, force);
 }
 
+void Client::abortRetryController()
+{
+    if (!mRetryCtrl)
+    {
+        return;
+    }
+
+    assert(!isOnline());
+
+    PRESENCED_LOG_DEBUG("Reconnection was aborted");
+    mRetryCtrl->abort();
+    mRetryCtrl.reset();
+}
+
 Promise<void>
 Client::reconnect(const std::string& url)
 {
@@ -186,16 +201,17 @@ Client::reconnect(const std::string& url)
 
         setConnState(kResolving);
 
+        // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
+        abortRetryController();
+
+        // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        return retry("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr)
+        mRetryCtrl.reset(createRetryController("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
-
-                promise::Promise<void> pms = Promise<void>();
-                pms.resolve();
-                return pms;
+                return promise::_Void();
             }
 
             disconnect();
@@ -300,8 +316,12 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 login();
             });
-        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+
+        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+
+        return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
+
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
@@ -419,16 +439,28 @@ void Client::doConnect()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnection()
+void Client::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        setConnState(kDisconnected);
-        mHeartbeatEnabled = false;
-        PRESENCED_LOG_WARNING("Retry pending connections...");
-        return reconnect();
+        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+        {
+            PRESENCED_LOG_WARNING("Abort backoff and reconnect immediately");
+            mRetryCtrl->restart();
+        }
+        else if (disconnect)
+        {
+            setConnState(kDisconnected);
+            mHeartbeatEnabled = false;
+            abortRetryController();
+            PRESENCED_LOG_WARNING("Retry pending connection...");
+            reconnect();
+        }
     }
-    return promise::Error("No valid URL provided to retry pending connections");
+    else
+    {
+        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+    }
 }
 
 bool Client::sendBuf(Buffer&& buf)

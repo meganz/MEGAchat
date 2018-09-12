@@ -935,7 +935,7 @@ public:
     int getConnectionState();
     int getChatConnectionState(MegaChatHandle chatid);
     static int convertChatConnectionState(chatd::ChatState state);
-    void retryPendingConnections(MegaChatRequestListener *listener = NULL);
+    void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
     void localLogout(MegaChatRequestListener *listener = NULL);
 

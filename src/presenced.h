@@ -7,9 +7,10 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include <karereId.h>
-#include "url.h"
+#include <url.h>
 #include <base/trackDelete.h>
-#include "net/websocketsIO.h"
+#include <net/websocketsIO.h>
+#include <base/retryHandler.h>
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -256,6 +257,7 @@ protected:
     karere::Client *karereClient;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
     promise::Promise<void> mConnectPromise;
     uint8_t mCapabilities;
     karere::Url mUrl;
@@ -271,7 +273,6 @@ protected:
     time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
-    void initWebsocketCtx();
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
@@ -280,6 +281,7 @@ protected:
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
+    void abortRetryController();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
@@ -313,7 +315,7 @@ public:
         const Config& Config);
     void disconnect();
     void doConnect();
-    promise::Promise<void> retryPendingConnection();
+    void retryPendingConnection(bool disconnect);
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */

@@ -2004,9 +2004,10 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      *
+     * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
      * @param listener MegaChatRequestListener to track this request
      */
-    void retryPendingConnections(MegaChatRequestListener *listener = NULL);
+    void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session
@@ -4616,13 +4617,6 @@ public:
      *  - Edition/deletion of received unseen messages.
      *  - Trucate of history (for both, when truncate is ours or theirs).
      *  - Changes on the lastest message seen by us (don't notify previous unseen messages).
-     *
-     * @note This notifications cover every chatroom that is not opened. For the opened chatroom,
-     * you will not get these notifications (the user is not interested on getting notifications for
-     * events happening in the chatroom that is currently looking at).
-     * Rembember to close the chatroom if the apps enters in background, since you will get a push
-     * notification but, once the app resumes, you will not get notifications about a chatroom if
-     * it's opened.
      *
      * Depending on the status of the message (seen or unseen), if it has been edited/deleted,
      * or even on the type of the message (truncate), the app should add/update/clear the corresponding
