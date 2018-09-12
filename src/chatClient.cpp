@@ -173,7 +173,7 @@ bool Client::openDb(const std::string& sid)
         if (cachedVersionSuffixPos != std::string::npos)
         {
             std::string cachedVersionSuffix = cachedVersion.substr(cachedVersionSuffixPos + 1);
-            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix != cachedVersionSuffix)
+            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix == "3")
             {
                 KR_LOG_WARNING("Clearing history from cached chats...");
 
@@ -188,7 +188,7 @@ bool Client::openDb(const std::string& sid)
 
                 ok = true;
             }
-            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix == "4")
             {
                 // clients with version 3 need to force a full-reload of SDK's cache to retrieve
                 // "deleted" chats from API, since it used to not return them. It should only be
@@ -208,7 +208,7 @@ bool Client::openDb(const std::string& sid)
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
-            else if (cachedVersionSuffix == "4" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            else if (cachedVersionSuffix == "4" &&  gDbSchemaVersionSuffix == "5")
             {
                 // clients with version 4 need to create a new table `node_history` and populate it with
                 // node's attachments already in cache. Futhermore, the existing types for special messages
