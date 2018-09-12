@@ -62,6 +62,7 @@ void Recorder::resetBwCalculators()
 int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
 {
     int64_t numericalValue = 0;
+    static bool failTypeLog = true;
     const webrtc::StatsReport::Value *value = item->FindValue(name);
     if (value)
     {
@@ -73,10 +74,10 @@ int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const w
         {
             numericalValue = value->int64_val();
         }
-        else
+        else if (failTypeLog)
         {
             KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
-            assert(false);
+            failTypeLog = false;
         }
     }
 
