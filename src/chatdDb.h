@@ -466,6 +466,29 @@ public:
         oldest = count ? stmt.intCol(0) : 0;
         newest = count ? stmt.intCol(1) : -1;
     }
+
+    virtual void loadNodeHistoryFromDb(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages)
+    {
+        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from node_history "
+            "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
+        stmt << mChat.chatId() << idx << count;
+        int i = 0;
+        while(stmt.step())
+        {
+            i++;
+            karere::Id msgid(stmt.uint64Col(0));
+            karere::Id userid(stmt.uint64Col(1));
+            unsigned ts = stmt.uintCol(2);
+            chatd::KeyId keyid = stmt.uintCol(6);
+            Buffer buf;
+            stmt.blobCol(4, buf);
+            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
+                false, keyid, (unsigned char)stmt.intCol(3));
+            msg->backRefId = stmt.uint64Col(7);
+            msg->setEncrypted((uint8_t)stmt.intCol(9));
+            messages.push_back(msg);
+        }
+    }
 };
 
 #endif
