@@ -96,6 +96,7 @@ enum TermCode: uint8_t
     kCallGone = 8,
     kBusy = 9,                  // < Peer is in another call
     kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
+    kDestroyByCallCollision = 11,// < The call has finished by a call collision
     kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
     kErrorFirst = 21,           // < First enum specifying call termination due to error
     kErrApiTimeout = 22,        // < Mega API timed out on some request (usually for RSA keys)
