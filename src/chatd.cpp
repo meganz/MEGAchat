@@ -873,6 +873,21 @@ string Command::toString(const StaticBuffer& data)
         case OP_RTMSG_BROADCAST:
             return ::rtcModule::rtmsgCommandToString(data);
 #endif
+        case OP_NODEHIST:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id msgid = data.read<uint64_t>(9);
+            int32_t count = data.read<int32_t>(17);
+            tmpString.append("NODEHIST chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(", msgid: ");
+            tmpString.append(ID_CSTR(msgid));
+            tmpString.append(", count: ");
+            tmpString.append(std::to_string(count));
+            return tmpString;
+        }
+
         default:
             return opcodeToStr(opcode);
     }
@@ -4033,6 +4048,8 @@ const char* Command::opcodeToStr(uint8_t code)
         RET_ENUM_NAME(ADDREACTION);
         RET_ENUM_NAME(DELREACTION);
         RET_ENUM_NAME(SYNC);
+        RET_ENUM_NAME(NEWNODEMSG);
+        RET_ENUM_NAME(NODEHIST);
         default: return "(invalid opcode)";
     };
 }
