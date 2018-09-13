@@ -496,6 +496,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 {
     updateLocalChatListItem(item);
 
+    bool needReorder = false;
+
     megachat::MegaChatHandle chatid = item->getChatId();
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
     itChats = chatWidgets.find(chatid);
@@ -555,21 +557,20 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             {
                 chatItemWidget->showAsHidden();
             }
+            needReorder = true;
         }
 
         //Timestamp of the last activity update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS))
         {
             chatItemWidget->updateToolTip(item, NULL);
+            needReorder = true;
         }
 
         //The chatroom is private now
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE))
         {
-            if (item->isPreview())
-            {
-                chatItemWidget->closePreview();
-            }
+            //TODO: needs to update the item UI --> remove the "P" indicator of public chats
         }
 
         //The Chatroom has been un/archived
@@ -587,9 +588,14 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
                     }
                 }
             }
+            needReorder = true;
         }
     }
-    orderContactChatList();
+
+    if (needReorder)
+    {
+        orderContactChatList();
+    }
 }
 
 void MainWindow::onShowInactiveChats()
