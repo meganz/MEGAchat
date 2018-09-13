@@ -105,6 +105,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->retryPendingConnections();
 }
 
+- (void)reconnect {
+    self.megaChatApi->retryPendingConnections(true);
+}
+
 - (void)dealloc {
     delete _megaChatApi;
     pthread_mutex_destroy(&listenerMutex);
@@ -773,11 +777,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId {
-    return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCallByCallId(callId) cMemoryOwn:YES];
+    MegaChatCall *chatCall = self.megaChatApi->getChatCallByCallId(callId);
+    return chatCall ? [[MEGAChatCall alloc] initWithMegaChatCall:chatCall cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId {
-    return [[MEGAChatCall alloc] initWithMegaChatCall:self.megaChatApi->getChatCall(chatId) cMemoryOwn:YES];
+    MegaChatCall *chatCall = self.megaChatApi->getChatCall(chatId);
+    return chatCall ? [[MEGAChatCall alloc] initWithMegaChatCall:chatCall cMemoryOwn:YES] : nil;
 }
 
 - (NSInteger)numCalls {

@@ -632,6 +632,11 @@ public:
         kInitErrSidInvalid
     };
 
+    enum
+    {
+        kHeartbeatTimeout = 10000     /// Timeout for heartbeats (ms)
+    };
+
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
@@ -790,7 +795,7 @@ public:
      * @brief Retry pending connections to chatd and presenced
      * @return A promise to track the result of the action.
      */
-    promise::Promise<void> retryPendingConnections();
+    void retryPendingConnections(bool disconnect);
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
