@@ -719,19 +719,6 @@ void MainWindow::setOnlineStatus()
 
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chatid, int newState)
 {
-    if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
-    {
-        updateLocalChatListItems();
-        orderContactChatList();
-        megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-        if (presenceConfig)
-        {
-            onChatPresenceConfigUpdate(mMegaChatApi, presenceConfig);
-        }
-        delete presenceConfig;
-        return;
-    }
-
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it = chatWidgets.find(chatid);
     if (it != chatWidgets.end())
     {
@@ -771,12 +758,14 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
             orderContactChatList();
         }
 
+
         QString auxTitle(mMegaChatApi->getMyEmail());
         if (mApp->sid() && newState == MegaChatApi::INIT_OFFLINE_SESSION)
         {
             auxTitle.append(" [OFFLINE MODE]");
         }
         setWindowTitle(auxTitle);
+        updateToolTipMyInfo(mMegaChatApi->getMyUserHandle());
     }
 }
 

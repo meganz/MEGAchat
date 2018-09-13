@@ -482,12 +482,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                 init();
             }
-            else
-            {
-                MegaChatHandle myHandle = mMegaChatApi->getMyUserHandle();
-                addChats();
-                mMainWin->updateToolTipMyInfo(myHandle);
-            }
             break;
 
         case MegaChatRequest::TYPE_LOGOUT:
