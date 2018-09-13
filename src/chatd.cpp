@@ -1022,6 +1022,26 @@ HistSource Chat::getHistory(unsigned count)
     return nextSource;
 }
 
+void Chat::getHistoryNodes(unsigned count)
+{
+    int loadedMessages = mAttachmentNodes->loadHistoryFromDb(count);
+
+    if (loadedMessages < count && !mAttachmentNodes->hasAllHistory())
+    {
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, count, loadedMessages]()
+        {
+            if (wptr.deleted())
+                return;
+
+            CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count - loadedMessages);
+            requestNodeHistoryFromServer(count - loadedMessages);
+        }, mClient.karereClient->appCtx);
+
+    }
+
+}
+
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 {
     if (mHasMoreHistoryInDb)
@@ -1070,7 +1090,18 @@ void Chat::requestHistoryFromServer(int32_t count)
         ? kHistFetchingNewFromServer
         : kHistFetchingOldFromServer;
 
+    mFetchRequest.push(FetchType::kFetchMessages);
     sendCommand(Command(OP_HIST) + mChatId + count);
+}
+
+void Chat::requestNodeHistoryFromServer(int32_t count)
+{
+    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
+    assert(mConnection.isOnline());
+
+    mFetchRequest.push(FetchType::kFetchNodeHistory);
+    mAttachNodeRequestToServer = count;
+    sendCommand(Command(OP_NODEHIST) + mChatId + mAttachmentNodes->getLastMessageId() + count);
 }
 
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
@@ -1089,7 +1120,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
-    mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(mDbInterface));
+    mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(mDbInterface, *mListener));
     initChat();
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
@@ -1268,7 +1299,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else
                 {
-                    chat.msgIncoming((opcode == OP_NEWMSG), msg.release(), false);
+                    if (chat.getFetchType() != Chat::FetchType::kFetchNodeHistory || opcode == OP_NEWMSG)
+                    {
+                        chat.msgIncoming((opcode == OP_NEWMSG), msg.release(), false);
+                    }
+                    else
+                    {
+                        assert((opcode == OP_NEWMSG));
+                        chat.msgNodeHistIncoming(msg.release());
+                    }
                 }
                 break;
             }
@@ -1569,17 +1608,35 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
 
 void Chat::onHistDone()
 {
-    // We may be fetching from memory and db because of a resetHistFetch()
-    // while fetching from server. In that case, we don't notify about
-    // fetched messages and onHistDone()
+    FetchType fetchValue = mFetchRequest.front();
+    mFetchRequest.pop();
+    if (fetchValue == FetchType::kFetchMessages)
+    {
+        // We may be fetching from memory and db because of a resetHistFetch()
+        // while fetching from server. In that case, we don't notify about
+        // fetched messages and onHistDone()
 
-    if (isFetchingFromServer()) //HISTDONE is received for new history or after JOINRANGEHIST
-    {
-        onFetchHistDone();
+        if (isFetchingFromServer()) //HISTDONE is received for new history or after JOINRANGEHIST
+        {
+            onFetchHistDone();
+        }
+        if(mOnlineState == kChatStateJoining)
+        {
+            onJoinComplete();
+        }
     }
-    if(mOnlineState == kChatStateJoining)
+    else if (fetchValue == FetchType::kFetchNodeHistory)
     {
-        onJoinComplete();
+        assert(mAttachNodeRequestToServer);
+        if (mAttachNodeReceived < mAttachNodeRequestToServer)
+        {
+            mAttachmentNodes->setHasAllHistory(true);
+        }
+
+        mAttachNodeReceived = 0;
+        mAttachNodeRequestToServer = 0;
+
+        // TODO: notify fetch attachment is complete
     }
 }
 
@@ -1749,6 +1806,11 @@ void Chat::clearHistory()
 void Chat::sendSync()
 {
     sendCommand(Command(OP_SYNC) + mChatId);
+}
+
+Chat::FetchType Chat::getFetchType() const
+{
+    return mFetchRequest.empty() ? FetchType::kNoFetching : mFetchRequest.front();
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -2654,6 +2716,7 @@ void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
     CHATID_LOG_DEBUG("Sending JOINRANGEHIST based on app db: %s - %s",
             dbInfo.oldestDbId.toString().c_str(), dbInfo.newestDbId.toString().c_str());
 
+    mFetchRequest.push(FetchType::kFetchMessages);
     sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + at(highnum()).id());
 }
 
@@ -3684,6 +3747,31 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     }
 }
 
+void Chat::msgNodeHistIncoming(Message *msg)
+{
+    mAttachNodeReceived++;
+    auto pms = mCrypto->msgDecrypt(msg);
+    if (pms.succeeded())
+    {
+        assert(!msg->isEncrypted());
+        mAttachmentNodes->addMessage(*msg, false);
+        delete msg;
+    }
+    else
+    {
+        pms.fail([this, msg](const promise::Error& /*err*/) -> promise::Promise<Message*>
+        {
+            assert(msg->isPendingToDecrypt());
+            delete msg;
+        })
+        .then([this](Message* message)
+        {
+            mAttachmentNodes->addMessage(*message, false);
+            delete message;
+        });
+    }
+}
+
 void Chat::onMsgTimestamp(uint32_t ts)
 {
     if (ts <= mLastMsgTs)
@@ -4217,16 +4305,18 @@ bool Message::isValidEmail(const string &buf)
     return regex_match(buf, regularExpresion);
 }
 
-FilteredHistory::FilteredHistory(DbInterface *db)
-    : mDb(db)
+FilteredHistory::FilteredHistory(DbInterface *db, Listener &listener)
+    : mDb(db), mListener(&listener)
 {
     init();
     CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+    loadHistoryFromDb(mInitialMessagesToLoad);
 }
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
 {
     Message* message = new Message(msg);
+    // TODO: notify new/old attch message
     if (isNew)
     {
         mBuffer.emplace_front(message);
@@ -4240,8 +4330,10 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
         {
             mBuffer.emplace_back(message);
             mIndexMap[message->id()] = --mBuffer.end();
-            mOldest--;
+            mOldestInDb--;
+            mOldest = mOldestInDb;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
+            mDb->addMsgToNodeHistory(msg, mOldestInDb);
         }
     }
 }
@@ -4276,7 +4368,8 @@ void FilteredHistory::truncateHistory(Id id)
         }
 
         CALL_DB_FH(truncateNodeHistory, id);
-        CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+        CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
+        mOldest = (mOldest < mOldestInDb) ? mOldestInDb : mOldest;
     }
     else
     {
@@ -4296,7 +4389,7 @@ Idx FilteredHistory::oldestIdx() const
 
 Idx FilteredHistory::oldestLoadedIdx() const
 {
-    return mOldestLoaded;
+    return mOldestInDb;
 }
 
 void FilteredHistory::clear()
@@ -4307,11 +4400,44 @@ void FilteredHistory::clear()
     init();
 }
 
+int FilteredHistory::loadHistoryFromDb(int count)
+{
+    std::vector<chatd::Message*> messages;
+    if (mOldest > mOldestInDb)
+    {
+        CALL_DB_FH(loadNodeHistoryFromDb, count, mOldest, messages);
+        for (unsigned int i = 0; i < messages.size(); i++)
+        {
+            // TODO: notify old attch message
+            mBuffer.emplace_back(messages[i]);
+            mOldest --;
+        }
+    }
+
+    return messages.size();
+}
+
+void FilteredHistory::setHasAllHistory(bool hasAllHistory)
+{
+    mHasAllHistory = hasAllHistory;
+}
+
+bool FilteredHistory::hasAllHistory() const
+{
+    return mHasAllHistory;
+}
+
+Id FilteredHistory::getLastMessageId() const
+{
+    return mBuffer.empty() ? Id::inval() : mBuffer.back()->id();
+}
+
 void FilteredHistory::init()
 {
     mNewest = -1;
     mOldest = 0;
-    mOldestLoaded = 0;
+    mOldestInDb = 0;
+    mHasAllHistory = false;
 }
 
 } // end chatd namespace

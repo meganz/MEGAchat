@@ -504,7 +504,7 @@ protected:
 class FilteredHistory
 {
 public:
-    FilteredHistory(DbInterface *db);
+    FilteredHistory(DbInterface *db, Listener &listener);
     void addMessage(const Message &msg, bool isNew);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
@@ -512,15 +512,21 @@ public:
     Idx oldestIdx() const;
     Idx oldestLoadedIdx() const;
     void clear();
+    int loadHistoryFromDb(int count);
+    void setHasAllHistory(bool hasAllHistory);
+    bool hasAllHistory() const;
+    karere::Id getLastMessageId() const;
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
     std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIndexMap;
     DbInterface *mDb;
     Idx mNewest;
     Idx mOldest;
-    Idx mOldestLoaded;
-
+    Idx mOldestInDb;
     void init();
+    int mInitialMessagesToLoad = 32;
+    bool mHasAllHistory = false;
+    Listener *mListener;
 };
 
 struct ChatDbInfo;
@@ -575,6 +581,13 @@ public:
         uint64_t rowid;
         uint8_t opcode;
         ManualSendReason reason;
+    };
+
+    enum FetchType
+    {
+        kFetchMessages,
+        kFetchNodeHistory,
+        kNoFetching
     };
 
     Client& mClient;
@@ -659,6 +672,9 @@ protected:
     uint32_t mLastMsgTs;
     bool mIsGroup;
     std::set<karere::Id> mMsgsToUpdateWithRichLink;
+    std::queue <FetchType> mFetchRequest;
+    uint32_t mAttachNodeRequestToServer = 0;
+    uint32_t mAttachNodeReceived = 0;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -681,12 +697,14 @@ protected:
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
+    void msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
+    void requestNodeHistoryFromServer(int32_t count);
     Idx getHistoryFromDb(unsigned count);
     HistSource getHistoryFromDbOrServer(unsigned count);
     void onLastReceived(karere::Id msgid);
@@ -912,6 +930,8 @@ public:
      */
     HistSource getHistory(unsigned count);
 
+    void getHistoryNodes(unsigned count);
+
     /**
      * @brief Resets sending of history to the app, so that next getHistory()
      * will start from the newest known message. Note that this doesn't affect
@@ -1084,6 +1104,7 @@ public:
     bool isGroup() const;
     void clearHistory();
     void sendSync();
+    FetchType getFetchType() const;
 
 
 protected:
@@ -1307,6 +1328,7 @@ public:
     virtual void truncateNodeHistory(karere::Id id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
     virtual void clearNodeHistory() = 0;
+    virtual void loadNodeHistoryFromDb(int count, Idx idx, std::vector<chatd::Message*>& messages) = 0;
 
 
 //  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
