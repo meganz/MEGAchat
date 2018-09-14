@@ -488,9 +488,9 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     }
 }
 
-unsigned int ProtocolHandler::getChatMode() const
+bool ProtocolHandler::isPublicChat()
 {
-    return mChatMode;
+    return (mChatMode == CHAT_MODE_PUBLIC);
 }
 
 void ProtocolHandler::setPrivateChatMode()
@@ -506,7 +506,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
     SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey,
-    bool isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
+    int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
   mDb(db), chatid(aChatId), mPh(ph)
@@ -524,8 +524,15 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     mChatMode = unifiedKey ? CHAT_MODE_PUBLIC : CHAT_MODE_PRIVATE;
     if (mChatMode == CHAT_MODE_PUBLIC)
     {
-        if (isUnifiedKeyEncrypted)
+        if (isUnifiedKeyEncrypted == kKeyDecrypted) // from chat-link, creation's API request or cache
         {
+            mUnifiedKey.reset(new UnifiedKey(unifiedKey->data(), unifiedKey->size()));
+            mUnifiedKeyDecrypted.resolve(mUnifiedKey);
+        }
+        else if (isUnifiedKeyEncrypted == kKeyEncrypted)    // from API or cache (not decrypted yet)
+        {
+            assert(unifiedKey->size() == strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE);
+
             //Parse invitor handle (First 8 Bytes)
             uint64_t invitorHandle;
             memcpy(&invitorHandle, unifiedKey->data(), sizeof invitorHandle);
@@ -546,18 +553,30 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 
                 // Save Unified key decrypted
                 Buffer auxBuf;
-                auxBuf.write(0, '0');  // prefix to indicate it's encrypted
+                auxBuf.write(0, (uint8_t)kKeyDecrypted);  // prefix to indicate it's decrypted
                 auxBuf.append(*unifiedKey);
                 mDb.query("insert or replace into chat_vars(chatid, name, value)"
-                         " values(?,'unified_key',?)", chatid, auxBuf);
+                          " values(?,'unified_key',?)", chatid, auxBuf);
+            })
+            .fail([this, wptr, bufunifiedkey](const promise::Error& err)
+            {
+
+                STRONGVELOPE_LOG_ERROR("Failed to decrypt unified-key. Error: %s", err.what());
+
+                // Update Unified key
+                Buffer auxBuf;
+                auxBuf.write(0, (uint8_t)kKeyUndecryptable);  // prefix to indicate it's undecryptable
+                auxBuf.append(*bufunifiedkey);
+                mDb.query("insert or replace into chat_vars(chatid, name, value)"
+                          " values(?,'unified_key',?)", chatid, auxBuf);
+                return err;
             });
-            // TODO: need to handle possible failure of promise (due to retrieval or public key of invitor, i.e.)
-            // and somehow tell karere::Client to disable this chatroom, or at least log an error message and assert(false)
         }
         else
         {
-            mUnifiedKey.reset(new UnifiedKey(unifiedKey->data(), unifiedKey->size()));
-            mUnifiedKeyDecrypted.resolve(mUnifiedKey);
+            assert(isUnifiedKeyEncrypted == kKeyUndecryptable);
+            STRONGVELOPE_LOG_WARNING("Undecryptable unified-key");
+            mUnifiedKeyDecrypted.reject("Undecryptable unified-key");
         }
     }
 }
@@ -885,19 +904,19 @@ Buffer* ProtocolHandler::createUnifiedKey()
     return unifiedKey;
 }
 
-std::shared_ptr<std::string> ProtocolHandler::getUnifiedKey()
+promise::Promise<std::shared_ptr<std::string> > ProtocolHandler::getUnifiedKey()
 {
     if (mChatMode == CHAT_MODE_PRIVATE)
     {
-        return nullptr;
+        assert(!mUnifiedKey);
+        return promise::Error("Chat is private, don't have a unified key", kErrorTypeGeneric, kErrorTypeGeneric);
     }
 
-    std::shared_ptr<std::string> key;
-    if (!mUnifiedKey->empty())
+    return mUnifiedKeyDecrypted
+    .then([](std::shared_ptr<UnifiedKey> unifiedKey)
     {
-        key.reset(new std::string(mUnifiedKey->buf(), mUnifiedKey->size()));
-    }
-    return key;
+        return std::make_shared<std::string>(std::string(unifiedKey->buf(), unifiedKey->size()));
+    });
 }
 
 bool ProtocolHandler::previewMode()
@@ -1455,6 +1474,9 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
     // Assemble the output for all recipients.
     if (mChatMode == CHAT_MODE_PUBLIC)
     {
+        if (!mUnifiedKey)
+            return promise::Error("Unified key not available");
+
         mCurrentKey = mUnifiedKey;
     }
     else

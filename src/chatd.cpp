@@ -1219,6 +1219,19 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
+
+    if (mCrypto->isPublicChat())
+    {
+        // disable the chat if decryption of unified key fails
+        mCrypto->getUnifiedKey()
+        .fail([this] (const promise::Error &err)
+        {
+            CHATID_LOG_ERROR("Unified key not available, disabling chatroom. Error: %s", err.what());
+            disable(true);
+            return err;
+        });
+    }
+
     assert(mDbInterface);
     initChat();
     ChatDbInfo info;
