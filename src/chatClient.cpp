@@ -1698,7 +1698,7 @@ void PeerChatRoom::initWithChatd()
     createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
-void PeerChatRoom::connect(const char *url)
+void PeerChatRoom::connect(const char */*url*/)
 {
     mChat->connect();
 }

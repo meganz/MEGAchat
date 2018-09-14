@@ -1648,7 +1648,7 @@ ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Mess
         promise::Promise<Message *> pms;
         if (mChatMode == CHAT_MODE_PRIVATE)
         {
-            pms = parsedMsg->decryptChatTitle(msg, false);
+            pms = parsedMsg->decryptChatTitle(msg, msgCanBeDeleted);
         }
         else    // public mode
         {
