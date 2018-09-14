@@ -1026,7 +1026,7 @@ void Chat::getHistoryNodes(uint32_t count)
 {
     if (!mAttachmentNodes->hasAllHistory())
     {
-        int loadedMessages = mAttachmentNodes->loadHistoryFromDb(count);
+        uint32_t loadedMessages = mAttachmentNodes->loadHistoryFromDb(count);
 
         if (loadedMessages < count)
         {
