@@ -4637,8 +4637,8 @@ bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
 {
     bool changed = false;
 
-    int audioSenders = static_cast<int>(av.audio());
-    int videoSenders = static_cast<int>(av.video());
+    int audioSenders = 0;
+    int videoSenders = 0;
 
     for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = participants.begin(); it != participants.end(); it++)
     {
