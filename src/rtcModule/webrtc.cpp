@@ -697,6 +697,13 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         shared_ptr<Call> existingCall = itCall->second;
         if (existingCall->state() >= Call::kStateJoining || existingCall->isJoiner())
         {
+            if (existingCall->caller() == userid && existingCall->callerClient() == clientid)
+            {
+                // Skip second CALLDATA when we join to chatroom
+                // First callData when we connect
+                return;
+            }
+
             RTCM_LOG_DEBUG("hadleCallDataRequest: Receive a CALLDATA with other call in progress");
             bool isCallToSameUser = (userid == existingCall->caller());
             existingCall->sendBusy(isCallToSameUser);

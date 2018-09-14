@@ -26,18 +26,27 @@ class MegaChatApplication : public QApplication,
         void init();
         void login();
         void logout();
-        void readSid();
         void addChats();
         void addContacts();
         void configureLogs();
-        void saveSid(const char* sdkSid);
+
+        const char *readSid();
+        const char *sid() const;
+        void saveSid(const char *sid);
+        void removeSid();
+
+        LoginDialog *loginDialog() const;
+        void resetLoginDialog();
+
         virtual void onRequestFinish(megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
         virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
         virtual void onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
+        const char *getFirstname(megachat::MegaChatHandle uh);
+
     protected:
-        char* mSid;
+        const char* mSid;
         std::string mAppDir;
         MainWindow *mMainWin;
         LoginDialog *mLoginDialog;
@@ -48,7 +57,12 @@ class MegaChatApplication : public QApplication,
         megachat::QTMegaChatRequestListener *megaChatRequestListenerDelegate;
         megachat::QTMegaChatNotificationListener *megaChatNotificationListenerDelegate;
 
+    private:
+        std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
+        std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
+
     public slots:
         void onLoginClicked();
+
 };
 #endif // MEGACHATAPPLICATION_H
