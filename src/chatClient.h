@@ -441,7 +441,7 @@ public:
     Client& mKarereClient;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
-    void removeRoom(GroupChatRoom& room);
+    void removeRoomPreview(GroupChatRoom& room);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();

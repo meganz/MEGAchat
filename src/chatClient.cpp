@@ -2071,7 +2071,7 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
     if (mOwnPriv == priv)
         return false;
 
-    if(chat().previewMode())
+    if(previewMode())
     {
         assert(mOwnPriv == chatd::PRIV_RDONLY);
 
@@ -2364,7 +2364,7 @@ void ChatRoom::notifyRejoinedChat()
         listItem->onRejoinedChat();
 }
 
-void ChatRoomList::removeRoom(GroupChatRoom& room)
+void ChatRoomList::removeRoomPreview(GroupChatRoom& room)
 {
     auto it = find(room.chatid());
     if (it == end())
@@ -2373,6 +2373,7 @@ void ChatRoomList::removeRoom(GroupChatRoom& room)
     //If room is in preview mode we can remove all records from db at this moment
     if (room.previewMode())
     {
+        room.mChat->disconnectPreview();
         room.chat().getDbInterface()->chatCleanup();
     }
     room.deleteSelf();

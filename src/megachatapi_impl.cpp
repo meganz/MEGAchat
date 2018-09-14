@@ -2674,15 +2674,15 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatRoom(MegaChatHandle chatid)
+void MegaChatApiImpl::closePreview(MegaChatHandle chatid)
 {
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        GroupChatRoom *openChatRoom = (GroupChatRoom *) chatroom;
-        mClient->chats->removeRoom(*openChatRoom);
+        GroupChatRoom *publicChatRoom = (GroupChatRoom *) chatroom;
+        mClient->chats->removeRoomPreview(*publicChatRoom);
         delete chatroom;
     }
 
@@ -4177,6 +4177,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
         case TYPE_CHAT_LINK_HANDLE: return "CHAT_LINK_HANDLE";
         case TYPE_CHAT_LINK_CLOSE: return "CHAT_LINK_CLOSE";
+        case TYPE_CHAT_LINK_JOIN: return "TYPE_CHAT_LINK_JOIN";
     }
     return "UNKNOWN";
 }

@@ -2900,7 +2900,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
      * - MegaChatError::ERROR_EXIST - If the user already participates in the chat.
-     * - MegaChatError::ERROR_ACCESS If the user is trying to preview a public chat wich he
+     * - MegaChatError::ERROR_ACCESS If the user is trying to preview a public chat which he
      * was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
      * to the chat again. Note that you won't be able to preview a public chat any more, once
      * you have been part of the chat.
@@ -3016,12 +3016,12 @@ public:
     /**
      * @brief This method should be called when we want to close a public chat preview
      *
-     * It automatically remove all internal data related to this chat, and make a cache
-     * cleanup in order to clean all the related records.
+     * It automatically disconnect to this chat, remove all internal data related, and make
+     * a cache cleanup in order to clean all the related records.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      */
-    void removeChatRoom(MegaChatHandle chatid);
+    void closePreview(MegaChatHandle chatid);
 
     /**
      * @brief Initiates fetching more history of the specified chatroom.
@@ -4149,7 +4149,7 @@ public:
         CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_ARCHIVE             = 0X100, /// Archived or unarchived
-        CHANGE_TYPE_CHAT_MODE           = 0x200 /// User has set chat mode to private
+        CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
     };
 
     enum {

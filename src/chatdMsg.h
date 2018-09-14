@@ -368,7 +368,28 @@ enum Opcode
       */
     OP_CALLTIME = 42,
 
-    OP_LAST = OP_CALLTIME
+    /**
+      ** @brief <chatid> <count>
+      *
+      * S->C: inform about any change in the number of users in preview mode in a chat.
+      * It is sent after any change in the number of previewers or when the chat link
+      * has been invalidated.
+      *
+      * Receive <chatid> <count>
+      */
+    OP_NUMBYHANDLE = 46,
+
+    /**
+      ** @brief <chatid> <userid> <user_priv>
+      *
+      * C->S: inform chatd that user has left the preview in order to update
+      * the number of previewers.
+      *
+      * Send: <chatid> <userid> <user_priv>
+      */
+    OP_HANDLELEAVE = 47,
+
+    OP_LAST = OP_HANDLELEAVE
 };
 
 // privilege levels

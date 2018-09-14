@@ -333,6 +333,11 @@ void Chat::connect(const char *url)
     }
 }
 
+void Chat::disconnectPreview()
+{
+    handleleave();
+}
+
 void Chat::login()
 {
     assert(mConnection.isOnline());
@@ -946,6 +951,23 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(std::to_string(priv));
             return tmpString;
         }
+        case OP_HANDLELEAVE:
+        {
+            string tmpString;
+            karere::Id ph =  *((uint64_t *) data.readPtr(1,::mega::PUBLICHANDLE));
+            karere::Id userId = data.read<uint64_t>(7);
+            uint8_t priv = data.read<uint8_t>(15);
+
+            tmpString.append("HANDLELEAVE ph: ");
+            tmpString.append(ID_CSTR(ph), 8);
+
+            tmpString.append(" userid: ");
+            tmpString.append(ID_CSTR(userId));
+
+            tmpString.append(" priv: ");
+            tmpString.append(std::to_string(priv));
+            return tmpString;
+        }
         case OP_HANDLEJOINRANGEHIST:
         {
             string tmpString;
@@ -1035,6 +1057,18 @@ void Chat::handlejoin()
     comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
     sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
     requestHistoryFromServer(-initialHistoryFetchCount);
+}
+
+void Chat::handleleave()
+{
+    assert(mPh != Id::inval());
+
+    CHATID_LOG_DEBUG("Sending HANDLELEAVE");
+
+    //Create command `OPCODE_HANDLELEAVE(1) + chathandle(8) + userId(8) + priv(1)`
+    Command comm (OP_HANDLELEAVE);
+    comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
+    sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
 }
 
 void Chat::onJoinRejected()
@@ -1623,6 +1657,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
                 // TODO: add management of calltime (for groupcalling)
                 break;
+            }
+            case OP_NUMBYHANDLE:
+            {
+                READ_CHATID(0);
+                READ_32(count, 8);
+                CHATDS_LOG_DEBUG("%s: recv NUMBYHANDLE: %d", ID_CSTR(chatid), count);
+
+                auto& chat =  mChatdClient.chats(chatid);
+                //TODO implement callbacks to notify app
             }
             default:
             {

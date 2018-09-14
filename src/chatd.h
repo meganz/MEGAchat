@@ -689,6 +689,7 @@ protected:
     void login();
     void join();
     void handlejoin();
+    void handleleave();
     void joinRangeHist(const ChatDbInfo& dbInfo);
     void handlejoinRangeHist(const ChatDbInfo& dbInfo);
     void onDisconnect();
@@ -1078,6 +1079,7 @@ public:
     uint64_t publicHandle();
     bool previewMode();
     void rejoin();
+    void disconnectPreview();
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

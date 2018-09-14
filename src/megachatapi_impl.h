@@ -995,7 +995,7 @@ public:
 
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
     void closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener = NULL);
-    void removeChatRoom(MegaChatHandle chatid);
+    void closePreview(MegaChatHandle chatid);
 
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
