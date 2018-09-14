@@ -336,10 +336,10 @@ enum Opcode
     /**
       * @brief
       * C->S: Subscribe to events for this chat in preview mode. Client has no existing message buffer.
-      * Send: <chatid> <userid> <user_priv>
+      * Send: <public_handle.6> <userid.8> <user_priv>.
       *
-      * S->C: Indicates users in this chat and their privilege level as well as privilege
-      * Receive: <chatid> <userid> <priv>
+      * @note chatd indicates users in this chat and their privilege level as well as privilege via the
+      * standard OP_JOIN.
       */
     OP_HANDLEJOIN = 36,
 
@@ -348,7 +348,7 @@ enum Opcode
       * C->S: Subscribe to events for this chat in preview mode, indicating the existing message range
       *    (msgid0 is the oldest, msgid1 the newest). Responds with all messages newer
       *    than msgid1 (if any) as NEWMSG, followed by a HISTDONE.
-      * Send: <chatid> <msgid0> <msgid1>
+      * Send: <public_handle.6> <msgid0> <msgid1>
       */
     OP_HANDLEJOINRANGEHIST = 37,
 
@@ -380,12 +380,12 @@ enum Opcode
     OP_NUMBYHANDLE = 46,
 
     /**
-      ** @brief <chatid> <userid> <user_priv>
+      ** @brief <public_handle.6> <userid> <user_priv>
       *
       * C->S: inform chatd that user has left the preview in order to update
       * the number of previewers.
       *
-      * Send: <chatid> <userid> <user_priv>
+      * Send: <public_handle.6> <userid.8> <user_priv.1>
       */
     OP_HANDLELEAVE = 47,
 

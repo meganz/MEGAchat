@@ -2373,7 +2373,7 @@ void ChatRoomList::removeRoomPreview(GroupChatRoom& room)
     //If room is in preview mode we can remove all records from db at this moment
     if (room.previewMode())
     {
-        room.mChat->disconnectPreview();
+        room.chat().disconnectPreview();
         room.chat().getDbInterface()->chatCleanup();
     }
     room.deleteSelf();

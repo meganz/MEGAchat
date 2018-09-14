@@ -1063,9 +1063,6 @@ void Chat::handleleave()
 {
     assert(mPh != Id::inval());
 
-    CHATID_LOG_DEBUG("Sending HANDLELEAVE");
-
-    //Create command `OPCODE_HANDLELEAVE(1) + chathandle(8) + userId(8) + priv(1)`
     Command comm (OP_HANDLELEAVE);
     comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
     sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
@@ -1666,6 +1663,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 auto& chat =  mChatdClient.chats(chatid);
                 //TODO implement callbacks to notify app
+                break;
             }
             default:
             {
