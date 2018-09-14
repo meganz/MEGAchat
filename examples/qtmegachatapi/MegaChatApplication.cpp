@@ -551,7 +551,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 else if (mMainWin->getLocalChatListItem(chatid))
                 {
-                    QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
+                    if (!chatListItem->isGroup())
+                    {
+                        QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
+                    }
                     delete chatListItem;
                     break;
                 }
@@ -644,8 +647,9 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 if (mMegaChatApi->anonymousMode())
                 {
                     mMainWin->activeControls(false);
-                    mMainWin->addLocalChatListItem(chatListItem);
+
                 }
+                mMainWin->addLocalChatListItem(chatListItem);
                 mMainWin->addChat(chatListItem);
             }
             else

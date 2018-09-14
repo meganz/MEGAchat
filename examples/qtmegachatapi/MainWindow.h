@@ -16,6 +16,7 @@
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
 const int chatArchivedStatus = 2;
+const int chatPreviewStatus  = 3;
 
 class MegaChatApplication;
 
@@ -67,6 +68,7 @@ class MainWindow :
         void addContacts();
         void addInactiveChats();
         void addArchivedChats();
+        void addPreviewChats();
         void addActiveChats();
         void createWebRTCSettingsDialog();
 #ifndef KARERE_DISABLE_WEBRTC

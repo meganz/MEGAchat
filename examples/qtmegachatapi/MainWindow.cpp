@@ -219,6 +219,7 @@ void MainWindow::orderContactChatList()
             addInactiveChats();
         }
         addActiveChats();
+        addPreviewChats();
 
         auxChatWidgets.clear();
 
@@ -264,6 +265,16 @@ void MainWindow::addContacts()
         }
     }
     delete contactList;
+}
+
+void MainWindow::addPreviewChats()
+{
+    std::list<Chat> *previewsChatList = getLocalChatListItemsByStatus(chatPreviewStatus);
+    for (Chat &chat : (*previewsChatList))
+    {
+        addChat(chat.chatItem);
+    }
+    delete previewsChatList;
 }
 
 void MainWindow::addArchivedChats()
@@ -494,15 +505,13 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
 
 void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 {
-    updateLocalChatListItem(item);
-
     bool needReorder = false;
-
     megachat::MegaChatHandle chatid = item->getChatId();
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
     itChats = chatWidgets.find(chatid);
     if (itChats != chatWidgets.end())
     {
+        updateLocalChatListItem(item);
         ChatItemWidget * chatItemWidget = itChats->second;
 
         //Last Message update
@@ -538,10 +547,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
                 {
                     chatItemWidget->closePreview();
                 }
-                else if (item->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RO)
-                {
-                    //Remove preview and add normat item widget
-                }
             }
             chatItemWidget->updateToolTip(item, NULL);
         }
@@ -556,6 +561,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             else
             {
                 chatItemWidget->showAsHidden();
+                removeLocalChatListItem(item);
             }
             needReorder = true;
         }
@@ -565,12 +571,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         {
             chatItemWidget->updateToolTip(item, NULL);
             needReorder = true;
-        }
-
-        //The chatroom is private now
-        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE))
-        {
-            //TODO: needs to update the item UI --> remove the "P" indicator of public chats
         }
 
         //The Chatroom has been un/archived
@@ -588,6 +588,15 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
                     }
                 }
             }
+            needReorder = true;
+        }
+    }
+    else
+    {
+        if (item->isActive())
+        {
+            addLocalChatListItem(item);
+            addChat(item);
             needReorder = true;
         }
     }
@@ -1002,7 +1011,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
         switch (status)
         {
             case chatActiveStatus:
-                if (item->isActive() && !item->isArchived())
+                if (item->isActive() && !item->isArchived() && !item->isPreview())
                 {
                     chatList->push_back(Chat(item));
                 }
@@ -1017,6 +1026,13 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 
             case chatArchivedStatus:
                 if (item->isArchived())
+                {
+                    chatList->push_back(Chat(item));
+                }
+                break;
+
+             case chatPreviewStatus:
+                if (item->isPreview())
                 {
                     chatList->push_back(Chat(item));
                 }
