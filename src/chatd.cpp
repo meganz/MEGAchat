@@ -1022,24 +1022,26 @@ HistSource Chat::getHistory(unsigned count)
     return nextSource;
 }
 
-void Chat::getHistoryNodes(unsigned count)
+void Chat::getHistoryNodes(uint32_t count)
 {
-    int loadedMessages = mAttachmentNodes->loadHistoryFromDb(count);
-
-    if (loadedMessages < count && !mAttachmentNodes->hasAllHistory())
+    if (!mAttachmentNodes->hasAllHistory())
     {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this, count, loadedMessages]()
+        int loadedMessages = mAttachmentNodes->loadHistoryFromDb(count);
+
+        if (loadedMessages < count)
         {
-            if (wptr.deleted())
-                return;
+            auto wptr = weakHandle();
+            marshallCall([wptr, this, count, loadedMessages]()
+            {
+                if (wptr.deleted())
+                    return;
 
-            CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count - loadedMessages);
-            requestNodeHistoryFromServer(count - loadedMessages);
-        }, mClient.karereClient->appCtx);
+                CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count - loadedMessages);
+                requestNodeHistoryFromServer(count - loadedMessages);
+            }, mClient.karereClient->appCtx);
 
+        }
     }
-
 }
 
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
@@ -1101,6 +1103,7 @@ void Chat::requestNodeHistoryFromServer(int32_t count)
 
     mFetchRequest.push(FetchType::kFetchNodeHistory);
     mAttachNodeRequestToServer = count;
+    count = -count;
     sendCommand(Command(OP_NODEHIST) + mChatId + mAttachmentNodes->getLastMessageId() + count);
 }
 
@@ -1305,7 +1308,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     }
                     else
                     {
-                        assert((opcode == OP_NEWMSG));
+                        assert((opcode != OP_NEWMSG));
                         chat.msgNodeHistIncoming(msg.release());
                     }
                 }
@@ -4400,7 +4403,7 @@ void FilteredHistory::clear()
     init();
 }
 
-int FilteredHistory::loadHistoryFromDb(int count)
+int FilteredHistory::loadHistoryFromDb(uint32_t count)
 {
     std::vector<chatd::Message*> messages;
     if (mOldest > mOldestInDb)

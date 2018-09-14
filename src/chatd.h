@@ -512,7 +512,7 @@ public:
     Idx oldestIdx() const;
     Idx oldestLoadedIdx() const;
     void clear();
-    int loadHistoryFromDb(int count);
+    int loadHistoryFromDb(uint32_t count);
     void setHasAllHistory(bool hasAllHistory);
     bool hasAllHistory() const;
     karere::Id getLastMessageId() const;
@@ -930,7 +930,7 @@ public:
      */
     HistSource getHistory(unsigned count);
 
-    void getHistoryNodes(unsigned count);
+    void getHistoryNodes(uint32_t count);
 
     /**
      * @brief Resets sending of history to the app, so that next getHistory()
