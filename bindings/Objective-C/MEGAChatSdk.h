@@ -90,6 +90,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)disconnect;
 - (MEGAChatConnection)chatConnectionState:(uint64_t)chatId;
 - (void)retryPendingConnections;
+- (void)reconnect;
 
 #pragma mark - Logout
 
@@ -252,6 +253,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) NSInteger numCalls;
 - (MEGAHandleList *)chatCalls;
 - (MEGAHandleList *)chatCallsIds;
+- (BOOL)hasCallInChatRoom:(uint64_t)chatId;
 
 #endif
 
