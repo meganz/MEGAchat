@@ -4245,8 +4245,8 @@ void FilteredHistory::truncateHistory(Id id)
 {
     if (id.isValid())
     {
-        auto it = mIndexMap.find(id);
-        if (it != mIndexMap.end())
+        auto it = mIdToMsgMap.find(id);
+        if (it != mIdToMsgMap.end())
         {
             // id is a message in the history, we want to remove from the next message until the oldest
             for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
