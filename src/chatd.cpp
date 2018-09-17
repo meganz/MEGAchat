@@ -4209,11 +4209,10 @@ FilteredHistory::FilteredHistory(DbInterface *db)
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
 {
-    Message* message = new Message(msg);
     if (isNew)
     {
-        mBuffer.emplace_front(message);
         mIndexMap[message->id()] =  mBuffer.begin();
+        mBuffer.emplace_front(new Message(msg));
         mNewest++;
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
     }
@@ -4221,8 +4220,8 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
     {
         if (mIndexMap.find(message->id()) == mIndexMap.end())  // if it doesn't exist
         {
-            mBuffer.emplace_back(message);
             mIndexMap[message->id()] = --mBuffer.end();
+            mBuffer.emplace_back(new Message(msg));
             mOldest--;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
         }
