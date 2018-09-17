@@ -30,7 +30,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
     MEGAChatCallTermCodeAppTerminating = 7,
     MEGAChatCallTermCodeBusy = 9,
     MEGAChatCallTermCodeNotFinished = 10,
-    MEGAChatCallTermCodeDestroyByCallCollision = 11,
+    MEGAChatCallTermCodeDestroyByCallCollision = 19,
     MEGAChatCallTermCodeError = 21
 };
 
