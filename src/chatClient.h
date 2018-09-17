@@ -73,7 +73,7 @@ protected:
     void notifyChatModeChanged();
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers,
-            std::shared_ptr<std::string> unifiedKey = nullptr, bool isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+            std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
@@ -333,7 +333,7 @@ protected:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    void initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, Id ph = Id::inval());
+    void initWithChatd(std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
@@ -347,7 +347,7 @@ protected:
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                bool aIsArchived, const std::string& title, std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted);
+                bool aIsArchived, const std::string& title, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
@@ -425,9 +425,9 @@ public:
 
     virtual bool previewMode() const;
 
-    std::shared_ptr<std::string> unifiedKey();
+    promise::Promise<std::shared_ptr<std::string>> unifiedKey();
+
     int getNumPeers() const;
-    void setNumPeers(int value);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -938,7 +938,7 @@ protected:
     void loadContactListFromApi(::mega::MegaUserList& contactList);
 
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid,
-            std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, karere::Id ph);
+            std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
     void connectToChatd(bool isInBackground);

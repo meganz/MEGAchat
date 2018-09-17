@@ -1659,7 +1659,7 @@ ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle 
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid,
-        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, karere::Id ph)
+        std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
@@ -1668,7 +1668,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid,
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers,
-        std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, const karere::Id ph)
+        std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id ph)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, mUrl, this, initialUsers,
@@ -1698,7 +1698,7 @@ void PeerChatRoom::initWithChatd()
     createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
 }
 
-void PeerChatRoom::connect(const char *url)
+void PeerChatRoom::connect(const char */*url*/)
 {
     mChat->connect();
 }
@@ -1829,7 +1829,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
     // Initialize unified-key, if any
     std::shared_ptr<std::string> unifiedKey;
-    bool isUnifiedKeyEncrypted = false;
+    int isUnifiedKeyEncrypted = strongvelope::kKeyDecrypted;
     if (aChat.getUnifiedKey()) // --> only public chats should bring a unified key
     {
         assert(aChat.isPublicChat());
@@ -1837,12 +1837,20 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         std::string unifiedKeyB64(aChat.getUnifiedKey());
         unifiedKey.reset(new std::string);
         int len = ::mega::Base64::atob(unifiedKeyB64, *unifiedKey);
-        assert(len == strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE);
-        isUnifiedKeyEncrypted = true;
+        if (len != strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE)
+        {
+            KR_LOG_ERROR("Invalid size for unified key");
+            isUnifiedKeyEncrypted = strongvelope::kKeyUndecryptable;
+            parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99002, "invalid unified-key detected");
+        }
+        else
+        {
+            isUnifiedKeyEncrypted = strongvelope::kKeyEncrypted;
+        }
 
         // Save (still) encrypted unified key
         Buffer auxBuf;
-        auxBuf.write(0, '1');  // prefix to indicate it's encrypted
+        auxBuf.write(0, (uint8_t)isUnifiedKeyEncrypted);  // prefix to indicate it's encrypted
         auxBuf.append(unifiedKey->data(), unifiedKey->size());
         db.query("insert or replace into chat_vars(chatid, name, value)"
                  " values(?,'unified_key',?)", mChatid, auxBuf);
@@ -1868,7 +1876,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived,
-    const std::string& title, std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted)
+    const std::string& title, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
     :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
     mRoomGui(nullptr)
 {
@@ -1901,7 +1909,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
   mRoomGui(nullptr), mNumPeers(aNumPeers)
 {
     Id ph(publicHandle);
-    initWithChatd(unifiedKey, false, ph);   // strongvelope only needs the public handle in anonymous mode (to fetch user attributes via `mcuga`)
+    initWithChatd(unifiedKey, 0, ph);   // strongvelope only needs the public handle in anonymous mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
     mUrl = aUrl;
 
@@ -1944,7 +1952,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mIsInitializing = false;
 }
 
-void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, bool isUnifiedKeyEncrypted, Id ph)
+void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph)
 {
     karere::SetOfIds users;
     Id myHandle = parent.mKarereClient.myHandle();
@@ -2279,16 +2287,18 @@ void ChatRoomList::loadFromDb()
             auxstmt << chatid;
 
             std::shared_ptr<std::string> unifiedKey;
-            bool isUnifiedKeyEncrypted = false;
+            int isUnifiedKeyEncrypted = strongvelope::kKeyDecrypted;
             if(auxstmt.step())
             {
                 Buffer auxBuf;
                 auxstmt.blobCol(0, auxBuf);
                 const char *pos = auxBuf.buf();
-                int len = auxBuf.size();
-                isUnifiedKeyEncrypted = (*pos == '1');  pos++;
-                assert(isUnifiedKeyEncrypted ? (len == 25) : 17);   // encrypted version includes invitor's userhandle (8 bytes)
-                unifiedKey.reset(new std::string(pos, len - 1));
+                isUnifiedKeyEncrypted = (uint8_t)*pos;  pos++;
+                int len = auxBuf.size() - 1;
+                assert( (isUnifiedKeyEncrypted == strongvelope::kKeyDecrypted && len == 16)
+                        || (isUnifiedKeyEncrypted == strongvelope::kKeyEncrypted && len == 24)  // encrypted version includes invitor's userhandle (8 bytes)
+                        || (isUnifiedKeyEncrypted));
+                unifiedKey.reset(new std::string(pos, len));
             }
             // else  --> not public chat anymore
 
@@ -2373,7 +2383,7 @@ void ChatRoomList::removeRoomPreview(GroupChatRoom& room)
     //If room is in preview mode we can remove all records from db at this moment
     if (room.previewMode())
     {
-        room.mChat->disconnectPreview();
+        room.chat().disconnectPreview();
         room.chat().getDbInterface()->chatCleanup();
     }
     room.deleteSelf();
@@ -2956,7 +2966,7 @@ void ChatRoom::notifyChatModeChanged()
 
 bool GroupChatRoom::publicChat() const
 {
-    return (mChat->crypto()->getChatMode() == strongvelope::CHAT_MODE_PUBLIC);
+    return (mChat->crypto()->isPublicChat());
 }
 
 // return true if new peer, peer removed or peer's privilege updated
@@ -2965,7 +2975,7 @@ bool GroupChatRoom::previewMode() const
     return mChat->previewMode();
 }
 
-std::shared_ptr<std::string> GroupChatRoom::unifiedKey()
+promise::Promise<std::shared_ptr<std::string>> GroupChatRoom::unifiedKey()
 {
     return mChat->crypto()->getUnifiedKey();
 }
@@ -2973,11 +2983,6 @@ std::shared_ptr<std::string> GroupChatRoom::unifiedKey()
 int GroupChatRoom::getNumPeers() const
 {
     return mNumPeers;
-}
-
-void GroupChatRoom::setNumPeers(int value)
-{
-    mNumPeers = value;
 }
 
 // return true if new peer or peer removed. Updates peer privileges as well

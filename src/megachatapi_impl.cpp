@@ -900,29 +900,51 @@ void MegaChatApiImpl::sendPendingRequests()
                 pms = mClient->getPublicHandle(chatid, createifmissing);
             }
 
-            pms.then([request, this] (uint64_t ph)
+            pms.then([request, del, room, this] (uint64_t ph)
             {
-                GroupChatRoom *room = (GroupChatRoom *) findChatRoom(request->getChatHandle());
-                shared_ptr<string> unifiedKey(room->unifiedKey());
-                MegaChatErrorPrivate *megaChatError;
-                if (!unifiedKey || unifiedKey->size() != 16 || (!request->getFlag() && ph == Id::inval()))
+                if (del)
                 {
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                    return fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                 }
-                else
+                else if (ph == Id::inval())
                 {
-                    string unifiedKeyB64;
-                    Base64::btoa(*unifiedKey, unifiedKeyB64);
-
-                    string phBin((const char*)&ph, MegaClient::CHATLINKHANDLE);
-                    string phB64;
-                    Base64::btoa(phBin, phB64);
-
-                    string link = "https://mega.nz/c/" + phB64 + "#" + unifiedKeyB64;
-                    request->setText(link.c_str());
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    API_LOG_ERROR("Unexpected invalid public handle for query/create chat-link");
+                    return fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
                 }
-                fireOnChatRequestFinish(request, megaChatError);
+
+                room->unifiedKey()
+                .then([request, this, ph] (shared_ptr<string> unifiedKey)
+                {
+                    MegaChatErrorPrivate *megaChatError;
+                    if (!unifiedKey || unifiedKey->size() != 16)
+                    {
+                        API_LOG_ERROR("Invalid unified key after decryption");
+                        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                    }
+                    else    // prepare the link with ph + unifiedKey
+                    {
+                        string unifiedKeyB64;
+                        Base64::btoa(*unifiedKey, unifiedKeyB64);
+
+                        string phBin((const char*)&ph, MegaClient::CHATLINKHANDLE);
+                        string phB64;
+                        Base64::btoa(phBin, phB64);
+
+                        string link = "https://mega.nz/c/" + phB64 + "#" + unifiedKeyB64;
+                        request->setText(link.c_str());
+
+                        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    }
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([request, this] (const promise::Error &err)
+                {
+                    API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
+
             })
             .fail([request, this](const promise::Error& err)
             {

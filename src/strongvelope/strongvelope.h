@@ -216,6 +216,13 @@ enum
     CHAT_MODE_PUBLIC = 1
 };
 
+enum
+{
+    kKeyDecrypted = 0,
+    kKeyEncrypted = 1,
+    kKeyUndecryptable = 2
+};
+
 /** @brief Encrypts and holds an encrypted message and its attributes - key and
  *  nonce */
 struct EncryptedMessage
@@ -323,14 +330,14 @@ protected:
 
 public:
     karere::Id chatid;
-    karere::Id mPh;     // it's only valid when the preview is done in anonymous mode (required to fetch user-attributes)
+    karere::Id mPh;     // it's only valid during preview mode (required to fetch user-attributes)
     karere::Id ownHandle() const { return mOwnHandle; }
 
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
         SqliteDb& db, karere::Id aChatId, std::shared_ptr<std::string> unifiedKey,
-        bool isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
+        int isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
         decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
@@ -439,9 +446,9 @@ public:
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver);
     static Buffer* createUnifiedKey();
-    virtual std::shared_ptr<std::string> getUnifiedKey();
+    virtual promise::Promise<std::shared_ptr<std::string> > getUnifiedKey();
     virtual bool previewMode();
-    unsigned int getChatMode() const;
+    virtual bool isPublicChat();
     void setPrivateChatMode();
     virtual void onHistoryReload();
 };

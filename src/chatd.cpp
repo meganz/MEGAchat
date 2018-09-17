@@ -1063,9 +1063,6 @@ void Chat::handleleave()
 {
     assert(mPh != Id::inval());
 
-    CHATID_LOG_DEBUG("Sending HANDLELEAVE");
-
-    //Create command `OPCODE_HANDLELEAVE(1) + chathandle(8) + userId(8) + priv(1)`
     Command comm (OP_HANDLELEAVE);
     comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
     sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
@@ -1222,6 +1219,19 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
+
+    if (mCrypto->isPublicChat())
+    {
+        // disable the chat if decryption of unified key fails
+        mCrypto->getUnifiedKey()
+        .fail([this] (const promise::Error &err)
+        {
+            CHATID_LOG_ERROR("Unified key not available, disabling chatroom. Error: %s", err.what());
+            disable(true);
+            return err;
+        });
+    }
+
     assert(mDbInterface);
     initChat();
     ChatDbInfo info;
@@ -1666,6 +1676,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 
                 auto& chat =  mChatdClient.chats(chatid);
                 //TODO implement callbacks to notify app
+                break;
             }
             default:
             {
