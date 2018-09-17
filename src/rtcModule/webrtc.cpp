@@ -308,6 +308,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             }
 
             // hang up existing call and answer automatically incoming call
+            RTCM_LOG_DEBUG("handleCallData: Hang up existing call and answer automatically incoming call");
             avFlags = existingCall->sentAv();
             answerAutomatic = true;
             existingCall->hangup(kDestroyByCallCollision);
