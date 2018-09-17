@@ -61,7 +61,7 @@ public:
 
     void addMessage(const chatd::Message& msg, chatd::Idx idx, const std::string& table)
     {
-#if 1
+#ifndef NDEBUG
         std::string checkQuery = "select min(idx), max(idx), count(*) from " + table + " where chatid = ?";
         SqliteStmt stmt(mDb, checkQuery.c_str());
         stmt << mChat.chatId();
@@ -363,7 +363,8 @@ public:
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
-#if 1
+
+#ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mChat.chatId() << msg.id();
         stmt.step();
