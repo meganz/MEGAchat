@@ -427,13 +427,13 @@ void ChatMessage::onMessageRemoveLinkAction()
     megaChatApi->removeRichLink(mChatId, mMessage->getMsgId());
 }
 
-void ChatMessage::cancelMsgEdit(bool clicked)
+void ChatMessage::cancelMsgEdit(bool /*clicked*/)
 {
     clearEdit();
     mChatWindow->ui->mMessageEdit->setText(QString());
 }
 
-void ChatMessage::saveMsgEdit(bool clicked)
+void ChatMessage::saveMsgEdit(bool /*clicked*/)
 {
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
     std::string previousContent = mMessage->getContent();
@@ -571,8 +571,8 @@ void ChatMessage::on_bSettings_clicked()
             mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
             for(int i = 0; i < nodeList->size(); i++)
             {
-                QString text("Download ");
-                text.append(nodeList->get(i)->getName());
+                QString text("Download \"");
+                text.append(nodeList->get(i)->getName()).append("\"");
                 auto actInactive = menu.addAction(tr(text.toStdString().c_str()));
                 connect(actInactive,  &QAction::triggered, this, [this, nodeList, i]{ onNodeDownload(nodeList->get(i)->getHandle());});
             }
@@ -587,14 +587,18 @@ void ChatMessage::on_bSettings_clicked()
 
 void ChatMessage::onNodeDownload(mega::MegaHandle nodeHandle)
 {
-    QObject* obj = sender();
+    mega::MegaNode *node = mChatWindow->mMegaApi->getNodeByHandle(nodeHandle);
+    std::string target(mChatWindow->mMegaChatApi->getAppDir());
+    target.append("/").append(node->getName());
+
     QMessageBox msgBoxAns;
-    msgBoxAns.setText("Do you want to download this node?");
-    msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    if (msgBoxAns.exec() == QMessageBox::Yes)
+    std::string message("Node will be saved in "+target+".\nDo you want to continue?");
+    msgBoxAns.setText(message.c_str());
+    msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    if (msgBoxAns.exec() == QMessageBox::Ok)
     {
-        mega::MegaNode * node = mChatWindow->mMegaApi->getNodeByHandle(nodeHandle);
-        mChatWindow->mMegaApi->startDownload(node, "/home/mega/downloadsQT/", NULL);
+        mChatWindow->mMegaApi->startDownload(node, target.c_str(), NULL);
         //TODO create megatransferlistenerdelegate and handle posible errors
     }
+    delete node;
 }
