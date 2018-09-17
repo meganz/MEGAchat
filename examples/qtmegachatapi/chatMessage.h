@@ -55,5 +55,7 @@ class ChatMessage: public QWidget
         void onMessageDelAction();
         void onMessageEditAction();
         void onMessageRemoveLinkAction();
+        void onNodeDownload(mega::MegaHandle nodeHandle);
+        void on_bSettings_clicked();
 };
 #endif // CHATMESSAGE_H

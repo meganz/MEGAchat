@@ -169,6 +169,7 @@ void ChatMessage::updateContent()
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                ui->bSettings->show();
                 text.clear();
                 break;
             }
@@ -582,5 +583,46 @@ void ChatMessage::onDiscardManualSending()
    mChatWindow->eraseChatMessage(mMessage, true);
 }
 
+void ChatMessage::on_bSettings_clicked()
+{
+    if (mMessage->isManagementMessage())
+    {
+        return;
+    }
 
+    QMenu menu(this);
+    menu.setAttribute(Qt::WA_DeleteOnClose);
+    switch (mMessage->getType())
+    {
+        case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
+        {
+            mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
+            for(int i = 0; i < nodeList->size(); i++)
+            {
+                QString text("Download ");
+                text.append(nodeList->get(i)->getName());
+                auto actInactive = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actInactive,  &QAction::triggered, this, [this, nodeList, i]{ onNodeDownload(nodeList->get(i)->getHandle());});
+            }
+            break;
+        }
+    }
+    QPoint pos = ui->bSettings->pos();
+    pos.setX(pos.x() + ui->bSettings->width());
+    pos.setY(pos.y() + ui->bSettings->height());
+    menu.exec(mapToGlobal(pos));
+}
 
+void ChatMessage::onNodeDownload(mega::MegaHandle nodeHandle)
+{
+    QObject* obj = sender();
+    QMessageBox msgBoxAns;
+    msgBoxAns.setText("Do you want to download this node?");
+    msgBoxAns.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    if (msgBoxAns.exec() == QMessageBox::Yes)
+    {
+        mega::MegaNode * node = mChatWindow->mMegaApi->getNodeByHandle(nodeHandle);
+        mChatWindow->mMegaApi->startDownload(node, "/home/mega/downloadsQT/", NULL);
+        //TODO create megatransferlistenerdelegate and handle posible errors
+    }
+}
