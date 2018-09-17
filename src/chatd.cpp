@@ -3114,7 +3114,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
             }
 
-            if (msg->isDeleted())
+            if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
             {
                 mAttachmentNodes->deleteMessage(*msg);
             }
@@ -3210,9 +3210,9 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
 
-
+    // Find an attachment newer than truncate (lownum) in order to truncate node-history
+    // (if no more attachments in history buffer, node-history will be fully cleared)
     Id nextAttachmentId = Id::inval();
-    // lownum is the message where the history has been truncate
     for (Idx i = lownum(); i < highnum(); i++)
     {
         if (at(i).type == Message::kMsgAttachment)
@@ -3221,7 +3221,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
             break;
         }
     }
-
     mAttachmentNodes->truncateHistory(nextAttachmentId);
 }
 
@@ -4209,19 +4208,20 @@ FilteredHistory::FilteredHistory(DbInterface *db)
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
 {
+    Id msgid = msg.id();
     if (isNew)
     {
-        mIndexMap[message->id()] =  mBuffer.begin();
         mBuffer.emplace_front(new Message(msg));
+        mIdToMsgMap[msgid] =  mBuffer.begin();
         mNewest++;
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
     }
     else
     {
-        if (mIndexMap.find(message->id()) == mIndexMap.end())  // if it doesn't exist
+        if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
-            mIndexMap[message->id()] = --mBuffer.end();
             mBuffer.emplace_back(new Message(msg));
+            mIdToMsgMap[msgid] = --mBuffer.end();
             mOldest--;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
         }
@@ -4230,8 +4230,8 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
 
 void FilteredHistory::deleteMessage(const Message &msg)
 {
-    auto it = mIndexMap.find(msg.id());
-    if (it != mIndexMap.end())
+    auto it = mIdToMsgMap.find(msg.id());
+    if (it != mIdToMsgMap.end())
     {
         // Remove message's content and modify updated field, it is the same that delete a file
         (*it->second)->free();
@@ -4243,7 +4243,7 @@ void FilteredHistory::deleteMessage(const Message &msg)
 
 void FilteredHistory::truncateHistory(Id id)
 {
-    if (id != Id::inval())
+    if (id.isValid())
     {
         auto it = mIndexMap.find(id);
         if (it != mIndexMap.end())
@@ -4251,16 +4251,15 @@ void FilteredHistory::truncateHistory(Id id)
             // id is a message in the history, we want to remove from the next message until the oldest
             for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
             {
-                mIndexMap.erase((*loopIterator)->id());
+                mIdToMsgMap.erase((*loopIterator)->id());
             }
-
             mBuffer.erase(it->second, mBuffer.end());
         }
 
         CALL_DB_FH(truncateNodeHistory, id);
         CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
     }
-    else
+    else    // full-history truncated or no remaining attachments
     {
         clear();
     }
@@ -4284,7 +4283,7 @@ Idx FilteredHistory::oldestLoadedIdx() const
 void FilteredHistory::clear()
 {
     mBuffer.clear();
-    mIndexMap.clear();
+    mIdToMsgMap.clear();
     CALL_DB_FH(clearNodeHistory);
     init();
 }

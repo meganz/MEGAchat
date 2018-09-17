@@ -381,7 +381,7 @@ public:
     virtual void setLastSeen(karere::Id msgid)
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "setLastSeen");
     }
     virtual void setLastReceived(karere::Id msgid)
     {
@@ -393,7 +393,7 @@ public:
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
             "values(?, 'have_all_history', ?)", mChat.chatId(), haveAllHistory ? 1 : 0);
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "setHaveAllHistory");
     }
     virtual bool haveAllHistory()
     {
@@ -434,7 +434,7 @@ public:
         if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
         {
             addMessage(msg, idx, "node_history");
-            assertAffectedRowCount(1);
+            assertAffectedRowCount(1, "addMsgToNodeHistory");
         }
     }
 
@@ -442,7 +442,7 @@ public:
     {
         mDb.query("update node_history set data = ?, updated = ? where chatid = ? and msgid = ?",
                   msg, msg.updated, mChat.chatId(), msg.id());
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
     }
 
     virtual void truncateNodeHistory(karere::Id id)

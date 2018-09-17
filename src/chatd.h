@@ -514,7 +514,7 @@ public:
     void clear();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
-    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIndexMap;
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
     DbInterface *mDb;
     Idx mNewest;
     Idx mOldest;
