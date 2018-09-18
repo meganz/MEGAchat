@@ -212,9 +212,9 @@ void Client::notifyUserIdle()
 
 void Client::cancelTimers()
 {
-   for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
+   for (std::map<karere::Id, megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
    {
-        cancelTimeout(*it, karereClient->appCtx);
+        cancelTimeout(it->second , karereClient->appCtx);
    }
    mSeenTimers.clear();
 }
@@ -2688,12 +2688,19 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
+    auto it = mClient.mSeenTimers.find(mChatId);
+    if (it != mClient.mSeenTimers.end())
+    {
+        cancelTimeout(it->second, mClient.karereClient->appCtx);
+        mClient.mSeenTimers.erase(it);
+    }
+
     megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
           return;
 
-        mClient.mSeenTimers.erase(seenTimer);
+        mClient.mSeenTimers.erase(mChatId);
 
         if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
             return;
@@ -2728,7 +2735,7 @@ bool Chat::setMessageSeen(Idx idx)
         CALL_LISTENER(onUnreadChanged);
     }, kSeenTimeout, mClient.karereClient->appCtx);
 
-    mClient.mSeenTimers.insert(seenTimer);
+    mClient.mSeenTimers.insert(std::pair<karere::Id, megaHandle>(mChatId, seenTimer));
 
     return true;
 }
