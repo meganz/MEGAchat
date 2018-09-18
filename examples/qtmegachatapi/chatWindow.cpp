@@ -464,7 +464,7 @@ QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int in
     ui->mMessageList->scrollToBottom();
 
     if (!widget->isMine() && msg->getStatus() == megachat::MegaChatMessage::STATUS_NOT_SEEN
-            && !mMegaChatApi->anonymousMode())
+            && !mChatRoom->isPreview())
     {
         mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
     }

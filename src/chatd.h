@@ -1125,8 +1125,8 @@ protected:
     std::map<karere::Id, Connection*> mConnectionForChatId;
 /// maps chatids to the Message object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
-/// set of seen timers
-    std::set<megaHandle> mSeenTimers;
+/// maps chatids to the seen timers
+    std::map<karere::Id, megaHandle> mSeenTimers;
     karere::Id mUserId;
     bool mMessageReceivedConfirmation = false;
     uint8_t mRichLinkState = kRichLinkNotDefined;
