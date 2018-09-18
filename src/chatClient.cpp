@@ -1915,11 +1915,13 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
     //save to db
     auto db = parent.mKarereClient.db;
-    std::string auxBuf(*unifiedKey);
-    auxBuf.insert(auxBuf.begin(), '0');  // prefix to indicate it's encrypted
+
+    Buffer auxBuf;
+    auxBuf.write(0, (uint8_t)strongvelope::kKeyDecrypted);  // prefix to indicate it's decrypted
+    auxBuf.append(unifiedKey->data(), unifiedKey->size());
     db.query(
         "insert or replace into chat_vars(chatid, name, value)"
-        " values(?,'unified_key',?)", mChatid, auxBuf.c_str());
+        " values(?,'unified_key',?)", mChatid, auxBuf);
 
     db.query(
         "insert or replace into chat_vars(chatid, name, value)"
