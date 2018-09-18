@@ -217,6 +217,10 @@ void Client::cancelTimers()
         cancelTimeout(it->second , karereClient->appCtx);
    }
    mSeenTimers.clear();
+   for (auto& chat: mChatForChatId)
+   {
+       chat.second->mLastSeenInFlightIdx = CHATD_IDX_INVALID;
+   }
 }
 
 void Client::notifyUserActive()
@@ -2682,6 +2686,9 @@ bool Chat::setMessageSeen(Idx idx)
     if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
         return false;
 
+    if (mLastSeenInFlightIdx != CHATD_IDX_INVALID && idx <= mLastSeenInFlightIdx)
+        return false;
+
     auto& msg = at(idx);
     if (msg.userid == mClient.mUserId)
     {
@@ -2694,10 +2701,13 @@ bool Chat::setMessageSeen(Idx idx)
     auto it = mClient.mSeenTimers.find(mChatId);
     if (it != mClient.mSeenTimers.end())
     {
+        assert(mLastSeenInFlightIdx != CHATD_IDX_INVALID);
+        CHATID_LOG_WARNING("setMessageSeen: previous delayed SEEN canceled. Sending a new one...");
         cancelTimeout(it->second, mClient.karereClient->appCtx);
         mClient.mSeenTimers.erase(it);
     }
 
+    mLastSeenInFlightIdx = idx;
     megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
@@ -2733,6 +2743,7 @@ bool Chat::setMessageSeen(Idx idx)
                 CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
             }
         }
+        mLastSeenInFlightIdx = CHATD_IDX_INVALID;
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
