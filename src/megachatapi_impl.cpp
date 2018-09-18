@@ -2699,15 +2699,7 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
 void MegaChatApiImpl::closePreview(MegaChatHandle chatid)
 {
     sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
-    {
-        GroupChatRoom *publicChatRoom = (GroupChatRoom *) chatroom;
-        mClient->chats->removeRoomPreview(*publicChatRoom);
-        delete chatroom;
-    }
-
+    mClient->chats->removeRoomPreview(chatid);
     sdkMutex.unlock();
 }
 

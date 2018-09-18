@@ -1079,7 +1079,7 @@ public:
     uint64_t publicHandle();
     bool previewMode();
     void rejoin();
-    void disconnectPreview();
+    void closePreview();
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

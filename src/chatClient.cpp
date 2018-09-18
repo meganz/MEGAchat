@@ -2374,19 +2374,22 @@ void ChatRoom::notifyRejoinedChat()
         listItem->onRejoinedChat();
 }
 
-void ChatRoomList::removeRoomPreview(GroupChatRoom& room)
+void ChatRoomList::removeRoomPreview(Id chatid)
 {
-    auto it = find(room.chatid());
+    auto it = find(chatid);
     if (it == end())
-        throw std::runtime_error("removeRoom:: Room not in chat list");
-
-    //If room is in preview mode we can remove all records from db at this moment
-    if (room.previewMode())
     {
-        room.chat().disconnectPreview();
-        room.chat().getDbInterface()->chatCleanup();
+        CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
+        return;
     }
-    room.deleteSelf();
+    if (!it->second->previewMode())
+    {
+        CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
+        return;
+    }
+
+    GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
+    groupchat->deleteSelf();
     erase(it);
 }
 

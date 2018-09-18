@@ -333,9 +333,12 @@ void Chat::connect(const char *url)
     }
 }
 
-void Chat::disconnectPreview()
+void Chat::closePreview()
 {
+    CHATID_LOG_DEBUG("Closing preview...");
+
     handleleave();
+    CALL_DB(chatCleanup);
 }
 
 void Chat::login()
@@ -3913,15 +3916,15 @@ void Chat::onUserLeave(Id userid)
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
     {
-        //We have to cleanup this chat from cache if we are in preview mode
-        if (previewMode())
-        {
-            getDbInterface()->chatCleanup();
-        }
-
         mUsers.erase(userid);
         CALL_CRYPTO(onUserLeave, userid);
         CALL_LISTENER(onUserLeave, userid);
+
+        if (previewMode())
+        {
+            // preview is not allowed anymore, notify the user and clean cache
+            CALL_DB(chatCleanup);
+        }
     }
 }
 
@@ -4156,7 +4159,16 @@ void Client::leave(Id chatid)
     }
     conn->second->mChatIds.erase(chatid);
     mConnectionForChatId.erase(conn);
-    mChatForChatId.erase(chatid);
+    auto it = mChatForChatId.find(chatid);
+    if (it != mChatForChatId.end())
+    {
+        //If room is in preview mode we can remove all records from db at this moment
+        if (it->second->previewMode())
+        {
+            it->second->closePreview();
+        }
+        mChatForChatId.erase(it);
+    }
 }
 
 IRtcHandler* Client::setRtcHandler(IRtcHandler *handler)
