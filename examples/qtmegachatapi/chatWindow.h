@@ -8,6 +8,7 @@
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
 #include <QMessageBox>
+#include "QTMegaTransferListener.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
 #include "callGui.h"
@@ -29,7 +30,9 @@ class ChatWindowUi;
 }
 class ChatItemWidget;
 
-class ChatWindow : public QDialog, megachat::MegaChatRoomListener
+class ChatWindow : public QDialog,
+        public megachat::MegaChatRoomListener,
+        public mega::MegaTransferListener
 {
     Q_OBJECT
     public:
@@ -55,6 +58,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+        void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
@@ -71,6 +75,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
+        mega::QTMegaTransferListener *megaTransferListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
         bool mPreview;
@@ -100,8 +105,8 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onCallBtn(bool video);
 #endif
         void on_mJoinBtn_clicked();
-
         void on_mSettingsBtn_clicked();
+        void on_mAttachBtn_clicked();
 
 protected slots:
 #ifndef KARERE_DISABLE_WEBRTC

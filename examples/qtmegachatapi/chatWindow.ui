@@ -447,19 +447,19 @@ border-image: url(':/groupchat-members-hover.svg')
            </property>
           </widget>
          </item>
-		<item>
-				  <widget class="QToolButton" name="mSettingsBtn">
-				   <property name="enabled">
-				    <bool>true</bool>
-				   </property>
-				   <property name="minimumSize">
-				    <size>
-				     <width>30</width>
-				     <height>20</height>
-				    </size>
-				   </property>
-				   <property name="styleSheet">
-				    <string notr="true">QToolButton
+         <item>
+          <widget class="QToolButton" name="mSettingsBtn">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>30</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">QToolButton
 		{
 		border-image: url(':/settings.svg')
 		}
@@ -468,13 +468,12 @@ border-image: url(':/groupchat-members-hover.svg')
 		border-image: url(':/settings-hover.svg')
 		}
 		</string>
-				   </property>
-				   <property name="text">
-				    <string/>
-				   </property>
-				  </widget>
-				 </item>
-
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
          <item>
           <widget class="QToolButton" name="mJoinBtn">
            <property name="enabled">
@@ -595,6 +594,46 @@ border-image: url(':/link.svg')
              <property name="topMargin">
               <number>0</number>
              </property>
+             <item>
+              <widget class="QPushButton" name="mAttachBtn">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>80</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>80</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Send the typed message</string>
+               </property>
+               <property name="styleSheet">
+                <string notr="true"/>
+               </property>
+               <property name="text">
+                <string>+</string>
+               </property>
+               <property name="autoDefault">
+                <bool>false</bool>
+               </property>
+               <property name="default">
+                <bool>true</bool>
+               </property>
+               <property name="flat">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
              <item>
               <widget class="MsgInputBox" name="mMessageEdit">
                <property name="sizePolicy">

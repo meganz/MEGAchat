@@ -2,6 +2,7 @@
 #include "chatWindow.h"
 #include "assert.h"
 #include <QMenu>
+#include <QFileDialog>
 
 ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
     : QDialog(parent),
@@ -88,6 +89,8 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     QDialog::show();
     megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
+    megaTransferListenerDelegate = new mega::QTMegaTransferListener(mMegaApi, this);
+    mMegaApi->addTransferListener(megaTransferListenerDelegate);
 }
 
 void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
@@ -145,7 +148,9 @@ ChatWindow::~ChatWindow()
     }
 
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
+    mMegaApi->removeTransferListener(megaTransferListenerDelegate);
     delete megaChatRoomListenerDelegate;
+    delete megaTransferListenerDelegate;
     delete item;
     delete mChatRoom;
     delete ui;
@@ -867,5 +872,34 @@ void ChatWindow::on_mSettingsBtn_clicked()
         menu.exec(ui->mMembersBtn->mapToGlobal(
             QPoint(-menu.width()+ui->mMembersBtn->width(), ui->mMembersBtn->height())));
         menu.deleteLater();
+    }
+}
+
+void ChatWindow::on_mAttachBtn_clicked()
+{
+    QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
+
+    if (node.isEmpty())
+       return;
+
+    QStringList nodeParsed = node.split( "/" );
+    QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
+    mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
+    QMessageBox::warning(nullptr, tr("Node attachment"), tr("Please don't close the window until the transfer has been finished "));
+    this->mMegaApi->startUpload(node.toStdString().c_str(), parent, nodeName.toStdString().c_str());
+    delete parent;
+}
+
+void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
+{
+    if (e->getErrorCode() == mega::MegaError::API_OK)
+    {
+        mega::MegaNode *node = mMegaApi->getNodeByHandle(transfer->getNodeHandle());
+        mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+        QMessageBox::information(nullptr, tr("Transfer"), tr("The transfer has been finished successfully: "));
+    }
+    else
+    {
+        QMessageBox::critical(nullptr, tr("Transfer"), tr("Error in transfer: ").append(e->getErrorString()));
     }
 }
