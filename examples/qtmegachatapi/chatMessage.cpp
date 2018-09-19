@@ -557,7 +557,7 @@ void ChatMessage::onDiscardManualSending()
 
 void ChatMessage::on_bSettings_clicked()
 {
-    if (mMessage->isManagementMessage())
+    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         return;
     }
@@ -568,16 +568,18 @@ void ChatMessage::on_bSettings_clicked()
     {
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
+            mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
             for(int i = 0; i < nodeList->size(); i++)
             {
                 QString text("Download \"");
                 text.append(nodeList->get(i)->getName()).append("\"");
-                auto actInactive = menu.addAction(tr(text.toStdString().c_str()));
-                connect(actInactive,  &QAction::triggered, this, [this, nodeList, i]{ onNodeDownload(nodeList->get(i)->getHandle());});
+                auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
             }
             break;
         }
+        default:
+            break;
     }
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -585,9 +587,8 @@ void ChatMessage::on_bSettings_clicked()
     menu.exec(mapToGlobal(pos));
 }
 
-void ChatMessage::onNodeDownload(mega::MegaHandle nodeHandle)
+void ChatMessage::onNodeDownload(mega::MegaNode *node)
 {
-    mega::MegaNode *node = mChatWindow->mMegaApi->getNodeByHandle(nodeHandle);
     std::string target(mChatWindow->mMegaChatApi->getAppDir());
     target.append("/").append(node->getName());
 
@@ -597,8 +598,6 @@ void ChatMessage::onNodeDownload(mega::MegaHandle nodeHandle)
     msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
     if (msgBoxAns.exec() == QMessageBox::Ok)
     {
-        mChatWindow->mMegaApi->startDownload(node, target.c_str(), NULL);
-        //TODO create megatransferlistenerdelegate and handle posible errors
+        mChatWindow->mMegaApi->startDownload(node, target.c_str());
     }
-    delete node;
 }
