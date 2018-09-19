@@ -472,15 +472,35 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ((GroupChatRoom *)chatroom)->invite(uh, privilege)
-            .then([request, this]()
+            ((GroupChatRoom *)chatroom)->unifiedKey()
+            .then([request, this, chatroom, uh, privilege] (shared_ptr<string> unifiedKey)
             {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
+                MegaChatErrorPrivate *megaChatError;
+                if (!unifiedKey || unifiedKey->size() != 16)
+                {
+                    API_LOG_ERROR("Invalid unified key after decryption");
+                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                }
+                else
+                {
+                    ((GroupChatRoom *)chatroom)->invite(uh, privilege)
+                    .then([request, this]()
+                    {
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                    .fail([request, this](const promise::Error& err)
+                    {
+                        API_LOG_ERROR("Error adding user to group chat: %s", err.what());
+
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
+                }
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this] (const promise::Error &err)
             {
-                API_LOG_ERROR("Error adding user to group chat: %s", err.what());
+                API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);

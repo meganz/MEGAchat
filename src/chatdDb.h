@@ -434,6 +434,8 @@ public:
         mDb.query("delete from manual_sending where chatid = ?", mChat.chatId());
         mDb.query("delete from sending where chatid = ?", mChat.chatId());
         mDb.query("delete from sendkeys where chatid = ?", mChat.chatId());
+        // TODO: uncomment the following line when the node-history buffer is supported
+        // mDb.query("delete from node_history where chatid = ?", mChat.chatId());
     }
 
     virtual void clearHistory()
