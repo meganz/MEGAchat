@@ -779,10 +779,10 @@ public:
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
         TYPE_HIGHEST_MANAGEMENT     = 6,
-        TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
-        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
-        TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
-        TYPE_CONTAINS_META          = 19,   /// User message including additional metadata (ie. rich-preview for links)
+        TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
+        TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
+        TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
+        TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
     };
 
     enum
