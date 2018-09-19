@@ -962,17 +962,10 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph =  *((uint64_t *) data.readPtr(1,::mega::PUBLICHANDLE));
-            karere::Id userId = data.read<uint64_t>(7);
-            uint8_t priv = data.read<uint8_t>(15);
 
             tmpString.append("HANDLELEAVE ph: ");
             tmpString.append(ID_CSTR(ph), 8);
 
-            tmpString.append(" userid: ");
-            tmpString.append(ID_CSTR(userId));
-
-            tmpString.append(" priv: ");
-            tmpString.append(std::to_string(priv));
             return tmpString;
         }
         case OP_HANDLEJOINRANGEHIST:
@@ -1072,7 +1065,7 @@ void Chat::handleleave()
 
     Command comm (OP_HANDLELEAVE);
     comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
-    sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
+    sendCommand(comm);
 }
 
 void Chat::onJoinRejected()
