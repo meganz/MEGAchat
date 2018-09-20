@@ -472,27 +472,15 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ((GroupChatRoom *)chatroom)->unifiedKey()
-            .then([request, this, chatroom, uh, privilege] (shared_ptr<string> unifiedKey)
+            ((GroupChatRoom *)chatroom)->invite(uh, privilege)
+            .then([request, this]()
             {
-                ((GroupChatRoom *)chatroom)->invite(uh, privilege)
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const promise::Error& err)
-                {
-                    API_LOG_ERROR("Error adding user to group chat: %s", err.what());
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this, chatroom] (const promise::Error &err)
+            .fail([request, this](const promise::Error& err)
             {
-                API_LOG_ERROR("Failed to invite user to groupchat %s, the unified-key cannot be decrypted: %s", chatroom->chatid(), err.what());
+                API_LOG_ERROR("Error adding user to group chat: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);

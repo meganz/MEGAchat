@@ -1542,18 +1542,18 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
 {
-    std::shared_ptr<SendKey> key;
-
-    if (mChatMode == CHAT_MODE_PRIVATE)
+    promise::Promise<std::shared_ptr<SendKey>> pms;
+    if (mChatMode == CHAT_MODE_PUBLIC)
     {
+        pms = mUnifiedKeyDecrypted;
+    }
+    else
+    {
+        std::shared_ptr<SendKey> key;
         key = std::make_shared<SendKey>();
         randombytes_buf(key->buf(), key->bufSize());
+        pms.resolve(key);
     }
-    else    // public mode
-    {
-        key = mUnifiedKey;
-    }
-    assert(!key->empty());
 
     SetOfIds participants = *mParticipants;
     if (extraUser)
@@ -1562,60 +1562,71 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
     }
 
     auto wptr = weakHandle();
-    return encryptKeyToAllParticipants(key, participants)
-    .then([this, wptr, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+    return pms.then([wptr, this, participants, data](std::shared_ptr<SendKey> key)
     {
         wptr.throwIfDeleted();
+        assert(!key->empty());
 
-        auto& key = result.second;
-        chatd::Message msg(0, mOwnHandle, 0, 0, Buffer(data.c_str(), data.size()));
-        msg.backRefId = chatd::Chat::generateRefId(this);
-        EncryptedMessage enc(msg, *key);
+        return encryptKeyToAllParticipants(key, participants)
+        .then([this, wptr, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+        {
+            wptr.throwIfDeleted();
 
-        chatd::KeyCommand& keyCmd = *result.first;
-        assert(keyCmd.dataSize() >= 17);
+            auto& key = result.second;
+            chatd::Message msg(0, mOwnHandle, 0, 0, Buffer(data.c_str(), data.size()));
+            msg.backRefId = chatd::Chat::generateRefId(this);
+            EncryptedMessage enc(msg, *key);
 
-        TlvWriter tlv;
-        tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
-        tlv.addRecord(TLV_TYPE_NONCE, enc.nonce);
-        tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
-        tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
+            chatd::KeyCommand& keyCmd = *result.first;
+            assert(keyCmd.dataSize() >= 17);
 
-        Signature signature;
-        signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
-            enc.key, signature);
-        TlvWriter sigTlv;
-        sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+            TlvWriter tlv;
+            tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
+            tlv.addRecord(TLV_TYPE_NONCE, enc.nonce);
+            tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
+            tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
 
-        auto blob = std::make_shared<Buffer>(512);
-        blob->clear();
-        blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
-        blob->append<uint8_t>(Message::kMsgChatTitle);
-        blob->append(sigTlv);
-        blob->append(tlv);
-        return blob;
+            Signature signature;
+            signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
+                enc.key, signature);
+            TlvWriter sigTlv;
+            sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+
+            auto blob = std::make_shared<Buffer>(512);
+            blob->clear();
+            blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
+            blob->append<uint8_t>(Message::kMsgChatTitle);
+            blob->append(sigTlv);
+            blob->append(tlv);
+            return blob;
+        });
     });
 }
 
 promise::Promise<chatd::KeyCommand*>
 ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
 {
-    assert(!mUnifiedKey->empty());
-    auto wptr = weakHandle();
     SetOfIds participants = *mParticipants;
-
     if (extraUser)
     {
         participants.insert(extraUser);
     }
 
-    return encryptKeyToAllParticipants(mUnifiedKey, participants)
-    .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
+    auto wptr = weakHandle();
+    return mUnifiedKeyDecrypted.then([wptr, this, participants](std::shared_ptr<SendKey> key)
     {
+        assert(!key->empty());
         wptr.throwIfDeleted();
-        chatd::KeyCommand *keyCmd = result.first;
-        assert(keyCmd->dataSize() >= 17);
-        return keyCmd;
+        assert(!key->empty());
+
+        return encryptKeyToAllParticipants(key, participants)
+        .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
+        {
+            wptr.throwIfDeleted();
+            chatd::KeyCommand *keyCmd = result.first;
+            assert(keyCmd->dataSize() >= 17);
+            return keyCmd;
+        });
     });
 }
 
