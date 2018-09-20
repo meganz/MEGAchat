@@ -3036,7 +3036,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (msg->dataSize() < 2)
                 CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg->type = msg->buf()[1];
+                msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
         }
 
         //update in memory, if loaded
