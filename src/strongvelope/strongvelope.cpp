@@ -1472,28 +1472,33 @@ promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::createNewKey(const SetOfIds &recipients)
 {
     // Assemble the output for all recipients.
+    promise::Promise<std::shared_ptr<SendKey>> pms;
     if (mChatMode == CHAT_MODE_PUBLIC)
     {
-        if (!mUnifiedKey)
-            return promise::Error("Unified key not available");
-
-        mCurrentKey = mUnifiedKey;
+        pms = mUnifiedKeyDecrypted;
     }
     else
     {
-        mCurrentKey.reset(new SendKey);
-        mCurrentKey->setDataSize(AES::BLOCKSIZE);
-        randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
+        std::shared_ptr<SendKey> key;
+        key.reset(new SendKey);
+        key->setDataSize(AES::BLOCKSIZE);
+        randombytes_buf(key->ubuf(), AES::BLOCKSIZE);
+        pms = promise::Promise<std::shared_ptr<SendKey>>();
+        pms.resolve(key);
     }
 
-    mCurrentKeyId = createLocalKeyId();
-    mCurrentKeyParticipants = recipients;
+    return pms.then([this, recipients](std::shared_ptr<SendKey> key)
+    {
+        mCurrentKey = key;
+        mCurrentKeyId = createLocalKeyId();
+        mCurrentKeyParticipants = recipients;
 
-    NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
-    mUnconfirmedKeys.push_back(entry);
+        NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
+        mUnconfirmedKeys.push_back(entry);
 
-    // Assemble the output for all recipients.
-    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
+        // Assemble the output for all recipients.
+        return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
+    });
 }
 
 KeyId ProtocolHandler::createLocalKeyId()
