@@ -585,7 +585,7 @@ void ChatMessage::onDiscardManualSending()
 
 void ChatMessage::on_bSettings_clicked()
 {
-    if (mMessage->isManagementMessage())
+    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
         return;
     }
@@ -606,6 +606,8 @@ void ChatMessage::on_bSettings_clicked()
             }
             break;
         }
+        default:
+            break;
     }
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
