@@ -61,7 +61,7 @@ public:
 
     void addMessage(const chatd::Message& msg, chatd::Idx idx, const std::string& table)
     {
-#if 1
+#ifndef NDEBUG
         std::string checkQuery = "select min(idx), max(idx), count(*) from " + table + " where chatid = ?";
         SqliteStmt stmt(mDb, checkQuery.c_str());
         stmt << mChat.chatId();
@@ -363,7 +363,8 @@ public:
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
-#if 1
+
+#ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mChat.chatId() << msg.id();
         stmt.step();
@@ -381,7 +382,7 @@ public:
     virtual void setLastSeen(karere::Id msgid)
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "setLastSeen");
     }
     virtual void setLastReceived(karere::Id msgid)
     {
@@ -393,7 +394,7 @@ public:
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
             "values(?, 'have_all_history', ?)", mChat.chatId(), haveAllHistory ? 1 : 0);
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "setHaveAllHistory");
     }
     virtual bool haveAllHistory()
     {
@@ -434,7 +435,7 @@ public:
         if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
         {
             addMessage(msg, idx, "node_history");
-            assertAffectedRowCount(1);
+            assertAffectedRowCount(1, "addMsgToNodeHistory");
         }
     }
 
@@ -442,7 +443,7 @@ public:
     {
         mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
                   msg, msg.updated, msg.type, mChat.chatId(), msg.id());
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1,  "deleteMsgFromNodeHistory");
     }
 
     virtual void truncateNodeHistory(karere::Id id)

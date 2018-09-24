@@ -345,8 +345,8 @@ public class MegaChatApiJava {
      *
      * @param listener MegaChatRequestListener to track this request
      */
-    public void retryPendingConnections(MegaChatRequestListenerInterface listener){
-        megaChatApi.retryPendingConnections(createDelegateRequestListener(listener));
+    public void retryPendingConnections(boolean disconnect, MegaChatRequestListenerInterface listener){
+        megaChatApi.retryPendingConnections(disconnect, createDelegateRequestListener(listener));
     }
 
     /**

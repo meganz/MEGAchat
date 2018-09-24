@@ -212,7 +212,10 @@ void Client::sendEcho()
 {
     for (auto& conn: mConnections)
     {
-        conn.second->sendEcho();
+        if (conn.second->isOnline())
+        {
+            conn.second->sendEcho();
+        }
     }
 }
 
@@ -332,11 +335,6 @@ void Chat::connect()
     }
 }
 
-void Chat::disconnect()
-{
-    setOnlineState(kChatStateOffline);
-}
-
 void Chat::login()
 {
     assert(mConnection.isOnline());
@@ -366,6 +364,7 @@ void Connection::wsConnectCb()
     mState = kStateConnected;
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
+    mRetryCtrl.reset();
 }
 
 void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
@@ -449,6 +448,7 @@ void Connection::sendEcho()
         mEchoTimer = 0;
 
         CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
+        mChatdClient.karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
 
         mState = kStateDisconnected;
         mHeartbeatEnabled = false;
@@ -474,16 +474,17 @@ Promise<void> Connection::reconnect()
 
         mState = kStateResolving;
 
+        // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
+        abortRetryController();
+
+        // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        return retry("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr)
+        mRetryCtrl.reset(createRetryController("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
                 CHATDS_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
-
-                promise::Promise<void> pms = Promise<void>();
-                pms.resolve();
-                return pms;
+                return promise::_Void();
             }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -606,9 +607,25 @@ Promise<void> Connection::reconnect()
                 sendKeepalive(mChatdClient.mKeepaliveType);
                 rejoinExistingChats();
             });
-        }, wptr, mChatdClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+        }, wptr, mChatdClient.karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+
+        return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_chatd);
+}
+
+void Connection::abortRetryController()
+{
+    if (!mRetryCtrl)
+    {
+        return;
+    }
+
+    assert(!isOnline());
+
+    CHATDS_LOG_DEBUG("Reconnection was aborted");
+    mRetryCtrl->abort();
+    mRetryCtrl.reset();
 }
 
 void Connection::disconnect()
@@ -671,21 +688,33 @@ void Connection::doConnect()
     }
 }
 
-promise::Promise<void> Connection::retryPendingConnection()
+void Connection::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        mState = kStateDisconnected;
-        mHeartbeatEnabled = false;
-        if (mEchoTimer)
+        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
         {
-            cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
-            mEchoTimer = 0;
+            CHATD_LOG_WARNING("Abort backoff and reconnect immediately");
+            mRetryCtrl->restart();
         }
-        CHATDS_LOG_WARNING("Retrying pending connection...");
-        return reconnect();
+        else if (disconnect)
+        {
+            mState = kStateDisconnected;
+            mHeartbeatEnabled = false;
+            if (mEchoTimer)
+            {
+                cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
+                mEchoTimer = 0;
+            }
+            abortRetryController();
+            CHATDS_LOG_WARNING("Retrying pending connection...");
+            reconnect();
+        }
     }
-    return promise::Error("No valid URL provided to retry pending connections");
+    else
+    {
+        CHATDS_LOG_WARNING("No valid URL provided to retry pending connections");
+    }
 }
 
 void Connection::heartbeat()
@@ -721,14 +750,12 @@ void Client::disconnect()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnections()
+void Client::retryPendingConnections(bool disconnect)
 {
-    std::vector<Promise<void>> promises;
     for (auto& conn: mConnections)
     {
-        promises.push_back(conn.second->retryPendingConnection());
+        conn.second->retryPendingConnection(disconnect);
     }
-    return promise::when(promises);
 }
 
 void Client::heartbeat()
@@ -3111,7 +3138,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (msg->dataSize() < 2)
                 CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg->type = msg->buf()[1];
+                msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
         }
 
         //update in memory, if loaded
@@ -3216,7 +3243,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
             }
 
-            if (msg->isDeleted())
+            if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
             {
                 mAttachmentNodes->deleteMessage(*msg);
             }
@@ -3312,9 +3339,9 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
 
-
+    // Find an attachment newer than truncate (lownum) in order to truncate node-history
+    // (if no more attachments in history buffer, node-history will be fully cleared)
     Id nextAttachmentId = Id::inval();
-    // lownum is the message where the history has been truncate
     for (Idx i = lownum(); i < highnum(); i++)
     {
         if (at(i).type == Message::kMsgAttachment)
@@ -3323,7 +3350,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
             break;
         }
     }
-
     mAttachmentNodes->truncateHistory(nextAttachmentId);
 }
 
@@ -4344,33 +4370,33 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
 {
-    Message* message = new Message(msg);
+    Id msgid = msg.id();
     if (isNew)
     {
-        mBuffer.emplace_front(message);
-        mIndexMap[message->id()] =  mBuffer.begin();
+        mBuffer.emplace_front(new Message(msg));
+        mIdToMsgMap[msgid] =  mBuffer.begin();
         mNewest++;
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
-        CALL_LISTENER_FH(onReceived, message, mNewest);
+        CALL_LISTENER_FH(onReceived, &(*mBuffer.front()), mNewest);
     }
     else
     {
-        if (mIndexMap.find(message->id()) == mIndexMap.end())  // if it doesn't exist
+        if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
-            mBuffer.emplace_back(message);
-            mIndexMap[message->id()] = --mBuffer.end();
+            mBuffer.emplace_back(new Message(msg));
+            mIdToMsgMap[msgid] = --mBuffer.end();
             mOldest--;
             mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
-            CALL_LISTENER_FH(onLoaded, message, mOldest);
+            CALL_LISTENER_FH(onLoaded, &(*mBuffer.back()), mOldest);
         }
     }
 }
 
 void FilteredHistory::deleteMessage(const Message &msg)
 {
-    auto it = mIndexMap.find(msg.id());
-    if (it != mIndexMap.end())
+    auto it = mIdToMsgMap.find(msg.id());
+    if (it != mIdToMsgMap.end())
     {
         // Remove message's content and modify updated field, it is the same that delete a file
         (*it->second)->free();
@@ -4385,17 +4411,16 @@ void FilteredHistory::deleteMessage(const Message &msg)
 
 void FilteredHistory::truncateHistory(Id id)
 {
-    if (id != Id::inval())
+    if (id.isValid())
     {
-        auto it = mIndexMap.find(id);
-        if (it != mIndexMap.end())
+        auto it = mIdToMsgMap.find(id);
+        if (it != mIdToMsgMap.end())
         {
             // id is a message in the history, we want to remove from the next message until the oldest
             for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
             {
-                mIndexMap.erase((*loopIterator)->id());
+                mIdToMsgMap.erase((*loopIterator)->id());
             }
-
             mBuffer.erase(it->second, mBuffer.end());
         }
 
@@ -4404,9 +4429,9 @@ void FilteredHistory::truncateHistory(Id id)
         CALL_LISTENER_FH(onTruncated, id);
         mOldest = (mOldest < mOldestInDb) ? mOldestInDb : mOldest;
     }
-    else
+    else    // full-history truncated or no remaining attachments
     {
-        CALL_LISTENER_FH(onTruncated, mBuffer.begin()->get()->id());
+        CALL_LISTENER_FH(onTruncated, (*mBuffer.begin())->id());
         clear();
     }
 }
@@ -4429,7 +4454,7 @@ Idx FilteredHistory::oldestLoadedIdx() const
 void FilteredHistory::clear()
 {
     mBuffer.clear();
-    mIndexMap.clear();
+    mIdToMsgMap.clear();
     CALL_DB_FH(clearNodeHistory);
     init();
 }
@@ -4443,7 +4468,7 @@ HistSource FilteredHistory::loadHistory(uint32_t count)
         for (auto it = mOldestNotifyMsg; it != mBuffer.end() && messagesLoaded < count; it++)
         {
             Idx index = mNewest - std::distance(mBuffer.begin(), it);
-            CALL_LISTENER_FH(onLoaded,  it->get(), index);
+            CALL_LISTENER_FH(onLoaded,  &(*(*it)), index);
             messagesLoaded++;
             mOldestNotifyMsg = it;
             histSource = HistSource::kHistSourceRam;
@@ -4486,7 +4511,7 @@ int FilteredHistory::loadHistoryFromDb(uint32_t count)
             mOldest --;
             CALL_LISTENER_FH(onLoaded, messages[i], mOldest);
             mBuffer.emplace_back(messages[i]);
-            mIndexMap[messages[i]->id()] = --mBuffer.end();
+            mIdToMsgMap[messages[i]->id()] = --mBuffer.end();
         }
     }
 

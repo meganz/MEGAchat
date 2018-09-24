@@ -129,6 +129,7 @@ public:
         TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
         TERM_CODE_BUSY              = 9,    /// Peer is in another call
         TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
+        TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
         TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
@@ -1971,9 +1972,10 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      *
+     * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
      * @param listener MegaChatRequestListener to track this request
      */
-    void retryPendingConnections(MegaChatRequestListener *listener = NULL);
+    void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session

@@ -291,19 +291,19 @@ Client::~Client()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnections()
+void Client::retryPendingConnections(bool disconnect)
 {
-    if (mConnState == kConnecting)
-        return mConnectPromise;
+    if (mConnState == kDisconnected)  // already a connection attempt in-progress
+    {
+        KR_LOG_WARNING("Retry pending connections called without previous connect");
+        return;
+    }
 
-    std::vector<Promise<void>> promises;
-
-    promises.push_back(mPresencedClient.retryPendingConnection());
+    mPresencedClient.retryPendingConnection(disconnect);
     if (mChatdClient)
     {
-        promises.push_back(mChatdClient->retryPendingConnections());
+        mChatdClient->retryPendingConnections(disconnect);
     }
-    return promise::when(promises);
 }
 
 #define TOKENPASTE2(a,b) a##b
@@ -445,7 +445,7 @@ promise::Promise<void> Client::pushReceived()
         mSyncTimer = 0;
         mSyncCount = -1;
 
-        mChatdClient->retryPendingConnections();
+        mChatdClient->retryPendingConnections(true);
 
     }, chatd::kSyncTimeout, appCtx);
 
@@ -548,53 +548,29 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db.isOpen())
+        const char *pscsn = event->getText();
+        if (!pscsn)
         {
-            auto pscsn = event->getText();
-            if (!pscsn)
+            KR_LOG_ERROR("EVENT_COMMIT_DB --> DB commit triggered by SDK without a valid scsn");
+            return;
+        }
+
+        std::string scsn = pscsn;
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, scsn]()
+        {
+            if (wptr.deleted())
             {
                 return;
             }
-            std::string scsn = pscsn;
-            auto wptr = weakHandle();
-            marshallCall([wptr, this, scsn]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
 
+            if (db.isOpen())
+            {
                 KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
                 commit(scsn);
-            }, appCtx);
-        }
-        break;
-    }
-
-    case ::mega::MegaEvent::EVENT_DISCONNECT:
-    {
-        if (connState() == kConnecting || connState() == kConnected)
-        {            
-#ifndef KARERE_DISABLE_WEBRTC
-            if (rtc && rtc->isCallInProgress())
-            {
-                KR_LOG_WARNING("EVENT_DISCONNECT --> skipping reconnection triggered by SDK because there's a call in progress");
-                break;
             }
-#endif
-            auto wptr = weakHandle();
-            marshallCall([wptr, this]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
 
-                KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
-                retryPendingConnections();
-
-            }, appCtx);
-        }
+        }, appCtx);
         break;
     }
 
@@ -920,46 +896,46 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
-    if (mConnState == kConnecting)
+    if (mConnState == kConnecting)      // already connecting, wait for completion
+    {
         return mConnectPromise;
-    else if (mConnState == kConnected)
+    }
+    else if (mConnState == kConnected)  // nothing to do
+    {
         return promise::_Void();
+    }
 
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
-    case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres, isInBackground);
-    case promise::kFailed:
-        return mSessionReadyPromise.error();
-    default:                    // if session is not ready yet
-        assert(sessDone == promise::kNotResolved);
-        mConnectPromise = mSessionReadyPromise
+        case promise::kSucceeded:   // if session is ready...
+            return doConnect(pres, isInBackground);
+
+        case promise::kFailed:      // if session failed...
+            return mSessionReadyPromise.error();
+
+        default:                    // if session is not ready yet... wait for it and then connect
+            assert(sessDone == promise::kNotResolved);
+            mConnectPromise = mSessionReadyPromise
             .then([this, pres, isInBackground]() mutable
             {
                 return doConnect(pres, isInBackground);
-            })
-            .then([this]()
-            {
-                setConnState(kConnected);
-            })
-            .fail([this](const promise::Error& err)
-            {
-                setConnState(kDisconnected);
-                return err;
             });
-        return mConnectPromise;
+            return mConnectPromise;
     }
 }
 
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
-    assert(mSessionReadyPromise.succeeded());
+    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
     setConnState(kConnecting);
     mOwnPresence = pres;
-    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
+    assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
+
     mUserAttrCache->onLogin();
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
@@ -1005,7 +981,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         }
 
         heartbeat();
-    }, 10000, appCtx);
+    }, kHeartbeatTimeout, appCtx);
     return pms;
 }
 
@@ -1013,6 +989,7 @@ void Client::disconnect()
 {
     if (mConnState == kDisconnected)
         return;
+
     setConnState(kDisconnected);
     // stop sync of user attributes in cache
     assert(mOwnNameAttrHandle.isValid());
@@ -1031,6 +1008,7 @@ void Client::disconnect()
     mChatdClient->disconnect();
     mPresencedClient.disconnect();
 }
+
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;

@@ -11,10 +11,11 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include <base/trackDelete.h>
-#include "chatdMsg.h"
-#include "url.h"
-#include "net/websocketsIO.h"
-#include "userAttrCache.h"
+#include <chatdMsg.h>
+#include <url.h>
+#include <net/websocketsIO.h>
+#include <userAttrCache.h>
+#include <base/retryHandler.h>
 
 namespace karere {
     class Client;
@@ -65,10 +66,13 @@ enum HistSource
     kHistSourceServer = 3, //< History is being retrieved from the server
     kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
 };
-/** Timeout to send SEEN (Milliseconds)**/
-enum { kSeenTimeout = 200 };
-/** Timeout to recv SYNC (Milliseconds)**/
-enum { kSyncTimeout = 2500 };
+
+enum
+{
+    kSeenTimeout = 200,     /// Delay to send SEEN (ms)
+    kSyncTimeout = 2500     /// Timeout to recv SYNC (ms)
+};
+
 enum { kMaxMsgSize = 120000 };  // (in bytes)
 
 class DbInterface;
@@ -365,6 +369,7 @@ protected:
     std::string mTargetIp;
     DNScache &mDNScache;
     bool mHeartbeatEnabled = false;
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
     time_t mTsLastRecv = 0;
     megaHandle mEchoTimer = 0;
     promise::Promise<void> mConnectPromise;
@@ -378,6 +383,7 @@ protected:
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
+    void abortRetryController();
     void disconnect();
     void doConnect();
 // Destroys the buffer content
@@ -400,7 +406,7 @@ public:
     }
     const std::set<karere::Id>& chatIds() const { return mChatIds; }
     uint32_t clientId() const { return mClientId; }
-    promise::Promise<void> retryPendingConnection();
+    void retryPendingConnection(bool disconnect);
     virtual ~Connection()
     {
         disconnect();
@@ -533,7 +539,7 @@ public:
     void finishFechingFromServer();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
-    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIndexMap;
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
     DbInterface *mDb;
     Idx mNewest;
     Idx mOldest;
@@ -807,7 +813,6 @@ public:
       */
     void connect();
 
-    void disconnect();
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
 
@@ -1224,7 +1229,7 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(karere::Id chatid);
     void disconnect();
-    promise::Promise<void> retryPendingConnections();
+    void retryPendingConnections(bool disconnect);
     void heartbeat();
     bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
     void notifyUserIdle();
