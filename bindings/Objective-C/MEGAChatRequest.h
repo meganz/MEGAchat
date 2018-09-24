@@ -30,7 +30,13 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeSignalActivity,
     MEGAChatRequestTypeSetPresencePersist,
     MEGAChatRequestTypeSetPresenceAutoaway,
-    MEGAChatRequestTypeLoadAudioVideoDevices
+    MEGAChatRequestTypeLoadAudioVideoDevices,
+    MEGAChatMessageTypeArchiveChatRoom,
+    MEGAChatRequestTypePushReceived,
+    MEGAChatRequestTypeLoadChatLink,
+    MEGAChatRequestTypeChatLinkHandle,
+    MEGAChatRequestTypeChatLinkClose,
+    MEGAChatRequestTypeChatLinkJoin
 };
 
 enum {
@@ -54,6 +60,7 @@ enum {
 @property (readonly, nonatomic) uint64_t userHandle;
 @property (readonly, nonatomic) NSInteger privilege;
 @property (readonly, nonatomic) NSString *text;
+@property (readonly, nonatomic) NSURL *link;
 @property (readonly, nonatomic) MEGAChatMessage *chatMessage;
 @property (readonly, nonatomic) MEGANodeList *nodeList;
 @property (readonly, nonatomic) NSInteger paramType;
