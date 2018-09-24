@@ -2,6 +2,7 @@
 #define CHATWINDOW_H
 #include "ui_chatWindow.h"
 #include "QTMegaChatRoomListener.h"
+#include "QTMegaChatNodeHistoryListener.h"
 #include "megachatapi.h"
 #include "chatItemWidget.h"
 #include "chatMessage.h"
@@ -29,7 +30,7 @@ class ChatWindowUi;
 }
 class ChatItemWidget;
 
-class ChatWindow : public QDialog, megachat::MegaChatRoomListener
+class ChatWindow : public QDialog, megachat::MegaChatRoomListener, megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
     public:
@@ -41,6 +42,10 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
+        void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
+        void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
+        void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
+        void onAttachmentTruncated(MegaChatApi *api, MegaChatHandle msgid);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void truncateChatUI();
@@ -76,6 +81,13 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        int loadedAttachments;
+        int receivedAttachments;
+        bool mScrollToBottonAttachments;
+        megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
+        MyMessageList *mAttachmentList = NULL;
+        QWidget *mFrameAttachments = NULL;
+        void destroyAttachments();
 
     private slots:
         void onMsgListRequestHistory();
@@ -85,6 +97,8 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberAdd();
         void onTruncateChat();
         void onMembersBtn(bool);
+        void onShowAttachments();
+        void onAttachmentRequestHistory();
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
 #endif

@@ -12,6 +12,9 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     mCallGui = NULL;
 #endif
     loadedMessages = 0;
+    loadedAttachments = 0;
+    mScrollToBottonAttachments = true;
+    receivedAttachments = 1;
     nManualSending = 0;
     mPendingLoad = 0;
     mChatRoom = cRoom;
@@ -101,6 +104,12 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
+    if (mFrameAttachments)
+    {
+        destroyAttachments();
+    }
+
+
     ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
     if (chatItemWidget)
     {
@@ -319,6 +328,16 @@ void ChatWindow::setCallGui(CallGui *callGui)
 {
     mCallGui = callGui;
 }
+
+void ChatWindow::destroyAttachments()
+{
+    mMegaChatApi->closeNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
+    delete mFrameAttachments;
+    mFrameAttachments = NULL;
+    mAttachmentList = NULL;
+    delete megaChatNodeHistoryListenerDelegate;
+    megaChatNodeHistoryListenerDelegate = NULL;
+}
 #endif
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
@@ -390,6 +409,103 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
     truncateChatUI();
 }
 
+void ChatWindow::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage *msg)
+{
+    if (msg)
+    {
+        QListWidgetItem* item = new QListWidgetItem;
+        megachat::MegaChatHandle chatId = mChatRoom->getChatId();
+        ChatMessage * widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
+        widget->setWidgetItem(item);
+        item->setSizeHint(widget->size());
+        setMessageHeight(msg,item);
+
+        mAttachmentList->insertItem(loadedAttachments, item);
+        mAttachmentList->setItemWidget(item, widget);
+
+        loadedAttachments--;
+
+        if (msg->getType() == 1 || msg->isDeleted())
+        {
+            widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
+        }
+    }
+    else if (mScrollToBottonAttachments)
+    {
+        mAttachmentList->scrollToBottom();
+        mScrollToBottonAttachments = false;
+    }
+}
+
+void ChatWindow::onAttachmentReceived(MegaChatApi */*api*/, MegaChatMessage *msg)
+{
+    if (msg)
+    {
+        QListWidgetItem* item = new QListWidgetItem;
+        megachat::MegaChatHandle chatId = mChatRoom->getChatId();
+        ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
+        widget->setWidgetItem(item);
+        item->setSizeHint(widget->size());
+        setMessageHeight(msg,item);
+
+        mAttachmentList->addItem(item);
+        mAttachmentList->setItemWidget(item, widget);
+        mAttachmentList->scrollToBottom();
+
+        receivedAttachments++;
+
+        if (msg->getType() == 1)
+        {
+            widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
+        }
+    }
+}
+
+void ChatWindow::onAttachmentDeleted(MegaChatApi */*api*/, MegaChatHandle msgid)
+{
+    for (int i = 0; i < mAttachmentList->count(); i++)
+    {
+        QListWidgetItem* item = mAttachmentList->item(i);
+        ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
+        if (widget && widget->getMessage()->getMsgId() == msgid)
+        {
+            widget->updateContent();
+            widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
+            break;
+        }
+    }
+}
+
+void ChatWindow::onAttachmentTruncated(MegaChatApi */*api*/, MegaChatHandle msgid)
+{
+    std::vector <MegaChatHandle> ids;
+    for (int j = 0; j < mAttachmentList->count(); j++)
+    {
+        QListWidgetItem* item = mAttachmentList->item(j);
+        ChatMessage *widget = static_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
+        ids.push_back(widget->getMessage()->getMsgId());
+        if (widget->getMessage()->getMsgId() == msgid)
+        {
+            break;
+        }
+    }
+
+    for (int j = 0; j < ids.size(); j++)
+    {
+        MegaChatHandle id = ids[j];
+        for (int i = 0; i < mAttachmentList->count(); i++)
+        {
+            QListWidgetItem* item = mAttachmentList->item(i);
+            ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
+            if (widget && widget->getMessage()->getMsgId() == id)
+            {
+                delete mAttachmentList->takeItem(i);
+                break;
+            }
+        }
+    }
+}
+
 void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetItem *item)
 {
     switch (msg->getType())
@@ -444,12 +560,45 @@ void ChatWindow::onMembersBtn(bool)
     }
 }
 
+void ChatWindow::onShowAttachments()
+{
+    if (!mAttachmentList)
+    {
+        mFrameAttachments = new QWidget();
+        mFrameAttachments->setWindowFlags(Qt::WindowTitleHint | Qt::CustomizeWindowHint);
+        mAttachmentList = new MyMessageList(mFrameAttachments);
+        mFrameAttachments->show();
+        mFrameAttachments->resize(450, 350);
+        mAttachmentList->resize(450, 350);
+        mAttachmentList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        connect(mAttachmentList, SIGNAL(requestHistory()), this, SLOT(onAttachmentRequestHistory()));
+        megaChatNodeHistoryListenerDelegate = new megachat::QTMegaChatNodeHistoryListener(mMegaChatApi, this);
+        mMegaChatApi->openNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
+        mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
+        loadedMessages = 0;
+        loadedAttachments = 0;
+        mScrollToBottonAttachments = true;
+    }
+    else
+    {
+        destroyAttachments();
+    }
+}
+
+void ChatWindow::onAttachmentRequestHistory()
+{
+    mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
+}
+
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
     if (!mChatRoom->isActive())
     {
         return ;
     }
+
+    auto attachments = menu.addAction("Node attachment");
+    connect(attachments, SIGNAL(triggered()), this, SLOT(onShowAttachments()));
 
     auto truncate = menu.addAction("Truncate chat");
     truncate->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);

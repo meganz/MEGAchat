@@ -57,6 +57,7 @@ HEADERS  += asyncTest-framework.h \
             ../bindings/qt/QTMegaChatCallListener.h \
             ../bindings/qt/QTMegaChatVideoListener.h \
             ../bindings/qt/QTMegaChatNotificationListener.h \
+            ../bindings/qt/QTMegaChatNodeHistoryListener.h \
             base/asyncTools.h \
             base/addrinfo.hpp \
             base/cservices-thread.h \
@@ -102,7 +103,8 @@ CONFIG(qt) {
             ../bindings/qt/QTMegaChatRequestListener.cpp \
             ../bindings/qt/QTMegaChatCallListener.cpp \
             ../bindings/qt/QTMegaChatVideoListener.cpp \
-            ../bindings/qt/QTMegaChatNotificationListener.cpp
+            ../bindings/qt/QTMegaChatNotificationListener.cpp \
+            ../bindings/qt/QTMegaChatNodeHistoryListener.cpp
 }
 
 CONFIG(USE_WEBRTC) {
