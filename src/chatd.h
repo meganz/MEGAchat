@@ -299,6 +299,16 @@ public:
      */
     virtual void onHistoryReloaded(){}
 };
+
+class FilteredHistoryHandler
+{
+public:
+    virtual void onReceived(Message* /*msg*/, chatd::Idx idx) = 0;
+    virtual void onLoaded(Message* /*msg*/, chatd::Idx idx) = 0;
+    virtual void onDeleted(karere::Id /*id*/) = 0;
+    virtual void onTruncated(karere::Id /*id*/) = 0;
+};
+
 class Connection;
 
 class IRtcHandler
@@ -504,7 +514,7 @@ protected:
 class FilteredHistory
 {
 public:
-    FilteredHistory(DbInterface *db, Listener &listener);
+    FilteredHistory(DbInterface &db, Chat &chat);
     void addMessage(const Message &msg, bool isNew);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
@@ -512,10 +522,15 @@ public:
     Idx oldestIdx() const;
     Idx oldestLoadedIdx() const;
     void clear();
+    HistSource loadHistory(uint32_t count);
     int loadHistoryFromDb(uint32_t count);
     void setHasAllHistory(bool hasAllHistory);
+
     bool hasAllHistory() const;
     karere::Id getLastMessageId() const;
+    void setHandler(FilteredHistoryHandler *listener);
+    void unsetHandler();
+    void finishFechingFromServer();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
     std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIndexMap;
@@ -523,10 +538,13 @@ protected:
     Idx mNewest;
     Idx mOldest;
     Idx mOldestInDb;
+    std::list<std::unique_ptr<Message>>::iterator mOldestNotifyMsg;
     void init();
-    int mInitialMessagesToLoad = 32;
+    int mInitialMessagesToLoad = 16;
     bool mHasAllHistory = false;
-    Listener *mListener;
+    FilteredHistoryHandler *mListener;
+    Chat *mChat;
+    bool mFetchingFromServer = false;
 };
 
 struct ChatDbInfo;
@@ -704,7 +722,6 @@ protected:
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
     void requestHistoryFromServer(int32_t count);
-    void requestNodeHistoryFromServer(int32_t count);
     Idx getHistoryFromDb(unsigned count);
     HistSource getHistoryFromDbOrServer(unsigned count);
     void onLastReceived(karere::Id msgid);
@@ -930,7 +947,7 @@ public:
      */
     HistSource getHistory(unsigned count);
 
-    void getHistoryNodes(uint32_t count);
+    HistSource getHistoryNodes(uint32_t count);
 
     /**
      * @brief Resets sending of history to the app, so that next getHistory()
@@ -1105,6 +1122,9 @@ public:
     void clearHistory();
     void sendSync();
     FetchType getFetchType() const;
+    void requestNodeHistoryFromServer(uint32_t count);
+    void setNodeHistoryHandler(FilteredHistoryHandler *listener);
+    void unsetHandlerToNodeHistory();
 
 
 protected:

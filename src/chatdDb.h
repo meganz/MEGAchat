@@ -440,8 +440,8 @@ public:
 
     virtual void deleteMsgFromNodeHistory(const chatd::Message& msg)
     {
-        mDb.query("update node_history set data = ?, updated = ? where chatid = ? and msgid = ?",
-                  msg, msg.updated, mChat.chatId(), msg.id());
+        mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
+                  msg, msg.updated, msg.type, mChat.chatId(), msg.id());
         assertAffectedRowCount(1);
     }
 

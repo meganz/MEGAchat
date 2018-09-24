@@ -54,6 +54,19 @@ using namespace karere;
       }                                                                                         \
     } while(0)
 
+#define CALL_LISTENER_FH(methodName,...)                                                           \
+    do {                                                                                        \
+      try {                                                                                     \
+        if (mListener)                                                                         \
+        {                                                                                       \
+          CHATD_LOG_DEBUG("Calling FilteredHistoryListener::" #methodName "()");                       \
+          mListener->methodName(__VA_ARGS__);                                                   \
+        }                                                                                       \
+      } catch(std::exception& e) {                                                              \
+          CHATD_LOG_WARNING("Exception thrown from FilteredHistoryListener::" #methodName "():\n%s", e.what());\
+      }                                                                                         \
+    } while(0)
+
 #define CALL_CRYPTO(methodName,...)                                                             \
     do {                                                                                        \
       try {                                                                                     \
@@ -1022,26 +1035,9 @@ HistSource Chat::getHistory(unsigned count)
     return nextSource;
 }
 
-void Chat::getHistoryNodes(uint32_t count)
+HistSource Chat::getHistoryNodes(uint32_t count)
 {
-    if (!mAttachmentNodes->hasAllHistory())
-    {
-        uint32_t loadedMessages = mAttachmentNodes->loadHistoryFromDb(count);
-
-        if (loadedMessages < count)
-        {
-            auto wptr = weakHandle();
-            marshallCall([wptr, this, count, loadedMessages]()
-            {
-                if (wptr.deleted())
-                    return;
-
-                CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count - loadedMessages);
-                requestNodeHistoryFromServer(count - loadedMessages);
-            }, mClient.karereClient->appCtx);
-
-        }
-    }
+    return mAttachmentNodes->loadHistory(count);
 }
 
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
@@ -1096,15 +1092,28 @@ void Chat::requestHistoryFromServer(int32_t count)
     sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
-void Chat::requestNodeHistoryFromServer(int32_t count)
+void Chat::requestNodeHistoryFromServer(uint32_t count)
 {
-    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
-    assert(mConnection.isOnline());
+    if (!mConnection.isOnline())
+    {
+        mAttachmentNodes->finishFechingFromServer();
+        return;
+    }
 
-    mFetchRequest.push(FetchType::kFetchNodeHistory);
-    mAttachNodeRequestToServer = count;
-    count = -count;
-    sendCommand(Command(OP_NODEHIST) + mChatId + mAttachmentNodes->getLastMessageId() + count);
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, count]()
+    {
+        if (wptr.deleted())
+            return;
+
+        assert(mConnection.isOnline());
+        CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count);
+        // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
+
+        mFetchRequest.push(FetchType::kFetchNodeHistory);
+        mAttachNodeRequestToServer = count;
+        sendCommand(Command(OP_NODEHIST) + mChatId + mAttachmentNodes->getLastMessageId() + -count);
+    }, mClient.karereClient->appCtx);
 }
 
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
@@ -1123,8 +1132,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
-    mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(mDbInterface, *mListener));
     initChat();
+    mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId;
@@ -1638,8 +1647,7 @@ void Chat::onHistDone()
 
         mAttachNodeReceived = 0;
         mAttachNodeRequestToServer = 0;
-
-        // TODO: notify fetch attachment is complete
+        mAttachmentNodes->finishFechingFromServer();
     }
 }
 
@@ -1816,6 +1824,16 @@ Chat::FetchType Chat::getFetchType() const
     return mFetchRequest.empty() ? FetchType::kNoFetching : mFetchRequest.front();
 }
 
+void Chat::setNodeHistoryHandler(FilteredHistoryHandler *listener)
+{
+    mAttachmentNodes->setHandler(listener);
+}
+
+void Chat::unsetHandlerToNodeHistory()
+{
+    mAttachmentNodes->unsetHandler();
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
@@ -1863,7 +1881,10 @@ void Chat::initChat()
     mBackwardList.clear();
     mForwardList.clear();
     mIdToIndexMap.clear();
-    mAttachmentNodes->clear();
+    if (mAttachmentNodes)
+    {
+        mAttachmentNodes->clear();
+    }
 
     mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
@@ -3757,6 +3778,8 @@ void Chat::msgNodeHistIncoming(Message *msg)
     if (pms.succeeded())
     {
         assert(!msg->isEncrypted());
+        msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
+        assert(msg->type == Message::Type::kMsgAttachment);
         mAttachmentNodes->addMessage(*msg, false);
         delete msg;
     }
@@ -3769,6 +3792,8 @@ void Chat::msgNodeHistIncoming(Message *msg)
         })
         .then([this](Message* message)
         {
+            message->type = message->buf()[1] + Message::Type::kMsgOffset;
+            assert(message->type == Message::Type::kMsgAttachment);
             mAttachmentNodes->addMessage(*message, false);
             delete message;
         });
@@ -4308,24 +4333,25 @@ bool Message::isValidEmail(const string &buf)
     return regex_match(buf, regularExpresion);
 }
 
-FilteredHistory::FilteredHistory(DbInterface *db, Listener &listener)
-    : mDb(db), mListener(&listener)
+FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
+    : mDb(&db), mChat(&chat), mListener(NULL)
 {
     init();
-    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
+    mOldest = (mNewest < 0) ? 0 : mNewest;
     loadHistoryFromDb(mInitialMessagesToLoad);
 }
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
 {
     Message* message = new Message(msg);
-    // TODO: notify new/old attch message
     if (isNew)
     {
         mBuffer.emplace_front(message);
         mIndexMap[message->id()] =  mBuffer.begin();
         mNewest++;
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
+        CALL_LISTENER_FH(onReceived, message, mNewest);
     }
     else
     {
@@ -4333,10 +4359,10 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
         {
             mBuffer.emplace_back(message);
             mIndexMap[message->id()] = --mBuffer.end();
-            mOldestInDb--;
-            mOldest = mOldestInDb;
+            mOldest--;
+            mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
-            mDb->addMsgToNodeHistory(msg, mOldestInDb);
+            CALL_LISTENER_FH(onLoaded, message, mOldest);
         }
     }
 }
@@ -4349,6 +4375,9 @@ void FilteredHistory::deleteMessage(const Message &msg)
         // Remove message's content and modify updated field, it is the same that delete a file
         (*it->second)->free();
         (*it->second)->updated = msg.updated;
+        (*it->second)->type = msg.type;
+        // Only it's necessary notify messages that are loaded in RAM
+        CALL_LISTENER_FH(onDeleted, msg.id());
     }
 
     CALL_DB_FH(deleteMsgFromNodeHistory, msg);
@@ -4372,10 +4401,12 @@ void FilteredHistory::truncateHistory(Id id)
 
         CALL_DB_FH(truncateNodeHistory, id);
         CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
+        CALL_LISTENER_FH(onTruncated, id);
         mOldest = (mOldest < mOldestInDb) ? mOldestInDb : mOldest;
     }
     else
     {
+        CALL_LISTENER_FH(onTruncated, mBuffer.begin()->get()->id());
         clear();
     }
 }
@@ -4403,17 +4434,59 @@ void FilteredHistory::clear()
     init();
 }
 
+HistSource FilteredHistory::loadHistory(uint32_t count)
+{
+    HistSource histSource = HistSource::kHistSourceNone;
+    uint32_t messagesLoaded = 0;
+    if (mOldestNotifyMsg != --mBuffer.end() || mOldestNotifyMsg == mBuffer.begin())
+    {
+        for (auto it = mOldestNotifyMsg; it != mBuffer.end() && messagesLoaded < count; it++)
+        {
+            Idx index = mNewest - std::distance(mBuffer.begin(), it);
+            CALL_LISTENER_FH(onLoaded,  it->get(), index);
+            messagesLoaded++;
+            mOldestNotifyMsg = it;
+            histSource = HistSource::kHistSourceRam;
+        }
+    }
+
+    uint32_t pendingToLoad = 0;
+    if (count > messagesLoaded)
+    {
+        uint32_t messagesToLoadFromdb = count - messagesLoaded;
+        pendingToLoad = messagesToLoadFromdb - loadHistoryFromDb(messagesToLoadFromdb);
+        mOldestNotifyMsg = --mBuffer.end();
+        histSource = HistSource::kHistSourceDb;
+    }
+
+    if (!pendingToLoad || hasAllHistory())
+    {
+        CALL_LISTENER_FH(onLoaded, NULL, 0);
+    }
+    else
+    {
+        mFetchingFromServer = true;
+        mChat->requestNodeHistoryFromServer(pendingToLoad);
+        histSource = HistSource::kHistSourceServer;
+    }
+
+    return histSource;
+}
+
 int FilteredHistory::loadHistoryFromDb(uint32_t count)
 {
     std::vector<chatd::Message*> messages;
     if (mOldest > mOldestInDb)
     {
-        CALL_DB_FH(loadNodeHistoryFromDb, count, mOldest, messages);
+        // First time we want messages from oldest, if we have messages we want from next message
+        Idx indexValue = mBuffer.empty() ? mOldest : mOldest - 1;
+        CALL_DB_FH(loadNodeHistoryFromDb, count, indexValue, messages);
         for (unsigned int i = 0; i < messages.size(); i++)
         {
-            // TODO: notify old attch message
-            mBuffer.emplace_back(messages[i]);
             mOldest --;
+            CALL_LISTENER_FH(onLoaded, messages[i], mOldest);
+            mBuffer.emplace_back(messages[i]);
+            mIndexMap[messages[i]->id()] = --mBuffer.end();
         }
     }
 
@@ -4435,11 +4508,33 @@ Id FilteredHistory::getLastMessageId() const
     return mBuffer.empty() ? Id::inval() : mBuffer.back()->id();
 }
 
+void FilteredHistory::setHandler(FilteredHistoryHandler *listener)
+{
+    if (mListener)
+        throw std::runtime_error("App node history handler is already set, remove it first");
+
+    mOldestNotifyMsg = mBuffer.begin();
+    mListener = listener;
+}
+
+void FilteredHistory::unsetHandler()
+{
+    mListener = NULL;
+}
+
+void FilteredHistory::finishFechingFromServer()
+{
+    assert(mFetchingFromServer);
+    CALL_LISTENER_FH(onLoaded, NULL, 0);
+    mFetchingFromServer = false;
+}
+
 void FilteredHistory::init()
 {
     mNewest = -1;
     mOldest = 0;
     mOldestInDb = 0;
+    mOldestNotifyMsg = mBuffer.begin();
     mHasAllHistory = false;
 }
 

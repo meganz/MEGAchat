@@ -455,6 +455,30 @@ private:
     std::map<MegaChatHandle, std::set<MegaChatHandle>> attachmentsIds;    // nodehandle, msgids
 };
 
+class MegaChatNodeHistoryHandler : public chatd::FilteredHistoryHandler
+{
+public:
+    MegaChatNodeHistoryHandler(MegaChatApi *api);
+     virtual ~MegaChatNodeHistoryHandler(){}
+
+    void fireOnReceived(MegaChatMessage *message);
+    void fireOnLoaded(MegaChatMessage *message);
+    void fireOnDeleted(karere::Id id);
+    void fireOnTruncated(karere::Id id);
+
+    virtual void onReceived(chatd::Message* msg, chatd::Idx idx);
+    virtual void onLoaded(chatd::Message* msg, chatd::Idx idx);
+    virtual void onDeleted(karere::Id id);
+     virtual void onTruncated(karere::Id id);
+
+    void addMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
+    void removeMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
+
+protected:
+    std::set<MegaChatNodeHistoryListener *>nodeHistoryListeners;
+    MegaChatApi *chatApi;
+};
+
 class LoggerHandler : public karere::Logger::ILoggerBackend
 {
 public:
@@ -813,6 +837,7 @@ private:
     std::set<MegaChatPeerListItemHandler *> chatPeerListItemHandler;
     std::set<MegaChatGroupListItemHandler *> chatGroupListItemHandler;
     std::map<MegaChatHandle, MegaChatRoomHandler*> chatRoomHandler;
+    std::map<MegaChatHandle, MegaChatNodeHistoryHandler*> nodeHistoryHandlers;
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
@@ -862,6 +887,11 @@ public:
 
     static void setCatchException(bool enable);
     static bool hasUrl(const char* text);
+    bool openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    bool closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    void addNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    void removeNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    int loadAttachments(MegaChatHandle chatid, int count);
 
     // ============= Listeners ================
 
