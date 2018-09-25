@@ -2747,6 +2747,7 @@ public:
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      *
      * @param chatid MegaChatHandle that identifies the chat room
+     * @param ph MegaChatHandle that corresponds with the public handle of chat room
      * @param listener MegaChatRequestListener to track this request
      */
     void rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener = NULL);
@@ -4150,6 +4151,7 @@ public:
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_ARCHIVE             = 0X100, /// Archived or unarchived
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// User has set chat mode to private
     };
 
     enum {
@@ -4177,6 +4179,12 @@ public:
      * @return
      */
     virtual int getOwnPrivilege() const;
+
+    /**
+     * @brief Returns the number of previewers in this chat
+     * @return
+     */
+    virtual unsigned int getNumPreviewers() const;
 
     /**
      * @brief Returns the privilege level of the user in this chat.

@@ -201,6 +201,7 @@ public:
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onUnreadChanged();
+    virtual void onPreviewersUpdate();
 
     //IApp::IChatHandler implementation
     virtual void onArchivedChanged(bool archived);

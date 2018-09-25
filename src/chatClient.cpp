@@ -2920,6 +2920,16 @@ void ChatRoom::onUnreadChanged()
     }
 }
 
+void ChatRoom::onPreviewersUpdate()
+{
+    uint32_t numPreviewers = mChat->getNumPreviewers();
+
+    if (mAppChatHandler)
+    {
+        mAppChatHandler->onPreviewersCountUpdate(numPreviewers);
+    }
+}
+
 void ChatRoom::onArchivedChanged(bool archived)
 {
     IApp::IChatListItem *room = roomGui();

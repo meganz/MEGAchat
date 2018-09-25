@@ -1675,7 +1675,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_DEBUG("%s: recv NUMBYHANDLE: %d", ID_CSTR(chatid), count);
 
                 auto& chat =  mChatdClient.chats(chatid);
-                //TODO implement callbacks to notify app
+                chat.onPreviewersUpdate(count);
                 break;
             }
             default:
@@ -1888,6 +1888,16 @@ Id Chat::lastIdReceivedFromServer() const
 bool Chat::isGroup() const
 {
     return mIsGroup;
+}
+
+bool Chat::isPublic() const
+{
+    return mCrypto->isPublicChat();
+}
+
+uint32_t Chat::getNumPreviewers() const
+{
+    return mNumPreviewers;
 }
 
 void Chat::clearHistory()
@@ -3937,6 +3947,15 @@ void Chat::onUserLeave(Id userid)
             CALL_DB(chatCleanup);
         }
     }
+}
+
+void Chat::onPreviewersUpdate(uint32_t numPrev)
+{
+    if (!isPublic())
+        return;
+
+    mNumPreviewers = numPrev;
+    CALL_LISTENER(onPreviewersUpdate);
 }
 
 void Chat::onJoinComplete()

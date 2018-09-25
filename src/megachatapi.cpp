@@ -990,6 +990,11 @@ int MegaChatRoom::getOwnPrivilege() const
     return PRIV_UNKNOWN;
 }
 
+unsigned int MegaChatRoom::getNumPreviewers() const
+{
+    return 0;
+}
+
 int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle /*userhandle*/) const
 {
     return PRIV_UNKNOWN;

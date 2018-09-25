@@ -45,6 +45,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     if (mChatRoom->isPublic())
     {
+        updatePreviewers(mChatRoom->getNumPreviewers());
         if(mChatRoom->isPreview())
         {
             mPreview = true;
@@ -210,6 +211,24 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
     {
         this->ui->mTitlebar->setStyleSheet("background-color:#c1efff");
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
+    {
+        updatePreviewers(chat->getNumPreviewers());
+    }
+}
+
+void ChatWindow::updatePreviewers(unsigned int numPrev)
+{
+    if (numPrev == 0)
+    {
+        ui->mPreviewers->hide();
+    }
+    else
+    {
+        ui->mPreviewers->setText(QString::number(numPrev));
+        ui->mPreviewers->show();
     }
 }
 

@@ -55,22 +55,22 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     }
     else
     {
-        if (item->isPreview())
+        if(item->isPublic())
         {
-            ui->mAvatar->setText("V");
-            ui->mAvatar->setStyleSheet("color: #FF0C14");
-        }
-        else
-        {
-            if(item->isPublic())
+            if (!item->isPreview())
             {
                 ui->mAvatar->setText("P");
                 ui->mAvatar->setStyleSheet("color: #43B63D");
             }
             else
             {
-                ui->mAvatar->setText("G");
+                ui->mAvatar->setText("V");
+                ui->mAvatar->setStyleSheet("color: #FF0C14");
             }
+        }
+        else
+        {
+             ui->mAvatar->setText("G");
         }
     }
 

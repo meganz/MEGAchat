@@ -432,6 +432,7 @@ public:
     virtual void onExcludedFromChat();
     virtual void onRejoinedChat();
     virtual void onUnreadChanged();
+    void onPreviewersUpdate();
     virtual void onManualSendRequired(chatd::Message* msg, uint64_t id, chatd::ManualSendReason reason);
     //virtual void onHistoryTruncated(const chatd::Message& msg, chatd::Idx idx);
     //virtual void onMsgOrderVerificationFail(const chatd::Message& msg, chatd::Idx idx, const std::string& errmsg);
@@ -441,6 +442,7 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
+    virtual void onPreviewersCountUpdate(unsigned int numPrev);
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments
@@ -602,6 +604,7 @@ public:
 
     virtual MegaChatHandle getChatId() const;
     virtual int getOwnPrivilege() const;
+    virtual unsigned int getNumPreviewers() const;
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
     virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
@@ -631,6 +634,7 @@ public:
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
+    void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated();
     void setUserTyping(MegaChatHandle uh);
     void setUserStopTyping(MegaChatHandle uh);
@@ -656,6 +660,7 @@ private:
 
     std::string title;
     int unreadCount;
+    unsigned int mNumPreviewers;
     MegaChatHandle uh;
 
 public:

@@ -306,6 +306,11 @@ public:
      * @brief Called when a chat is going to reload its history after the server rejects JOINRANGEHIST
      */
     virtual void onHistoryReloaded(){}
+
+    /**
+     * @brief Called when the number of previewers in a public chat has changed
+     */
+    virtual void onPreviewersUpdate(){}
 };
 class Connection;
 
@@ -648,6 +653,7 @@ protected:
     uint32_t mLastMsgTs;
     bool mIsGroup;
     std::set<karere::Id> mMsgsToUpdateWithRichLink;
+    uint32_t mNumPreviewers = 0;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -672,6 +678,7 @@ protected:
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
+    void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
@@ -1073,6 +1080,8 @@ public:
     Idx lastIdxReceivedFromServer() const;
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
+    bool isPublic() const;
+    uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
     DbInterface* getDbInterface();

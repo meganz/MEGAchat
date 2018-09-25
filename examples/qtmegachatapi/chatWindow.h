@@ -47,6 +47,7 @@ class ChatWindow : public QDialog,
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);
+        void updatePreviewers(unsigned int numPrev);
         void truncateChatUI();
         void connectCall();
         void hangCall();

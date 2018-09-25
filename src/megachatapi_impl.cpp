@@ -5006,6 +5006,14 @@ void MegaChatRoomHandler::onUnreadCountChanged(int count)
     fireOnChatRoomUpdate(chat);
 }
 
+void MegaChatRoomHandler::onPreviewersCountUpdate(unsigned int numPrev)
+{
+    MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
+    chat->setNumPreviewers(numPrev);
+
+    fireOnChatRoomUpdate(chat);
+}
+
 void MegaChatRoomHandler::init(Chat &chat, DbInterface *&)
 {
     mChat = &chat;
@@ -5243,6 +5251,22 @@ void MegaChatRoomHandler::onUnreadChanged()
     }
 }
 
+void MegaChatRoomHandler::onPreviewersUpdate()
+{
+    if (mRoom)
+    {
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onPreviewersUpdate();
+
+        if (mChat)
+        {
+            MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
+            chatroom->setNumPreviewers(mChat->getNumPreviewers());
+            fireOnChatRoomUpdate(chatroom);
+        }
+    }
+}
+
 void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id, chatd::ManualSendReason reason)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, Message::kSendingManual, MEGACHAT_INVALID_INDEX);
@@ -5388,6 +5412,10 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->archived = chat->isArchived();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
+    if (mPublicChat)
+    {
+        this->mNumPreviewers = chat->getNumPreviewers();
+    }
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -5424,6 +5452,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
             delete [] buffer;
 
             this->peerEmails.push_back(it->second->email());
+        }
+
+        if (mPublicChat)
+        {
+            this->mNumPreviewers = chat.chat().getNumPreviewers();
         }
     }
     else
@@ -5470,6 +5503,11 @@ MegaChatHandle MegaChatRoomPrivate::getChatId() const
 int MegaChatRoomPrivate::getOwnPrivilege() const
 {
     return priv;
+}
+
+unsigned int MegaChatRoomPrivate::getNumPreviewers() const
+{
+   return mNumPreviewers;
 }
 
 int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) const
@@ -5687,6 +5725,12 @@ void MegaChatRoomPrivate::setUnreadCount(int count)
 {
     this->unreadCount = count;
     this->changed |= MegaChatRoom::CHANGE_TYPE_UNREAD_COUNT;
+}
+
+void MegaChatRoomPrivate::setNumPreviewers(unsigned int numPrev)
+{
+    this->mNumPreviewers = numPrev;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS;
 }
 
 void MegaChatRoomPrivate::setMembersUpdated()
