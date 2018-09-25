@@ -676,7 +676,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
-        bool loggedOut = (errorCode == ::mega::MegaError::API_OK && request->getFlag());    // SDK has been logged out normally closing session
+        bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
+                          && request->getFlag());    // SDK has been logged out normally closing session
+
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
             KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
@@ -2165,6 +2167,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
+            return;
         }
         else
         {
@@ -2194,15 +2197,15 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
-    mTitleString.clear();
+    std::string newTitle = mTitleString;
     if (mPeers.empty())
     {
         time_t ts = mCreationTs;
         const struct tm *time = localtime(&ts);
         char date[18];
         strftime(date, sizeof(date), "%Y-%m-%d %H:%M", time);
-        mTitleString = "Chat created on ";
-        mTitleString.append(date);
+        newTitle = "Chat created on ";
+        newTitle.append(date);
     }
     else
     {
@@ -2215,18 +2218,25 @@ void GroupChatRoom::makeTitleFromMemberNames()
             {
                 auto& email = m.second->mEmail;
                 if (!email.empty())
-                    mTitleString.append(email).append(", ");
+                    newTitle.append(email).append(", ");
                 else
-                    mTitleString.append("..., ");
+                    newTitle.append("..., ");
             }
             else
             {
-                mTitleString.append(name.substr(1)).append(", ");
+                newTitle.append(name.substr(1)).append(", ");
             }
         }
-        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
+        newTitle.resize(newTitle.size()-2); //truncate last ", "
     }
-    assert(!mTitleString.empty());
+    assert(!newTitle.empty());
+    if (newTitle == mTitleString)
+    {
+        KR_LOG_DEBUG("makeTitleFromMemberNames: same title than existing one, skipping update");
+        return;
+    }
+
+    mTitleString = newTitle;
     notifyTitleChanged();
 }
 
