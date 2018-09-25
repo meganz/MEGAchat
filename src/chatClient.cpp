@@ -2922,11 +2922,9 @@ void ChatRoom::onUnreadChanged()
 
 void ChatRoom::onPreviewersUpdate()
 {
-    uint32_t numPreviewers = mChat->getNumPreviewers();
-
     if (mAppChatHandler)
     {
-        mAppChatHandler->onPreviewersCountUpdate(numPreviewers);
+        mAppChatHandler->onPreviewersCountUpdate(mChat->getNumPreviewers());
     }
 }
 

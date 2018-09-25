@@ -1085,6 +1085,13 @@ void Chat::onDisconnect()
         //old history
         CALL_LISTENER(onHistoryDone, kHistSourceServer);
     }
+
+    //Reset mNumPreviewers and notify
+    if (isPublic())
+    {
+        onPreviewersUpdate(0);
+    }
+
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
 }

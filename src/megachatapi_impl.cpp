@@ -5255,9 +5255,6 @@ void MegaChatRoomHandler::onPreviewersUpdate()
 {
     if (mRoom)
     {
-        // forward the event to the chatroom
-        mRoom->onPreviewersUpdate();
-
         if (mChat)
         {
             MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
