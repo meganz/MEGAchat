@@ -569,7 +569,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     ChatWindow *win = widget->getChatWindow();
                     if (win)
                     {
-                        win->onMessageReceived(mMegaChatApi, msg->copy());
+                        win->onMessageReceived(mMegaChatApi, msg);
                     }
                 }
             }
