@@ -74,6 +74,16 @@ using namespace karere;
       }                                                                                         \
     } while(0)
 
+#define CALL_DB_FH(methodName,...)                                                           \
+    do {                                                                                        \
+      try {                                                                                     \
+          CHATD_LOG_DB_CALL("Calling DbInterface::" #methodName "()");                               \
+          mDb->methodName(__VA_ARGS__);                                                   \
+      } catch(std::exception& e) {                                                              \
+          CHATD_LOG_ERROR("Exception thrown from DbInterface::" #methodName "():\n%s", e.what());\
+      }                                                                                         \
+    } while(0)
+
 #ifndef CHATD_ASYNC_MSG_CALLBACKS
     #define CHATD_ASYNC_MSG_CALLBACKS 1
 #endif
@@ -791,10 +801,14 @@ string Command::toString(const StaticBuffer& data)
     switch(opcode)
     {
         case OP_NEWMSG:
+        case OP_NEWNODEMSG:
         {
             auto& msgcmd = static_cast<const MsgCommand&>(data);
             string tmpString;
-            tmpString.append("NEWMSG - msgxid: ");
+            if (opcode == OP_NEWMSG)
+                tmpString.append("NEWMSG - msgxid: ");
+            else
+                tmpString.append("NEWNODEMSG - msgxid: ");
             tmpString.append(ID_CSTR(msgcmd.msgid()));
             tmpString.append(", keyid: ");
             tmpString.append(to_string(msgcmd.keyId()));
@@ -1087,6 +1101,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
     assert(mDbInterface);
+    mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(mDbInterface));
     initChat();
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
@@ -1332,7 +1347,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mChatdClient.chats(chatid);
-                if (op == OP_NEWMSG) // the message was rejected
+                if (op == OP_NEWMSG || op == OP_NEWNODEMSG) // the message was rejected
                 {
                     chat.msgConfirm(id, Id::null());
                 }
@@ -1673,7 +1688,7 @@ void Chat::replayUnsentNotifications()
     for (auto it = mSending.begin(); it != mSending.end(); it++)
     {
         auto& item = *it;
-        if (item.opcode() == OP_NEWMSG)
+        if (item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWNODEMSG)
         {
             CALL_LISTENER(onUnsentMsgLoaded, *item.msg);
         }
@@ -1795,6 +1810,7 @@ void Chat::initChat()
     mBackwardList.clear();
     mForwardList.clear();
     mIdToIndexMap.clear();
+    mAttachmentNodes->clear();
 
     mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
@@ -1899,7 +1915,7 @@ void Chat::requestRichLink(Message &message)
                 }
 
                 updateText.insert(updateText.begin(), 0x0);
-                updateText.insert(updateText.begin(), Message::kMsgContainsMeta);
+                updateText.insert(updateText.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
                 updateText.insert(updateText.begin(), 0x0);
                 std::string::size_type size = updateText.size();
 
@@ -2046,7 +2062,8 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     }
     onMsgTimestamp(msg->ts);
 
-    postMsgToSending(OP_NEWMSG, msg, recipients);
+    int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
+    postMsgToSending(opcode, msg, recipients);
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -2132,10 +2149,10 @@ void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
 
 Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds recipients)
 {
-    // for NEWMSG, recipients is always current set of participants
+    // for NEWMSG/NEWNODEMSG, recipients is always current set of participants
     // for MSGXUPD, recipients must always be the same participants than in the pending NEWMSG (and MSGUPDX, if any)
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
-    assert((opcode == OP_NEWMSG && recipients == mUsers)
+    assert(((opcode == OP_NEWMSG || opcode == OP_NEWNODEMSG ) && recipients == mUsers)
            || (opcode == OP_MSGUPDX)    // can use unconfirmed or confirmed key
            || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
 
@@ -2172,10 +2189,10 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     uint64_t rowid = it->rowid;
     assert(msg->id());
 
-    //opcode can be NEWMSG, MSGUPD or MSGUPDX
-    if (it->opcode() == OP_NEWMSG && msg->backRefs.empty())
+    //opcode can be NEWMSG, NEWNODEMSG, MSGUPD or MSGUPDX
+    if ((it->opcode() == OP_NEWMSG || it->opcode() == OP_NEWNODEMSG) && msg->backRefs.empty())
     {
-        createMsgBackRefs(it);
+        createMsgBackRefs(it);  // only for new messages
     }
 
     if (mEncryptionHalted)
@@ -2284,6 +2301,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         switch (item->opcode())
         {
             case OP_NEWMSG:
+            case OP_NEWNODEMSG:
                 if (age == 0)
                 {
                     age++;
@@ -2704,7 +2722,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
         return nullptr;
     }
     Id msgxidOri = item.msg->id();
-    if ((item.opcode() == OP_NEWMSG) && (msgxidOri != msgxid))
+    if ((item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWNODEMSG) && (msgxidOri != msgxid))
     {
         CHATID_LOG_DEBUG("msgConfirm: sendQueue starts with NEWMSG, but the msgxid is different"
                          " (sent msgxid: '%s', received '%s')", ID_CSTR(msgxidOri), ID_CSTR(msgxid));
@@ -2816,6 +2834,11 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         {
             manageRichLinkMessage(*msg);
         }
+    }
+
+    if (msg->type == Message::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(*msg, true);
     }
 
     return idx;
@@ -3013,7 +3036,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (msg->dataSize() < 2)
                 CHATID_LOG_ERROR("onMsgUpdated: Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg->type = msg->buf()[1];
+                msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
         }
 
         //update in memory, if loaded
@@ -3023,6 +3046,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         {
             idx = msgit->second;
             auto& histmsg = at(idx);
+            unsigned char histType = histmsg.type;
 
             if ( (msg->type == Message::kMsgTruncate
                   && histmsg.type == msg->type
@@ -3073,9 +3097,17 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 CHATID_LOG_DEBUG("onMessageEdited() skipped for not-loaded-yet (by the app) message");
             }
 
-            if (msg->isDeleted() && msg->isOwnMessage(client().userId()))
+            if (msg->isDeleted())
             {
-                CALL_LISTENER(onUnreadChanged);
+                if (msg->isOwnMessage(client().userId()))
+                {
+                    CALL_LISTENER(onUnreadChanged);
+                }
+
+                if (histType == Message::kMsgAttachment)
+                {
+                    mAttachmentNodes->deleteMessage(*msg);
+                }
             }
 
             if (msg->type == Message::kMsgTruncate)
@@ -3107,6 +3139,11 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             {
                 //update in db
                 CALL_DB(updateMsgInHistory, msg->id(), *msg);
+            }
+
+            if (msg->isDeleted()) // previous type is unknown, so cannot check for attachment type here
+            {
+                mAttachmentNodes->deleteMessage(*msg);
             }
         }
 
@@ -3199,6 +3236,19 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     CALL_LISTENER(onUnreadChanged);
     findAndNotifyLastTextMsg();
+
+    // Find an attachment newer than truncate (lownum) in order to truncate node-history
+    // (if no more attachments in history buffer, node-history will be fully cleared)
+    Id nextAttachmentId = Id::inval();
+    for (Idx i = lownum(); i < highnum(); i++)
+    {
+        if (at(i).type == Message::kMsgAttachment)
+        {
+            nextAttachmentId = at(i).id();
+            break;
+        }
+    }
+    mAttachmentNodes->truncateHistory(nextAttachmentId);
 }
 
 Id Chat::makeRandomId()
@@ -3562,7 +3612,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             if (msg.dataSize() < 2)
                 CHATID_LOG_ERROR("Malformed special message received - starts with null char received, but its length is 1. Assuming type of normal message");
             else
-                msg.type = msg.buf()[1];
+                msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
         }
 
         verifyMsgOrder(msg, idx);
@@ -3638,6 +3688,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
     }
     onMsgTimestamp(msg.ts);
+
+    if (msg.type == Message::Type::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(msg, isNew);
+    }
 }
 
 void Chat::onMsgTimestamp(uint32_t ts)
@@ -4169,6 +4224,102 @@ bool Message::isValidEmail(const string &buf)
 {
     std::regex regularExpresion("^[a-z0-9A-Z._%+-]+@[a-z0-9A-Z.-]+[.][a-zA-Z]{2,6}");
     return regex_match(buf, regularExpresion);
+}
+
+FilteredHistory::FilteredHistory(DbInterface *db)
+    : mDb(db)
+{
+    init();
+    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+}
+
+void FilteredHistory::addMessage(const Message &msg, bool isNew)
+{
+    Id msgid = msg.id();
+    if (isNew)
+    {
+        mBuffer.emplace_front(new Message(msg));
+        mIdToMsgMap[msgid] =  mBuffer.begin();
+        mNewest++;
+        CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
+    }
+    else
+    {
+        if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
+        {
+            mBuffer.emplace_back(new Message(msg));
+            mIdToMsgMap[msgid] = --mBuffer.end();
+            mOldest--;
+            CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
+        }
+    }
+}
+
+void FilteredHistory::deleteMessage(const Message &msg)
+{
+    auto it = mIdToMsgMap.find(msg.id());
+    if (it != mIdToMsgMap.end())
+    {
+        // Remove message's content and modify updated field, it is the same that delete a file
+        (*it->second)->free();
+        (*it->second)->updated = msg.updated;
+    }
+
+    CALL_DB_FH(deleteMsgFromNodeHistory, msg);
+}
+
+void FilteredHistory::truncateHistory(Id id)
+{
+    if (id.isValid())
+    {
+        auto it = mIdToMsgMap.find(id);
+        if (it != mIdToMsgMap.end())
+        {
+            // id is a message in the history, we want to remove from the next message until the oldest
+            for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
+            {
+                mIdToMsgMap.erase((*loopIterator)->id());
+            }
+            mBuffer.erase(it->second, mBuffer.end());
+        }
+
+        CALL_DB_FH(truncateNodeHistory, id);
+        CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldest);
+    }
+    else    // full-history truncated or no remaining attachments
+    {
+        clear();
+    }
+}
+
+Idx FilteredHistory::newestIdx() const
+{
+    return mNewest;
+}
+
+Idx FilteredHistory::oldestIdx() const
+{
+    return mOldest;
+}
+
+Idx FilteredHistory::oldestLoadedIdx() const
+{
+    return mOldestLoaded;
+}
+
+void FilteredHistory::clear()
+{
+    mBuffer.clear();
+    mIdToMsgMap.clear();
+    CALL_DB_FH(clearNodeHistory);
+    init();
+}
+
+void FilteredHistory::init()
+{
+    mNewest = -1;
+    mOldest = 0;
+    mOldestLoaded = 0;
 }
 
 } // end chatd namespace

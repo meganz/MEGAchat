@@ -173,7 +173,7 @@ bool Client::openDb(const std::string& sid)
         if (cachedVersionSuffixPos != std::string::npos)
         {
             std::string cachedVersionSuffix = cachedVersion.substr(cachedVersionSuffixPos + 1);
-            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix != cachedVersionSuffix)
+            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix == "3")
             {
                 KR_LOG_WARNING("Clearing history from cached chats...");
 
@@ -188,7 +188,7 @@ bool Client::openDb(const std::string& sid)
 
                 ok = true;
             }
-            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix == "4")
             {
                 // clients with version 3 need to force a full-reload of SDK's cache to retrieve
                 // "deleted" chats from API, since it used to not return them. It should only be
@@ -207,6 +207,36 @@ bool Client::openDb(const std::string& sid)
                 }
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "4" &&  gDbSchemaVersionSuffix == "5")
+            {
+                // clients with version 4 need to create a new table `node_history` and populate it with
+                // node's attachments already in cache. Futhermore, the existing types for special messages
+                // (node-attachments, contact-attachments and rich-links) will be updated to a different
+                // range to avoid collissions with the types of upcoming management messages.
+
+                // Update obsolete type of special messages
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgAttachment, 0x10);
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgRevokeAttachment, 0x11);
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgContact, 0x12);
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgContainsMeta, 0x13);
+
+                // Create new table for node history
+                db.simpleQuery("CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 not null,"
+                               "    userid int64, keyid int not null, type tinyint, updated smallint, ts int,"
+                               "    is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx))");
+
+                // Populate new table with existing node-attachments
+                db.query("insert into node_history select * from history where type=?", std::to_string(chatd::Message::Type::kMsgAttachment));
+                int count = sqlite3_changes(db);
+
+                // Update DB version number
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%d messages added to node history", count);
+                ok = true;
             }
         }
     }
