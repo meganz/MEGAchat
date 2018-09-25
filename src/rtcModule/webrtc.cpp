@@ -192,12 +192,7 @@ void RtcModule::updateConstraints(RtcModule::Resolution resolution)
             break;
 
         case Resolution::vga:
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
-            break;
-
+        case Resolution::notDefined:
         default:
             mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
             mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
@@ -423,15 +418,10 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
          }
      }
 
-   if (!audioInput && !videoInput)
-   {
-       return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
-   }
-
-   std::shared_ptr<artc::LocalStreamHandle> localStream =
-           std::make_shared<artc::LocalStreamHandle>(
-               audioInput ? audioInput.getTrack() : nullptr,
-               videoInput ? videoInput.getTrack() : nullptr);
+    std::shared_ptr<artc::LocalStreamHandle> localStream =
+            std::make_shared<artc::LocalStreamHandle>(
+                audioInput ? audioInput.getTrack() : nullptr,
+                videoInput ? videoInput.getTrack() : nullptr);
 
     localStream->setAv(av);
     return localStream;

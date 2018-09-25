@@ -182,7 +182,8 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
         std::string heightString;
         mOptions->constraints.GetMandatory().FindFirst(webrtc::MediaConstraintsInterface::kMinHeight, &heightString);
         int height = std::atoi(heightString.c_str());
-        env->CallStaticVoidMethod(applicationClass, startVideoCaptureWithParametersMID, (jint)width, (jint)height, (jint)15, (jlong)proxySource.release(), surfaceTextureHelper);
+        int fps = 15;
+        env->CallStaticVoidMethod(applicationClass, startVideoCaptureWithParametersMID, (jint)width, (jint)height, (jint)fps, (jlong)proxySource.release(), surfaceTextureHelper);
     }
     else
     {
