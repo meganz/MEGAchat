@@ -173,6 +173,35 @@ bool RtcModule::selectDevice(const std::string& devname,
     }
 }
 
+void RtcModule::updateConstraints(RtcModule::Resolution resolution)
+{
+    switch (resolution)
+    {
+        case Resolution::hd:
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 1080);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 576);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 1920);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 1024);
+            break;
+
+        case Resolution::low:
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 288);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 240);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 352);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 320);
+            break;
+
+        case Resolution::vga:
+        case Resolution::notDefined:
+        default:
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
+            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
+            break;
+    }
+}
+
 bool RtcModule::selectAudioInDevice(const string &devname)
 {
     return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
@@ -336,64 +365,64 @@ void RtcModule::removeCall(Call& call)
     mCalls.erase(chatid);
 }
 std::shared_ptr<artc::LocalStreamHandle>
-RtcModule::getLocalStream(AvFlags av, std::string& errors)
+RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution)
 {
+    artc::InputVideoDevice videoInput;
+    artc::InputAudioDevice audioInput;
     const auto& devices = mDeviceManager.inputDevices();
-    if (devices.video.empty() || mVideoInDeviceName.empty())
-    {
-        mVideoInput.reset();
-    }
-    else if (!mVideoInput || mVideoInput.mediaOptions().device.name != mVideoInDeviceName)
-    try
-    {
-        auto device = getDevice(mVideoInDeviceName, devices.video);
-        if (!device)
-        {
-            device = &devices.video[0];
-            errors.append("Configured video input device '").append(mVideoInDeviceName)
-                  .append("' not present, using default device\n");
-        }
-        auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
 
-        mVideoInput = mDeviceManager.getUserVideo(opts);
-    }
-    catch(exception& e)
-    {
-        mVideoInput.reset();
-        errors.append("Error getting video device: ")
-              .append(e.what()?e.what():"Unknown error")+='\n';
-    }
+    if (!devices.video.empty() && !mVideoInDeviceName.empty())
+     {
+        try
+         {
+            auto device = getDevice(mVideoInDeviceName, devices.video);
+            if (!device)
+            {
+                device = &devices.video[0];
+                errors.append("Configured video input device '").append(mVideoInDeviceName)
+                      .append("' not present, using default device\n");
+            }
 
-    if (devices.audio.empty() || mAudioInDeviceName.empty())
-    {
-        mAudioInput.reset();
-    }
-    else if (!mAudioInput || mAudioInput.mediaOptions().device.name != mAudioInDeviceName)
-    try
-    {
-        auto device = getDevice(mAudioInDeviceName, devices.audio);
-        if (!device)
-        {
-            errors.append("Configured audio input device '").append(mAudioInDeviceName)
-                  .append("' not present, using default device\n");
-            device = &devices.audio[0];
+            updateConstraints(resolution);
+            auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
+            videoInput = mDeviceManager.getUserVideo(opts);
         }
-        mAudioInput = mDeviceManager.getUserAudio(
-                std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
-    }
-    catch(exception& e)
-    {
-        mAudioInput.reset();
-        errors.append("Error getting audio device: ")
-              .append(e.what()?e.what():"Unknown error")+='\n';
-    }
-    if (!mAudioInput && !mVideoInput)
-        return std::make_shared<artc::LocalStreamHandle>(nullptr, nullptr);
+        catch(exception& e)
+        {
+            videoInput.reset();
+            errors.append("Error getting video device: ")
+                  .append(e.what()?e.what():"Unknown error")+='\n';
+        }
+     }
+
+    if (!devices.audio.empty() && !mAudioInDeviceName.empty())
+     {
+        try
+         {
+            auto device = getDevice(mAudioInDeviceName, devices.audio);
+            if (!device)
+            {
+                errors.append("Configured audio input device '").append(mAudioInDeviceName)
+                      .append("' not present, using default device\n");
+                device = &devices.audio[0];
+            }
+
+            audioInput = mDeviceManager.getUserAudio(
+                    std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
+        }
+        catch(exception& e)
+        {
+            audioInput.reset();
+            errors.append("Error getting audio device: ")
+                  .append(e.what()?e.what():"Unknown error")+='\n';
+         }
+     }
 
     std::shared_ptr<artc::LocalStreamHandle> localStream =
-        std::make_shared<artc::LocalStreamHandle>(
-            mAudioInput?mAudioInput.getTrack():nullptr,
-            mVideoInput?mVideoInput.getTrack():nullptr);
+            std::make_shared<artc::LocalStreamHandle>(
+                audioInput ? audioInput.getTrack() : nullptr,
+                videoInput ? videoInput.getTrack() : nullptr);
+
     localStream->setAv(av);
     return localStream;
 }
@@ -428,10 +457,6 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     handler.setCall(call.get());
     call->startOrJoin(av);
     return call;
-}
-bool RtcModule::isCaptureActive() const
-{
-    return (mAudioInput || mVideoInput);
 }
 
 ICall& RtcModule::joinCall(karere::Id chatid, AvFlags av, ICallHandler& handler, karere::Id callid)
@@ -878,7 +903,8 @@ void Call::setState(uint8_t newState)
 void Call::getLocalStream(AvFlags av, std::string& errors)
 {
     // getLocalStream currently never fails - if there is error, stream is a string with the error message
-    mLocalStream = mManager.getLocalStream(av, errors);
+    RtcModule::Resolution resolution = chat().isGroup() ? RtcModule::Resolution::low : RtcModule::Resolution::notDefined;
+    mLocalStream = mManager.getLocalStream(av, errors, resolution);
     if (!errors.empty())
     {
         SUB_LOG_WARNING("There were some errors getting local stream: %s", errors.c_str());
@@ -1313,6 +1339,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         assert(mSessions.empty());
         stopIncallPingTimer();
         mLocalPlayer.reset();
+        mLocalStream.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1803,6 +1830,7 @@ Call::~Call()
         }
 
         mLocalPlayer.reset();
+        mLocalStream.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
@@ -2148,7 +2176,6 @@ string Session::getDeviceInfo() const
         deviceType = "nsync";
         endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
     }
-
 
     size_t endVersionPosition = userAgent.find(" (");
     if (endVersionPosition != std::string::npos &&

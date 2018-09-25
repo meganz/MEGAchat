@@ -221,6 +221,14 @@ public:
         kSessSetupTimeout = 30000
     };
 
+    enum Resolution
+    {
+        hd = 0,
+        low,
+        vga,
+        notDefined
+    };
+
     //TODO: set valid values
     int maxBr = 1000;
     int maxGroupBr = 1000;
@@ -245,7 +253,6 @@ public:
     virtual bool selectVideoInDevice(const std::string& devname);
     virtual bool selectAudioInDevice(const std::string& devname);
     virtual void loadDeviceList();
-    virtual bool isCaptureActive() const;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress(karere::Id chatid) const;
@@ -269,8 +276,6 @@ protected:
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
     artc::DeviceManager mDeviceManager;
-    artc::InputAudioDevice mAudioInput;
-    artc::InputVideoDevice mVideoInput;
     webrtc::FakeConstraints mPcConstraints;
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
@@ -281,7 +286,7 @@ protected:
     template <class... Args>
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
-    std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors);
+    std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors, Resolution resolution);
     // no callid provided --> start call
     std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid = karere::Id::inval());
     template <class T> T random() const;
@@ -291,6 +296,8 @@ protected:
     const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);
     bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
                       std::string& selected);
+
+    void updateConstraints(Resolution resolution);
     friend class Call;
     friend class Session;
 public:
