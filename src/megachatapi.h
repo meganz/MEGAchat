@@ -4151,7 +4151,7 @@ public:
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
         CHANGE_TYPE_ARCHIVE             = 0X100, /// Archived or unarchived
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
-        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// User has set chat mode to private
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// The number of previewers has changed
     };
 
     enum {

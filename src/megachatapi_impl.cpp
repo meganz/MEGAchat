@@ -5255,7 +5255,7 @@ void MegaChatRoomHandler::onPreviewersUpdate()
 {
     if (mRoom)
     {
-        // forward the event to the chatroom, so chatlist items also receive the notification
+        // forward the event to the chatroom
         mRoom->onPreviewersUpdate();
 
         if (mChat)
@@ -5412,10 +5412,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     this->archived = chat->isArchived();
     this->changed = chat->getChanges();
     this->uh = chat->getUserTyping();
-    if (mPublicChat)
-    {
-        this->mNumPreviewers = chat->getNumPreviewers();
-    }
+    this->mNumPreviewers = chat->getNumPreviewers();
 }
 
 MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
@@ -5432,6 +5429,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->active = chat.isActive();
     this->archived = chat.isArchived();
     this->uh = MEGACHAT_INVALID_HANDLE;
+    this->mNumPreviewers = chat.chat().getNumPreviewers();
 
     if (group)
     {
@@ -5452,11 +5450,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
             delete [] buffer;
 
             this->peerEmails.push_back(it->second->email());
-        }
-
-        if (mPublicChat)
-        {
-            this->mNumPreviewers = chat.chat().getNumPreviewers();
         }
     }
     else
