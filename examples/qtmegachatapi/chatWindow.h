@@ -81,6 +81,7 @@ class ChatWindow : public QDialog,
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        QMessageBox *mUploadDlg;
 
     private slots:
         void onMsgListRequestHistory();
@@ -91,6 +92,7 @@ class ChatWindow : public QDialog,
         void onTruncateChat();
         void onMembersBtn(bool);
         void on_mAttachBtn_clicked();
+        void on_mCancelTransfer(QAbstractButton *);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);

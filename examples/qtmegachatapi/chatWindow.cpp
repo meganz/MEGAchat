@@ -25,6 +25,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     ui->mSplitter->setStretchFactor(1,0);
     ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->mChatdStatusDisplay->hide();
+    mUploadDlg = NULL;
     setChatTittle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
@@ -114,6 +115,7 @@ ChatWindow::~ChatWindow()
     delete megaChatRoomListenerDelegate;
     delete megaTransferListenerDelegate;
     delete mChatRoom;
+    delete mUploadDlg;
     delete ui;
 }
 
@@ -707,26 +709,63 @@ void ChatWindow::on_mAttachBtn_clicked()
     QStringList nodeParsed = node.split( "/" );
     QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
     mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
-    QMessageBox::warning(nullptr, tr("Node attachment"), tr("Please don't close the window until the transfer has been finished "));
+
+    mUploadDlg = new QMessageBox;
+    mUploadDlg->setWindowTitle((tr("Uploading file...")));
+    mUploadDlg->setIcon(QMessageBox::Warning);
+    mUploadDlg->setText(tr("Please, wait.\nThe file will be attached when the transfer completes."));
+    mUploadDlg->setStandardButtons(QMessageBox::Cancel);
+    mUploadDlg->setModal(true);
+    mUploadDlg->show();
+    connect(mUploadDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelTransfer(QAbstractButton*)));
+
     this->mMegaApi->startUpload(node.toStdString().c_str(), parent, nodeName.toStdString().c_str());
     delete parent;
 }
 
+void ChatWindow::on_mCancelTransfer(QAbstractButton*)
+{
+    mMegaApi->cancelTransfers(::mega::MegaTransfer::TYPE_UPLOAD);
+    mUploadDlg->hide();
+    delete mUploadDlg;
+    mUploadDlg = NULL;
+}
+
 void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
 {
-    if (e->getErrorCode() == mega::MegaError::API_OK)
+    if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
     {
-       if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
-       {
-            mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
-       }
-       else
-       {
-            QMessageBox::information(nullptr, tr("Transfer"), tr("Download completed"));
-       }
+        if (mUploadDlg)
+        {
+            mUploadDlg->hide();
+            if (e->getErrorCode() == mega::MegaError::API_OK)
+            {
+                QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
+                mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+            }
+            else
+            {
+                QMessageBox::critical(nullptr, tr("Upload"), tr("Error in transfer: ").append(e->getErrorString()));
+            }
+
+            mUploadDlg->hide();
+            delete mUploadDlg;
+            mUploadDlg = NULL;
+        }
+        else if (mUploadDlg == NULL)
+        {
+            QMessageBox::information(nullptr, tr("Upload"), tr("Upload canceled."));
+        }
     }
-    else
+    else    // download
     {
-        QMessageBox::critical(nullptr, tr("Transfer"), tr("Error in transfer: ").append(e->getErrorString()));
+        if (e->getErrorCode() == mega::MegaError::API_OK)
+        {
+            QMessageBox::information(nullptr, tr("Download"), tr("Attachment's download successful."));
+        }
+        else
+        {
+            QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
+        }
     }
 }
