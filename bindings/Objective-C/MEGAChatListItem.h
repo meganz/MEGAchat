@@ -9,7 +9,9 @@ typedef NS_ENUM (NSInteger, MEGAChatListItemChangeType) {
     MEGAChatListItemChangeTypeClosed       = 0x20,
     MEGAChatListItemChangeTypeLastMsg      = 0x40,
     MEGAChatListItemChangeTypeLastTs       = 0x80,
-    MEGAChatListItemChangeTypeArchived     = 0x100
+    MEGAChatListItemChangeTypeArchived     = 0x100,
+    MEGAChatListItemChangeTypeCall         = 0x200,
+    MEGAChatListItemChangeTypeChatMode     = 0x400
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatMessageType);
@@ -23,6 +25,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic) MEGAChatRoomPrivilege ownPrivilege;
 @property (readonly, nonatomic) NSInteger unreadCount;
 @property (readonly, nonatomic, getter=isGroup) BOOL group;
+@property (readonly, nonatomic, getter=isPublicChat) BOOL publicChat;
+@property (readonly, nonatomic, getter=isPreview) BOOL preview;
 @property (readonly, nonatomic) uint64_t peerHandle;
 @property (readonly, nonatomic, getter=isActive) BOOL active;
 
