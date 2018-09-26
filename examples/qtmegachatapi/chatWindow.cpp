@@ -49,11 +49,9 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
         if(mChatRoom->isPreview())
         {
             mPreview = true;
-            this->ui->mMembersBtn->hide();
             this->ui->mMsgSendBtn->hide();
             this->ui->mAudioCallBtn->hide();
             this->ui->mVideoCallBtn->hide();
-            this->ui->mMembersBtn->hide();
             this->ui->mMessageEdit->hide();
             this->ui->mTitlebar->setStyleSheet("background-color:#ffe4af");
 
@@ -514,20 +512,37 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 {
     if (!mChatRoom->isActive())
     {
-        return ;
+        return;
     }
 
+    //Add contacts
     auto addEntry = menu.addMenu("Add contact to chat");
-    addEntry->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-    mega::MegaUserList *userList = mMegaApi->getContacts();
-    for (int i = 0 ; i < userList->size(); i++)
+    addEntry->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR && !mChatRoom->isPreview());
+
+    if (!mChatRoom->isPreview())
     {
-         auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
-         actAdd->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-         actAdd->setProperty("userHandle", QVariant((qulonglong)userList->get(i)->getHandle()));
-         connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
+        mega::MegaUserList *userList = mMegaApi->getContacts();
+        for (int i = 0 ; i < userList->size(); i++)
+        {
+             mega::MegaUser *user = userList->get(i);
+             if (user->getVisibility() == mega::MegaUser::VISIBILITY_VISIBLE)
+             {
+                 auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
+                 actAdd->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+                 actAdd->setProperty("userHandle", QVariant((qulonglong)user->getHandle()));
+
+                 if (mChatRoom->getPeerEmailByHandle(user->getHandle()))
+                 {
+                    actAdd->setDisabled(true);
+                 }
+                 else
+                 {
+                    connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
+                 }
+             }
+        }
+        delete userList;
     }
-    delete userList;
 
     // list of peers with presence and privilege-related actions
     for (unsigned int i = 0; i < mChatRoom->getPeerCount() + 1; i++)
@@ -567,15 +582,18 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         }
 
         auto entry = menu.addMenu(title);
-
         bool canChangePrivs = (i != mChatRoom->getPeerCount())
                 && (mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
 
-        if(i == mChatRoom->getPeerCount())  // my own user
+        if (i == mChatRoom->getPeerCount())  // my own user
         {
             auto actRemove = entry->addAction(tr("Leave chat"));
             actRemove->setProperty("userHandle", userhandle);
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
+            if (mChatRoom->isPreview())
+            {
+                actRemove->setDisabled(true);
+            }
         }
         else
         {
@@ -610,7 +628,6 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
             break;
         }
-
 
         actSetPrivFullAccess->setProperty("userHandle", userhandle);
         actSetPrivFullAccess->setEnabled(canChangePrivs);

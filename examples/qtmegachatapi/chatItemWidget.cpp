@@ -554,7 +554,7 @@ void ChatItemWidget::closePreview()
     if(auxWindow = getChatWindow())
     {
         invalidChatWindowHandle();
-        delete auxWindow;
+        auxWindow->deleteLater();
     }
     mMegaChatApi->closePreview(mChatId);
     mMainWin->removeLocalChatListItemById(mChatId);
