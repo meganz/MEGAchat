@@ -1958,14 +1958,18 @@ void GroupChatRoom::initWithChatd(std::shared_ptr<std::string> unifiedKey, int i
 {
     karere::SetOfIds users;
     Id myHandle = parent.mKarereClient.myHandle();
-    if(myHandle != Id::null())
+
+    //Don't add my own handle in preview mode because previewers are not chat members
+    if(myHandle != Id::null() && !ph.isValid())
     {
         users.insert(myHandle);
-        for (auto& peer: mPeers)
-        {
-            users.insert(peer.first);
-        }
     }
+
+    for (auto& peer: mPeers)
+    {
+        users.insert(peer.first);
+    }
+
     createChatdChat(users, unifiedKey, isUnifiedKeyEncrypted, ph);
 }
 
