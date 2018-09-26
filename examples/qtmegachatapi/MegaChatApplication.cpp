@@ -553,6 +553,26 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 mMainWin->createSettingsMenu();
             break;
 #endif
+        case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
+            if (e->getErrorCode() != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Attachment"), tr("Error in attachment: ").append(e->getErrorString()));
+            }
+            else
+            {
+                MegaChatHandle chatid = request->getChatHandle();
+                MegaChatMessage *msg = request->getMegaChatMessage();
+                ChatItemWidget *widget = mMainWin->getChatItemWidget(chatid, false);
+
+                if (widget)
+                {
+                    ChatWindow *win = widget->getChatWindow();
+                    if (win)
+                    {
+                        win->onMessageReceived(mMegaChatApi, msg);
+                    }
+                }
+            }
+            break;
     }
 }
-

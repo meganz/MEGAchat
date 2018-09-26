@@ -9,6 +9,7 @@
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
 #include <QMessageBox>
+#include "QTMegaTransferListener.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
 #include "callGui.h"
@@ -30,7 +31,10 @@ class ChatWindowUi;
 }
 class ChatItemWidget;
 
-class ChatWindow : public QDialog, megachat::MegaChatRoomListener, megachat::MegaChatNodeHistoryListener
+class ChatWindow : public QDialog,
+        public megachat::MegaChatRoomListener,
+        public mega::MegaTransferListener,
+        public megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
     public:
@@ -59,6 +63,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, megachat::Meg
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+        void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
@@ -75,6 +80,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, megachat::Meg
         ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
+        mega::QTMegaTransferListener *megaTransferListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
         int nSending;
@@ -88,6 +94,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, megachat::Meg
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         void destroyAttachments();
+        QMessageBox *mUploadDlg;
 
     private slots:
         void onMsgListRequestHistory();
@@ -99,11 +106,11 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener, megachat::Meg
         void onMembersBtn(bool);
         void onShowAttachments();
         void onAttachmentRequestHistory();
+        void on_mAttachBtn_clicked();
+        void on_mCancelTransfer(QAbstractButton *);
+
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
-#endif
-    protected slots:
-#ifndef KARERE_DISABLE_WEBRTC
         void closeEvent(QCloseEvent *event);
         void createCallGui(bool);
         void onVideoCallBtn(bool);
