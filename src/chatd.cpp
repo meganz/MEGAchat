@@ -348,7 +348,6 @@ void Chat::closePreview()
 void Chat::login()
 {
     assert(mConnection.isOnline());
-    mUserDump.clear();
     setOnlineState(kChatStateJoining);
     // In both cases (join/joinrangehist), don't block history messages being sent to app
     mServerOldHistCbEnabled = false;
@@ -3918,17 +3917,9 @@ void Chat::onUserJoin(Id userid, Priv priv)
         mOwnPrivilege = priv;
     }
 
-    if (mOnlineState == kChatStateJoining)
-    {
-        mUserDump.insert(userid);
-    }
-
-    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
-    {
-        mUsers.insert(userid);
-        CALL_CRYPTO(onUserJoin, userid);
-        CALL_LISTENER(onUserJoin, userid, priv);
-    }
+    mUsers.insert(userid);
+    CALL_CRYPTO(onUserJoin, userid);
+    CALL_LISTENER(onUserJoin, userid, priv);
 }
 
 void Chat::onUserLeave(Id userid)
@@ -3967,12 +3958,6 @@ void Chat::onPreviewersUpdate(uint32_t numPrev)
 
 void Chat::onJoinComplete()
 {
-    if (mUsers != mUserDump)
-    {
-        mUsers.swap(mUserDump);
-        CALL_CRYPTO(setUsers, &mUsers);
-    }
-    mUserDump.clear();
     mEncryptionHalted = false;
     setOnlineState(kChatStateOnline);
     flushOutputQueue(true); //flush encrypted messages

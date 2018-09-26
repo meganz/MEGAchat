@@ -2782,6 +2782,12 @@ bool ChatRoom::hasChatHandler() const
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
+    auto it = mPeers.find(userid);
+    if (it != mPeers.end() && it->second->mPriv == privilege)
+    {
+        return;
+    }
+
     if (userid == parent.mKarereClient.myHandle())
     {
         syncOwnPriv(privilege);
