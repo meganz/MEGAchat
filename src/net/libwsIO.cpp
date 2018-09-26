@@ -62,11 +62,16 @@ bool LibwsIO::wsResolveDNS(const char *hostname, std::function<void (int, std::v
         {
             ipv4 = ip;
         }
-        f(0, ipv4, ipv6);
+        std::vector<std::string> vs4;
+        vs4.push_back(ipv4);
+        std::vector<std::string> vs6;
+        vs6.push_back(ipv6);
+        f(0, vs4, vs6);
     })
     .fail([f](const promise::Error& err)
-    {       
-        f(err.code(), string(), string());
+    {
+        std::vector<std::string> vs;
+        f(err.code(), vs, vs);
     });
     return 0;
 }

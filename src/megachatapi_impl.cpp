@@ -230,17 +230,11 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
-            mClient->retryPendingConnections()
-            .then([this, request]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([this, request](const promise::Error& e)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            bool disconnect = request->getFlag();
+            mClient->retryPendingConnections(disconnect);
+
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
             break;
         }
         case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
@@ -878,7 +872,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 char *base64Handle = MegaApi::handleToBase64(request->getUserHandle());
                 std::string stringToSend = std::string(base64Handle);
                 delete base64Handle;
-                stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment);
+                stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment - Message::kMsgOffset);
                 stringToSend.insert(stringToSend.begin(), 0x0);
                 Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
 
@@ -1505,6 +1499,19 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
         (*it)->onChatCallUpdate(chatApi, call);
     }
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
+            && (call->getStatus() == MegaChatCall::CALL_STATUS_RING_IN          // for callee, incoming call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_REQUEST_SENT  // for caller, outgoing call
+                || call->getStatus() == MegaChatCall::CALL_STATUS_TERMINATING)) // call finished
+    {
+        // notify at MegaChatListItem level about new calls and calls being terminated
+        ChatRoom *room = findChatRoom(call->getChatid());
+        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
+        item->setCallInProgress();
+
+        fireOnChatListItemUpdate(item);
+    }
+
     call->removeChanges();
 }
 
@@ -1635,9 +1642,10 @@ int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
     return ret;
 }
 
-void MegaChatApiImpl::retryPendingConnections(MegaChatRequestListener *listener)
+void MegaChatApiImpl::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
+    request->setFlag(disconnect);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2521,7 +2529,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
         if (!error)
         {
             unsigned char zero = 0x0;
-            unsigned char contactType = Message::kMsgContact;
+            unsigned char contactType = Message::kMsgContact - Message::kMsgOffset;
             rapidjson::StringBuffer buffer;
             rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
             jSonDocument.Accept(writer);
@@ -2562,7 +2570,7 @@ MegaChatMessage *MegaChatApiImpl::forwardContact(MegaChatHandle sourceChatid, Me
         {
             std::string contactMsg;
             unsigned char zero = 0x0;
-            unsigned char contactType = Message::kMsgContact;
+            unsigned char contactType = Message::kMsgContact - Message::kMsgOffset;
             contactMsg.push_back(zero);
             contactMsg.push_back(contactType);
             contactMsg.append(msg->toText());
@@ -3474,7 +3482,7 @@ MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, 
 {
     ChatRoom *chatroom = findChatRoom(chatid);
 
-    buffer.insert(buffer.begin(), Message::kMsgAttachment);
+    buffer.insert(buffer.begin(), Message::kMsgAttachment - Message::kMsgOffset);
     buffer.insert(buffer.begin(), 0x0);
 
     Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
@@ -3983,6 +3991,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     status = call.state();
     chatid = call.chat().chatId();
     callid = call.id();
+    mIsCaller = call.isCaller();
     // sentAv are invalid until state change to rtcModule::ICall::KStateHasLocalStream
     localAVFlags = call.sentAv();
     std::map<karere::Id, karere::AvFlags> remoteFlags = call.avFlagsRemotePeers();
@@ -4010,6 +4019,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->status = call.getStatus();
     this->chatid = call.getChatid();
     this->callid = call.getId();
+    this->mIsCaller = call.isOutgoing();
     this->localAVFlags = call.localAVFlags;
     this->remoteAVFlags = call.remoteAVFlags;
     this->changed = call.changed;
@@ -4150,6 +4160,16 @@ bool MegaChatCallPrivate::isIgnored() const
     return ignored;
 }
 
+bool MegaChatCallPrivate::isIncoming() const
+{
+    return !mIsCaller;
+}
+
+bool MegaChatCallPrivate::isOutgoing() const
+{
+    return mIsCaller;
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
@@ -4233,6 +4253,9 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
             break;
         case rtcModule::TermCode::kNotFinished:
             this->termCode = MegaChatCall::TERM_CODE_NOT_FINISHED;
+            break;
+        case rtcModule::TermCode::kDestroyByCallCollision:
+            this->termCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
             break;
         case rtcModule::TermCode::kCallGone:
         case rtcModule::TermCode::kInvalid:
@@ -5396,6 +5419,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->active = chatroom.isActive();
     this->ownPriv = chatroom.ownPriv();
     this->archived =  chatroom.isArchived();
+    this->mIsCallInProgress = chatroom.isCallInProgress();
     this->changed = 0;
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
     this->lastMsgPriv = Priv::PRIV_INVALID;
@@ -5486,6 +5510,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->peerHandle = item->getPeerHandle();
     this->mLastMsgId = item->getLastMessageId();
     this->archived = item->isArchived();
+    this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
 }
@@ -5569,6 +5594,11 @@ bool MegaChatListItemPrivate::isArchived() const
     return archived;
 }
 
+bool MegaChatListItemPrivate::isCallInProgress() const
+{
+    return mIsCallInProgress;
+}
+
 MegaChatHandle MegaChatListItemPrivate::getPeerHandle() const
 {
     return peerHandle;
@@ -5622,6 +5652,11 @@ void MegaChatListItemPrivate::setArchived(bool archived)
 {
     this->archived = archived;
     this->changed |= MegaChatListItem::CHANGE_TYPE_ARCHIVE;
+}
+
+void MegaChatListItemPrivate::setCallInProgress()
+{
+    this->changed |= MegaChatListItem::CHANGE_TYPE_CALL;
 }
 
 void MegaChatListItemPrivate::setLastMessage()

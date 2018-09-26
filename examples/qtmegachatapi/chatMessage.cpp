@@ -343,6 +343,7 @@ void ChatMessage::setAuthor(const char *author)
         return;
     }
 
+    MegaChatHandle uh = mMessage->getUserHandle();
     if (isMine())
     {
         ui->mAuthorDisplay->setText(tr("me"));
@@ -351,26 +352,20 @@ void ChatMessage::setAuthor(const char *author)
     {
         megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
         const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
-
         if (msgAuthor)
         {
-            if (strlen(msgAuthor) == 0)
-            {
-                ui->mAuthorDisplay->setText(tr("Unknown participant"));
-                megaChatApi->getUserFirstname(mMessage->getUserHandle());
-            }
-            else
-            {
-                ui->mAuthorDisplay->setText(tr(msgAuthor));
-            }
+            ui->mAuthorDisplay->setText(tr(msgAuthor));
+        }
+        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh)))
+        {
+            ui->mAuthorDisplay->setText(tr(msgAuthor));
+            delete [] msgAuthor;
         }
         else
         {
-            ui->mAuthorDisplay->setText(tr("Unknown participant"));
-            megaChatApi->getUserFirstname(mMessage->getUserHandle());
+            ui->mAuthorDisplay->setText(tr("Loading firstname..."));
         }
         delete chatRoom;
-
     }
 }
 

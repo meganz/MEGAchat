@@ -109,6 +109,8 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    bool isCallInProgress() const;
+
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
 
@@ -626,6 +628,11 @@ public:
         kInitErrSidInvalid
     };
 
+    enum
+    {
+        kHeartbeatTimeout = 10000     /// Timeout for heartbeats (ms)
+    };
+
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
@@ -784,7 +791,7 @@ public:
      * @brief Retry pending connections to chatd and presenced
      * @return A promise to track the result of the action.
      */
-    promise::Promise<void> retryPendingConnections();
+    void retryPendingConnections(bool disconnect);
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
@@ -841,7 +848,7 @@ public:
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
-    bool isCallInProgress() const;
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif

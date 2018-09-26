@@ -59,11 +59,38 @@ public:
         throw std::runtime_error(msg);
     }
 
+    void addMessage(const chatd::Message& msg, chatd::Idx idx, const std::string& table)
+    {
+#ifndef NDEBUG
+        std::string checkQuery = "select min(idx), max(idx), count(*) from " + table + " where chatid = ?";
+        SqliteStmt stmt(mDb, checkQuery.c_str());
+        stmt << mChat.chatId();
+        stmt.step();
+        int low = stmt.intCol(0);
+        int high = stmt.intCol(1);
+        int count = stmt.intCol(2);
+        if ((count > 0) && (idx != low-1) && (idx != high+1))
+        {
+            CHATD_LOG_ERROR("chatid %s: addMsgToHistory: %s discontinuity detected: "
+                "index of added msg %s is not adjacent to neither end of db history: "
+                "add idx=%d, histlow=%d, histhigh=%d, histcount= %d",
+                table.c_str(), mChat.chatId().toString().c_str(), msg.id().toString().c_str(),
+                idx, low, high, count);
+            assert(false);
+        }
+#endif
+        std::string query = "insert into " + table + " (idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid, is_encrypted) " +
+                                                     "values(?,?,?,?,?,?,?,?,?,?,?)";
+        mDb.query(query.c_str(), idx, mChat.chatId(), msg.id(), msg.keyid,
+            msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId, msg.isEncrypted());
+    }
+
     void addSendingItem(chatd::Chat::SendingItem& item)
     {
         assert(item.msg);
         uint8_t opcode = item.opcode();
         assert((opcode == chatd::OP_NEWMSG)
+               || (opcode == chatd::OP_NEWNODEMSG)
                || (opcode == chatd::OP_MSGUPD)
                || (opcode == chatd::OP_MSGUPDX));
 
@@ -120,27 +147,7 @@ public:
     }
     virtual void addMsgToHistory(const chatd::Message& msg, chatd::Idx idx)
     {
-#if 1
-        SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from history where chatid = ?");
-        stmt << mChat.chatId();
-        stmt.step();
-        int low = stmt.intCol(0);
-        int high = stmt.intCol(1);
-        int count = stmt.intCol(2);
-        if ((count > 0) && (idx != low-1) && (idx != high+1))
-        {
-            CHATD_LOG_ERROR("chatid %s: addMsgToHistory: history discontinuity detected: "
-                "index of added msg %s is not adjacent to neither end of db history: "
-                "add idx=%d, histlow=%d, histhigh=%d, histcount= %d, fwdStart=%d, lownum=%d, highnum=%d",
-                mChat.chatId().toString().c_str(), msg.id().toString().c_str(),
-                idx, low, high, count, mChat.forwardStart(), mChat.lownum(), mChat.highnum());
-            assert(false);
-        }
-#endif
-        mDb.query("insert into history"
-            "(idx, chatid, msgid, keyid, type, userid, ts, updated, data, backrefid, is_encrypted) "
-            "values(?,?,?,?,?,?,?,?,?,?,?)", idx, mChat.chatId(), msg.id(), msg.keyid,
-            msg.type, msg.userid, msg.ts, msg.updated, msg, msg.backRefId, msg.isEncrypted());
+        addMessage(msg, idx, "history");
     }
     virtual void updateMsgInHistory(karere::Id msgid, const chatd::Message& msg)
     {
@@ -186,6 +193,7 @@ public:
             uint16_t updated = stmt.intCol(7);
 
             assert((opcode == chatd::OP_NEWMSG)
+                   || (opcode == chatd::OP_NEWNODEMSG)
                    || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
@@ -223,7 +231,7 @@ public:
             if (stmt.hasBlobCol(12))
             {
                 assert(queue.back().msgCmd);    // a NEWKEY must always indicate there's an encrypted NEWMSG
-                assert(opcode == chatd::OP_NEWMSG);
+                assert(opcode == chatd::OP_NEWMSG || opcode == chatd::OP_NEWNODEMSG);
 
                 chatd::KeyCommand *keyCmd = new chatd::KeyCommand(mChat.chatId(), keyid);
                 Buffer buf;
@@ -262,15 +270,22 @@ public:
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
                 false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);
-            msg->setEncrypted(stmt.intCol(9));
+            msg->setEncrypted((uint8_t)stmt.intCol(9));
             messages.push_back(msg);
         }
     }
-    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
+
+    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid, const std::string &table)
     {
-        SqliteStmt stmt(mDb, "select idx from history where chatid = ? and msgid = ?");
+        std::string query = "select idx from " + table + " where chatid = ? and msgid = ?";
+        SqliteStmt stmt(mDb, query.c_str());
         stmt << mChat.chatId() << msgid;
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
+    }
+
+    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
+    {
+        return getIdxOfMsgid(msgid, "history");
     }
     virtual chatd::Idx getUnreadMsgCountAfterIdx(chatd::Idx idx)
     {
@@ -348,7 +363,8 @@ public:
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
-#if 1
+
+#ifndef NDEBUG
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mChat.chatId() << msg.id();
         stmt.step();
@@ -366,7 +382,7 @@ public:
     virtual void setLastSeen(karere::Id msgid)
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "setLastSeen");
     }
     virtual void setLastReceived(karere::Id msgid)
     {
@@ -378,7 +394,7 @@ public:
         mDb.query(
             "insert or replace into chat_vars(chatid, name, value) "
             "values(?, 'have_all_history', ?)", mChat.chatId(), haveAllHistory ? 1 : 0);
-        assertAffectedRowCount(1);
+        assertAffectedRowCount(1, "setHaveAllHistory");
     }
     virtual bool haveAllHistory()
     {
@@ -412,6 +428,44 @@ public:
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
         setHaveAllHistory(false);
+    }
+
+    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx idx)
+    {
+        if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
+        {
+            addMessage(msg, idx, "node_history");
+            assertAffectedRowCount(1, "addMsgToNodeHistory");
+        }
+    }
+
+    virtual void deleteMsgFromNodeHistory(const chatd::Message& msg)
+    {
+        mDb.query("update node_history set data = ?, updated = ? where chatid = ? and msgid = ?",
+                  msg, msg.updated, mChat.chatId(), msg.id());
+        assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
+    }
+
+    virtual void truncateNodeHistory(karere::Id id)
+    {
+        auto idx = getIdxOfMsgid(id, "node_history");
+        mDb.query("delete from node_history where chatid = ? and idx <= ?", mChat.chatId(), idx);
+    }
+
+    virtual void clearNodeHistory()
+    {
+        mDb.query("delete from node_history where chatid = ?", mChat.chatId());
+    }
+
+    virtual void getNodeHistoryInfo(chatd::Idx &newest, chatd::Idx &oldest)
+    {
+        SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from node_history where chatid=?1");
+        stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
+
+        int count = stmt.intCol(2);
+
+        oldest = count ? stmt.intCol(0) : 0;
+        newest = count ? stmt.intCol(1) : -1;
     }
 };
 

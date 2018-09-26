@@ -148,6 +148,16 @@ bool MegaChatCall::isIgnored() const
     return false;
 }
 
+bool MegaChatCall::isIncoming() const
+{
+    return false;
+}
+
+bool MegaChatCall::isOutgoing() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -218,9 +228,9 @@ int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
     return pImpl->getChatConnectionState(chatid);
 }
 
-void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
+void MegaChatApi::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
-    pImpl->retryPendingConnections(listener);
+    pImpl->retryPendingConnections(disconnect, listener);
 }
 
 void MegaChatApi::logout(MegaChatRequestListener *listener)
@@ -1167,6 +1177,11 @@ bool MegaChatListItem::isActive() const
 }
 
 bool MegaChatListItem::isArchived() const
+{
+    return false;
+}
+
+bool MegaChatListItem::isCallInProgress() const
 {
     return false;
 }

@@ -16,6 +16,12 @@
 namespace strongvelope
 {
 
+#if USE_CRYPTOPP && (CRYPTOPP_VERSION >= 600) && (__cplusplus >= 201103L)
+using byte = CryptoPP::byte;
+#else
+typedef unsigned char byte;
+#endif
+
 /** Key types */
 enum KeyType { kKeyTypeEd25519, kKeyTypeCu25519 };
 

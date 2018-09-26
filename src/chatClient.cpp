@@ -173,7 +173,7 @@ bool Client::openDb(const std::string& sid)
         if (cachedVersionSuffixPos != std::string::npos)
         {
             std::string cachedVersionSuffix = cachedVersion.substr(cachedVersionSuffixPos + 1);
-            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix != cachedVersionSuffix)
+            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix == "3")
             {
                 KR_LOG_WARNING("Clearing history from cached chats...");
 
@@ -188,7 +188,7 @@ bool Client::openDb(const std::string& sid)
 
                 ok = true;
             }
-            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix != cachedVersionSuffix)
+            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix == "4")
             {
                 // clients with version 3 need to force a full-reload of SDK's cache to retrieve
                 // "deleted" chats from API, since it used to not return them. It should only be
@@ -207,6 +207,36 @@ bool Client::openDb(const std::string& sid)
                 }
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
+            else if (cachedVersionSuffix == "4" &&  gDbSchemaVersionSuffix == "5")
+            {
+                // clients with version 4 need to create a new table `node_history` and populate it with
+                // node's attachments already in cache. Futhermore, the existing types for special messages
+                // (node-attachments, contact-attachments and rich-links) will be updated to a different
+                // range to avoid collissions with the types of upcoming management messages.
+
+                // Update obsolete type of special messages
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgAttachment, 0x10);
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgRevokeAttachment, 0x11);
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgContact, 0x12);
+                db.query("update history set type=? where type=?", chatd::Message::Type::kMsgContainsMeta, 0x13);
+
+                // Create new table for node history
+                db.simpleQuery("CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 not null,"
+                               "    userid int64, keyid int not null, type tinyint, updated smallint, ts int,"
+                               "    is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx))");
+
+                // Populate new table with existing node-attachments
+                db.query("insert into node_history select * from history where type=?", std::to_string(chatd::Message::Type::kMsgAttachment));
+                int count = sqlite3_changes(db);
+
+                // Update DB version number
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%d messages added to node history", count);
+                ok = true;
             }
         }
     }
@@ -261,19 +291,19 @@ Client::~Client()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnections()
+void Client::retryPendingConnections(bool disconnect)
 {
-    if (mConnState == kConnecting)
-        return mConnectPromise;
+    if (mConnState == kDisconnected)  // already a connection attempt in-progress
+    {
+        KR_LOG_WARNING("Retry pending connections called without previous connect");
+        return;
+    }
 
-    std::vector<Promise<void>> promises;
-
-    promises.push_back(mPresencedClient.retryPendingConnection());
+    mPresencedClient.retryPendingConnection(disconnect);
     if (mChatdClient)
     {
-        promises.push_back(mChatdClient->retryPendingConnections());
+        mChatdClient->retryPendingConnections(disconnect);
     }
-    return promise::when(promises);
 }
 
 #define TOKENPASTE2(a,b) a##b
@@ -415,7 +445,7 @@ promise::Promise<void> Client::pushReceived()
         mSyncTimer = 0;
         mSyncCount = -1;
 
-        mChatdClient->retryPendingConnections();
+        mChatdClient->retryPendingConnections(true);
 
     }, chatd::kSyncTimeout, appCtx);
 
@@ -518,52 +548,29 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
     {
     case ::mega::MegaEvent::EVENT_COMMIT_DB:
     {
-        if (db.isOpen())
+        const char *pscsn = event->getText();
+        if (!pscsn)
         {
-            auto pscsn = event->getText();
-            if (!pscsn)
+            KR_LOG_ERROR("EVENT_COMMIT_DB --> DB commit triggered by SDK without a valid scsn");
+            return;
+        }
+
+        std::string scsn = pscsn;
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, scsn]()
+        {
+            if (wptr.deleted())
             {
                 return;
             }
-            std::string scsn = pscsn;
-            auto wptr = weakHandle();
-            marshallCall([wptr, this, scsn]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
 
+            if (db.isOpen())
+            {
                 KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
                 commit(scsn);
-            }, appCtx);
-        }
-        break;
-    }
-
-    case ::mega::MegaEvent::EVENT_DISCONNECT:
-    {
-        if (connState() == kConnecting || connState() == kConnected)
-        {            
-#ifndef KARERE_DISABLE_WEBRTC
-            if (rtc && rtc->isCallInProgress())
-            {
-                break;
             }
-#endif
-            auto wptr = weakHandle();
-            marshallCall([wptr, this]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
 
-                KR_LOG_WARNING("EVENT_DISCONNECT --> reconnect triggered by SDK");
-                retryPendingConnections();
-
-            }, appCtx);
-        }
+        }, appCtx);
         break;
     }
 
@@ -657,34 +664,27 @@ Client::InitState Client::init(const char* sid)
 
 void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
-    if (e->getErrorCode() == ::mega::MegaError::API_ESID)
-    {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this]() // update state in the karere thread
-        {
-            if (wptr.deleted())
-                return;
-
-            if (initState() != kInitTerminated)
-            {
-                setInitState(kInitErrSidInvalid);
-            }
-        }, appCtx);
-        return;
-    }
-    else if (e->getErrorCode() != ::mega::MegaError::API_OK)
+    int reqType = request->getType();
+    int errorCode = e->getErrorCode();
+    if (errorCode != ::mega::MegaError::API_OK && reqType != ::mega::MegaRequest::TYPE_LOGOUT)
     {
         KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
         return;
     }
 
-    auto reqType = request->getType();
     switch (reqType)
     {
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
-        if (request->getFlag() ||   // SDK has been logged out normally closing session
-                request->getParamType() == ::mega::MegaError::API_ESID)   // SDK received ESID during login
+        bool loggedOut = (errorCode == ::mega::MegaError::API_OK && request->getFlag());    // SDK has been logged out normally closing session
+        bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
+        if (loggedOut)
+            KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
+
+        if (sessionExpired)
+            KR_LOG_WARNING("Expired session detected. Closing MEGAchat session...");
+
+        if (loggedOut || sessionExpired)
         {
             auto wptr = weakHandle();
             marshallCall([wptr, this]() // update state in the karere thread
@@ -756,6 +756,11 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                     mSessionReadyPromise.resolve();
                     api.sdk.resumeActionPackets();
                 });
+            }
+            else
+            {
+                assert(state == kInitHasOnlineSession);
+                api.sdk.resumeActionPackets();
             }
         }, appCtx);
         break;
@@ -891,46 +896,46 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
-    if (mConnState == kConnecting)
+    if (mConnState == kConnecting)      // already connecting, wait for completion
+    {
         return mConnectPromise;
-    else if (mConnState == kConnected)
+    }
+    else if (mConnState == kConnected)  // nothing to do
+    {
         return promise::_Void();
+    }
 
     assert(mConnState == kDisconnected);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
-    case promise::kSucceeded:   // if session was already ready...
-        return doConnect(pres, isInBackground);
-    case promise::kFailed:
-        return mSessionReadyPromise.error();
-    default:                    // if session is not ready yet
-        assert(sessDone == promise::kNotResolved);
-        mConnectPromise = mSessionReadyPromise
+        case promise::kSucceeded:   // if session is ready...
+            return doConnect(pres, isInBackground);
+
+        case promise::kFailed:      // if session failed...
+            return mSessionReadyPromise.error();
+
+        default:                    // if session is not ready yet... wait for it and then connect
+            assert(sessDone == promise::kNotResolved);
+            mConnectPromise = mSessionReadyPromise
             .then([this, pres, isInBackground]() mutable
             {
                 return doConnect(pres, isInBackground);
-            })
-            .then([this]()
-            {
-                setConnState(kConnected);
-            })
-            .fail([this](const promise::Error& err)
-            {
-                setConnState(kDisconnected);
-                return err;
             });
-        return mConnectPromise;
+            return mConnectPromise;
     }
 }
 
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
-    assert(mSessionReadyPromise.succeeded());
+    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
     setConnState(kConnecting);
     mOwnPresence = pres;
-    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+
+    assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
+
     mUserAttrCache->onLogin();
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
@@ -976,7 +981,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         }
 
         heartbeat();
-    }, 10000, appCtx);
+    }, kHeartbeatTimeout, appCtx);
     return pms;
 }
 
@@ -984,6 +989,7 @@ void Client::disconnect()
 {
     if (mConnState == kDisconnected)
         return;
+
     setConnState(kDisconnected);
     // stop sync of user attributes in cache
     assert(mOwnNameAttrHandle.isValid());
@@ -1002,6 +1008,7 @@ void Client::disconnect()
     mChatdClient->disconnect();
     mPresencedClient.disconnect();
 }
+
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;
@@ -1833,6 +1840,11 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
         wptr.throwIfDeleted();
         // TODO: update indexes, last message and so on
     });
+}
+
+bool ChatRoom::isCallInProgress() const
+{
+    return parent.mKarereClient.isCallInProgress(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -3092,14 +3104,14 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress() const
+bool Client::isCallInProgress(Id chatid) const
 {
     bool callInProgress = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress();
+        callInProgress = rtc->isCallInProgress(chatid);
     }
 #endif
 

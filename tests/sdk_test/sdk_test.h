@@ -68,9 +68,9 @@ private:
             LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
             LOG_debug << "Launching test: " << title; \
-            std::cout << "[" << " RUN    " << "] " << title << endl; \
+            std::cout << "[" << " RUN    " << "] " << title << std::endl; \
             test; \
-            std::cout << "[" << "     OK " << "] " << title << endl; \
+            std::cout << "[" << "     OK " << "] " << title << std::endl; \
             LOG_debug << "Cleaning test environment: " << title; \
             t.TearDown(); \
             t.mOKTests ++; \
@@ -83,7 +83,7 @@ private:
             { \
                 std::cout << e.msg() << std::endl; \
             } \
-            std::cout << "[" << " FAILED " << "] " << title << endl; \
+            std::cout << "[" << " FAILED " << "] " << title << std::endl; \
             LOG_debug << "Cleaning test environment after failure: " << title; \
             t.TearDown(); \
             t.mFailedTests ++; \

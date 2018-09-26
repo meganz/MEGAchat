@@ -308,9 +308,10 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             }
 
             // hang up existing call and answer automatically incoming call
+            RTCM_LOG_DEBUG("handleCallData: Hang up existing call and answer automatically incoming call");
             avFlags = existingCall->sentAv();
             answerAutomatic = true;
-            existingCall->hangup();
+            existingCall->hangup(kDestroyByCallCollision);
             mCalls.erase(chatid);
         }
     }
@@ -548,17 +549,27 @@ void RtcModule::setPcConstraint(const string& name, const string &value, bool op
     rtcModule::setConstraint(mPcConstraints, name, value, optional);
 }
 
-bool RtcModule::isCallInProgress() const
+bool RtcModule::isCallInProgress(Id chatid) const
 {
     bool callInProgress = false;
 
-    for (auto& item: mCalls)
+    if (chatid.isValid())
     {
-        auto& call = item.second;
-        if (call->state() == Call::kStateInProgress || call->state() == Call::kStateReqSent)
+        auto it = mCalls.find(chatid);
+        if (it != mCalls.end())
         {
-            callInProgress = true;
-            break;
+            callInProgress = it->second->isInProgress();
+        }
+    }
+    else    // find a call in progress in any chatroom
+    {
+        for (auto it: mCalls)
+        {
+            if (it.second->isInProgress())
+            {
+                callInProgress = true;
+                break;
+            }
         }
     }
 
@@ -1070,7 +1081,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         switch (mPredestroyState)
         {
         case kStateReqSent:
-            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, (code == TermCode::kDestroyByCallCollision) ? TermCode::kUserHangup : code);
             code = kCallReqCancel;  // overwrite code for onDestroy() callback
             pms = promise::_Void();
             break;
@@ -1442,6 +1453,9 @@ uint8_t Call::convertTermCodeToCallDataCode()
             assert(false);
             break;
 
+        case kDestroyByCallCollision:
+            codeToChatd = kCallDataReasonRejected;
+            break;
         case kAnswerTimeout:
         case kRingOutTimeout:
             codeToChatd = kCallDataReasonNoAnswer;
@@ -1491,7 +1505,8 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout || reason == TermCode::kRingOutTimeout);
+            assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout ||
+                   reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision);
         }
 
         destroy(reason, true);
@@ -2418,6 +2433,11 @@ const char* ICall::stateToStr(uint8_t state)
         RET_ENUM_NAME(kStateDestroyed);
         default: return "(invalid call state)";
     }
+}
+
+bool ICall::isInProgress() const
+{
+    return (mState > Call::kStateInitial && mState < Call::kStateTerminating);
 }
 
 const char* ISession::stateToStr(uint8_t state)

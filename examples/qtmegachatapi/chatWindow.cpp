@@ -140,7 +140,7 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
     addMsgWidget(msg, loadedMessages + nSending);
 }
 
-void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
+void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoom *chat)
 {
     if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
     {
@@ -169,7 +169,7 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChat
     }
 }
 
-void ChatWindow::onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
+void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     if(msg->isDeleted())
     {
@@ -263,7 +263,7 @@ void ChatWindow::truncateChatUI()
     }
 }
 
-bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal)
+bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*temporal*/)
 {
     megachat::MegaChatHandle msgId = getMessageId(msg);
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
@@ -321,13 +321,13 @@ void ChatWindow::setCallGui(CallGui *callGui)
 }
 #endif
 
-void ChatWindow::onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
+void ChatWindow::onMessageReceived(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
 {
     addMsgWidget(msg->copy(), loadedMessages);
     loadedMessages++;
 }
 
-void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg)
+void ChatWindow::onMessageLoaded(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
 {
     if(msg)
     {
@@ -385,13 +385,12 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatM
     }
 }
 
-void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat)
+void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *)
 {
     truncateChatUI();
 }
 
-
-void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetItem* item)
+void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetItem *item)
 {
     switch (msg->getType())
     {
@@ -409,7 +408,7 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage * msg, QListWidgetIt
     }
 }
 
-QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage * msg, int index)
+QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int index)
 {
     QListWidgetItem* item = new QListWidgetItem;
     megachat::MegaChatHandle chatId = mChatRoom->getChatId();
@@ -469,102 +468,99 @@ void ChatWindow::createMembersMenu(QMenu& menu)
     delete userList;
 
     // list of peers with presence and privilege-related actions
-    if (mChatRoom->getPeerCount() != 0)
+    for (unsigned int i = 0; i < mChatRoom->getPeerCount() + 1; i++)
     {
-        for (unsigned int i = 0; i < mChatRoom->getPeerCount() + 1; i++)
+        QVariant userhandle;
+        QString title;
+        int privilege;
+        if(i == mChatRoom->getPeerCount())    // my own user
         {
-            QVariant userhandle;
-            QString title;
-            int privilege;
-            if(i == mChatRoom->getPeerCount())    // my own user
-            {
-                privilege = mChatRoom->getOwnPrivilege();
-                userhandle = mMegaApi->getMyUserHandle();
-                title.append(" Me [")
+            privilege = mChatRoom->getOwnPrivilege();
+            userhandle = mMegaApi->getMyUserHandle();
+            title.append(" Me [")
                     .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getOnlineStatus())))
                     .append("]");
+        }
+        else
+        {
+            const char *memberName = mChatRoom->getPeerFirstname(i);
+            if (!memberName)
+            {
+                memberName = mChatRoom->getPeerEmail(i);
             }
             else
             {
-                const char *memberName = mChatRoom->getPeerFirstname(i);
-                if (!memberName)
+                if ((strlen(memberName)) == 0)
                 {
                     memberName = mChatRoom->getPeerEmail(i);
                 }
-                else
-                {
-                   if ((strlen(memberName)) == 0)
-                   {
-                       memberName = mChatRoom->getPeerEmail(i);
-                   }
-                }
-                privilege = mChatRoom->getPeerPrivilege(i);
-                userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
-                title.append(" ")
+            }
+            privilege = mChatRoom->getPeerPrivilege(i);
+            userhandle = QVariant((qulonglong)mChatRoom->getPeerHandle(i));
+            title.append(" ")
                     .append(QString::fromStdString(memberName))
                     .append(" [")
                     .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getUserOnlineStatus(mChatRoom->getPeerHandle(i)))))
                     .append("]");
-            }
-
-            auto entry = menu.addMenu(title);
-
-            bool canChangePrivs = (i != mChatRoom->getPeerCount())
-                    && (mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-
-            if(i == mChatRoom->getPeerCount())  // my own user
-            {
-                auto actRemove = entry->addAction(tr("Leave chat"));
-                actRemove->setProperty("userHandle", userhandle);
-                connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
-            }
-            else
-            {
-                auto actRemove = entry->addAction(tr("Remove from chat"));
-                actRemove->setProperty("userHandle", userhandle);
-                actRemove->setEnabled(canChangePrivs);
-                connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
-            }
-
-            auto menuSetPriv = entry->addMenu(tr("Set privilege"));
-            menuSetPriv->setEnabled(canChangePrivs);
-
-            QAction *actSetPrivFullAccess = Q_NULLPTR;
-            QAction *actSetPrivStandard = Q_NULLPTR;
-            QAction *actSetPrivReadOnly = Q_NULLPTR;
-
-            switch (privilege)
-            {
-            case megachat::MegaChatRoom::PRIV_MODERATOR:
-                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator <-"));
-                actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-                break;
-            case megachat::MegaChatRoom::PRIV_STANDARD:
-                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-                actSetPrivStandard = menuSetPriv->addAction(tr("Standard <-"));
-                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-                break;
-            case megachat::MegaChatRoom::PRIV_RO:
-                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-                actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
-                break;
-            }
-
-
-            actSetPrivFullAccess->setProperty("userHandle", userhandle);
-            actSetPrivFullAccess->setEnabled(canChangePrivs);
-            connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
-
-            actSetPrivStandard->setProperty("userHandle", userhandle);
-            actSetPrivStandard->setEnabled(canChangePrivs);
-            connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
-
-            actSetPrivReadOnly->setProperty("userHandle", userhandle);
-            actSetPrivReadOnly->setEnabled(canChangePrivs);
-            connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
+
+        auto entry = menu.addMenu(title);
+
+        bool canChangePrivs = (i != mChatRoom->getPeerCount())
+                && (mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
+
+        if(i == mChatRoom->getPeerCount())  // my own user
+        {
+            auto actRemove = entry->addAction(tr("Leave chat"));
+            actRemove->setProperty("userHandle", userhandle);
+            connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
+        }
+        else
+        {
+            auto actRemove = entry->addAction(tr("Remove from chat"));
+            actRemove->setProperty("userHandle", userhandle);
+            actRemove->setEnabled(canChangePrivs);
+            connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
+        }
+
+        auto menuSetPriv = entry->addMenu(tr("Set privilege"));
+        menuSetPriv->setEnabled(canChangePrivs);
+
+        QAction *actSetPrivFullAccess = Q_NULLPTR;
+        QAction *actSetPrivStandard = Q_NULLPTR;
+        QAction *actSetPrivReadOnly = Q_NULLPTR;
+
+        switch (privilege)
+        {
+        case megachat::MegaChatRoom::PRIV_MODERATOR:
+            actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator <-"));
+            actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
+            actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+            break;
+        case megachat::MegaChatRoom::PRIV_STANDARD:
+            actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
+            actSetPrivStandard = menuSetPriv->addAction(tr("Standard <-"));
+            actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+            break;
+        case megachat::MegaChatRoom::PRIV_RO:
+            actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
+            actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
+            actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
+            break;
+        }
+
+
+        actSetPrivFullAccess->setProperty("userHandle", userhandle);
+        actSetPrivFullAccess->setEnabled(canChangePrivs);
+        connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
+
+        actSetPrivStandard->setProperty("userHandle", userhandle);
+        actSetPrivStandard->setEnabled(canChangePrivs);
+        connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
+
+        actSetPrivReadOnly->setProperty("userHandle", userhandle);
+        actSetPrivReadOnly->setEnabled(canChangePrivs);
+        connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
     }
 }
 

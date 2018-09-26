@@ -13,7 +13,7 @@ fi
 # The -march value that will be passed to the compiler
 if [ -z "$XENV_TARGET_ARCH" ]; then
     export XENV_TARGET_ARCH=arm
-    export XENV_TARGET_SUBARCH=v7a
+    export XENV_TARGET_SUBARCH=v7-a
 fi
 
 #=== End of user-set variables
