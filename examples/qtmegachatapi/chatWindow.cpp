@@ -597,7 +597,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         return ;
     }
 
-    auto attachments = menu.addAction("Node attachment");
+    auto attachments = menu.addAction("List attachments");
     connect(attachments, SIGNAL(triggered()), this, SLOT(onShowAttachments()));
 
     auto truncate = menu.addAction("Truncate chat");
