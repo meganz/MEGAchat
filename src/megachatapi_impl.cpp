@@ -1432,6 +1432,7 @@ bool MegaChatApiImpl::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistory
         if (chatroom)
         {
             chatroom->chat().setNodeHistoryHandler(handler);
+            nodeHistoryHandlers[chatid] = handler;
         }
         else
         {
