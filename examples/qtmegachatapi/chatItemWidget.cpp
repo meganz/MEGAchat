@@ -454,67 +454,44 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    if (mAnonymous)
-        return;
-
-    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
-    bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-
     QMenu menu(this);
     const megachat::MegaChatListItem * auxItem = mMainWin->getLocalChatListItem(mChatId);
-    if (auxItem->isGroup())
-    {
-        auto actLeave = menu.addAction(tr("Leave group chat"));
-        if (!auxItem->isActive() || auxItem->isPreview())
-        {
-            actLeave->setEnabled(false);
-        }
-        connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
-        auto actTopic = menu.addAction(tr("Set chat topic"));
-        actTopic->setEnabled(canChangePrivs);
-        connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
-    }
-    delete chatRoom;
+    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+
+    auto actLeave = menu.addAction(tr("Leave group chat"));
+    connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
+
+    auto actTopic = menu.addAction(tr("Set chat topic"));
+    connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
 
     auto actTruncate = menu.addAction(tr("Truncate chat"));
-    actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
 
-    if (auxItem->isPublic())
+    auto actQueryLink = menu.addAction(tr("Query chat link"));
+    connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
+
+    auto actExportLink = menu.addAction(tr("Export chat link"));
+    connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
+
+    auto actRemoveLink = menu.addAction(tr("Remove chat link"));
+    connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
+
+    auto actSetPrivate = menu.addAction(tr("Set chat private"));
+    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
+
+    auto actUnArchive = menu.addAction(tr("Unarchive chat"));
+    connect(actUnArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
+
+    auto actArchive = menu.addAction(tr("Archive chat"));
+    connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
+
+    if (auxItem->isPreview())
     {
-        auto actQueryLink = menu.addAction(tr("Query chat link"));
-        connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
-
-        auto actExportLink = menu.addAction(tr("Export chat link"));
-        connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
-
-        auto actRemoveLink = menu.addAction(tr("Remove chat link"));
-        connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
-
-        auto actSetPrivate = menu.addAction(tr("Set chat private"));
-        connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));        
-
-        if(auxItem->isPreview())
-        {
-            auto actSetPrivate = menu.addAction(tr("Close preview"));
-            connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closePreview()));
-        }
+        auto actClosePreview = menu.addAction(tr("Close preview"));
+        connect(actClosePreview, SIGNAL(triggered()), this, SLOT(closePreview()));
     }
 
-    if (!auxItem->isPreview())  // cannot un/archive rooms in preview mode
-    {
-        if (auxItem->isArchived())
-        {
-            auto actArchive = menu.addAction(tr("Unarchive chat"));
-            connect(actArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
-        }
-        else
-        {
-            auto actArchive = menu.addAction(tr("Archive chat"));
-            connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
-        }
-    }
-
+    delete chatRoom;
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
