@@ -244,35 +244,8 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history "
-            "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
-        stmt << mChat.chatId() << idx << count;
-        int i = 0;
-        while(stmt.step())
-        {
-            i++;
-            karere::Id msgid(stmt.uint64Col(0));
-            karere::Id userid(stmt.uint64Col(1));
-            unsigned ts = stmt.uintCol(2);
-            chatd::KeyId keyid = stmt.uintCol(6);
-            Buffer buf;
-            stmt.blobCol(4, buf);
-#ifndef NDEBUG
-            auto idx = stmt.intCol(5);
-            if(idx != mChat.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
-            {
-                CHATD_LOG_ERROR("chatid %s: fetchDbHistory: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(),
-                    mChat.lownum()-1-(int)messages.size(), idx);
-                assert(false);
-            }
-#endif
-            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
-                false, keyid, (unsigned char)stmt.intCol(3));
-            msg->backRefId = stmt.uint64Col(7);
-            msg->setEncrypted((uint8_t)stmt.intCol(9));
-            messages.push_back(msg);
-        }
+        int oldesidx = mChat.lownum();
+        loadMessages(count, idx, messages, "history", oldesidx);
     }
 
     virtual chatd::Idx getIdxOfMsgid(karere::Id msgid, const std::string &table)
@@ -470,8 +443,16 @@ public:
 
     virtual void loadNodeHistoryFromDb(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from node_history "
-            "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
+        int oldesidx = mChat.attachmentNodesOldestIdx();
+        loadMessages(count, idx, messages, "node_history", oldesidx);
+    }
+
+    void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table, int ramLowNum)
+    {
+        std::string query = "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from " + table +
+                            " where chatid = ?1 and idx <= ?2 order by idx desc limit ?3";
+
+        SqliteStmt stmt(mDb, query.c_str());
         stmt << mChat.chatId() << idx << count;
         int i = 0;
         while(stmt.step())
@@ -483,6 +464,16 @@ public:
             chatd::KeyId keyid = stmt.uintCol(6);
             Buffer buf;
             stmt.blobCol(4, buf);
+#ifndef NDEBUG
+            auto tableIdx = stmt.intCol(5);
+            if(tableIdx != ramLowNum - 1 - (int)messages.size()) //we go backward in history, hence the -messages.size()
+            {
+                CHATD_LOG_ERROR("chatid %s: loadMessages from table %s: History discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(), table.c_str(),
+                    mChat.lownum()-1-(int)messages.size(), tableIdx);
+                assert(false);
+            }
+#endif
             auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
                 false, keyid, (unsigned char)stmt.intCol(3));
             msg->backRefId = stmt.uint64Col(7);

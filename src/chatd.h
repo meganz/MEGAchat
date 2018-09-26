@@ -1130,8 +1130,7 @@ public:
     void requestNodeHistoryFromServer(uint32_t count);
     void setNodeHistoryHandler(FilteredHistoryHandler *listener);
     void unsetHandlerToNodeHistory();
-
-
+    Idx attachmentNodesOldestIdx() const;
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
     bool msgEncryptAndSend(OutputQueue::iterator it);

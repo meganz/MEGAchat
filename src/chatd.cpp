@@ -1861,6 +1861,12 @@ void Chat::unsetHandlerToNodeHistory()
     mAttachmentNodes->unsetHandler();
 }
 
+Idx Chat::attachmentNodesOldestIdx() const
+{
+    // mAttachmentNodes is NULL when attachmentNodesOldestIdx is called from Chat constructor
+    return mAttachmentNodes ? mAttachmentNodes->oldestIdx() : 0;
+}
+
 Message* Chat::getMsgByXid(Id msgxid)
 {
     for (auto& item: mSending)
