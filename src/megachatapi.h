@@ -3663,9 +3663,10 @@ public:
      *
      * Messages are always loaded and notified in strict order, from newest to oldest.
      *
-     * @note The actual number of messages loaded can be less than \c count. One reason is
-     * the history being shorter than requested, the other is due to internal protocol
-     * messages that are not intended to be displayed to the user.
+     * @note The actual number of messages loaded can be less than \c count. Because
+     * the history being shorter than requested. Additionally, if the fetch is local
+     * and there's no more history locally available, the number of messages could be
+     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
      *
      * When there are no more history available from the reported source of messages
      * (local / remote), or when the requested \c count has been already loaded,
@@ -3675,7 +3676,8 @@ public:
      * @param count The number of requested messages to load.
      *
      * @return Return the source of the messages that is going to be fetched. The possible values are:
-     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even int the server)
+     *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
      *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
      *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
      *

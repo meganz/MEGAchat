@@ -1546,8 +1546,9 @@ int MegaChatApiImpl::loadAttachments(MegaChatHandle chatid, int count)
         case kHistSourceRam:
         case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
         case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
+        case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
         default:
-            API_LOG_ERROR("Unknown source of messages at loadMessages()");
+            API_LOG_ERROR("Unknown source of messages at loadAttachments()");
             break;
         }
     }

@@ -1121,11 +1121,7 @@ void Chat::requestHistoryFromServer(int32_t count)
 
 void Chat::requestNodeHistoryFromServer(uint32_t count)
 {
-    if (!mConnection.isOnline())
-    {
-        mAttachmentNodes->finishFechingFromServer();
-        return;
-    }
+    assert(mConnection.isOnline());
 
     auto wptr = weakHandle();
     marshallCall([wptr, this, count]()
@@ -1133,7 +1129,12 @@ void Chat::requestNodeHistoryFromServer(uint32_t count)
         if (wptr.deleted())
             return;
 
-        assert(mConnection.isOnline());
+        if (!mConnection.isOnline())
+        {
+            mAttachmentNodes->finishFechingFromServer();
+            return;
+        }
+
         CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count);
         // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
 
@@ -4467,7 +4468,6 @@ void FilteredHistory::clear()
 
 HistSource FilteredHistory::loadHistory(uint32_t count)
 {
-    HistSource histSource = HistSource::kHistSourceNone;
     uint32_t messagesLoaded = 0;
     if (mOldestNotifyMsg != --mBuffer.end() || mOldestNotifyMsg == mBuffer.begin())
     {
@@ -4477,31 +4477,35 @@ HistSource FilteredHistory::loadHistory(uint32_t count)
             CALL_LISTENER_FH(onLoaded,  &(*(*it)), index);
             messagesLoaded++;
             mOldestNotifyMsg = it;
-            histSource = HistSource::kHistSourceRam;
+        }
+
+        if (messagesLoaded)
+        {
+            return HistSource::kHistSourceRam;
         }
     }
 
-    uint32_t pendingToLoad = 0;
     if (count > messagesLoaded)
     {
-        uint32_t messagesToLoadFromdb = count - messagesLoaded;
-        pendingToLoad = messagesToLoadFromdb - loadHistoryFromDb(messagesToLoadFromdb);
+        uint32_t messagesLoadedFromdb = loadHistoryFromDb(count);
         mOldestNotifyMsg = --mBuffer.end();
-        histSource = HistSource::kHistSourceDb;
+        if (messagesLoadedFromdb)
+        {
+            return HistSource::kHistSourceDb;
+        }
     }
 
-    if (!pendingToLoad || hasAllHistory())
-    {
-        CALL_LISTENER_FH(onLoaded, NULL, 0);
-    }
-    else
+    if (!hasAllHistory() && mChat->connection().isOnline())
     {
         mFetchingFromServer = true;
-        mChat->requestNodeHistoryFromServer(pendingToLoad);
-        histSource = HistSource::kHistSourceServer;
+        mChat->requestNodeHistoryFromServer(count);
+        return HistSource::kHistSourceServer;
     }
 
-    return histSource;
+    HistSource hist = hasAllHistory() ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
+    CALL_LISTENER_FH(onLoaded, NULL, 0); // No more messages
+
+    return hist;
 }
 
 int FilteredHistory::loadHistoryFromDb(uint32_t count)
