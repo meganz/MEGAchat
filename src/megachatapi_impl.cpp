@@ -3408,6 +3408,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
         logout();
         return;
     }
+    else if (newState == karere::Client::kInitTerminated && !terminating)
+    {
+        localLogout();
+        return;
+    }
 
     int state = MegaChatApiImpl::convertInitState(newState);
 

@@ -686,22 +686,23 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         if (sessionExpired)
             KR_LOG_WARNING("Expired session detected. Closing MEGAchat session...");
 
-        if (loggedOut || sessionExpired)
+        bool sidInvalid = (loggedOut || sessionExpired);
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, sidInvalid]() // update state in the karere thread
         {
-            auto wptr = weakHandle();
-            marshallCall([wptr, this]() // update state in the karere thread
-            {
-                if (wptr.deleted())
-                    return;
+            if (wptr.deleted())
+                return;
 
-                if (initState() != kInitTerminated)
-                {
-                    setInitState(kInitErrSidInvalid);
-                }
-            }, appCtx);
-            return;
-        }
-        break;
+            if (!sidInvalid)    // a MegaApi::locallogout() request has been done -> close
+            {
+                setInitState(kInitTerminated);
+            }
+            else if (initState() != kInitTerminated)
+            {
+                setInitState(kInitErrSidInvalid);
+            }
+        }, appCtx);
+        return;
     }
 
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
