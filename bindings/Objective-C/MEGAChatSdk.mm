@@ -103,6 +103,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatConnection) self.megaChatApi->getChatConnectionState(chatId);
 }
 
+- (BOOL)areAllChatsLoggedIn {
+    return self.megaChatApi->areAllChatsLoggedIn();
+}
+
 - (void)retryPendingConnections {
     self.megaChatApi->retryPendingConnections();
 }

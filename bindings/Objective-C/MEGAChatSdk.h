@@ -72,6 +72,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) MEGAChatListItemList *activeChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *inactiveChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *archivedChatListItems;
+@property (nonatomic, readonly, getter=areAllChatsLoggedIn) BOOL allChatsLoggedIn;
 
 #pragma mark - Init
 
