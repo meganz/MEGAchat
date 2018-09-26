@@ -2,6 +2,7 @@
 #include "chatWindow.h"
 #include "assert.h"
 #include <QMenu>
+#include <QFileDialog>
 
 ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
     : QDialog(parent),
@@ -24,6 +25,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     ui->mSplitter->setStretchFactor(1,0);
     ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->mChatdStatusDisplay->hide();
+    mUploadDlg = NULL;
     setChatTittle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
@@ -58,6 +60,8 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     QDialog::show();
     megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
+    megaTransferListenerDelegate = new mega::QTMegaTransferListener(mMegaApi, this);
+    mMegaApi->addTransferListener(megaTransferListenerDelegate);
 }
 
 void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
@@ -107,8 +111,11 @@ ChatWindow::~ChatWindow()
         chatItemWidget->invalidChatWindowHandle();
     }
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
+    mMegaApi->removeTransferListener(megaTransferListenerDelegate);
     delete megaChatRoomListenerDelegate;
+    delete megaTransferListenerDelegate;
     delete mChatRoom;
+    delete mUploadDlg;
     delete ui;
 }
 
@@ -218,6 +225,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMess
                 eraseChatMessage(auxMessage->getMessage(), true);
                 nSending--;
             }
+
             megachat::MegaChatMessage *auxMsg = msg->copy();
             addMsgWidget(auxMsg, loadedMessages);
             loadedMessages++;
@@ -690,3 +698,74 @@ void ChatWindow::deleteCallGui()
     ui->mTextChatWidget->show();
 }
 #endif
+
+void ChatWindow::on_mAttachBtn_clicked()
+{
+    QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
+
+    if (node.isEmpty())
+       return;
+
+    QStringList nodeParsed = node.split( "/" );
+    QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
+    mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
+
+    mUploadDlg = new QMessageBox;
+    mUploadDlg->setWindowTitle((tr("Uploading file...")));
+    mUploadDlg->setIcon(QMessageBox::Warning);
+    mUploadDlg->setText(tr("Please, wait.\nThe file will be attached when the transfer completes."));
+    mUploadDlg->setStandardButtons(QMessageBox::Cancel);
+    mUploadDlg->setModal(true);
+    mUploadDlg->show();
+    connect(mUploadDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelTransfer(QAbstractButton*)));
+
+    this->mMegaApi->startUpload(node.toStdString().c_str(), parent, nodeName.toStdString().c_str());
+    delete parent;
+}
+
+void ChatWindow::on_mCancelTransfer(QAbstractButton*)
+{
+    mMegaApi->cancelTransfers(::mega::MegaTransfer::TYPE_UPLOAD);
+    mUploadDlg->hide();
+    delete mUploadDlg;
+    mUploadDlg = NULL;
+}
+
+void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
+{
+    if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
+    {
+        if (mUploadDlg)
+        {
+            mUploadDlg->hide();
+            if (e->getErrorCode() == mega::MegaError::API_OK)
+            {
+                QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
+                mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+            }
+            else
+            {
+                QMessageBox::critical(nullptr, tr("Upload"), tr("Error in transfer: ").append(e->getErrorString()));
+            }
+
+            mUploadDlg->hide();
+            delete mUploadDlg;
+            mUploadDlg = NULL;
+        }
+        else if (mUploadDlg == NULL)
+        {
+            QMessageBox::information(nullptr, tr("Upload"), tr("Upload canceled."));
+        }
+    }
+    else    // download
+    {
+        if (e->getErrorCode() == mega::MegaError::API_OK)
+        {
+            QMessageBox::information(nullptr, tr("Download"), tr("Attachment's download successful."));
+        }
+        else
+        {
+            QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
+        }
+    }
+}
