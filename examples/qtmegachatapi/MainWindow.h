@@ -125,6 +125,7 @@ class MainWindow :
         void on_bOnlineStatus_clicked();
         void onAddContact();
         void onAddChatGroup();
+        void onWebRTCsetting();
         void setOnlineStatus();
         void onChangeItemsVisibility();
         void on_bHiddenChats_clicked();

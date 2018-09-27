@@ -46,6 +46,7 @@ class ChatWindow : public QDialog,
         void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
+        void createSettingsMenu(QMenu& menu);
         void truncateChatUI();
         void connectCall();
         void hangCall();
@@ -102,6 +103,7 @@ class ChatWindow : public QDialog,
         void onAudioCallBtn(bool);
         void deleteCallGui();
 #endif
+        void on_mSettingsBtn_clicked();
 
     friend class CallGui;
     friend class ChatMessage;

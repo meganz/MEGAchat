@@ -339,7 +339,58 @@ bool MainWindow::eventFilter(QObject *, QEvent *event)
     return false;
 }
 
+
 void MainWindow::on_bSettings_clicked()
+{
+    QMenu menu(this);
+
+    menu.setAttribute(Qt::WA_DeleteOnClose);
+
+    auto actInactive = menu.addAction(tr("Show/Hide inactive chats"));
+    connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
+
+    auto actArchived = menu.addAction(tr("Show/Hide archived chats"));
+    connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
+
+    menu.addSeparator();
+
+    auto addAction = menu.addAction(tr("Add user to contacts"));
+    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+
+    auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
+    connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChatGroup()));
+
+    auto actGroupChat = menu.addAction(tr("Create group chat"));
+    connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
+
+    auto actPubChat = menu.addAction(tr("Create public chat"));
+    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
+
+    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
+    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
+
+    menu.addSeparator();
+    auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
+    connect(actTwoFactCheck, SIGNAL(triggered()), this, SLOT(twoFactorCheck()));
+
+    menu.addSeparator();
+    auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
+    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
+
+
+    menu.addSeparator();
+    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
+    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
+
+
+
+    QPoint pos = ui->bSettings->pos();
+    pos.setX(pos.x() + ui->bSettings->width());
+    pos.setY(pos.y() + ui->bSettings->height());
+    menu.exec(mapToGlobal(pos));
+}
+
+void MainWindow::onWebRTCsetting()
 {
     #ifndef KARERE_DISABLE_WEBRTC
         this->mMegaChatApi->loadAudioVideoDeviceList();

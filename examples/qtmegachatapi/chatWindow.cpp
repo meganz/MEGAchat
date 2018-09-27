@@ -454,23 +454,15 @@ void ChatWindow::onMembersBtn(bool)
 
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
-    if (!mChatRoom->isActive())
-    {
-        return ;
-    }
-
-    auto truncate = menu.addAction("Truncate chat");
-    truncate->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+    //Add contacts
+    mega::MegaUserList *userList = mMegaApi->getContacts();
 
     auto addEntry = menu.addMenu("Add contact to chat");
-    addEntry->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-    mega::MegaUserList *userList = mMegaApi->getContacts();
     for (int i = 0 ; i < userList->size(); i++)
     {
+         mega::MegaUser *user = userList->get(i);
          auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
-         actAdd->setEnabled(mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-         actAdd->setProperty("userHandle", QVariant((qulonglong)userList->get(i)->getHandle()));
+         actAdd->setProperty("userHandle", QVariant((qulonglong)user->getHandle()));
          connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
     }
     delete userList;
@@ -481,7 +473,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         QVariant userhandle;
         QString title;
         int privilege;
-        if(i == mChatRoom->getPeerCount())    // my own user
+        if(i == mChatRoom->getPeerCount())
         {
             privilege = mChatRoom->getOwnPrivilege();
             userhandle = mMegaApi->getMyUserHandle();
@@ -514,10 +506,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
         auto entry = menu.addMenu(title);
 
-        bool canChangePrivs = (i != mChatRoom->getPeerCount())
-                && (mChatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-
-        if(i == mChatRoom->getPeerCount())  // my own user
+        if (i == mChatRoom->getPeerCount())  // my own user
         {
             auto actRemove = entry->addAction(tr("Leave chat"));
             actRemove->setProperty("userHandle", userhandle);
@@ -527,51 +516,86 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         {
             auto actRemove = entry->addAction(tr("Remove from chat"));
             actRemove->setProperty("userHandle", userhandle);
-            actRemove->setEnabled(canChangePrivs);
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
         }
-
-        auto menuSetPriv = entry->addMenu(tr("Set privilege"));
-        menuSetPriv->setEnabled(canChangePrivs);
 
         QAction *actSetPrivFullAccess = Q_NULLPTR;
         QAction *actSetPrivStandard = Q_NULLPTR;
         QAction *actSetPrivReadOnly = Q_NULLPTR;
 
+        auto menuSetPriv = entry->addMenu(tr("Set privilege"));
         switch (privilege)
         {
-        case megachat::MegaChatRoom::PRIV_MODERATOR:
-            actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator <-"));
-            actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-            actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-            break;
-        case megachat::MegaChatRoom::PRIV_STANDARD:
-            actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-            actSetPrivStandard = menuSetPriv->addAction(tr("Standard <-"));
-            actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-            break;
-        case megachat::MegaChatRoom::PRIV_RO:
-            actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-            actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-            actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
-            break;
+            case megachat::MegaChatRoom::PRIV_MODERATOR:
+                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator <-"));
+                actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
+                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+                break;
+            case megachat::MegaChatRoom::PRIV_STANDARD:
+                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
+                actSetPrivStandard = menuSetPriv->addAction(tr("Standard <-"));
+                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+                break;
+            case megachat::MegaChatRoom::PRIV_RO:
+                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
+                actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
+                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
+                break;
         }
 
-
         actSetPrivFullAccess->setProperty("userHandle", userhandle);
-        actSetPrivFullAccess->setEnabled(canChangePrivs);
         connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
 
         actSetPrivStandard->setProperty("userHandle", userhandle);
-        actSetPrivStandard->setEnabled(canChangePrivs);
         connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
 
         actSetPrivReadOnly->setProperty("userHandle", userhandle);
-        actSetPrivReadOnly->setEnabled(canChangePrivs);
         connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
     }
 }
 
+void ChatWindow::createSettingsMenu(QMenu& menu)
+{
+    //Leave
+    auto leave = menu.addAction("Leave chat");
+    connect(leave, SIGNAL(triggered()), this, SLOT(onLeaveGroupChat()));
+
+    //Truncate
+    auto truncate = menu.addAction("Truncate chat");
+    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+
+    //Set topic
+    auto title = menu.addAction("Set title");
+    connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
+
+    //Archive
+    auto archive = menu.addAction("Archive chat");
+    connect(archive, SIGNAL(triggered()), this, SLOT(onArchiveChat()));
+
+    //Unarchive
+    auto unarchive = menu.addAction("Unarchive chat");
+    connect(unarchive, SIGNAL(triggered()), this, SLOT(onUnarchiveChat()));
+
+    //Query chat link
+    auto queryChatLink = menu.addAction("Query chat link");
+    connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
+
+    //Export chat link
+    auto exportChatLink = menu.addAction("Export chat link");
+    connect(exportChatLink, SIGNAL(triggered()), this, SLOT(onExportChatLink()));
+
+    //Remove chat link
+    auto removeChatLink = menu.addAction("Remove chat link");
+    connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
+
+    //Close chat link
+    auto closeChatLink = menu.addAction("Close chat link");
+    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
+
+    //Close chat link
+    auto joinChatLink = menu.addAction("Join chat link");
+    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+}
 
 void ChatWindow::onTruncateChat()
 {
@@ -698,6 +722,17 @@ void ChatWindow::deleteCallGui()
     ui->mTextChatWidget->show();
 }
 #endif
+
+void ChatWindow::on_mSettingsBtn_clicked()
+{
+    QMenu menu(this);
+    createSettingsMenu(menu);
+    menu.setLayoutDirection(Qt::RightToLeft);
+    menu.adjustSize();
+    menu.exec(ui->mMembersBtn->mapToGlobal(
+    QPoint(-menu.width()+ui->mMembersBtn->width(), ui->mMembersBtn->height())));
+    menu.deleteLater();
+}
 
 void ChatWindow::on_mAttachBtn_clicked()
 {
