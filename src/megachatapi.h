@@ -1963,9 +1963,7 @@ public:
      *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
      *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
-     * The connection state of all chats can be checked by passing MEGACHAT_INVALID_HANDLE
-     * as chatid to this function. It will return CHAT_CONNECTION_ONLINE only if MEGAchat
-     * is connected to all chats at this moment.
+     * You can check if all chats are online with MegaChatApi::areAllChatsLoggedIn.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return The state of connection
