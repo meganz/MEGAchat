@@ -2643,7 +2643,7 @@ public:
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom, if it already exist
+     * - MegaChatRequest::getText - Returns the chat-link for the chatroom, if it already exist
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
@@ -2672,7 +2672,7 @@ public:
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom
+     * - MegaChatRequest::getText - Returns the chat-link for the chatroom
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
@@ -2896,7 +2896,7 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getLink - Returns the title of the chat.
+     * - MegaChatRequest::getLink - Returns the chat link.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
@@ -2911,6 +2911,7 @@ public:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
+     * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
