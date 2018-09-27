@@ -79,9 +79,8 @@ class MainWindow :
         //You take the ownership of the returned value
         std::list<Chat> *getLocalChatListItemsByStatus(int status);
         //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
-        void addLocalChatListItem(const megachat::MegaChatListItem *item);
+        void addOrUpdateLocalChatListItem(const megachat::MegaChatListItem *item);
         void updateLocalChatListItems();
-        void updateLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItemById(megachat::MegaChatHandle id);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);

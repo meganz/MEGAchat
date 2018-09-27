@@ -218,14 +218,7 @@ void MegaChatApplication::configureLogs()
 void MegaChatApplication::addChats()
 {
     mMainWin->updateLocalChatListItems();
-    std::list<Chat> *chatList = mMainWin->getLocalChatListItemsByStatus(chatActiveStatus);
-    for (Chat &chat : (*chatList))
-    {
-        const megachat::MegaChatListItem *item = chat.chatItem;
-        mMainWin->addChat(item);
-    }
-    chatList->clear();
-    delete chatList;
+    mMainWin->orderContactChatList();
 }
 
 
@@ -559,10 +552,9 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     break;
                 }
 
-                mMainWin->addLocalChatListItem(chatListItem);
+                mMainWin->addOrUpdateLocalChatListItem(chatListItem);
+                mMainWin->orderContactChatList();
                 delete chatListItem;
-                chatListItem = mMainWin->getLocalChatListItem(chatid);
-                mMainWin->addChat(chatListItem);
             }
             break;
 
@@ -649,8 +641,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     mMainWin->activeControls(false);
 
                 }
-                mMainWin->addLocalChatListItem(chatListItem);
-                mMainWin->addChat(chatListItem);
+                mMainWin->addOrUpdateLocalChatListItem(chatListItem);
+                mMainWin->orderContactChatList();
             }
             else
             {
