@@ -1783,9 +1783,6 @@ public:
      */
     MegaChatApi(mega::MegaApi *megaApi);
 
-//    // chat will use its own megaApi, a new instance
-//    MegaChatApi(const char *appKey, const char* appDir);
-
     virtual ~MegaChatApi();
 
     static const char *getAppDir();
@@ -1941,19 +1938,24 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returns the current state of the connection
+     * @brief Returns the current state of the client
      *
      * It can be one of the following values:
      *  - MegaChatApi::DISCONNECTED = 0
      *  - MegaChatApi::CONNECTING   = 1
      *  - MegaChatApi::CONNECTED    = 2
      *
-     * @return The state of connection
+     * @note Even if this function returns CONNECTED, it does not mean the client
+     * is fully connected to chatd and presenced. It means the client has been requested
+     * to connect, in contrast to the offline mode.
+     * @see MegaChatApi::getChatConnectionState and MegaChatApi::areAllChatsLoggedIn.
+     *
+     * @return The connection's state of the client
      */
     int getConnectionState();
 
     /**
-     * @brief Returns the current state of the connection to chatd
+     * @brief Returns the current state of the connection to chatd for a given chatroom
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
@@ -1961,11 +1963,20 @@ public:
      *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
      *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
+     * You can check if all chats are online with MegaChatApi::areAllChatsLoggedIn.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return The state of connection
      */
     int getChatConnectionState(MegaChatHandle chatid);
     
+    /**
+     * @brief Check whether client is logged in into all chats
+     *
+     * @return True if connection to chatd is MegaChatApi::CHAT_CONNECTION_ONLINE, false otherwise.
+     */
+    bool areAllChatsLoggedIn();
+
     /**
      * @brief Refresh DNS servers and retry pending connections
      *

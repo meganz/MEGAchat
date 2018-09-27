@@ -228,6 +228,11 @@ int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
     return pImpl->getChatConnectionState(chatid);
 }
 
+bool MegaChatApi::areAllChatsLoggedIn()
+{
+    return pImpl->areAllChatsLoggedIn();
+}
+
 void MegaChatApi::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
     pImpl->retryPendingConnections(disconnect, listener);
@@ -242,11 +247,6 @@ void MegaChatApi::localLogout(MegaChatRequestListener *listener)
 {
     pImpl->localLogout(listener);
 }
-
-//MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
-//{
-//    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);
-//}
 
 void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
 {
