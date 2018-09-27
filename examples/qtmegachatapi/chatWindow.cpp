@@ -164,7 +164,8 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
        this->setChatTittle(mChatRoom->getTitle());
     }
 
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS))
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS)
+            || chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_ARCHIVE))
     {
         delete mChatRoom;
         this->mChatRoom = chat->copy();
@@ -556,12 +557,8 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
 void ChatWindow::createSettingsMenu(QMenu& menu)
 {
-    //Leave
-    auto leave = menu.addAction("Leave chat");
-    connect(leave, SIGNAL(triggered()), this, SLOT(onLeaveGroupChat()));
-
     //Truncate
-    auto truncate = menu.addAction("Truncate chat");
+    auto truncate = menu.addAction("Truncate history");
     connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
 
     //Set topic
@@ -569,32 +566,38 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
 
     //Archive
-    auto archive = menu.addAction("Archive chat");
-    connect(archive, SIGNAL(triggered()), this, SLOT(onArchiveChat()));
+    auto actArchive = menu.addAction("Archive chat");
+    connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
+    actArchive->setCheckable(true);
+    actArchive->setChecked(mChatRoom->isArchived());
 
-    //Unarchive
-    auto unarchive = menu.addAction("Unarchive chat");
-    connect(unarchive, SIGNAL(triggered()), this, SLOT(onUnarchiveChat()));
+    QMenu *clMenu = menu.addMenu("Chat links");
 
     //Query chat link
-    auto queryChatLink = menu.addAction("Query chat link");
+    auto queryChatLink = clMenu->addAction("Query chat link");
     connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
 
     //Export chat link
-    auto exportChatLink = menu.addAction("Export chat link");
+    auto exportChatLink = clMenu->addAction("Export chat link");
     connect(exportChatLink, SIGNAL(triggered()), this, SLOT(onExportChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
 
     //Remove chat link
-    auto removeChatLink = menu.addAction("Remove chat link");
+    auto removeChatLink = clMenu->addAction("Remove chat link");
     connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
 
-    //Close chat link
-    auto closeChatLink = menu.addAction("Close chat link");
-    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
-
-    //Close chat link
-    auto joinChatLink = menu.addAction("Join chat link");
+    //Auto-join chat link
+    auto joinChatLink = clMenu->addAction("Join chat link");
     connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    //Close chat link
+    auto closeChatLink = clMenu->addAction("Close chat link");
+    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
+
 }
 
 void ChatWindow::onTruncateChat()
@@ -729,8 +732,8 @@ void ChatWindow::on_mSettingsBtn_clicked()
     createSettingsMenu(menu);
     menu.setLayoutDirection(Qt::RightToLeft);
     menu.adjustSize();
-    menu.exec(ui->mMembersBtn->mapToGlobal(
-    QPoint(-menu.width()+ui->mMembersBtn->width(), ui->mMembersBtn->height())));
+    menu.exec(ui->mSettingsBtn->mapToGlobal(
+    QPoint(-menu.width()+ui->mSettingsBtn->width(), ui->mSettingsBtn->height())));
     menu.deleteLater();
 }
 
@@ -764,6 +767,14 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
     mUploadDlg->hide();
     delete mUploadDlg;
     mUploadDlg = NULL;
+}
+
+void ChatWindow::onArchiveClicked(bool checked)
+{
+    if (mChatRoom->isArchived() == checked)
+        return;
+
+    mMegaApi->archiveChat(mChatRoom->getChatId(), checked);
 }
 
 void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)

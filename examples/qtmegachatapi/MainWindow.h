@@ -85,9 +85,7 @@ class MainWindow :
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         mega::MegaUserList *getUserContactList();
         std::string getAuthCode();
-        void enableTwoFactorBtn(bool active);
         bool eventFilter(QObject *obj, QEvent *event);
-        void contextMenuEvent(QContextMenuEvent* event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
         void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
@@ -128,12 +126,12 @@ class MainWindow :
         void onWebRTCsetting();
         void setOnlineStatus();
         void onChangeItemsVisibility();
-        void on_bHiddenChats_clicked();
-        void on_bArchivedChats_clicked();
-        void on_bChatGroup_clicked();
+        void onShowInactiveChats();
+        void onShowArchivedChats();
+        void onAddGroupChat();
         void onTwoFactorGetCode();
         void onTwoFactorDisable();
-        void onTwoFactorBtn(bool);
+        void onTwoFactorCheck(bool);
         void on_mLogout_clicked();
 
     signals:

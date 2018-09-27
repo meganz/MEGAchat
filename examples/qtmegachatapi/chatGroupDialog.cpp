@@ -75,7 +75,7 @@ void ChatGroupDialog::on_buttonBox_accepted()
              if (list->get(0)->isArchived())
              {
                  ChatItemWidget *item = mMainWin->getChatItemWidget(list->get(0)->getChatId(), false);
-                 item->unarchiveChat();
+                 item->archiveChat(false);
                  QMessageBox::warning(this, tr("Add chatRoom"), tr("You have unarchived a chatroom to reuse it"));
              }
              else

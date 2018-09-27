@@ -2,7 +2,6 @@
 #include "ui_MainWindow.h"
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QContextMenuEvent>
 #include <QMenu>
 #include <QTMegaChatEvent.h>
 #include "uiSettings.h"
@@ -30,11 +29,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     mLogger = logger;
     mChatSettings = new ChatSettings();
     qApp->installEventFilter(this);
-    ui->bHiddenChats->setStyleSheet("color:#FF0000; border:none");
-    ui->bArchivedChats->setStyleSheet("color:#FF0000; border:none");
-    ui->bChatGroup->setStyleSheet("color:#0000FF; border:none");
-    ui->mTwoFactor->hide();
-    connect(ui->mTwoFactor,  SIGNAL(clicked(bool)), this, SLOT(onTwoFactorBtn(bool)));
 
     megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
     mMegaChatApi->addChatListener(megaChatListenerDelegate);
@@ -94,23 +88,7 @@ std::string MainWindow::getAuthCode()
     }
 }
 
-
-void MainWindow::enableTwoFactorBtn(bool active)
-{
-    if (active)
-    {
-        ui->mTwoFactor->show();
-        ui->mTwoFactor->setEnabled(active);
-        ui->mTwoFactor->setStyleSheet("color:#0000FF");
-    }
-    else
-    {
-        ui->mTwoFactor->hide();
-        ui->mTwoFactor->setEnabled(active);
-    }
-}
-
-void MainWindow::onTwoFactorBtn(bool)
+void MainWindow::onTwoFactorCheck(bool)
 {
     mMegaApi->multiFactorAuthCheck(mMegaChatApi->getMyEmail());
 }
@@ -146,8 +124,6 @@ void MainWindow::createFactorMenu(bool factorEnabled)
 
     menu.setLayoutDirection(Qt::RightToLeft);
     menu.adjustSize();
-    menu.exec(ui->mTwoFactor->mapToGlobal(
-        QPoint(-menu.width()+ui->mTwoFactor->width(), ui->mTwoFactor->height())));
     menu.deleteLater();
 }
 
@@ -314,22 +290,6 @@ void MainWindow::addActiveChats()
     delete activeChatList;
 }
 
-void MainWindow::contextMenuEvent(QContextMenuEvent *event)
-{
-    QMenu menu(this);
-    menu.setAttribute(Qt::WA_DeleteOnClose);
-    auto addAction = menu.addAction(tr("Add user to contacts"));
-    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
-
-    auto actVisibility = menu.addAction(tr("Show/Hide invisible elements"));
-    connect(actVisibility, SIGNAL(triggered()), this, SLOT(onChangeItemsVisibility()));
-
-    auto actChat = menu.addAction(tr("Add new chat group"));
-    connect(actChat, SIGNAL(triggered()), this, SLOT(onAddChatGroup()));
-
-    menu.exec(event->globalPos());
-}
-
 bool MainWindow::eventFilter(QObject *, QEvent *event)
 {
     if (this->mMegaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
@@ -346,11 +306,17 @@ void MainWindow::on_bSettings_clicked()
 
     menu.setAttribute(Qt::WA_DeleteOnClose);
 
-    auto actInactive = menu.addAction(tr("Show/Hide inactive chats"));
+    auto actInactive = menu.addAction(tr("Show inactive chats"));
     connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
+    actInactive->setCheckable(true);
+    actInactive->setChecked(allItemsVisibility);
+    // TODO: adjust with new flags in chat-links branch
 
-    auto actArchived = menu.addAction(tr("Show/Hide archived chats"));
+    auto actArchived = menu.addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
+    actArchived->setCheckable(true);
+    actArchived->setChecked(archivedItemsVisibility);
+    // TODO: adjust with new flags in chat-links branch
 
     menu.addSeparator();
 
@@ -358,30 +324,34 @@ void MainWindow::on_bSettings_clicked()
     connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
     auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
-    connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChatGroup()));
+    connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onCreatePeerChat()));
+    // TODO: connect to slot once chat-links branch is merged
 
     auto actGroupChat = menu.addAction(tr("Create group chat"));
     connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
+    // TODO: connect to slot once chat-links branch is merged
 
     auto actPubChat = menu.addAction(tr("Create public chat"));
     connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
+    // TODO: connect to slot once chat-links branch is merged
 
-    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
-    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
+    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
+    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
+    // TODO: connect to slot once chat-links branch is merged
 
     menu.addSeparator();
     auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
-    connect(actTwoFactCheck, SIGNAL(triggered()), this, SLOT(twoFactorCheck()));
+    connect(actTwoFactCheck, SIGNAL(clicked(bool)), this, SLOT(onTwoFactorCheck(bool)));
+    actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
 
     menu.addSeparator();
     auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
     connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
 
-
     menu.addSeparator();
-    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
-    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
-
+    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
+    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
+    // TODO: connect to slot once chat-links branch is merged
 
 
     QPoint pos = ui->bSettings->pos();
@@ -445,27 +415,25 @@ void MainWindow::on_bOnlineStatus_clicked()
     onlineStatus->deleteLater();
 }
 
-void MainWindow::on_bHiddenChats_clicked()
+void MainWindow::onShowInactiveChats()
 {
     QString text = NULL;
     allItemsVisibility = !allItemsVisibility;
     orderContactChatList(allItemsVisibility , archivedItemsVisibility);
     allItemsVisibility?text.append("color:#00FF00; border:none"):text.append("color:#FF0000; border:none");
-    ui->bHiddenChats->setStyleSheet(text);
 }
 
-void MainWindow::on_bChatGroup_clicked()
+void MainWindow::onAddGroupChat()
 {
     onAddChatGroup();
 }
 
-void MainWindow::on_bArchivedChats_clicked()
+void MainWindow::onShowArchivedChats()
 {
     QString text = NULL;
     archivedItemsVisibility = !archivedItemsVisibility;
     orderContactChatList(allItemsVisibility , archivedItemsVisibility);
     archivedItemsVisibility?text.append("color:#00FF00; border:none"):text.append("color:#FF0000; border:none");
-    ui->bArchivedChats->setStyleSheet(text);
 }
 
 ChatItemWidget *MainWindow::getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder)

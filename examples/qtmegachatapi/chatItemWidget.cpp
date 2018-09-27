@@ -400,7 +400,6 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
-    const megachat::MegaChatListItem * auxItem = mMainWin->getLocalChatListItem(mChatId);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
 
     auto actLeave = menu.addAction(tr("Leave group chat"));
@@ -412,26 +411,38 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTruncate = menu.addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
 
-    auto actQueryLink = menu.addAction(tr("Query chat link"));
+    auto actArchive = menu.addAction("Archive chat");
+    connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(archiveChat(bool)));
+    actArchive->setCheckable(true);
+    actArchive->setChecked(chatRoom->isArchived());
+
+    QMenu *clMenu = menu.addMenu("Chat links");
+
+    auto actQueryLink = clMenu->addAction(tr("Query chat link"));
     connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
 
-    auto actExportLink = menu.addAction(tr("Export chat link"));
+    auto actExportLink = clMenu->addAction(tr("Export chat link"));
     connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
 
-    auto actRemoveLink = menu.addAction(tr("Remove chat link"));
+    auto actRemoveLink = clMenu->addAction(tr("Remove chat link"));
     connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
 
-    auto actSetPrivate = menu.addAction(tr("Set chat private"));
-    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
+    auto joinChatLink = clMenu->addAction("Join chat link");
+    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    // TODO: connect to slot in chat-links branch once merged
 
-    auto actUnArchive = menu.addAction(tr("Unarchive chat"));
-    connect(actUnArchive, SIGNAL(triggered()), this, SLOT(unarchiveChat()));
-
-    auto actArchive = menu.addAction(tr("Archive chat"));
-    connect(actArchive, SIGNAL(triggered()), this, SLOT(archiveChat()));
-
-    auto actClosePreview = menu.addAction(tr("Close preview"));
+    auto actClosePreview = clMenu->addAction(tr("Close preview"));
     connect(actClosePreview, SIGNAL(triggered()), this, SLOT(closePreview()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    menu.addSeparator();
+    auto actSetPrivate = clMenu->addAction(tr("Set chat private"));
+    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
+
 
     delete chatRoom;
     menu.exec(event->globalPos());
@@ -443,14 +454,14 @@ void ChatItemWidget::truncateChat()
     this->mMegaChatApi->clearChatHistory(mChatId);
 }
 
-void ChatItemWidget::archiveChat()
+void ChatItemWidget::archiveChat(bool checked)
 {
-    mMegaChatApi->archiveChat(mChatId, true);
-}
-
-void ChatItemWidget::unarchiveChat()
-{
-    mMegaChatApi->archiveChat(mChatId, false);
+    MegaChatRoom *room = mMegaChatApi->getChatRoom(mChatId);
+    if (room->isArchived() != checked)
+    {
+        mMegaChatApi->archiveChat(mChatId, checked);
+    }
+    delete room;
 }
 
 void ChatItemWidget::setTitle()
