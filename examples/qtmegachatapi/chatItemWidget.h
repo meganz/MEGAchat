@@ -50,8 +50,7 @@ class ChatItemWidget : public QWidget
         void leaveGroupChat();
         void setTitle();
         void truncateChat();
-        void archiveChat();
-        void unarchiveChat();
+        void archiveChat(bool checked);
 
     friend class ChatWindow;
     friend class MainWindow;
