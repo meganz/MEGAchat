@@ -544,6 +544,7 @@ protected:
     Idx mNewest;
     Idx mOldest;
     Idx mOldestInDb;
+    bool mFirstNotification;
     std::list<std::unique_ptr<Message>>::iterator mOldestNotifyMsg;
     void init();
     int mInitialMessagesToLoad = 16;

@@ -4395,7 +4395,12 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
             mOldest--;
             mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
-            CALL_LISTENER_FH(onLoaded, &(*mBuffer.back()), mOldest);
+            // I can receive an old message but we don't have to notify because it isn't next attachment message to notify
+            if (mListener && mOldestNotifyMsg == --(--mBuffer.end()))
+            {
+                CALL_LISTENER_FH(onLoaded, &(*mBuffer.back()), mOldest);
+                mOldestNotifyMsg = --mBuffer.end();
+            }
         }
     }
 }
@@ -4469,8 +4474,9 @@ void FilteredHistory::clear()
 HistSource FilteredHistory::loadHistory(uint32_t count)
 {
     uint32_t messagesLoaded = 0;
-    if (mOldestNotifyMsg != --mBuffer.end() || mOldestNotifyMsg == mBuffer.begin())
+    if ((mOldestNotifyMsg != --mBuffer.end() && mBuffer.size() > 1) || mFirstNotification)
     {
+        mFirstNotification = false;
         for (auto it = mOldestNotifyMsg; it != mBuffer.end() && messagesLoaded < count; it++)
         {
             Idx index = mNewest - std::distance(mBuffer.begin(), it);
@@ -4485,24 +4491,24 @@ HistSource FilteredHistory::loadHistory(uint32_t count)
         }
     }
 
-    if (count > messagesLoaded)
+    uint32_t messagesLoadedFromdb = loadHistoryFromDb(count);
+    mOldestNotifyMsg = --mBuffer.end();
+    if (messagesLoadedFromdb)
     {
-        uint32_t messagesLoadedFromdb = loadHistoryFromDb(count);
-        mOldestNotifyMsg = --mBuffer.end();
-        if (messagesLoadedFromdb)
-        {
-            return HistSource::kHistSourceDb;
-        }
+        mFirstNotification = false;
+        return HistSource::kHistSourceDb;
     }
 
     if (!hasAllHistory() && mChat->connection().isOnline())
     {
         mFetchingFromServer = true;
         mChat->requestNodeHistoryFromServer(count);
+        mFirstNotification = false;
         return HistSource::kHistSourceServer;
     }
 
     HistSource hist = hasAllHistory() ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
+    mFirstNotification = false;
     CALL_LISTENER_FH(onLoaded, NULL, 0); // No more messages
 
     return hist;
@@ -4548,6 +4554,7 @@ void FilteredHistory::setHandler(FilteredHistoryHandler *listener)
     if (mListener)
         throw std::runtime_error("App node history handler is already set, remove it first");
 
+    mFirstNotification = true;
     mOldestNotifyMsg = mBuffer.begin();
     mListener = listener;
 }
@@ -4570,6 +4577,7 @@ void FilteredHistory::init()
     mOldest = 0;
     mOldestInDb = 0;
     mOldestNotifyMsg = mBuffer.begin();
+    mFirstNotification = true;
     mHasAllHistory = false;
 }
 
