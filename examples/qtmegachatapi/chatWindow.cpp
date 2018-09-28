@@ -15,7 +15,6 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     loadedMessages = 0;
     loadedAttachments = 0;
     mScrollToBottonAttachments = true;
-    receivedAttachments = 1;
     nManualSending = 0;
     mPendingLoad = 0;
     mChatRoom = cRoom;
@@ -112,7 +111,6 @@ ChatWindow::~ChatWindow()
     {
         destroyAttachments();
     }
-
 
     ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
     if (chatItemWidget)
@@ -460,8 +458,6 @@ void ChatWindow::onAttachmentReceived(MegaChatApi */*api*/, MegaChatMessage *msg
         mAttachmentList->addItem(item);
         mAttachmentList->setItemWidget(item, widget);
         mAttachmentList->scrollToBottom();
-
-        receivedAttachments++;
 
         if (msg->getType() == 1)
         {

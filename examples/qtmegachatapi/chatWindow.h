@@ -89,7 +89,6 @@ class ChatWindow : public QDialog,
         int nManualSending;
         int mPendingLoad;
         int loadedAttachments;
-        int receivedAttachments;
         bool mScrollToBottonAttachments;
         megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
         MyMessageList *mAttachmentList = NULL;
