@@ -1887,7 +1887,7 @@ public:
     /**
      * @brief Initializes karere in anonymous mode
      *
-     * If a session chatlink is provided, karere will create its cache.
+     * If a chatlink is provided, karere will create its cache.
      *
      * This function should be called to preview a chat link without a session (anonymous mode).
      *
@@ -2657,7 +2657,7 @@ public:
     void queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Create a chat-link for an public chat
+     * @brief Create a chat-link for a public chat
      *
      * This function allows moderators to create a public handle for public chats and returns
      * a chat-link that any user can use to preview or join the chatroom.
@@ -2924,7 +2924,7 @@ public:
     /**
      * @brief Set the chat mode to private
      *
-     * This function invalidates the currect public handle and set the chat mode to private
+     * This function set the chat mode to private and invalidates the public handle if exists
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_CLOSE
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2948,7 +2948,7 @@ public:
     /**
      * @brief Invalidates the currect public handle
      *
-     * This function invalidates the currect public handle and set the chat mode to private
+     * This function invalidates the currect public handle.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
      * Valid data in the MegaChatRequest object received on callbacks:
