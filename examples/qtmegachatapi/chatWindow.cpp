@@ -478,6 +478,12 @@ void ChatWindow::onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid)
         ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
         if (widget && widget->getMessage()->getMsgId() == msgid)
         {
+            MegaChatMessage *msg = api->getMessage(mChatRoom->getChatId(), msgid);
+            if (msg)
+            {
+                widget->setMessage(msg);
+            }
+
             widget->updateContent();
             widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
             break;
