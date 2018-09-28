@@ -1442,6 +1442,7 @@ bool MegaChatApiImpl::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistory
     }
     else
     {
+        sdkMutex.unlock();
         API_LOG_WARNING("openNodeHistory: node history is open for this chatroom (chatid: %s), close it before open it again", karere::Id(chatid).toString().c_str());
         throw std::runtime_error("App node history handler is already set, remove it first");
         return false;

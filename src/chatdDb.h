@@ -415,7 +415,7 @@ public:
     {
         mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
                   msg, msg.updated, msg.type, mChat.chatId(), msg.id());
-        assertAffectedRowCount(1,  "deleteMsgFromNodeHistory");
+        assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
     }
 
     virtual void truncateNodeHistory(karere::Id id)
