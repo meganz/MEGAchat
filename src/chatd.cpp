@@ -4393,8 +4393,8 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
             mBuffer.emplace_back(new Message(msg));
             mIdToMsgMap[msgid] = --mBuffer.end();
             mOldest--;
-            mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;
             CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
+            mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;
             // I can receive an old message but we don't have to notify because it isn't next attachment message to notify
             if (mListener && mOldestNotifyMsg == --(--mBuffer.end()))
             {
@@ -4520,15 +4520,17 @@ int FilteredHistory::loadHistoryFromDb(uint32_t count)
     if (mOldest > mOldestInDb)
     {
         // First time we want messages from oldest, if we have messages we want from next message
-        Idx indexValue = mBuffer.empty() ? mOldest : mOldest - 1;
+        Idx indexValue = mBuffer.empty() ? mNewest : mOldest - 1;
         CALL_DB_FH(loadNodeHistoryFromDb, count, indexValue, messages);
         for (unsigned int i = 0; i < messages.size(); i++)
         {
-            mOldest --;
-            CALL_LISTENER_FH(onLoaded, messages[i], mOldest);
+            CALL_LISTENER_FH(onLoaded, messages[i], indexValue);
+            indexValue --;
             mBuffer.emplace_back(messages[i]);
             mIdToMsgMap[messages[i]->id()] = --mBuffer.end();
         }
+
+        mOldest = messages.empty() ? mOldest : indexValue + 1;
     }
 
     return messages.size();

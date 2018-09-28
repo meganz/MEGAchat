@@ -244,8 +244,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        int oldesidx = mChat.lownum();
-        loadMessages(count, idx, messages, "history", oldesidx);
+        loadMessages(count, idx, messages, "history");
     }
 
     virtual chatd::Idx getIdxOfMsgid(karere::Id msgid, const std::string &table)
@@ -443,11 +442,10 @@ public:
 
     virtual void loadNodeHistoryFromDb(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages)
     {
-        int oldesidx = mChat.attachmentNodesOldestIdx();
-        loadMessages(count, idx, messages, "node_history", oldesidx);
+        loadMessages(count, idx, messages, "node_history");
     }
 
-    void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table, int ramLowNum)
+    void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table)
     {
         std::string query = "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from " + table +
                             " where chatid = ?1 and idx <= ?2 order by idx desc limit ?3";
@@ -466,11 +464,11 @@ public:
             stmt.blobCol(4, buf);
 #ifndef NDEBUG
             auto tableIdx = stmt.intCol(5);
-            if(tableIdx != ramLowNum - 1 - (int)messages.size()) //we go backward in history, hence the -messages.size()
+            if(tableIdx != idx - (int)messages.size()) //we go backward in history, hence the -messages.size()
             {
                 CHATD_LOG_ERROR("chatid %s: loadMessages from table %s: History discontinuity detected: "
                     "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(), table.c_str(),
-                    mChat.lownum()-1-(int)messages.size(), tableIdx);
+                    idx - (int)messages.size(), tableIdx);
                 assert(false);
             }
 #endif
