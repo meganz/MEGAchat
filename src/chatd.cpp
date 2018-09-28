@@ -279,7 +279,7 @@ bool Client::areAllChatsLoggedIn()
 
     if (allConnected)
     {
-        CHATD_LOG_DEBUG("We are now logged in to all chats");
+        CHATD_LOG_DEBUG("We are logged in to all chats");
     }
 
     return allConnected;

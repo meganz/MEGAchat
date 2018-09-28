@@ -1785,6 +1785,15 @@ int MegaChatApiImpl::getChatConnectionState(MegaChatHandle chatid)
     return ret;
 }
 
+bool MegaChatApiImpl::areAllChatsLoggedIn()
+{
+    sdkMutex.lock();
+    bool ret = mClient->mChatdClient->areAllChatsLoggedIn();
+    sdkMutex.unlock();
+
+    return ret;
+}
+
 void MegaChatApiImpl::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);

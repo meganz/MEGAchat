@@ -325,8 +325,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     saveSid(mSid);
                 }
                 mMegaChatApi->connect();
-                bool twoFactorAvailable = mMegaApi->multiFactorAuthAvailable();
-                this->mMainWin->enableTwoFactorBtn(twoFactorAvailable);
             }
             else
             {
