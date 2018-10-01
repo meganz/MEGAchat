@@ -115,7 +115,7 @@ enum: uint8_t
     OP_USERACTIVE = 3,
 
     /**
-      * @brief
+      * @brief (Deprecated)
       * C->S
       * Client must send all of the peers it wants to see its status when the connection is
       * (re-)established. This command is sent after OP_HELLO and every time the user wants
@@ -126,7 +126,7 @@ enum: uint8_t
     OP_ADDPEERS = 4,
 
      /**
-     * @brief
+     * @brief (Deprecated)
      * C->S
      * This command is sent when the client doesn't want to a peer to see its status
      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
@@ -172,7 +172,29 @@ enum: uint8_t
       *             autoawaytimeout = (autoawaytimeout - 600) * 60 + 600;
       *         }
       */
-    OP_PREFS = 7
+    OP_PREFS = 7,
+
+    /**
+      * @brief
+      * C->S
+      * Client must send all of the peers it wants to see its status when the connection is
+      * (re-)established. This command is sent after OP_HELLO and every time the user wants
+      * to subscribe to the status of a new peer or contact.
+      *
+      * <sn><numberOfPeers> <peerHandle1>...<peerHandleN>
+      */
+    OP_SNADDPEERS = 8,
+
+     /**
+     * @brief
+     * C->S
+     * This command is sent when the client doesn't want to a peer to see its status
+     * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+     * in any groupchat any longer.
+     *
+     * <sn><1> <peerHandle>
+     */
+    OP_SNDELPEERS = 9
 };
 
 class Config
@@ -273,6 +295,7 @@ protected:
     time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
+    const unsigned int snSize = 8;
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
@@ -296,6 +319,7 @@ protected:
     void configChanged();
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
+    void updatePeers(const std::vector<karere::Id> &peers, bool addOrRemove);
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);

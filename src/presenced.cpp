@@ -1,5 +1,6 @@
 #include "presenced.h"
 #include "chatClient.h"
+#include <mega/base64.h>
 
 using namespace std;
 using namespace promise;
@@ -24,7 +25,6 @@ using namespace karere;
       }                                                                                         \
     } while(0)
 
-
 namespace presenced
 {
 
@@ -45,16 +45,14 @@ Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
 
 void Client::pushPeers()
 {
-    Command cmd(OP_ADDPEERS, 4 + mCurrentPeers.size()*8);
-    cmd.append<uint32_t>(mCurrentPeers.size());
+    std::vector<karere::Id> peers;
+
     for (auto& peer: mCurrentPeers)
     {
-        cmd.append<uint64_t>(peer.first);
+        peers.push_back(peer.first);
     }
-    if (cmd.dataSize() > 1)
-    {
-        sendCommand(std::move(cmd));
-    }
+
+    updatePeers(peers, true);
 }
 
 void Client::wsConnectCb()
@@ -331,6 +329,28 @@ bool Client::sendKeepalive(time_t now)
     return sendCommand(Command(OP_KEEPALIVE));
 }
 
+void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
+{
+    assert(peers.size());
+    char *scsn = mApi->sdk.getSequenceNumber();
+    byte scsnBase64[snSize];
+    mega::Base64::atob(scsn, scsnBase64, snSize);
+    delete scsn;
+    scsn = NULL;
+    Command cmd(addOrRemove ? OP_SNADDPEERS : OP_SNDELPEERS, snSize * 8 + 4 + 8 * peers.size());
+    cmd.append(scsnBase64, snSize);
+    cmd.append<uint32_t>(peers.size());
+    for (unsigned int i = 0; i < peers.size(); i++)
+    {
+        cmd.append<uint64_t>(peers[i].val);
+    }
+
+    if (cmd.dataSize() > 1)
+    {
+        sendCommand(std::move(cmd));
+    }
+}
+
 void Client::heartbeat()
 {
     // if a heartbeat is received but we are already offline...
@@ -528,11 +548,11 @@ void Command::toString(char* buf, size_t bufsize) const
                 (caps & karere::kClientIsMobile) ? "mobile" : "desktop");
             break;
         }
-        case OP_ADDPEERS:
+        case OP_SNADDPEERS:
         {
             uint32_t numPeers = read<uint32_t>(1);
             string tmpString;
-            tmpString.append("ADDPEERS - ");
+            tmpString.append("SNADDPEERS - ");
             tmpString.append(to_string(numPeers));
             tmpString.append(" peer/s: ");
             for (unsigned int i = 0; i < numPeers; i++)
@@ -545,11 +565,11 @@ void Command::toString(char* buf, size_t bufsize) const
             snprintf(buf, bufsize, "%s",tmpString.c_str());
             break;
         }
-        case OP_DELPEERS:
+        case OP_SNDELPEERS:
         {
             uint32_t numPeers = read<uint32_t>(1);
             string tmpString;
-            tmpString.append("DELPEERS - ");
+            tmpString.append("SNDELPEERS - ");
             tmpString.append(to_string(numPeers));
             tmpString.append(" peer/s: ");
             for (unsigned int i = 0; i < numPeers; i++)
@@ -764,7 +784,10 @@ void Client::addPeer(karere::Id peer)
     int result = mCurrentPeers.insert(peer);
     if (result == 1) //refcount = 1, wasnt there before
     {
-        sendCommand(Command(OP_ADDPEERS)+(uint32_t)(1)+peer);
+        std::vector<karere::Id> peers;
+        peers.push_back(peer);
+
+        updatePeers(peers, true);
     }
 }
 void Client::removePeer(karere::Id peer, bool force)
@@ -790,7 +813,11 @@ void Client::removePeer(karere::Id peer, bool force)
     {
         assert(it->second == 0);
     }
+
     mCurrentPeers.erase(it);
-    sendCommand(Command(OP_DELPEERS)+(uint32_t)(1)+peer);
+    std::vector<karere::Id> peers;
+    peers.push_back(peer);
+    updatePeers(peers, false);
+
 }
 }
