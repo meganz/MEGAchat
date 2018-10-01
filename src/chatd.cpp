@@ -943,12 +943,13 @@ string Command::toString(const StaticBuffer& data)
         case OP_HANDLEJOIN:
         {
             string tmpString;
-            std::string ph (*((char *) data.readPtr(1,::mega::PUBLICHANDLE)), ::mega::PUBLICHANDLE);
+            karere::Id ph;
+            memcpy(&ph, data.readPtr(1, ::mega::PUBLICHANDLE), ::mega::PUBLICHANDLE);
             karere::Id userId = data.read<uint64_t>(7);
             uint8_t priv = data.read<uint8_t>(15);
 
             tmpString.append("HANDLEJOIN ph: ");
-            tmpString.append(ph.data(), ::mega::PUBLICHANDLE);
+            tmpString.append(ph.toString(::mega::PUBLICHANDLE).c_str());
 
             tmpString.append(" userid: ");
             tmpString.append(ID_CSTR(userId));
@@ -960,22 +961,24 @@ string Command::toString(const StaticBuffer& data)
         case OP_HANDLELEAVE:
         {
             string tmpString;
-            std::string ph (*((char *) data.readPtr(1,::mega::PUBLICHANDLE)), ::mega::PUBLICHANDLE);
+            karere::Id ph;
+            memcpy(&ph, data.readPtr(1, ::mega::PUBLICHANDLE), ::mega::PUBLICHANDLE);
 
             tmpString.append("HANDLELEAVE ph: ");
-            tmpString.append(ph.data(), ::mega::PUBLICHANDLE);
+            tmpString.append(ph.toString(::mega::PUBLICHANDLE).c_str());
 
             return tmpString;
         }
         case OP_HANDLEJOINRANGEHIST:
         {
             string tmpString;
-            std::string ph (*((char *) data.readPtr(1,::mega::PUBLICHANDLE)), ::mega::PUBLICHANDLE);
+            karere::Id ph;
+            memcpy(&ph, data.readPtr(1, ::mega::PUBLICHANDLE), ::mega::PUBLICHANDLE);
             karere::Id oldestMsgid = data.read<uint64_t>(7);
             karere::Id newestId = data.read<uint64_t>(15);
 
             tmpString.append("HANDLEJOINRNAGEHIST ph: ");
-            tmpString.append(ph.data(), ::mega::PUBLICHANDLE);
+            tmpString.append(ph.toString(::mega::PUBLICHANDLE).c_str());
 
             tmpString.append(" oldest: ");
             tmpString.append(oldestMsgid.toString());
