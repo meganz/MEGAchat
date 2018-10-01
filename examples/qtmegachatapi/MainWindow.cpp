@@ -201,48 +201,45 @@ void MainWindow::clearContactChatList()
 
 void MainWindow::orderContactChatList()
 {
-    if (mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS)
+    auxChatWidgets = chatWidgets;
+    clearContactChatList();
+
+    // add items to the list
+    addContacts();
+
+    if (mShowArchived)
     {
-        auxChatWidgets = chatWidgets;
-        clearContactChatList();
-
-        // add items to the list
-        addContacts();
-
-        if (mShowArchived)
-        {
-            addArchivedChats();
-        }
-
-        if(mShowInactive)
-        {
-            addInactiveChats();
-        }
-        addActiveChats();
-        addPreviewChats();
-
-        auxChatWidgets.clear();
-
-        // prepare tag to indicate chatrooms shown
-        QString text;
-        if (mShowArchived && mShowInactive)
-        {
-            text.append(" Showing <all> chatrooms");
-        }
-        else if (mShowArchived)
-        {
-            text.append(" Showing <active+archived> chatrooms");
-        }
-        else if (mShowInactive)
-        {
-            text.append(" Showing <active+inactive> chatrooms");
-        }
-        else
-        {
-            text.append(" Showing <active> chatrooms");
-        }
-        ui->mOnlineStatusDisplay->setText(text);
+        addArchivedChats();
     }
+
+    if(mShowInactive)
+    {
+        addInactiveChats();
+    }
+    addActiveChats();
+    addPreviewChats();
+
+    auxChatWidgets.clear();
+
+    // prepare tag to indicate chatrooms shown
+    QString text;
+    if (mShowArchived && mShowInactive)
+    {
+        text.append(" Showing <all> chatrooms");
+    }
+    else if (mShowArchived)
+    {
+        text.append(" Showing <active+archived> chatrooms");
+    }
+    else if (mShowInactive)
+    {
+        text.append(" Showing <active+inactive> chatrooms");
+    }
+    else
+    {
+        text.append(" Showing <active> chatrooms");
+    }
+    ui->mOnlineStatusDisplay->setText(text);
 }
 
 void MainWindow::addContacts()
