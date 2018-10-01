@@ -728,7 +728,6 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
-    bool mAnonymousMode = false;
 
 public:
     /**
@@ -767,7 +766,7 @@ public:
      */
     void initWithDbSession(const char* sid);
 
-    void initWithAnonymousSession(const char *sid);
+    InitState initWithAnonymousSession(const char *sid);
 
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
@@ -914,7 +913,6 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
     bool anonymousMode() const;
-    void setAnonymousMode(bool value);
 
 protected:
     void heartbeat();

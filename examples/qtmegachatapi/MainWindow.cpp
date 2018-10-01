@@ -201,7 +201,7 @@ void MainWindow::clearContactChatList()
 
 void MainWindow::orderContactChatList()
 {
-    if (!mMegaChatApi->anonymousMode())
+    if (mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS)
     {
         auxChatWidgets = chatWidgets;
         clearContactChatList();
@@ -324,7 +324,7 @@ bool MainWindow::eventFilter(QObject *, QEvent *event)
 void MainWindow::on_bSettings_clicked()
 {
     QMenu menu(this);
-    if (!mMegaChatApi->anonymousMode())
+    if (mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS)
     {
         menu.setAttribute(Qt::WA_DeleteOnClose);
 

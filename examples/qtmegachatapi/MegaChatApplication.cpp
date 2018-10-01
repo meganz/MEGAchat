@@ -636,11 +636,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
                 MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-                if (mMegaChatApi->anonymousMode())
-                {
-                    mMainWin->activeControls(false);
-
-                }
+                mMainWin->activeControls(mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS);
                 mMainWin->addOrUpdateLocalChatListItem(chatListItem);
                 mMainWin->orderContactChatList();
             }

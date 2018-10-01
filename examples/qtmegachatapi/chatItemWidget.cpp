@@ -17,7 +17,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mLastOverlayCount = 0;
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
-    mAnonymous = this->mMegaChatApi->anonymousMode();
     ui->setupUi(this);
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);

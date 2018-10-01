@@ -208,11 +208,6 @@ int MegaChatApi::getInitState()
     return pImpl->getInitState();
 }
 
-bool MegaChatApi::anonymousMode()
-{
-    return pImpl->anonymousMode();
-}
-
 void MegaChatApi::connect(MegaChatRequestListener *listener)
 {
     pImpl->connect(listener);

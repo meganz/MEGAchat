@@ -1885,11 +1885,13 @@ public:
     int init(const char *sid);
 
     /**
-     * @brief Initializes karere in anonymous mode
+     * @brief Initializes karere in anonymous mode for preview of chat-links
      *
-     * If a chatlink is provided, karere will create its cache.
+     * If a chatlink is provided, karere will create its cache for the operation during the preview
+     * of chat-links. The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In
+     * case of invalid link format or incomplete link, it will return MegaChatApi::INIT_ERROR.
      *
-     * This function should be called to preview a chat link without a session (anonymous mode).
+     * This function should be called to preview chat-links without a valid session (anonymous mode).
      *
      * @param chatlink to preview in anonymous mode.
      * @return The initialization state
@@ -1905,6 +1907,7 @@ public:
      *  - MegaChatApi::INIT_WAITING_NEW_SESSION = 1
      *  - MegaChatApi::INIT_OFFLINE_SESSION = 2
      *  - MegaChatApi::INIT_ONLINE_SESSION = 3
+     *  - MegaChatApi::INIT_ANONYMOUS = 4
      *  - MegaChatApi::INIT_NO_CACHE = 7
      *
      * If \c MegaChatApi::init() has not been called yet, this function returns INIT_NOT_DONE
@@ -1915,12 +1918,6 @@ public:
      * @return The current initialization state
      */
     int getInitState();
-
-    /**
-     * @brief anonymousMode
-     * @return
-     */
-    bool anonymousMode();
 
     // ============= Requests ================
 

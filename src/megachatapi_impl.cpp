@@ -1521,7 +1521,6 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 
 int MegaChatApiImpl::initAnonymous(const char *link)
 {
-    sdkMutex.lock();
     int state;
     if (!link)
     {
@@ -1541,21 +1540,19 @@ int MegaChatApiImpl::initAnonymous(const char *link)
         }
         else
         {
-            createKarereClient();
+            sdkMutex.lock();
 
-            mClient->setAnonymousMode(true);
+            createKarereClient();
             pos += separator.length();
             parsedLink = parsedLink.substr(pos, posEnd-pos);
-            state = karere::Client::kInitAnonymousMode;
-            mClient->initWithAnonymousSession(parsedLink.c_str());
+            state = mClient->initWithAnonymousSession(parsedLink.c_str());
+
+            sdkMutex.unlock();
         }
     }
 
-    sdkMutex.unlock();
     return MegaChatApiImpl::convertInitState(state);
 }
-
-
 
 int MegaChatApiImpl::init(const char *sid)
 {
@@ -1606,17 +1603,6 @@ int MegaChatApiImpl::getInitState()
 
     return initState;
 }
-
-
-bool MegaChatApiImpl::anonymousMode()
-{
-    sdkMutex.lock();
-    int anonymousMode = mClient->anonymousMode();
-    sdkMutex.unlock();
-
-    return anonymousMode;
-}
-
 
 MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
 {

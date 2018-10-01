@@ -868,7 +868,6 @@ public:
     int initAnonymous(const char *link);
     void createKarereClient();
     int getInitState();
-    bool anonymousMode();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);
     void removeChatRoomHandler(MegaChatHandle chatid);

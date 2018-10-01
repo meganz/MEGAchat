@@ -57,21 +57,15 @@ void callAfterInit(T* self, F&& func, void* ctx);
 
 std::string encodeFirstName(const std::string& first);
 
+bool Client::anonymousMode() const
+{
+    return (mInitState == kInitAnonymousMode);
+}
 
 /* Warning - the database is not initialzed at construction, but only after
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
  */
-bool Client::anonymousMode() const
-{
-    return mAnonymousMode;
-}
-
-void Client::setAnonymousMode(bool value)
-{
-    mAnonymousMode = value;
-}
-
 Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, const std::string& appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
           websocketIO(websocketsIO),
@@ -586,12 +580,15 @@ void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
     mContactsLoaded = true;
 }
 
-void Client::initWithAnonymousSession(const char* sid)
+Client::InitState Client::initWithAnonymousSession(const char* sid)
 {
+    setInitState(kInitAnonymousMode);
     mSid = sid;
     createDb();
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this, mMyHandle));
+
+    return mInitState;
 }
 
 promise::Promise<void> Client::initWithNewSession(const char* sid, const std::string& scsn,
