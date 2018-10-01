@@ -221,14 +221,6 @@ public class MegaChatApiJava {
     }
 
     /**
-     * anonymousMode
-     * @return
-     */
-    public boolean anonymousMode(){
-        return  megaChatApi.anonymousMode();
-    }
-
-    /**
      * Establish the connection with chat-related servers (chatd, presenced and Gelb).
      *
      * This function must be called only after calling:
