@@ -2235,7 +2235,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         assert(keyCmd->localKeyid() == msg->keyid);
         assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
 
-        SendingItem item = mSending.front();
+        SendingItem &item = mSending.front();
         item.msgCmd = msgCmd;
         item.keyCmd = keyCmd;
         CALL_DB(addBlobsToSendingItem, rowid, item.msgCmd, item.keyCmd, msg->keyid);
