@@ -183,10 +183,23 @@ public class MegaChatApiJava {
         }
     }
 
-
     public int init(String sid)
     {
         return megaChatApi.init(sid);
+    }
+
+    /**
+     * Initializes karere in anonymous mode
+     *
+     * If a chatlink chatlink is provided, karere will create its cache.
+     *
+     * This function should be called to preview a chat link without a session (anonymous mode).
+     *
+     * @param chatlink to preview in anonymous mode.
+     * @return The initialization state
+     */
+    public int initAnonymous(String chatlink){
+        return megaChatApi.initAnonymous(chatlink);
     }
 
     /**
@@ -205,6 +218,14 @@ public class MegaChatApiJava {
      */
     public int getInitState(){
         return megaChatApi.getInitState();
+    }
+
+    /**
+     * anonymousMode
+     * @return
+     */
+    public boolean anonymousMode(){
+        return  megaChatApi.anonymousMode();
     }
 
     /**
@@ -403,6 +424,7 @@ public class MegaChatApiJava {
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
@@ -424,6 +446,163 @@ public class MegaChatApiJava {
         megaChatApi.createChat(group, peers, createDelegateRequestListener(listener));
     }
 
+    /**
+     * Creates a chat for one or more participants, allowing you to specify their
+     * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
+     *
+     * There are two types of chat: permanent an group. A permanent chat is between two people, and
+     * participants can not leave it.
+     *
+     * The creator of the chat will have moderator level privilege and should not be included in the
+     * list of peers.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
+     * - MegaChatRequest::getPrivilege - Returns zero (private mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * to be a group chat.
+     *
+     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * exists with that person, then this call will return the information for the existing chat, rather
+     * than a new chat.
+     *
+     * @param group Flag to indicate if the chat is a group chat or not
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void createChat(boolean group, MegaChatPeerList peers, String title, MegaChatRequestListenerInterface listener){
+        megaChatApi.createChat(group, peers, title, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Creates an public chatroom for multiple participants (groupchat)
+     *
+     * This function allows to create public chats, where the moderator can create chat links to share
+     * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+     * moderator can create/get a public handle for the chatroom and generate a URL by using
+     * \c MegaChatApi::exportChatLink. The chat-link can be deleted at any time by any moderator
+     * by using \c MegaChatApi::removeChatLink.
+     *
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::closePublicChat.
+     *
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatLink.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::joinChatLink.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns always true, since the new chat is a groupchat
+     * - MegaChatRequest::getPrivilege - Returns one (public mode)
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getText - Returns the title of the chat.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
+     *
+     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param title Null-terminated character string with the chat title. If the title
+     * is longer than 30 characters, it will be truncated to that maximum length.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void createPublicChat(MegaChatPeerList peers, String title, MegaChatRequestListenerInterface listener){
+        megaChatApi.createPublicChat(peers, title, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Check if there is an existing chat-link for an public chat
+     *
+     * This function allows moderators to check whether a public handle for public chats exist and,
+     * if any, it returns a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createPublicChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 0
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom, if it already exist
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
+     * chatroom is a private chatroom or a 1on1 room.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat-link associated to the specified chatid
+     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void queryChatLink(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.queryChatLink(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Create a chat-link for a public chat
+     *
+     * This function allows moderators to create a public handle for public chats and returns
+     * a chat-link that any user can use to preview or join the chatroom.
+     *
+     * @see \c MegaChatApi::createPublicChat for more details.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getNumRetry - Returns 1
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
+     * chatroom is a private chatroom or a 1on1 room.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void exportChatLink(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.exportChatLink(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Adds a user to an existing chat. To do this you must have the
+     * moderator privilege in the chat, and the chat must be a group chat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_INVITE_TO_CHATROOM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the MegaChatHandle of the user to be invited
+     * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot invite peers)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param uh MegaChatHandle that identifies the user
+     * @param privilege Privilege level for the new peers. Valid values are:
+     * - MegaChatPeerList::PRIV_RO = 0
+     * - MegaChatPeerList::PRIV_STANDARD = 2
+     * - MegaChatPeerList::PRIV_MODERATOR = 3
+     * @param listener MegaChatRequestListener to track this request
+     */
     public void inviteToChat(long chatid, long userhandle, int privs)
     {
         megaChatApi.inviteToChat(chatid, userhandle, privs);
@@ -455,6 +634,52 @@ public class MegaChatApiJava {
     public void inviteToChat(long chatid, long userhandle, int privs, MegaChatRequestListenerInterface listener)
     {
         megaChatApi.inviteToChat(chatid, userhandle, privs, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Allow a user to add himself to an existing public chat. To do this the public chat
+     * must have a valid public handle.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
+     * the chatroom is not public or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void joinChatLink(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.joinChatLink(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Allow a user to rejoin to an existing public chat. To do this the public chat
+     * must have a valid public handle.
+     *
+     * This function must be called only after calling:
+     *  - MegaChatApi::loadChatLink and receive MegaChatError::ERROR_ACCESS (You are trying to
+     *  preview a public chat wich you were part of, so you have to rejoin it)
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
+     * the chatroom is not public or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param ph MegaChatHandle that corresponds with the public handle of chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void rejoinChatLink(long chatid, long ph, MegaChatRequestListenerInterface listener){
+        megaChatApi.rejoinChatLink(chatid, ph, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1185,6 +1410,92 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Allows any user to preview an public chat without be part of
+     *
+     * This function loads the required data to preview a public chat referenced by a
+     * chat-link. It returns the actual \c chatid, the number of peers and also the title,
+     * if any. If this request success, the caller can proceed as usual with
+     * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getLink - Returns the title of the chat.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
+     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat.
+     * - MegaChatError::ERROR_ACCESS If the user is trying to preview a public chat which he
+     * was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
+     * to the chat again. Note that you won't be able to preview a public chat any more, once
+     * you have been part of the chat.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
+     * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
+     *
+     * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
+     * MegaChatApi::openChatRoom to receive notifications related to this chat
+     *
+     * @param link Null-terminated character string with the public chat link
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void loadChatLink(String link, MegaChatRequestListenerInterface listener){
+        megaChatApi.loadChatLink(link, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Set the chat mode to private
+     *
+     * This function set the chat mode to private and invalidates the public handle if exists
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_CLOSE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to set chat
+     * mode to private
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void closeChatLink(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.closeChatLink(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Invalidates the current public handle
+     *
+     * This function invalidates the current public handle.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getNumRetry - Returns 0
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to
+     * invalidate the currect public handle
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void removeChatLink(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.removeChatLink(chatid, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Allows to un/archive chats
      *
      * This is a per-chat and per-user option, and it's intended to be used when the user does
@@ -1252,6 +1563,18 @@ public class MegaChatApiJava {
         }
 
         megaChatApi.closeChatRoom(chatid, listenerToDelete);
+    }
+
+    /**
+     * This method should be called when we want to close a public chat preview
+     *
+     * It automatically disconnect to this chat, remove all internal data related, and make
+     * a cache cleanup in order to clean all the related records.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    public void closePreview(long chatid){
+        megaChatApi.closePreview(chatid);
     }
 
     /**
