@@ -1001,10 +1001,9 @@ HistSource Chat::getHistory(unsigned count)
                 auto& msg = at(i);
                 if (msg.isPendingToDecrypt())
                 {
-                    assert(false);
                     CHATID_LOG_WARNING("Skipping the load of a message still encrypted. "
                                        "msgid: %s idx: %d", ID_CSTR(msg.id()), i);
-                    continue;
+                    break;
                 }
 
                 CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
