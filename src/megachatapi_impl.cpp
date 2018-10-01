@@ -1610,10 +1610,8 @@ int MegaChatApiImpl::getInitState()
 
 bool MegaChatApiImpl::anonymousMode()
 {
-    int anonymousMode;
-
     sdkMutex.lock();
-        anonymousMode = mClient->anonymousMode();
+    int anonymousMode = mClient->anonymousMode();
     sdkMutex.unlock();
 
     return anonymousMode;

@@ -2887,12 +2887,21 @@ public:
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Allows any user to preview an public chat without be part of
+     * @brief Allows any user to preview a public chat without being a participant
      *
      * This function loads the required data to preview a public chat referenced by a
      * chat-link. It returns the actual \c chatid, the number of peers and also the title,
      * if any. If this request success, the caller can proceed as usual with
-     * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode.
+     * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode, followed by
+     * a MegaChatApi::closeChatRoom as usual.
+     *
+     * The previewer may choose to join the public chat permanently, becoming a participant
+     * with read-write privilege, by calling MegaChatApi::joinChatLink.
+     *
+     * Instead, if the previewer is not interested in the chat anymore, it can remove it from
+     * the list of chats by calling MegaChatApi::closePreview.
+     * @note If the previewer doesn't explicitely close the preview, it will be lost if the
+     * app is closed. A preview of a chat is not persisted in cache.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
      * Valid data in the MegaChatRequest object received on callbacks:

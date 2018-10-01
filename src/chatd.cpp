@@ -1220,13 +1220,13 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     assert(mChatId);
     assert(mListener);
     assert(mCrypto);
-    assert(!mUsers.empty() || mClient.karereClient->anonymousMode());    // anonymous don't even have an own userid
+    assert(!mUsers.empty() || isPublic());
     mNextUnsent = mSending.begin();
     //we don't use CALL_LISTENER here because if init() throws, then something is wrong and we should not continue
     mListener->init(*this, mDbInterface);
     CALL_CRYPTO(setUsers, &mUsers);
 
-    if (mCrypto->isPublicChat())
+    if (isPublic())
     {
         // disable the chat if decryption of unified key fails
         mCrypto->getUnifiedKey()
