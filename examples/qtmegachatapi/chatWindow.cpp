@@ -105,10 +105,7 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    if (mFrameAttachments)
-    {
-        destroyAttachments();
-    }
+    delete mFrameAttachments;
 
     ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
     if (chatItemWidget)
@@ -332,11 +329,6 @@ CallGui *ChatWindow::getCallGui() const
 void ChatWindow::setCallGui(CallGui *callGui)
 {
     mCallGui = callGui;
-}
-
-void ChatWindow::destroyAttachments()
-{
-    delete mFrameAttachments;
 }
 #endif
 
@@ -592,7 +584,7 @@ void ChatWindow::onShowAttachments(bool active)
     else
     {
         assert(mAttachmentList);
-        destroyAttachments();
+        delete mFrameAttachments;
     }
 }
 

@@ -93,7 +93,6 @@ class ChatWindow : public QDialog,
         megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
-        void destroyAttachments();
         QMessageBox *mUploadDlg;
 
     private slots:
