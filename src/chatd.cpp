@@ -4500,7 +4500,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         return HistSource::kHistSourceDb;
     }
 
-    if (!mHasAllHistory && mChat->connection().isOnline())
+    if (!mHasAllHistory && mChat->isLoggedIn())
     {
         mFetchingFromServer = true;
         mChat->requestNodeHistoryFromServer(count);
