@@ -109,6 +109,7 @@ class ChatWindow : public QDialog,
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
         void onArchiveClicked(bool);
+        void onAttachmentsClosed(QObject*);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);

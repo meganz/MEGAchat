@@ -79,8 +79,6 @@ void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, 
     }
 }
 
-
-
 void ChatWindow::setChatTittle(const char *title)
 {
     if (title)
@@ -338,12 +336,7 @@ void ChatWindow::setCallGui(CallGui *callGui)
 
 void ChatWindow::destroyAttachments()
 {
-    mMegaChatApi->closeNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
     delete mFrameAttachments;
-    mFrameAttachments = NULL;
-    mAttachmentList = NULL;
-    delete megaChatNodeHistoryListenerDelegate;
-    megaChatNodeHistoryListenerDelegate = NULL;
 }
 #endif
 
@@ -577,13 +570,18 @@ void ChatWindow::onShowAttachments(bool active)
     {
         assert(!mAttachmentList);
         mFrameAttachments = new QWidget();
-        mFrameAttachments->setWindowFlags(Qt::WindowTitleHint | Qt::CustomizeWindowHint);
+        mFrameAttachments->setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
+        mFrameAttachments->setAttribute(Qt::WA_DeleteOnClose);
+        mFrameAttachments->setWindowTitle("Attachments " + windowTitle());
+
         mAttachmentList = new MyMessageList(mFrameAttachments);
+        mFrameAttachments->setLayout(new QBoxLayout(QBoxLayout::Direction::LeftToRight));
+        mFrameAttachments->layout()->addWidget(mAttachmentList);
         mFrameAttachments->show();
         mFrameAttachments->resize(450, 350);
-        mAttachmentList->resize(450, 350);
-        mAttachmentList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         connect(mAttachmentList, SIGNAL(requestHistory()), this, SLOT(onAttachmentRequestHistory()));
+        connect(mAttachmentList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
+        connect(mFrameAttachments, SIGNAL(destroyed(QObject*)), this, SLOT(onAttachmentsClosed(QObject*)));
         megaChatNodeHistoryListenerDelegate = new megachat::QTMegaChatNodeHistoryListener(mMegaChatApi, this);
         mMegaChatApi->openNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
         mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
@@ -933,7 +931,16 @@ void ChatWindow::onArchiveClicked(bool checked)
     mMegaApi->archiveChat(mChatRoom->getChatId(), checked);
 }
 
-void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
+void ChatWindow::onAttachmentsClosed(QObject *)
+{
+    mMegaChatApi->closeNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
+    mFrameAttachments = NULL;
+    mAttachmentList = NULL;
+    delete megaChatNodeHistoryListenerDelegate;
+    megaChatNodeHistoryListenerDelegate = NULL;
+}
+
+void ChatWindow::onTransferFinish(mega::MegaApi* , mega::MegaTransfer *transfer, mega::MegaError* e)
 {
     if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
     {
