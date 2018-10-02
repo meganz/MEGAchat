@@ -14,7 +14,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 #endif
     loadedMessages = 0;
     loadedAttachments = 0;
-    mScrollToBottonAttachments = true;
+    mScrollToBottomAttachments = true;
     nManualSending = 0;
     mPendingLoad = 0;
     mChatRoom = cRoom;
@@ -29,6 +29,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     ui->mChatdStatusDisplay->hide();
     mUploadDlg = NULL;
     setChatTittle(title);
+    setWindowTitle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
@@ -417,15 +418,15 @@ void ChatWindow::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage *msg)
 
         loadedAttachments--;
 
-        if (msg->getType() == 1 || msg->isDeleted())
+        if (msg->getType() != MegaChatMessage::TYPE_NODE_ATTACHMENT)
         {
             widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
         }
     }
-    else if (mScrollToBottonAttachments)
+    else if (mScrollToBottomAttachments)
     {
         mAttachmentList->scrollToBottom();
-        mScrollToBottonAttachments = false;
+        mScrollToBottomAttachments = false;
     }
 }
 
@@ -444,7 +445,7 @@ void ChatWindow::onAttachmentReceived(MegaChatApi */*api*/, MegaChatMessage *msg
         mAttachmentList->setItemWidget(item, widget);
         mAttachmentList->scrollToBottom();
 
-        if (msg->getType() == 1)
+        if (msg->getType() != MegaChatMessage::TYPE_NODE_ATTACHMENT)
         {
             widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
         }
@@ -564,7 +565,8 @@ void ChatWindow::onShowAttachments(bool active)
         mFrameAttachments = new QWidget();
         mFrameAttachments->setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
         mFrameAttachments->setAttribute(Qt::WA_DeleteOnClose);
-        mFrameAttachments->setWindowTitle("Attachments " + windowTitle());
+        mFrameAttachments->setWindowTitle("Attachments of room: " + windowTitle());
+        mFrameAttachments->setGeometry(x()+350, y(), width(), height());
 
         mAttachmentList = new MyMessageList(mFrameAttachments);
         mFrameAttachments->setLayout(new QBoxLayout(QBoxLayout::Direction::LeftToRight));
@@ -579,7 +581,7 @@ void ChatWindow::onShowAttachments(bool active)
         mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
         loadedMessages = 0;
         loadedAttachments = 0;
-        mScrollToBottonAttachments = true;
+        mScrollToBottomAttachments = true;
     }
     else
     {
