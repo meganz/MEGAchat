@@ -270,7 +270,7 @@ bool Client::areAllChatsLoggedIn()
     for (map<Id, shared_ptr<Chat>>::iterator it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
     {
         Chat* chat = it->second.get();
-        if (chat->onlineState() != kChatStateOnline && !chat->isDisabled())
+        if (!chat->isLoggedIn() && !chat->isDisabled())
         {
             allConnected = false;
             break;
@@ -1062,9 +1062,9 @@ HistSource Chat::getHistory(unsigned count)
     return nextSource;
 }
 
-HistSource Chat::getHistoryNodes(uint32_t count)
+HistSource Chat::getNodeHistory(uint32_t count)
 {
-    return mAttachmentNodes->loadHistory(count);
+    return mAttachmentNodes->getHistory(count);
 }
 
 HistSource Chat::getHistoryFromDbOrServer(unsigned count)
@@ -1089,7 +1089,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
         }
         else
         {
-            if (mOnlineState != kChatStateOnline)
+            if (!isLoggedIn())
                 return kHistSourceNotLoggedIn;
 
             auto wptr = weakHandle();
@@ -1098,7 +1098,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
                 if (wptr.deleted())
                     return;
 
-                CHATID_LOG_DEBUG("Fetching history(%u) from server...", count);
+                CHATID_LOG_DEBUG("Fetching history (%u messages) from server...", count);
                 requestHistoryFromServer(-count);
             }, mClient.karereClient->appCtx);
         }
@@ -1121,8 +1121,10 @@ void Chat::requestHistoryFromServer(int32_t count)
 
 void Chat::requestNodeHistoryFromServer(uint32_t count)
 {
+    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
     assert(mConnection.isOnline());
 
+    // avoid to access websockets from app's thread --> marshall the request
     auto wptr = weakHandle();
     marshallCall([wptr, this, count]()
     {
@@ -1131,12 +1133,11 @@ void Chat::requestNodeHistoryFromServer(uint32_t count)
 
         if (!mConnection.isOnline())
         {
-            mAttachmentNodes->finishFechingFromServer();
+            mAttachmentNodes->finishFetchingFromServer();
             return;
         }
 
-        CHATID_LOG_DEBUG("Fetching node history(%u) from server...", count);
-        // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
+        CHATID_LOG_DEBUG("Fetching node history (%u messages) from server...", count);
 
         mFetchRequest.push(FetchType::kFetchNodeHistory);
         mAttachNodeRequestToServer = count;
@@ -1660,7 +1661,7 @@ void Chat::onHistDone()
         {
             onFetchHistDone();
         }
-        if(mOnlineState == kChatStateJoining)
+        if (isJoining())
         {
             onJoinComplete();
         }
@@ -1675,7 +1676,7 @@ void Chat::onHistDone()
 
         mAttachNodeReceived = 0;
         mAttachNodeRequestToServer = 0;
-        mAttachmentNodes->finishFechingFromServer();
+        mAttachmentNodes->finishFetchingFromServer();
     }
 }
 
@@ -1849,7 +1850,7 @@ void Chat::sendSync()
 
 Chat::FetchType Chat::getFetchType() const
 {
-    return mFetchRequest.empty() ? FetchType::kNoFetching : mFetchRequest.front();
+    return mFetchRequest.empty() ? FetchType::kNotFetching : mFetchRequest.front();
 }
 
 void Chat::setNodeHistoryHandler(FilteredHistoryHandler *listener)
@@ -3888,12 +3889,12 @@ void Chat::onUserJoin(Id userid, Priv priv)
         mOwnPrivilege = priv;
     }
 
-    if (mOnlineState == kChatStateJoining)
+    if (isJoining())
     {
         mUserDump.insert(userid);
     }
 
-    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
+    if (isLoggedIn() || !mIsFirstJoin)
     {
         mUsers.insert(userid);
         CALL_CRYPTO(onUserJoin, userid);
@@ -3911,7 +3912,7 @@ void Chat::onUserLeave(Id userid)
         mOwnPrivilege = PRIV_NOTPRESENT;
     }
 
-    if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
+    if (isLoggedIn() || !mIsFirstJoin)
     {
         mUsers.erase(userid);
         CALL_CRYPTO(onUserLeave, userid);
@@ -4078,7 +4079,7 @@ bool Chat::findLastTextMsg()
         {
             mLastTextMsg.setState(LastTextMsgState::kFetching);
         }
-        else if (mOnlineState == kChatStateOnline)
+        else if (isLoggedIn())
         {
             CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
@@ -4471,7 +4472,7 @@ void FilteredHistory::clear()
     init();
 }
 
-HistSource FilteredHistory::loadHistory(uint32_t count)
+HistSource FilteredHistory::getHistory(uint32_t count)
 {
     uint32_t messagesLoaded = 0;
     if ((mOldestNotifyMsg != --mBuffer.end() && mBuffer.size() > 1) || mFirstNotification)
@@ -4499,7 +4500,7 @@ HistSource FilteredHistory::loadHistory(uint32_t count)
         return HistSource::kHistSourceDb;
     }
 
-    if (!hasAllHistory() && mChat->connection().isOnline())
+    if (!mHasAllHistory && mChat->connection().isOnline())
     {
         mFetchingFromServer = true;
         mChat->requestNodeHistoryFromServer(count);
@@ -4507,7 +4508,7 @@ HistSource FilteredHistory::loadHistory(uint32_t count)
         return HistSource::kHistSourceServer;
     }
 
-    HistSource hist = hasAllHistory() ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
+    HistSource hist = mHasAllHistory ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
     mFirstNotification = false;
     CALL_LISTENER_FH(onLoaded, NULL, 0); // No more messages
 
@@ -4566,7 +4567,7 @@ void FilteredHistory::unsetHandler()
     mListener = NULL;
 }
 
-void FilteredHistory::finishFechingFromServer()
+void FilteredHistory::finishFetchingFromServer()
 {
     assert(mFetchingFromServer);
     CALL_LISTENER_FH(onLoaded, NULL, 0);

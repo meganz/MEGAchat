@@ -528,7 +528,7 @@ public:
     Idx oldestIdx() const;
     Idx oldestLoadedIdx() const;
     void clear();
-    HistSource loadHistory(uint32_t count);
+    HistSource getHistory(uint32_t count);
     int loadHistoryFromDb(uint32_t count);
     void setHasAllHistory(bool hasAllHistory);
 
@@ -536,7 +536,7 @@ public:
     karere::Id getLastMessageId() const;
     void setHandler(FilteredHistoryHandler *listener);
     void unsetHandler();
-    void finishFechingFromServer();
+    void finishFetchingFromServer();
 protected:
     std::list<std::unique_ptr<Message>> mBuffer;
     std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
@@ -612,7 +612,7 @@ public:
     {
         kFetchMessages,
         kFetchNodeHistory,
-        kNoFetching
+        kNotFetching
     };
 
     Client& mClient;
@@ -817,6 +817,12 @@ public:
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
 
+    /** @brief True if joining into chatd (already connected to chatd via socket) */
+    bool isJoining() const { return mOnlineState == kChatStateJoining; }
+
+    /** @brief True if logged-in into chatd (HISTDONE received after JOIN/JOINRANGEHIST) */
+    bool isLoggedIn() const { return mOnlineState == kChatStateOnline; }
+
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
     Message::Status getMsgStatus(const Message& msg, Idx idx) const;
@@ -953,7 +959,7 @@ public:
      */
     HistSource getHistory(unsigned count);
 
-    HistSource getHistoryNodes(uint32_t count);
+    HistSource getNodeHistory(uint32_t count);
 
     /**
      * @brief Resets sending of history to the app, so that next getHistory()

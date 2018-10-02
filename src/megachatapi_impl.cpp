@@ -1540,7 +1540,7 @@ int MegaChatApiImpl::loadAttachments(MegaChatHandle chatid, int count)
     if (chatroom)
     {
         Chat &chat = chatroom->chat();
-        HistSource source = chat.getHistoryNodes(count);
+        HistSource source = chat.getNodeHistory(count);
         switch (source)
         {
         case kHistSourceNone:   ret = MegaChatApi::SOURCE_NONE; break;
