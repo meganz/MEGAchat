@@ -52,6 +52,7 @@ public:
     const char* toString() const { return toString(mPres); }
     bool canWebRtc() { return mPres & kClientCanWebrtc; }
     bool isMobile() { return mPres & kClientIsMobile; }
+    static const int presenceIsVisble = 0x800;
 protected:
     Code mPres;
 };
@@ -204,16 +205,18 @@ protected:
     bool mPersist = false;
     bool mAutoawayActive = false;
     time_t mAutoawayTimeout = 0;
+    bool mPresenceIsVisible = false;
 public:
     Config(karere::Presence pres=karere::Presence::kInvalid,
-          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600)
-        :mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
-          mAutoawayTimeout(aaTimeout){}
+          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool presenceIsVisible = false)
+        : mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
+          mAutoawayTimeout(aaTimeout), mPresenceIsVisible(presenceIsVisible){}
     explicit Config(uint16_t code) { fromCode(code); }
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
     bool autoawayActive() const { return mAutoawayActive; }
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
+    bool presenceVisible() const { return mPresenceIsVisible;}
     void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;
@@ -296,6 +299,7 @@ protected:
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
     const unsigned int snSize = 8;
+    const unsigned int maxTimeOut = 0x7FF;
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
@@ -328,6 +332,8 @@ public:
     bool isOnline() const { return (mConnState >= kConnected); }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
+    bool setVisible(bool enable);
+
 
     /** @brief Enables or disables autoaway
      * @param timeout The timeout in seconds after which the presence will be

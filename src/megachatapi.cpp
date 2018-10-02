@@ -268,6 +268,11 @@ void MegaChatApi::setPresencePersist(bool enable, MegaChatRequestListener *liste
     pImpl->setPresencePersist(enable, listener);
 }
 
+void MegaChatApi::setPresenceVisible(bool enable, MegaChatRequestListener *listener)
+{
+    pImpl->setPresenceVisible(enable, listener);
+}
+
 void MegaChatApi::signalPresenceActivity(MegaChatRequestListener *listener)
 {
     pImpl->signalPresenceActivity(listener);
@@ -1468,6 +1473,11 @@ bool MegaChatPresenceConfig::isPending() const
 }
 
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
+{
+    return false;
+}
+
+bool MegaChatPresenceConfig::isPresenceVisible() const
 {
     return false;
 }

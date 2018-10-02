@@ -1230,7 +1230,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
-        TYPE_PUSH_RECEIVED,
+        TYPE_PUSH_RECEIVED, TYPE_SET_PRESENCE_VISIBLE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1605,6 +1605,11 @@ public:
      * @return True if the app is required to call MegaChatApi::signalPresenceActivity
      */
     virtual bool isSignalActivityRequired() const;
+
+    /**
+     * @return True if our presence is visible to other users
+     */
+    virtual bool isPresenceVisible() const;
 };
 
 /**
@@ -2073,6 +2078,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Enable/disable if our presence is visible
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_VISIBLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true if presence is visible or not.
+     *
+     * @param enable
+     * @param listener
+     */
+    void setPresenceVisible(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Signal there is some user activity

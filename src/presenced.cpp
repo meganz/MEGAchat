@@ -105,7 +105,8 @@ std::string Config::toString() const
     result.append("pres: ").append(mPresence.toString())
           .append(", persist: ").append(mPersist ? "1":"0")
           .append(", aaActive: ").append(mAutoawayActive ? "1":"0")
-          .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout));
+          .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
+          .append(", Presence visible: ").append(mPresenceIsVisible ? "1":"0");
     return result;
 }
 
@@ -129,12 +130,27 @@ bool Client::setPersist(bool enable)
     return sendPrefs();
 }
 
+bool Client::setVisible(bool enable)
+{
+    if (enable == mConfig.mPresenceIsVisible)
+        return true;
+    mConfig.mPresenceIsVisible = enable;
+    signalActivity(true);
+    return sendPrefs();
+}
+
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
     {
         mConfig.mPersist = false;
     }
+
+    if (timeout > maxTimeOut)
+    {
+        timeout = maxTimeOut;
+    }
+
     mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
     signalActivity(true);
@@ -593,7 +609,8 @@ void Command::toString(char* buf, size_t bufsize) const
 
 void Client::login()
 {
-    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
+    uint8_t capabilities = mCapabilities | kClientUseBit15;
+    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion + capabilities);
 
     if (mPrefsAckWait)
     {
@@ -634,6 +651,12 @@ void Config::fromCode(uint16_t code)
     mAutoawayTimeout = code >> 4;
     if (mAutoawayTimeout > 600)
         mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
+
+    mPresenceIsVisible = false;
+    if (code & Presence::presenceIsVisble)
+    {
+        mPresenceIsVisible = true;
+    }
 }
 
 uint16_t Config::toCode() const
@@ -644,7 +667,8 @@ uint16_t Config::toCode() const
           | (((mAutoawayTimeout > 600)
                ? (600+(mAutoawayTimeout-600)/60)
                : mAutoawayTimeout)
-            << 4);
+            << 4)
+          | (mPresenceIsVisible ? Presence::presenceIsVisble : 0);
 }
 
 Client::~Client()

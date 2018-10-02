@@ -294,6 +294,15 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+        case MegaChatRequest::TYPE_SET_PRESENCE_VISIBLE:
+        {
+            bool enable = request->getFlag();
+            mClient->presenced().setVisible(enable);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
@@ -1262,6 +1271,7 @@ int MegaChatApiImpl::init(const char *sid)
 #else
         uint8_t caps = karere::kClientIsMobile;
 #endif
+
         mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);
         terminating = false;
     }
@@ -1703,6 +1713,14 @@ void MegaChatApiImpl::setPresencePersist(bool enable, MegaChatRequestListener *l
 void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SIGNAL_ACTIVITY, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::setPresenceVisible(bool enable, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_VISIBLE, listener);
+    request->setFlag(enable);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3795,6 +3813,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
+        case TYPE_SET_PRESENCE_VISIBLE: return "SET_PRESENCE_VISIBLE";
     }
     return "UNKNOWN";
 }
@@ -6580,6 +6599,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const presenced::Co
     this->autoawayEnabled = config.autoawayActive();
     this->autoawayTimeout = config.autoawayTimeout();
     this->persistEnabled = config.persist();
+    this->presenceVisible = config.presenceVisible();
     this->pending = isPending;
 }
 
@@ -6624,6 +6644,11 @@ bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
             && status != MegaChatApi::STATUS_OFFLINE
             && status != MegaChatApi::STATUS_AWAY
             && autoawayEnabled && autoawayTimeout);
+}
+
+bool MegaChatPresenceConfigPrivate::isPresenceVisible() const
+{
+    return presenceVisible;
 }
 
 MegaChatAttachedUser::MegaChatAttachedUser(MegaChatHandle contactId, const std::string &email, const std::string& name)
