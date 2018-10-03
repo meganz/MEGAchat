@@ -1001,7 +1001,6 @@ void Chat::onDisconnect()
                 //about to receive new history (if any), so notify app about end of
                 //old history
                 CALL_LISTENER(onHistoryDone, kHistSourceServer);
-
             }
         }
         else if (fetchType == kFetchNodeHistory)
@@ -3820,24 +3819,20 @@ void Chat::msgNodeHistIncoming(Message *msg)
     if (pms.succeeded())
     {
         assert(!msg->isEncrypted());
-        msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
-        assert(msg->type == Message::Type::kMsgAttachment);
         mAttachmentNodes->addMessage(*msg, false, false);
         delete msg;
     }
     else
     {
-        pms.fail([this, msg](const promise::Error& /*err*/) -> promise::Promise<Message*>
+        pms.then([this](Message* msg)
+        {
+            mAttachmentNodes->addMessage(*msg, false, false);
+            delete msg;
+        })
+        .fail([this, msg](const promise::Error& /*err*/)
         {
             assert(msg->isPendingToDecrypt());
             delete msg;
-        })
-        .then([this](Message* message)
-        {
-            message->type = message->buf()[1] + Message::Type::kMsgOffset;
-            assert(message->type == Message::Type::kMsgAttachment);
-            mAttachmentNodes->addMessage(*message, false, false);
-            delete message;
         });
     }
 }
@@ -4385,6 +4380,9 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
 
 void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
+    msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+    assert(msg.type == Message::Type::kMsgAttachment);
+
     Id msgid = msg.id();
     if (isNew)
     {
