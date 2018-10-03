@@ -440,7 +440,7 @@ public:
         newest = count ? stmt.intCol(1) : -1;
     }
 
-    virtual void loadNodeHistoryFromDb(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages)
+    virtual void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
         loadMessages(count, idx, messages, "node_history");
     }

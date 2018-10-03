@@ -2961,7 +2961,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
 
     if (msg->type == Message::kMsgAttachment)
     {
-        mAttachmentNodes->addMessage(*msg, true);
+        mAttachmentNodes->addMessage(*msg, true, false);
     }
 
     return idx;
@@ -3814,7 +3814,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
     if (msg.type == Message::Type::kMsgAttachment)
     {
-        mAttachmentNodes->addMessage(msg, isNew);
+        mAttachmentNodes->addMessage(msg, isNew, false);
     }
 }
 
@@ -3827,7 +3827,7 @@ void Chat::msgNodeHistIncoming(Message *msg)
         assert(!msg->isEncrypted());
         msg->type = msg->buf()[1] + Message::Type::kMsgOffset;
         assert(msg->type == Message::Type::kMsgAttachment);
-        mAttachmentNodes->addMessage(*msg, false);
+        mAttachmentNodes->addMessage(*msg, false, false);
         delete msg;
     }
     else
@@ -3841,7 +3841,7 @@ void Chat::msgNodeHistIncoming(Message *msg)
         {
             message->type = message->buf()[1] + Message::Type::kMsgOffset;
             assert(message->type == Message::Type::kMsgAttachment);
-            mAttachmentNodes->addMessage(*message, false);
+            mAttachmentNodes->addMessage(*message, false, false);
             delete message;
         });
     }
@@ -4386,10 +4386,9 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
     init();
     CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
     mOldest = (mNewest < 0) ? 0 : mNewest;
-    getHistoryFromDb(mInitialMessagesToLoad);
 }
 
-void FilteredHistory::addMessage(const Message &msg, bool isNew)
+void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
     Id msgid = msg.id();
     if (isNew)
@@ -4400,17 +4399,21 @@ void FilteredHistory::addMessage(const Message &msg, bool isNew)
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
         CALL_LISTENER_FH(onReceived, &(*mBuffer.front()), mNewest);
     }
-    else
+    else    // from DB or from NODEHIST/HIST
     {
         if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
-            mBuffer.emplace_back(new Message(msg));
+            mBuffer.emplace_back(isLocal ? &msg : new Message(msg));
             mIdToMsgMap[msgid] = --mBuffer.end();
             mOldest--;
-            CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
-            mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;
-            // I can receive an old message but we don't have to notify because it isn't next attachment message to notify
-            if (mListener && mOldestNotifyMsg == --(--mBuffer.end()))
+            if (!isLocal)
+            {
+                CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
+                mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;  // avoid update if already in cache
+            }
+
+            // I can receive an old message but we don't have to notify because it was not requested by the app
+            if (mListener && (mFetchingFromServer || isLocal))
             {
                 CALL_LISTENER_FH(onLoaded, &(*mBuffer.back()), mOldest);
                 mOldestNotifyMsg = --mBuffer.end();
@@ -4487,6 +4490,7 @@ void FilteredHistory::clear()
 
 HistSource FilteredHistory::getHistory(uint32_t count)
 {
+    // Get messages from RAM
     if ((mOldestNotifyMsg != --mBuffer.end() && mBuffer.size() > 1) || mFirstNotification)
     {
         mFirstNotification = false;
@@ -4505,14 +4509,27 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         }
     }
 
-    uint32_t messagesLoadedFromDb = getHistoryFromDb(count);
-    mOldestNotifyMsg = --mBuffer.end();
-    if (messagesLoadedFromDb)
+    // Get messages from DB
+    if (mOldest > mOldestInDb)  // more messages available in DB
     {
-        mFirstNotification = false;
-        return HistSource::kHistSourceDb;
+        // First time we want messages from oldest, if we have messages we want from next message
+        Idx indexValue = mBuffer.empty() ? mNewest : mOldest - 1;
+
+        std::vector<chatd::Message*> messages;
+        CALL_DB_FH(fetchDbNodeHistory, indexValue, count, messages);
+        if (messages.size())
+        {
+            for (unsigned int i = 0; i < messages.size(); i++)
+            {
+                addMessage(*messages[i], false, true);   // takes ownership of Message*
+            }
+
+            mFirstNotification = false;
+            return HistSource::kHistSourceDb;
+        }
     }
 
+    // Get messages from Server
     if (!mHasAllHistory && mChat->isLoggedIn())
     {
         if (!mFetchingFromServer)
@@ -4524,33 +4541,12 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         return HistSource::kHistSourceServer;
     }
 
+    // No more messages in history, or not logged-in to load more messages from server
     HistSource hist = mHasAllHistory ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
     mFirstNotification = false;
     CALL_LISTENER_FH(onLoaded, NULL, 0); // No more messages
 
     return hist;
-}
-
-int FilteredHistory::getHistoryFromDb(uint32_t count)
-{
-    std::vector<chatd::Message*> messages;
-    if (mOldest > mOldestInDb)
-    {
-        // First time we want messages from oldest, if we have messages we want from next message
-        Idx indexValue = mBuffer.empty() ? mNewest : mOldest - 1;
-        CALL_DB_FH(loadNodeHistoryFromDb, count, indexValue, messages);
-        for (unsigned int i = 0; i < messages.size(); i++)
-        {
-            CALL_LISTENER_FH(onLoaded, messages[i], indexValue);
-            indexValue --;
-            mBuffer.emplace_back(messages[i]);
-            mIdToMsgMap[messages[i]->id()] = --mBuffer.end();
-        }
-
-        mOldest = messages.empty() ? mOldest : indexValue + 1;
-    }
-
-    return messages.size();
 }
 
 void FilteredHistory::setHasAllHistory(bool hasAllHistory)

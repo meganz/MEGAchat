@@ -522,7 +522,7 @@ class FilteredHistory
 public:
     FilteredHistory(DbInterface &db, Chat &chat);
 
-    void addMessage(const Message &msg, bool isNew);
+    void addMessage(Message &msg, bool isNew, bool isLocal);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
     Idx newestIdx() const;
@@ -531,7 +531,6 @@ public:
     void clear();
 
     HistSource getHistory(uint32_t count);
-    int getHistoryFromDb(uint32_t count);
     void setHasAllHistory(bool hasAllHistory);
 
     karere::Id getLastMessageId() const;
@@ -1367,7 +1366,7 @@ public:
     virtual void truncateNodeHistory(karere::Id id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
     virtual void clearNodeHistory() = 0;
-    virtual void loadNodeHistoryFromDb(int count, Idx idx, std::vector<chatd::Message*>& messages) = 0;
+    virtual void fetchDbNodeHistory(Idx idx, unsigned count, std::vector<chatd::Message*>& messages) = 0;
 
 
 //  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
