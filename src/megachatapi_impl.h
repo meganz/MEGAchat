@@ -461,15 +461,15 @@ public:
     MegaChatNodeHistoryHandler(MegaChatApi *api);
      virtual ~MegaChatNodeHistoryHandler(){}
 
-    void fireOnReceived(MegaChatMessage *message);
-    void fireOnLoaded(MegaChatMessage *message);
-    void fireOnDeleted(karere::Id id);
-    void fireOnTruncated(karere::Id id);
+    void fireOnAttachmentReceived(MegaChatMessage *message);
+    void fireOnAttachmentLoaded(MegaChatMessage *message);
+    void fireOnAttachmentDeleted(karere::Id id);
+    void fireOnTruncate(karere::Id id);
 
     virtual void onReceived(chatd::Message* msg, chatd::Idx idx);
     virtual void onLoaded(chatd::Message* msg, chatd::Idx idx);
     virtual void onDeleted(karere::Id id);
-     virtual void onTruncated(karere::Id id);
+    virtual void onTruncated(karere::Id id);
 
     void addMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
     void removeMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);

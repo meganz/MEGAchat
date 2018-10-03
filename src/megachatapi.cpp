@@ -1534,6 +1534,6 @@ void MegaChatNodeHistoryListener::onAttachmentDeleted(MegaChatApi */*api*/, Mega
 {
 }
 
-void MegaChatNodeHistoryListener::onAttachmentTruncated(MegaChatApi */*api*/, MegaChatHandle /*msgid*/)
+void MegaChatNodeHistoryListener::onTruncate(MegaChatApi */*api*/, MegaChatHandle /*msgid*/)
 {
 }

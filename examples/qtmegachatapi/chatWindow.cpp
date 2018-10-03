@@ -473,7 +473,7 @@ void ChatWindow::onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid)
     }
 }
 
-void ChatWindow::onAttachmentTruncated(MegaChatApi */*api*/, MegaChatHandle msgid)
+void ChatWindow::onTruncate(MegaChatApi */*api*/, MegaChatHandle msgid)
 {
     std::vector <MegaChatHandle> ids;
     for (int j = 0; j < mAttachmentList->count(); j++)

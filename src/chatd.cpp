@@ -1355,13 +1355,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else
                 {
-                    if (chat.getFetchType() != Chat::FetchType::kFetchNodeHistory || opcode == OP_NEWMSG)
+                    if (!chat.isFetchingNodeHistory() || opcode == OP_NEWMSG)
                     {
                         chat.msgIncoming((opcode == OP_NEWMSG), msg.release(), false);
                     }
                     else
                     {
-                        assert((opcode != OP_NEWMSG));
                         chat.msgNodeHistIncoming(msg.release());
                     }
                 }
@@ -1863,9 +1862,9 @@ void Chat::sendSync()
     sendCommand(Command(OP_SYNC) + mChatId);
 }
 
-Chat::FetchType Chat::getFetchType() const
+bool Chat::isFetchingNodeHistory() const
 {
-    return mFetchRequest.empty() ? FetchType::kNotFetching : mFetchRequest.front();
+    return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchNodeHistory));
 }
 
 void Chat::setNodeHistoryHandler(FilteredHistoryHandler *listener)
@@ -1876,12 +1875,6 @@ void Chat::setNodeHistoryHandler(FilteredHistoryHandler *listener)
 void Chat::unsetHandlerToNodeHistory()
 {
     mAttachmentNodes->unsetHandler();
-}
-
-Idx Chat::attachmentNodesOldestIdx() const
-{
-    // mAttachmentNodes is NULL when attachmentNodesOldestIdx is called from Chat constructor
-    return mAttachmentNodes ? mAttachmentNodes->oldestIdx() : 0;
 }
 
 Message* Chat::getMsgByXid(Id msgxid)
@@ -4386,8 +4379,8 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
     : mDb(&db), mChat(&chat), mListener(NULL)
 {
     init();
-    CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
-    mOldest = (mNewest < 0) ? 0 : mNewest;
+    CALL_DB_FH(getNodeHistoryInfo, mNewestIdx, mOldestIdxInDb);
+    mOldestIdx = (mNewestIdx < 0) ? 0 : mNewestIdx;
 }
 
 void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
@@ -4397,9 +4390,9 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
     {
         mBuffer.emplace_front(new Message(msg));
         mIdToMsgMap[msgid] =  mBuffer.begin();
-        mNewest++;
-        CALL_DB_FH(addMsgToNodeHistory, msg, mNewest);
-        CALL_LISTENER_FH(onReceived, &(*mBuffer.front()), mNewest);
+        mNewestIdx++;
+        CALL_DB_FH(addMsgToNodeHistory, msg, mNewestIdx);
+        CALL_LISTENER_FH(onReceived, &(*mBuffer.front()), mNewestIdx);
     }
     else    // from DB or from NODEHIST/HIST
     {
@@ -4407,17 +4400,17 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
         {
             mBuffer.emplace_back(isLocal ? &msg : new Message(msg));
             mIdToMsgMap[msgid] = --mBuffer.end();
-            mOldest--;
+            mOldestIdx--;
             if (!isLocal)
             {
-                CALL_DB_FH(addMsgToNodeHistory, msg, mOldest);
-                mOldestInDb = (mOldest < mOldestInDb) ? mOldest : mOldestInDb;  // avoid update if already in cache
+                CALL_DB_FH(addMsgToNodeHistory, msg, mOldestIdx);
+                mOldestIdxInDb = (mOldestIdx < mOldestIdxInDb) ? mOldestIdx : mOldestIdxInDb;  // avoid update if already in cache
             }
 
             // I can receive an old message but we don't have to notify because it was not requested by the app
             if (mListener && (mFetchingFromServer || isLocal))
             {
-                CALL_LISTENER_FH(onLoaded, mBuffer.back().get(), mOldest);
+                CALL_LISTENER_FH(onLoaded, mBuffer.back().get(), mOldestIdx);
                 mNextMsgToNotify++;
             }
         }
@@ -4462,9 +4455,9 @@ void FilteredHistory::truncateHistory(Id id)
         }
 
         CALL_DB_FH(truncateNodeHistory, id);
-        CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
+        CALL_DB_FH(getNodeHistoryInfo, mNewestIdx, mOldestIdxInDb);
         CALL_LISTENER_FH(onTruncated, id);
-        mOldest = (mOldest < mOldestInDb) ? mOldestInDb : mOldest;
+        mOldestIdx = (mOldestIdx < mOldestIdxInDb) ? mOldestIdxInDb : mOldestIdx;
     }
     else    // full-history truncated or no remaining attachments
     {
@@ -4473,21 +4466,6 @@ void FilteredHistory::truncateHistory(Id id)
     }
 
     mHaveAllHistory = true;
-}
-
-Idx FilteredHistory::newestIdx() const
-{
-    return mNewest;
-}
-
-Idx FilteredHistory::oldestIdx() const
-{
-    return mOldest;
-}
-
-Idx FilteredHistory::oldestLoadedIdx() const
-{
-    return mOldestInDb;
 }
 
 void FilteredHistory::clear()
@@ -4507,7 +4485,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         auto it = mNextMsgToNotify;
         while ((it != mBuffer.end()) && (msgsLoadedFromRam < count))
         {
-            Idx index = mNewest - std::distance(mBuffer.begin(), it);
+            Idx index = mNewestIdx - std::distance(mBuffer.begin(), it);
             CALL_LISTENER_FH(onLoaded,  it->get(), index);
             msgsLoadedFromRam++;
 
@@ -4522,10 +4500,10 @@ HistSource FilteredHistory::getHistory(uint32_t count)
     }
 
     // Get messages from DB
-    if (mOldest > mOldestInDb)  // more messages available in DB
+    if (mOldestIdx > mOldestIdxInDb)  // more messages available in DB
     {
         // First time we want messages from newest. If already have messages, we want to load from the oldest message
-        Idx indexValue = mBuffer.empty() ? mNewest : mOldest - 1;
+        Idx indexValue = mBuffer.empty() ? mNewestIdx : mOldestIdx - 1;
 
         std::vector<chatd::Message*> messages;
         CALL_DB_FH(fetchDbNodeHistory, indexValue, count, messages);
@@ -4586,9 +4564,9 @@ void FilteredHistory::finishFetchingFromServer()
 
 void FilteredHistory::init()
 {
-    mNewest = -1;
-    mOldest = 0;
-    mOldestInDb = 0;
+    mNewestIdx = -1;
+    mOldestIdx = 0;
+    mOldestIdxInDb = 0;
     mNextMsgToNotify = mBuffer.begin();
     mHaveAllHistory = false;
 }

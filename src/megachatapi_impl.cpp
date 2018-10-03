@@ -7482,7 +7482,7 @@ MegaChatNodeHistoryHandler::MegaChatNodeHistoryHandler(MegaChatApi *api)
 {
 }
 
-void MegaChatNodeHistoryHandler::fireOnReceived(MegaChatMessage *message)
+void MegaChatNodeHistoryHandler::fireOnAttachmentReceived(MegaChatMessage *message)
 {
     for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
     {
@@ -7492,7 +7492,7 @@ void MegaChatNodeHistoryHandler::fireOnReceived(MegaChatMessage *message)
     delete message;
 }
 
-void MegaChatNodeHistoryHandler::fireOnLoaded(MegaChatMessage *message)
+void MegaChatNodeHistoryHandler::fireOnAttachmentLoaded(MegaChatMessage *message)
 {
     for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
     {
@@ -7502,7 +7502,7 @@ void MegaChatNodeHistoryHandler::fireOnLoaded(MegaChatMessage *message)
     delete message;
 }
 
-void MegaChatNodeHistoryHandler::fireOnDeleted(Id id)
+void MegaChatNodeHistoryHandler::fireOnAttachmentDeleted(Id id)
 {
     for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
     {
@@ -7510,18 +7510,18 @@ void MegaChatNodeHistoryHandler::fireOnDeleted(Id id)
     }
 }
 
-void MegaChatNodeHistoryHandler::fireOnTruncated(Id id)
+void MegaChatNodeHistoryHandler::fireOnTruncate(Id id)
 {
     for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
     {
-        (*it)->onAttachmentTruncated(chatApi, id);
+        (*it)->onTruncate(chatApi, id);
     }
 }
 
 void MegaChatNodeHistoryHandler::onReceived(Message *msg, Idx idx)
 {
     MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, Message::Status::kServerReceived, idx);
-    fireOnReceived(message);
+    fireOnAttachmentReceived(message);
 }
 
 void MegaChatNodeHistoryHandler::onLoaded(Message *msg, Idx idx)
@@ -7532,17 +7532,17 @@ void MegaChatNodeHistoryHandler::onLoaded(Message *msg, Idx idx)
         message = new MegaChatMessagePrivate(*msg, Message::Status::kServerReceived, idx);
     }
 
-    fireOnLoaded(message);
+    fireOnAttachmentLoaded(message);
 }
 
 void MegaChatNodeHistoryHandler::onDeleted(Id id)
 {
-    fireOnDeleted(id);
+    fireOnAttachmentDeleted(id);
 }
 
 void MegaChatNodeHistoryHandler::onTruncated(Id id)
 {
-    fireOnTruncated(id);
+    fireOnTruncate(id);
 }
 
 

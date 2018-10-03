@@ -35,7 +35,7 @@ void QTMegaChatNodeHistoryListener::onAttachmentDeleted(MegaChatApi *api, MegaCh
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
-void QTMegaChatNodeHistoryListener::onAttachmentTruncated(MegaChatApi *api, MegaChatHandle msgid)
+void QTMegaChatNodeHistoryListener::onTruncate(MegaChatApi *api, MegaChatHandle msgid)
 {
     QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnAttachmentTruncated);
     event->setChatHandle(msgid);
@@ -57,7 +57,7 @@ void QTMegaChatNodeHistoryListener::customEvent(QEvent *e)
             if (listener) listener->onAttachmentDeleted(event->getMegaChatApi(), event->getChatHandle());
             break;
         case QTMegaChatEvent::OnAttachmentTruncated:
-            if (listener) listener->onAttachmentTruncated(event->getMegaChatApi(), event->getChatHandle());
+            if (listener) listener->onTruncate(event->getMegaChatApi(), event->getChatHandle());
             break;
         default:
             break;

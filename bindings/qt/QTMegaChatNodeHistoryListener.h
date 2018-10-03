@@ -17,7 +17,7 @@ public:
     virtual void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
     virtual void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
     virtual void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
-    virtual void onAttachmentTruncated(MegaChatApi *api, MegaChatHandle msgid);
+    virtual void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
 
 protected:
     virtual void customEvent(QEvent * event);

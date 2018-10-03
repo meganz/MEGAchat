@@ -525,9 +525,6 @@ public:
     void addMessage(Message &msg, bool isNew, bool isLocal);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
-    Idx newestIdx() const;
-    Idx oldestIdx() const;
-    Idx oldestLoadedIdx() const;
     void clear();
 
     HistSource getHistory(uint32_t count);
@@ -549,11 +546,18 @@ protected:
     /** Maps msgid's to their position in the history-buffer */
     std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
 
-    Idx mNewest;
-    Idx mOldest;
-    Idx mOldestInDb;
+    /** Index of the newest (most recent) message loaded in RAM */
+    Idx mNewestIdx;
 
+    /** Index of the oldest message loaded in RAM */
+    Idx mOldestIdx;
+
+    /** Index of the oldest message available in DB */
+    Idx mOldestIdxInDb;
+
+    /** Iterator pointing to the next message to be notified from buffer in memory */
     std::list<std::unique_ptr<Message>>::iterator mNextMsgToNotify;
+
     void init();
     bool mHaveAllHistory = false;
     bool mFetchingFromServer = false;
@@ -1138,11 +1142,15 @@ public:
     bool isGroup() const;
     void clearHistory();
     void sendSync();
-    FetchType getFetchType() const;
+
+    /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
+
+    /** Returns true when fetch in-flight is a NODEHIST */
+    bool isFetchingNodeHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *listener);
     void unsetHandlerToNodeHistory();
-    Idx attachmentNodesOldestIdx() const;
+
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
     bool msgEncryptAndSend(OutputQueue::iterator it);

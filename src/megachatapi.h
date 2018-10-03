@@ -4453,7 +4453,7 @@ public:
     virtual void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
 
     /**
-     * @brief This function is called when a new attachment message is revoked
+     * @brief This function is called when an attachment message is deleted
      *
      * @param api MegaChatApi connected to the account
      * @param msgid id of the message that has been deleted
@@ -4463,10 +4463,12 @@ public:
     /**
      * @brief This function is called when history is trucated
      *
+     * If no messages are left in the node-history, the msgid will be MEGACHAT_INVALID_HANDLE.
+     *
      * @param api MegaChatApi connected to the account
      * @param msgid id of the message from which history has been trucated
      */
-    virtual void onAttachmentTruncated(MegaChatApi *api, MegaChatHandle msgid);
+    virtual void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
 };
 
 }
