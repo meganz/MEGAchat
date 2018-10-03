@@ -4448,9 +4448,15 @@ void FilteredHistory::truncateHistory(Id id)
         if (it != mIdToMsgMap.end())
         {
             // id is a message in the history, we want to remove from the next message until the oldest
-            for (auto loopIterator = ++it->second; loopIterator != mBuffer.end(); loopIterator++)
+            for (auto itLoop = ++it->second; itLoop != mBuffer.end(); itLoop++)
             {
-                mIdToMsgMap.erase((*loopIterator)->id());
+                mIdToMsgMap.erase((*itLoop)->id());
+
+                // if next message to notify was truncated, point to the end of the buffer
+                if (itLoop == mNextMsgToNotify)
+                {
+                    mNextMsgToNotify = mBuffer.end();
+                }
             }
             mBuffer.erase(it->second, mBuffer.end());
         }
@@ -4465,6 +4471,8 @@ void FilteredHistory::truncateHistory(Id id)
         CALL_LISTENER_FH(onTruncated, (*mBuffer.begin())->id());
         clear();
     }
+
+    mHaveAllHistory = true;
 }
 
 Idx FilteredHistory::newestIdx() const
@@ -4516,7 +4524,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
     // Get messages from DB
     if (mOldest > mOldestInDb)  // more messages available in DB
     {
-        // First time we want messages from oldest, if we have messages we want from next message
+        // First time we want messages from newest. If already have messages, we want to load from the oldest message
         Idx indexValue = mBuffer.empty() ? mNewest : mOldest - 1;
 
         std::vector<chatd::Message*> messages;
