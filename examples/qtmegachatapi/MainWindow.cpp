@@ -353,6 +353,12 @@ void MainWindow::on_bSettings_clicked()
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
     // TODO: connect to slot once chat-links branch is merged
 
+    menu.addSeparator();
+    MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+    auto actPresenceVisible = menu.addAction(presenceConfig->isLastSeenVisible() ? "Set Last Seen Visible" : "Unset Last Seen Visible");
+    //connect(actPresenceVisible, SIGNAL(triggered()), this, SLOT(onPresenceVisibleClicked()));
+    // TODO: connect to slot once 'Last Seen' functionality will be released
+    delete presenceConfig;
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -894,4 +900,11 @@ void MainWindow::on_mLogout_clicked()
     {
         mMegaApi->logout();
     }
+}
+
+void MainWindow::onPresenceVisibleClicked()
+{
+    MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+    mMegaChatApi->setLastSeenVisible(!presenceConfig->isLastSeenVisible());
+    delete presenceConfig;
 }
