@@ -1423,35 +1423,26 @@ bool MegaChatApiImpl::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistory
 
     sdkMutex.lock();
 
-    MegaChatNodeHistoryHandler *handler;
-    auto it = nodeHistoryHandlers.find(chatid);
-    if (it == nodeHistoryHandlers.end())
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
     {
-        handler = new MegaChatNodeHistoryHandler(chatApi);
-        ChatRoom *chatroom = findChatRoom(chatid);
-        if (chatroom)
-        {
-            chatroom->chat().setNodeHistoryHandler(handler);
-            nodeHistoryHandlers[chatid] = handler;
-        }
-        else
+        auto it = nodeHistoryHandlers.find(chatid);
+        if (it != nodeHistoryHandlers.end())
         {
             sdkMutex.unlock();
+            API_LOG_WARNING("openNodeHistory: node history is already open for this chatroom (chatid: %s), close it before open it again", karere::Id(chatid).toString().c_str());
+            throw std::runtime_error("App node history handler is already set, remove it first");
             return false;
         }
-    }
-    else
-    {
-        sdkMutex.unlock();
-        API_LOG_WARNING("openNodeHistory: node history is open for this chatroom (chatid: %s), close it before open it again", karere::Id(chatid).toString().c_str());
-        throw std::runtime_error("App node history handler is already set, remove it first");
-        return false;
-    }
 
-    handler->addMegaNodeHistoryListener(listener);
+        MegaChatNodeHistoryHandler *handler = new MegaChatNodeHistoryHandler(chatApi);
+        chatroom->chat().setNodeHistoryHandler(handler);
+        nodeHistoryHandlers[chatid] = handler;
+        handler->addMegaNodeHistoryListener(listener);
+    }
 
     sdkMutex.unlock();
-    return true;
+    return chatroom;
 }
 
 bool MegaChatApiImpl::closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
