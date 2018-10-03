@@ -521,6 +521,7 @@ class FilteredHistory
 {
 public:
     FilteredHistory(DbInterface &db, Chat &chat);
+
     void addMessage(const Message &msg, bool isNew);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
@@ -528,29 +529,36 @@ public:
     Idx oldestIdx() const;
     Idx oldestLoadedIdx() const;
     void clear();
+
     HistSource getHistory(uint32_t count);
-    int loadHistoryFromDb(uint32_t count);
+    int getHistoryFromDb(uint32_t count);
     void setHasAllHistory(bool hasAllHistory);
 
-    bool hasAllHistory() const;
     karere::Id getLastMessageId() const;
     void setHandler(FilteredHistoryHandler *listener);
     void unsetHandler();
     void finishFetchingFromServer();
+
 protected:
-    std::list<std::unique_ptr<Message>> mBuffer;
-    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
     DbInterface *mDb;
+    Chat *mChat;
+    FilteredHistoryHandler *mListener;
+
+    /** Contains the messages in the history-buffer */
+    std::list<std::unique_ptr<Message>> mBuffer;
+
+    /** Maps msgid's to their position in the history-buffer */
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
+
     Idx mNewest;
     Idx mOldest;
     Idx mOldestInDb;
     bool mFirstNotification;
+
     std::list<std::unique_ptr<Message>>::iterator mOldestNotifyMsg;
     void init();
     int mInitialMessagesToLoad = 16;
     bool mHasAllHistory = false;
-    FilteredHistoryHandler *mListener;
-    Chat *mChat;
     bool mFetchingFromServer = false;
 };
 

@@ -1649,9 +1649,9 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
 
 void Chat::onHistDone()
 {
-    FetchType fetchValue = mFetchRequest.front();
+    FetchType fetchType = mFetchRequest.front();
     mFetchRequest.pop();
-    if (fetchValue == FetchType::kFetchMessages)
+    if (fetchType == FetchType::kFetchMessages)
     {
         // We may be fetching from memory and db because of a resetHistFetch()
         // while fetching from server. In that case, we don't notify about
@@ -1666,7 +1666,7 @@ void Chat::onHistDone()
             onJoinComplete();
         }
     }
-    else if (fetchValue == FetchType::kFetchNodeHistory)
+    else if (fetchType == FetchType::kFetchNodeHistory)
     {
         assert(mAttachNodeRequestToServer);
         if (mAttachNodeReceived < mAttachNodeRequestToServer)
@@ -4373,7 +4373,7 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
     init();
     CALL_DB_FH(getNodeHistoryInfo, mNewest, mOldestInDb);
     mOldest = (mNewest < 0) ? 0 : mNewest;
-    loadHistoryFromDb(mInitialMessagesToLoad);
+    getHistoryFromDb(mInitialMessagesToLoad);
 }
 
 void FilteredHistory::addMessage(const Message &msg, bool isNew)
@@ -4474,27 +4474,27 @@ void FilteredHistory::clear()
 
 HistSource FilteredHistory::getHistory(uint32_t count)
 {
-    uint32_t messagesLoaded = 0;
     if ((mOldestNotifyMsg != --mBuffer.end() && mBuffer.size() > 1) || mFirstNotification)
     {
         mFirstNotification = false;
-        for (auto it = mOldestNotifyMsg; it != mBuffer.end() && messagesLoaded < count; it++)
+        uint32_t messagesLoadedFromRam = 0;
+        for (auto it = mOldestNotifyMsg; (it != mBuffer.end()) && (messagesLoadedFromRam < count); it++)
         {
             Idx index = mNewest - std::distance(mBuffer.begin(), it);
             CALL_LISTENER_FH(onLoaded,  &(*(*it)), index);
-            messagesLoaded++;
+            messagesLoadedFromRam++;
             mOldestNotifyMsg = it;
         }
 
-        if (messagesLoaded)
+        if (messagesLoadedFromRam)
         {
             return HistSource::kHistSourceRam;
         }
     }
 
-    uint32_t messagesLoadedFromdb = loadHistoryFromDb(count);
+    uint32_t messagesLoadedFromDb = getHistoryFromDb(count);
     mOldestNotifyMsg = --mBuffer.end();
-    if (messagesLoadedFromdb)
+    if (messagesLoadedFromDb)
     {
         mFirstNotification = false;
         return HistSource::kHistSourceDb;
@@ -4515,7 +4515,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
     return hist;
 }
 
-int FilteredHistory::loadHistoryFromDb(uint32_t count)
+int FilteredHistory::getHistoryFromDb(uint32_t count)
 {
     std::vector<chatd::Message*> messages;
     if (mOldest > mOldestInDb)
@@ -4540,11 +4540,6 @@ int FilteredHistory::loadHistoryFromDb(uint32_t count)
 void FilteredHistory::setHasAllHistory(bool hasAllHistory)
 {
     mHasAllHistory = hasAllHistory;
-}
-
-bool FilteredHistory::hasAllHistory() const
-{
-    return mHasAllHistory;
 }
 
 Id FilteredHistory::getLastMessageId() const
