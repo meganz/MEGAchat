@@ -987,13 +987,29 @@ void Chat::onJoinRejected()
 
 void Chat::onDisconnect()
 {
-    if (mServerOldHistCbEnabled && (mServerFetchState & kHistFetchingOldFromServer))
+    assert(mFetchRequest.size() <= 2);  // no more than a HIST+NODEHIST in parallel are allowed
+
+    while (mFetchRequest.size())
     {
-        //app has been receiving old history from server, but we are now
-        //about to receive new history (if any), so notify app about end of
-        //old history
-        CALL_LISTENER(onHistoryDone, kHistSourceServer);
+        FetchType fetchType = mFetchRequest.front();
+        mFetchRequest.pop();
+        if (fetchType == kFetchNodeHistory)
+        {
+            mAttachmentNodes->finishFetchingFromServer();
+        }
+        else if (fetchType == FetchType::kFetchMessages)
+        {
+            if (mServerOldHistCbEnabled && (mServerFetchState & kHistFetchingOldFromServer))
+            {
+                //app has been receiving old history from server, but we are now
+                //about to receive new history (if any), so notify app about end of
+                //old history
+                CALL_LISTENER(onHistoryDone, kHistSourceServer);
+
+            }
+        }
     }
+
     mServerFetchState = kHistNotFetching;
     setOnlineState(kChatStateOffline);
 }
@@ -1121,9 +1137,6 @@ void Chat::requestHistoryFromServer(int32_t count)
 
 void Chat::requestNodeHistoryFromServer(uint32_t count)
 {
-    // the connection must be established, but might not be logged in yet (for a JOIN + HIST)
-    assert(mConnection.isOnline());
-
     // avoid to access websockets from app's thread --> marshall the request
     auto wptr = weakHandle();
     marshallCall([wptr, this, count]()
@@ -1131,7 +1144,7 @@ void Chat::requestNodeHistoryFromServer(uint32_t count)
         if (wptr.deleted())
             return;
 
-        if (!mConnection.isOnline())
+        if (!isLoggedIn())
         {
             mAttachmentNodes->finishFetchingFromServer();
             return;
@@ -4502,9 +4515,12 @@ HistSource FilteredHistory::getHistory(uint32_t count)
 
     if (!mHasAllHistory && mChat->isLoggedIn())
     {
-        mFetchingFromServer = true;
-        mChat->requestNodeHistoryFromServer(count);
-        mFirstNotification = false;
+        if (!mFetchingFromServer)
+        {
+            mFetchingFromServer = true;
+            mChat->requestNodeHistoryFromServer(count);
+            mFirstNotification = false;
+        }
         return HistSource::kHistSourceServer;
     }
 
