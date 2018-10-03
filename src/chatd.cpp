@@ -993,11 +993,7 @@ void Chat::onDisconnect()
     {
         FetchType fetchType = mFetchRequest.front();
         mFetchRequest.pop();
-        if (fetchType == kFetchNodeHistory)
-        {
-            mAttachmentNodes->finishFetchingFromServer();
-        }
-        else if (fetchType == FetchType::kFetchMessages)
+        if (fetchType == FetchType::kFetchMessages)
         {
             if (mServerOldHistCbEnabled && (mServerFetchState & kHistFetchingOldFromServer))
             {
@@ -1007,6 +1003,12 @@ void Chat::onDisconnect()
                 CALL_LISTENER(onHistoryDone, kHistSourceServer);
 
             }
+        }
+        else if (fetchType == kFetchNodeHistory)
+        {
+            mAttachNodeReceived = 0;
+            mAttachNodeRequestToServer = 0;
+            mAttachmentNodes->finishFetchingFromServer();
         }
     }
 
@@ -1135,11 +1137,11 @@ void Chat::requestHistoryFromServer(int32_t count)
     sendCommand(Command(OP_HIST) + mChatId + count);
 }
 
-void Chat::requestNodeHistoryFromServer(uint32_t count)
+void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
 {
     // avoid to access websockets from app's thread --> marshall the request
     auto wptr = weakHandle();
-    marshallCall([wptr, this, count]()
+    marshallCall([wptr, this, oldestMsgid, count]()
     {
         if (wptr.deleted())
             return;
@@ -1154,7 +1156,7 @@ void Chat::requestNodeHistoryFromServer(uint32_t count)
 
         mFetchRequest.push(FetchType::kFetchNodeHistory);
         mAttachNodeRequestToServer = count;
-        sendCommand(Command(OP_NODEHIST) + mChatId + mAttachmentNodes->getLastMessageId() + -count);
+        sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -count);
     }, mClient.karereClient->appCtx);
 }
 
@@ -1684,7 +1686,7 @@ void Chat::onHistDone()
         assert(mAttachNodeRequestToServer);
         if (mAttachNodeReceived < mAttachNodeRequestToServer)
         {
-            mAttachmentNodes->setHasAllHistory(true);
+            mAttachmentNodes->setHaveAllHistory(true);
         }
 
         mAttachNodeReceived = 0;
@@ -4415,8 +4417,8 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
             // I can receive an old message but we don't have to notify because it was not requested by the app
             if (mListener && (mFetchingFromServer || isLocal))
             {
-                CALL_LISTENER_FH(onLoaded, &(*mBuffer.back()), mOldest);
-                mOldestNotifyMsg = --mBuffer.end();
+                CALL_LISTENER_FH(onLoaded, mBuffer.back().get(), mOldest);
+                mNextMsgToNotify++;
             }
         }
     }
@@ -4491,19 +4493,21 @@ void FilteredHistory::clear()
 HistSource FilteredHistory::getHistory(uint32_t count)
 {
     // Get messages from RAM
-    if ((mOldestNotifyMsg != --mBuffer.end() && mBuffer.size() > 1) || mFirstNotification)
+    if (mNextMsgToNotify != mBuffer.end())
     {
-        mFirstNotification = false;
-        uint32_t messagesLoadedFromRam = 0;
-        for (auto it = mOldestNotifyMsg; (it != mBuffer.end()) && (messagesLoadedFromRam < count); it++)
+        uint32_t msgsLoadedFromRam = 0;
+        auto it = mNextMsgToNotify;
+        while ((it != mBuffer.end()) && (msgsLoadedFromRam < count))
         {
             Idx index = mNewest - std::distance(mBuffer.begin(), it);
-            CALL_LISTENER_FH(onLoaded,  &(*(*it)), index);
-            messagesLoadedFromRam++;
-            mOldestNotifyMsg = it;
+            CALL_LISTENER_FH(onLoaded,  it->get(), index);
+            msgsLoadedFromRam++;
+
+            it++;
+            mNextMsgToNotify = it;
         }
 
-        if (messagesLoadedFromRam)
+        if (msgsLoadedFromRam)
         {
             return HistSource::kHistSourceRam;
         }
@@ -4523,40 +4527,32 @@ HistSource FilteredHistory::getHistory(uint32_t count)
             {
                 addMessage(*messages[i], false, true);   // takes ownership of Message*
             }
-
-            mFirstNotification = false;
             return HistSource::kHistSourceDb;
         }
     }
 
     // Get messages from Server
-    if (!mHasAllHistory && mChat->isLoggedIn())
+    if (!mHaveAllHistory && mChat->isLoggedIn())
     {
         if (!mFetchingFromServer)
         {
             mFetchingFromServer = true;
-            mChat->requestNodeHistoryFromServer(count);
-            mFirstNotification = false;
+            Id oldestMsgid = mBuffer.empty() ? Id::inval() : mBuffer.back()->id();
+            mChat->requestNodeHistoryFromServer(oldestMsgid, count);
         }
         return HistSource::kHistSourceServer;
     }
 
     // No more messages in history, or not logged-in to load more messages from server
-    HistSource hist = mHasAllHistory ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
-    mFirstNotification = false;
+    HistSource hist = mHaveAllHistory ? HistSource::kHistSourceNone : HistSource::kHistSourceNotLoggedIn;
     CALL_LISTENER_FH(onLoaded, NULL, 0); // No more messages
 
     return hist;
 }
 
-void FilteredHistory::setHasAllHistory(bool hasAllHistory)
+void FilteredHistory::setHaveAllHistory(bool haveAllHistory)
 {
-    mHasAllHistory = hasAllHistory;
-}
-
-Id FilteredHistory::getLastMessageId() const
-{
-    return mBuffer.empty() ? Id::inval() : mBuffer.back()->id();
+    mHaveAllHistory = haveAllHistory;
 }
 
 void FilteredHistory::setHandler(FilteredHistoryHandler *listener)
@@ -4564,8 +4560,7 @@ void FilteredHistory::setHandler(FilteredHistoryHandler *listener)
     if (mListener)
         throw std::runtime_error("App node history handler is already set, remove it first");
 
-    mFirstNotification = true;
-    mOldestNotifyMsg = mBuffer.begin();
+    mNextMsgToNotify = mBuffer.begin();
     mListener = listener;
 }
 
@@ -4586,9 +4581,8 @@ void FilteredHistory::init()
     mNewest = -1;
     mOldest = 0;
     mOldestInDb = 0;
-    mOldestNotifyMsg = mBuffer.begin();
-    mFirstNotification = true;
-    mHasAllHistory = false;
+    mNextMsgToNotify = mBuffer.begin();
+    mHaveAllHistory = false;
 }
 
 } // end chatd namespace

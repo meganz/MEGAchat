@@ -531,9 +531,9 @@ public:
     void clear();
 
     HistSource getHistory(uint32_t count);
-    void setHasAllHistory(bool hasAllHistory);
+    void setHaveAllHistory(bool haveAllHistory);
 
-    karere::Id getLastMessageId() const;
+    karere::Id getOldestMsgId() const;
     void setHandler(FilteredHistoryHandler *listener);
     void unsetHandler();
     void finishFetchingFromServer();
@@ -552,12 +552,10 @@ protected:
     Idx mNewest;
     Idx mOldest;
     Idx mOldestInDb;
-    bool mFirstNotification;
 
-    std::list<std::unique_ptr<Message>>::iterator mOldestNotifyMsg;
+    std::list<std::unique_ptr<Message>>::iterator mNextMsgToNotify;
     void init();
-    int mInitialMessagesToLoad = 16;
-    bool mHasAllHistory = false;
+    bool mHaveAllHistory = false;
     bool mFetchingFromServer = false;
 };
 
@@ -1141,7 +1139,7 @@ public:
     void clearHistory();
     void sendSync();
     FetchType getFetchType() const;
-    void requestNodeHistoryFromServer(uint32_t count);
+    void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
     void setNodeHistoryHandler(FilteredHistoryHandler *listener);
     void unsetHandlerToNodeHistory();
     Idx attachmentNodesOldestIdx() const;
