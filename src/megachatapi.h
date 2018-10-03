@@ -1230,7 +1230,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
-        TYPE_PUSH_RECEIVED, TYPE_SET_PRESENCE_VISIBLE,
+        TYPE_PUSH_RECEIVED, TYPE_SET_LAST_SEEN_VISIBLE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1607,9 +1607,9 @@ public:
     virtual bool isSignalActivityRequired() const;
 
     /**
-     * @return True if our presence is visible to other users
+     * @return True if our last seen is visible to other users
      */
-    virtual bool isPresenceVisible() const;
+    virtual bool isLastSeenVisible() const;
 };
 
 /**
@@ -2089,7 +2089,7 @@ public:
      * @param enable
      * @param listener
      */
-    void setPresenceVisible(bool enable, MegaChatRequestListener *listener = NULL);
+    void setLastSeenVisible(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Signal there is some user activity

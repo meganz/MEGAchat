@@ -294,10 +294,10 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
-        case MegaChatRequest::TYPE_SET_PRESENCE_VISIBLE:
+        case MegaChatRequest::TYPE_SET_LAST_SEEN_VISIBLE:
         {
             bool enable = request->getFlag();
-            mClient->presenced().setVisible(enable);
+            mClient->presenced().setLastSeenVisible(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
@@ -1717,9 +1717,9 @@ void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
-void MegaChatApiImpl::setPresenceVisible(bool enable, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setLastSeenVisible(bool enable, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_VISIBLE, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LAST_SEEN_VISIBLE, listener);
     request->setFlag(enable);
     requestQueue.push(request);
     waiter->notify();
@@ -3813,7 +3813,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_SET_PRESENCE_VISIBLE: return "SET_PRESENCE_VISIBLE";
+        case TYPE_SET_LAST_SEEN_VISIBLE: return "SET_PRESENCE_VISIBLE";
     }
     return "UNKNOWN";
 }
@@ -6599,7 +6599,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const presenced::Co
     this->autoawayEnabled = config.autoawayActive();
     this->autoawayTimeout = config.autoawayTimeout();
     this->persistEnabled = config.persist();
-    this->presenceVisible = config.presenceVisible();
+    this->presenceVisible = config.lastSeenVisible();
     this->pending = isPending;
 }
 
@@ -6646,7 +6646,7 @@ bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
             && autoawayEnabled && autoawayTimeout);
 }
 
-bool MegaChatPresenceConfigPrivate::isPresenceVisible() const
+bool MegaChatPresenceConfigPrivate::isLastSeenVisible() const
 {
     return presenceVisible;
 }

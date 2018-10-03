@@ -106,7 +106,7 @@ std::string Config::toString() const
           .append(", persist: ").append(mPersist ? "1":"0")
           .append(", aaActive: ").append(mAutoawayActive ? "1":"0")
           .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
-          .append(", Presence visible: ").append(mPresenceIsVisible ? "1":"0");
+          .append(", Presence visible: ").append(mLastSeenVisible ? "1":"0");
     return result;
 }
 
@@ -130,11 +130,11 @@ bool Client::setPersist(bool enable)
     return sendPrefs();
 }
 
-bool Client::setVisible(bool enable)
+bool Client::setLastSeenVisible(bool enable)
 {
-    if (enable == mConfig.mPresenceIsVisible)
+    if (enable == mConfig.mLastSeenVisible)
         return true;
-    mConfig.mPresenceIsVisible = enable;
+    mConfig.mLastSeenVisible = enable;
     signalActivity(true);
     return sendPrefs();
 }
@@ -146,9 +146,9 @@ bool Client::setAutoaway(bool enable, time_t timeout)
         mConfig.mPersist = false;
     }
 
-    if (timeout > maxTimeOut)
+    if (timeout > maxAutoawayTimeout)
     {
-        timeout = maxTimeOut;
+        timeout = maxAutoawayTimeout;
     }
 
     mConfig.mAutoawayTimeout = timeout;
@@ -652,10 +652,10 @@ void Config::fromCode(uint16_t code)
     if (mAutoawayTimeout > 600)
         mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
 
-    mPresenceIsVisible = false;
-    if (code & Presence::presenceIsVisble)
+    mLastSeenVisible = false;
+    if (code & Presence::mLastSeenVisibleMask)
     {
-        mPresenceIsVisible = true;
+        mLastSeenVisible = true;
     }
 }
 
@@ -668,7 +668,7 @@ uint16_t Config::toCode() const
                ? (600+(mAutoawayTimeout-600)/60)
                : mAutoawayTimeout)
             << 4)
-          | (mPresenceIsVisible ? Presence::presenceIsVisble : 0);
+          | (mLastSeenVisible ? Presence::mLastSeenVisibleMask : 0);
 }
 
 Client::~Client()

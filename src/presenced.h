@@ -52,7 +52,7 @@ public:
     const char* toString() const { return toString(mPres); }
     bool canWebRtc() { return mPres & kClientCanWebrtc; }
     bool isMobile() { return mPres & kClientIsMobile; }
-    static const int presenceIsVisble = 0x800;
+    static const int mLastSeenVisibleMask = 0x8000;
 protected:
     Code mPres;
 };
@@ -205,18 +205,18 @@ protected:
     bool mPersist = false;
     bool mAutoawayActive = false;
     time_t mAutoawayTimeout = 0;
-    bool mPresenceIsVisible = false;
+    bool mLastSeenVisible = false;
 public:
     Config(karere::Presence pres=karere::Presence::kInvalid,
-          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool presenceIsVisible = false)
+          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool lastSeenVisible = false)
         : mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
-          mAutoawayTimeout(aaTimeout), mPresenceIsVisible(presenceIsVisible){}
+          mAutoawayTimeout(aaTimeout), mLastSeenVisible(lastSeenVisible){}
     explicit Config(uint16_t code) { fromCode(code); }
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
     bool autoawayActive() const { return mAutoawayActive; }
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
-    bool presenceVisible() const { return mPresenceIsVisible;}
+    bool lastSeenVisible() const { return mLastSeenVisible;}
     void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;
@@ -299,7 +299,7 @@ protected:
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
     const unsigned int snSize = 8;
-    const unsigned int maxTimeOut = 0x7FF;
+    const unsigned int maxAutoawayTimeout = 0x7FF;
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
@@ -332,7 +332,7 @@ public:
     bool isOnline() const { return (mConnState >= kConnected); }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
-    bool setVisible(bool enable);
+    bool setLastSeenVisible(bool enable);
 
 
     /** @brief Enables or disables autoaway

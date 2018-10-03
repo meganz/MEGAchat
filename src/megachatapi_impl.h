@@ -144,7 +144,7 @@ public:
     virtual bool isPersist() const;
     virtual bool isPending() const;
     virtual bool isSignalActivityRequired() const;
-    virtual bool isPresenceVisible() const;
+    virtual bool isLastSeenVisible() const;
 
 private:
     int status;
@@ -931,7 +931,7 @@ public:
     void setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener = NULL);
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
     void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
-    void setPresenceVisible(bool enable, MegaChatRequestListener *listener = NULL);
+    void setLastSeenVisible(bool enable, MegaChatRequestListener *listener = NULL);
     MegaChatPresenceConfig *getPresenceConfig();
     bool isSignalActivityRequired();
 
