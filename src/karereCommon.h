@@ -151,7 +151,7 @@ enum: uint8_t
     /** Client is a mobile application */
     kClientIsMobile = 0x40,
     /** Client use bit 15 from preferences to set presence visibility */
-    kClientUseBit15 = 0x08
+    kClientUseBit15 = 0x10
 };
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
