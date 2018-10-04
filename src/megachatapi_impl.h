@@ -152,7 +152,7 @@ private:
     bool autoawayEnabled;
     int64_t autoawayTimeout;
     bool pending;
-    bool presenceVisible;
+    bool lastSeenVisible;
 };
 
 

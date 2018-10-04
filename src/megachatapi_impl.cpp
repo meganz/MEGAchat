@@ -3813,7 +3813,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_SET_LAST_SEEN_VISIBLE: return "SET_PRESENCE_VISIBLE";
+        case TYPE_SET_LAST_SEEN_VISIBLE: return "SET_LAST_SEEN_VISIBLE";
     }
     return "UNKNOWN";
 }
@@ -6599,7 +6599,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const presenced::Co
     this->autoawayEnabled = config.autoawayActive();
     this->autoawayTimeout = config.autoawayTimeout();
     this->persistEnabled = config.persist();
-    this->presenceVisible = config.lastSeenVisible();
+    this->lastSeenVisible = config.lastSeenVisible();
     this->pending = isPending;
 }
 
@@ -6648,7 +6648,7 @@ bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
 
 bool MegaChatPresenceConfigPrivate::isLastSeenVisible() const
 {
-    return presenceVisible;
+    return lastSeenVisible;
 }
 
 MegaChatAttachedUser::MegaChatAttachedUser(MegaChatHandle contactId, const std::string &email, const std::string& name)

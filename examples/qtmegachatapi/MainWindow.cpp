@@ -355,8 +355,8 @@ void MainWindow::on_bSettings_clicked()
 
     menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    auto actPresenceVisible = menu.addAction(presenceConfig->isLastSeenVisible() ? "Set Last Seen Visible" : "Unset Last Seen Visible");
-    //connect(actPresenceVisible, SIGNAL(triggered()), this, SLOT(onPresenceVisibleClicked()));
+    auto actLastSeenVisible = menu.addAction(presenceConfig->isLastSeenVisible() ? "Set Last Seen Visible" : "Unset Last Seen Visible");
+    //connect(actPresenceVisible, SIGNAL(triggered()), this, SLOT(onLastSeenVisibleClicked()));
     // TODO: connect to slot once 'Last Seen' functionality will be released
     delete presenceConfig;
 
@@ -902,7 +902,7 @@ void MainWindow::on_mLogout_clicked()
     }
 }
 
-void MainWindow::onPresenceVisibleClicked()
+void MainWindow::onLastSeenVisibleClicked()
 {
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     mMegaChatApi->setLastSeenVisible(!presenceConfig->isLastSeenVisible());

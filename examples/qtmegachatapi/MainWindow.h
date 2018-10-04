@@ -133,7 +133,7 @@ class MainWindow :
         void onTwoFactorDisable();
         void onTwoFactorCheck(bool);
         void on_mLogout_clicked();
-        void onPresenceVisibleClicked();
+        void onLastSeenVisibleClicked();
 
     signals:
         void esidLogout();
