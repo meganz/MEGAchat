@@ -1637,7 +1637,7 @@ ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
     auto msg = new Message(Id::null(), Id::null(), 0, 0, std::move(copy));
     auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
     return decryptChatTitle(parsedMsg, msg, false)
-    .then([wptr, this](Message *retMsg)
+    .then([wptr, this, parsedMsg](Message *retMsg)
     //We need to capture the message in order to keep it alive until the promise has been resolved
     {
         wptr.throwIfDeleted();
