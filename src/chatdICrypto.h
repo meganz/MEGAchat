@@ -129,7 +129,7 @@ public:
     virtual void randomBytes(void* buf, size_t bufsize) const = 0;
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    encryptChatTitle(const std::string& data, uint64_t extraUser=0) = 0;
+    encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false) = 0;
 
     virtual promise::Promise<chatd::KeyCommand*>
     encryptUnifiedKeyForAllParticipants(uint64_t extraUser=0) = 0;

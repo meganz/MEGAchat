@@ -437,7 +437,7 @@ public:
     virtual void resetSendKey();
     virtual bool handleLegacyKeys(chatd::Message& msg);
     virtual void randomBytes(void* buf, size_t bufsize) const;
-    virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser=0);
+    virtual promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false);
     virtual promise::Promise<chatd::KeyCommand*> encryptUnifiedKeyForAllParticipants(uint64_t extraUser = 0);
 
     virtual promise::Promise<std::string> decryptChatTitleFromApi(const Buffer& data);
