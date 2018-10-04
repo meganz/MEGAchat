@@ -2080,14 +2080,14 @@ public:
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Enable/disable if our presence is visible
+     * @brief Enable/disable if our last seen is visible
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_VISIBLE
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_LAST_SEEN_VISIBLE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag() - Returns true if presence is visible or not.
      *
-     * @param enable
-     * @param listener
+     * @param enable True to enable if our last seen is visible
+     * @param listener MegaChatRequestListener to track this request
      */
     void setLastSeenVisible(bool enable, MegaChatRequestListener *listener = NULL);
 
