@@ -275,6 +275,12 @@ void MegaChatApiImpl::sendPendingRequests()
             int64_t timeout = request->getNumber();
             bool enable = request->getFlag();
 
+            if (timeout > karere::Presence::kMaxAutoawayTimeout)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             mClient->presenced().setAutoaway(enable, timeout);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1269,7 +1275,7 @@ int MegaChatApiImpl::init(const char *sid)
 #ifndef KARERE_DISABLE_WEBRTC
         uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc;  // | kClientSupportLastSeen;
 #else
-        uint8_t caps = karere::kClientIsMobile;
+        uint8_t caps = karere::kClientIsMobile;  // | kClientSupportLastSeen;
 #endif
 
         mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);

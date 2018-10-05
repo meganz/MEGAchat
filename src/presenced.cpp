@@ -145,12 +145,8 @@ bool Client::setAutoaway(bool enable, time_t timeout)
         mConfig.mPersist = false;
     }
 
-    if (timeout > maxAutoawayTimeout)
-    {
-        timeout = maxAutoawayTimeout;
-    }
-
-    mConfig.mAutoawayTimeout = timeout;
+    mConfig.mAutoawayTimeout = (timeout < Presence::kMaxAutoawayTimeout)
+            ? timeout : (time_t) Presence::kMaxAutoawayTimeout;
     mConfig.mAutoawayActive = enable;
     signalActivity(true);
     return sendPrefs();
