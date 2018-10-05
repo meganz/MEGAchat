@@ -150,8 +150,8 @@ enum: uint8_t
     kClientCanWebrtc = 0x80,
     /** Client is a mobile application */
     kClientIsMobile = 0x40,
-    /** Client use bit 15 from preferences to set presence visibility */
-    kClientUseBit15 = 0x20
+    /** Client can use bit 15 from preferences to set last-seen visibility */
+    kClientSupportLastSeen = 0x20
 };
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql

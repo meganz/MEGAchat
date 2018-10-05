@@ -609,8 +609,7 @@ void Command::toString(char* buf, size_t bufsize) const
 
 void Client::login()
 {
-    uint8_t capabilities = mCapabilities | kClientUseBit15;
-    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion + capabilities);
+    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion + mCapabilities);
 
     if (mPrefsAckWait)
     {
