@@ -34,7 +34,7 @@ static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 
 static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
-static const unsigned int NUM_ACCOUNTS = 2;
+static const unsigned int NUM_ACCOUNTS = 3;
 
 class ChatTestException : public std::exception
 {
@@ -168,6 +168,10 @@ public:
 
     // Specific test environment initialization for each test
     void SetUp();
+
+    // Specific test environment initialization for anonymous mode test
+    void AnonymousSetUp();
+
     // Specific test environment clear up for each test
     void TearDown();
 
@@ -203,6 +207,7 @@ public:
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
+    void TEST_AnonymousMode();
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -254,6 +259,7 @@ private:
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
     Account mAccounts[NUM_ACCOUNTS];
+    std::string mChatlink;
 
     mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];

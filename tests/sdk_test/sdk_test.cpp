@@ -26,34 +26,34 @@ int main(int argc, char **argv)
 {
     remove("test.log");
 
-//    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
     MegaChatApiTest t;
     t.init();
 
-//    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
-//    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
-//    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
-//    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
-//    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
-//    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+    EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
+    EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
+    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
+    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
+    EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
+    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+    EXECUTE_TEST(t.TEST_AnonymousMode(), "TEST anonymous mode");
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
-//    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
-//    EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
-//    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
-//    EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
-//    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
-//    EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
-//    EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
+    EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
+    EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
+    EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
+    EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
+    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
+    EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
+    EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
 
-//#ifndef KARERE_DISABLE_WEBRTC
-//    EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
-//#endif
+#ifndef KARERE_DISABLE_WEBRTC
+    EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
+#endif
 
     // The test below is a manual test. It requires call will be answered from webClient or similar
-    //EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
+    EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
 
     // The test below is a manual test. It requires to stop the intenet conection
-//    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
+    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
 
     t.terminate();
 
@@ -197,10 +197,10 @@ void MegaChatApiTest::init()
     MegaApi::addLoggerObject(logger);
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger);
-    MegaChatApi::setLogToConsole(true);
+    MegaChatApi::setLogToConsole(false);
     MegaChatApi::setCatchException(false);
 
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (int i = 0; i < NUM_ACCOUNTS - 1; i++)
     {
         // get credentials from environment variables
         std::string varName = "MEGA_EMAIL";
@@ -228,6 +228,18 @@ void MegaChatApiTest::init()
         if (!pwd.length())
         {
             cout << "TEST - Set your password at the environment variable $" << varName << endl;
+            exit(-1);
+        }
+
+        varName.assign("CHATLINK");
+        buf = getenv(varName.c_str());
+        if (buf)
+        {
+            mChatlink.assign(buf);
+        }
+        if (!mChatlink.length())
+        {
+            cout << "TEST - Set a valid chatlink at the environment variable $" << varName << endl;
             exit(-1);
         }
 
@@ -406,7 +418,7 @@ void MegaChatApiTest::TearDown()
 
 void MegaChatApiTest::logoutAccounts(bool closeSession)
 {
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (int i = 0; i < NUM_ACCOUNTS -1; i++)
     {
         if (megaApi[i]->isLoggedIn())
         {
@@ -2860,6 +2872,18 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
 }
 
 #endif
+
+void MegaChatApiTest::TEST_AnonymousMode()
+{
+    int index = 0;
+    bool *flagAttrReceived = &requestFlags[2][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttrReceived = false;
+    int initState = megaChatApi[2]->initAnonymous(mChatlink.c_str());
+    ASSERT_CHAT_TEST(waitForResponse(flagAttrReceived), "Timeout expired init in anonymous mode");
+
+    bool *flagLoadChatLink = &requestFlagsChat[index][MegaChatRequest::TYPE_LOAD_CHAT_LINK]; *flagLoadChatLink = false;
+    megaChatApi[index]->loadChatLink(mChatlink.c_str(), this);
+    ASSERT_CHAT_TEST(waitForResponse(flagLoadChatLink), "Timeout expired for load chat link");
+}
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
