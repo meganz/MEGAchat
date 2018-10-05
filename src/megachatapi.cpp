@@ -488,6 +488,11 @@ void MegaChatApi::loadChatLink(const char *link,MegaChatRequestListener *listene
     pImpl->loadChatLink(link, listener);
 }
 
+void MegaChatApi::checkChatLink(const char *link, MegaChatRequestListener *listener)
+{
+    pImpl->checkChatLink(link, listener);
+}
+
 void MegaChatApi::closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->closeChatLink(chatid, listener);

@@ -632,32 +632,58 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
         case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
         {
             MegaChatHandle chatid = request->getChatHandle();
+            bool checkChatLink = !request->getFlag();
 
-            if (e->getErrorCode() == MegaChatError::ERROR_OK)
+            //Check chat link
+            if (checkChatLink)
             {
-                MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-                mMainWin->activeControls(mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS);
-                mMainWin->addOrUpdateLocalChatListItem(chatListItem);
-                mMainWin->orderContactChatList();
+                int numPeers = request->getNumber();
+                const char *title = request->getText();
+                const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
+
+                QString line = QString("You're checking a link: \n Chatid: %1 \n Title: %2 \n Participants: %3")
+                        .arg(QString::fromStdString(chatHandle_64))
+                        .arg(QString(title))
+                        .arg(QString::fromStdString(std::to_string(numPeers)));
+
+                QMessageBox::information(nullptr,"CHECK LINK",line);
+                delete chatHandle_64;
             }
-            else
+            else //Load chat link
             {
-                if (e->getErrorCode() == MegaChatError::ERROR_ACCESS)
+                if (e->getErrorCode() == MegaChatError::ERROR_OK)
                 {
-                    QMessageBox msgBox;
-                    msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
-                    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-                    msgBox.setDefaultButton(QMessageBox::Cancel);
-                    int ret = msgBox.exec();
-                    if (ret == QMessageBox::Ok)
-                    {
-                        MegaChatHandle ph = request->getUserHandle();
-                        this->mMegaChatApi->rejoinChatLink(chatid, ph);
-                    }
+                    MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                    mMainWin->activeControls(mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS);
+                    mMainWin->addOrUpdateLocalChatListItem(chatListItem);
+                    mMainWin->orderContactChatList();
+                    delete chatListItem;
                 }
                 else
                 {
-                    QMessageBox::critical(nullptr, tr("Export chat link"), e->getErrorString());
+                    MegaChatRoom *room = mMegaChatApi->getChatRoom(chatid);
+                    if (room->isPreview())
+                    {
+                        QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to open a chat in preview mode twice"));
+                    }
+                    else if(room->isActive())
+                    {
+                        QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to preview a chat wich you are currently part of"));
+                    }
+                    else //Rejoin
+                    {
+                        QMessageBox msgBox;
+                        msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
+                        msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                        msgBox.setDefaultButton(QMessageBox::Cancel);
+                        int ret = msgBox.exec();
+                        if (ret == QMessageBox::Ok)
+                        {
+                            MegaChatHandle ph = request->getUserHandle();
+                            this->mMegaChatApi->rejoinChatLink(chatid, ph);
+                        }
+                    }
+                    delete room;
                 }
             }
             break;
@@ -693,7 +719,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     mMainWin->updateLocalChatListItems();
                     mMainWin->orderContactChatList();
                 }
-                QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
+                if (request->getUserHandle() == megachat::MEGACHAT_INVALID_HANDLE)
+                {
+                    QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
+                }
+                else
+                {
+                    QMessageBox::warning(nullptr, tr("Rejoin chat link"), tr("You have rejoined successfully"));
+                }
             }
             else
             {

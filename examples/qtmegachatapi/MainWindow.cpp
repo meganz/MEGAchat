@@ -362,7 +362,10 @@ void MainWindow::on_bSettings_clicked()
 
     menu.addSeparator();
     auto actLoadLink = menu.addAction(tr("Preview chat-link"));
-    connect(actLoadLink, SIGNAL(triggered()), this, SLOT(loadChatLink()));
+    connect(actLoadLink,  &QAction::triggered, this, [this] {loadChatLink(true);});
+
+    auto actCheckLink = menu.addAction(tr("Check chat-link"));
+    connect(actCheckLink,  &QAction::triggered, this, [this] {loadChatLink(false);});
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -674,7 +677,7 @@ void MainWindow::onWebRTCsetting()
 #endif
 }
 
-void MainWindow::loadChatLink()
+void MainWindow::loadChatLink(bool create)
 {
     std::string chatLink;
     QString qChatLink = QInputDialog::getText(this, tr("Load chat link"), tr("Enter a valid chatlink"));
@@ -686,7 +689,9 @@ void MainWindow::loadChatLink()
             QMessageBox::warning(this, tr("Load chat link"), tr("You can't enter an empty chatlink"));
             return;
         }
-        mMegaChatApi->loadChatLink(chatLink.c_str());
+       create
+        ?mMegaChatApi->loadChatLink(chatLink.c_str())
+        :mMegaChatApi->checkChatLink(chatLink.c_str());
     }
 }
 

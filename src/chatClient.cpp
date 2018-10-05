@@ -362,51 +362,63 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 }
 
 
-promise::Promise<uint64_t> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
+promise::Promise<ReqResult> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
 {
     auto wptr = weakHandle();
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
-    .then([this, unifiedKey, wptr](ReqResult result) -> promise::Promise<uint64_t>
+    .then([this, unifiedKey, wptr](ReqResult result) -> promise::Promise<ReqResult>
     {
-        if (wptr.deleted())
-            return Id::inval().val;
-
-        Id chatId = result->getParentHandle();
-        auto it = chats->find(chatId);
-        if (it != chats->end())
-        {
-            if (!it->second->isActive())
-            {
-                return chatId.val;
-            }
-            else
-            {
-                return promise::Error("This chatroom already exists in your account", kErrorAlreadyExists, kErrorAlreadyExists);
-            }
-        }
-
-        Id ph = result->getNodeHandle();
-        int shard = result->getAccess();
-        int numPeers = result->getNumDetails();
-
-        std::string title = result->getText() ? result->getText() : "";
-        if (title.empty())
-        {
-            KR_LOG_WARNING("Chat title is empty for chatid: %s", ID_CSTR(chatId));
-        }
-
-        std::string url = result->getLink() ? result->getLink() : "";
-        if (url.empty())
-        {
-            return promise::Error("Chatlink Url returned for chatid "+chatId.toString()+" is not valid. ", kErrorTypeGeneric);
-        }
-
-        GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, title, ph, unifiedKey, numPeers, url);
-        chats->emplace(chatId, room);
-        room->connect(url.c_str());
-        return chatId.val;
+        wptr.throwIfDeleted();
+        return result;
     });
+}
+
+void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url)
+{
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, 0, false, decryptedTitle, ph, unifiedKey, numPeers, url);
+    chats->emplace(chatId, room);
+    room->connect(url.c_str());
+}
+
+promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
+{
+    auto wptr = weakHandle();
+
+    std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
+    Buffer buf(encTitle.size());
+
+    try
+    {
+        size_t decLen = base64urldecode(encTitle.c_str(), encTitle.size(), buf.buf(), buf.bufSize());
+        buf.setDataSize(decLen);
+
+        //Create temporary strongvelope instance to decrypt chat title
+        strongvelope::ProtocolHandler *auxCrypto = newStrongvelope(chatId, unifiedKey, false, Id::inval());
+
+        auto wptr = getDelTracker();
+        promise::Promise<std::string> pms = auxCrypto->decryptChatTitleFromApi(buf);
+        return pms.then([wptr, this, chatId, auxCrypto](const std::string title)
+        {
+            wptr.throwIfDeleted();
+            delete auxCrypto;
+            return title;
+        })
+        .fail([wptr, this, chatId, auxCrypto](const promise::Error& err)
+        {
+            wptr.throwIfDeleted();
+            KR_LOG_ERROR("Error decrypting chat title for chat link preview %s:\n%s\.", ID_CSTR(chatId), err.what());
+            delete auxCrypto;
+            return err;
+        });
+    }
+    catch(std::exception& e)
+    {
+        std::string err("Failed to base64-decode chat title for chat ");
+        err.append(ID_CSTR(chatId)).append(": ");
+        KR_LOG_ERROR("%s", err.c_str());
+        return promise::Error(err);
+    }
 }
 
 promise::Promise<void> Client::closeChatLink(karere::Id chatid)
@@ -1929,23 +1941,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         "own_priv, ts_created) values(?,?,-1,0,?,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs);
 
-    bool hasCustomTitle = (!title.empty() && title.at(0));
-    if (hasCustomTitle)
-    {
-        mEncryptedTitle = title;
-        mHasTitle = true;
-
-        decryptTitle()
-        .fail([this](const promise::Error& err)
-        {
-            KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom constructor called in Client::loadChatLink. Error: %s", err.what());
-            clearTitle();
-        });
-    }
-    else
-    {
-        clearTitle();
-    }
+    KR_LOG_DEBUG("Title update in cache");
+    mTitleString = title;
+    mHasTitle = true;
+    parent.mKarereClient.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+    notifyTitleChanged();
 
     mRoomGui = addAppItem();
     mIsInitializing = false;

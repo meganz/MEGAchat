@@ -136,7 +136,7 @@ class MainWindow :
         void onPrintMyInfo();
         void onWebRTCsetting();
         void setOnlineStatus();
-        void loadChatLink();
+        void loadChatLink(bool create);
         void twoFactorCheck();
         void twoFactorEnable();
         void twoFactorDisable();

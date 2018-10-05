@@ -778,43 +778,77 @@ void MegaChatApiImpl::sendPendingRequests()
             Base64::atob(phstr.data(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
 
             //Parse unified key (Last 16 Bytes)
-            string key; // it's 16 bytes in binary, 22 in B64url
+            string unifiedKey; // it's 16 bytes in binary, 22 in B64url
             string keystr = parsedLink.substr(pos + 1);
-            Base64::atob(keystr, key);
+            Base64::atob(keystr, unifiedKey);
 
             //Check that ph and uk have right size
-            if (ISUNDEF(ph) || key.size() != 16)
+            if (ISUNDEF(ph) || unifiedKey.size() != 16)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            mClient->loadChatLink(ph, key)
-            .then([request, this, ph](uint64_t chatid)
+            mClient->loadChatLink(ph, unifiedKey)
+            .then([request, this, unifiedKey](ReqResult result)
             {
-                GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatid);
-                assert(room);
+                assert(result);
 
-                request->setChatHandle(chatid);
-                request->setText(room->titleString().c_str());
-                request->setNumber(room->getNumPeers());
-                request->setUserHandle(ph);
+                std::string encTitle = result->getText() ? result->getText() : "";
+                assert(!encTitle.empty());
 
-                MegaChatErrorPrivate *megaChatError;
+                uint64_t chatId = result->getParentHandle();
 
-                if (!room->isActive())  // a public chat already left cannot be previewed: join it directly.
+                mClient->decryptChatTitle(chatId, unifiedKey, encTitle)
+                .then([request, this, unifiedKey, result, chatId](std::string decryptedTitle)
                 {
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-                }
-                else
-                {
-                    megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                }
+                   bool createChat = request->getFlag();
+                   int numPeers = result->getNumDetails();
+                   request->setChatHandle(chatId);
+                   request->setNumber(numPeers);
+                   request->setText(decryptedTitle.c_str());
 
-                fireOnChatRequestFinish(request, megaChatError);
+                   //Check chat link
+                   if (!createChat)
+                   {
+                       MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                       fireOnChatRequestFinish(request, megaChatError);
+                   }
+                   else //Load chat link
+                   {
+                       Id ph = result->getNodeHandle();
+                       request->setUserHandle(ph.val);
+
+                       GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatId);
+                       if (room)
+                       {
+                           MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
+                           fireOnChatRequestFinish(request, megaChatError);
+                       }
+                       else
+                       {
+                           std::string url = result->getLink() ? result->getLink() : "";
+                           int shard = result->getAccess();
+                           std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
+
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, numPeers, decryptedTitle, key, url);
+                           MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                           fireOnChatRequestFinish(request, megaChatError);
+                       }
+                   }
+                })
+                .fail([request, this](const promise::Error& err)
+                {
+                    API_LOG_ERROR("Error decrypting chat title: %s", err.what());
+
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
             })
             .fail([request, this](const promise::Error& err)
             {
+                API_LOG_ERROR("Error loading chat link: %s", err.what());
+
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
@@ -2624,6 +2658,16 @@ void MegaChatApiImpl::loadChatLink(const char *link, MegaChatRequestListener *li
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
     request->setLink(link);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::checkChatLink(const char *link, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
+    request->setLink(link);
+    request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }

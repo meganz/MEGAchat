@@ -2714,6 +2714,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns invalid handle to identify that is an autojoin
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
@@ -2736,7 +2737,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat
+     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat to identify that
+     * is a rejoin
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
@@ -2887,8 +2889,10 @@ public:
      * @brief Allows any user to preview a public chat without being a participant
      *
      * This function loads the required data to preview a public chat referenced by a
-     * chat-link. It returns the actual \c chatid, the number of peers and also the title,
-     * if any. If this request success, the caller can proceed as usual with
+     * chat-link. It returns the actual \c chatid, the public handle, the number of peers
+     * and also the title.
+     *
+     * If this request success, the caller can proceed as usual with
      * \c MegaChatApi::openChatRoom to preview the chatroom in read-only mode, followed by
      * a MegaChatApi::closeChatRoom as usual.
      *
@@ -2906,17 +2910,20 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
-     * - MegaChatError::ERROR_EXIST - If the user already participates in the chat.
-     * - MegaChatError::ERROR_ACCESS If the user is trying to preview a public chat which he
-     * was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
-     * to the chat again. Note that you won't be able to preview a public chat any more, once
-     * you have been part of the chat.
+     * - MegaChatError::ERROR_EXIST - If the chatroom already exists:
+     *      + If the chatroom is in preview mode the user is trying to preview a public chat twice
+     *      + If the chatroom is not in preview mode but is active, the user is trying to preview a
+     *      chat which he is part of.
+     *      + If the chatroom is not in preview mode but is inactive, the user is trying to preview a
+     *      chat which he was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
+     *      to autojoin the chat again. Note that you won't be able to preview a public chat any more, once
+     *      you have been part of the chat.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     * is MegaError::ERROR_OK or MegaError::ERROR_EXIST:
      * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
@@ -2926,6 +2933,30 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Allows any user to obtain basic information abouts a public chat if
+     * a valid public handle exists.
+     *
+     * This function returns the actual \c chatid, the number of peers and also the title.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getLink - Returns the chat link.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
+     * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
+     * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     *
+     * @param link Null-terminated character string with the public chat link
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void checkChatLink(const char *link, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Set the chat mode to private

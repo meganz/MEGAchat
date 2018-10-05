@@ -993,6 +993,7 @@ public:
     void truncateChat(MegaChatHandle chatid, MegaChatHandle messageid, MegaChatRequestListener *listener = NULL);
     void setChatTitle(MegaChatHandle chatid, const char *title, MegaChatRequestListener *listener = NULL);
     void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+    void checkChatLink(const char *link, MegaChatRequestListener *listener = NULL);
     void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener = NULL);

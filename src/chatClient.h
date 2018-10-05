@@ -776,10 +776,26 @@ public:
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
-    /** @brief This function returns an url to connect to a public chat in preview mode
-     * @return The chatid associated to the public handle
+    /**
+     * @brief This function returns basic information about a public chat, to be able to open it in preview mode.
+     * The information returned by this function includes: the chatid, the connection url, the encrypted title,
+     * and the number of participants.
+     *
+     * @return The chatid, the connection url, the encrypted title, and the number of participants.
      */
-    promise::Promise<uint64_t> loadChatLink(uint64_t publicHandle, const std::string &key);
+    promise::Promise<ReqResult> loadChatLink(uint64_t publicHandle, const std::string &key);
+
+    /**
+     * @brief This function allows to create a public chat room. This function should be called after call loadChatLink with createChat flag set to true
+     * to avoid that loadChatLink creates the chat room
+     */
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url);
+
+    /**
+     * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
+     * @return The decrypted title of the chat
+     */
+    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle);
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */
