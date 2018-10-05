@@ -360,11 +360,7 @@ void MainWindow::on_bSettings_clicked()
         connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
     }
 
-    menu.addSeparator();
-    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
-    connect(actLoadLink,  &QAction::triggered, this, [this] {loadChatLink(true);});
-
-    auto actCheckLink = menu.addAction(tr("Check chat-link"));
+    auto actCheckLink = menu.addAction(tr("Preview chat-link"));
     connect(actCheckLink,  &QAction::triggered, this, [this] {loadChatLink(false);});
 
     QPoint pos = ui->bSettings->pos();

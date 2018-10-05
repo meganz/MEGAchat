@@ -641,12 +641,23 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 const char *title = request->getText();
                 const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
 
-                QString line = QString("You're checking a link: \n Chatid: %1 \n Title: %2 \n Participants: %3")
+                QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
+                        .arg(QString::fromStdString(request->getLink()))
                         .arg(QString::fromStdString(chatHandle_64))
                         .arg(QString(title))
                         .arg(QString::fromStdString(std::to_string(numPeers)));
 
-                QMessageBox::information(nullptr,"CHECK LINK",line);
+                QMessageBox msgBox;
+                msgBox.setWindowTitle("CHECK LINK");
+                msgBox.setText(line);
+                msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                msgBox.setDefaultButton(QMessageBox::Cancel);
+                int ret = msgBox.exec();
+                if (ret == QMessageBox::Ok)
+                {
+                    this->mMegaChatApi->loadChatLink(request->getLink());
+                }
+
                 delete chatHandle_64;
             }
             else //Load chat link
