@@ -53,6 +53,7 @@ public:
     bool canWebRtc() { return mPres & kClientCanWebrtc; }
     bool isMobile() { return mPres & kClientIsMobile; }
     static const int mLastSeenVisibleMask = 0x8000;
+    enum { kMaxAutoawayTimeout = 1497  };  // (in seconds)
 protected:
     Code mPres;
 };
@@ -182,7 +183,7 @@ enum: uint8_t
       * (re-)established. This command is sent after OP_HELLO and every time the user wants
       * to subscribe to the status of a new peer or contact.
       *
-      * <sn><numberOfPeers> <peerHandle1>...<peerHandleN>
+      * <sn.8> <numberOfPeers.4> <peerHandle1.8>...<peerHandleN.8>
       */
     OP_SNADDPEERS = 8,
 
@@ -193,7 +194,7 @@ enum: uint8_t
      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
      * in any groupchat any longer.
      *
-     * <sn><1> <peerHandle>
+     * <sn.8> <1.4> <peerHandle.8>
      */
     OP_SNDELPEERS = 9
 };
@@ -298,8 +299,6 @@ protected:
     time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
-    const unsigned int snSize = 8;
-    const unsigned int maxAutoawayTimeout = 0x7FF;
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();

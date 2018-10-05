@@ -1,6 +1,5 @@
 #include "presenced.h"
 #include "chatClient.h"
-#include <mega/base64.h>
 
 using namespace std;
 using namespace promise;
@@ -348,23 +347,19 @@ bool Client::sendKeepalive(time_t now)
 void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
 {
     assert(peers.size());
-    char *scsn = mApi->sdk.getSequenceNumber();
-    byte scsnBase64[snSize];
-    mega::Base64::atob(scsn, scsnBase64, snSize);
-    delete scsn;
-    scsn = NULL;
-    Command cmd(addOrRemove ? OP_SNADDPEERS : OP_SNDELPEERS, snSize * 8 + 4 + 8 * peers.size());
-    cmd.append(scsnBase64, snSize);
-    cmd.append<uint32_t>(peers.size());
-    for (unsigned int i = 0; i < peers.size(); i++)
+    Id scsn(mApi->sdk.getSequenceNumber());
+    size_t numPeers = peers.size();
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
+
+    Command cmd(addOrRemove ? OP_SNADDPEERS : OP_SNDELPEERS, totalSize);
+    cmd.append<uint64_t>(scsn.val);
+    cmd.append<uint32_t>(numPeers);
+    for (unsigned int i = 0; i < numPeers; i++)
     {
         cmd.append<uint64_t>(peers[i].val);
     }
 
-    if (cmd.dataSize() > 1)
-    {
-        sendCommand(std::move(cmd));
-    }
+    sendCommand(std::move(cmd));
 }
 
 void Client::heartbeat()
@@ -809,7 +804,6 @@ void Client::addPeer(karere::Id peer)
     {
         std::vector<karere::Id> peers;
         peers.push_back(peer);
-
         updatePeers(peers, true);
     }
 }
@@ -841,6 +835,5 @@ void Client::removePeer(karere::Id peer, bool force)
     std::vector<karere::Id> peers;
     peers.push_back(peer);
     updatePeers(peers, false);
-
 }
 }
