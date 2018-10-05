@@ -427,7 +427,8 @@ promise::Promise<void> Client::closeChatLink(karere::Id chatid)
     promise::Promise<std::shared_ptr<Buffer>> pms;
     if (room->hasTitle())
     {
-        pms = room->chat().crypto()->encryptChatTitle(room->titleString());
+        // encrypt chat-topic as in private mode, for same users (0), but creating a random key instead of using unified-key (true)
+        pms = room->chat().crypto()->encryptChatTitle(room->titleString(), 0, true);
     }
     else
     {

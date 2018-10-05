@@ -1538,19 +1538,19 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
+ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, bool encryptAsPrivate)
 {
     promise::Promise<std::shared_ptr<SendKey>> pms;
-    if (mChatMode == CHAT_MODE_PUBLIC)
-    {
-        pms = mUnifiedKeyDecrypted;
-    }
-    else
+    if (mChatMode == CHAT_MODE_PRIVATE || encryptAsPrivate)
     {
         std::shared_ptr<SendKey> key;
         key = std::make_shared<SendKey>();
         randombytes_buf(key->buf(), key->bufSize());
         pms.resolve(key);
+    }
+    else
+    {
+        pms = mUnifiedKeyDecrypted;
     }
 
     SetOfIds participants = *mParticipants;
