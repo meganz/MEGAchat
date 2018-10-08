@@ -85,7 +85,7 @@ protected:
 public:
     virtual bool previewMode() const { return false; }
     virtual bool publicChat() const { return false; }
-    virtual unsigned int getNumPreviewers() const {return 0;}
+    virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     /** @endcond PRIVATE */
@@ -98,7 +98,7 @@ public:
       * This method will return false for PeerChatRoom, only GroupChatRoom are
       * capable to have a custom title.
       */
-    virtual bool hasTitle() const { return mHasTitle;}
+    virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
     virtual void connect(const char *url = NULL) = 0;

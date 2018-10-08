@@ -648,7 +648,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         .arg(QString::fromStdString(std::to_string(numPeers)));
 
                 QMessageBox msgBox;
-                msgBox.setWindowTitle("CHECK LINK");
+                msgBox.setWindowTitle("Check chat link");
                 msgBox.setText(line);
                 msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
                 msgBox.setDefaultButton(QMessageBox::Cancel);

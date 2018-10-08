@@ -219,7 +219,7 @@ public:
         virtual void onChatArchived(bool /*archived*/) {}
 
         /** @brief Called when the number of previewers in a public chat has changed */
-        virtual void onPreviewersCountUpdate(unsigned int numPrev) {}
+        virtual void onPreviewersCountUpdate(uint32_t /*numPrev*/) {}
     };
 
     /**

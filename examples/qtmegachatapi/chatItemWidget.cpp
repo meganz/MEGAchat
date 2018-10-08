@@ -370,11 +370,7 @@ void ChatItemWidget::onUnreadCountChanged(int count)
 void ChatItemWidget::onPreviersCountChanged(int count)
 {
     ui->mPreviewersIndicator->setText(QString::number(count));
-
-    (count == 0)
-        ? ui->mPreviewersIndicator->hide()
-        : ui->mPreviewersIndicator->show();
-
+    ui->mPreviewersIndicator->setVisible(count != 0);
     ui->mPreviewersIndicator->adjustSize();
 }
 

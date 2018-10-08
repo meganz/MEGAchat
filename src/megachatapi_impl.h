@@ -360,7 +360,7 @@ public:
     virtual void onChatOnlineState(const chatd::ChatState state);
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
-    virtual void onPreviewersCountUpdate(unsigned int numPrev);
+    virtual void onPreviewersCountUpdate(uint32_t numPrev);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -416,7 +416,7 @@ public:
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
-    virtual void onPreviewersCountUpdate(unsigned int numPrev);
+    virtual void onPreviewersCountUpdate(uint32_t numPrev);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
