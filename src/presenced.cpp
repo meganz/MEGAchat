@@ -102,10 +102,10 @@ std::string Config::toString() const
     std::string result;
     result.reserve(64);
     result.append("pres: ").append(mPresence.toString())
-          .append(", persist: ").append(mPersist ? "1":"0")
-          .append(", aaActive: ").append(mAutoawayActive ? "1":"0")
+          .append(", persist: ").append(mPersist ? "1" : "0")
+          .append(", aaActive: ").append(mAutoawayActive ? "1" : "0")
           .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
-          .append(", Presence visible: ").append(mLastSeenVisible ? "1":"0");
+          .append(", last-seen visible: ").append(mLastSeenVisible ? "1" : "0");
     return result;
 }
 

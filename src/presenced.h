@@ -125,7 +125,7 @@ enum: uint8_t
      /**
      * @brief (Deprecated)
      * C->S
-     * This command is sent when the client doesn't want to a peer to see its status
+     * This command is sent when the client doesn't want a peer to see its status
      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
      * in any groupchat any longer.
      *
@@ -180,6 +180,10 @@ enum: uint8_t
       * (re-)established. This command is sent after OP_HELLO and every time the user wants
       * to subscribe to the status of a new peer or contact.
       *
+     * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+     * between different clients sending outdated list of users. If presenced receives an outdated
+     * list, the command will be discarded.
+     *
       * <sn.8> <numberOfPeers.4> <peerHandle1.8>...<peerHandleN.8>
       */
     OP_SNADDPEERS = 8,
@@ -187,9 +191,13 @@ enum: uint8_t
      /**
      * @brief
      * C->S
-     * This command is sent when the client doesn't want to a peer to see its status
+     * This command is sent when the client doesn't want a peer to see its status
      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
      * in any groupchat any longer.
+     *
+     * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+     * between different clients sending outdated list of users. If presenced receives an outdated
+     * list, the command will be discarded.
      *
      * <sn.8> <1.4> <peerHandle.8>
      */
@@ -206,7 +214,7 @@ protected:
     bool mLastSeenVisible = false;
 
 public:
-    enum { kMaxAutoawayTimeout = 87420 };   // (in seconds)
+    enum { kMaxAutoawayTimeout = 87420 };   // (in seconds, 1.447 minutes + 600 seconds)
     enum { kLastSeenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
 
     Config(karere::Presence pres=karere::Presence::kInvalid,
