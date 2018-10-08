@@ -2649,7 +2649,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
 
     //Add new user to strongvelope set of users
     promise::Promise<std::string> pms;
-    if (mHasTitle)
+    if (mHasTitle && !publicChat())
     {
         pms = chat().crypto()->encryptChatTitle(mTitleString, userid)
         .then([](const std::shared_ptr<Buffer>& buf)
@@ -2669,9 +2669,8 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
         ApiPromise invitePms;
         if (publicChat())
         {
-            std::string titleCpy = title;
             invitePms = chat().crypto()->encryptUnifiedKeyForAllParticipants(userid)
-            .then([wptr, this, titleCpy, userid, priv](chatd::KeyCommand* encKey)
+            .then([wptr, this, userid, priv](chatd::KeyCommand* encKey)
              {
                 //Get peer unified key
                 auto useruk = encKey->getKeyByUserId(userid);
@@ -2690,8 +2689,8 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
                 std::string uKeyB64;
                 mega::Base64::btoa(uKeyBin, uKeyB64);
 
-                return parent.mKarereClient.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
-                    uKeyB64.c_str(), titleCpy.empty() ? nullptr : titleCpy.c_str());
+                return parent.mKarereClient.api.call(&mega::MegaApi::inviteToPublicChat, mChatid, userid, priv,
+                    uKeyB64.c_str());
              });
         }
         else
