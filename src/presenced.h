@@ -376,6 +376,8 @@ inline const char* Command::opcodeToStr(uint8_t opcode)
         case OP_HELLO: return "HELLO";
         case OP_ADDPEERS: return "ADDPEERS";
         case OP_DELPEERS: return "DELPEERS";
+        case OP_SNADDPEERS: return "SNADDPEERS";
+        case OP_SNDELPEERS: return "SNDELPEERS";
         default: return "(invalid)";
     }
 }

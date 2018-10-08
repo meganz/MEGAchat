@@ -557,9 +557,12 @@ void Command::toString(char* buf, size_t bufsize) const
         }
         case OP_SNADDPEERS:
         {
-            uint32_t numPeers = read<uint32_t>(1);
+            Id sn = read<uint64_t>(1);
+            uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
             tmpString.append("SNADDPEERS - ");
+            tmpString.append(ID_CSTR(sn));
+            tmpString.append(" - NumPeers: ");
             tmpString.append(to_string(numPeers));
             tmpString.append(" peer/s: ");
             for (unsigned int i = 0; i < numPeers; i++)
@@ -569,14 +572,17 @@ void Command::toString(char* buf, size_t bufsize) const
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
             }
-            snprintf(buf, bufsize, "%s",tmpString.c_str());
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
         }
         case OP_SNDELPEERS:
         {
-            uint32_t numPeers = read<uint32_t>(1);
+            Id sn = read<uint64_t>(1);
+            uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
             tmpString.append("SNDELPEERS - ");
+            tmpString.append(ID_CSTR(sn));
+            tmpString.append(" - NumPeers: ");
             tmpString.append(to_string(numPeers));
             tmpString.append(" peer/s: ");
             for (unsigned int i = 0; i < numPeers; i++)
@@ -586,7 +592,7 @@ void Command::toString(char* buf, size_t bufsize) const
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
             }
-            snprintf(buf, bufsize, "%s",tmpString.c_str());
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
         }
         default:
