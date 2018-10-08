@@ -28,6 +28,7 @@ class ChatItemWidget : public QWidget
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
+        virtual void onPreviersCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);

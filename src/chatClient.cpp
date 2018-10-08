@@ -2930,9 +2930,16 @@ void ChatRoom::onUnreadChanged()
 
 void ChatRoom::onPreviewersUpdate()
 {
+    auto numPreviewers = mChat->getNumPreviewers();
+
+    IApp::IChatListItem *room = roomGui();
+    if (room)
+    {
+        room->onPreviewersCountUpdate(numPreviewers);
+    }
     if (mAppChatHandler)
     {
-        mAppChatHandler->onPreviewersCountUpdate(mChat->getNumPreviewers());
+        mAppChatHandler->onPreviewersCountUpdate(numPreviewers);
     }
 }
 
@@ -2988,6 +2995,11 @@ void ChatRoom::notifyChatModeChanged()
 bool GroupChatRoom::publicChat() const
 {
     return (mChat->crypto()->isPublicChat());
+}
+
+unsigned int GroupChatRoom::getNumPreviewers() const
+{
+    return (mChat->getNumPreviewers());
 }
 
 // return true if new peer, peer removed or peer's privilege updated

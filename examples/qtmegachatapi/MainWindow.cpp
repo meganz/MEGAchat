@@ -557,7 +557,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             else
             {
                 chatItemWidget->showAsHidden();
-                removeLocalChatListItem(item);
             }
             needReorder = true;
         }
@@ -585,6 +584,15 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
                 }
             }
             needReorder = true;
+        }
+
+        if(item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UPDATE_PREVIEWERS))
+        {
+            ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
+            if(auxChatItemWidget)
+            {
+                auxChatItemWidget->onPreviersCountChanged(item->getNumPreviewers());
+            }
         }
     }
     else

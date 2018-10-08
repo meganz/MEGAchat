@@ -20,6 +20,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     ui->setupUi(this);
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
+    onPreviersCountChanged(item->getNumPreviewers());
 
     if (item->isArchived())
     {
@@ -364,6 +365,17 @@ void ChatItemWidget::onUnreadCountChanged(int count)
         }
     }
     ui->mUnreadIndicator->adjustSize();
+}
+
+void ChatItemWidget::onPreviersCountChanged(int count)
+{
+    ui->mPreviewersIndicator->setText(QString::number(count));
+
+    (count == 0)
+        ? ui->mPreviewersIndicator->hide()
+        : ui->mPreviewersIndicator->show();
+
+    ui->mPreviewersIndicator->adjustSize();
 }
 
 void ChatItemWidget::onTitleChanged(const std::string& title)

@@ -1291,6 +1291,11 @@ MegaChatHandle MegaChatListItem::getLastMessageHandle() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+unsigned int MegaChatListItem::getNumPreviewers() const
+{
+   return 0;
+}
+
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi */*api*/, MegaChatRoom */*chat*/)
 {
 

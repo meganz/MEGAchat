@@ -5849,6 +5849,14 @@ void MegaChatListItemHandler::onUnreadCountChanged(int count)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
+void MegaChatListItemHandler::onPreviewersCountUpdate(unsigned int numPrev)
+{
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    item->setNumPreviewers(numPrev);
+
+    chatApi.fireOnChatListItemUpdate(item);
+}
+
 const ChatRoom &MegaChatListItemHandler::getChatRoom() const
 {
     return mRoom;
@@ -5951,6 +5959,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     this->peerHandle = !group ? ((PeerChatRoom&)chatroom).peer() : MEGACHAT_INVALID_HANDLE;
     this->lastMsgPriv = Priv::PRIV_INVALID;
     this->lastMsgHandle = MEGACHAT_INVALID_HANDLE;
+    this->mNumPreviewers = chatroom.getNumPreviewers();
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
@@ -6046,6 +6055,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     this->mIsCallInProgress = item->isCallInProgress();
     this->lastMsgPriv = item->getLastMessagePriv();
     this->lastMsgHandle = item->getLastMessageHandle();
+    this->mNumPreviewers = item->getNumPreviewers();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -6157,6 +6167,11 @@ MegaChatHandle MegaChatListItemPrivate::getLastMessageHandle() const
     return lastMsgHandle;
 }
 
+unsigned int MegaChatListItemPrivate::getNumPreviewers() const
+{
+   return mNumPreviewers;
+}
+
 void MegaChatListItemPrivate::setOwnPriv(int ownPriv)
 {
     this->ownPriv = ownPriv;
@@ -6173,6 +6188,12 @@ void MegaChatListItemPrivate::setUnreadCount(int count)
 {
     this->unreadCount = count;
     this->changed |= MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT;
+}
+
+void MegaChatListItemPrivate::setNumPreviewers(unsigned int numPrev)
+{
+    this->mNumPreviewers = numPrev;
+    this->changed |= MegaChatListItem::CHANGE_TYPE_UPDATE_PREVIEWERS;
 }
 
 void MegaChatListItemPrivate::setMembersUpdated()

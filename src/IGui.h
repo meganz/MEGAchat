@@ -217,6 +217,9 @@ public:
 
         /** @brief Called when the chat is un/archived */
         virtual void onChatArchived(bool /*archived*/) {}
+
+        /** @brief Called when the number of previewers in a public chat has changed */
+        virtual void onPreviewersCountUpdate(unsigned int numPrev) {}
     };
 
     /**

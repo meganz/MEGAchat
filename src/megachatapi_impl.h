@@ -295,6 +295,7 @@ private:
     MegaChatHandle mLastMsgId;
     int lastMsgPriv;
     MegaChatHandle lastMsgHandle;
+    unsigned int mNumPreviewers;
 
 public:
     virtual int getChanges() const;
@@ -318,10 +319,12 @@ public:
     virtual MegaChatHandle getPeerHandle() const;
     virtual int getLastMessagePriv() const;
     virtual MegaChatHandle getLastMessageHandle() const;
+    virtual unsigned int getNumPreviewers() const;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
+    void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
@@ -357,6 +360,7 @@ public:
     virtual void onChatOnlineState(const chatd::ChatState state);
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
+    virtual void onPreviewersCountUpdate(unsigned int numPrev);
 
     virtual const karere::ChatRoom& getChatRoom() const;
 
@@ -412,6 +416,7 @@ public:
     // karere::IApp::IChatHandler::ITitleHandler implementation
     virtual void onTitleChanged(const std::string& title);
     virtual void onUnreadCountChanged(int count);
+    virtual void onPreviewersCountUpdate(unsigned int numPrev);
 
     // karere::IApp::IChatHandler::chatd::Listener implementation
     virtual void init(chatd::Chat& chat, chatd::DbInterface*&);
@@ -442,7 +447,6 @@ public:
     virtual void onLastMessageTsUpdated(uint32_t ts);
     virtual void onHistoryReloaded();
     virtual void onChatModeChanged(bool mode);
-    virtual void onPreviewersCountUpdate(unsigned int numPrev);
 
     bool isRevoked(MegaChatHandle h);
     // update access to attachments

@@ -3959,17 +3959,18 @@ public:
 
     enum
     {
-        CHANGE_TYPE_STATUS          = 0x01, /// obsolete
-        CHANGE_TYPE_OWN_PRIV        = 0x02, /// Our privilege level has changed
-        CHANGE_TYPE_UNREAD_COUNT    = 0x04, /// Unread count updated
-        CHANGE_TYPE_PARTICIPANTS    = 0x08, /// A participant joined/left the chatroom or its privilege changed
-        CHANGE_TYPE_TITLE           = 0x10, /// Title updated
-        CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
-        CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
-        CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
-        CHANGE_TYPE_ARCHIVE         = 0x100,/// Archived or unarchived
-        CHANGE_TYPE_CALL            = 0x200,/// There's a new call or a call has finished
-        CHANGE_TYPE_CHAT_MODE       = 0x400 /// User has set chat mode to private
+        CHANGE_TYPE_STATUS              = 0x01,  /// obsolete
+        CHANGE_TYPE_OWN_PRIV            = 0x02,  /// Our privilege level has changed
+        CHANGE_TYPE_UNREAD_COUNT        = 0x04,  /// Unread count updated
+        CHANGE_TYPE_PARTICIPANTS        = 0x08,  /// A participant joined/left the chatroom or its privilege changed
+        CHANGE_TYPE_TITLE               = 0x10,  /// Title updated
+        CHANGE_TYPE_CLOSED              = 0x20,  /// The chatroom has been left by own user
+        CHANGE_TYPE_LAST_MSG            = 0x40,  /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
+        CHANGE_TYPE_LAST_TS             = 0x80,  /// Timestamp of the last activity
+        CHANGE_TYPE_ARCHIVE             = 0x100, /// Archived or unarchived
+        CHANGE_TYPE_CALL                = 0x200, /// There's a new call or a call has finished
+        CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// The number of previewers has changed
     };
 
     virtual ~MegaChatListItem() {}
@@ -4171,6 +4172,12 @@ public:
      * @return Handle of the target user
      */
     virtual MegaChatHandle getLastMessageHandle() const;
+
+    /**
+     * @brief Returns the number of previewers in this chat
+     * @return
+     */
+    virtual unsigned int getNumPreviewers() const;
 };
 
 class MegaChatRoom
