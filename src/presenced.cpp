@@ -145,8 +145,7 @@ bool Client::setAutoaway(bool enable, time_t timeout)
         mConfig.mPersist = false;
     }
 
-    mConfig.mAutoawayTimeout = (timeout < Presence::kMaxAutoawayTimeout)
-            ? timeout : (time_t) Presence::kMaxAutoawayTimeout;
+    mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
     signalActivity(true);
     return sendPrefs();
@@ -645,26 +644,26 @@ void Config::fromCode(uint16_t code)
     mPersist = !!(code & 4);
     mAutoawayActive = !(code & 8);
     mAutoawayTimeout = code >> 4;
-    if (mAutoawayTimeout > 600)
-        mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
-
-    mLastSeenVisible = false;
-    if (code & Presence::mLastSeenVisibleMask)
+    if (mAutoawayTimeout > 600) // if longer than 10 minutes, use 10m + number of minutes (in seconds)
     {
-        mLastSeenVisible = true;
+        mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
     }
+    mLastSeenVisible = (code & Config::kLastSeenVisibleMask);
 }
 
 uint16_t Config::toCode() const
 {
+    uint32_t autoawayTimeout = mAutoawayTimeout;
+    if (autoawayTimeout > 600)  // if longer than 10 minutes, convert into 10m (in seconds) + number of minutes
+    {
+        autoawayTimeout = 600 + (mAutoawayTimeout - 600) / 60;
+    }
+
     return ((mPresence.code() - karere::Presence::kOffline) & 3)
           | (mPersist ? 4 : 0)
           | (mAutoawayActive ? 0 : 8)
-          | (((mAutoawayTimeout > 600)
-               ? (600+(mAutoawayTimeout-600)/60)
-               : mAutoawayTimeout)
-            << 4)
-          | (mLastSeenVisible ? Presence::mLastSeenVisibleMask : 0);
+          | (autoawayTimeout << 4)
+          | (mLastSeenVisible ? Config::kLastSeenVisibleMask : 0);
 }
 
 Client::~Client()

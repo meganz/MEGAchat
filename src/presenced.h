@@ -42,6 +42,7 @@ public:
         kInvalid = 0xff,
         kFlagsMask = 0xf0
     };
+
     Presence(Code pres = kInvalid): mPres(pres){}
     Code code() const { return mPres & ~kFlagsMask; }
     Code status() const { return code(); }
@@ -52,8 +53,7 @@ public:
     const char* toString() const { return toString(mPres); }
     bool canWebRtc() { return mPres & kClientCanWebrtc; }
     bool isMobile() { return mPres & kClientIsMobile; }
-    static const int mLastSeenVisibleMask = 0x8000;
-    enum { kMaxAutoawayTimeout = 1497  };  // (in seconds)
+
 protected:
     Code mPres;
 };
@@ -76,11 +76,6 @@ inline const char* Presence::toString(Code pres)
 namespace presenced
 {
 enum { kKeepaliveSendInterval = 25, kKeepaliveReplyTimeout = 15 };
-enum: karere::Presence::Code
-{
-    kPresFlagsMask = 0xf0,
-    kPresFlagInProgress = 0x10 // used internally
-};
 enum: uint8_t
 {
     /**
@@ -166,13 +161,15 @@ enum: uint8_t
       *     bits 0-1: user status config (offline, away, online, do-not-disturb)
       *     bit 2: override active (presenced uses the configured status if this is set)
       *     bit 3: timeout active (ignored by presenced, relevant for clients)
-      *     bits 4-15 timeout (pseudo floating point, calculated as:
+      *     bits 4-14 timeout (pseudo floating point, calculated as:
       *
       *         autoawaytimeout = prefs >> 4;
       *         if (autoawaytimeout > 600)
       *         {
       *             autoawaytimeout = (autoawaytimeout - 600) * 60 + 600;
       *         }
+      *
+      *     bit 15: flag to enable/disable visibility of last-seen timestamp
       */
     OP_PREFS = 7,
 
@@ -207,20 +204,27 @@ protected:
     bool mAutoawayActive = false;
     time_t mAutoawayTimeout = 0;
     bool mLastSeenVisible = false;
+
 public:
+    enum { kMaxAutoawayTimeout = 87420 };   // (in seconds)
+    enum { kLastSeenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
+
     Config(karere::Presence pres=karere::Presence::kInvalid,
           bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool lastSeenVisible = false)
         : mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
           mAutoawayTimeout(aaTimeout), mLastSeenVisible(lastSeenVisible){}
     explicit Config(uint16_t code) { fromCode(code); }
+
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
     bool autoawayActive() const { return mAutoawayActive; }
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
     bool lastSeenVisible() const { return mLastSeenVisible;}
+
     void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;
+
     friend class Client;
 };
 

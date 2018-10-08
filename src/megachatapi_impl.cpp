@@ -275,7 +275,7 @@ void MegaChatApiImpl::sendPendingRequests()
             int64_t timeout = request->getNumber();
             bool enable = request->getFlag();
 
-            if (timeout > karere::Presence::kMaxAutoawayTimeout)
+            if (timeout > presenced::Config::kMaxAutoawayTimeout)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
