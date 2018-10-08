@@ -1203,7 +1203,10 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
         for (auto& peer: members)
         {
-            peers.insert(peer.first);
+            if (!contactList->isExContact(peer.first))
+            {
+                peers.insert(peer.first);
+            }
         }
     }
 
@@ -1788,7 +1791,12 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
 
         if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
-            parent.mKarereClient.presenced().addPeer(userid);
+        {
+            if (!parent.mKarereClient.contactList->isExContact(userid))
+            {
+                parent.mKarereClient.presenced().addPeer(userid);
+            }
+        }
     }
     if (saveToDb)
     {
@@ -2838,14 +2846,7 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 
     auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-    {
-        if (!mChatRoom)
-        {
-            client.presenced().removePeer(mUserid);
-        }
-    }
-    else if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
     {
         client.presenced().removePeer(mUserid, true);
     }
@@ -2954,6 +2955,17 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     if (it == end())
         return nullptr;
     return &(it->second->email());
+}
+
+bool ContactList::isExContact(Id userid)
+{
+    auto it = find(userid);
+    if (it == end() || (it != end() && it->second->visibility() != mega::MegaUser::VISIBILITY_HIDDEN))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 Contact* ContactList::contactFromEmail(const std::string &email) const
