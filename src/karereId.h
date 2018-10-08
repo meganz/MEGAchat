@@ -12,6 +12,11 @@ namespace karere
 class Id
 {
 public:
+
+    enum {
+        CHATLINKHANDLE = 6      // size of handles for chat-links, in bytes
+    };
+
     uint64_t val;
     std::string toString(size_t len = sizeof(uint64_t)) const { return base64urlencode(&val, len); }
     bool isValid() const { return val != ~((uint64_t)0); }

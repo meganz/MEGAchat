@@ -1563,16 +1563,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 for (int i = 0; i < sdkPeers->size(); i++)
                 {
                     //Get peer Handle in B64
-                    mega::MegaHandle peerHandle = sdkPeers->getPeerHandle(i);
-                    char uhB64[12];
-                    mega::Base64::btoa((byte *)&peerHandle, mega::USERHANDLE, uhB64);
-                    uhB64[11] = '\0';
+                    Id peerHandle(sdkPeers->getPeerHandle(i));
 
                     //Get peer unified key
                     auto useruk = keyCmd->getKeyByUserId(peerHandle);
 
                     //Append [creatorhandle+uk]
-                    std::string uKeyBin((const char*)&mMyHandle, mega::USERHANDLE);
+                    std::string uKeyBin((const char*)&mMyHandle, sizeof(mMyHandle.val));
                     uKeyBin.append(useruk->buf(), useruk->size());
 
                     //Encode [creatorhandle+uk] to B64
@@ -1580,14 +1577,14 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                     mega::Base64::btoa(uKeyBin, uKeyB64);
 
                     //Add entry to map
-                    userKeyMap->set(uhB64, uKeyB64.c_str());
+                    userKeyMap->set(peerHandle.toString().c_str(), uKeyB64.c_str());
                 }
 
                 //Get own unified key
                 auto ownKey = keyCmd->getKeyByUserId(mMyHandle);
 
                 //Append [creatorhandle+uk]
-                std::string okeyBin((const char*)&mMyHandle, mega::USERHANDLE);
+                std::string okeyBin((const char*)&mMyHandle, sizeof(mMyHandle.val));
                 okeyBin.append(ownKey->buf(), ownKey->size());
 
                 //Encode [creatorhandle+uk] to B64
@@ -2676,16 +2673,13 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
                 auto useruk = encKey->getKeyByUserId(userid);
 
                 //Get creator handle in binary
-                uint64_t auxcreatorHandle = this->chat().client().karereClient->myHandle().val;
-                char *auxcreatorHandleBin = new char[mega::USERHANDLE];
-                memcpy(auxcreatorHandleBin, &(auxcreatorHandle), mega::USERHANDLE);
+                uint64_t invitorHandle = this->chat().client().karereClient->myHandle().val;
 
-                //Append [creatorhandle+uk]
-                std::string uKeyBin (auxcreatorHandleBin, mega::USERHANDLE);
+                //Append [invitorhandle+uk]
+                std::string uKeyBin((const char*)&invitorHandle, sizeof(invitorHandle));
                 uKeyBin.append(useruk->buf(), useruk->size());
-                delete auxcreatorHandleBin;
 
-                //Encode [creatorhandle+uk] to B64
+                //Encode [invitorhandle+uk] to B64
                 std::string uKeyB64;
                 mega::Base64::btoa(uKeyBin, uKeyB64);
 
@@ -2696,7 +2690,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
         else
         {
             invitePms = parent.mKarereClient.api.call(&mega::MegaApi::inviteToChat, mChatid, userid, priv,
-                nullptr, title.empty() ? nullptr : title.c_str());
+                title.empty() ? nullptr : title.c_str());
         }
         return invitePms
         .then([this, wptr, userid, priv](ReqResult)
@@ -2723,7 +2717,7 @@ promise::Promise<void> GroupChatRoom::joinChatLink(uint64_t ph)
     .then([this, myHandle, ph](std::string key) -> ApiPromise
     {
         //Append [invitorhandle+uk]
-        std::string uKeyBin((char*)&myHandle, mega::USERHANDLE);
+        std::string uKeyBin((const char*)&myHandle, sizeof(myHandle.val));
         uKeyBin.append(key.data(), key.size());
 
         //Encode [invitorhandle+uk] to B64

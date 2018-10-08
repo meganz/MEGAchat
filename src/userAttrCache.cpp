@@ -409,7 +409,7 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     auto wptr = weakHandle();
-    const char *ph = key.mPh.isValid() ? key.mPh.toString(::mega::PUBLICHANDLE).c_str() : NULL;
+    const char *ph = key.mPh.isValid() ? key.mPh.toString(Id::CHATLINKHANDLE).c_str() : NULL;
     mClient.api.call(&::mega::MegaApi::getChatUserAttribute,
         key.user.toString().c_str(), (int)key.attrType, ph)
     .then([wptr, this, key, item](ReqResult result)

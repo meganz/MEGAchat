@@ -944,12 +944,12 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph;
-            memcpy(&ph, data.readPtr(1, ::mega::PUBLICHANDLE), ::mega::PUBLICHANDLE);
+            memcpy(&ph, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
             karere::Id userId = data.read<uint64_t>(7);
             uint8_t priv = data.read<uint8_t>(15);
 
             tmpString.append("HANDLEJOIN ph: ");
-            tmpString.append(ph.toString(::mega::PUBLICHANDLE).c_str());
+            tmpString.append(ph.toString(Id::CHATLINKHANDLE).c_str());
 
             tmpString.append(" userid: ");
             tmpString.append(ID_CSTR(userId));
@@ -962,10 +962,10 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph;
-            memcpy(&ph, data.readPtr(1, ::mega::PUBLICHANDLE), ::mega::PUBLICHANDLE);
+            memcpy(&ph, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
 
             tmpString.append("HANDLELEAVE ph: ");
-            tmpString.append(ph.toString(::mega::PUBLICHANDLE).c_str());
+            tmpString.append(ph.toString(Id::CHATLINKHANDLE).c_str());
 
             return tmpString;
         }
@@ -973,12 +973,12 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph;
-            memcpy(&ph, data.readPtr(1, ::mega::PUBLICHANDLE), ::mega::PUBLICHANDLE);
+            memcpy(&ph, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
             karere::Id oldestMsgid = data.read<uint64_t>(7);
             karere::Id newestId = data.read<uint64_t>(15);
 
             tmpString.append("HANDLEJOINRNAGEHIST ph: ");
-            tmpString.append(ph.toString(::mega::PUBLICHANDLE).c_str());
+            tmpString.append(ph.toString(Id::CHATLINKHANDLE).c_str());
 
             tmpString.append(" oldest: ");
             tmpString.append(oldestMsgid.toString());
@@ -1056,7 +1056,7 @@ void Chat::handlejoin()
 
     //Create command `OPCODE_HANDLEJOIN(1) + chathandle(6) + userId(8) + priv(1)`
     Command comm (OP_HANDLEJOIN);
-    comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
+    comm.append((const char*) &mPh, Id::CHATLINKHANDLE);
     sendCommand(comm + mClient.mUserId + (uint8_t)PRIV_RDONLY);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
@@ -1066,7 +1066,7 @@ void Chat::handleleave()
     assert(mPh != Id::inval());
 
     Command comm (OP_HANDLELEAVE);
-    comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
+    comm.append((const char*) &mPh, Id::CHATLINKHANDLE);
     sendCommand(comm);
 }
 
@@ -2872,7 +2872,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
     mServerFetchState = kHistFetchingNewFromServer;
 
     Command comm (OP_HANDLEJOINRANGEHIST);
-    comm.append((const char*) &mPh, ::mega::PUBLICHANDLE);
+    comm.append((const char*) &mPh, Id::CHATLINKHANDLE);
     sendCommand(comm + dbInfo.oldestDbId + at(highnum()).id());
 }
 
