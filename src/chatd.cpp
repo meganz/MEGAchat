@@ -1155,6 +1155,7 @@ void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
 
         mFetchRequest.push(FetchType::kFetchNodeHistory);
         mAttachNodeRequestToServer = count;
+        mAttachmentHistDoneReceived = false;
         sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -count);
     }, mClient.karereClient->appCtx);
 }
@@ -1681,15 +1682,12 @@ void Chat::onHistDone()
     }
     else if (fetchType == FetchType::kFetchNodeHistory)
     {
-        assert(mAttachNodeRequestToServer);
-        if (mAttachNodeReceived < mAttachNodeRequestToServer)
+        if (!mDecryptionAttachmentsHalted)
         {
-            mAttachmentNodes->setHaveAllHistory(true);
+            attachmentHistDone();
         }
 
-        mAttachNodeReceived = 0;
-        mAttachNodeRequestToServer = 0;
-        mAttachmentNodes->finishFetchingFromServer();
+        mAttachmentHistDoneReceived = true;
     }
 }
 
@@ -2139,6 +2137,19 @@ void Chat::manageRichLinkMessage(Message &message)
     {
         mMsgsToUpdateWithRichLink.erase(message.id());
     }
+}
+
+void Chat::attachmentHistDone()
+{
+    assert(mAttachNodeRequestToServer);
+    if (mAttachNodeReceived < mAttachNodeRequestToServer)
+    {
+        mAttachmentNodes->setHaveAllHistory(true);
+    }
+
+    mAttachNodeReceived = 0;
+    mAttachNodeRequestToServer = 0;
+    mAttachmentNodes->finishFetchingFromServer();
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -3812,29 +3823,65 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     }
 }
 
-void Chat::msgNodeHistIncoming(Message *msg)
+bool Chat::msgNodeHistIncoming(Message *msg)
 {
     mAttachNodeReceived++;
-    auto pms = mCrypto->msgDecrypt(msg);
-    if (pms.succeeded())
+    if (!mDecryptionAttachmentsHalted)
     {
-        assert(!msg->isEncrypted());
-        mAttachmentNodes->addMessage(*msg, false, false);
-        delete msg;
+        auto pms = mCrypto->msgDecrypt(msg);
+        if (pms.succeeded())
+        {
+            assert(!msg->isEncrypted());
+            mAttachmentNodes->addMessage(*msg, false, false);
+            delete msg;
+
+            return true;
+        }
+        else
+        {
+            mDecryptionAttachmentsHalted = true;
+            pms.then([this](Message* msg)
+            {
+                mAttachmentNodes->addMessage(*msg, false, false);
+                delete msg;
+                bool decrypt = true;
+                mDecryptionAttachmentsHalted = false;
+                while (!mAttachmentsPendingToDecrypt.empty() && decrypt)
+                {
+                    decrypt = msgNodeHistIncoming(mAttachmentsPendingToDecrypt.front());
+                    mAttachmentsPendingToDecrypt.pop();
+                }
+
+                if (mAttachmentsPendingToDecrypt.empty() && decrypt && mAttachmentHistDoneReceived)
+                {
+                    attachmentHistDone();
+                }
+            })
+            .fail([this, msg](const promise::Error& /*err*/)
+            {
+                assert(msg->isPendingToDecrypt());
+                delete msg;
+                bool decrypt = true;
+                mDecryptionAttachmentsHalted = false;
+                while (mAttachmentsPendingToDecrypt.size() && decrypt)
+                {
+                    decrypt = msgNodeHistIncoming(mAttachmentsPendingToDecrypt.front());
+                    mAttachmentsPendingToDecrypt.pop();
+                }
+
+                if (!mAttachmentsPendingToDecrypt.empty() && decrypt && mAttachmentHistDoneReceived)
+                {
+                    attachmentHistDone();
+                }
+            });
+        }
     }
     else
     {
-        pms.then([this](Message* msg)
-        {
-            mAttachmentNodes->addMessage(*msg, false, false);
-            delete msg;
-        })
-        .fail([this, msg](const promise::Error& /*err*/)
-        {
-            assert(msg->isPendingToDecrypt());
-            delete msg;
-        });
+        mAttachmentsPendingToDecrypt.push(msg);
     }
+
+    return false;
 }
 
 void Chat::onMsgTimestamp(uint32_t ts)
@@ -4409,7 +4456,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
             if (mListener && (mFetchingFromServer || isLocal))
             {
                 CALL_LISTENER_FH(onLoaded, mBuffer.back().get(), mOldestIdx);
-                mNextMsgToNotify++;
+                mNextMsgToNotify = mBuffer.end();
             }
         }
     }

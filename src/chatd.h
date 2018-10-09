@@ -709,6 +709,9 @@ protected:
     std::queue <FetchType> mFetchRequest;
     uint32_t mAttachNodeRequestToServer = 0;
     uint32_t mAttachNodeReceived = 0;
+    bool mAttachmentHistDoneReceived = false;
+    std::queue <Message *> mAttachmentsPendingToDecrypt;
+    bool mDecryptionAttachmentsHalted = false;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -731,7 +734,7 @@ protected:
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
-    void msgNodeHistIncoming(Message* msg);
+    bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
     void onJoinComplete();
@@ -770,6 +773,7 @@ protected:
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
     void manageRichLinkMessage(Message &message);
+    void attachmentHistDone();
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
