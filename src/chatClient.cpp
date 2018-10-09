@@ -2984,7 +2984,7 @@ bool GroupChatRoom::publicChat() const
 
 unsigned int GroupChatRoom::getNumPreviewers() const
 {
-    return (mChat->getNumPreviewers());
+    return mChat->getNumPreviewers();
 }
 
 // return true if new peer, peer removed or peer's privilege updated

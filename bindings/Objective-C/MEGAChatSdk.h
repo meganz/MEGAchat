@@ -81,7 +81,6 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatInit)initAnonymousWithChatLink:(NSURL *)chatLink;
 
 - (MEGAChatInit)initState;
-- (BOOL)anonymousMode;
 
 - (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)connect;

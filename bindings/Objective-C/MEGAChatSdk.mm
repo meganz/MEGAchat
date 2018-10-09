@@ -77,10 +77,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->getInitState();
 }
 
-- (BOOL)anonymousMode {
-    return self.megaChatApi->anonymousMode();
-}
-
 - (void)connectWithDelegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->connect([self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }

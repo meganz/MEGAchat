@@ -5034,7 +5034,7 @@ void MegaChatRoomHandler::onUnreadCountChanged(int count)
     fireOnChatRoomUpdate(chat);
 }
 
-void MegaChatRoomHandler::onPreviewersCountUpdate(unsigned int numPrev)
+void MegaChatRoomHandler::onPreviewersCountUpdate(uint32_t numPrev)
 {
     MegaChatRoomPrivate *chat = (MegaChatRoomPrivate *) chatApiImpl->getChatRoom(chatid);
     chat->setNumPreviewers(numPrev);
@@ -5289,7 +5289,7 @@ void MegaChatRoomHandler::onPreviewersUpdate()
         if (mChat)
         {
             MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-            chatroom->setNumPreviewers(mChat->getNumPreviewers());
+            chatroom->setNumPreviewers(mRoom->getNumPreviewers());
             fireOnChatRoomUpdate(chatroom);
         }
     }
@@ -5830,7 +5830,7 @@ char *MegaChatRoomPrivate::lastnameFromBuffer(const string &buffer)
 
 void MegaChatListItemHandler::onTitleChanged(const string &title)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setTitle(title);
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -5838,7 +5838,7 @@ void MegaChatListItemHandler::onTitleChanged(const string &title)
 
 void MegaChatListItemHandler::onChatModeChanged(bool mode)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setChatMode(mode);
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -5846,15 +5846,15 @@ void MegaChatListItemHandler::onChatModeChanged(bool mode)
 
 void MegaChatListItemHandler::onUnreadCountChanged(int count)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setUnreadCount(count);
 
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-void MegaChatListItemHandler::onPreviewersCountUpdate(unsigned int numPrev)
+void MegaChatListItemHandler::onPreviewersCountUpdate(uint32_t numPrev)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setNumPreviewers(numPrev);
 
     chatApi.fireOnChatListItemUpdate(item);
@@ -6245,7 +6245,7 @@ MegaChatGroupListItemHandler::MegaChatGroupListItemHandler(MegaChatApiImpl &chat
 
 void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     if (userid == chatApi.getMyUserHandle())
     {
         item->setOwnPriv(priv);
@@ -6260,14 +6260,14 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setMembersUpdated();
     chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatListItemHandler::onExcludedFromChat()
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setOwnPriv(item->getOwnPrivilege());
     item->setClosed();
     chatApi.fireOnChatListItemUpdate(item);
@@ -6275,21 +6275,21 @@ void MegaChatListItemHandler::onExcludedFromChat()
 
 void MegaChatListItemHandler::onRejoinedChat()
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setOwnPriv(item->getOwnPrivilege());
     chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatListItemHandler::onLastMessageUpdated(const LastTextMsg& /*msg*/)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setLastMessage();
     chatApi.fireOnChatListItemUpdate(item);
 }
 
 void MegaChatListItemHandler::onLastTsUpdated(uint32_t ts)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setLastTimestamp(ts);
     chatApi.fireOnChatListItemUpdate(item);
 }
@@ -6302,7 +6302,7 @@ void MegaChatListItemHandler::onChatOnlineState(const ChatState state)
 
 void MegaChatListItemHandler::onChatArchived(bool archived)
 {
-    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(this->mRoom);
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
     item->setArchived(archived);
     chatApi.fireOnChatListItemUpdate(item);
 }
