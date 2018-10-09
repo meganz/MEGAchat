@@ -2053,7 +2053,7 @@ public:
      * \c signalPresenceActivity regularly in order to keep the current online status.
      * Otherwise, after \c timeout seconds, the online status will be changed to away.
      *
-     * The maximum timeout for the autoaway feature is 87.420 seconds, roughly a day.
+     * The maximum timeout for the autoaway feature is 87420 seconds, roughly a day.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2061,7 +2061,7 @@ public:
      * - MegaChatRequest::getNumber - Returns the specified timeout.
      *
      * The request will fail with MegaChatError::ERROR_ARGS when this function is
-     * called without a larger timeout than the maximum allowed, 87.420 seconds.
+     * called without a larger timeout than the maximum allowed, 87420 seconds.
      *
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
