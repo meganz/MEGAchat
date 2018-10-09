@@ -4506,7 +4506,11 @@ void FilteredHistory::truncateHistory(Id id)
     }
     else    // full-history truncated or no remaining attachments
     {
-        CALL_LISTENER_FH(onTruncated, (*mBuffer.begin())->id());
+        if (!mBuffer.empty())
+        {
+            CALL_LISTENER_FH(onTruncated, (*mBuffer.begin())->id());
+        }
+
         clear();
     }
 
