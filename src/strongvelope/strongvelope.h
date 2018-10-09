@@ -336,7 +336,7 @@ public:
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
         const StaticBuffer& privRsa, karere::UserAttrCache& userAttrCache,
-        SqliteDb& db, karere::Id aChatId, std::shared_ptr<std::string> unifiedKey,
+        SqliteDb& db, karere::Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
         int isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage

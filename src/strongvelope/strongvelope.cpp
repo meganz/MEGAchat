@@ -505,7 +505,7 @@ void ProtocolHandler::setPrivateChatMode()
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
-    SqliteDb &db, Id aChatId, std::shared_ptr<std::string> unifiedKey,
+    SqliteDb &db, Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
     int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
@@ -521,7 +521,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
         STRONGVELOPE_LOG_WARNING("KRCHAT_FORCE_RSA env var detected, will force RSA for key encryption");
     }
 
-    mChatMode = unifiedKey ? CHAT_MODE_PUBLIC : CHAT_MODE_PRIVATE;
+    mChatMode = isPublic ? CHAT_MODE_PUBLIC : CHAT_MODE_PRIVATE;
     if (mChatMode == CHAT_MODE_PUBLIC)
     {
         if (isUnifiedKeyEncrypted == kKeyDecrypted) // from chat-link, creation's API request or cache
@@ -555,8 +555,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
                 Buffer auxBuf;
                 auxBuf.write(0, (uint8_t)kKeyDecrypted);  // prefix to indicate it's decrypted
                 auxBuf.append(*unifiedKey);
-                mDb.query("insert or replace into chat_vars(chatid, name, value)"
-                          " values(?,'unified_key',?)", chatid, auxBuf);
+                mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
             })
             .fail([this, wptr, bufunifiedkey](const promise::Error& err)
             {
@@ -567,8 +566,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
                 Buffer auxBuf;
                 auxBuf.write(0, (uint8_t)kKeyUndecryptable);  // prefix to indicate it's undecryptable
                 auxBuf.append(*bufunifiedkey);
-                mDb.query("insert or replace into chat_vars(chatid, name, value)"
-                          " values(?,'unified_key',?)", chatid, auxBuf);
+                mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
                 return err;
             });
         }

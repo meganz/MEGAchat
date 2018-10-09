@@ -72,7 +72,7 @@ protected:
     void notifyTitleChanged();
     void notifyChatModeChanged();
     void switchListenerToApp();
-    void createChatdChat(const karere::SetOfIds& initialUsers,
+    void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
             std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
@@ -335,7 +335,7 @@ protected:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    void initWithChatd(std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
+    void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
@@ -349,7 +349,7 @@ protected:
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                bool aIsArchived, const std::string& title, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
+                bool aIsArchived, const std::string& title, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
@@ -954,7 +954,7 @@ protected:
     void loadContactListFromApi();
     void loadContactListFromApi(::mega::MegaUserList& contactList);
 
-    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid,
+    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
