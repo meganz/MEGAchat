@@ -643,7 +643,7 @@ void Config::fromCode(uint16_t code)
     mPresence = (code & 3) + karere::Presence::kOffline;
     mPersist = !!(code & 4);
     mAutoawayActive = !(code & 8);
-    mAutoawayTimeout = code >> 4;
+    mAutoawayTimeout = (code & ~Config::kLastSeenVisibleMask) >> 4;
     if (mAutoawayTimeout > 600) // if longer than 10 minutes, use 10m + number of minutes (in seconds)
     {
         mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
