@@ -3192,7 +3192,7 @@ void GroupChatRoom::setChatPrivateMode()
 
     //Update cache
     auto db = parent.mKarereClient.db;
-    db.query("update chats set public_chat = 0, unified_key = NULL where chatid = ?", mChatid);
+    db.query("update chats set public_chat = 0 where chatid = ?", mChatid);
 
     notifyChatModeChanged();
 }

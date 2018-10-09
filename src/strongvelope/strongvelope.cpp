@@ -498,7 +498,6 @@ void ProtocolHandler::setPrivateChatMode()
     assert(mChatMode == CHAT_MODE_PUBLIC);
 
     mChatMode = CHAT_MODE_PRIVATE;
-    mUnifiedKey.reset();
     resetSendKey();
 }
 
