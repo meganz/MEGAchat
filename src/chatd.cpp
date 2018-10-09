@@ -2150,6 +2150,12 @@ void Chat::attachmentHistDone()
     mAttachNodeReceived = 0;
     mAttachNodeRequestToServer = 0;
     mAttachmentNodes->finishFetchingFromServer();
+
+    if (mTruncateAttachment)
+    {
+        mAttachmentNodes->truncateHistory(mAttachmentTruncateFromId);
+        mTruncateAttachment = false;
+    }
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -3367,16 +3373,24 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
     // (if no more attachments in history buffer, node-history will be fully cleared)
-    Id nextAttachmentId = Id::inval();
+    mAttachmentTruncateFromId = Id::inval();
     for (Idx i = lownum(); i < highnum(); i++)
     {
         if (at(i).type == Message::kMsgAttachment)
         {
-            nextAttachmentId = at(i).id();
+            mAttachmentTruncateFromId = at(i).id();
             break;
         }
     }
-    mAttachmentNodes->truncateHistory(nextAttachmentId);
+
+    if (!mDecryptionAttachmentsHalted)
+    {
+        mAttachmentNodes->truncateHistory(mAttachmentTruncateFromId);
+    }
+    else
+    {
+        mTruncateAttachment = true;
+    }
 }
 
 Id Chat::makeRandomId()
@@ -3820,6 +3834,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (msg.type == Message::Type::kMsgAttachment)
     {
         mAttachmentNodes->addMessage(msg, isNew, false);
+        if (mTruncateAttachment && mAttachmentTruncateFromId == Id::inval())
+        {
+            mAttachmentTruncateFromId = msg.id();
+        }
     }
 }
 

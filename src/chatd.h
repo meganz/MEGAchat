@@ -712,6 +712,8 @@ protected:
     bool mAttachmentHistDoneReceived = false;
     std::queue <Message *> mAttachmentsPendingToDecrypt;
     bool mDecryptionAttachmentsHalted = false;
+    bool mTruncateAttachment = false;
+    karere::Id mAttachmentTruncateFromId;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
