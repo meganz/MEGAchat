@@ -147,6 +147,7 @@ public:
 
     virtual bool previewMode() = 0;
 
+    /** Returns true if chat is in public/open mode */
     virtual bool isPublicChat() = 0;
 
     virtual void setPrivateChatMode() = 0;

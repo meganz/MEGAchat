@@ -495,7 +495,7 @@ bool ProtocolHandler::isPublicChat()
 
 void ProtocolHandler::setPrivateChatMode()
 {
-    assert(mChatMode == CHAT_MODE_PUBLIC);
+    assert(isPublicChat());
 
     mChatMode = CHAT_MODE_PRIVATE;
     resetSendKey();
@@ -521,7 +521,8 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     }
 
     mChatMode = isPublic ? CHAT_MODE_PUBLIC : CHAT_MODE_PRIVATE;
-    if (mChatMode == CHAT_MODE_PUBLIC)
+
+    if (unifiedKey && !unifiedKey->empty())
     {
         if (isUnifiedKeyEncrypted == kKeyDecrypted) // from chat-link, creation's API request or cache
         {
@@ -903,12 +904,6 @@ Buffer* ProtocolHandler::createUnifiedKey()
 
 promise::Promise<std::shared_ptr<std::string> > ProtocolHandler::getUnifiedKey()
 {
-    if (mChatMode == CHAT_MODE_PRIVATE)
-    {
-        assert(!mUnifiedKey);
-        return promise::Error("Chat is private, don't have a unified key", kErrorTypeGeneric, kErrorTypeGeneric);
-    }
-
     return mUnifiedKeyDecrypted
     .then([](std::shared_ptr<UnifiedKey> unifiedKey)
     {
@@ -943,9 +938,24 @@ void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 promise::Promise<std::pair<MsgCommand*, KeyCommand*>>
 ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand* msgCmd)
 {
+    auto wptr = weakHandle();
+
     // if keyid has not been assigned yet...
     if (msg->keyid == CHATD_KEYID_INVALID)
     {
+        if (isPublicChat())
+        {
+            // all messages in public chats are encrypted to the unified-key and use keyid=0
+            return mUnifiedKeyDecrypted.then([this, wptr, msg, msgCmd](std::shared_ptr<UnifiedKey> unifiedkey) mutable
+            {
+                wptr.throwIfDeleted();
+                // msg->keyid = CHATD_KEYID_INVALID; --> already that value
+                // msgCmd->setKeyId(CHATD_KEYID_INVALID); --> already that value
+                msgEncryptWithKey(*msg, *msgCmd, *unifiedkey);
+                return std::make_pair(msgCmd, (KeyCommand*)nullptr);
+            });
+        }
+
         assert(msgCmd->opcode() == OP_NEWMSG);
         // MSGUPDXs are created with keyid=INVALID, but as soon as the precedent NEWMSG
         // is encrypted, their corresponding MSGUPDX in the sending queue get their keyid
@@ -961,7 +971,6 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         }
         else
         {
-            auto wptr = weakHandle();
             return createNewKey(recipients)
             .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
             {
@@ -997,7 +1006,6 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     {
         assert(msgCmd->opcode() != OP_NEWMSG);  // new messages, at this stage, have an invalid keyid
 
-        auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
         .then([this, wptr, msg, msgCmd](const std::shared_ptr<SendKey>& key)
         {
@@ -1151,7 +1159,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // check tampering of management messages
-        if (message->keyid == 0 || message->userid == karere::Id::COMMANDER())
+        if (message->userid == karere::Id::COMMANDER())
         {
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
@@ -1185,20 +1193,18 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         auto ctx = std::make_shared<Context>();
 
         promise::Promise<std::shared_ptr<SendKey>> symPms;
-        if (mChatMode == CHAT_MODE_PRIVATE)
+        if (keyid == CHATD_KEYID_INVALID)   // message was posted while open mode
+        {
+            symPms = mUnifiedKeyDecrypted;
+        }
+        else    // message was posted with key-rotation enabled (closed mode)
         {
             symPms = getKey(UserKeyId(message->userid, keyid), isLegacy);
-            symPms.then([ctx](const std::shared_ptr<SendKey>& key)
-            {
-                ctx->sendKey = key;
-            });
-        }
-        else
+        }        
+        symPms.then([ctx](const std::shared_ptr<SendKey>& key)
         {
-            ctx->sendKey = mUnifiedKey;
-            symPms = promise::Promise<std::shared_ptr<SendKey>>();
-            symPms.resolve(ctx->sendKey);
-        }
+            ctx->sendKey = key;
+        });
 
         // Get signing key
         promise::Promise<void> edPms = mUserAttrCache.getAttr(parsedMsg->sender,
@@ -1468,32 +1474,24 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 {
     // Assemble the output for all recipients.
     promise::Promise<std::shared_ptr<SendKey>> pms;
-    if (mChatMode == CHAT_MODE_PUBLIC)
-    {
-        pms = mUnifiedKeyDecrypted;
-    }
-    else
-    {
-        std::shared_ptr<SendKey> key;
-        key.reset(new SendKey);
-        key->setDataSize(AES::BLOCKSIZE);
-        randombytes_buf(key->ubuf(), AES::BLOCKSIZE);
-        pms = promise::Promise<std::shared_ptr<SendKey>>();
-        pms.resolve(key);
-    }
+    assert(!isPublicChat());
 
-    return pms.then([this, recipients](std::shared_ptr<SendKey> key)
-    {
-        mCurrentKey = key;
-        mCurrentKeyId = createLocalKeyId();
-        mCurrentKeyParticipants = recipients;
+    std::shared_ptr<SendKey> key;
+    key.reset(new SendKey);
+    key->setDataSize(AES::BLOCKSIZE);
+    randombytes_buf(key->ubuf(), AES::BLOCKSIZE);
+    pms = promise::Promise<std::shared_ptr<SendKey>>();
 
-        NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
-        mUnconfirmedKeys.push_back(entry);
+    mCurrentKey = key;
+    mCurrentKeyId = createLocalKeyId();
+    mCurrentKeyParticipants = recipients;
 
-        // Assemble the output for all recipients.
-        return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
-    });
+    NewKeyEntry entry(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
+    mUnconfirmedKeys.push_back(entry);
+
+    // Assemble the output for all recipients.
+    return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
+
 }
 
 KeyId ProtocolHandler::createLocalKeyId()
@@ -1538,7 +1536,7 @@ promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, bool encryptAsPrivate)
 {
     promise::Promise<std::shared_ptr<SendKey>> pms;
-    if (mChatMode == CHAT_MODE_PRIVATE || encryptAsPrivate)
+    if (!isPublicChat() || encryptAsPrivate)
     {
         std::shared_ptr<SendKey> key;
         key = std::make_shared<SendKey>();
@@ -1608,7 +1606,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
     }
 
     auto wptr = weakHandle();
-    return mUnifiedKeyDecrypted.then([wptr, this, participants](std::shared_ptr<SendKey> key)
+    return mUnifiedKeyDecrypted.then([wptr, this, participants](std::shared_ptr<UnifiedKey> key)
     {
         assert(!key->empty());
         wptr.throwIfDeleted();
@@ -1657,11 +1655,7 @@ ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Mess
     try
     {
         promise::Promise<Message *> pms;
-        if (mChatMode == CHAT_MODE_PRIVATE)
-        {
-            pms = parsedMsg->decryptChatTitle(msg, msgCanBeDeleted);
-        }
-        else    // public mode
+        if (isPublicChat())
         {
             auto unifiedKeyDecrypted = mUnifiedKeyDecrypted.done();    // wait for unified key decryption
             switch (unifiedKeyDecrypted)
@@ -1688,6 +1682,10 @@ ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Mess
                 });
                 break;
             }
+        }
+        else    // public mode
+        {
+            pms = parsedMsg->decryptChatTitle(msg, msgCanBeDeleted);
         }
 
         return pms;

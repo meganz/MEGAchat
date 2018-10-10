@@ -2312,7 +2312,8 @@ Chat::SendingItem* Chat::postMsgToSending(uint8_t opcode, Message* msg, SetOfIds
     // for MSGUPD, recipients is not used (the keyid is already confirmed)
     assert((opcode == OP_NEWMSG && recipients == mUsers)
            || (opcode == OP_MSGUPDX)    // can use unconfirmed or confirmed key
-           || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid)));
+           || (opcode == OP_MSGUPD && !isLocalKeyId(msg->keyid))
+           || (isPublic() && msg->keyid == CHATD_KEYID_INVALID));
 
     mSending.emplace_back(opcode, msg, recipients);
     CALL_DB(addSendingItem, mSending.back());
@@ -2389,9 +2390,18 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 
         MsgCommand *msgCmd = result.first;
         KeyCommand *keyCmd = result.second;
-        assert(keyCmd);
-        assert(keyCmd->localKeyid() == msg->keyid);
-        assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
+        if (isPublic())
+        {
+            assert(!keyCmd
+                   && msgCmd->keyId() == CHATD_KEYID_INVALID
+                   && msg->keyid == CHATD_KEYID_INVALID);
+        }
+        else
+        {
+            assert(keyCmd);
+            assert(keyCmd->localKeyid() == msg->keyid);
+            assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
+        }
 
         SendingItem item = mSending.front();
         item.msgCmd = msgCmd;
