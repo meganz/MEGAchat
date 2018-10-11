@@ -34,7 +34,7 @@ static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 
 static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
-static const unsigned int NUM_ACCOUNTS = 3;
+static const unsigned int NUM_ACCOUNTS = 2;
 
 class ChatTestException : public std::exception
 {
@@ -168,10 +168,6 @@ public:
 
     // Specific test environment initialization for each test
     void SetUp();
-
-    // Specific test environment initialization for anonymous mode test
-    void AnonymousSetUp();
-
     // Specific test environment clear up for each test
     void TearDown();
 
@@ -193,6 +189,7 @@ public:
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
     void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
+    void TEST_AnonymousMode(unsigned int a1, unsigned int a2);
     void TEST_OfflineMode(unsigned int accountIndex);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
@@ -200,14 +197,13 @@ public:
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
-    void TEST_ChangeMyOwnName(unsigned int a1);    
+    void TEST_ChangeMyOwnName(unsigned int a1);
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
-    void TEST_AnonymousMode();
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -221,8 +217,8 @@ private:
     megachat::MegaChatHandle getPublicChatRoom(unsigned int a1, unsigned int a2,
                                                      megachat::MegaChatHandle peer);
 
-    megachat::MegaChatHandle createPublicChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, bool create = true, const char* title = NULL);
+    megachat::MegaChatHandle createPublicChatRoom(unsigned int a1,
+                                              megachat::MegaChatPeerList *peers, const char* title = NULL);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -259,7 +255,6 @@ private:
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
     Account mAccounts[NUM_ACCOUNTS];
-    std::string mChatlink;
 
     mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
@@ -406,6 +401,7 @@ public:
     bool userTyping[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
     bool archiveUpdated[NUM_ACCOUNTS];
+    bool previewsUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
@@ -418,5 +414,3 @@ private:
 };
 
 #endif // CHATTEST_H
-
-
