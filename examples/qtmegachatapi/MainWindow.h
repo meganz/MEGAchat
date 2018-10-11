@@ -91,6 +91,7 @@ class MainWindow :
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
+        void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int lastGreen);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
 
     public:

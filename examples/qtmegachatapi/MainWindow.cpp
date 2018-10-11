@@ -732,7 +732,20 @@ void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfi
         : kOnlineSymbol_Set);
 
     ui->bOnlineStatus->setStyleSheet(
-        kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
+                kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
+}
+
+void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle userhandle, int lastGreen)
+{
+    const char *userHandle_64 = mMegaApi->userHandleToBase64(userhandle);
+    std::string str;
+    str.append("User: ");
+    str.append(userHandle_64);
+    str.append("  last time Green: ");
+    str.append(std::to_string(lastGreen));
+    str.append(" minutes");
+    QMessageBox::information(nullptr, tr("Last Green"), str.c_str());
+    delete userHandle_64;
 }
 
 int MainWindow::getNContacts() const
