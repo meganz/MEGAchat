@@ -214,6 +214,7 @@ enum: uint8_t
     * This command is sent by server as answer of a previous request from the client.
     * There will be no reply if the user was not ever seen by presenced
     * Maximun time value is 65535 minutes
+    *
     * <peerHandle.8><minutes.2>
     */
    OP_LASTGREEN = 10

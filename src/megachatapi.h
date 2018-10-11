@@ -2084,7 +2084,6 @@ public:
      */
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
-
     /**
      * @brief Enable/disable if our last seen is visible
      *
