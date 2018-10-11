@@ -783,6 +783,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 0);
                 READ_16(lastGreen, 8);
                 PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %d", ID_CSTR(userid), lastGreen);
+                CALL_LISTENER(onPresenceLastGreenUpdated, userid, lastGreen);
                 break;
             }
             default:

@@ -340,6 +340,13 @@ public:
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
+    /**
+     * @brief Called when client receives from presenced last time that an user has been green
+     * @param userid User id whose last green is notified
+     * @param lastGreen Time elapsed (minutes) since the last time user was green
+     */
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.

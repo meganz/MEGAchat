@@ -1116,6 +1116,11 @@ void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi */*api*/, MegaCha
 
 }
 
+void MegaChatListener::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle /*userhandle*/, int /*lastGreen*/)
+{
+
+}
+
 MegaChatListItem *MegaChatListItem::copy() const
 {
     return NULL;

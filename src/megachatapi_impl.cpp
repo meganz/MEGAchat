@@ -1594,6 +1594,14 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
     delete config;
 }
 
+void MegaChatApiImpl::fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatPresenceLastGreen(chatApi, userhandle, lastGreen);
+    }
+}
+
 void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
 {
     bool allConnected = (newState == MegaChatApi::CHAT_CONNECTION_ONLINE) ? mClient->mChatdClient->areAllChatsLoggedIn() : false;
@@ -3625,6 +3633,11 @@ void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bo
 {
     MegaChatPresenceConfigPrivate *config = new MegaChatPresenceConfigPrivate(state, pending);
     fireOnChatPresenceConfigUpdate(config);
+}
+
+void MegaChatApiImpl::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+{
+    fireOnChatPresenceLastGreenUpdated(userid, lastGreen);
 }
 
 ChatRequestQueue::ChatRequestQueue()

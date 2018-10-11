@@ -2084,6 +2084,7 @@ public:
      */
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
+
     /**
      * @brief Enable/disable if our last seen is visible
      *
@@ -2107,6 +2108,7 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
+
     /**
      * @brief Signal there is some user activity
      *
@@ -4206,6 +4208,17 @@ public:
      * @param newState New state of the connection
      */
     virtual void onChatConnectionStateUpdate(MegaChatApi* api, MegaChatHandle chatid, int newState);
+
+    /**
+     * @brief This function is called when server notify last time green from an user
+     *
+     * To receive this notification, MegaChatApi::requestLastGreen has to be called previously
+     *
+     * @param api MegaChatApi connected to the account
+     * @param userhandle MegaChatHandle of the user whose last time green is notified
+     * @param lastGreen Time elapsed (minutes) since the last time user was green
+     */
+    virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
 };
 
 /**

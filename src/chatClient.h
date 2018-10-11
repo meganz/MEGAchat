@@ -927,6 +927,7 @@ protected:
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 
     //==
     friend class ChatRoom;
