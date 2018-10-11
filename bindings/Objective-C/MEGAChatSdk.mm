@@ -168,6 +168,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->setPresencePersist(enable);
 }
 
+- (void)setLastSeenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setLastSeenVisible(enable, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setLastSeenVisible:(BOOL)enable {
+    self.megaChatApi->setLastSeenVisible(enable);
+}
+
 - (BOOL)isSignalActivityRequired {
     return self.megaChatApi->isSignalActivityRequired();
 }

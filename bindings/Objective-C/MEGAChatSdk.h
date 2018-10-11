@@ -109,6 +109,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout;
 - (void)setPresencePersist:(BOOL)enable;
+- (void)setLastSeenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setLastSeenVisible:(BOOL)enable;
 - (BOOL)isSignalActivityRequired;
 - (void)signalPresenceActivity;
 - (MEGAChatPresenceConfig *)presenceConfig;
