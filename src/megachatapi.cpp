@@ -273,6 +273,11 @@ void MegaChatApi::setLastSeenVisible(bool enable, MegaChatRequestListener *liste
     pImpl->setLastSeenVisible(enable, listener);
 }
 
+void MegaChatApi::requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener)
+{
+    pImpl->requestLastGreen(userid, listener);
+}
+
 void MegaChatApi::signalPresenceActivity(MegaChatRequestListener *listener)
 {
     pImpl->signalPresenceActivity(listener);

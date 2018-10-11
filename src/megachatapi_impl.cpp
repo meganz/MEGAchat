@@ -309,6 +309,15 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
+        case MegaChatRequest::TYPE_LAST_GREEN:
+        {
+            MegaChatHandle userid = request->getUserHandle();
+            mClient->presenced().requestLastGreen(userid);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
@@ -1727,6 +1736,14 @@ void MegaChatApiImpl::setLastSeenVisible(bool enable, MegaChatRequestListener *l
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LAST_SEEN_VISIBLE, listener);
     request->setFlag(enable);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LAST_GREEN, listener);
+    request->setUserHandle(userid);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3820,6 +3837,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
         case TYPE_SET_LAST_SEEN_VISIBLE: return "SET_LAST_SEEN_VISIBLE";
+        case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
     }
     return "UNKNOWN";
 }

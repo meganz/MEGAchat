@@ -201,7 +201,22 @@ enum: uint8_t
      *
      * <sn.8> <1.4> <peerHandle.8>
      */
-    OP_SNDELPEERS = 9
+    OP_SNDELPEERS = 9,
+
+    /**
+    * @brief
+    * C->S
+    * This command is sent when the client wants to know the last time that a user has been green
+    *
+    * <peerHandle.8>
+    *
+    * S->C
+    * This command is sent by server as answer of a previous request from the client.
+    * There will be no reply if the user was not ever seen by presenced
+    * Maximun time value is 65535 minutes
+    * <peerHandle.8><minutes.2>
+    */
+   OP_LASTGREEN = 10
 };
 
 class Config
@@ -344,6 +359,7 @@ public:
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
     bool setLastSeenVisible(bool enable);
+    bool requestLastGreen(karere::Id userid);
 
 
     /** @brief Enables or disables autoaway
@@ -390,6 +406,7 @@ inline const char* Command::opcodeToStr(uint8_t opcode)
         case OP_DELPEERS: return "DELPEERS";
         case OP_SNADDPEERS: return "SNADDPEERS";
         case OP_SNDELPEERS: return "SNDELPEERS";
+        case OP_LASTGREEN: return "LASTGREEN";
         default: return "(invalid)";
     }
 }

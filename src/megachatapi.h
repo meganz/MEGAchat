@@ -1230,7 +1230,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
-        TYPE_PUSH_RECEIVED, TYPE_SET_LAST_SEEN_VISIBLE,
+        TYPE_PUSH_RECEIVED, TYPE_SET_LAST_SEEN_VISIBLE, TYPE_LAST_GREEN,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2096,6 +2096,17 @@ public:
      */
     void setLastSeenVisible(bool enable, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Request last time green from a user
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LAST_GREEN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle() - Returns the handle of the user
+     *
+     * @param userid MegaChatHandle from user that last seen has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
     /**
      * @brief Signal there is some user activity
      *

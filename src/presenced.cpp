@@ -138,6 +138,11 @@ bool Client::setLastSeenVisible(bool enable)
     return sendPrefs();
 }
 
+bool Client::requestLastGreen(Id userid)
+{
+    return sendCommand(Command(OP_LASTGREEN) + userid);
+}
+
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
@@ -594,6 +599,21 @@ void Command::toString(char* buf, size_t bufsize) const
             snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
         }
+        case OP_LASTGREEN:
+        {
+            Id user = read<uint64_t>(1);
+            string tmpString;
+            tmpString.append("LASTGREEN - ");
+            tmpString.append(ID_CSTR(user));
+            if (size() > 9)
+            {
+                uint16_t lastGreen = read<uint16_t>(9);
+                tmpString.append(" Last green: ");
+                tmpString.append(to_string(lastGreen));
+            }
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
+            break;
+        }
         default:
         {
             snprintf(buf, bufsize, "%s", opcodeName());
@@ -756,6 +776,13 @@ void Client::handleMessage(const StaticBuffer& buf)
                 }
                 mPrefsAckWait = false;
                 configChanged();
+                break;
+            }
+            case OP_LASTGREEN:
+            {
+                READ_ID(userid, 0);
+                READ_16(lastGreen, 8);
+                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %d", ID_CSTR(userid), lastGreen);
                 break;
             }
             default:
