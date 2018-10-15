@@ -1462,13 +1462,15 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     std::string chatLink = this->chatLinks[a1];
     assert(!chatLink.empty());
 
-    //--> Preview chat link (OK)
+    //--> Load chat link (OK)
+    bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     bool *flagLoadChatLink = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_CHAT_LINK]; *flagLoadChatLink = false;
     megaChatApi[a2]->loadChatLink(chatLink.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagLoadChatLink), "Timeout expired for load chat link");
 
     //Open chatroom
     ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
 
     // --> Try to send a message (ERR)
     string msgaux = "HI " + mAccounts[a1].getEmail()+ " - This message can't be send because I'm in preview mode (read-only)";
@@ -1480,8 +1482,10 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
 
     //--> Join chat link (OK)
     bool *flagJoinChatLink = &requestFlagsChat[a2][MegaChatRequest::TYPE_CHAT_LINK_JOIN]; *flagJoinChatLink = false;
+    previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     megaChatApi[a2]->joinChatLink(chatid, this);
     ASSERT_CHAT_TEST(waitForResponse(flagJoinChatLink), "Timeout expired for load chat link");
+    ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
 
     // --> Try to send a message (OK)
     msgaux = "HI " + mAccounts[a1].getEmail()+ " - I have autojoined to this chat";
@@ -1519,6 +1523,9 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
 
     //Leave this chat
     leaveChat(a1, chatid);
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
+    delete chatroomListener;
 }
 
 /**
@@ -1539,7 +1546,6 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
 
         MegaChatRoomList * chatroomList = megaChatApi[a1]->getChatRooms();
         MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-        TestChatRoomListener *chatroomListener;
         for (int i = 0; i<chatroomList->size(); i++)
         {
             const MegaChatRoom * room = chatroomList->get(i);
@@ -1547,7 +1553,6 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
             if (room->isPublic() &&  room->isActive() && room->hasCustomTitle())
             {
                 chatid = room->getChatId();
-                chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
                 break;
             }
         }
@@ -1561,13 +1566,13 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
             title.append(std::to_string(now));
             MegaChatPeerList *peers = MegaChatPeerList::createInstance();
             chatid = createPublicChatRoom(a1, peers, title.c_str());
-            chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
             delete peers;
             peers = NULL;
         }
 
-        //Open chatroom
-        ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+        // --> Open chatroom
+        TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+        ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
 
         // --> Export chat link
         bool *flagExportChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagExportChatLink = false;
@@ -1583,12 +1588,14 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
         ASSERT_CHAT_TEST(initState[a2] != MegaChatApi::INIT_ERROR, "Init sesion in anonymous mode failed");
 
         //Load chat link
+        bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
         bool *flagLoadChatLink = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_CHAT_LINK]; *flagLoadChatLink = false;
         megaChatApi[a2]->loadChatLink(chatLink.c_str(), this);
         ASSERT_CHAT_TEST(waitForResponse(flagLoadChatLink), "Timeout expired for load chat link");
 
         //Open chatroom
         ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+        ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
 
         // -->Try to send a message in anonymous mode
         string msg = "HI " + mAccounts[a1].getEmail()+ " - This message will be rejected because now I'm a previewer";
@@ -1608,11 +1615,12 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
         delete msgSent; msgSent = NULL;
         ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a1] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
 
-        //TODO CHECK TEST CRASH IN: void MegaChatRoomPrivate::setNumPreviewers(unsigned int numPrev)
         // --> Close preview
-        bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
+        previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
         megaChatApi[a2]->closePreview(chatid);
         ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for close preview");
+        megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+        delete chatroomListener;
 }
 
 /**
