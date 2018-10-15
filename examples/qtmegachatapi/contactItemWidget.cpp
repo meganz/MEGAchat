@@ -51,7 +51,7 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     connect(chatInviteAction, SIGNAL(triggered()), this, SLOT(onCreateGroupChat()));
     auto removeAction = menu.addAction(tr("Remove contact"));
     connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
-    auto lastGreenAction = menu.addAction(tr("Request last green"));
+    auto lastGreenAction = menu.addAction(tr("Last time user was online"));
     connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
     menu.exec(event->globalPos());
     menu.deleteLater();

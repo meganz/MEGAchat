@@ -737,15 +737,28 @@ void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfi
 
 void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle userhandle, int lastGreen)
 {
-    const char *userHandle_64 = mMegaApi->userHandleToBase64(userhandle);
+    const char *firstname = mApp->getFirstname(userhandle);
+    if (!firstname)
+    {
+        firstname = mMegaApi->userHandleToBase64(userhandle);
+    }
+
     std::string str;
     str.append("User: ");
-    str.append(userHandle_64);
+    str.append(firstname);
     str.append("  last time Green: ");
     str.append(std::to_string(lastGreen));
     str.append(" minutes");
-    QMessageBox::information(nullptr, tr("Last Green"), str.c_str());
-    delete userHandle_64;
+
+    QMessageBox* msgBox = new QMessageBox(this);
+    msgBox->setIcon( QMessageBox::Information );
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setStandardButtons(QMessageBox::Ok);
+    msgBox->setWindowTitle( tr("Last time Green"));
+    msgBox->setText(str.c_str());
+    msgBox->setModal(false);
+    msgBox->show();
+    delete firstname;
 }
 
 int MainWindow::getNContacts() const
