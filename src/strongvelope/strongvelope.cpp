@@ -407,6 +407,11 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 payload.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
+            case TLV_TYPE_OPENMODE:
+            {
+                openmode = true;
+                break;
+            }
             default:
                 throw std::runtime_error("Unknown TLV record type "+std::to_string(record.type)+" in message "+binaryMessage.id().toString());
         }
@@ -1535,33 +1540,35 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
 promise::Promise<std::shared_ptr<Buffer>>
 ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, bool encryptAsPrivate)
 {
+    SetOfIds participants;
+    bool createNewKey = !isPublicChat() || encryptAsPrivate;
     promise::Promise<std::shared_ptr<SendKey>> pms;
-    if (!isPublicChat() || encryptAsPrivate)
+    if (createNewKey)
     {
         std::shared_ptr<SendKey> key;
         key = std::make_shared<SendKey>();
         randombytes_buf(key->buf(), key->bufSize());
         pms.resolve(key);
+
+        participants = *mParticipants;
+        if (extraUser)
+        {
+            participants.insert(extraUser);
+        }
     }
-    else
+    else    // open-mode/public-chat
     {
         pms = mUnifiedKeyDecrypted;
     }
 
-    SetOfIds participants = *mParticipants;
-    if (extraUser)
-    {
-        participants.insert(extraUser);
-    }
-
     auto wptr = weakHandle();
-    return pms.then([wptr, this, participants, data](std::shared_ptr<SendKey> key)
+    return pms.then([wptr, this, participants, data, createNewKey](std::shared_ptr<SendKey> key)
     {
         wptr.throwIfDeleted();
         assert(!key->empty());
 
         return encryptKeyToAllParticipants(key, participants)
-        .then([this, wptr, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+        .then([this, wptr, data, createNewKey](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
         {
             wptr.throwIfDeleted();
 
@@ -1578,6 +1585,10 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, b
             tlv.addRecord(TLV_TYPE_NONCE, enc.nonce);
             tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
             tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
+            if (!createNewKey)
+            {
+                tlv.addRecord(TLV_TYPE_OPENMODE, true);
+            }
 
             Signature signature;
             signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
@@ -1654,41 +1665,7 @@ ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Mess
 {
     try
     {
-        promise::Promise<Message *> pms;
-        if (isPublicChat())
-        {
-            auto unifiedKeyDecrypted = mUnifiedKeyDecrypted.done();    // wait for unified key decryption
-            switch (unifiedKeyDecrypted)
-            {
-            case promise::kSucceeded:   // if already decrypted...
-                assert(mUnifiedKey);
-                pms = parsedMsg->decryptPublicChatTitle(msg, mUnifiedKey);
-                break;
-
-            case promise::kFailed:
-                STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key decryption failed. Cannot decrypt chat title");
-                return mUnifiedKeyDecrypted.error();
-
-            default:
-                STRONGVELOPE_LOG_WARNING("[decryptChatTitle]: unified key is not decrypted yet");
-
-                assert(unifiedKeyDecrypted == promise::kNotResolved);
-                pms = mUnifiedKeyDecrypted
-                .then([this, parsedMsg, msg](std::shared_ptr<UnifiedKey> unifiedKey) -> promise::Promise<Message*>
-                // warning: parsedMsg must be kept alive when .then() is executed while the
-                // unified-key is decrypted, so we capture the shared pointer
-                {
-                    return parsedMsg->decryptPublicChatTitle(msg, unifiedKey);
-                });
-                break;
-            }
-        }
-        else    // public mode
-        {
-            pms = parsedMsg->decryptChatTitle(msg, msgCanBeDeleted);
-        }
-
-        return pms;
+        return parsedMsg->decryptChatTitle(msg, msgCanBeDeleted);
     }
     catch(std::exception& e)
     {
@@ -1696,43 +1673,51 @@ ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Mess
     }
 }
 
-promise::Promise<chatd::Message*> ParsedMessage::decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<UnifiedKey>& key)
-{
-    symmetricDecrypt(*key, *msg);
-    msg->setEncrypted(Message::kNotEncrypted);
-    Id chatid = mProtoHandler.chatid;
-    STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully (public chat).");
-    return msg;
-}
-
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
-    const char* pos = encryptedKey.buf();
-    const char* end = pos + encryptedKey.dataSize();
-
-    //pick the version that is encrypted for us
-    karere::Id receiver;
-    while (pos < end)
+    promise::Promise<std::shared_ptr<SendKey>> pms;
+    if (openmode)  // chat-title was created in open-mode --> decrypt using unfied-key
     {
-        receiver = Buffer::alignSafeRead<uint64_t>(pos);
-        pos+=8;
-        uint16_t keylen = *(uint16_t*)(pos);
-        pos+=2;
-        if (receiver == mProtoHandler.ownHandle())
-            break;
-        pos+=keylen;
+        pms = mProtoHandler.unifiedKey();
+    }
+    else    // chat-title was created in closed-mode --> look for the key encrypted to us
+    {
+        //pick the version that is encrypted for us
+        karere::Id receiver;
+        const char* pos = encryptedKey.buf();
+        const char* end = pos + encryptedKey.dataSize();
+        while (pos < end)
+        {
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos += sizeof(uint64_t);
+
+            uint16_t keylen = *(uint16_t*)(pos);
+            pos += sizeof(uint16_t);
+
+            if (receiver == mProtoHandler.ownHandle())
+            {
+                break;
+            }
+            pos += keylen;
+        }
+
+        if (pos >= end)
+            throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+
+        if (end-pos < SVCRYPTO_KEY_SIZE)
+            throw std::runtime_error("Unexpected key entry length - must be 16 bytes, but is "+std::to_string(end-pos)+" bytes");
+
+        auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+        buf->assign(pos, SVCRYPTO_KEY_SIZE);
+
+        pms = mProtoHandler.decryptKey(buf, sender, receiver);
     }
 
-    if (pos >= end)
-        throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < SVCRYPTO_KEY_SIZE)
-        throw std::runtime_error("Unexpected key entry length - must be 16 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
-    buf->assign(pos, SVCRYPTO_KEY_SIZE);
     auto wptr = weakHandle();
     unsigned int cacheVersion = mProtoHandler.getCacheVersion();
-    return mProtoHandler.decryptKey(buf, sender, receiver)
+
+    return pms
     .then([this, wptr, msg, cacheVersion, msgCanBeDeleted](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();

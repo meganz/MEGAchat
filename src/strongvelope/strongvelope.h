@@ -102,6 +102,7 @@ enum
     TLV_TYPE_INVITOR            = 0x0b,
     TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPE_KEYBLOB            = 0x0f,
+    TLV_TYPE_OPENMODE           = 0x10,
     TLV_TYPES_COUNT
 };
 
@@ -174,6 +175,7 @@ struct ParsedMessage: public karere::DeleteTrackable
     Buffer signedContent;
     Buffer signature;
     unsigned char type;
+    bool openmode = false;
     //legacy key stuff
     uint64_t keyId;
     uint64_t prevKeyId;
@@ -184,7 +186,6 @@ struct ParsedMessage: public karere::DeleteTrackable
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
-    promise::Promise<chatd::Message *> decryptPublicChatTitle(chatd::Message *msg, const std::shared_ptr<UnifiedKey> &key);
     promise::Promise<std::string> extractUnifiedKeyFromCt(chatd::Message *msg);
     std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
     std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
@@ -332,6 +333,7 @@ public:
     karere::Id chatid;
     karere::Id mPh;     // it's only valid during preview mode (required to fetch user-attributes)
     karere::Id ownHandle() const { return mOwnHandle; }
+    promise::Promise<std::shared_ptr<UnifiedKey>> unifiedKey() { return mUnifiedKeyDecrypted; }
 
     ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,

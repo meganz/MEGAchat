@@ -288,11 +288,9 @@ std::string ChatMessage::managementInfoToString() const
     }
     case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
     {
-        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
         ret.append("User ").append(userHandle_64)
            .append(" set chat title to '")
-           .append(chatRoom->getTitle())+='\'';
-        delete chatRoom;
+           .append(mMessage->getContent())+='\'';
         return ret;
     }
     case megachat::MegaChatMessage::TYPE_CALL_ENDED:
