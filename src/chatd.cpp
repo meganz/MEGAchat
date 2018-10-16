@@ -4446,8 +4446,11 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
 
 void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
-    msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
-    assert(msg.type == Message::Type::kMsgAttachment);
+    if (msg.size()) // protect against deleted node-attachment messages
+    {
+        msg.type = msg.buf()[1] + Message::Type::kMsgOffset;
+        assert(msg.type == Message::Type::kMsgAttachment);
+    }
 
     Id msgid = msg.id();
     if (isNew)
