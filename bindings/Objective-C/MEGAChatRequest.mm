@@ -5,6 +5,7 @@
 #import "MEGAChatMessage+init.h"
 #import "MEGAChatPeerList+init.h"
 #import "MEGANodeList+init.h"
+#import "MEGAHandleList+init.h"
 
 using namespace megachat;
 
@@ -105,6 +106,14 @@ using namespace megachat;
 
 - (NSInteger)paramType {
     return self.megaChatRequest ? self.megaChatRequest->getParamType() : 0;
+}
+
+- (MEGAHandleList *)megaHandleList {
+    return self.megaChatRequest ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleList()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)megaHandleListForChat:(uint64_t)chatId {
+    return self.megaChatRequest ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleListByChat(chatId)->copy() cMemoryOwn:YES] : nil;
 }
 
 @end

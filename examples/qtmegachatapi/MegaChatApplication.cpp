@@ -376,8 +376,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     saveSid(mSid);
                 }
                 mMegaChatApi->connect();
-                bool twoFactorAvailable = mMegaApi->multiFactorAuthAvailable();
-                this->mMainWin->setTwoFactorAvailable(twoFactorAvailable);
             }
             else
             {
@@ -408,11 +406,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 {
                     if (enabled)
                     {
-                        this->mMainWin->twoFactorEnable();
+                        this->mMainWin->onTwoFactorDisable();
                     }
                     else
                     {
-                        this->mMainWin->twoFactorDisable();
+                        this->mMainWin->onTwoFactorGetCode();
                     }
                 }
             }
@@ -807,6 +805,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
             {
                 QMessageBox::critical(nullptr, tr("Attachment"), tr("Error in attachment: ").append(e->getErrorString()));
+            }
+            else
+            {
+                MegaChatHandle chatid = request->getChatHandle();
+                MegaChatMessage *msg = request->getMegaChatMessage();
+                ChatItemWidget *widget = mMainWin->getChatItemWidget(chatid, false);
+
+                if (widget)
+                {
+                    ChatWindow *win = widget->getChatWindow();
+                    if (win)
+                    {
+                        win->onMessageReceived(mMegaChatApi, msg);
+                    }
+                }
             }
             break;
     }

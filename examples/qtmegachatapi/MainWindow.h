@@ -71,6 +71,7 @@ class MainWindow :
         void addPreviewChats();
         void addActiveChats();
         void createWebRTCSettingsDialog();
+
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
@@ -100,12 +101,13 @@ class MainWindow :
         void setNContacts(int nContacts);
         void createChatRoom(megachat::MegaChatPeerList *peerList, bool isGroup, bool isPublic);
         void setTwoFactorAvailable(bool twoFactorAvailable);
+        void loadChatLink(bool create);
         MegaLoggerApplication *mLogger;
 
     protected:
         Ui::MainWindow *ui;
         bool mTwoFactorAvailable = false;
-        bool mShowInactive;
+        bool mShowInactive = false;
         bool mShowArchived = false;
         QMenu *onlineStatus;
         WebRTCSettings *mWebRTCSettings;
@@ -127,19 +129,18 @@ class MainWindow :
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
         void on_mLogout_clicked();
-        void onShowInactiveChats();
-        void onShowArchivedChats();
         void onAddContact();
-        void onAddPeerChatGroup();
-        void onAddGroupChat();
-        void onAddPubChatGroup();
-        void onPrintMyInfo();
         void onWebRTCsetting();
         void setOnlineStatus();
-        void loadChatLink(bool create);
-        void twoFactorCheck();
-        void twoFactorEnable();
-        void twoFactorDisable();
+        void onShowInactiveChats();
+        void onShowArchivedChats();
+        void onAddPeerChat();
+        void onAddGroupChat();
+        void onAddPubChatGroup();
+        void onTwoFactorGetCode();
+        void onTwoFactorDisable();
+        void onTwoFactorCheck();
+        void onPrintMyInfo();
 
     signals:
         void esidLogout();

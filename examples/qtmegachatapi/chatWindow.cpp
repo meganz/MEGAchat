@@ -26,6 +26,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     ui->mSplitter->setStretchFactor(1,0);
     ui->mMessageList->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->mChatdStatusDisplay->hide();
+    mUploadDlg = NULL;
     setChatTittle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
@@ -138,6 +139,7 @@ ChatWindow::~ChatWindow()
     delete megaTransferListenerDelegate;
     delete item;
     delete mChatRoom;
+    delete mUploadDlg;
     delete ui;
 }
 
@@ -190,6 +192,13 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
     {
         setChatTittle(NULL);
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS)
+                || chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_ARCHIVE))
+    {
+        delete mChatRoom;
+        this->mChatRoom = chat->copy();
     }
 
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
@@ -270,6 +279,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMess
                 eraseChatMessage(auxMessage->getMessage(), true);
                 nSending--;
             }
+
             megachat::MegaChatMessage *auxMsg = msg->copy();
             addMsgWidget(auxMsg, loadedMessages);
             loadedMessages++;
@@ -621,33 +631,32 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto title = menu.addAction("Set title");
     connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
 
-    //Archive
-    auto archive = menu.addAction("Archive chat");
-    connect(archive, SIGNAL(triggered()), this, SLOT(onArchiveChat()));
+    auto actArchive = menu.addAction("Archive chat");
+    connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
+    actArchive->setCheckable(true);
+    actArchive->setChecked(mChatRoom->isArchived());
 
-    //Unarchive
-    auto unarchive = menu.addAction("Unarchive chat");
-    connect(unarchive, SIGNAL(triggered()), this, SLOT(onUnarchiveChat()));
+    QMenu *clMenu = menu.addMenu("Chat links");
 
     //Query chat link
-    auto queryChatLink = menu.addAction("Query chat link");
+    auto queryChatLink = clMenu->addAction("Query chat link");
     connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
 
     //Export chat link
-    auto exportChatLink = menu.addAction("Export chat link");
+    auto exportChatLink = clMenu->addAction("Export chat link");
     connect(exportChatLink, SIGNAL(triggered()), this, SLOT(onExportChatLink()));
 
     //Remove chat link
-    auto removeChatLink = menu.addAction("Remove chat link");
+    auto removeChatLink = clMenu->addAction("Remove chat link");
     connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
 
-    //Close chat link
-    auto closeChatLink = menu.addAction("Close chat link");
-    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
+    //Auto-join chat link
+    auto joinChatLink = clMenu->addAction("Join chat link");
+    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
 
     //Close chat link
-    auto joinChatLink = menu.addAction("Join chat link");
-    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    auto closeChatLink = clMenu->addAction("Close chat link");
+    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
 }
 
 void ChatWindow::onQueryChatLink()
@@ -672,6 +681,7 @@ void ChatWindow::onRemoveChatLink()
         mMegaChatApi->removeChatLink(mChatRoom->getChatId());
     }
 }
+
 void ChatWindow::onCloseChatLink()
 {
     if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
@@ -853,8 +863,8 @@ void ChatWindow::on_mSettingsBtn_clicked()
     createSettingsMenu(menu);
     menu.setLayoutDirection(Qt::RightToLeft);
     menu.adjustSize();
-    menu.exec(ui->mMembersBtn->mapToGlobal(
-        QPoint(-menu.width()+ui->mMembersBtn->width(), ui->mMembersBtn->height())));
+    menu.exec(ui->mSettingsBtn->mapToGlobal(
+    QPoint(-menu.width()+ui->mSettingsBtn->width(), ui->mSettingsBtn->height())));
     menu.deleteLater();
 }
 
@@ -868,21 +878,69 @@ void ChatWindow::on_mAttachBtn_clicked()
     QStringList nodeParsed = node.split( "/" );
     QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
     mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
-    QMessageBox::warning(nullptr, tr("Node attachment"), tr("Please don't close the window until the transfer has been finished "));
+    mUploadDlg = new QMessageBox;
+    mUploadDlg->setWindowTitle((tr("Uploading file...")));
+    mUploadDlg->setIcon(QMessageBox::Warning);
+    mUploadDlg->setText(tr("Please, wait.\nThe file will be attached when the transfer completes."));
+    mUploadDlg->setStandardButtons(QMessageBox::Cancel);
+    mUploadDlg->setModal(true);
+    mUploadDlg->show();
+    connect(mUploadDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelTransfer(QAbstractButton*)));
     this->mMegaApi->startUpload(node.toStdString().c_str(), parent, nodeName.toStdString().c_str());
     delete parent;
 }
 
+void ChatWindow::on_mCancelTransfer(QAbstractButton*)
+{
+    mMegaApi->cancelTransfers(::mega::MegaTransfer::TYPE_UPLOAD);
+    mUploadDlg->hide();
+    delete mUploadDlg;
+    mUploadDlg = NULL;
+}
+
+void ChatWindow::onArchiveClicked(bool checked)
+{
+    if (mChatRoom->isArchived() == checked)
+        return;
+
+    mMegaApi->archiveChat(mChatRoom->getChatId(), checked);
+}
+
 void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
 {
-    if (e->getErrorCode() == mega::MegaError::API_OK)
+    if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
     {
-        mega::MegaNode *node = mMegaApi->getNodeByHandle(transfer->getNodeHandle());
-        mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
-        QMessageBox::information(nullptr, tr("Transfer"), tr("The transfer has been finished successfully: "));
+        if (mUploadDlg)
+        {
+            mUploadDlg->hide();
+            if (e->getErrorCode() == mega::MegaError::API_OK)
+            {
+                QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
+                mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+            }
+            else
+            {
+                QMessageBox::critical(nullptr, tr("Upload"), tr("Error in transfer: ").append(e->getErrorString()));
+            }
+
+            mUploadDlg->hide();
+            delete mUploadDlg;
+            mUploadDlg = NULL;
+        }
+        else if (mUploadDlg == NULL)
+        {
+            QMessageBox::information(nullptr, tr("Upload"), tr("Upload canceled."));
+        }
     }
-    else
+    else    // download
     {
-        QMessageBox::critical(nullptr, tr("Transfer"), tr("Error in transfer: ").append(e->getErrorString()));
+        if (e->getErrorCode() == mega::MegaError::API_OK)
+        {
+            QMessageBox::information(nullptr, tr("Download"), tr("Attachment's download successful."));
+        }
+        else
+        {
+            QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
+        }
     }
 }

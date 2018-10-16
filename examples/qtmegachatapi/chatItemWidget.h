@@ -58,8 +58,8 @@ class ChatItemWidget : public QWidget
         void closeChatLink();
         void closePreview();
         void removeChatLink();
-        void archiveChat();
-        void unarchiveChat();
+        void archiveChat(bool checked);
+        void on_mJoinBtn_clicked();
 
     friend class ChatWindow;
     friend class MainWindow;

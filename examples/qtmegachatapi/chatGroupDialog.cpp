@@ -87,6 +87,7 @@ void CreateChatDialog::on_buttonBox_accepted()
     delete peerList;
 }
 
+
 void CreateChatDialog::on_buttonBox_rejected()
 {
     close();

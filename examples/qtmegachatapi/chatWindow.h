@@ -84,6 +84,7 @@ class ChatWindow : public QDialog,
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        QMessageBox *mUploadDlg;
 
     private slots:
         void onMsgListRequestHistory();
@@ -104,19 +105,18 @@ class ChatWindow : public QDialog,
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
+        void closeEvent(QCloseEvent *event);
 #endif
+
         void on_mJoinBtn_clicked();
         void on_mSettingsBtn_clicked();
         void on_mAttachBtn_clicked();
-
-protected slots:
-#ifndef KARERE_DISABLE_WEBRTC
-        void closeEvent(QCloseEvent *event);
+        void on_mCancelTransfer(QAbstractButton *);
+        void onArchiveClicked(bool);
         void createCallGui(bool);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
-#endif
 
     friend class CallGui;
     friend class ChatMessage;

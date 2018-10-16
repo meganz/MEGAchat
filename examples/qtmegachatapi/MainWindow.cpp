@@ -2,7 +2,6 @@
 #include "ui_MainWindow.h"
 #include <QInputDialog>
 #include <QMessageBox>
-#include <QContextMenuEvent>
 #include <QMenu>
 #include <QTMegaChatEvent.h>
 #include "uiSettings.h"
@@ -114,6 +113,26 @@ std::string MainWindow::getAuthCode()
         {
             return "";
         }
+    }
+}
+
+void MainWindow::onTwoFactorCheck()
+{
+    mMegaApi->multiFactorAuthCheck(mMegaChatApi->getMyEmail());
+}
+
+void MainWindow::onTwoFactorGetCode()
+{
+    mMegaApi->multiFactorAuthGetCode();
+}
+
+void MainWindow::onTwoFactorDisable()
+{
+    std::string auxcode = getAuthCode();
+    if (!auxcode.empty())
+    {
+        QString code(auxcode.c_str());
+        mMegaApi->multiFactorAuthDisable(code.toUtf8().constData());
     }
 }
 
@@ -309,11 +328,9 @@ void MainWindow::addActiveChats()
 
 bool MainWindow::eventFilter(QObject *, QEvent *event)
 {
-    if (event->type() == QEvent::MouseButtonRelease
-            && mMegaChatApi->getInitState() == MegaChatApi::INIT_ONLINE_SESSION
-            && mMegaChatApi->isSignalActivityRequired())
+    if (this->mMegaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
     {
-        mMegaChatApi->signalPresenceActivity();
+        this->mMegaChatApi->signalPresenceActivity();
     }
     return false;
 }
@@ -321,47 +338,49 @@ bool MainWindow::eventFilter(QObject *, QEvent *event)
 void MainWindow::on_bSettings_clicked()
 {
     QMenu menu(this);
-    if (mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS)
-    {
-        menu.setAttribute(Qt::WA_DeleteOnClose);
+    menu.setAttribute(Qt::WA_DeleteOnClose);
 
-        auto actInactive = menu.addAction(tr("Show/Hide inactive chats"));
-        connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
+    auto actInactive = menu.addAction(tr("Show inactive chats"));
+    connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
+    actInactive->setCheckable(true);
+    actInactive->setChecked(mShowInactive);
 
-        auto actArchived = menu.addAction(tr("Show/Hide archived chats"));
-        connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
+    auto actArchived = menu.addAction(tr("Show archived chats"));
+    connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
+    actArchived->setCheckable(true);
+    actArchived->setChecked(mShowArchived);
+    menu.addSeparator();
 
-        menu.addSeparator();
+    auto addAction = menu.addAction(tr("Add user to contacts"));
+    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
-        auto addAction = menu.addAction(tr("Add user to contacts"));
-        connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+    auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
+    connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChat()));
 
-        auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
-        connect(actPeerChat, SIGNAL(triggered()), this, SLOT(onAddPeerChatGroup()));
+    auto actGroupChat = menu.addAction(tr("Create group chat"));
+    connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
 
-        auto actGroupChat = menu.addAction(tr("Create group chat"));
-        connect(actGroupChat, SIGNAL(triggered()), this, SLOT(onAddGroupChat()));
+    auto actPubChat = menu.addAction(tr("Create public chat"));
+    connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
 
-        auto actPubChat = menu.addAction(tr("Create public chat"));
-        connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
+    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
+    connect(actLoadLink,  &QAction::triggered, this, [this] {loadChatLink(true);});
 
-        auto actPrintMyInfo = menu.addAction(tr("Print my info"));
-        connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-      
-        if (mTwoFactorAvailable)
-        {
-           menu.addSeparator();
-           auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
-           connect(actTwoFactCheck, SIGNAL(triggered()), this, SLOT(twoFactorCheck()));
-        }
-      
-        menu.addSeparator();
-        auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
-        connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
-    }
-
-    auto actCheckLink = menu.addAction(tr("Preview chat-link"));
+    auto actCheckLink = menu.addAction(tr("Check chat-link"));
     connect(actCheckLink,  &QAction::triggered, this, [this] {loadChatLink(false);});
+
+    menu.addSeparator();
+    auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
+    connect(actTwoFactCheck, SIGNAL(triggered()), this, SLOT(onTwoFactorCheck()));
+    actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
+
+    menu.addSeparator();
+    auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
+    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
+
+    menu.addSeparator();
+    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
+    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -622,7 +641,7 @@ void MainWindow::onShowArchivedChats()
     orderContactChatList();
 }
 
-void MainWindow::onAddPeerChatGroup()
+void MainWindow::onAddPeerChat()
 {
     mega::MegaUserList *list = mMegaApi->getContacts();
     CreateChatDialog *chatDialog = new CreateChatDialog(this, mMegaChatApi, false, false);
@@ -647,26 +666,6 @@ void MainWindow::onAddPubChatGroup()
     chatDialog->createChatList(list);
     chatDialog->show();
     delete list;
-}
-
-void MainWindow::twoFactorCheck()
-{
-    mMegaApi->multiFactorAuthCheck(mMegaChatApi->getMyEmail());
-}
-
-void MainWindow::twoFactorEnable()
-{
-     mMegaApi->multiFactorAuthGetCode();
-}
-
-void MainWindow::twoFactorDisable()
-{
-    std::string auxcode = getAuthCode();
-    if (!auxcode.empty())
-    {
-        QString code(auxcode.c_str());
-        mMegaApi->multiFactorAuthDisable(code.toUtf8().constData());
-    }
 }
 
 void MainWindow::setTwoFactorAvailable(bool twoFactorAvailable)

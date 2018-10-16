@@ -567,6 +567,7 @@ public:
     IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
+    bool isExContact(karere::Id userid);
     /** @endcond */
 };
 

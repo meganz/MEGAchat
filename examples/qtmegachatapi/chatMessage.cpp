@@ -599,8 +599,8 @@ void ChatMessage::on_bSettings_clicked()
             {
                 QString text("Download \"");
                 text.append(nodeList->get(i)->getName()).append("\"");
-                auto actInactive = menu.addAction(tr(text.toStdString().c_str()));
-                connect(actInactive,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
+                auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
             }
             break;
         }

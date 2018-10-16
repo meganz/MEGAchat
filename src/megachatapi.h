@@ -128,6 +128,7 @@ public:
         TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
         TERM_CODE_BUSY              = 9,    /// Peer is in another call
         TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
+        TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
         TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
@@ -782,10 +783,10 @@ public:
         TYPE_PUBLIC_HANDLE_DELETE   = 9,    /// Management message indicating a public handle has been removed
         TYPE_SET_PRIVATE_MODE       = 10,   /// Management message indicating the chat mode has been set to private
         TYPE_HIGHEST_MANAGEMENT     = 10,
-        TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
-        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
-        TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
-        TYPE_CONTAINS_META          = 19,   /// User message including additional metadata (ie. rich-preview for links)
+        TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
+        TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
+        TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
+        TYPE_CONTAINS_META          = 104   /// User message including additional metadata (ie. rich-preview for links)
     };
 
     enum
@@ -1799,9 +1800,6 @@ public:
      */
     MegaChatApi(mega::MegaApi *megaApi);
 
-//    // chat will use its own megaApi, a new instance
-//    MegaChatApi(const char *appKey, const char* appDir);
-
     virtual ~MegaChatApi();
 
     static const char *getAppDir();
@@ -1972,19 +1970,24 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returns the current state of the connection
+     * @brief Returns the current state of the client
      *
      * It can be one of the following values:
      *  - MegaChatApi::DISCONNECTED = 0
      *  - MegaChatApi::CONNECTING   = 1
      *  - MegaChatApi::CONNECTED    = 2
      *
-     * @return The state of connection
+     * @note Even if this function returns CONNECTED, it does not mean the client
+     * is fully connected to chatd and presenced. It means the client has been requested
+     * to connect, in contrast to the offline mode.
+     * @see MegaChatApi::getChatConnectionState and MegaChatApi::areAllChatsLoggedIn.
+     *
+     * @return The connection's state of the client
      */
     int getConnectionState();
 
     /**
-     * @brief Returns the current state of the connection to chatd
+     * @brief Returns the current state of the connection to chatd for a given chatroom
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
@@ -1992,11 +1995,20 @@ public:
      *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
      *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
+     * You can check if all chats are online with MegaChatApi::areAllChatsLoggedIn.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return The state of connection
      */
     int getChatConnectionState(MegaChatHandle chatid);
     
+    /**
+     * @brief Check whether client is logged in into all chats
+     *
+     * @return True if connection to chatd is MegaChatApi::CHAT_CONNECTION_ONLINE, false otherwise.
+     */
+    bool areAllChatsLoggedIn();
+
     /**
      * @brief Refresh DNS servers and retry pending connections
      *

@@ -14,6 +14,7 @@
 #import "MEGAChatDelegate.h"
 #import "MEGAChatCallDelegate.h"
 #import "MEGAChatVideoDelegate.h"
+#import "MEGAChatNotificationDelegate.h"
 
 #import "MEGASdk.h"
 
@@ -72,6 +73,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) MEGAChatListItemList *activeChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *inactiveChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *archivedChatListItems;
+@property (nonatomic, readonly, getter=areAllChatsLoggedIn) BOOL allChatsLoggedIn;
 
 #pragma mark - Init
 
@@ -127,6 +129,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate;
+
+- (void)addChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
+- (void)removeChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
@@ -248,6 +253,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)sendTypingNotificationForChat:(uint64_t)chatId;
 - (void)sendStopTypingNotificationForChat:(uint64_t)chatId;
 - (void)saveCurrentState;
+- (void)pushReceivedWithBeep:(BOOL)beep delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)pushReceivedWithBeep:(BOOL)beep;
 
 #pragma mark - Audio and video calls
 
