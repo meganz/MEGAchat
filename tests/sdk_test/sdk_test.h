@@ -213,13 +213,7 @@ private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, bool create = true);
-
-    megachat::MegaChatHandle getPublicChatRoom(unsigned int a1, unsigned int a2,
-                                                     megachat::MegaChatHandle peer);
-
-    megachat::MegaChatHandle createPublicChatRoom(unsigned int a1,
-                                              megachat::MegaChatPeerList *peers, const char* title = NULL);
+                                              megachat::MegaChatPeerList *peers, bool publicChat, const char *title = NULL, bool create = true);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
