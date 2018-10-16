@@ -1870,9 +1870,9 @@ bool Chat::isFetchingNodeHistory() const
     return (!mFetchRequest.empty() && (mFetchRequest.front() == FetchType::kFetchNodeHistory));
 }
 
-void Chat::setNodeHistoryHandler(FilteredHistoryHandler *listener)
+void Chat::setNodeHistoryHandler(FilteredHistoryHandler *handler)
 {
-    mAttachmentNodes->setHandler(listener);
+    mAttachmentNodes->setHandler(handler);
 }
 
 void Chat::unsetHandlerToNodeHistory()
@@ -4613,13 +4613,13 @@ void FilteredHistory::setHaveAllHistory(bool haveAllHistory)
     // TODO: persist this variable in DB (chat_vars::have_all_history)
 }
 
-void FilteredHistory::setHandler(FilteredHistoryHandler *listener)
+void FilteredHistory::setHandler(FilteredHistoryHandler *handler)
 {
     if (mListener)
         throw std::runtime_error("App node history handler is already set, remove it first");
 
     mNextMsgToNotify = mBuffer.begin();
-    mListener = listener;
+    mListener = handler;
 }
 
 void FilteredHistory::unsetHandler()

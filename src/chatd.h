@@ -531,7 +531,7 @@ public:
     void setHaveAllHistory(bool haveAllHistory);
 
     karere::Id getOldestMsgId() const;
-    void setHandler(FilteredHistoryHandler *listener);
+    void setHandler(FilteredHistoryHandler *handler);
     void unsetHandler();
     void finishFetchingFromServer();
 
@@ -1156,7 +1156,7 @@ public:
 
     /** Returns true when fetch in-flight is a NODEHIST */
     bool isFetchingNodeHistory() const;
-    void setNodeHistoryHandler(FilteredHistoryHandler *listener);
+    void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
 
 protected:
