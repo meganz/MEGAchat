@@ -620,8 +620,7 @@ public:
     enum FetchType
     {
         kFetchMessages,
-        kFetchNodeHistory,
-        kNotFetching
+        kFetchNodeHistory
     };
 
     Client& mClient;
@@ -706,14 +705,17 @@ protected:
     uint32_t mLastMsgTs;
     bool mIsGroup;
     std::set<karere::Id> mMsgsToUpdateWithRichLink;
+    /** Indicates the type of fetchs in-flight */
     std::queue <FetchType> mFetchRequest;
-    uint32_t mAttachNodeRequestToServer = 0;
-    uint32_t mAttachNodeReceived = 0;
+    /** Num of node-attachment messages requested to server */
+    uint32_t mAttachNodesRequestedToServer = 0;
+    /** Num of node-attachment messages received from server during fetch in-flight */
+    uint32_t mAttachNodesReceived = 0;
     bool mAttachmentHistDoneReceived = false;
     std::queue <Message *> mAttachmentsPendingToDecrypt;
     bool mDecryptionAttachmentsHalted = false;
+    /** True when node-attachments are pending to decrypt and history is truncated --> discard message being decrypted */
     bool mTruncateAttachment = false;
-    karere::Id mAttachmentTruncateFromId;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;

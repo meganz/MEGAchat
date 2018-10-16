@@ -1005,8 +1005,8 @@ void Chat::onDisconnect()
         }
         else if (fetchType == kFetchNodeHistory)
         {
-            mAttachNodeReceived = 0;
-            mAttachNodeRequestToServer = 0;
+            mAttachNodesReceived = 0;
+            mAttachNodesRequestedToServer = 0;
             mAttachmentNodes->finishFetchingFromServer();
         }
     }
@@ -1154,7 +1154,8 @@ void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
         CHATID_LOG_DEBUG("Fetching node history (%u messages) from server...", count);
 
         mFetchRequest.push(FetchType::kFetchNodeHistory);
-        mAttachNodeRequestToServer = count;
+        mAttachNodesRequestedToServer = count;
+        assert(mAttachNodesReceived == 0);
         mAttachmentHistDoneReceived = false;
         sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -count);
     }, mClient.karereClient->appCtx);
@@ -1689,6 +1690,11 @@ void Chat::onHistDone()
 
         mAttachmentHistDoneReceived = true;
     }
+    else
+    {
+        CHATID_LOG_WARNING("onHistDone: unknown type of fetch");
+        assert(false);
+    }
 }
 
 void Chat::onFetchHistDone()
@@ -2141,21 +2147,15 @@ void Chat::manageRichLinkMessage(Message &message)
 
 void Chat::attachmentHistDone()
 {
-    assert(mAttachNodeRequestToServer);
-    if (mAttachNodeReceived < mAttachNodeRequestToServer)
+    assert(mAttachNodesRequestedToServer);
+    if (mAttachNodesReceived < mAttachNodesRequestedToServer)
     {
         mAttachmentNodes->setHaveAllHistory(true);
     }
 
-    mAttachNodeReceived = 0;
-    mAttachNodeRequestToServer = 0;
+    mAttachNodesReceived = 0;
+    mAttachNodesRequestedToServer = 0;
     mAttachmentNodes->finishFetchingFromServer();
-
-    if (mTruncateAttachment)
-    {
-        mAttachmentNodes->truncateHistory(mAttachmentTruncateFromId);
-        mTruncateAttachment = false;
-    }
 }
 
 Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
@@ -3373,23 +3373,23 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
     // (if no more attachments in history buffer, node-history will be fully cleared)
-    mAttachmentTruncateFromId = Id::inval();
+    Id attachmentTruncateFromId = Id::inval();
     for (Idx i = lownum(); i < highnum(); i++)
     {
         if (at(i).type == Message::kMsgAttachment)
         {
-            mAttachmentTruncateFromId = at(i).id();
+            attachmentTruncateFromId = at(i).id();
             break;
         }
     }
-
-    if (!mDecryptionAttachmentsHalted)
+    mAttachmentNodes->truncateHistory(attachmentTruncateFromId);
+    if (mDecryptionAttachmentsHalted)
     {
-        mAttachmentNodes->truncateHistory(mAttachmentTruncateFromId);
-    }
-    else
-    {
-        mTruncateAttachment = true;
+        while (!mAttachmentsPendingToDecrypt.empty())
+        {
+            mAttachmentsPendingToDecrypt.pop();
+        }
+        mTruncateAttachment = true; // --> indicates the message being decrypted must be discarded
     }
 }
 
@@ -3834,16 +3834,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     if (msg.type == Message::Type::kMsgAttachment)
     {
         mAttachmentNodes->addMessage(msg, isNew, false);
-        if (mTruncateAttachment && mAttachmentTruncateFromId == Id::inval())
-        {
-            mAttachmentTruncateFromId = msg.id();
-        }
     }
 }
 
 bool Chat::msgNodeHistIncoming(Message *msg)
 {
-    mAttachNodeReceived++;
+    mAttachNodesReceived++;
     if (!mDecryptionAttachmentsHalted)
     {
         auto pms = mCrypto->msgDecrypt(msg);
@@ -3860,8 +3856,12 @@ bool Chat::msgNodeHistIncoming(Message *msg)
             mDecryptionAttachmentsHalted = true;
             pms.then([this](Message* msg)
             {
-                mAttachmentNodes->addMessage(*msg, false, false);
+                if (!mTruncateAttachment)
+                {
+                    mAttachmentNodes->addMessage(*msg, false, false);
+                }
                 delete msg;
+                mTruncateAttachment = false;
                 bool decrypt = true;
                 mDecryptionAttachmentsHalted = false;
                 while (!mAttachmentsPendingToDecrypt.empty() && decrypt)
@@ -3879,6 +3879,7 @@ bool Chat::msgNodeHistIncoming(Message *msg)
             {
                 assert(msg->isPendingToDecrypt());
                 delete msg;
+                mTruncateAttachment = false;
                 bool decrypt = true;
                 mDecryptionAttachmentsHalted = false;
                 while (mAttachmentsPendingToDecrypt.size() && decrypt)
@@ -4606,6 +4607,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
 void FilteredHistory::setHaveAllHistory(bool haveAllHistory)
 {
     mHaveAllHistory = haveAllHistory;
+    // TODO: persist this variable in DB (chat_vars::have_all_history)
 }
 
 void FilteredHistory::setHandler(FilteredHistoryHandler *listener)
