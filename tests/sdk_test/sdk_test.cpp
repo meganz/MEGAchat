@@ -353,7 +353,7 @@ void MegaChatApiTest::TearDown()
             {
                 MegaChatPeerList *peers = MegaChatPeerList::createInstance();
                 peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                chatToSkip = getGroupChatRoom(i, a2, peers, false);
+                chatToSkip = getGroupChatRoom(i, a2, peers);
                 delete peers;
                 peers = NULL;
             }
@@ -1084,7 +1084,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, false);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
@@ -1408,7 +1408,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
 
     //Create public chat without title and only one peer (Creator)
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, true);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, true, true);
 
     delete peers;
     peers = NULL;
@@ -1566,7 +1566,7 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
             std::string title = "AnonymousChat_";;
             title.append(std::to_string(now));
             MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-            chatid = getGroupChatRoom(a1, a2, peers, true, title.c_str());
+            chatid = getGroupChatRoom(a1, a2, peers, true, true, title.c_str());
             delete peers;
             peers = NULL;
         }
@@ -1790,7 +1790,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, false);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
@@ -2338,7 +2338,7 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers, false);
+    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
     delete peers;
     peers = NULL;
 
@@ -3101,7 +3101,7 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                                 MegaChatPeerList *peers, bool publicChat, const char * title, bool create)
+                                                 MegaChatPeerList *peers, bool create, bool publicChat, const char *title)
 {
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
 
@@ -3160,7 +3160,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
         ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived), "Expired timeout for receiving the new chat list item");
 
-        if (!publicChat)
+        if (!publicChat || (publicChat && peers->size()))
         {
             // since we may have multiple notifications for other chats, check we received the right one
             MegaChatListItem *chatItemSecondaryCreated = NULL;
