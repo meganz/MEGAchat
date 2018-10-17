@@ -5444,7 +5444,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->mPublicChat = chat->isPublic();
-    this->mPreviewMode = chat->isPreview();
+    this->mAuthToken = chat->getAuthorizationToken() ? Id(chat->getAuthorizationToken()) : Id::inval();
     this->title = chat->getTitle();
     this->mHasCustomTitle = chat->hasCustomTitle();
     this->unreadCount = chat->getUnreadCount();
@@ -5463,6 +5463,8 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->group = chat.isGroup();
     this->mPublicChat = chat.publicChat();
     this->mPreviewMode = chat.previewMode();
+    this->mAuthToken = Id(chat.publicHandle());
+    assert(!chat.previewMode() || (chat.previewMode() && mAuthToken.isValid()));
     this->title = chat.titleString();
     this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
     this->unreadCount = chat.chat().unreadMsgCount();
@@ -5699,7 +5701,17 @@ bool MegaChatRoomPrivate::isPublic() const
 
 bool MegaChatRoomPrivate::isPreview() const
 {
-    return mPreviewMode;
+    return mAuthToken.isValid();
+}
+
+const char *MegaChatRoomPrivate::getAuthorizationToken() const
+{
+    if (mAuthToken.isValid())
+    {
+        return strdup(mAuthToken.toString(Id::CHATLINKHANDLE).c_str());
+    }
+
+    return NULL;
 }
 
 const char *MegaChatRoomPrivate::getTitle() const

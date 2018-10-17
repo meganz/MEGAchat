@@ -671,28 +671,35 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 else
                 {
                     MegaChatRoom *room = mMegaChatApi->getChatRoom(chatid);
-                    if (room->isPreview())
+                    if (room)
                     {
-                        QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to open a chat in preview mode twice"));
-                    }
-                    else if(room->isActive())
-                    {
-                        QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to preview a chat wich you are currently part of"));
-                    }
-                    else //Rejoin
-                    {
-                        QMessageBox msgBox;
-                        msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
-                        msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-                        msgBox.setDefaultButton(QMessageBox::Cancel);
-                        int ret = msgBox.exec();
-                        if (ret == QMessageBox::Ok)
+                        if (room->isPreview())
                         {
-                            MegaChatHandle ph = request->getUserHandle();
-                            this->mMegaChatApi->rejoinChatLink(chatid, ph);
+                            QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to open a chat in preview mode twice"));
                         }
+                        else if(room->isActive())
+                        {
+                            QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to preview a chat wich you are currently part of"));
+                        }
+                        else //Rejoin
+                        {
+                            QMessageBox msgBox;
+                            msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
+                            msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                            msgBox.setDefaultButton(QMessageBox::Cancel);
+                            int ret = msgBox.exec();
+                            if (ret == QMessageBox::Ok)
+                            {
+                                MegaChatHandle ph = request->getUserHandle();
+                                this->mMegaChatApi->rejoinChatLink(chatid, ph);
+                            }
+                        }
+                        delete room;
                     }
-                    delete room;
+                    else
+                    {
+                        QMessageBox::critical(nullptr, tr("Load chat link"), tr("Error loading chat link"));
+                    }
                 }
             }
             break;

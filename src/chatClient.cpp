@@ -2772,7 +2772,7 @@ promise::Promise<void> GroupChatRoom::joinChatLink(uint64_t ph)
     });
  }
 
-uint64_t ChatRoom::publicHandle()
+uint64_t ChatRoom::publicHandle() const
 {
     return mChat->publicHandle();
 }

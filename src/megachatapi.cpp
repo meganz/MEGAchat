@@ -1070,6 +1070,11 @@ bool MegaChatRoom::isPreview() const
     return false;
 }
 
+const char *MegaChatRoom::getAuthorizationToken() const
+{
+    return NULL;
+}
+
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;

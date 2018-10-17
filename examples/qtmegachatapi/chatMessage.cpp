@@ -618,12 +618,20 @@ void ChatMessage::onNodeDownload(mega::MegaNode *node)
     std::string target(mChatWindow->mMegaChatApi->getAppDir());
     target.append("/").append(node->getName());
 
+    mega::MegaNode *result = node;
+    if (mChatWindow->mChatRoom->isPreview())
+    {
+        const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
+        result = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
+        delete [] cauth;
+    }
+
     QMessageBox msgBoxAns;
     std::string message("Node will be saved in "+target+".\nDo you want to continue?");
     msgBoxAns.setText(message.c_str());
     msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
     if (msgBoxAns.exec() == QMessageBox::Ok)
     {
-        mChatWindow->mMegaApi->startDownload(node, target.c_str());
+        mChatWindow->mMegaApi->startDownload(result, target.c_str());
     }
 }

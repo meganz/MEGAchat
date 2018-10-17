@@ -624,6 +624,7 @@ public:
     virtual bool isGroup() const;
     virtual bool isPublic() const;
     virtual bool isPreview() const;
+    virtual const char *getAuthorizationToken() const;
     virtual const char *getTitle() const;
     virtual bool hasCustomTitle() const;
     virtual bool isActive() const;
@@ -657,7 +658,7 @@ private:
     std::vector<std::string> peerEmails;
     bool group;
     bool mPublicChat;
-    bool mPreviewMode;
+    karere::Id mAuthToken;
     bool active;
     bool archived;
     bool mHasCustomTitle;

@@ -1108,7 +1108,7 @@ public:
     void sendSync();
     DbInterface* getDbInterface();
     void setPublicHandle(uint64_t ph);
-    uint64_t publicHandle();
+    uint64_t publicHandle() const;
     bool previewMode();
     void rejoin();
     void closePreview();

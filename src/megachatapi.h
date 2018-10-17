@@ -4400,6 +4400,21 @@ public:
     virtual bool isPreview() const;
 
     /**
+     * @brief Get the authorization token in preview mode
+     *
+     * This method returns an authorization token that can be used to authorize
+     * nodes received as attachments while in preview mode, so the node can be
+     * downloaded/imported into the account via MegaApi::authorizeChatNode.
+     *
+     * If the chat is not in preview mode, this function will return NULL.
+     *
+     * You take the ownership of the returned value. Use delete [] value
+     *
+     * @return Auth token or NULL if not in preview mode.
+     */
+    virtual const char *getAuthorizationToken() const;
+
+    /**
      * @brief getTitle Returns the title of the chat, if any.
      * @brief Returns the title of the chat
      *
