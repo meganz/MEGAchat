@@ -850,7 +850,7 @@ string Command::toString(const StaticBuffer& data)
             karere::Id oldestMsgid = data.read<uint64_t>(7);
             karere::Id newestId = data.read<uint64_t>(15);
 
-            tmpString.append("JOINRNAGEHIST chatid: ");
+            tmpString.append("JOINRANGEHIST chatid: ");
             tmpString.append(chatid.toString());
 
             tmpString.append(" oldest: ");
@@ -991,7 +991,7 @@ string Command::toString(const StaticBuffer& data)
             karere::Id oldestMsgid = data.read<uint64_t>(7);
             karere::Id newestId = data.read<uint64_t>(15);
 
-            tmpString.append("HANDLEJOINRNAGEHIST ph: ");
+            tmpString.append("HANDLEJOINRANGEHIST ph: ");
             tmpString.append(ph.toString(Id::CHATLINKHANDLE).c_str());
 
             tmpString.append(" oldest: ");

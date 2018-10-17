@@ -1789,11 +1789,13 @@ promise::Promise<void> GroupChatRoom::requesGrantAccessToNodes(mega::MegaNodeLis
 
     for (int i = 0; i < nodes->size(); ++i)
     {
-        if (publicChat() &&
-            (!parent.mKarereClient.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), Id::null())))
+        if (publicChat())
         {
-            ApiPromise promise = requestGrantAccess(nodes->get(i), Id::null());
-            promises.push_back(promise);
+           if (!parent.mKarereClient.api.sdk.hasAccessToAttachment(mChatid, nodes->get(i)->getHandle(), Id::null()))
+           {
+               ApiPromise promise = requestGrantAccess(nodes->get(i), Id::null());
+               promises.push_back(promise);
+           }
         }
         else
         {
