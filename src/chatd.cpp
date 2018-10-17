@@ -2631,7 +2631,7 @@ void Chat::setPublicHandle(uint64_t ph)
     mPh = ph;
 }
 
-uint64_t Chat::publicHandle()
+uint64_t Chat::publicHandle() const
 {
     return mPh;
 }

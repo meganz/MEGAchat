@@ -5462,7 +5462,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->mPublicChat = chat.publicChat();
-    this->mPreviewMode = chat.previewMode();
     this->mAuthToken = Id(chat.publicHandle());
     assert(!chat.previewMode() || (chat.previewMode() && mAuthToken.isValid()));
     this->title = chat.titleString();
