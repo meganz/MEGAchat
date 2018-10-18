@@ -2103,7 +2103,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle() - Returns the handle of the user
      *
-     * @param userid MegaChatHandle from user that last seen has been requested
+     * @param userid MegaChatHandle from user that last green has been requested
      * @param listener MegaChatRequestListener to track this request
      */
     void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);

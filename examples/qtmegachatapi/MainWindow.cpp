@@ -355,7 +355,7 @@ void MainWindow::on_bSettings_clicked()
 
     menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    auto actlastGreenVisible = menu.addAction(presenceConfig->isLastGreenVisible() ? "Enable Last Seen Visible" : "Disable Last Seen Visible");
+    auto actlastGreenVisible = menu.addAction(presenceConfig->isLastGreenVisible() ? "Enable Last Green Visible" : "Disable Last Green Visible");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
     delete presenceConfig;
 
