@@ -634,17 +634,24 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
     QMessageBox msgBoxAns;
     if(import)
     {
-        std::string message("Node will be imported to the cloud drive");
-        msgBoxAns.setText(message.c_str());
-        msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-        if (msgBoxAns.exec() == QMessageBox::Ok)
+        mega::MegaNode *parent= mChatWindow->mMegaApi->getRootNode();
+        if (parent)
         {
-            mega::MegaNode *parent= mChatWindow->mMegaApi->getRootNode();
-            if (parent)
+            std::string message("Node will be imported to the cloud drive");
+            msgBoxAns.setText(message.c_str());
+            msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+            if (msgBoxAns.exec() == QMessageBox::Ok)
             {
                 mChatWindow->mMegaApi->copyNode(resultNode, parent);
-                delete parent;
             }
+            delete parent;
+        }
+        else
+        {
+            std::string message("Node cannot be imported in anonymous mode");
+            msgBoxAns.setText(message.c_str());
+            msgBoxAns.setStandardButtons(QMessageBox::Ok);
+            msgBoxAns.exec();
         }
     }
     else
