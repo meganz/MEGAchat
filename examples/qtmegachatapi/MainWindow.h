@@ -61,7 +61,9 @@ class MainWindow :
     public:
         explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, mega::MegaApi *megaApi = NULL);
         virtual ~MainWindow();
-        void addChat(const megachat::MegaChatListItem *chatListItem);
+        void addChatWidget(const megachat::MegaChatListItem *chatListItem);
+        void removeChatWidget(const megachat::MegaChatListItem* chatListItem);
+        void closePreview(ChatItemWidget *item);
         void addContact(mega::MegaUser *contact);
         void clearContactChatList();
         void orderContactChatList();
@@ -82,7 +84,6 @@ class MainWindow :
         //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
         void addOrUpdateLocalChatListItem(const megachat::MegaChatListItem *item);
         void updateLocalChatListItems();
-        void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItemById(megachat::MegaChatHandle id);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);

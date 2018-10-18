@@ -171,9 +171,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
            {
-               ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
-               chatItemWidget->getChatWindow()->hangCall();
-               return;
+               ChatItemWidget *item = this->getChatItemWidget(call->getChatid(),false);
+               if (item)
+               {
+                   chatItemWidget->getChatWindow()->hangCall();
+                   return;
+               }
            }
            break;
         case megachat::MegaChatCall::CALL_STATUS_RING_IN:
@@ -213,6 +216,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 #endif
 void MainWindow::clearContactChatList()
 {
+    activeChats = 0;
+    archivedChats = 0;
+    inactiveChats = 0;
     ui->contactList->clear();
     chatWidgets.clear();
     contactWidgets.clear();
@@ -288,7 +294,7 @@ void MainWindow::addPreviewChats()
     std::list<Chat> *previewsChatList = getLocalChatListItemsByStatus(chatPreviewStatus);
     for (Chat &chat : (*previewsChatList))
     {
-        addChat(chat.chatItem);
+        addChatWidget(chat.chatItem);
     }
     delete previewsChatList;
 }
@@ -299,7 +305,7 @@ void MainWindow::addArchivedChats()
     archivedChatList->sort();
     for (Chat &chat : (*archivedChatList))
     {
-        addChat(chat.chatItem);
+        addChatWidget(chat.chatItem);
     }
     delete archivedChatList;
 }
@@ -310,7 +316,7 @@ void MainWindow::addInactiveChats()
     inactiveChatList->sort();
     for (Chat &chat : (*inactiveChatList))
     {
-        addChat(chat.chatItem);
+        addChatWidget(chat.chatItem);
     }
     delete inactiveChatList;
 }
@@ -321,7 +327,7 @@ void MainWindow::addActiveChats()
     activeChatList->sort();
     for (Chat &chat : (*activeChatList))
     {
-        addChat(chat.chatItem);
+        addChatWidget(chat.chatItem);
     }
     delete activeChatList;
 }
@@ -481,12 +487,22 @@ void MainWindow::addContact(MegaUser *contact)
 }
 
 
-void MainWindow::addChat(const MegaChatListItem* chatListItem)
+void MainWindow::removeChatWidget(const MegaChatListItem* chatListItem)
+{
+    auto it = chatWidgets.find(chatListItem->getChatId());
+    if (it != chatWidgets.end())
+    {
+        ChatItemWidget *auxItem = it->second;
+        chatWidgets.erase(it);
+        auxItem->deleteLater();
+    }
+}
+
+void MainWindow::addChatWidget(const MegaChatListItem* chatListItem)
 {
     int index = 0;
     if (chatListItem->isArchived())
     {
-        index = -(archivedChats);
         archivedChats += 1;
     }
     else if (!chatListItem->isActive())
@@ -510,12 +526,39 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
     ui->contactList->insertItem(index, item);
     ui->contactList->setItemWidget(item, chatItemWidget);
 
-    ChatItemWidget *auxChatItemWidget = getChatItemWidget(chathandle, true);
-    if(auxChatItemWidget)
+    ChatItemWidget *auxItem = getChatItemWidget(chathandle, true);
+    if(auxItem)
     {
-        chatItemWidget->mChatWindow = auxChatItemWidget->mChatWindow;
-        auxChatItemWidget->deleteLater();
+        chatItemWidget->mChatWindow = auxItem->mChatWindow;
+        auxItem->deleteLater();
     }
+}
+
+void MainWindow::closePreview(ChatItemWidget *item)
+{
+    //Close and remove chatWindow in case that exists
+    ChatWindow *auxWindow;
+    if(auxWindow = item->getChatWindow())
+    {
+        item->invalidChatWindowHandle();
+        auxWindow->deleteLater();
+    }
+
+    //Call closePreview
+    mMegaChatApi->closePreview(item->getChatId());
+
+    //Remove widget
+    const MegaChatListItem * auxitem = this->getLocalChatListItem(item->getChatId());
+    if (auxitem)
+    {
+        removeChatWidget(auxitem);
+    }
+
+    //Remove local chatListItem
+    removeLocalChatListItemById(item->getChatId());
+
+    //Reorder chat list
+    orderContactChatList();
 }
 
 void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
@@ -560,7 +603,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             {
                 if (item->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)
                 {
-                    chatItemWidget->closePreview();
+                    closePreview(chatItemWidget);
+                    return;
                 }
             }
             chatItemWidget->updateToolTip(item, NULL);
@@ -571,13 +615,14 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         {
             if (item->isPreview())
             {
-                chatItemWidget->closePreview();
+                closePreview(chatItemWidget);
+                return;
             }
             else
             {
                 chatItemWidget->showAsHidden();
+                needReorder = true;
             }
-            needReorder = true;
         }
 
         //Timestamp of the last activity update
@@ -592,13 +637,13 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         {
             if (!mShowArchived)
             {
-                ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
-                if(auxChatItemWidget)
+                ChatItemWidget *auxItem = getChatItemWidget(chatid, false);
+                if(auxItem)
                 {
-                    if (auxChatItemWidget->mChatWindow)
+                    if (auxItem->mChatWindow)
                     {
-                        auxChatItemWidget->mChatWindow->deleteLater();
-                        auxChatItemWidget->invalidChatWindowHandle();
+                        auxItem->mChatWindow->deleteLater();
+                        auxItem->invalidChatWindowHandle();
                     }
                 }
             }
@@ -607,11 +652,16 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 
         if(item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UPDATE_PREVIEWERS))
         {
-            ChatItemWidget *auxChatItemWidget = getChatItemWidget(chatid, false);
-            if(auxChatItemWidget)
+            ChatItemWidget *auxItem = getChatItemWidget(chatid, false);
+            if(auxItem)
             {
-                auxChatItemWidget->onPreviersCountChanged(item->getNumPreviewers());
+                auxItem->onPreviersCountChanged(item->getNumPreviewers());
             }
+        }
+
+        if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE))
+        {
+            needReorder = true;
         }
     }
     else
@@ -963,19 +1013,6 @@ void MainWindow::addOrUpdateLocalChatListItem(const MegaChatListItem *item)
     mLocalChatListItems.insert(std::pair<megachat::MegaChatHandle, const MegaChatListItem *>(item->getChatId(),item->copy()));
 }
 
-void MainWindow::removeLocalChatListItem(MegaChatListItem *item)
-{
-    std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator itItem;
-    itItem = mLocalChatListItems.find(item->getChatId());
-    if (itItem != mLocalChatListItems.end())
-    {
-        const megachat::MegaChatListItem *auxItem = itItem->second;
-        mLocalChatListItems.erase(itItem);
-        delete auxItem;
-    }
-    orderContactChatList();
-}
-
 void MainWindow::removeLocalChatListItemById(MegaChatHandle id)
 {
     std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator itItem;
@@ -986,7 +1023,6 @@ void MainWindow::removeLocalChatListItemById(MegaChatHandle id)
         mLocalChatListItems.erase(itItem);
         delete auxItem;
     }
-    orderContactChatList();
 }
 
 const megachat::MegaChatListItem *MainWindow::getLocalChatListItem(megachat::MegaChatHandle chatId)

@@ -114,7 +114,7 @@ void MegaChatApplication::initAnonymous(std::string chatlink)
 {
     delete [] mSid;
     mSid = strdup(chatlink.c_str());
-    mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
+
     int initState = mMegaChatApi->initAnonymous(mSid);
     if (initState == MegaChatApi::INIT_ERROR)
     {
@@ -770,10 +770,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
             }
-            else
-            {
-                mMainWin->orderContactChatList();
-            }
             break;
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -831,11 +827,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 MegaChatHandle chatid = request->getChatHandle();
                 MegaChatMessage *msg = request->getMegaChatMessage();
-                ChatItemWidget *widget = mMainWin->getChatItemWidget(chatid, false);
+                ChatItemWidget *item = mMainWin->getChatItemWidget(chatid, false);
 
-                if (widget)
+                if (item)
                 {
-                    ChatWindow *win = widget->getChatWindow();
+                    ChatWindow *win = item->getChatWindow();
                     if (win)
                     {
                         win->onMessageReceived(mMegaChatApi, msg);

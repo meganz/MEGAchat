@@ -275,7 +275,10 @@ std::string ChatMessage::managementInfoToString() const
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
         ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
-        item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
+        if (item)
+        {
+            item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
+        }
         ret.append("Chat history was truncated by user ").append(userHandle_64);
         return ret;
     }

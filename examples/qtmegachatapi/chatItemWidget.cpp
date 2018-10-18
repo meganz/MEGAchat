@@ -535,16 +535,7 @@ void ChatItemWidget::closeChatLink()
 
 void ChatItemWidget::closePreview()
 {
-    ChatWindow *auxWindow;
-    if(auxWindow = getChatWindow())
-    {
-        invalidChatWindowHandle();
-        auxWindow->deleteLater();
-    }
-    mMegaChatApi->closePreview(mChatId);
-    mMainWin->removeLocalChatListItemById(mChatId);
-    mMainWin->clearContactChatList();
-    mMainWin->orderContactChatList();
+    mMainWin->closePreview(this);
 }
 
 void ChatItemWidget::removeChatLink()
