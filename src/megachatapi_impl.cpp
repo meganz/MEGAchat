@@ -300,10 +300,10 @@ void MegaChatApiImpl::sendPendingRequests()
 
             break;
         }
-        case MegaChatRequest::TYPE_SET_LAST_SEEN_VISIBLE:
+        case MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE:
         {
             bool enable = request->getFlag();
-            mClient->presenced().setLastSeenVisible(enable);
+            mClient->presenced().setLastGreenVisible(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
@@ -1740,9 +1740,9 @@ void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
     waiter->notify();
 }
 
-void MegaChatApiImpl::setLastSeenVisible(bool enable, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setLastGreenVisible(bool enable, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LAST_SEEN_VISIBLE, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE, listener);
     request->setFlag(enable);
     requestQueue.push(request);
     waiter->notify();
@@ -3849,7 +3849,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_SET_LAST_SEEN_VISIBLE: return "SET_LAST_SEEN_VISIBLE";
+        case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
     }
     return "UNKNOWN";
@@ -6636,7 +6636,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const presenced::Co
     this->autoawayEnabled = config.autoawayActive();
     this->autoawayTimeout = config.autoawayTimeout();
     this->persistEnabled = config.persist();
-    this->lastSeenVisible = config.lastSeenVisible();
+    this->lastGreenVisible = config.lastGreenVisible();
     this->pending = isPending;
 }
 
@@ -6683,9 +6683,9 @@ bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
             && autoawayEnabled && autoawayTimeout);
 }
 
-bool MegaChatPresenceConfigPrivate::isLastSeenVisible() const
+bool MegaChatPresenceConfigPrivate::isLastGreenVisible() const
 {
-    return lastSeenVisible;
+    return lastGreenVisible;
 }
 
 MegaChatAttachedUser::MegaChatAttachedUser(MegaChatHandle contactId, const std::string &email, const std::string& name)

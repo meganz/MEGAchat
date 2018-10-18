@@ -355,8 +355,8 @@ void MainWindow::on_bSettings_clicked()
 
     menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    auto actLastSeenVisible = menu.addAction(presenceConfig->isLastSeenVisible() ? "Enable Last Seen Visible" : "Disable Last Seen Visible");
-    connect(actLastSeenVisible, SIGNAL(triggered()), this, SLOT(onLastSeenVisibleClicked()));
+    auto actlastGreenVisible = menu.addAction(presenceConfig->isLastGreenVisible() ? "Enable Last Seen Visible" : "Disable Last Seen Visible");
+    connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
     delete presenceConfig;
 
     QPoint pos = ui->bSettings->pos();
@@ -927,9 +927,9 @@ void MainWindow::on_mLogout_clicked()
     }
 }
 
-void MainWindow::onLastSeenVisibleClicked()
+void MainWindow::onlastGreenVisibleClicked()
 {
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    mMegaChatApi->setLastSeenVisible(!presenceConfig->isLastSeenVisible());
+    mMegaChatApi->setLastGreenVisible(!presenceConfig->isLastGreenVisible());
     delete presenceConfig;
 }

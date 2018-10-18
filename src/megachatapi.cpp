@@ -268,9 +268,9 @@ void MegaChatApi::setPresencePersist(bool enable, MegaChatRequestListener *liste
     pImpl->setPresencePersist(enable, listener);
 }
 
-void MegaChatApi::setLastSeenVisible(bool enable, MegaChatRequestListener *listener)
+void MegaChatApi::setLastGreenVisible(bool enable, MegaChatRequestListener *listener)
 {
-    pImpl->setLastSeenVisible(enable, listener);
+    pImpl->setLastGreenVisible(enable, listener);
 }
 
 void MegaChatApi::requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener)
@@ -1487,7 +1487,7 @@ bool MegaChatPresenceConfig::isSignalActivityRequired() const
     return false;
 }
 
-bool MegaChatPresenceConfig::isLastSeenVisible() const
+bool MegaChatPresenceConfig::isLastGreenVisible() const
 {
     return false;
 }
