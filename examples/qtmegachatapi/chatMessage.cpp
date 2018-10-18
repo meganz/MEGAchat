@@ -600,7 +600,13 @@ void ChatMessage::on_bSettings_clicked()
                 QString text("Download \"");
                 text.append(nodeList->get(i)->getName()).append("\"");
                 auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
-                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
+                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownloadOrImport(nodeList->get(i), false);});
+
+                text.clear();
+                text.append("Import \"");
+                text.append(nodeList->get(i)->getName()).append("\" to cloud drive");
+                auto actImport = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actImport,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownloadOrImport(nodeList->get(i), true);});
             }
             break;
         }
@@ -613,25 +619,41 @@ void ChatMessage::on_bSettings_clicked()
     menu.exec(mapToGlobal(pos));
 }
 
-void ChatMessage::onNodeDownload(mega::MegaNode *node)
+void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
 {
-    std::string target(mChatWindow->mMegaChatApi->getAppDir());
-    target.append("/").append(node->getName());
+    mega::MegaNode *resultNode = node;
 
-    mega::MegaNode *result = node;
+    //Autorize node with PH if we are in preview mode
     if (mChatWindow->mChatRoom->isPreview())
     {
         const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
-        result = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
+        resultNode = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
         delete [] cauth;
     }
 
     QMessageBox msgBoxAns;
-    std::string message("Node will be saved in "+target+".\nDo you want to continue?");
-    msgBoxAns.setText(message.c_str());
-    msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-    if (msgBoxAns.exec() == QMessageBox::Ok)
+    if(import)
     {
-        mChatWindow->mMegaApi->startDownload(result, target.c_str());
+        std::string message("Node will be imported to the cloud drive");
+        msgBoxAns.setText(message.c_str());
+        msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+        if (msgBoxAns.exec() == QMessageBox::Ok)
+        {
+            mega::MegaNode *parent= mChatWindow->mMegaApi->getRootNode();
+            mChatWindow->mMegaApi->moveNode(resultNode, parent);
+            delete parent;
+        }
+    }
+    else
+    {
+        std::string target(mChatWindow->mMegaChatApi->getAppDir());
+        target.append("/").append(node->getName());
+        std::string message("Node will be saved in "+target+".\nDo you want to continue?");
+        msgBoxAns.setText(message.c_str());
+        msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+        if (msgBoxAns.exec() == QMessageBox::Ok)
+        {
+            mChatWindow->mMegaApi->startDownload(resultNode, target.c_str());
+        }
     }
 }
