@@ -1190,6 +1190,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
         CHATID_LOG_DEBUG("All backward history of chat is available locally");
+        mAttachmentNodes->setHaveAllHistory(true);
     }
 
     if (!mOldestKnownMsgId)
@@ -1720,6 +1721,7 @@ void Chat::onFetchHistDone()
             //server returned zero messages
             assert((mDecryptOldHaltedAt == CHATD_IDX_INVALID) && (mDecryptNewHaltedAt == CHATD_IDX_INVALID));
             mHaveAllHistory = true;
+            mAttachmentNodes->setHaveAllHistory(true);
             CALL_DB(setHaveAllHistory, true);
             CHATID_LOG_DEBUG("Start of history reached");
             //last text msg stuff
