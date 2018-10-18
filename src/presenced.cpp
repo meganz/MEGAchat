@@ -105,7 +105,7 @@ std::string Config::toString() const
           .append(", persist: ").append(mPersist ? "1" : "0")
           .append(", aaActive: ").append(mAutoawayActive ? "1" : "0")
           .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
-          .append(", last-seen visible: ").append(mlastGreenVisible ? "1" : "0");
+          .append(", last-green visible: ").append(mlastGreenVisible ? "0" : "1");
     return result;
 }
 
@@ -668,7 +668,7 @@ void Config::fromCode(uint16_t code)
     {
         mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
     }
-    mlastGreenVisible = (code & Config::klastGreenVisibleMask);
+    mlastGreenVisible = (code & ~Config::klastGreenVisibleMask);
 }
 
 uint16_t Config::toCode() const
@@ -683,7 +683,7 @@ uint16_t Config::toCode() const
           | (mPersist ? 4 : 0)
           | (mAutoawayActive ? 0 : 8)
           | (autoawayTimeout << 4)
-          | (mlastGreenVisible ? Config::klastGreenVisibleMask : 0);
+          | (mlastGreenVisible ? 0 : Config::klastGreenVisibleMask);
 }
 
 Client::~Client()
