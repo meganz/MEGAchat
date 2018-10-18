@@ -1137,7 +1137,7 @@ public:
     /**
      * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
      * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param data vector of int32_t
+     * @param vector vector of int32_t
      * @return binary string
      */
     static std::string vector_to_b(std::vector<int32_t> vector);

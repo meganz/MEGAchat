@@ -2169,7 +2169,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns the value of 1st parameter
      *
-     * @param status True if the the app is in background, false if in foreground.
+     * @param background True if the the app is in background, false if in foreground.
      */
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
