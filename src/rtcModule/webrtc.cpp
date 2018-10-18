@@ -821,6 +821,8 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
         assert(!callerClient);
     }
 
+    mSentSessions.clear();
+
     auto wptr = weakHandle();
     mStatsTimer = setInterval([this, wptr]()
     {
@@ -858,6 +860,9 @@ void Call::handleMessage(RtMessage& packet)
             return;
         case RTCMD_CALL_REQ_CANCEL:
             msgCallReqCancel(packet);
+            return;
+        case RTCMD_SDP_OFFER:
+            msgSdpOffer(packet);
             return;
     }
     auto& data = packet.payload;
@@ -1034,6 +1039,31 @@ void Call::msgCallReqCancel(RtMessage& packet)
     }
 }
 
+void Call::msgSdpOffer(RtMessage& packet)
+{
+    // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
+    if (mState != kStateJoining && mState != kStateInProgress)
+    {
+        SUB_LOG_WARNING("Ignoring unexpected SDP offer while in state %s", stateStr());
+        return;
+    }
+
+    EndpointId endPoint(packet.userid, packet.clientid);
+    auto sentSessionsIt = mSentSessions.find(endPoint);
+    if (sentSessionsIt == mSentSessions.end())
+    {
+        SUB_LOG_ERROR("Received SDP_OFFER without having previously sent SESSION, ignoring");
+        return;
+    }
+
+    SdpKey sdpKey = sentSessionsIt->second.second;
+    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, sdpKey);
+    mSessions[sentSessionsIt->second.first] = sess;
+    notifyCallStarting(*sess);
+    sess->createRtcConn();
+    sess->veryfySdpOfferSendAnswer();
+}
+
 void Call::handleReject(RtMessage& packet)
 {
     if (packet.callid != mId)
@@ -1142,21 +1172,30 @@ void Call::msgSession(RtMessage& packet)
 
     setState(Call::kStateInProgress);
 
-    Id sid = packet.payload.read<uint64_t>(8);
-    if (mSessions.find(sid) != mSessions.end())
+    EndpointId peerEndPointId(packet.userid, packet.clientid);
+    if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
-        SUB_LOG_ERROR("Received SESSION with sid of an existing session (%s), ignoring", sid.toString().c_str());
-        return;
+        SUB_LOG_WARNING("Detected simultaneous join with %s (%d)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
+        EndpointId ourEndPointId(mManager.mClient.myHandle(), mChat.connection().clientId());
+        if (ourEndPointId > peerEndPointId)
+        {
+            SUB_LOG_WARNING("Detected simultaneous join - received RTCMD.SESSION after having already sent one. "
+                            "Our peerId is greater, ignoring received SESSION");
+
+            return;
+        }
     }
-    auto sess = std::make_shared<Session>(*this, packet);
-    mSessions[sid] = sess;
+
+    SdpKey sdpKey;
+    auto sess = std::make_shared<Session>(*this, packet, sdpKey);
+    mSessions[sess->sessionId()] = sess;
     notifyCallStarting(*sess);
     sess->sendOffer();
 
     cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
 }
 
-void Call::notifyCallStarting(Session& sess)
+void Call::notifyCallStarting(Session &/*sess*/)
 {
     if (!mCallStartingSignalled)
     {
@@ -1171,10 +1210,21 @@ void Call::msgJoin(RtMessage& packet)
     {
         destroy(TermCode::kAnsElsewhere, false);
     }
-    else if (mState == Call::kStateInProgress || mState == Call::kStateReqSent)
+    else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
     {
         packet.callid = packet.payload.read<uint64_t>(0);
         assert(packet.callid);
+        for (auto itSession = mSessions.begin(); itSession != mSessions.end(); itSession++)
+        {
+            if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid)
+            {
+                SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: %d) to whom we already have a session",
+                                itSession->second->peer().toString(), itSession->second->peerClient());
+                return;
+            }
+
+        }
+
         if (mState == Call::kStateReqSent)
         {
             setState(Call::kStateInProgress);
@@ -1182,16 +1232,26 @@ void Call::msgJoin(RtMessage& packet)
             if (!chat().isGroup())
             {
                 sendCallData(CallDataState::kCallDataNotRinging);
+                return;
             }
         }
-        // create session to this peer
-        auto sess = std::make_shared<Session>(*this, packet);
-        mSessions[sess->mSid] = sess;
-        notifyCallStarting(*sess);
-        sess->createRtcConn();
-        sess->sendCmdSession(packet);
 
-        cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
+        Id newSid = mManager.random<uint64_t>();
+        EndpointId endPointId(packet.userid, packet.clientid);
+        SdpKey encKey;
+        SdpKey ownHashKey;
+        mManager.random(ownHashKey);
+        mManager.crypto().encryptKeyTo(packet.userid, ownHashKey, encKey);
+        // SESSION callid.8 sid.8 anonId.8 encHashKey.32
+        mManager.cmdEndpoint(RTCMD_SESSION, packet,
+            packet.callid,
+            newSid,
+            mManager.mOwnAnonId,
+            encKey,
+            id());
+
+        mSentSessions[endPointId] = std::make_pair(newSid, ownHashKey);
+        cancelSessionRetryTimer(endPointId.userid, endPointId.clientid);
     }
     else
     {
@@ -1547,6 +1607,7 @@ bool Call::cmd(uint8_t type, Id userid, uint32_t clientid, Args... args)
 bool Call::join(Id userid)
 {
     assert(mState == Call::kStateHasLocalStream);
+    mSentSessions.clear();
     // JOIN:
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
@@ -1581,6 +1642,8 @@ bool Call::join(Id userid)
 bool Call::rejoin(karere::Id userid, uint32_t clientid)
 {
     assert(mState == Call::kStateInProgress);
+    EndpointId endPoint(userid, clientid);
+    mSentSessions.erase(endPoint);
     // JOIN:
     // chatid.8 userid.8 clientid.4 dataLen.2 type.1 callid.8 anonId.8
     // if userid is not specified, join all clients in the chat, otherwise
@@ -1977,9 +2040,10 @@ AvFlags Call::sentAv() const
           The callid is just used to match command/responses in the call setup handshake.
           Once that handshake is complete, only session ids are used for the actual 1on1 sessions.
 
-    C: send SESSION callid.8 sid.8 anonId.8 encHashKey.32 actualCallId.8
-        => call state: CallState.kInProgress
-        => sess state: SessState.kWaitSdpOffer
+    C: Creates a new session with random sid, and state SessState.kWaitSdpOffer
+        => send SESSION callid.8 sid.8 anonId.8 encHashKey.32 actualCallId.8
+        => call state: CallState.kCallInProgress (in case of group calls call state may already be kCallInProgress)
+
     A: send SDP_OFFER sid.8 encHashKey.32 fprHash.32 avflags.1 sdpLen.2 sdpOffer.sdpLen
         => call state: CallState.kInProress
         => sess state: SessState.kWaitSdpAnswer
@@ -2068,36 +2132,52 @@ It is send when the client mutes/unmutes camera or mic. Currently this CALLDATA 
 message, but in the future we may want to only rely on the CALLDATA packet.
 
 */
-Session::Session(Call& call, RtMessage& packet)
+Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
 :ISession(call, packet.userid, packet.clientid), mManager(call.mManager)
 {
-    // Packet can be RTCMD_JOIN or RTCMD_SESSION
-    call.mManager.random(mOwnSdpKey);
+    // Packet can be RTCMD_SESSION or RTCMD_SDP_OFFER
     mHandler = call.callHandler()->onNewSession(*this);
     mAudioLevelMonitor.reset(new AudioLevelMonitor(*this, *mHandler));
-    SUB_LOG_INFO("============== own sdp key: %s\n", StaticBuffer(mOwnSdpKey.data, sizeof(mOwnSdpKey.data)).toString().c_str());
-    if (packet.type == RTCMD_JOIN)
+    if (packet.type == RTCMD_SDP_OFFER) // peer's offer
     {
-        // peer will send offer
-        // JOIN callid.8 anonId.8
+        // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
         mIsJoiner = false;
-        mSid = call.mManager.random<uint64_t>();
-        setState(kStateWaitSdpOffer);
+        mSid = packet.payload.read<uint64_t>(0);
+        setState(kStateWaitLocalSdpAnswer);
         mPeerAnonId = packet.payload.read<uint64_t>(8);
+        mOwnHashKey = sdpkey;
+        // The peer is likely to send ICE candidates immediately after the offer,
+        // but we can't process them until setRemoteDescription is ready, so
+        // we have to store them in a queue
+        packet.payload.read(48, mPeerHash);
+        SdpKey encKey;
+        packet.payload.read(16, encKey);
+        mCall.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerHashKey);
+        mPeerAv = packet.payload.read<uint8_t>(80);
+        uint16_t sdpLen = packet.payload.read<uint16_t>(81);
+        assert((int) packet.payload.dataSize() >= 83 + sdpLen);
+        packet.payload.read(83, sdpLen, mPeerSdpOffer);
     }
-    else
+    else if (packet.type == RTCMD_SESSION)
     {
         // SESSION callid.8 sid.8 anonId.8 encHashKey.32
-        assert(packet.type == RTCMD_SESSION);
         mIsJoiner = true;
         mSid = packet.payload.read<uint64_t>(8);
         setState(kStateWaitSdpAnswer);
         assert(packet.payload.dataSize() >= 56);
+        call.mManager.random(mOwnHashKey);
         mPeerAnonId = packet.payload.read<uint64_t>(16);
         SdpKey encKey;
         packet.payload.read(24, encKey);
-        call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
+        call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerHashKey);
     }
+    else
+    {
+        assert(false);
+        SUB_LOG_ERROR("Attempted to create a Session object with packet of type: %s", rtcmdTypeToStr(packet.type));
+    }
+
+    SUB_LOG_INFO("============== own sdp key: %s\n", StaticBuffer(mOwnHashKey.data, sizeof(mOwnHashKey.data)).toString().c_str());
 
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
@@ -2108,20 +2188,6 @@ Session::Session(Call& call, RtMessage& packet)
             terminateAndDestroy(TermCode::kErrSessSetupTimeout);
         }
     }, RtcModule::kSessSetupTimeout, call.mManager.mClient.appCtx);
-}
-
-void Session::sendCmdSession(RtMessage& joinPacket)
-{
-    SdpKey encKey;
-    mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnSdpKey, encKey);
-    // SESSION callid.8 sid.8 anonId.8 encHashKey.32
-   mCall.mManager.cmdEndpoint(RTCMD_SESSION, joinPacket,
-        joinPacket.callid,
-        mSid,
-        mCall.mManager.mOwnAnonId,
-        encKey,
-        mCall.id()
-    );
 }
 
 void Session::setState(uint8_t newState)
@@ -2192,9 +2258,6 @@ void Session::handleMessage(RtMessage& packet)
 {
     switch (packet.type)
     {
-        case RTCMD_SDP_OFFER:
-            msgSdpOfferSendAnswer(packet);
-            return;
         case RTCMD_SDP_ANSWER:
             msgSdpAnswer(packet);
             return;
@@ -2229,6 +2292,71 @@ void Session::createRtcConn()
     }
     mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
     mStatRecorder->start();
+}
+
+void Session::veryfySdpOfferSendAnswer()
+{
+    if (!verifySdpFingerprints(mPeerSdpOffer))
+    {
+        SUB_LOG_WARNING("Fingerprint verification error, immediately terminating session");
+        terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forge attempt");
+        return;
+    }
+
+    mungeSdp(mPeerSdpOffer);
+    webrtc::SdpParseError error;
+    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("offer", mPeerSdpOffer, &error);
+    if (!sdp)
+    {
+        terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP offer: line="+error.line+"\nError: "+error.description);
+        return;
+    }
+    auto wptr = weakHandle();
+    mRtcConn.setRemoteDescription(sdp)
+    .fail([this](const promise::Error& err)
+    {
+        return promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
+    })
+    .then([this, wptr]() -> Promise<webrtc::SessionDescriptionInterface*>
+    {
+        if (wptr.deleted() || (mState > Session::kStateInProgress))
+            return promise::Error("Session killed");
+        return mRtcConn.createAnswer(pcConstraints());
+    })
+    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
+    {
+        if (wptr.deleted() || (mState > Session::kStateInProgress))
+            return promise::Error("Session killed");
+
+        sdp->ToString(&mOwnSdpAnswer);
+        return mRtcConn.setLocalDescription(sdp);
+    })
+    .then([wptr, this]()
+    {
+        SdpKey ownFprHash;
+        // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
+        mCall.mManager.crypto().mac(mOwnSdpAnswer, mPeerHashKey, ownFprHash);
+        cmd(
+            RTCMD_SDP_ANSWER,
+            ownFprHash,
+            mCall.mLocalStream->effectiveAv().value(),
+            static_cast<uint16_t>(mOwnSdpAnswer.size()),
+            mOwnSdpAnswer
+        );
+    })
+    .fail([wptr, this](const promise::Error& err)
+    {
+        if (wptr.deleted())
+            return;
+        // cmd() doesn't throw, so we are here because of other error
+        std::string msg;
+        if (err.type() == kErrSetSdp && err.code() == 1) {
+            msg = "Error accepting remote SDP offer: " + err.msg();
+        } else {
+            msg = "Error creating SDP answer: " + err.msg();
+        }
+        terminateAndDestroy(TermCode::kErrSdp, msg);
+    });
 }
 //PeerConnection events
 void Session::onAddStream(artc::tspMediaStream stream)
@@ -2357,7 +2485,7 @@ Promise<void> Session::sendOffer()
             return;
         }
     */
-        KR_THROW_IF_FALSE(sdp->ToString(&mOwnSdp));
+        KR_THROW_IF_FALSE(sdp->ToString(&mOwnSdpOffer));
         return mRtcConn.setLocalDescription(sdp);
     })
     .then([wptr, this]()
@@ -2365,9 +2493,9 @@ Promise<void> Session::sendOffer()
         if (wptr.deleted())
             return;
         SdpKey encKey;
-        mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnSdpKey, encKey);
+        mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
         SdpKey hash;
-        mCall.mManager.crypto().mac(mOwnSdp, mPeerSdpKey, hash);
+        mCall.mManager.crypto().mac(mOwnSdpOffer, mPeerHashKey, hash);
 
         // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
         cmd(RTCMD_SDP_OFFER,
@@ -2375,8 +2503,8 @@ Promise<void> Session::sendOffer()
             encKey,
             hash,
             mCall.mLocalStream->effectiveAv().value(),
-            static_cast<uint16_t>(mOwnSdp.size()),
-            mOwnSdp
+            static_cast<uint16_t>(mOwnSdpOffer.size()),
+            mOwnSdpOffer
         );
         assert(mState == Session::kStateWaitSdpAnswer);
     })
@@ -2385,91 +2513,6 @@ Promise<void> Session::sendOffer()
         if (!wptr.deleted())
             return;
         terminateAndDestroy(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + err.msg());
-    });
-}
-
-void Session::msgSdpOfferSendAnswer(RtMessage& packet)
-{
-    // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-    if (mState != Session::kStateWaitSdpOffer)
-    {
-        SUB_LOG_WARNING("Ignoring unexpected SDP offer while in state %s", stateStr());
-        return;
-    }
-    assert(!mIsJoiner);
-    // The peer is likely to send ICE candidates immediately after the offer,
-    // but we can't process them until setRemoteDescription is ready, so
-    // we have to store them in a queue
-    setState(Session::kStateWaitLocalSdpAnswer);
-    mPeerAnonId = packet.payload.read<uint64_t>(8);
-    SdpKey encKey;
-    packet.payload.read(16, encKey);
-    mCall.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerSdpKey);
-    mPeerAv = packet.payload.read<uint8_t>(80);
-    uint16_t sdpLen = packet.payload.read<uint16_t>(81);
-    assert((int) packet.payload.dataSize() >= 83 + sdpLen);
-    packet.payload.read(83, sdpLen, mPeerSdp);
-    SdpKey hash;
-    packet.payload.read(48, hash); //have to read it to a buffer first, to avoid alignment issues if directly typecasting the buffer pointer
-    if (!verifySdpFingerprints(mPeerSdp, hash))
-    {
-        SUB_LOG_ERROR("Fingerprint verification error, immediately terminating session");
-        terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forge attempt");
-        return;
-    }
-    mungeSdp(mPeerSdp);
-    webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("offer", mPeerSdp, &error);
-    if (!sdp)
-    {
-        terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP offer: line="+error.line+"\nError: "+error.description);
-        return;
-    }
-    auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdp)
-    .fail([this](const promise::Error& err)
-    {
-        return promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
-    })
-    .then([this, wptr]() -> Promise<webrtc::SessionDescriptionInterface*>
-    {
-        if (wptr.deleted() || (mState > Session::kStateInProgress))
-            return promise::Error("Session killed");
-        return mRtcConn.createAnswer(pcConstraints());
-    })
-    .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
-    {
-        if (wptr.deleted() || (mState > Session::kStateInProgress))
-            return promise::Error("Session killed");
-
-        sdp->ToString(&mOwnSdp);
-        return mRtcConn.setLocalDescription(sdp);
-    })
-    .then([wptr, this]()
-    {
-        SdpKey ownFprHash;
-        // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
-        mCall.mManager.crypto().mac(mOwnSdp, mPeerSdpKey, ownFprHash);
-        cmd(
-            RTCMD_SDP_ANSWER,
-            ownFprHash,
-            mCall.mLocalStream->effectiveAv().value(),
-            static_cast<uint16_t>(mOwnSdp.size()),
-            mOwnSdp
-        );
-    })
-    .fail([wptr, this](const promise::Error& err)
-    {
-        if (wptr.deleted())
-            return;
-        // cmd() doesn't throw, so we are here because of other error
-        std::string msg;
-        if (err.type() == kErrSetSdp && err.code() == 1) {
-            msg = "Error accepting remote SDP offer: " + err.msg();
-        } else {
-            msg = "Error creating SDP answer: " + err.msg();
-        }
-        terminateAndDestroy(TermCode::kErrSdp, msg);
     });
 }
 
@@ -2484,17 +2527,16 @@ void Session::msgSdpAnswer(RtMessage& packet)
     mPeerAv.set(packet.payload.read<uint8_t>(40));
     auto sdpLen = packet.payload.read<uint16_t>(41);
     assert((int)packet.payload.dataSize() >= sdpLen + 43);
-    packet.payload.read(43, sdpLen, mPeerSdp);
-    SdpKey encKey;
-    packet.payload.read(8, encKey);
-    if (!verifySdpFingerprints(mPeerSdp, encKey))
+    packet.payload.read(43, sdpLen, mPeerSdpAnswer);
+    packet.payload.read(8, mPeerHash);
+    if (!verifySdpFingerprints(mPeerSdpAnswer))
     {
         terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forgery");
         return;
     }
-    mungeSdp(mPeerSdp);
+    mungeSdp(mPeerSdpAnswer);
     webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("answer", mPeerSdp, &error);
+    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("answer", mPeerSdpAnswer, &error);
     if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
@@ -2690,21 +2732,20 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
 }
 
 // we actually verify the whole SDP, not just the fingerprints
-bool Session::verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash)
+bool Session::verifySdpFingerprints(const std::string& sdp)
 {
     SdpKey hash;
-    mCall.mManager.crypto().mac(sdp, mOwnSdpKey, hash);
+    mCall.mManager.crypto().mac(sdp, mOwnHashKey, hash);
     bool match = true; // constant time compare
     for (unsigned int i = 0; i < sizeof(SdpKey); i++)
     {
-        match &= (hash.data[i] == peerHash.data[i]);
+        match &= (hash.data[i] == mPeerHash.data[i]);
     }
     return match;
 }
 
 void Session::msgIceCandidate(RtMessage& packet)
 {
-    assert(!mPeerSdp.empty());
     // sid.8 mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     auto mLineIdx = packet.payload.read<uint8_t>(8);
     auto midLen = packet.payload.read<uint8_t>(9);
@@ -2866,7 +2907,7 @@ const StateDesc Call::sStateDesc = {
 
 const StateDesc Session::sStateDesc = {
     .transMap = {
-        { kStateWaitSdpOffer, kStateWaitSdpAnswer},
+        { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kSWaitSdpOffer
         { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
         { kStateInProgress, kStateTerminating },               //for kStateWaitSdpAnswer

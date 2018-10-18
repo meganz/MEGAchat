@@ -330,12 +330,12 @@ struct EndpointId
     EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
     bool operator<(EndpointId other) const
     {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
+         return (userid.val + clientid) < (other.userid.val + other.clientid);
+    }
+
+    bool operator>(EndpointId other) const
+    {
+        return (userid.val + clientid) > (other.userid.val + other.clientid);
     }
 };
 
