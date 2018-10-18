@@ -154,6 +154,10 @@ public:
 
     virtual void onHistoryReload() = 0;
 
+    virtual uint64_t getPublicHandle() const = 0;
+
+    virtual void setPublicHandle(const uint64_t ph) = 0;
+
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed
      */

@@ -521,7 +521,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else  // join chat in preview (previously loaded)
             {
-                ph = chatroom->publicHandle();
+                ph = chatroom->getPublicHandle();
             }
 
             ((GroupChatRoom *)chatroom)->joinChatLink(ph)
@@ -5462,7 +5462,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     this->priv = (privilege_t) chat.ownPriv();
     this->group = chat.isGroup();
     this->mPublicChat = chat.publicChat();
-    this->mAuthToken = Id(chat.publicHandle());
+    this->mAuthToken = Id(chat.getPublicHandle());
     assert(!chat.previewMode() || (chat.previewMode() && mAuthToken.isValid()));
     this->title = chat.titleString();
     this->mHasCustomTitle = chat.isGroup() ? ((GroupChatRoom*)&chat)->hasTitle() : false;
