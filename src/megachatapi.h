@@ -4213,6 +4213,8 @@ public:
      *
      * To receive this notification, MegaChatApi::requestLastGreen has to be called previously
      *
+     * Maximun \c lastGreen value is 65535 minutes
+     *
      * @param api MegaChatApi connected to the account
      * @param userhandle MegaChatHandle of the user whose last time green is notified
      * @param lastGreen Time elapsed (minutes) since the last time user was green
