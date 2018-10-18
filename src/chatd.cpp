@@ -4594,7 +4594,17 @@ HistSource FilteredHistory::getHistory(uint32_t count)
         if (!mFetchingFromServer)
         {
             mFetchingFromServer = true;
-            Id oldestMsgid = mBuffer.empty() ? Id::inval() : mBuffer.back()->id();
+            Id oldestMsgid;
+            if (!mBuffer.empty())
+            {
+                oldestMsgid = mBuffer.back()->id();
+            }
+            else
+            {
+                const Message* msg = mChat->oldest();
+                oldestMsgid = msg ? msg->id() : Id::inval();
+            }
+
             mChat->requestNodeHistoryFromServer(oldestMsgid, count);
         }
         return HistSource::kHistSourceServer;
