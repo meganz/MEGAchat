@@ -1179,7 +1179,7 @@ void Call::msgSession(RtMessage& packet)
         EndpointId ourEndPointId(mManager.mClient.myHandle(), mChat.connection().clientId());
         if (ourEndPointId > peerEndPointId)
         {
-            SUB_LOG_WARNING("Detected simultaneous join - received RTCMD.SESSION after having already sent one. "
+            SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
                             "Our peerId is greater, ignoring received SESSION");
 
             return;
