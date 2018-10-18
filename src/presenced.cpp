@@ -105,7 +105,7 @@ std::string Config::toString() const
           .append(", persist: ").append(mPersist ? "1" : "0")
           .append(", aaActive: ").append(mAutoawayActive ? "1" : "0")
           .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
-          .append(", last-green visible: ").append(mlastGreenVisible ? "0" : "1");
+          .append(", last-green visible: ").append(mLastGreenVisible ? "0" : "1");
     return result;
 }
 
@@ -131,9 +131,9 @@ bool Client::setPersist(bool enable)
 
 bool Client::setLastGreenVisible(bool enable)
 {
-    if (enable == mConfig.mlastGreenVisible)
+    if (enable == mConfig.mLastGreenVisible)
         return true;
-    mConfig.mlastGreenVisible = enable;
+    mConfig.mLastGreenVisible = enable;
     signalActivity(true);
     return sendPrefs();
 }
@@ -663,12 +663,12 @@ void Config::fromCode(uint16_t code)
     mPresence = (code & 3) + karere::Presence::kOffline;
     mPersist = !!(code & 4);
     mAutoawayActive = !(code & 8);
-    mAutoawayTimeout = (code & ~Config::klastGreenVisibleMask) >> 4;
+    mAutoawayTimeout = (code & ~Config::kLastGreenVisibleMask) >> 4;
     if (mAutoawayTimeout > 600) // if longer than 10 minutes, use 10m + number of minutes (in seconds)
     {
         mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
     }
-    mlastGreenVisible = (code & ~Config::klastGreenVisibleMask);
+    mLastGreenVisible = (code & ~Config::kLastGreenVisibleMask);
 }
 
 uint16_t Config::toCode() const
@@ -683,7 +683,7 @@ uint16_t Config::toCode() const
           | (mPersist ? 4 : 0)
           | (mAutoawayActive ? 0 : 8)
           | (autoawayTimeout << 4)
-          | (mlastGreenVisible ? 0 : Config::klastGreenVisibleMask);
+          | (mLastGreenVisible ? 0 : Config::kLastGreenVisibleMask);
 }
 
 Client::~Client()

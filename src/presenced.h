@@ -169,7 +169,7 @@ enum: uint8_t
       *             autoawaytimeout = (autoawaytimeout - 600) * 60 + 600;
       *         }
       *
-      *     bit 15: flag to enable/disable visibility of last-seen timestamp
+      *     bit 15: flag to enable/disable visibility of last-green timestamp
       */
     OP_PREFS = 7,
 
@@ -227,23 +227,23 @@ protected:
     bool mPersist = false;
     bool mAutoawayActive = false;
     time_t mAutoawayTimeout = 0;
-    bool mlastGreenVisible = false;
+    bool mLastGreenVisible = false;
 
 public:
     enum { kMaxAutoawayTimeout = 87420 };   // (in seconds, 1.447 minutes + 600 seconds)
-    enum { klastGreenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
+    enum { kLastGreenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
 
     Config(karere::Presence pres=karere::Presence::kInvalid,
           bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool lastGreenVisible = false)
         : mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
-          mAutoawayTimeout(aaTimeout), mlastGreenVisible(lastGreenVisible){}
+          mAutoawayTimeout(aaTimeout), mLastGreenVisible(lastGreenVisible){}
     explicit Config(uint16_t code) { fromCode(code); }
 
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
     bool autoawayActive() const { return mAutoawayActive; }
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
-    bool lastGreenVisible() const { return mlastGreenVisible;}
+    bool lastGreenVisible() const { return mLastGreenVisible;}
 
     void fromCode(uint16_t code);
     uint16_t toCode() const;

@@ -2085,13 +2085,13 @@ public:
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Enable/disable if our last green is visible
+     * @brief Enable/disable the visibility of when the logged-in user was online (last green)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getFlag() - Returns true if presence is visible or not.
+     * - MegaChatRequest::getFlag() - Returns true when attempt to enable visibility of last-green.
      *
-     * @param enable True to enable if our last green is visible
+     * @param enable True to enable the visibility of our last green
      * @param listener MegaChatRequestListener to track this request
      */
     void setLastGreenVisible(bool enable, MegaChatRequestListener *listener = NULL);
