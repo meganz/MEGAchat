@@ -503,7 +503,18 @@ void ProtocolHandler::setPrivateChatMode()
     assert(isPublicChat());
 
     mChatMode = CHAT_MODE_PRIVATE;
+    mPh = karere::Id::inval();
     resetSendKey();
+}
+
+uint64_t ProtocolHandler::getPublicHandle() const
+{
+    return mPh.val;
+}
+
+void ProtocolHandler::setPublicHandle(const uint64_t ph)
+{
+    mPh = Id(ph);
 }
 
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,

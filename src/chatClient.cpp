@@ -2772,11 +2772,6 @@ promise::Promise<void> GroupChatRoom::joinChatLink(uint64_t ph)
     });
  }
 
-uint64_t ChatRoom::publicHandle() const
-{
-    return mChat->publicHandle();
-}
-
 //chatd::Listener::init
 void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 {
@@ -3030,6 +3025,11 @@ bool GroupChatRoom::publicChat() const
     return (mChat->crypto()->isPublicChat());
 }
 
+uint64_t GroupChatRoom::getPublicHandle() const
+{
+    return (mChat->getPublicHandle());
+}
+
 unsigned int GroupChatRoom::getNumPreviewers() const
 {
     return mChat->getNumPreviewers();
@@ -3230,7 +3230,6 @@ void GroupChatRoom::setChatPrivateMode()
 {
     if (mChat->previewMode())
     {
-        mChat->setPublicHandle(Id::inval());
         removeAppChatHandler();
         return;
     }

@@ -597,7 +597,6 @@ public:
 protected:
     Connection& mConnection;
     karere::Id mChatId;
-    karere::Id mPh = karere::Id::inval(); // only valid if chat is in preview mode
     Idx mForwardStart;
     std::vector<std::unique_ptr<Message>> mForwardList;
     std::vector<std::unique_ptr<Message>> mBackwardList;
@@ -1108,7 +1107,7 @@ public:
     void sendSync();
     DbInterface* getDbInterface();
     void setPublicHandle(uint64_t ph);
-    uint64_t publicHandle() const;
+    uint64_t getPublicHandle() const;
     bool previewMode();
     void rejoin();
     void closePreview();

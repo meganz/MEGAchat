@@ -85,6 +85,7 @@ protected:
 public:
     virtual bool previewMode() const { return false; }
     virtual bool publicChat() const { return false; }
+    virtual uint64_t getPublicHandle() const { Id::null(); }
     virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -181,7 +182,6 @@ public:
     bool isInitializing() const { return mIsInitializing; }
 
     bool hasChatHandler() const;
-    uint64_t publicHandle() const;
 
 #ifndef KARERE_DISABLE_WEBRTC
     /** @brief Initiates a webrtc call in the chatroom
@@ -424,6 +424,7 @@ public:
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
 
     virtual bool publicChat() const;
+    virtual uint64_t getPublicHandle() const;
     virtual unsigned int getNumPreviewers() const;
 
     virtual bool previewMode() const;

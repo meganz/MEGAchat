@@ -331,7 +331,7 @@ protected:
 
 public:
     karere::Id chatid;
-    karere::Id mPh;     // it's only valid during preview mode (required to fetch user-attributes)
+    karere::Id mPh = karere::Id::inval();     // it's only valid during preview mode (required to fetch user-attributes)
     karere::Id ownHandle() const { return mOwnHandle; }
     promise::Promise<std::shared_ptr<UnifiedKey>> unifiedKey() { return mUnifiedKeyDecrypted; }
 
@@ -451,8 +451,10 @@ public:
     virtual promise::Promise<std::shared_ptr<std::string> > getUnifiedKey();
     virtual bool previewMode();
     virtual bool isPublicChat();
-    void setPrivateChatMode();
+    virtual void setPrivateChatMode();
     virtual void onHistoryReload();
+    virtual uint64_t getPublicHandle() const;
+    virtual void setPublicHandle(const uint64_t ph);
 };
 }
 namespace chatd
