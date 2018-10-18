@@ -553,10 +553,11 @@ void Command::toString(char* buf, size_t bufsize) const
         case OP_HELLO:
         {
             uint8_t caps = read<uint8_t>(2);
-            snprintf(buf, bufsize, "HELLO - version 0x%02X, caps: (%s,%s)",
+            snprintf(buf, bufsize, "HELLO - version 0x%02X, caps: (%s,%s,%s)",
                 read<uint8_t>(1),
                 (caps & karere::kClientCanWebrtc) ? "webrtc" : "nowebrtc",
-                (caps & karere::kClientIsMobile) ? "mobile" : "desktop");
+                (caps & karere::kClientIsMobile) ? "mobile" : "desktop",
+                (caps & karere::kClientSupportLastGreen ? "last-green" : "no-last-green"));
             break;
         }
         case OP_SNADDPEERS:

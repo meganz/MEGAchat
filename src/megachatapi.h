@@ -2085,11 +2085,18 @@ public:
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Enable/disable the visibility of when the logged-in user was online (last green)
+     * @brief Enable/disable the visibility of when the logged-in user was online (green)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag() - Returns true when attempt to enable visibility of last-green.
+     *
+     * If this option is disabled, the last-green won't be available for other users when it is
+     * requested through MegaChatApi::requestLastGreen.
+     *
+     * While this option is disabled and the user sets the green status temporary, the number of
+     * minutes since last-green won't be updated. Once enabled back, the last-green will be the
+     * last-green while the visibility was enabled (or updated if the user sets the green status).
      *
      * @param enable True to enable the visibility of our last green
      * @param listener MegaChatRequestListener to track this request
@@ -2097,11 +2104,17 @@ public:
     void setLastGreenVisible(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Request last time green from a user
+     * @brief Request the number of minutes since the user was seen as green by last time.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LAST_GREEN
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle() - Returns the handle of the user
+     *
+     * The number of minutes since the user was seen as green by last time, if any, will
+     * be notified in the MegaChatListener::onChatPresenceLastGreen callback. Note that,
+     * if the user was never seen green by presenced or the user has disabled the visibility
+     * of the last-green with MegaChatApi::setLastGreenVisible, there will be no notification
+     * at all.
      *
      * @param userid MegaChatHandle from user that last green has been requested
      * @param listener MegaChatRequestListener to track this request
