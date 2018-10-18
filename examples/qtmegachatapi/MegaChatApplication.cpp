@@ -441,6 +441,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
 
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
+        {
             QString text;
             if (request->getFlag())
             {
@@ -460,6 +461,19 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QMessageBox::warning(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
             break;
+        }
+        case MegaRequest::TYPE_COPY:
+        {
+            if (e->getErrorCode() == MegaError::API_OK)
+            {
+                QMessageBox::information(nullptr, tr("Node import"),tr("The node has been imported successfully"));
+            }
+            else
+            {
+                 QMessageBox::warning(nullptr, tr("Node import"), tr(" ").append(e->getErrorString()));
+            }
+            break;
+        }
     }
 }
 

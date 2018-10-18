@@ -640,8 +640,11 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
         if (msgBoxAns.exec() == QMessageBox::Ok)
         {
             mega::MegaNode *parent= mChatWindow->mMegaApi->getRootNode();
-            mChatWindow->mMegaApi->copyNode(resultNode, parent);
-            delete parent;
+            if (parent)
+            {
+                mChatWindow->mMegaApi->copyNode(resultNode, parent);
+                delete parent;
+            }
         }
     }
     else
