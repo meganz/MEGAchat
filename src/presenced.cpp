@@ -105,7 +105,7 @@ std::string Config::toString() const
           .append(", persist: ").append(mPersist ? "1" : "0")
           .append(", aaActive: ").append(mAutoawayActive ? "1" : "0")
           .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
-          .append(", last-green visible: ").append(mLastGreenVisible ? "0" : "1");
+          .append(", hideLastGreen: ").append(mLastGreenVisible ? "0" : "1");
     return result;
 }
 

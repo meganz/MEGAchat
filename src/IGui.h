@@ -341,7 +341,14 @@ public:
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
     /**
-     * @brief Called when client receives from presenced last time that an user has been green
+     * @brief Called when client receives from presenced last time that a user has been green
+     *
+     * @note If the requested user has disabled the visibility of last-green or has never been green,
+     * this callback will NOT be triggered at all.
+     *
+     * If the value of \c lastGreen is 65535 minutes (the maximum), apps should show "long time ago"
+     * or similar, rather than the specific time period.
+     *
      * @param userid User id whose last green is notified
      * @param lastGreen Time elapsed (minutes) since the last time user was green
      */

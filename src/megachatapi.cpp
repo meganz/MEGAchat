@@ -288,6 +288,11 @@ int MegaChatApi::getOnlineStatus()
     return pImpl->getOnlineStatus();
 }
 
+bool MegaChatApi::isOnlineStatusPending()
+{
+    return pImpl->isOnlineStatusPending();
+}
+
 MegaChatPresenceConfig *MegaChatApi::getPresenceConfig()
 {
     return pImpl->getPresenceConfig();

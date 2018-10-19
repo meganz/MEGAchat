@@ -150,7 +150,7 @@ enum: uint8_t
     kClientCanWebrtc = 0x80,
     /** Client is a mobile application */
     kClientIsMobile = 0x40,
-    /** Client can use bit 15 from preferences to set last-green visibility */
+    /** Client can use bit 15 from preferences to handle last-green's visibility */
     kClientSupportLastGreen = 0x20
 };
 
