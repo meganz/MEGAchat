@@ -31,7 +31,7 @@
 // define the weak symbol for Logger to know where to create the log file
 namespace karere
 {
-    APP_ALWAYS_EXPORT std::string getAppDir() 
+    APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
             return "/data/data/mega.privacy.android.app"; 
@@ -93,7 +93,7 @@ int MegaChatCall::getChanges() const
     return 0;
 }
 
-bool MegaChatCall::hasChanged(int changeType) const
+bool MegaChatCall::hasChanged(int ) const
 {
     return false;
 }
@@ -133,6 +133,31 @@ bool MegaChatCall::isRinging() const
     return false;
 }
 
+int MegaChatCall::getSessionStatus(MegaChatHandle /*peerId*/) const
+{
+    return SESSION_STATUS_NO_SESSION;
+}
+
+MegaChatHandle MegaChatCall::getPeerSessionStatusChange() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::isIgnored() const
+{
+    return false;
+}
+
+bool MegaChatCall::isIncoming() const
+{
+    return false;
+}
+
+bool MegaChatCall::isOutgoing() const
+{
+    return false;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     this->pImpl = new MegaChatApiImpl(this, megaApi);
@@ -141,6 +166,11 @@ MegaChatApi::MegaChatApi(MegaApi *megaApi)
 MegaChatApi::~MegaChatApi()
 {
     delete pImpl;
+}
+
+const char *MegaChatApi::getAppDir()
+{
+    return karere::getAppDir().c_str();
 }
 
 void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
@@ -198,9 +228,14 @@ int MegaChatApi::getChatConnectionState(MegaChatHandle chatid)
     return pImpl->getChatConnectionState(chatid);
 }
 
-void MegaChatApi::retryPendingConnections(MegaChatRequestListener *listener)
+bool MegaChatApi::areAllChatsLoggedIn()
 {
-    pImpl->retryPendingConnections(listener);
+    return pImpl->areAllChatsLoggedIn();
+}
+
+void MegaChatApi::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
+{
+    pImpl->retryPendingConnections(disconnect, listener);
 }
 
 void MegaChatApi::logout(MegaChatRequestListener *listener)
@@ -212,11 +247,6 @@ void MegaChatApi::localLogout(MegaChatRequestListener *listener)
 {
     pImpl->localLogout(listener);
 }
-
-//MegaChatApi::MegaChatApi(const char *appKey, const char *appDir)
-//{
-//    this->pImpl = new MegaChatApiImpl(this, appKey, appDir);
-//}
 
 void MegaChatApi::setOnlineStatus(int status, MegaChatRequestListener *listener)
 {
@@ -261,6 +291,11 @@ int MegaChatApi::getUserOnlineStatus(MegaChatHandle userhandle)
 void MegaChatApi::setBackgroundStatus(bool background, MegaChatRequestListener *listener)
 {
     pImpl->setBackgroundStatus(background, listener);
+}
+
+int MegaChatApi::getBackgroundStatus()
+{
+    return pImpl->getBackgroundStatus();
 }
 
 void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
@@ -333,6 +368,11 @@ MegaChatListItemList *MegaChatApi::getChatListItems()
     return pImpl->getChatListItems();
 }
 
+MegaChatListItemList *MegaChatApi::getChatListItemsByPeers(MegaChatPeerList *peers)
+{
+    return pImpl->getChatListItemsByPeers(peers);
+}
+
 MegaChatListItem *MegaChatApi::getChatListItem(MegaChatHandle chatid)
 {
     return pImpl->getChatListItem(chatid);
@@ -351,6 +391,11 @@ MegaChatListItemList *MegaChatApi::getActiveChatListItems()
 MegaChatListItemList *MegaChatApi::getInactiveChatListItems()
 {
     return pImpl->getInactiveChatListItems();
+}
+
+MegaChatListItemList *MegaChatApi::getArchivedChatListItems()
+{
+    return pImpl->getArchivedChatListItems();
 }
 
 MegaChatListItemList *MegaChatApi::getUnreadChatListItems()
@@ -403,6 +448,11 @@ void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaCha
     pImpl->setChatTitle(chatid, title, listener);
 }
 
+void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatRequestListener *listener)
+{
+    pImpl->archiveChat(chatid, archive, listener);
+}
+
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);
@@ -440,7 +490,12 @@ MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg
 
 MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
 {
-   return pImpl->attachContacts(chatid, handles);
+    return pImpl->attachContacts(chatid, handles);
+}
+
+MegaChatMessage *MegaChatApi::forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId)
+{
+    return pImpl->forwardContact(sourceChatid, msgid, targetChatId);
 }
 
 void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaChatRequestListener *listener)
@@ -483,6 +538,11 @@ MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandl
     return pImpl->editMessage(chatid, msgid, NULL);
 }
 
+MegaChatMessage *MegaChatApi::removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->removeRichLink(chatid, msgid);
+}
+
 bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     return pImpl->setMessageSeen(chatid, msgid);
@@ -491,6 +551,11 @@ bool MegaChatApi::setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid)
 MegaChatMessage *MegaChatApi::getLastMessageSeen(MegaChatHandle chatid)
 {
     return  pImpl->getLastMessageSeen(chatid);
+}
+
+MegaChatHandle MegaChatApi::getLastMessageSeenId(MegaChatHandle chatid)
+{
+    return pImpl->getLastMessageSeenId(chatid);
 }
 
 void MegaChatApi::removeUnsentMessage(MegaChatHandle chatid, MegaChatHandle rowId)
@@ -503,6 +568,11 @@ void MegaChatApi::sendTypingNotification(MegaChatHandle chatid, MegaChatRequestL
     pImpl->sendTypingNotification(chatid, listener);
 }
 
+void MegaChatApi::sendStopTypingNotification(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->sendStopTypingNotification(chatid, listener);
+}
+
 bool MegaChatApi::isMessageReceptionConfirmationActive() const
 {
     return pImpl->isMessageReceptionConfirmationActive();
@@ -511,6 +581,11 @@ bool MegaChatApi::isMessageReceptionConfirmationActive() const
 void MegaChatApi::saveCurrentState()
 {
     pImpl->saveCurrentState();
+}
+
+void MegaChatApi::pushReceived(bool beep, MegaChatRequestListener *listener)
+{
+    pImpl->pushReceived(beep, listener);
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -585,6 +660,11 @@ MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
     return pImpl->getChatCall(chatid);
 }
 
+void MegaChatApi::setIgnoredCall(MegaChatHandle chatid)
+{
+    pImpl->setIgnoredCall(chatid);
+}
+
 MegaChatCall *MegaChatApi::getChatCallByCallId(MegaChatHandle callId)
 {
     return pImpl->getChatCallByCallId(callId);
@@ -642,6 +722,11 @@ void MegaChatApi::setCatchException(bool enable)
     MegaChatApiImpl::setCatchException(enable);
 }
 
+bool MegaChatApi::hasUrl(const char *text)
+{
+    return MegaChatApiImpl::hasUrl(text);
+}
+
 void MegaChatApi::addChatListener(MegaChatListener *listener)
 {
     pImpl->addChatListener(listener);
@@ -657,9 +742,9 @@ void MegaChatApi::addChatRoomListener(MegaChatHandle chatid, MegaChatRoomListene
     pImpl->addChatRoomListener(chatid, listener);
 }
 
-void MegaChatApi::removeChatRoomListener(MegaChatRoomListener *listener)
+void MegaChatApi::removeChatRoomListener(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
-    pImpl->removeChatRoomListener(listener);
+    pImpl->removeChatRoomListener(chatid, listener);
 }
 
 void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
@@ -670,6 +755,16 @@ void MegaChatApi::addChatRequestListener(MegaChatRequestListener *listener)
 void MegaChatApi::removeChatRequestListener(MegaChatRequestListener *listener)
 {
     pImpl->removeChatRequestListener(listener);
+}
+
+void MegaChatApi::addChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->addChatNotificationListener(listener);
+}
+
+void MegaChatApi::removeChatNotificationListener(MegaChatNotificationListener *listener)
+{
+    pImpl->removeChatNotificationListener(listener);
 }
 
 MegaChatRequest::~MegaChatRequest() { }
@@ -748,6 +843,16 @@ MegaNodeList *MegaChatRequest::getMegaNodeList()
     return NULL;
 }
 
+MegaHandleList *MegaChatRequest::getMegaHandleList()
+{
+    return NULL;
+}
+
+MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
+{
+    return NULL;
+}
+
 int MegaChatRequest::getParamType()
 {
     return -1;
@@ -758,7 +863,7 @@ MegaChatRoomList *MegaChatRoomList::copy() const
     return NULL;
 }
 
-const MegaChatRoom *MegaChatRoomList::get(unsigned int i) const
+const MegaChatRoom *MegaChatRoomList::get(unsigned int /*i*/) const
 {
     return NULL;
 }
@@ -820,27 +925,27 @@ int MegaChatRoom::getOwnPrivilege() const
     return PRIV_UNKNOWN;
 }
 
-int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle userhandle) const
+int MegaChatRoom::getPeerPrivilegeByHandle(MegaChatHandle /*userhandle*/) const
 {
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoom::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
+const char *MegaChatRoom::getPeerFirstnameByHandle(MegaChatHandle /*userhandle*/) const
 {
     return NULL;
 }
 
-const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle userhandle) const
+const char *MegaChatRoom::getPeerLastnameByHandle(MegaChatHandle /*userhandle*/) const
 {
     return NULL;
 }
 
-const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle userhandle) const
+const char *MegaChatRoom::getPeerFullnameByHandle(MegaChatHandle /*userhandle*/) const
 {
     return NULL;
 }
 
-const char *MegaChatRoom::getPeerEmailByHandle(MegaChatHandle userhandle) const
+const char *MegaChatRoom::getPeerEmailByHandle(MegaChatHandle /*userhandle*/) const
 {
     return NULL;
 }
@@ -850,32 +955,32 @@ unsigned int MegaChatRoom::getPeerCount() const
     return 0;
 }
 
-MegaChatHandle MegaChatRoom::getPeerHandle(unsigned int i) const
+MegaChatHandle MegaChatRoom::getPeerHandle(unsigned int /*i*/) const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
 
-int MegaChatRoom::getPeerPrivilege(unsigned int i) const
+int MegaChatRoom::getPeerPrivilege(unsigned int /*i*/) const
 {
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoom::getPeerFirstname(unsigned int i) const
+const char *MegaChatRoom::getPeerFirstname(unsigned int /*i*/) const
 {
     return NULL;
 }
 
-const char *MegaChatRoom::getPeerLastname(unsigned int i) const
+const char *MegaChatRoom::getPeerLastname(unsigned int /*i*/) const
 {
     return NULL;
 }
 
-const char *MegaChatRoom::getPeerFullname(unsigned int i) const
+const char *MegaChatRoom::getPeerFullname(unsigned int /*i*/) const
 {
     return NULL;
 }
 
-const char *MegaChatRoom::getPeerEmail(unsigned int i) const
+const char *MegaChatRoom::getPeerEmail(unsigned int /*i*/) const
 {
     return NULL;
 }
@@ -888,6 +993,11 @@ bool MegaChatRoom::isGroup() const
 const char *MegaChatRoom::getTitle() const
 {
     return NULL;
+}
+
+bool MegaChatRoom::hasCustomTitle() const
+{
+    return false;
 }
 
 int MegaChatRoom::getChanges() const
@@ -911,6 +1021,11 @@ MegaChatHandle MegaChatRoom::getUserTyping() const
 }
 
 bool MegaChatRoom::isActive() const
+{
+    return false;
+}
+
+bool MegaChatRoom::isArchived() const
 {
     return false;
 }
@@ -955,38 +1070,38 @@ int MegaChatPeerList::size() const
 }
 
 
-void MegaChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
+void MegaChatVideoListener::onChatVideoData(MegaChatApi */*api*/, MegaChatHandle /*chatid*/, int /*width*/, int /*height*/, char */*buffer*/, size_t /*size*/)
 {
 
 }
 
 
-void MegaChatCallListener::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
+void MegaChatCallListener::onChatCallUpdate(MegaChatApi */*api*/, MegaChatCall */*call*/)
 {
 
 }
 
-void MegaChatListener::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
+void MegaChatListener::onChatListItemUpdate(MegaChatApi */*api*/, MegaChatListItem */*item*/)
 {
 
 }
 
-void MegaChatListener::onChatInitStateUpdate(MegaChatApi *api, int newState)
+void MegaChatListener::onChatInitStateUpdate(MegaChatApi */*api*/, int /*newState*/)
 {
 
 }
 
-void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
+void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* /*api*/, MegaChatHandle /*userhandle*/, int /*status*/, bool /*inProgress*/)
 {
 
 }
 
-void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig *config)
+void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi */*api*/, MegaChatPresenceConfig */*config*/)
 {
 
 }
 
-void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int newState)
+void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi */*api*/, MegaChatHandle /*chatid*/, int /*newState*/)
 {
 
 }
@@ -1001,7 +1116,7 @@ int MegaChatListItem::getChanges() const
     return 0;
 }
 
-bool MegaChatListItem::hasChanged(int changeType) const
+bool MegaChatListItem::hasChanged(int /*changeType*/) const
 {
     return 0;
 }
@@ -1061,32 +1176,52 @@ bool MegaChatListItem::isActive() const
     return false;
 }
 
+bool MegaChatListItem::isArchived() const
+{
+    return false;
+}
+
+bool MegaChatListItem::isCallInProgress() const
+{
+    return false;
+}
+
 MegaChatHandle MegaChatListItem::getPeerHandle() const
 {
     return MEGACHAT_INVALID_HANDLE;
 }
 
-void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
+int MegaChatListItem::getLastMessagePriv() const
+{
+    return MegaChatRoom::PRIV_UNKNOWN;
+}
+
+MegaChatHandle MegaChatListItem::getLastMessageHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi */*api*/, MegaChatRoom */*chat*/)
 {
 
 }
 
-void MegaChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
+void MegaChatRoomListener::onMessageLoaded(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
 {
 
 }
 
-void MegaChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
+void MegaChatRoomListener::onMessageReceived(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
 {
 
 }
 
-void MegaChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
+void MegaChatRoomListener::onMessageUpdate(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
 {
 
 }
 
-void MegaChatRoomListener::onHistoryReloaded(MegaChatApi *api, MegaChatRoom *chat)
+void MegaChatRoomListener::onHistoryReloaded(MegaChatApi */*api*/, MegaChatRoom */*chat*/)
 {
 
 }
@@ -1181,6 +1316,56 @@ bool MegaChatMessage::hasChanged(int) const
     return false;
 }
 
+const MegaChatContainsMeta *MegaChatMessage::getContainsMeta() const
+{
+    return NULL;
+}
+
+MegaChatRichPreview *MegaChatRichPreview::copy() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getText() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getTitle() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getDescription() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getImage() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getImageFormat() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getIcon() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getIconFormat() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getUrl() const
+{
+    return NULL;
+}
+
 int MegaChatMessage::getCode() const
 {
     return 0;
@@ -1216,6 +1401,21 @@ MegaNodeList *MegaChatMessage::getMegaNodeList() const
     return NULL;
 }
 
+MegaHandleList *MegaChatMessage::getMegaHandleList() const
+{
+    return NULL;
+}
+
+int MegaChatMessage::getDuration() const
+{
+    return 0;
+}
+
+int MegaChatMessage::getTermCode() const
+{
+    return 0;
+}
+
 void MegaChatLogger::log(int , const char *)
 {
 
@@ -1227,7 +1427,7 @@ MegaChatListItemList *MegaChatListItemList::copy() const
     return NULL;
 }
 
-const MegaChatListItem *MegaChatListItemList::get(unsigned int i) const
+const MegaChatListItem *MegaChatListItemList::get(unsigned int /*i*/) const
 {
     return NULL;
 }
@@ -1270,4 +1470,29 @@ bool MegaChatPresenceConfig::isPending() const
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
 {
     return false;
+}
+
+void MegaChatNotificationListener::onChatNotification(MegaChatApi *, MegaChatHandle , MegaChatMessage *)
+{
+
+}
+
+MegaChatContainsMeta *MegaChatContainsMeta::copy() const
+{
+    return NULL;
+}
+
+int MegaChatContainsMeta::getType() const
+{
+    return MegaChatContainsMeta::CONTAINS_META_INVALID;
+}
+
+const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
+{
+    return NULL;
+}
+
+const char *MegaChatRichPreview::getDomainName() const
+{
+    return NULL;
 }

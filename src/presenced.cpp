@@ -28,10 +28,10 @@ using namespace karere;
 namespace presenced
 {
 
-    Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
-: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps)
-{
-}
+Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
+: mListener(&listener), karereClient(client), mApi(api), mCapabilities(caps), usingipv6(false),
+  mDNScache(karereClient->websocketIO->mDnsCache)
+{}
 
 promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
@@ -59,29 +59,22 @@ void Client::pushPeers()
 
 void Client::wsConnectCb()
 {
-    PRESENCED_LOG_DEBUG("Presenced connected");
+    PRESENCED_LOG_DEBUG("Presenced connected to %s", mTargetIp.c_str());
+    mDNScache.connectDone(mUrl.host, mTargetIp);
     setConnState(kConnected);
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
-}
-    
-void Client::notifyLoggedIn()
-{
-    assert(mConnState < kLoggedIn);
-    assert(mConnectPromise.succeeded());
-    assert(!mLoginPromise.done());
-    setConnState(kLoggedIn);
-    mLoginPromise.resolve();
+    mRetryCtrl.reset();
 }
 
-void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
+void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
 {
     onSocketClose(errcode, errtype, preason);
 }
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
-    PRESENCED_LOG_WARNING("Socket close, reason: %s", reason.c_str());
+    PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     
     mHeartbeatEnabled = false;
     auto oldState = mConnState;
@@ -90,21 +83,19 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     if (oldState == kDisconnected)
         return;
 
+    usingipv6 = !usingipv6;
+    mTargetIp.clear();
+
     if (oldState < kLoggedIn) //tell retry controller that the connect attempt failed
     {
-        assert(!mLoginPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-        if (!mLoginPromise.done())
-        {
-            mLoginPromise.reject(reason, errcode, errtype);
-        }
     }
     else
     {
-        setConnState(kDisconnected);
+        PRESENCED_LOG_DEBUG("Socket close at state kLoggedIn");
         reconnect(); //start retry controller
     }
 }
@@ -175,6 +166,20 @@ void Client::signalActivity(bool force)
         sendUserActive(true, force);
 }
 
+void Client::abortRetryController()
+{
+    if (!mRetryCtrl)
+    {
+        return;
+    }
+
+    assert(!isOnline());
+
+    PRESENCED_LOG_DEBUG("Reconnection was aborted");
+    mRetryCtrl->abort();
+    mRetryCtrl.reset();
+}
+
 Promise<void>
 Client::reconnect(const std::string& url)
 {
@@ -183,6 +188,7 @@ Client::reconnect(const std::string& url)
     {
         if (mConnState >= kConnecting) //would be good to just log and return, but we have to return a promise
             return promise::Error("Already connecting/connected");
+
         if (!url.empty())
         {
             mUrl.parse(url);
@@ -194,72 +200,110 @@ Client::reconnect(const std::string& url)
         }
 
         setConnState(kResolving);
+
+        // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
+        abortRetryController();
+
+        // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        return retry("presenced", [this](int no, DeleteTrackable::Handle wptr)
+        mRetryCtrl.reset(createRetryController("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
-
-                promise::Promise<void> pms = Promise<void>();
-                pms.resolve();
-                return pms;
+                return promise::_Void();
             }
 
             disconnect();
             mConnectPromise = Promise<void>();
-            mLoginPromise = Promise<void>();
+
+            string ipv4, ipv6;
+            bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostmane...");
+            PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
-            mApi->call(&::mega::MegaApi::queryDNS, mUrl.host.c_str())
-            .then([wptr, this](ReqResult result)
+            int statusDNS = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
+                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
-                if (mConnState != kResolving)
+
+                if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
-                    PRESENCED_LOG_DEBUG("Connection state changed while resolving DNS.");
+                    string errStr = (statusDNS < 0)
+                            ? "Async DNS error in presenced. Error code: "+std::to_string(statusDNS)
+                            : "Async DNS in presenced result on empty set of IPs";
+                    PRESENCED_LOG_ERROR("%s", errStr.c_str());
+
+                    if (isOnline() && cachedIPs)
+                    {
+                        PRESENCED_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        return;
+                    }
+
+                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
+                    {
+                        wsDisconnect(true);
+                    }
+                    onSocketClose(0, 0, "Async DNS error (presenced)");
                     return;
                 }
 
-                setConnState(kConnecting);
-                string ip = result->getText();
-                PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", ip.c_str());
-                bool rt = wsConnect(karereClient->websocketIO, ip.c_str(),
-                          mUrl.host.c_str(),
-                          mUrl.port,
-                          mUrl.path.c_str(),
-                          mUrl.isSecure);
-                if (!rt)
+                if (!cachedIPs) // connect required DNS lookup
                 {
-                    throw std::runtime_error("Websocket error on wsConnect (presenced)");
-                }
-            })
-            .fail([wptr, this](const promise::Error& err)
-            {
-                if (wptr.deleted())
-                {
-                    PRESENCED_LOG_DEBUG("DNS resolution failed, but presenced client was deleted. Error: %s", err.what());
+                    PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+
+                    mDNScache.set(mUrl.host,
+                                  ipsv4.size() ? ipsv4.at(0) : "",
+                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    doConnect();
                     return;
                 }
 
-                if (err.type() == ERRTYPE_MEGASDK)
+                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
                 {
-                    if (!mConnectPromise.done())
+                    PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
+                }
+                else
+                {
+                    // update DNS cache
+                    bool ret = mDNScache.set(mUrl.host,
+                                             ipsv4.size() ? ipsv4.at(0) : "",
+                                             ipsv6.size() ? ipsv6.at(0) : "");
+                    assert(!ret);
+
+                    PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    // if connection already started, first abort/cancel
+                    if (wsIsConnected())
                     {
-                        mConnectPromise.reject(err.msg(), err.code(), err.type());
+                        wsDisconnect(true);
                     }
-                    if (!mLoginPromise.done())
-                    {
-                        mLoginPromise.reject(err.msg(), err.code(), err.type());
-                    }
+                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (presenced)");
                 }
             });
+
+            // immediate error at wsResolveDNS()
+            if (statusDNS < 0)
+            {
+                string errStr = "Immediate DNS error in presenced. Error code: "+std::to_string(statusDNS);
+                PRESENCED_LOG_ERROR("%s", errStr.c_str());
+
+                assert(mConnState == kResolving);
+                assert(!mConnectPromise.done());
+
+                // reject promise, so the RetryController starts a new attempt
+                mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
+            }
+            else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
+            // no network connetion, so it's futile to attempt to connect
+            {
+                doConnect();
+            }
             
             return mConnectPromise
             .then([wptr, this]()
@@ -272,8 +316,12 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 login();
             });
-        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+
+        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+
+        return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
+
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
@@ -342,16 +390,77 @@ void Client::disconnect()
     onSocketClose(0, 0, "terminating");
 }
 
-promise::Promise<void> Client::retryPendingConnection()
+void Client::doConnect()
+{
+    string ipv4, ipv6;
+    bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
+    assert(cachedIPs);
+    mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
+
+    setConnState(kConnecting);
+    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", mTargetIp.c_str());
+
+    bool rt = wsConnect(karereClient->websocketIO, mTargetIp.c_str(),
+          mUrl.host.c_str(),
+          mUrl.port,
+          mUrl.path.c_str(),
+          mUrl.isSecure);
+
+    if (!rt)    // immediate failure --> try the other IP family (if available)
+    {
+        PRESENCED_LOG_DEBUG("Connection to presenced failed using the IP: %s", mTargetIp.c_str());
+
+        string oldTargetIp = mTargetIp;
+        mTargetIp.clear();
+        if (oldTargetIp == ipv6 && ipv4.size())
+        {
+            mTargetIp = ipv4;
+        }
+        else if (oldTargetIp == ipv4 && ipv6.size())
+        {
+            mTargetIp = ipv6;
+        }
+
+        if (mTargetIp.size())
+        {
+            PRESENCED_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
+            if (wsConnect(karereClient->websocketIO, mTargetIp.c_str(),
+                          mUrl.host.c_str(),
+                          mUrl.port,
+                          mUrl.path.c_str(),
+                          mUrl.isSecure))
+            {
+                return;
+            }
+            PRESENCED_LOG_DEBUG("Connection to presenced failed using the IP: %s", mTargetIp.c_str());
+        }
+
+        onSocketClose(0, 0, "Websocket error on wsConnect (presenced)");
+    }
+}
+
+void Client::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        setConnState(kDisconnected);
-        mHeartbeatEnabled = false;
-        PRESENCED_LOG_WARNING("Retry pending connections...");
-        return reconnect();
+        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+        {
+            PRESENCED_LOG_WARNING("Abort backoff and reconnect immediately");
+            mRetryCtrl->restart();
+        }
+        else if (disconnect)
+        {
+            setConnState(kDisconnected);
+            mHeartbeatEnabled = false;
+            abortRetryController();
+            PRESENCED_LOG_WARNING("Retry pending connection...");
+            reconnect();
+        }
     }
-    return promise::Error("No valid URL provided to retry pending connections");
+    else
+    {
+        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+    }
 }
 
 bool Client::sendBuf(Buffer&& buf)
@@ -577,12 +686,17 @@ void Client::handleMessage(const StaticBuffer& buf)
             }
             case OP_PREFS:
             {
+                bool loginCompleted = false;
                 if (mConnState < kLoggedIn)
-                    notifyLoggedIn();
+                {
+                    loginCompleted = true;
+                    setConnState(kLoggedIn);
+                }
+
                 READ_16(prefs, 0);
                 if (mPrefsAckWait && prefs == mConfig.toCode()) //ack
                 {
-                    PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent(0x%x)", prefs);
+                    PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent (%s)", mConfig.toString().c_str());
                 }
                 else
                 {
@@ -591,6 +705,10 @@ void Client::handleMessage(const StaticBuffer& buf)
                     {
                         PRESENCED_LOG_DEBUG("recv other PREFS while waiting for our PREFS ack, cancelling our send.\nPrefs: %s",
                           mConfig.toString().c_str());
+                    }
+                    else if (loginCompleted)
+                    {
+                        PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
                     }
                     else
                     {

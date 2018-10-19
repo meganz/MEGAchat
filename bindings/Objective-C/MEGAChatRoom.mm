@@ -77,6 +77,10 @@ using namespace megachat;
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
+- (BOOL)hasCustomTitle {
+    return self.megaChatRoom ? self.megaChatRoom->hasCustomTitle() : NO;
+}
+
 - (MEGAChatRoomChangeType)changes {
     return (MEGAChatRoomChangeType) ( self.megaChatRoom ? self.megaChatRoom->getChanges() : 0x00);
 }
@@ -91,6 +95,10 @@ using namespace megachat;
 
 - (BOOL)isActive {
     return self.megaChatRoom ? self.megaChatRoom->isActive() : NO;
+}
+
+- (BOOL)isArchived {
+    return self.megaChatRoom ? self.megaChatRoom->isArchived() : NO;
 }
 
 - (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {
@@ -172,7 +180,7 @@ using namespace megachat;
         case MEGAChatRoomChangeTypeUnreadCount:
             result = @"Unread count";
             break;
-        case MEGAChatRoomChangeTypeParticipans:
+        case MEGAChatRoomChangeTypeParticipants:
             result = @"Participants";
             break;
         case MEGAChatRoomChangeTypeTitle:
@@ -183,6 +191,15 @@ using namespace megachat;
             break;
         case MEGAChatRoomChangeTypeClosed:
             result = @"Closed";
+            break;
+        case MEGAChatRoomChangeTypeOwnPriv:
+            result = @"Privilege change";
+            break;
+        case MEGAChatRoomChangeTypeUserStopTyping:
+            result = @"User stops typing";
+            break;
+        case MEGAChatRoomChangeTypeArchive:
+            result = @"Archived";
             break;
             
         default:

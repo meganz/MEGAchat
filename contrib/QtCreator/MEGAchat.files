@@ -45,7 +45,6 @@
 ../../src/messageBus.h
 ../../src/sdkApi.h
 ../../src/serverListProvider.h
-../../src/serverListProviderForwards.h
 ../../src/stringUtils.h
 ../../src/userAttrCache.h
 ../../src/userAttrCache.cpp

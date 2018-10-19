@@ -232,7 +232,7 @@ public:
             }
             ::free(mBuf);
         }
-        mBufSize = (kMinBufSize>datalen) ? kMinBufSize : datalen;
+        mBufSize = (kMinBufSize > datalen) ? (size_t) kMinBufSize : datalen;
         mBuf = (char*)malloc(mBufSize);
         if (!mBuf)
         {
@@ -289,15 +289,6 @@ public:
         return mBuf+offset;
     }
     char* appendPtr(size_t dataLen) { return writePtr(mDataSize, dataLen); }
-    void takeFrom(Buffer&& other)
-    {
-        if (mBuf)
-            ::free(mBuf);
-        mBuf = other.mBuf;
-        mBufSize = other.mBufSize;
-        mDataSize = other.mDataSize;
-        other.zero();
-    }
     void assign(const StaticBuffer& other)
     {
         assign(other.buf(), other.dataSize());

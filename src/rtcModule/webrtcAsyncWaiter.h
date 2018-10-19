@@ -6,6 +6,8 @@
 //    #include <webrtc/base/scoped_autorelease_pool.h>
 #endif
 
+#include <base/trackDelete.h>
+
 #ifdef RTCM_DEBUG_ASYNC_WAITER
     #define ASYNCWAITER_LOG_DEBUG(fmtString,...) KR_LOG_DEBUG("AsyncWaiter: " fmtString, ##__VA_ARGS__)
 #else
@@ -21,7 +23,8 @@ namespace artc
  * asynchronous way, but mimics the normal behaviour of webrtc threads, so the GUI
  * thread looks to webrtc like a normal webrtc thread with a blocking message loop.
  */
-class AsyncWaiter: public rtc::SocketServer
+class AsyncWaiter: public rtc::SocketServer,
+                   public karere::DeleteTrackable
 {
 protected:
     void *appCtx;
@@ -89,8 +92,13 @@ virtual void WakeUp()
     if (!mMessageQueue->empty()) //process messages and wake up waiters again
     {
         ASYNCWAITER_LOG_DEBUG("  WakeUp(): Message queue not empty, posting ProcessMessages(0) call on GUI thread");
-        karere::marshallCall([this]()
+
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, this]()
         {
+            if (wptr.deleted())
+                return;
+
             if (mThread->ProcessMessages(0))
             { //signal once again that we have messages processed
                 std::lock_guard<std::mutex> lock(mMutex);

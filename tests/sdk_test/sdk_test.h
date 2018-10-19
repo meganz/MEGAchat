@@ -30,7 +30,7 @@
 #include <fstream>
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
-static const std::string USER_AGENT_DESCRIPTION  = "Tests for Karere SDK functionality";
+static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 
 static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
@@ -68,9 +68,9 @@ private:
             LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
             LOG_debug << "Launching test: " << title; \
-            std::cout << "[" << " RUN    " << "] " << title << endl; \
+            std::cout << "[" << " RUN    " << "] " << title << std::endl; \
             test; \
-            std::cout << "[" << "     OK " << "] " << title << endl; \
+            std::cout << "[" << "     OK " << "] " << title << std::endl; \
             LOG_debug << "Cleaning test environment: " << title; \
             t.TearDown(); \
             t.mOKTests ++; \
@@ -83,7 +83,7 @@ private:
             { \
                 std::cout << e.msg() << std::endl; \
             } \
-            std::cout << "[" << " FAILED " << "] " << title << endl; \
+            std::cout << "[" << " FAILED " << "] " << title << std::endl; \
             LOG_debug << "Cleaning test environment after failure: " << title; \
             t.TearDown(); \
             t.mFailedTests ++; \
@@ -201,6 +201,9 @@ public:
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
 #endif
 
+    void TEST_RichLinkUserAttribute(unsigned int a1);
+    void TEST_SendRichLink(unsigned int a1, unsigned int a2);
+
     unsigned mOKTests;
     unsigned mFailedTests;
 
@@ -268,6 +271,7 @@ private:
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool chatArchived[NUM_ACCOUNTS];
 
     std::string mFirstname;
     std::string mLastname;
@@ -290,6 +294,8 @@ private:
 
     mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    bool mRichLinkFlag[NUM_ACCOUNTS];
+    int mCountRichLink[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
@@ -386,6 +392,7 @@ public:
     bool chatUpdated[NUM_ACCOUNTS];
     bool userTyping[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool archiveUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);

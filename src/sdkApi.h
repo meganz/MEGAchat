@@ -44,7 +44,7 @@ class MyListener: public mega::MegaRequestListener
 public:
     MyListener(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
     ApiPromise mPromise;
-    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+    virtual void onRequestFinish(mega::MegaApi* /*api*/, mega::MegaRequest *request, mega::MegaError* e)
     {
         if (wptr.deleted())
             return;
@@ -84,7 +84,7 @@ public:
     MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
 
     promise::Promise<void> mPromise;
-    virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+    virtual void onRequestFinish(mega::MegaApi* /*api*/, mega::MegaRequest */*request*/, mega::MegaError* e)
     {
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
@@ -113,7 +113,7 @@ public:
 
 class MyMegaLogger: public ::mega::MegaLogger
 {
-    virtual void log(const char *time, int loglevel, const char *source, const char *message)
+    virtual void log(const char */*time*/, int loglevel, const char *source, const char *message)
     {
         static krLogLevel sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
         {
@@ -145,11 +145,15 @@ public:
     ::mega::MegaApi& sdk;
     std::unique_ptr<MyMegaLogger> mLogger;
     void *appCtx;
+    bool logging;
     
-    MyMegaApi(::mega::MegaApi& aSdk, void *ctx)
-    :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx)
+    MyMegaApi(::mega::MegaApi& aSdk, void *ctx, bool addlogger = true)
+    :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx), logging(addlogger)
     {
-        sdk.addLoggerObject(mLogger.get());
+        if (addlogger)
+        {
+            sdk.addLoggerObject(mLogger.get());
+        }
     }
     template <typename... Args, typename MSig=void(::mega::MegaApi::*)(Args..., ::mega::MegaRequestListener*)>
     ApiPromise call(MSig method, Args... args)
@@ -168,7 +172,10 @@ public:
 
     ~MyMegaApi()
     {
-        sdk.removeLoggerObject(mLogger.get());
+        if (logging)
+        {
+            sdk.removeLoggerObject(mLogger.get());
+        }
         mLogger.reset();
         KR_LOG_DEBUG("Deleted SDK logger");
     }

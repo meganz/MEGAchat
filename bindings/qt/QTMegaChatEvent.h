@@ -24,7 +24,11 @@ public:
         OnChatRoomUpdate,
         OnMessageLoaded,
         OnMessageReceived,
-        OnMessageUpdate
+        OnMessageUpdate,
+        OnHistoryReloaded,
+        OnChatNotification,
+        OnChatVideoData,
+        OnChatCallUpdate
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);
@@ -38,8 +42,13 @@ public:
     MegaChatPresenceConfig *getPresenceConfig();
     MegaChatRoom *getChatRoom();
     MegaChatMessage *getChatMessage();
+    MegaChatCall *getChatCall();
     bool getProgress();
     int getStatus();
+    int getWidth();
+    int getHeight();
+    char *getBuffer();
+    size_t getSize();
 
     void setChatRequest(MegaChatRequest *request);
     void setChatError(MegaChatError *error);
@@ -48,8 +57,14 @@ public:
     void setPresenceConfig(MegaChatPresenceConfig *config);
     void setChatRoom(MegaChatRoom *chat);
     void setChatMessage(MegaChatMessage *msg);
+    void setChatCall(MegaChatCall *call);
     void setProgress(bool progress);
     void setStatus(int status);
+    void setWidth(int width);
+    void setHeight(int height);
+    void setBuffer(char *buffer);
+    void setSize(size_t size);
+
 
 private:
     MegaChatApi *megaChatApi;
@@ -60,8 +75,13 @@ private:
     MegaChatPresenceConfig *config;
     MegaChatRoom *chat;
     MegaChatMessage *msg;
+    MegaChatCall *call;
     bool inProgress;
     int status;
+    int width;
+    int height;
+    char *buffer;
+    size_t size;
 };
 
 }

@@ -93,10 +93,10 @@ protected:
 public:
     std::recursive_mutex mMutex;
     typedef std::lock_guard<std::recursive_mutex> LockGuard;
-    volatile unsigned flags() const { return mFlags;}
+    unsigned flags() const { return mFlags;}
     void setFlags(unsigned flags)
     {
-        std::lock_guard<std::recursive_mutex> lock(mMutex);
+        LockGuard lock(mMutex);
         mFlags = flags;
     }
     KarereLogChannel logChannels[krLogChannelCount];

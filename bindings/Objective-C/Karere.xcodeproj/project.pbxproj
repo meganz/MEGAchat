@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */; };
+		77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */; };
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
 		947566561F3397AE00FE8664 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566551F3397AE00FE8664 /* cservices.cpp */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
@@ -26,6 +28,7 @@
 		A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8AA1F979CDC0075646F /* MEGAChatCall.mm */; };
 		A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */; };
 		A835A8B61F97AE240075646F /* DelegateMEGAChatVideoListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */; };
+		A8373880213019CA0014328D /* DelegateMEGAChatNotificationListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */; };
 		A838B20A1E9685A200875D96 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2051E9685A200875D96 /* logger.cpp */; };
 		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
 		A83D5BF41F974AF900A038F7 /* rtcStats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF11F974AF900A038F7 /* rtcStats.cpp */; };
@@ -59,6 +62,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		77875CD82097A69400B8340F /* MEGAChatContainsMeta.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatContainsMeta.h; sourceTree = "<group>"; };
+		77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatContainsMeta.mm; sourceTree = "<group>"; };
+		77875CDB2097A80700B8340F /* MEGAChatRichPreview.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatRichPreview.h; sourceTree = "<group>"; };
+		77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRichPreview.mm; sourceTree = "<group>"; };
+		77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatContainsMeta+init.h"; sourceTree = "<group>"; };
+		77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatRichPreview+init.h"; sourceTree = "<group>"; };
 		941977321F163DDE00A76EE3 /* websocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = websocketsIO.cpp; path = ../../src/net/websocketsIO.cpp; sourceTree = "<group>"; };
 		947565EE1F168CB400FE8664 /* timers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = timers.hpp; path = ../../src/base/timers.hpp; sourceTree = "<group>"; };
 		947565F01F18D4E900FE8664 /* asyncTest-framework.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "asyncTest-framework.h"; path = "../../src/asyncTest-framework.h"; sourceTree = "<group>"; };
@@ -83,7 +92,6 @@
 		947566061F18D4E900FE8664 /* presenced.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = presenced.h; path = ../../src/presenced.h; sourceTree = "<group>"; };
 		947566071F18D4E900FE8664 /* sdkApi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sdkApi.h; path = ../../src/sdkApi.h; sourceTree = "<group>"; };
 		947566081F18D4E900FE8664 /* serverListProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = serverListProvider.h; path = ../../src/serverListProvider.h; sourceTree = "<group>"; };
-		947566091F18D4E900FE8664 /* serverListProviderForwards.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = serverListProviderForwards.h; path = ../../src/serverListProviderForwards.h; sourceTree = "<group>"; };
 		9475660A1F18D4E900FE8664 /* stringUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stringUtils.h; path = ../../src/stringUtils.h; sourceTree = "<group>"; };
 		9475660E1F18D4E900FE8664 /* url.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = url.h; path = ../../src/url.h; sourceTree = "<group>"; };
 		9475660F1F18D4E900FE8664 /* userAttrCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = userAttrCache.h; path = ../../src/userAttrCache.h; sourceTree = "<group>"; };
@@ -172,6 +180,9 @@
 		A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatCallListener.mm; path = Private/DelegateMEGAChatCallListener.mm; sourceTree = "<group>"; };
 		A835A8B41F97AE240075646F /* DelegateMEGAChatVideoListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatVideoListener.h; path = Private/DelegateMEGAChatVideoListener.h; sourceTree = "<group>"; };
 		A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatVideoListener.mm; path = Private/DelegateMEGAChatVideoListener.mm; sourceTree = "<group>"; };
+		A837387A213018CB0014328D /* MEGAChatNotificationDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatNotificationDelegate.h; sourceTree = "<group>"; };
+		A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatNotificationListener.mm; path = Private/DelegateMEGAChatNotificationListener.mm; sourceTree = "<group>"; };
+		A837387F213019CA0014328D /* DelegateMEGAChatNotificationListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatNotificationListener.h; path = Private/DelegateMEGAChatNotificationListener.h; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2051E9685A200875D96 /* logger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = logger.cpp; path = ../../src/base/logger.cpp; sourceTree = "<group>"; };
 		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
@@ -251,7 +262,6 @@
 				947566061F18D4E900FE8664 /* presenced.h */,
 				947566071F18D4E900FE8664 /* sdkApi.h */,
 				947566081F18D4E900FE8664 /* serverListProvider.h */,
-				947566091F18D4E900FE8664 /* serverListProviderForwards.h */,
 				9475660A1F18D4E900FE8664 /* stringUtils.h */,
 				9475660E1F18D4E900FE8664 /* url.h */,
 				9475660F1F18D4E900FE8664 /* userAttrCache.h */,
@@ -353,6 +363,10 @@
 				A82750EC1E9788D8007CD9E2 /* MEGAChatRoomList+init.h */,
 				A82750ED1E9788D8007CD9E2 /* MEGAChatSdk+init.h */,
 				A835A8AC1F979EE30075646F /* MEGAChatCall+init.h */,
+				77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */,
+				77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */,
+				A837387F213019CA0014328D /* DelegateMEGAChatNotificationListener.h */,
+				A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */,
 			);
 			name = private;
 			sourceTree = "<group>";
@@ -389,6 +403,11 @@
 				A835A8AA1F979CDC0075646F /* MEGAChatCall.mm */,
 				A835A8AF1F97A03B0075646F /* MEGAChatVideoDelegate.h */,
 				A835A8B01F97A13D0075646F /* MEGAChatCallDelegate.h */,
+				77875CD82097A69400B8340F /* MEGAChatContainsMeta.h */,
+				77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */,
+				77875CDB2097A80700B8340F /* MEGAChatRichPreview.h */,
+				77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */,
+				A837387A213018CB0014328D /* MEGAChatNotificationDelegate.h */,
 			);
 			name = binding;
 			sourceTree = "<group>";
@@ -498,7 +517,7 @@
 		A838B1EE1E96850700875D96 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0900;
+				LastUpgradeCheck = 0930;
 				TargetAttributes = {
 					A838B1F71E96855400875D96 = {
 						CreatedOnToolsVersion = 8.3;
@@ -546,7 +565,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				A879F3C01F96683A007C5394 /* base64url.cpp in Sources */,
+				77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */,
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
+				A8373880213019CA0014328D /* DelegateMEGAChatNotificationListener.mm in Sources */,
+				77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */,
 				A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */,
 				A879F3C21F96683A007C5394 /* presenced.cpp in Sources */,
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
@@ -595,11 +617,13 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
@@ -628,11 +652,13 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;

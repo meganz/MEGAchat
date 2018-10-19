@@ -1,3 +1,5 @@
 TEMPLATE = subdirs
 
-SUBDIRS += MEGAchatTests
+SUBDIRS += MEGAchatTests \
+    MEGAChatQt
+

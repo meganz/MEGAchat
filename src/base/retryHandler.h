@@ -39,7 +39,8 @@ enum { kErrorType = 0x2e7294d1 };//should resemble 'retryhdl'
 enum
 {
     kDefaultMaxAttemptCount = 0,
-    kDefaultMaxSingleWaitTime = 60000
+    kDefaultMaxSingleWaitTime = 60000,
+    kDefaultMinInitialDelay = 1000
 };
 
 class IRetryController
@@ -404,7 +405,7 @@ static inline void _emptyCancelFunc(){}
  * Internally it instantiates a RetryController instance and manages its lifetime
  * (by setting autoDestroy() and making the instance destroy itself after finishing).
  * The paramaters of this function are forwarder to the RetryController constructor.
- * @param The promise-returning (lambda) function to call. This function must take
+ * @param cancelFunc The promise-returning (lambda) function to call. This function must take
  * no arguments.
  * @param maxSingleWaitTime - the maximum time in [ms] to wait between attempts. Default is 30 sec
  * @param maxRetries - the maximum number of attempts between giving up and rejecting
@@ -419,7 +420,7 @@ static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable:
     unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
-    short backoffStart = 1000)
+    short backoffStart = rh::kDefaultMinInitialDelay)
 ->decltype(func(0, wptr))
 {
     auto self = new rh::RetryController<Func, CancelFunc>(aName,
@@ -434,14 +435,17 @@ static inline auto retry(const std::string& aName, Func&& func, DeleteTrackable:
 /** Similar to retry(), but returns a heap-allocated RetryController object */
 template <class Func, class CancelFunc=void*>
 static inline rh::RetryController<Func, CancelFunc>* createRetryController(
-    const std::string& aName, Func&& func,CancelFunc&& cancelFunc = nullptr, unsigned attemptTimeout = 0,
+    const std::string& aName, Func&& func,
+    DeleteTrackable::Handle wptr, void *ctx,
+    CancelFunc&& cancelFunc = nullptr,
+    unsigned attemptTimeout = 0,
     size_t maxRetries = rh::kDefaultMaxAttemptCount,
     size_t maxSingleWaitTime = rh::kDefaultMaxSingleWaitTime,
-    short backoffStart = 1000)
+    short backoffStart = rh::kDefaultMinInitialDelay)
 {
-    auto retryController = new rh::RetryController<Func, CancelFunc>(aName,
+    rh::RetryController<Func, CancelFunc>* retryController = new rh::RetryController<Func, CancelFunc>(aName,
         std::forward<Func>(func),
-        std::forward<CancelFunc>(cancelFunc), attemptTimeout,
+        std::forward<CancelFunc>(cancelFunc), attemptTimeout, wptr, ctx,
         maxSingleWaitTime, maxRetries, backoffStart);
     return retryController;
 }

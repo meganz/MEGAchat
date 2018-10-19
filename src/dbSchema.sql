@@ -12,7 +12,8 @@ CREATE TABLE vars(name text not null primary key, value blob);
 CREATE TABLE chats(chatid int64 unique primary key, shard tinyint,
     own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0,
     title text, ts_created int64 not null default 0,
-    last_seen int64 default 0, last_recv int64 default 0);
+    last_seen int64 default 0, last_recv int64 default 0, archived tinyint);
+
 CREATE TABLE contacts(userid int64 PRIMARY KEY, email text, visibility int,
     since int64 not null default 0);
 
@@ -32,4 +33,8 @@ CREATE TABLE history(idx int not null, chatid int64 not null, msgid int64 not nu
 
 CREATE TABLE sendkeys(chatid int64 not null, userid int64 not null, keyid int64 not null, key blob not null,
     ts int not null, UNIQUE(chatid, userid, keyid));
+
+CREATE TABLE node_history(idx int not null, chatid int64 not null, msgid int64 not null,
+    userid int64, keyid int not null, type tinyint, updated smallint, ts int,
+    is_encrypted tinyint, data blob, backrefid int64 not null, UNIQUE(chatid,msgid), UNIQUE(chatid,idx));
 

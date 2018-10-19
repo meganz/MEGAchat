@@ -7,9 +7,10 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include <karereId.h>
-#include "url.h"
+#include <url.h>
 #include <base/trackDelete.h>
-#include "net/websocketsIO.h"
+#include <net/websocketsIO.h>
+#include <base/retryHandler.h>
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -124,15 +125,15 @@ enum: uint8_t
       */
     OP_ADDPEERS = 4,
 
-    /**
-      * @brief
-      * C->S
-      * This command is sent when the client doesn't want to know the status of a peer or a contact
-      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
-      * in any groupchat any longer.
-      *
-      * <1> <peerHandle>
-      */
+     /**
+     * @brief
+     * C->S
+     * This command is sent when the client doesn't want to a peer to see its status
+     * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+     * in any groupchat any longer.
+     *
+     * <1> <peerHandle>
+     */
     OP_DELPEERS = 5,
 
     /**
@@ -254,12 +255,15 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Client *karereClient;
-    karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
+    karere::Url mUrl;
+    bool usingipv6; // ip version to try first (both are tried)
+    std::string mTargetIp;
+    DNScache &mDNScache;
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
@@ -269,16 +273,15 @@ protected:
     time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
-    void initWebsocketCtx();
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/);
     virtual void wsHandleMsgCb(char *data, size_t len);
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void notifyLoggedIn();
+    void abortRetryController();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
@@ -311,7 +314,8 @@ public:
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
-    promise::Promise<void> retryPendingConnection();
+    void doConnect();
+    void retryPendingConnection(bool disconnect);
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
