@@ -85,7 +85,6 @@ void MainWindow::activeControls(bool active)
     else
     {
         ui->bOnlineStatus->hide();
-        ui->mLogout->hide();
     }
 }
 
@@ -1115,6 +1114,21 @@ void MainWindow::on_mLogout_clicked()
     int ret = msgBox.exec();
     if (ret == QMessageBox::Ok)
     {
-        mMegaApi->logout();
+        if (mMegaChatApi->getInitState() == MegaChatApi::INIT_ANONYMOUS)
+        {
+            emit onAnonymousLogout();
+        }
+        else
+        {
+            mMegaApi->logout();
+        }
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (mMegaChatApi->getInitState() == MegaChatApi::INIT_ANONYMOUS)
+    {
+        emit onAnonymousLogout();
     }
 }

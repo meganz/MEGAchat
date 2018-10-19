@@ -83,6 +83,15 @@ void MegaChatApplication::init()
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
     login();
 }
+void MegaChatApplication::onAnonymousLogout()
+{
+    if (mMainWin)
+    {
+       mMainWin->deleteLater();
+       mMainWin = NULL;
+    }
+    mMegaChatApi->logout();
+}
 
 std::string MegaChatApplication::getChatLink()
 {
@@ -115,6 +124,12 @@ void MegaChatApplication::initAnonymous(std::string chatlink)
     delete [] mSid;
     mSid = strdup(chatlink.c_str());
 
+    if (mLoginDialog)
+    {
+        mLoginDialog->deleteLater();
+        mLoginDialog = NULL;
+    }
+
     int initState = mMegaChatApi->initAnonymous(mSid);
     if (initState == MegaChatApi::INIT_ERROR)
     {
@@ -125,6 +140,7 @@ void MegaChatApplication::initAnonymous(std::string chatlink)
     if (chatlink.size() > 1)
     {
         mMegaChatApi->loadChatLink(chatlink.c_str());
+        connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
         mMainWin->show();
     }
     else
@@ -168,11 +184,6 @@ void MegaChatApplication::onPreviewClicked()
     std::string chatLink = mLoginDialog->getChatLink();
     mLoginDialog->deleteLater();
     initAnonymous(chatLink);
-}
-
-void MegaChatApplication::logout()
-{
-    mMegaApi->logout();
 }
 
 const char * MegaChatApplication::readSid()

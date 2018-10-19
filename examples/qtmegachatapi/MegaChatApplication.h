@@ -26,7 +26,6 @@ class MegaChatApplication : public QApplication,
         virtual ~MegaChatApplication();
         void init();
         void login();
-        void logout();
         void addChats();
         void addContacts();
         void configureLogs();
@@ -63,6 +62,7 @@ class MegaChatApplication : public QApplication,
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
 
     public slots:
+        void onAnonymousLogout();
         void onLoginClicked();
         void onPreviewClicked();
 

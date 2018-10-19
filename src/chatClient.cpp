@@ -130,19 +130,34 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
 std::string Client::dbPath(const std::string& sid) const
 {
     std::string path = mAppDir;
-    if (!anonymousMode())
+    if (anonymousMode())
     {
-        if (sid.size() < 50)
-            throw std::runtime_error("dbPath: sid is too small");
-        path.reserve(56);
-        path.append("/karere-").append(sid.c_str()+44).append(".db");
-    }
-    else
-    {
+        // If we are in anonymous mode sid must have length 8
         if (sid.size() < 8)
             throw std::runtime_error("dbPath: sid is too small");
         path.reserve(20);
         path.append("/karere-").append(sid.c_str()).append(".db");
+    }
+    else
+    {
+        if (sid.size() < 50)
+        {
+            // If we logout in anonymous mode sid must have length 8
+            if (mInitState == kInitTerminated && sid.size() == 8)
+            {
+                path.reserve(20);
+                path.append("/karere-").append(sid.c_str()).append(".db");
+            }
+            else
+            {
+               throw std::runtime_error("dbPath: sid is too small");
+            }
+        }
+        else
+        {
+            path.reserve(56);
+            path.append("/karere-").append(sid.c_str()+44).append(".db");
+        }
     }
     return path;
 }

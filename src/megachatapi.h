@@ -1730,6 +1730,8 @@ public:
  * Important considerations:
  *  - In order to logout from the account, the app should call MegaApi::logout before MegaChatApi::logout.
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
+ *  - In case we have init session in anonymous mode the app should call MegaChatApi::logout manually.
+ *
  *
  * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
  * are made using new (for single objects) and new[] (for arrays) so you should use delete and delete[] to free them.
@@ -1890,6 +1892,9 @@ public:
      * case of invalid link format or incomplete link, it will return MegaChatApi::INIT_ERROR.
      *
      * This function should be called to preview chat-links without a valid session (anonymous mode).
+     *
+     * The anonymous mode is going to initialize the chat engine but is not going to login in MEGA,
+     * so the way to logout in anoymous mode is call MegaChatApi::logout manually.
      *
      * @param chatlink to preview in anonymous mode.
      * @return The initialization state

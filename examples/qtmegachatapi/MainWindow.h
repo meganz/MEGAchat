@@ -142,9 +142,11 @@ class MainWindow :
         void onTwoFactorDisable();
         void onTwoFactorCheck();
         void onPrintMyInfo();
+        void closeEvent(QCloseEvent *event);
 
     signals:
         void esidLogout();
+        void onAnonymousLogout();
 
      friend class ChatItemWidget;
      friend class ContactItemWidget;

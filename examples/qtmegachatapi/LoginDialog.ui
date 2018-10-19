@@ -116,6 +116,10 @@
 					{
 					border-image: url(':/link.svg')
 					}
+					QToolButton:hover
+					{
+						border-image: url(':/link-hover.svg')
+					}
 					</string>
        </property>
        <property name="text">
@@ -139,6 +143,10 @@
 					{
 					border:none;
 					font-weight:bold;
+					}
+					QToolButton:hover
+					{
+					  color: #062c6d;
 					}
 					</string>
        </property>
