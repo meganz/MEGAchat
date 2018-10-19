@@ -94,3 +94,14 @@ void LoginDialog::on_bAnonymous_clicked()
     emit onPreviewClicked();
   }
 }
+
+void LoginDialog::on_bAnonymousText_clicked()
+{
+    setEnabled(false);
+    mChatLink.assign(mApp->getChatLink());
+    setEnabled(true);
+    if(!mChatLink.empty())
+    {
+      emit onPreviewClicked();
+    }
+}

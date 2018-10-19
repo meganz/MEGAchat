@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>428</width>
-    <height>214</height>
+    <height>234</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -16,7 +16,7 @@
   <property name="windowTitle">
    <string>Login to MEGA</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0">
    <item>
     <widget class="QLabel" name="label_3">
      <property name="sizePolicy">
@@ -124,6 +124,30 @@
       </widget>
      </item>
      <item>
+      <widget class="QToolButton" name="bAnonymousText">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>30</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QToolButton
+					{
+					border:none;
+					font-weight:bold;
+					}
+					</string>
+       </property>
+       <property name="text">
+        <string>ANONYMOUS MODE</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="mLoginStateDisplay">
        <property name="minimumSize">
         <size>
@@ -132,10 +156,26 @@
         </size>
        </property>
        <property name="text">
-        <string>ANONYMOUS MODE</string>
+        <string>&lt;Login status&gt;</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
      </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <property name="leftMargin">
+      <number>120</number>
+     </property>
+     <property name="topMargin">
+      <number>5</number>
+     </property>
+     <property name="rightMargin">
+      <number>120</number>
+     </property>
      <item>
       <widget class="QPushButton" name="bOK">
        <property name="sizePolicy">

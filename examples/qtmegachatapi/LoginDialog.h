@@ -44,6 +44,7 @@ class LoginDialog : public QDialog
         void on_eEmail_textChanged(const QString &arg1);
         void on_ePassword_textChanged(const QString &arg1);
         void on_bAnonymous_clicked();
+        void on_bAnonymousText_clicked();
 
     signals:
         void onLoginClicked();

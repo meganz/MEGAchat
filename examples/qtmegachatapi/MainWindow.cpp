@@ -46,17 +46,32 @@ MainWindow::~MainWindow()
     mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
 #endif
 
+    delete megaChatListenerDelegate;
+    delete megaChatCallListenerDelegate;
+    delete mWebRTCSettings;
+    auxChatWidgets.clear();
+    contactWidgets.clear();
+
+    ChatItemWidget * item;
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
+    for (it = chatWidgets.begin(); it != chatWidgets.end(); it++)
+    {
+        ChatItemWidget * item = it->second;
+        ChatWindow *auxWindow;
+        if(auxWindow = item->getChatWindow())
+        {
+            item->invalidChatWindowHandle();
+            auxWindow->deleteLater();
+        }
+
+    }
+
     for (auto it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
     {
         delete it->second;
     }
     mLocalChatListItems.clear();
 
-    delete megaChatListenerDelegate;
-    delete megaChatCallListenerDelegate;
-    delete mWebRTCSettings;
-    chatWidgets.clear();
-    contactWidgets.clear();
     delete ui;
 }
 
