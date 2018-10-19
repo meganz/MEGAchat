@@ -107,6 +107,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->areAllChatsLoggedIn();
 }
 
+- (BOOL)isOnlineStatusPending {
+    return self.megaChatApi->isOnlineStatusPending();
+}
+
 - (void)retryPendingConnections {
     self.megaChatApi->retryPendingConnections();
 }
@@ -168,12 +172,20 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->setPresencePersist(enable);
 }
 
-- (void)setLastSeenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->setLastSeenVisible(enable, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)setLastGreenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setLastGreenVisible(enable, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)setLastSeenVisible:(BOOL)enable {
-    self.megaChatApi->setLastSeenVisible(enable);
+- (void)setLastGreenVisible:(BOOL)enable {
+    self.megaChatApi->setLastGreenVisible(enable);
+}
+
+- (void)requestLastGreen:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->requestLastGreen(userHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)requestLastGreen:(uint64_t)userHandle {
+    self.megaChatApi->requestLastGreen(userHandle);
 }
 
 - (BOOL)isSignalActivityRequired {

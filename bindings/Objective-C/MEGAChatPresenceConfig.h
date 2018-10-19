@@ -11,7 +11,7 @@ typedef NS_ENUM (NSInteger, MEGAChatStatus);
 @property (readonly, nonatomic, getter=isPersist) BOOL persist;
 @property (readonly, nonatomic, getter=isPending) BOOL pending;
 @property (readonly, nonatomic, getter=isSignalActivityRequired) BOOL signalActivityRequired;
-@property (readonly, nonatomic, getter=isLastSeenVisible) BOOL lastSeenVisible;
+@property (readonly, nonatomic, getter=isLastGreenVisible) BOOL lastGreenVisible;
 
 - (instancetype)clone;
 
