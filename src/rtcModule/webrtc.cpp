@@ -1231,9 +1231,8 @@ void Call::msgJoin(RtMessage& packet)
         {
             setState(Call::kStateInProgress);
             // Send OP_CALLDATA with call inProgress
-            if (!chat().isGroup())
+            if (!chat().isGroup() && !sendCallData(CallDataState::kCallDataNotRinging))
             {
-                sendCallData(CallDataState::kCallDataNotRinging);
                 return;
             }
         }
