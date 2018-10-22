@@ -1887,19 +1887,17 @@ public:
     /**
      * @brief Initializes karere in anonymous mode for preview of chat-links
      *
-     * If a chatlink is provided, karere will create its cache for the operation during the preview
-     * of chat-links. The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In
-     * case of invalid link format or incomplete link, it will return MegaChatApi::INIT_ERROR.
+     * The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In
+     * case of initialization error, it will return MegaChatApi::INIT_ERROR.
      *
      * This function should be called to preview chat-links without a valid session (anonymous mode).
      *
      * The anonymous mode is going to initialize the chat engine but is not going to login in MEGA,
      * so the way to logout in anoymous mode is call MegaChatApi::logout manually.
      *
-     * @param chatlink to preview in anonymous mode.
      * @return The initialization state
      */
-    int initAnonymous(const char *chatlink);
+    int initAnonymous();
 
     /**
      * @brief Returns the current initialization state

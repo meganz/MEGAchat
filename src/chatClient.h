@@ -85,7 +85,7 @@ protected:
 public:
     virtual bool previewMode() const { return false; }
     virtual bool publicChat() const { return false; }
-    virtual uint64_t getPublicHandle() const { Id::null(); }
+    virtual uint64_t getPublicHandle() const { return Id::null(); }
     virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
@@ -429,6 +429,12 @@ public:
 
     virtual bool previewMode() const;
 
+    /** Blocks the preview: sends HANDLELEAVE to chatd and cleands DB */
+    void closePreview();
+
+    /** Cleans the related DB records */
+    void chatCleanup();
+
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     int getNumPeers() const;
@@ -661,10 +667,7 @@ public:
         kInitErrAlready,
 
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid,
-
-        /** The session has expired or has been closed. */
-        kInitErrLinkInvalid
+        kInitErrSidInvalid
     };
 
     enum
@@ -770,7 +773,7 @@ public:
      */
     void initWithDbSession(const char* sid);
 
-    InitState initWithAnonymousSession(const char *sid);
+    InitState initWithAnonymousSession();
 
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged

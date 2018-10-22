@@ -119,34 +119,32 @@ std::string MegaChatApplication::getChatLink()
     }
 }
 
-void MegaChatApplication::initAnonymous(std::string chatlink)
+bool MegaChatApplication::initAnonymous(std::string chatlink)
 {
-    delete [] mSid;
-    mSid = strdup(chatlink.c_str());
+    if (chatlink.size() < 43)
+    {
+        return false;
+    }
+
+    if (mMegaChatApi->initAnonymous() != MegaChatApi::INIT_ANONYMOUS)
+    {
+        mMegaChatApi->logout();
+        return false;
+    }
 
     if (mLoginDialog)
     {
         mLoginDialog->deleteLater();
         mLoginDialog = NULL;
     }
-
-    int initState = mMegaChatApi->initAnonymous(mSid);
-    if (initState == MegaChatApi::INIT_ERROR)
-    {
-        QApplication::quit();
-    }
+    delete [] mSid;
+    mSid = NULL;
 
     mMainWin->setWindowTitle("Anonymous mode");
-    if (chatlink.size() > 1)
-    {
-        mMegaChatApi->loadChatLink(chatlink.c_str());
-        connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
-        mMainWin->show();
-    }
-    else
-    {
-        QApplication::quit();
-    }
+    mMegaChatApi->loadChatLink(chatlink.c_str());
+    connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
+    mMainWin->show();
+    return true;
 }
 
 void MegaChatApplication::login()
@@ -182,8 +180,10 @@ void MegaChatApplication::onLoginClicked()
 void MegaChatApplication::onPreviewClicked()
 {
     std::string chatLink = mLoginDialog->getChatLink();
-    mLoginDialog->deleteLater();
-    initAnonymous(chatLink);
+    if (!initAnonymous(chatLink))
+    {
+        mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
+    }
 }
 
 const char * MegaChatApplication::readSid()

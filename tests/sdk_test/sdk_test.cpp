@@ -1584,9 +1584,9 @@ void MegaChatApiTest::TEST_AnonymousMode(unsigned int a1, unsigned int a2)
 
         //Init session in anonymous mode
         bool *flagAttrReceived = &requestFlags[a2][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttrReceived = false;
-        initState[a2] = megaChatApi[a2]->initAnonymous(chatLink.c_str());
+        initState[a2] = megaChatApi[a2]->initAnonymous();
         ASSERT_CHAT_TEST(waitForResponse(flagAttrReceived), "Timeout expired init in anonymous mode");
-        ASSERT_CHAT_TEST(initState[a2] != MegaChatApi::INIT_ERROR, "Init sesion in anonymous mode failed");
+        ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
 
         //Load chat link
         bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;

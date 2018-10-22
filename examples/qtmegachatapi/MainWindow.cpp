@@ -52,18 +52,16 @@ MainWindow::~MainWindow()
     auxChatWidgets.clear();
     contactWidgets.clear();
 
-    ChatItemWidget * item;
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
     for (it = chatWidgets.begin(); it != chatWidgets.end(); it++)
     {
-        ChatItemWidget * item = it->second;
-        ChatWindow *auxWindow;
-        if(auxWindow = item->getChatWindow())
+        ChatItemWidget *item = it->second;
+        ChatWindow *auxWindow = item->getChatWindow();
+        if(auxWindow)
         {
             item->invalidChatWindowHandle();
             auxWindow->deleteLater();
         }
-
     }
 
     for (auto it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
@@ -348,9 +346,11 @@ void MainWindow::addActiveChats()
 
 bool MainWindow::eventFilter(QObject *, QEvent *event)
 {
-    if (this->mMegaChatApi->isSignalActivityRequired() && event->type() == QEvent::MouseButtonRelease)
+    if (event->type() == QEvent::MouseButtonRelease
+            && mMegaChatApi->getInitState() == MegaChatApi::INIT_ONLINE_SESSION
+            && mMegaChatApi->isSignalActivityRequired())
     {
-        this->mMegaChatApi->signalPresenceActivity();
+        mMegaChatApi->signalPresenceActivity();
     }
     return false;
 }

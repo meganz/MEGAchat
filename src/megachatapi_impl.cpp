@@ -1553,37 +1553,14 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
     }
 }
 
-int MegaChatApiImpl::initAnonymous(const char *link)
+int MegaChatApiImpl::initAnonymous()
 {
-    int state;
-    if (!link)
-    {
-        state = karere::Client::kInitErrLinkInvalid;
-    }
-    else
-    {
-        string parsedLink(link);
-        string separator = "c/";
-        size_t pos = parsedLink.find(separator);
-        string separatorEnd = "#";
-        size_t posEnd = parsedLink.find(separatorEnd);
+    sdkMutex.lock();
 
-        if (pos == string::npos || posEnd == string::npos)
-        {
-            state = karere::Client::kInitErrLinkInvalid;
-        }
-        else
-        {
-            sdkMutex.lock();
+    createKarereClient();
+    int state = mClient->initWithAnonymousSession();
 
-            createKarereClient();
-            pos += separator.length();
-            parsedLink = parsedLink.substr(pos, posEnd-pos);
-            state = mClient->initWithAnonymousSession(parsedLink.c_str());
-
-            sdkMutex.unlock();
-        }
-    }
+    sdkMutex.unlock();
 
     return MegaChatApiImpl::convertInitState(state);
 }
@@ -3867,7 +3844,6 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
     case karere::Client::kInitErrAlready:
-    case karere::Client::kInitErrLinkInvalid:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitCreated:

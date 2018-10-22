@@ -130,35 +130,20 @@ KARERE_EXPORT const std::string& createAppDir(const char* dirname, const char *e
 std::string Client::dbPath(const std::string& sid) const
 {
     std::string path = mAppDir;
-    if (anonymousMode())
+    if (sid.empty())    // anonoymous-mode
     {
-        // If we are in anonymous mode sid must have length 8
-        if (sid.size() < 8)
-            throw std::runtime_error("dbPath: sid is too small");
         path.reserve(20);
-        path.append("/karere-").append(sid.c_str()).append(".db");
+        path.append("/karere-").append("anonymous.db");
     }
     else
     {
         if (sid.size() < 50)
-        {
-            // If we logout in anonymous mode sid must have length 8
-            if (mInitState == kInitTerminated && sid.size() == 8)
-            {
-                path.reserve(20);
-                path.append("/karere-").append(sid.c_str()).append(".db");
-            }
-            else
-            {
-               throw std::runtime_error("dbPath: sid is too small");
-            }
-        }
-        else
-        {
-            path.reserve(56);
-            path.append("/karere-").append(sid.c_str()+44).append(".db");
-        }
+            throw std::runtime_error("dbPath: sid is too small");
+
+        path.reserve(56);
+        path.append("/karere-").append(sid.c_str()+44).append(".db");
     }
+
     return path;
 }
 
@@ -638,10 +623,10 @@ void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
     mContactsLoaded = true;
 }
 
-Client::InitState Client::initWithAnonymousSession(const char* sid)
+Client::InitState Client::initWithAnonymousSession()
 {
     setInitState(kInitAnonymousMode);
-    mSid = sid;
+    mSid.clear();
     createDb();
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this, mMyHandle));
@@ -982,7 +967,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 //be in that dir, and it is in use
 void Client::wipeDb(const std::string& sid)
 {
-    assert(!sid.empty());
     db.close();
     std::string path = dbPath(sid);
     remove(path.c_str());
@@ -1481,7 +1465,7 @@ void Client::terminate(bool deleteDb)
 
     try
     {
-        if (deleteDb && !mSid.empty())
+        if (deleteDb)
         {
             wipeDb(mSid);
         }
@@ -2313,13 +2297,12 @@ void ChatRoomList::previewsCleanup()
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
-        mKarereClient.db.query("delete from chat_peers where chatid = ?", chatid);
-        mKarereClient.db.query("delete from chat_vars where chatid = ?", chatid);
-        mKarereClient.db.query("delete from chats where chatid = ?", chatid);
-        mKarereClient.db.query("delete from history where chatid = ?",chatid);
-        mKarereClient.db.query("delete from manual_sending where chatid = ?", chatid);
-        mKarereClient.db.query("delete from sending where chatid = ?", chatid);
-        mKarereClient.db.query("delete from sendkeys where chatid = ?", chatid);
+
+        auto it = find(chatid);
+        if (it != end())
+        {
+            ((GroupChatRoom*)it->second)->closePreview();
+        }
     }
 }
 
@@ -2667,8 +2650,10 @@ GroupChatRoom::~GroupChatRoom()
     if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
-    if (parent.mKarereClient.mChatdClient)
-        parent.mKarereClient.mChatdClient->leave(mChatid);
+    if (parent.mKarereClient.initState() != Client::kInitTerminated)
+    {
+        closePreview();
+    }
 
     for (auto& m: mPeers)
     {
@@ -2858,10 +2843,17 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
-    if (userid == parent.mKarereClient.myHandle()
-            || (previewMode() && userid == Id::null()))
+    if (userid == parent.mKarereClient.myHandle())
     {
         setRemoved();
+    }
+    else if (userid == Id::null())
+    {
+        // preview is not allowed anymore, notify the user and clean cache
+        assert(previewMode());
+
+        setRemoved();
+        chatCleanup();
     }
     else
     {
@@ -3054,6 +3046,35 @@ unsigned int GroupChatRoom::getNumPreviewers() const
 bool GroupChatRoom::previewMode() const
 {
     return mChat->previewMode();
+}
+
+void GroupChatRoom::closePreview()
+{
+    KR_LOG_DEBUG("GroupChatRoom[%s]: Closing preview...", ID_CSTR(mChatid));
+
+    if (parent.mKarereClient.mChatdClient)
+    {
+        parent.mKarereClient.mChatdClient->leave(mChatid);  // sends HANDLELEAVE to chatd
+    }
+
+    chatCleanup();
+}
+
+void GroupChatRoom::chatCleanup()
+{
+    auto db = parent.mKarereClient.db;
+    if (db.isOpen())   // upon karere::Client destruction, DB is already closed and/or removed
+    {
+        db.query("delete from chat_peers where chatid = ?", mChatid);
+        db.query("delete from chat_vars where chatid = ?", mChatid);
+        db.query("delete from chats where chatid = ?", mChatid);
+        db.query("delete from history where chatid = ?", mChatid);
+        db.query("delete from manual_sending where chatid = ?", mChatid);
+        db.query("delete from sending where chatid = ?", mChatid);
+        db.query("delete from sendkeys where chatid = ?", mChatid);
+        // TODO: uncomment the following line when the node-history buffer is supported
+        // d.query("delete from node_history where chatid = ?", mChatid);
+    }
 }
 
 promise::Promise<std::shared_ptr<std::string>> GroupChatRoom::unifiedKey()

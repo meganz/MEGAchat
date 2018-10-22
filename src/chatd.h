@@ -1110,7 +1110,6 @@ public:
     uint64_t getPublicHandle() const;
     bool previewMode();
     void rejoin();
-    void closePreview();
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
@@ -1354,7 +1353,6 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
-    virtual void chatCleanup() = 0;
 };
 
 }

@@ -870,7 +870,7 @@ public:
     static void setLogToConsole(bool enable);
 
     int init(const char *sid);
-    int initAnonymous(const char *link);
+    int initAnonymous();
     void createKarereClient();
     int getInitState();
 

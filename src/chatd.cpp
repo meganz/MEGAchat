@@ -291,6 +291,7 @@ void Chat::connect(const char *url)
         }
         else
         {
+            // use URL from params --> retrieved before connect's call through mcphurl
             pms = ApiPromise();
             pms.resolve(nullptr);
         }
@@ -345,14 +346,6 @@ void Chat::connect(const char *url)
     {
         login();
     }
-}
-
-void Chat::closePreview()
-{
-    CHATID_LOG_DEBUG("Closing preview...");
-
-    handleleave();
-    CALL_DB(chatCleanup);
 }
 
 void Chat::login()
@@ -4012,12 +4005,6 @@ void Chat::onUserLeave(Id userid)
         mUsers.erase(userid);
         CALL_CRYPTO(onUserLeave, userid);
         CALL_LISTENER(onUserLeave, userid);
-
-        if (previewMode())
-        {
-            // preview is not allowed anymore, notify the user and clean cache
-            CALL_DB(chatCleanup);
-        }
     }
 }
 
@@ -4261,7 +4248,7 @@ void Client::leave(Id chatid)
         //If room is in preview mode we can remove all records from db at this moment
         if (it->second->previewMode())
         {
-            it->second->closePreview();
+            it->second->handleleave();
         }
         mChatForChatId.erase(it);
     }
