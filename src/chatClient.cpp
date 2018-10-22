@@ -267,6 +267,30 @@ bool Client::openDb(const std::string& sid)
                 KR_LOG_WARNING("%d messages added to node history", count);
                 ok = true;
             }
+            else if (cachedVersionSuffix == "5" && gDbSchemaVersionSuffix == "6")
+            {
+                // Clients with version 5 need to force a full-reload of SDK's in case there's at least one group chat.
+                // Otherwise the cache schema must be updated to support public chats
+
+                SqliteStmt stmt(db, "select count(*) from chats where peer == -1");
+                stmt.stepMustHaveData("get chats count");
+                if (stmt.intCol(0) > 0)
+                {
+                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    api.sdk.invalidateCache();
+                }
+                else
+                {
+                    // no chats --> only update cache schema
+                    db.query("ALTER TABLE `chats` ADD public_chat tinyint");
+                    db.query("ALTER TABLE `chats` ADD preview_mode tinyint");
+                    db.query("ALTER TABLE `chats` ADD unified_key blob");
+                    KR_LOG_WARNING("Updating cache schema ...");
+                    ok = true;
+                }
+
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -3243,12 +3267,6 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
-    if (mChat->previewMode())
-    {
-        removeAppChatHandler();
-        return;
-    }
-
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
 
