@@ -806,7 +806,7 @@ void setConstraint(webrtc::FakeConstraints& constr, const string &name, const st
 Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGroup,
     bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient)
 : ICall(rtcModule, chat, callid, isGroup, isJoiner, handler,
-    callerUser, callerClient), mName("call["+chat.chatId().toString()+"]") // the joiner is actually the answerer in case of new call
+    callerUser, callerClient), mName("call["+mId.toString()+"]") // the joiner is actually the answerer in case of new call
 {
     if (isJoiner)
     {
@@ -1175,8 +1175,10 @@ void Call::msgSession(RtMessage& packet)
     EndpointId peerEndPointId(packet.userid, packet.clientid);
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
-        SUB_LOG_WARNING("Detected simultaneous join with %s (%d)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
+        SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
         EndpointId ourEndPointId(mManager.mClient.myHandle(), mChat.connection().clientId());
+        SUB_LOG_WARNING("Detected simultaneous join with our %s (0x%x)", ourEndPointId.userid.toString().c_str(), ourEndPointId.clientid);
+        SUB_LOG_WARNING("Peer user id: %ld ---- our id: %ld", peerEndPointId.userid.val, ourEndPointId.userid.val);
         if (ourEndPointId > peerEndPointId)
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
