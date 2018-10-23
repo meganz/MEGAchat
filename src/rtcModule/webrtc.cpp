@@ -1176,10 +1176,6 @@ void Call::msgSession(RtMessage& packet)
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
-        EndpointId ourEndPointId(mManager.mClient.myHandle(), mChat.connection().clientId());
-        SUB_LOG_WARNING("Detected simultaneous join with our %s (0x%x)", ourEndPointId.userid.toString().c_str(), ourEndPointId.clientid);
-        SUB_LOG_WARNING("Peer user id: %ld ---- our id: %ld", peerEndPointId.userid.val, ourEndPointId.userid.val);
-        if (ourEndPointId > peerEndPointId)
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
                             "Our peerId is greater, ignoring received SESSION");
