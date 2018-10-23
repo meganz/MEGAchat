@@ -47,6 +47,20 @@ const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional);
 
+uint64_t invertBlocks(uint64_t value)
+{
+    uint32_t value32[2];
+    uint32_t value32Interchange[2];
+    uint64_t valueInterchange;
+
+    std::memcpy(value32, &value, sizeof(uint64_t));
+    value32Interchange[0] = value32[1];
+    value32Interchange[1] = value32[0];
+    std::memcpy(&valueInterchange, value32Interchange, sizeof(uint64_t));
+
+    return valueInterchange;
+}
+
 struct CallerInfo
 {
     Id chatid;
@@ -734,7 +748,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             existingCall->sendBusy(isCallToSameUser);
             return;
         }
-        else if (myHandle > userid)
+        else if (invertBlocks(myHandle.val) > invertBlocks(userid.val))
         {
             RTCM_LOG_DEBUG("hadleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
             return;
@@ -749,7 +763,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
     {
         // Other client of our user is participanting in the call
-        RTCM_LOG_DEBUG("hadleCallDataRequest: Ignoring call request: We are already in the group call from another client");
+        RTCM_LOG_DEBUG("handleCallDataRequest: Ignoring call request: We are already in the group call from another client");
         return ;
     }
 
@@ -1176,6 +1190,9 @@ void Call::msgSession(RtMessage& packet)
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
+        uint64_t peerUserIdInverted = invertBlocks(packet.userid.val);
+        uint64_t ourUserIdInverted = invertBlocks(mManager.mClient.myHandle().val);
+        if (ourUserIdInverted > peerUserIdInverted)
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
                             "Our peerId is greater, ignoring received SESSION");
