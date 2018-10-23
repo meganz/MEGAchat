@@ -1059,7 +1059,6 @@ void Chat::handlejoin()
     //We don't have any local history, otherwise joinRangeHist() would be called instead of this
     //Reset handshake state, as we may be reconnecting
     mServerFetchState = kHistNotFetching;
-    CHATID_LOG_DEBUG("Sending HANDLEJOIN");
 
     //Create command `OPCODE_HANDLEJOIN(1) + chathandle(6) + userId(8) + priv(1)`
     uint64_t ph = getPublicHandle();

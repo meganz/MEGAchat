@@ -774,8 +774,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             //Parse public handle (First 8 Bytes)
             string phstr = parsedLink.substr(0, pos);   // 6 bytes in binary, 8 in B64url
-            MegaChatHandle ph = UNDEF;
-            Base64::atob(phstr.data(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
+            karere::Id ph(phstr.data(), karere::Id::CHATLINKHANDLE);
 
             //Parse unified key (Last 16 Bytes)
             string unifiedKey; // it's 16 bytes in binary, 22 in B64url
@@ -5420,7 +5419,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     }
     this->group = chat->isGroup();
     this->mPublicChat = chat->isPublic();
-    this->mAuthToken = chat->getAuthorizationToken() ? Id(chat->getAuthorizationToken()) : Id::inval();
+    this->mAuthToken = chat->getAuthorizationToken() ? Id(chat->getAuthorizationToken(), Id::CHATLINKHANDLE) : Id::inval();
     this->title = chat->getTitle();
     this->mHasCustomTitle = chat->hasCustomTitle();
     this->unreadCount = chat->getUnreadCount();
