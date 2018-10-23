@@ -1116,7 +1116,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
         case Message::kMsgChatTitle:
         {
-            return decryptChatTitle(parsedMsg, msg, true);
+            return parsedMsg->decryptChatTitle(msg, true);
         }
         case Message::kMsgCallEnd:
         {
@@ -1649,35 +1649,29 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
 promise::Promise<std::string>
 ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
 {
-    auto wptr = weakHandle();
-    Buffer copy(data.dataSize());
-    copy.copyFrom(data);
-    auto msg = new Message(Id::null(), Id::null(), 0, 0, std::move(copy));
-    auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-    return decryptChatTitle(parsedMsg, msg, false)
-    .then([wptr, this, parsedMsg](Message *retMsg)
-    //We need to capture the message in order to keep it alive until the promise has been resolved
-    {
-        wptr.throwIfDeleted();
-        STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from API");
-        std::string ret(retMsg->buf(), retMsg->dataSize());
-        delete retMsg;
-        return ret;
-    })
-    .fail([wptr, this](const promise::Error& err)
-    {
-        wptr.throwIfDeleted();
-        STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. Error: ", err.what());
-        return err;
-    });
-}
-
-promise::Promise<Message *>
-ProtocolHandler::decryptChatTitle(std::shared_ptr<ParsedMessage> parsedMsg, Message *msg, bool msgCanBeDeleted)
-{
     try
     {
-        return parsedMsg->decryptChatTitle(msg, msgCanBeDeleted);
+        auto wptr = weakHandle();
+        Buffer copy(data.dataSize());
+        copy.copyFrom(data);
+        auto msg = new Message(Id::null(), Id::null(), 0, 0, std::move(copy));
+        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+        return parsedMsg->decryptChatTitle(msg, false)
+        .then([wptr, this, parsedMsg](Message *retMsg)
+        //We need to capture the message in order to keep it alive until the promise has been resolved
+        {
+            wptr.throwIfDeleted();
+            STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from API");
+            std::string ret(retMsg->buf(), retMsg->dataSize());
+            delete retMsg;
+            return ret;
+        })
+        .fail([wptr, this](const promise::Error& err)
+        {
+            wptr.throwIfDeleted();
+            STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. Error: ", err.what());
+            return err;
+        });
     }
     catch(std::exception& e)
     {
