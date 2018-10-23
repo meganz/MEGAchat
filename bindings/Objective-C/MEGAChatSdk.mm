@@ -71,8 +71,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->init((sid != nil) ? [sid UTF8String] : NULL);
 }
 
-- (MEGAChatInit)initAnonymousWithChatLink:(NSURL *)chatLink {
-    return (MEGAChatInit) self.megaChatApi->initAnonymous(chatLink ? [[chatLink absoluteString] UTF8String] : NULL);
+- (MEGAChatInit)initAnonymous {
+    return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
 
 - (MEGAChatInit)initState {
