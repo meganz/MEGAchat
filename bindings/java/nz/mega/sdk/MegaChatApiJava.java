@@ -189,17 +189,20 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Initializes karere in anonymous mode
+     * @brief Initializes karere in anonymous mode for preview of chat-links
      *
-     * If a chatlink chatlink is provided, karere will create its cache.
+     * The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In
+     * case of initialization error, it will return MegaChatApi::INIT_ERROR.
      *
-     * This function should be called to preview a chat link without a session (anonymous mode).
+     * This function should be called to preview chat-links without a valid session (anonymous mode).
      *
-     * @param chatlink to preview in anonymous mode.
+     * The anonymous mode is going to initialize the chat engine but is not going to login in MEGA,
+     * so the way to logout in anoymous mode is call MegaChatApi::logout manually.
+     *
      * @return The initialization state
      */
-    public int initAnonymous(String chatlink){
-        return megaChatApi.initAnonymous(chatlink);
+    public int initAnonymous(){
+        return megaChatApi.initAnonymous();
     }
 
     /**
