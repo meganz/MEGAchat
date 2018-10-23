@@ -743,14 +743,14 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
                 return;
             }
 
-            RTCM_LOG_DEBUG("hadleCallDataRequest: Receive a CALLDATA with other call in progress");
+            RTCM_LOG_DEBUG("handleCallDataRequest: Receive a CALLDATA with other call in progress");
             bool isCallToSameUser = (userid == existingCall->caller());
             existingCall->sendBusy(isCallToSameUser);
             return;
         }
         else if (invertBlocks(myHandle.val) > invertBlocks(userid.val))
         {
-            RTCM_LOG_DEBUG("hadleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
+            RTCM_LOG_DEBUG("handleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
             return;
         }
 
