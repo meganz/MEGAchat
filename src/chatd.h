@@ -1117,6 +1117,7 @@ protected:
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
+    void onHandleJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void onKeyReject();
     void onHistReject();
@@ -1199,6 +1200,8 @@ public:
             throw std::runtime_error("chatidChat: Unknown chatid "+chatid.toString());
         return *it->second;
     }
+    karere::Id chatidFromPh(karere::Id ph);
+
     /** @brief Joins the specifed chatroom on the specified shard, using the specified
      * url, and assocuates the specified Listener and ICRypto instances
      * with the newly created Chat object.

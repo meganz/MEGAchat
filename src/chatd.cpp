@@ -1086,6 +1086,11 @@ void Chat::onJoinRejected()
     disable(true);
 }
 
+void Chat::onHandleJoinRejected()
+{
+    // TODO: close preview
+}
+
 void Chat::onDisconnect()
 {
     if (mServerOldHistCbEnabled && (mServerFetchState & kHistFetchingOldFromServer))
@@ -1496,6 +1501,28 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(id, 8);
                 READ_8(op, 16);
                 READ_8(reason, 17);
+
+                if (op == OP_HANDLEJOIN)
+                {
+                    // find the actual chatid from the invalid ph (received chatid)
+                    karere::Id actualChatid = mChatdClient.chatidFromPh(chatid);
+                    if (actualChatid.isValid())
+                    {
+                        CHATDS_LOG_WARNING("%s: recv REJECT of %s: ph='%s', reason: %hu",
+                                        ID_CSTR(actualChatid), Command::opcodeToStr(op),
+                                        chatid.toString(Id::CHATLINKHANDLE).c_str(), reason);
+
+                        auto& chat = mChatdClient.chats(actualChatid);
+                        chat.onHandleJoinRejected();
+                    }
+                    else
+                    {
+                        CHATDS_LOG_WARNING("recv REJECT of %s: ph='%s' (unknown)",
+                                           Command::opcodeToStr(op), chatid.toString(Id::CHATLINKHANDLE).c_str());
+                    }
+                    break;
+                }
+
                 CHATDS_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
                     ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
                 auto& chat = mChatdClient.chats(chatid);
@@ -2906,6 +2933,22 @@ Client::~Client()
 {
     cancelTimers();
     karereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
+}
+
+Id Client::chatidFromPh(Id ph)
+{
+    Id chatid = Id::inval();
+
+    for (auto it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
+    {
+        if (it->second->getPublicHandle() == ph)
+        {
+            chatid = it->second->chatId();
+            break;
+        }
+    }
+
+    return chatid;
 }
 
 void Client::msgConfirm(Id msgxid, Id msgid)
