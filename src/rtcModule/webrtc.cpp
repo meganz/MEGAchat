@@ -757,8 +757,12 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         // hang up existing call and answer automatically incoming call
         avFlags = existingCall->sentAv();
         answerAutomatic = true;
+        auto itHandler = mCallHandlers.find(chatid);
+        if (itHandler != mCallHandlers.end())
+        {
+            itHandler->second->removeParticipant(userid, clientid);
+        }
         existingCall->hangup();
-        mCalls.erase(itCall);
     }
     else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
     {
