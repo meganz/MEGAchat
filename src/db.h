@@ -85,6 +85,13 @@ public:
         {
             commitTransaction();
         }
+        else
+        {
+            if (!hasOpenTransaction())
+            {
+                beginTransaction();
+            }
+        }
     }
     void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
     bool hasOpenTransaction() const { return !mHasOpenTransaction; }
@@ -111,8 +118,11 @@ public:
     {
         if (mCommitEach)
             return;
-        commitTransaction();
-        beginTransaction();
+
+        if (commitTransaction())
+        {
+            beginTransaction();
+        }
     }
     bool rollback()
     {
@@ -122,7 +132,12 @@ public:
         // does a rollback. In such cases, we should ignore the error returned by
         // rollback, it's harmless
         sqlite3_exec(mDb, "ROLLBACK", nullptr, nullptr, nullptr);
-        beginTransaction();
+
+        if (!hasOpenTransaction())
+        {
+            beginTransaction();
+        }
+
         return true;
     }
     bool timedCommit()
