@@ -14,35 +14,24 @@ class Id
 public:
 
     enum {
-        CHATLINKHANDLE = 6,      // size of handles for chat-links, in bytes
-        NODEHANDLE = 6,
-        CHATHANDLE = 8,
-        USERHANDLE = 8,
-        SESSIONHANDLE = 8
+        CHATLINKHANDLE = 6      // size of handles for chat-links, in bytes
     };
 
-    uint64_t val = 0;
-
-    Id(const uint64_t& from=0): val(from) {}
-    explicit Id(const char* b64, size_t b64len) { base64urldecode(b64, b64len, &val, sizeof(val)); }
-
-    /** By default, it considers 8 bytes, unless 'len' is provided */
+    uint64_t val;
     std::string toString(size_t len = sizeof(uint64_t)) const { return base64urlencode(&val, len); }
-
-    /* ----------- overloaded operators ----------- */
+    bool isValid() const { return val != inval(); }
+    bool isNull() const { return val == null(); }
+    Id(const uint64_t& from=0): val(from){}
+    explicit Id(const char* b64, size_t b64len=0) { base64urldecode(b64, b64len ? b64len : strlen(b64), &val, sizeof(val)); }
     bool operator==(const Id& other) const { return val == other.val; }
     bool operator==(const uint64_t& aVal) const { return val == aVal; }
     Id& operator=(const Id& other) { val = other.val; return *this; }
-    Id& operator=(const uint64_t& aVal) { val = aVal; return *this; }    
+    Id& operator=(const uint64_t& aVal) { val = aVal; return *this; }
     operator const uint64_t&() const { return val; }
     bool operator<(const Id& other) const { return val < other.val; }
-
-    bool isValid() const { return val != inval(); }
-    bool isNull() const { return val == null(); }
-
     static const Id null() { return static_cast<uint64_t>(0); }
     static const Id inval() { return ~((uint64_t)0); }
-    static const Id COMMANDER() { return Id("gTxFhlOd_LQ", USERHANDLE); }
+    static const Id COMMANDER() { return Id("gTxFhlOd_LQ"); }
 };
 
 

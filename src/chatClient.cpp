@@ -1203,7 +1203,7 @@ karere::Id Client::getMyHandleFromSdk()
     if (!uh.c_str() || !uh.c_str()[0])
         throw std::runtime_error("Could not get our own user handle from API");
     KR_LOG_INFO("Our user handle is %s", uh.c_str());
-    karere::Id result(uh.c_str(), karere::Id::USERHANDLE);
+    karere::Id result(uh.c_str());
     if (result == Id::null() || result.val == ::mega::UNDEF)
         throw std::runtime_error("Own handle returned by the SDK is NULL");
     return result;
