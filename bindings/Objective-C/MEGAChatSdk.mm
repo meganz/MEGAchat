@@ -646,6 +646,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->loadChatLink(link ? [link.absoluteString UTF8String] : NULL);
 }
 
+- (void)checkChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->checkChatLink(link ? [link.absoluteString UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)checkChatLink:(NSURL *)link {
+    self.megaChatApi->checkChatLink(link ? [link.absoluteString UTF8String] : NULL);
+}
+
 - (void)closeChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->closeChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
