@@ -3171,9 +3171,7 @@ void Chat::onHistReject()
 {
     CHATID_LOG_WARNING("HIST was rejected, setting chat offline and disabling it");
     assert(false);  // chatd should not REJECT a HIST, it indicates a more critical issue
-    mServerFetchState = kHistNotFetching;
-    setOnlineState(kChatStateOffline);
-    disable(true);
+    onJoinRejected();
 }
 
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
@@ -4024,7 +4022,7 @@ void Chat::onUserJoin(Id userid, Priv priv)
 
     if (userid == client().userId())
     {
-        mOwnPrivilege = priv;
+        mOwnPrivilege = priv;        
     }
 
     mUsers.insert(userid);
@@ -4037,8 +4035,11 @@ void Chat::onUserLeave(Id userid)
     if (mOnlineState < kChatStateJoining)
         throw std::runtime_error("onUserLeave received while not joining and not online");
 
-    if (userid == client().userId()
-            || (previewMode() && userid == Id::null()))
+    if (userid == client().userId())
+    {
+        mOwnPrivilege = PRIV_NOTPRESENT;
+    }
+    else if (previewMode() && userid == Id::null())
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
     }
@@ -4288,7 +4289,6 @@ void Client::leave(Id chatid)
     auto it = mChatForChatId.find(chatid);
     if (it != mChatForChatId.end())
     {
-        //If room is in preview mode we can remove all records from db at this moment
         if (it->second->previewMode())
         {
             it->second->handleleave();

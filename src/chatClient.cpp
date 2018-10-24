@@ -2078,10 +2078,14 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 PeerChatRoom::~PeerChatRoom()
 {
     if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    {
         parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
+    }
 
     if (parent.mKarereClient.mChatdClient)
+    {
         parent.mKarereClient.mChatdClient->leave(mChatid);
+    }
 }
 
 void PeerChatRoom::initContact(const uint64_t& peer)
@@ -2137,7 +2141,9 @@ chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
 bool ChatRoom::syncOwnPriv(chatd::Priv priv)
 {
     if (mOwnPriv == priv)
+    {
         return false;
+    }
 
     if(previewMode())
     {
@@ -2673,10 +2679,14 @@ GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
     if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    {
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
+    }
 
     if (parent.mKarereClient.mChatdClient)
-            parent.mKarereClient.mChatdClient->leave(mChatid);
+    {
+        parent.mKarereClient.mChatdClient->leave(mChatid);
+    }
 
     for (auto& m: mPeers)
     {
@@ -3213,6 +3223,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
         setChatPrivateMode();
+        // in case of previewMode, it's also updated in cache
     }
 
     // Own privilege changed
@@ -3230,7 +3241,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                     KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
                     mChat->connect();
                 }
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  ID_CSTR(mChatid));
+                KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited",  ID_CSTR(mChatid));
                 notifyRejoinedChat();
             }
         }
