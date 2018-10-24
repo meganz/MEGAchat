@@ -921,7 +921,9 @@ public:
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
 
-    void setCommitMode(bool commitEach);
+    /** If true, every write to DB is immediately written to disk. If false, it works with transactions and changes
+     * require a call to db.commit() */
+    void setCommitEach(bool commitEach);
     void saveDb();  // forces a commit
 
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;

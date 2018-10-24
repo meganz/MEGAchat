@@ -439,7 +439,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
                 copyButton->disconnect();
                 connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(request->getText());});
-                QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
+                msg.addButton(tr("Continue"), QMessageBox::ActionRole);
                 msg.exec();
 
                 std::string auxcode = this->mMainWin->getAuthCode();
@@ -465,7 +465,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
 
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                QMessageBox::warning(nullptr, tr(text.toStdString().c_str()), tr("The operation has been completed successfully"));
+                QMessageBox::information(nullptr, tr(text.toStdString().c_str()), tr("The operation has been completed successfully"));
             }
             else
             {
@@ -738,7 +738,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             }
             else
             {
-                QMessageBox::warning(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
+                QMessageBox::information(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
             }
             break;
         }
@@ -762,11 +762,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 if (request->getUserHandle() == megachat::MEGACHAT_INVALID_HANDLE)
                 {
-                    QMessageBox::warning(nullptr, tr("Join chat link"), tr("You have joined successfully"));
+                    QMessageBox::information(nullptr, tr("Join chat link"), tr("You have joined successfully"));
                 }
                 else
                 {
-                    QMessageBox::warning(nullptr, tr("Rejoin chat link"), tr("You have rejoined successfully"));
+                    QMessageBox::information(nullptr, tr("Rejoin chat link"), tr("You have rejoined successfully"));
                 }
             }
             else

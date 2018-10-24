@@ -485,7 +485,7 @@ void Connection::sendEcho()
 
 Promise<void> Connection::reconnect()
 {
-    mChatdClient.karereClient->setCommitMode(false);
+    mChatdClient.karereClient->setCommitEach(false);    // use transactions
     assert(!mHeartbeatEnabled);
     try
     {
@@ -4095,7 +4095,7 @@ void Chat::setOnlineState(ChatState state)
 
     if (state == kChatStateOnline && mClient.areAllChatsLoggedIn())
     {
-        mClient.karereClient->setCommitMode(true);
+        mClient.karereClient->setCommitEach(true);  // write immediately (no transactions)
 
         if (!mClient.karereClient->mSyncPromise.done())
         {
