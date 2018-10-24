@@ -774,7 +774,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             //Parse public handle (First 8 Bytes)
             string phstr = parsedLink.substr(0, pos);   // 6 bytes in binary, 8 in B64url
-            MegaChatHandle ph = UNDEF;
+            MegaChatHandle ph = 0;
             Base64::atob(phstr.data(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
 
             //Parse unified key (Last 16 Bytes)
