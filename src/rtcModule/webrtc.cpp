@@ -47,7 +47,8 @@ const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional);
 
-uint64_t invertBlocks(uint64_t value)
+/** This function interchange first 32 bit with second 32 bits from a 64 bit unsigned integer*/
+uint64_t interchangeHighLowWord(uint64_t value)
 {
     uint32_t value32[2];
     uint32_t value32Interchange[2];
@@ -748,7 +749,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             existingCall->sendBusy(isCallToSameUser);
             return;
         }
-        else if (invertBlocks(myHandle.val) > invertBlocks(userid.val))
+        else if (interchangeHighLowWord(myHandle.val) > interchangeHighLowWord(userid.val))
         {
             RTCM_LOG_DEBUG("handleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
             return;
@@ -1194,8 +1195,8 @@ void Call::msgSession(RtMessage& packet)
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
-        uint64_t peerUserIdInverted = invertBlocks(packet.userid.val);
-        uint64_t ourUserIdInverted = invertBlocks(mManager.mClient.myHandle().val);
+        uint64_t peerUserIdInverted = interchangeHighLowWord(packet.userid.val);
+        uint64_t ourUserIdInverted = interchangeHighLowWord(mManager.mClient.myHandle().val);
         if (ourUserIdInverted > peerUserIdInverted)
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
