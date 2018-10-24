@@ -233,9 +233,6 @@ public:
         notDefined
     };
 
-    //TODO: set valid values
-    int maxBr = 1000;
-    int maxGroupBr = 1000;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);

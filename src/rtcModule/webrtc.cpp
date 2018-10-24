@@ -48,7 +48,7 @@ void setConstraint(webrtc::FakeConstraints& constr, const string &name, const st
     bool optional);
 
 /** This function interchange first 32 bit with second 32 bits from a 64 bit unsigned integer*/
-uint64_t interchangeHighLowWord(uint64_t value)
+uint64_t interchangeHighLowWords(uint64_t value)
 {
     uint32_t value32[2];
     uint32_t value32Interchange[2];
@@ -749,7 +749,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             existingCall->sendBusy(isCallToSameUser);
             return;
         }
-        else if (interchangeHighLowWord(myHandle.val) > interchangeHighLowWord(userid.val))
+        else if (interchangeHighLowWords(myHandle.val) > interchangeHighLowWords(userid.val))
         {
             RTCM_LOG_DEBUG("handleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
             return;
@@ -1195,8 +1195,8 @@ void Call::msgSession(RtMessage& packet)
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
-        uint64_t peerUserIdInverted = interchangeHighLowWord(packet.userid.val);
-        uint64_t ourUserIdInverted = interchangeHighLowWord(mManager.mClient.myHandle().val);
+        uint64_t peerUserIdInverted = interchangeHighLowWords(packet.userid.val);
+        uint64_t ourUserIdInverted = interchangeHighLowWords(mManager.mClient.myHandle().val);
         if (ourUserIdInverted > peerUserIdInverted)
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
@@ -2322,7 +2322,6 @@ void Session::veryfySdpOfferSendAnswer()
         return;
     }
 
-    mungeSdp(mPeerSdpOffer);
     webrtc::SdpParseError error;
     webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("offer", mPeerSdpOffer, &error);
     if (!sdp)
@@ -2553,7 +2552,7 @@ void Session::msgSdpAnswer(RtMessage& packet)
         terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forgery");
         return;
     }
-    mungeSdp(mPeerSdpAnswer);
+
     webrtc::SdpParseError error;
     webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("answer", mPeerSdpAnswer, &error);
     if (!sdp)
@@ -2807,23 +2806,6 @@ void Session::msgMute(RtMessage& packet)
     FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 
-void Session::mungeSdp(std::string& sdp)
-{
-    try
-    {
-        auto& maxbr = mCall.chat().isGroup() ? mCall.mManager.maxBr : mCall.mManager.maxGroupBr;
-        if (maxbr)
-        {
-            SUB_LOG_WARNING("mungeSdp: Limiting peer's send video send bitrate to %d kbps", maxbr);
-            sdpSetVideoBw(sdp, maxbr);
-        }
-    }
-    catch(std::exception& e)
-    {
-        SUB_LOG_ERROR("mungeSdp: Exception: %s", e.what());
-        throw;
-    }
-}
 Session::~Session()
 {
     SUB_LOG_DEBUG("Destroyed");

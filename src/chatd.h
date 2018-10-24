@@ -339,7 +339,9 @@ struct EndpointId
             return false;
         }
         else
+        {
             return (clientid < other.clientid);
+        }
     }
 
     bool operator>(EndpointId other) const
