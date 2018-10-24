@@ -2147,7 +2147,8 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
 
     if(previewMode())
     {
-        assert(mOwnPriv == chatd::PRIV_RDONLY);
+        assert(mOwnPriv == chatd::PRIV_RDONLY
+               || mOwnPriv == chatd::PRIV_NOTPRESENT);  // still in preview, but ph is invalid
 
         //Join
         mChat->setPublicHandle(Id::inval());
@@ -2886,7 +2887,6 @@ void GroupChatRoom::onUserLeave(Id userid)
         assert(previewMode());
 
         setRemoved();
-        chatCleanup();
     }
     else
     {
@@ -3083,14 +3083,25 @@ bool GroupChatRoom::previewMode() const
 
 void GroupChatRoom::closePreview()
 {
-    KR_LOG_DEBUG("GroupChatRoom[%s]: Closing preview...", ID_CSTR(mChatid));
-
-    if (parent.mKarereClient.mChatdClient)
+    // marshall because it may be called from app's thread (removeRoomPreview())
+    // and we need to send a `HANDLELEAVE` through the socket
+    auto wptr = weakHandle();
+    marshallCall([wptr, this]()
     {
-        parent.mKarereClient.mChatdClient->leave(mChatid);  // sends HANDLELEAVE to chatd
-    }
+        if (wptr.deleted())
+        {
+            return;
+        }
 
-    chatCleanup();
+        KR_LOG_DEBUG("GroupChatRoom[%s]: Closing preview...", ID_CSTR(mChatid));
+
+        if (parent.mKarereClient.mChatdClient && mOwnPriv != chatd::PRIV_NOTPRESENT)
+        {
+            parent.mKarereClient.mChatdClient->leave(mChatid);  // sends HANDLELEAVE to chatd
+        }
+
+        chatCleanup();
+    }, parent.mKarereClient.appCtx);
 }
 
 void GroupChatRoom::chatCleanup()
@@ -3235,6 +3246,14 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             if (mOwnPriv != chatd::PRIV_NOTPRESENT)
             {
+                // in case of upgrade from (invalid) previewer to participant, (chat-link was invalidated
+                // during preview), the room was disabled --> enable it back
+                if (mChat->isDisabled())
+                {
+                    KR_LOG_WARNING("Enable chatroom previously in preview mode");
+                    mChat->disable(false);
+                }
+
                 // if already connected, need to send a new JOIN to chatd
                 if (parent.mKarereClient.connected())
                 {
@@ -3298,11 +3317,18 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
+    bool wasPreviewMode = previewMode();
+
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
 
     //Update cache
     auto db = parent.mKarereClient.db;
+    if (wasPreviewMode)
+    {
+        //Remove preview mode flag from DB
+        db.query("update chats set preview_mode = 0 where chatid = ?", mChatid);
+    }
     db.query("update chats set public_chat = 0 where chatid = ?", mChatid);
 
     notifyChatModeChanged();

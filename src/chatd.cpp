@@ -1089,7 +1089,10 @@ void Chat::onJoinRejected()
 
 void Chat::onHandleJoinRejected()
 {
-    // TODO: close preview
+    // public-handle is not valid anymore --> notify the app, update priv = PRIV_NOTPRESENT
+    CHATID_LOG_WARNING("HANDLEJOIN was rejected, setting chat offline and disabling it");
+    CALL_LISTENER(onUserLeave, Id::null());
+    onJoinRejected();
 }
 
 void Chat::onDisconnect()
@@ -1195,6 +1198,13 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: No more history exists");
             return kHistSourceNone;
         }
+
+        if (previewMode() && mOwnPrivilege == PRIV_NOTPRESENT)
+        {
+            CHATID_LOG_DEBUG("getHistoryFromDbOrServer: no more history available for invalidated chat-link");
+            return kHistSourceNone;
+        }
+
         if (mServerFetchState & kHistOldFlag)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: Need more history, and server history fetch is already in progress, will get next messages from there");
@@ -4042,6 +4052,8 @@ void Chat::onUserLeave(Id userid)
     else if (previewMode() && userid == Id::null())
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
+        disable(true);    // the ph is invalid -> do not keep trying to login into chatd anymore
+        onPreviewersUpdate(0);
     }
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)

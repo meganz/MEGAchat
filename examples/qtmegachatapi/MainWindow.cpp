@@ -613,30 +613,14 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         //Participants update
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PARTICIPANTS))
         {
-            if (item->isPreview())
-            {
-                if (item->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)
-                {
-                    closePreview(chatItemWidget);
-                    return;
-                }
-            }
             chatItemWidget->updateToolTip(item, NULL);
         }
 
         //The chatroom has been left by own user
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CLOSED))
         {
-            if (item->isPreview())
-            {
-                closePreview(chatItemWidget);
-                return;
-            }
-            else
-            {
-                chatItemWidget->showAsHidden();
-                needReorder = true;
-            }
+            chatItemWidget->showAsHidden();
+            needReorder = true;
         }
 
         //Timestamp of the last activity update
