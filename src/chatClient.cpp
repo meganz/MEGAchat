@@ -2452,6 +2452,7 @@ void ChatRoomList::removeRoomPreview(Id chatid)
     }
 
     GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
+    groupchat->closePreview();
     groupchat->deleteSelf();
     erase(it);
 }
@@ -2674,10 +2675,8 @@ GroupChatRoom::~GroupChatRoom()
     if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
-    if (parent.mKarereClient.initState() != Client::kInitTerminated)
-    {
-        closePreview();
-    }
+    if (parent.mKarereClient.mChatdClient)
+            parent.mKarereClient.mChatdClient->leave(mChatid);
 
     for (auto& m: mPeers)
     {
