@@ -348,7 +348,7 @@ void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
 {
     assert(peers.size());
     const char *buf = mApi->sdk.getSequenceNumber();
-    Id scsn(buf);
+    Id scsn(buf, strlen(buf));
     delete [] buf;
     size_t numPeers = peers.size();
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
