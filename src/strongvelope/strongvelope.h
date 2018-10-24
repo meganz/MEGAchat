@@ -175,20 +175,25 @@ struct ParsedMessage: public karere::DeleteTrackable
     Buffer signedContent;
     Buffer signature;
     unsigned char type;
+
+    /** True when the message is posted in open mode. It allows to decrypt the `ct` of management
+     * messages related to topic changes, which must use unified-key instead of embedded key in `ct` */
     bool openmode = false;
+
     //legacy key stuff
     uint64_t keyId;
     uint64_t prevKeyId;
     Buffer encryptedKey; //may contain also the prev key, concatenated
+
+    std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
+    std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
+
     ParsedMessage(const chatd::Message& src, ProtocolHandler& protoHandler);
     bool verifySignature(const StaticBuffer& pubKey, const SendKey& sendKey);
     void parsePayload(const StaticBuffer& data, chatd::Message& msg);
     void parsePayloadWithUtfBackrefs(const StaticBuffer& data, chatd::Message& msg);
     void symmetricDecrypt(const StaticBuffer& key, chatd::Message& outMsg);
     promise::Promise<chatd::Message*> decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted);
-    promise::Promise<std::string> extractUnifiedKeyFromCt(chatd::Message *msg);
-    std::unique_ptr<chatd::Message::ManagementInfo> managementInfo;
-    std::unique_ptr<chatd::Message::CallEndedInfo> callEndedInfo;
 };
 
 
@@ -323,7 +328,6 @@ protected:
     // current list of participants (mapped to the `chatd::Client::mUsers`)
     karere::SetOfIds* mParticipants = nullptr;
 
-    bool mIsDestroying = false;
     unsigned int mCacheVersion = 0; // updated if history is reloaded
     unsigned int mChatMode = CHAT_MODE_PRIVATE;
     std::shared_ptr<UnifiedKey> mUnifiedKey;

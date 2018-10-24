@@ -1042,39 +1042,6 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     return msg;
 }
 
-promise::Promise<std::string>
-ParsedMessage::extractUnifiedKeyFromCt(chatd::Message* msg)
-{
-    const char* pos = encryptedKey.buf();
-    const char* end = encryptedKey.buf()+encryptedKey.dataSize();
-    karere::Id receiver;
-
-    //pick the version that is encrypted for us
-    while (pos < end)
-    {
-        receiver = Buffer::alignSafeRead<uint64_t>(pos);
-        pos+=8;
-        uint16_t keylen = *(uint16_t*)(pos);
-        pos+=2;
-        if (receiver == mProtoHandler.ownHandle())
-            break;
-        pos+=keylen;
-    }
-
-    if (pos >= end)
-        throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < SVCRYPTO_KEY_SIZE)
-        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
-    buf->assign(pos, SVCRYPTO_KEY_SIZE);
-    auto wptr = weakHandle();
-    return mProtoHandler.decryptKey(buf, msg->userid, receiver)
-    .then([this, wptr, msg](const std::shared_ptr<SendKey>& key)
-    {
-        wptr.throwIfDeleted();
-        return key->toString();
-    });
-}
 
 void ProtocolHandler::onHistoryReload()
 {
