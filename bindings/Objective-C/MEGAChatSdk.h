@@ -213,6 +213,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)loadChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)loadChatLink:(NSURL *)link;
 
+- (void)checkChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)checkChatLink:(NSURL *)link;
+
 - (void)closeChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)closeChatLink:(uint64_t)chatId;
 
