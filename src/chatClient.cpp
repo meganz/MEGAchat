@@ -2559,26 +2559,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     return pms.then([wptr, this](const std::string title)
     {
         wptr.throwIfDeleted();
-        if (mTitleString == title)
-        {
-            KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
-            return;
-        }
-        else
-        {
-            mTitleString = title;
-            if (!mTitleString.empty())
-            {
-                KR_LOG_DEBUG("Title update in cache");
-                mHasTitle = true;
-                parent.mKarereClient.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
-            }
-            else
-            {
-                clearTitle();
-            }
-        }
-        notifyTitleChanged();
+        handleTitleChange(title);
     })
     .fail([wptr, this](const promise::Error& err)
     {
@@ -2959,6 +2940,36 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Mess
     {
         parent.mKarereClient.app.onChatNotification(mChatid, msg, status, idx);
     }
+
+    if (msg.type == chatd::Message::kMsgChatTitle)
+    {
+        std::string title(msg.buf(), msg.size());
+        ((GroupChatRoom *) this)->handleTitleChange(title);
+    }
+}
+
+void GroupChatRoom::handleTitleChange(const std::string &title)
+{
+    if (mTitleString == title)
+    {
+        KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
+        return;
+    }
+    else
+    {
+        mTitleString = title;
+        if (!mTitleString.empty())
+        {
+            KR_LOG_DEBUG("Title update in cache");
+            mHasTitle = true;
+            parent.mKarereClient.db.query("update chats set title=? where chatid=?", mTitleString, mChatid);
+        }
+        else
+        {
+            clearTitle();
+        }
+    }
+    notifyTitleChanged();
 }
 
 void ChatRoom::onMessageEdited(const chatd::Message& msg, chatd::Idx idx)

@@ -5069,13 +5069,10 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
         delete msgToUpdate;
     }
 
-    // check if notification is required
-    if ( (msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
-         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )  // new (unseen) message received from a peer
+    if (mRoom)
     {
-
-        MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
-        chatApiImpl->fireOnChatNotification(chatid, message);
+        // forward the event to the chatroom, so chatlist items also receive the notification
+        mRoom->onRecvNewMessage(idx, msg, status);
     }
 }
 

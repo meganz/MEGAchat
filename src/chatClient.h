@@ -438,6 +438,7 @@ public:
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     int getNumPeers() const;
+    void handleTitleChange(const std::string &title);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
