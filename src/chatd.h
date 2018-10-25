@@ -766,7 +766,7 @@ public:
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     bool isDisabled() const { return mIsDisabled; }
     bool isFirstJoin() const { return mIsFirstJoin; }
-    void disable(bool state) { mIsDisabled = state; }
+    void disable(bool state);
     /** The index of the oldest decrypted message in the RAM history buffer.
      * This will be greater than lownum() if there are not-yet-decrypted messages
      * at the start of the buffer, i.e. when more history has been fetched, but

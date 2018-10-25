@@ -1890,7 +1890,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived, public_chat, preview_mode, unified_key) values(?,?,-1,0,?,?,?,?,0,?)",
+             "own_priv, ts_created, archived, public_chat, preview_mode) values(?,?,-1,0,?,?,?,?,0)",
              mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
@@ -2150,12 +2150,15 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
         assert(mOwnPriv == chatd::PRIV_RDONLY
                || mOwnPriv == chatd::PRIV_NOTPRESENT);  // still in preview, but ph is invalid
 
-        //Join
-        mChat->setPublicHandle(Id::inval());
+        if (priv >= chatd::PRIV_RDONLY)
+        {
+            //Join
+            mChat->setPublicHandle(Id::inval());
 
-        //Remove preview mode flag from DB
-        auto db = parent.mKarereClient.db;
-        db.query("update chats set preview_mode = 0 where chatid = ?", mChatid);
+            //Remove preview mode flag from DB
+            auto db = parent.mKarereClient.db;
+            db.query("update chats set preview_mode = 0 where chatid = ?", mChatid);
+        }
     }
 
     mOwnPriv = priv;
@@ -3257,8 +3260,8 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             if (mOwnPriv != chatd::PRIV_NOTPRESENT)
             {
-                // in case of upgrade from (invalid) previewer to participant, (chat-link was invalidated
-                // during preview), the room was disabled --> enable it back
+                // in case chat-link was invalidated during preview, the room was disabled
+                // now, we upgrade from (invalid) previewer to participant --> enable it back
                 if (mChat->isDisabled())
                 {
                     KR_LOG_WARNING("Enable chatroom previously in preview mode");

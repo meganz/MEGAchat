@@ -1082,17 +1082,16 @@ void Chat::handleleave()
 void Chat::onJoinRejected()
 {
     CHATID_LOG_WARNING("JOIN was rejected, setting chat offline and disabling it");
-    mServerFetchState = kHistNotFetching;
-    setOnlineState(kChatStateOffline);
     disable(true);
 }
 
 void Chat::onHandleJoinRejected()
 {
-    // public-handle is not valid anymore --> notify the app, update priv = PRIV_NOTPRESENT
     CHATID_LOG_WARNING("HANDLEJOIN was rejected, setting chat offline and disabling it");
+    disable(true);
+
+    // public-handle is not valid anymore --> notify the app: privilege is now PRIV_NOTPRESENT
     CALL_LISTENER(onUserLeave, Id::null());
-    onJoinRejected();
 }
 
 void Chat::onDisconnect()
@@ -1201,8 +1200,8 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
 
         if (previewMode() && mOwnPrivilege == PRIV_NOTPRESENT)
         {
-            CHATID_LOG_DEBUG("getHistoryFromDbOrServer: no more history available for invalidated chat-link");
-            return kHistSourceNone;
+            CHATID_LOG_DEBUG("getHistoryFromDbOrServer: no more history available for invalid chat-link");
+            return kHistSourceNotLoggedIn;
         }
 
         if (mServerFetchState & kHistOldFlag)
@@ -1315,6 +1314,20 @@ Chat::~Chat()
     catch(std::exception& e)
     { CHATID_LOG_ERROR("EXCEPTION from DbInterface destructor: %s", e.what()); }
     mDbInterface = nullptr;
+}
+
+void Chat::disable(bool state)
+{
+    if (mIsDisabled == state)
+        return;
+
+    mIsDisabled = state;
+
+    if (mIsDisabled)
+    {
+        mServerFetchState = kHistNotFetching;
+        setOnlineState(kChatStateOffline);
+    }
 }
 
 Idx Chat::getHistoryFromDb(unsigned count)
@@ -3180,8 +3193,10 @@ void Chat::onKeyReject()
 void Chat::onHistReject()
 {
     CHATID_LOG_WARNING("HIST was rejected, setting chat offline and disabling it");
-    assert(false);  // chatd should not REJECT a HIST, it indicates a more critical issue
-    onJoinRejected();
+    disable(true);
+
+    // We want to notify the app that cannot load more history
+    CALL_LISTENER(onHistoryDone, kHistSourceNotLoggedIn);
 }
 
 void Chat::rejectMsgupd(Id id, uint8_t serverReason)
