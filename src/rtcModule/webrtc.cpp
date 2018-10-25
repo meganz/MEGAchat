@@ -47,21 +47,6 @@ const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
 void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
     bool optional);
 
-/** This function interchange first 32 bit with second 32 bits from a 64 bit unsigned integer*/
-uint64_t interchangeHighLowWords(uint64_t value)
-{
-    uint32_t value32[2];
-    uint32_t value32Interchange[2];
-    uint64_t valueInterchange;
-
-    std::memcpy(value32, &value, sizeof(uint64_t));
-    value32Interchange[0] = value32[1];
-    value32Interchange[1] = value32[0];
-    std::memcpy(&valueInterchange, value32Interchange, sizeof(uint64_t));
-
-    return valueInterchange;
-}
-
 struct CallerInfo
 {
     Id chatid;
@@ -749,7 +734,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             existingCall->sendBusy(isCallToSameUser);
             return;
         }
-        else if (interchangeHighLowWords(myHandle.val) > interchangeHighLowWords(userid.val))
+        else if (Id::greaterThanForJs(myHandle, userid))
         {
             RTCM_LOG_DEBUG("handleCallDataRequest: Waiting for the other peer hangup its incoming call and answer our call");
             return;
@@ -1195,9 +1180,8 @@ void Call::msgSession(RtMessage& packet)
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
-        uint64_t peerUserIdInverted = interchangeHighLowWords(packet.userid.val);
-        uint64_t ourUserIdInverted = interchangeHighLowWords(mManager.mClient.myHandle().val);
-        if (ourUserIdInverted > peerUserIdInverted)
+        EndpointId ourEndPointId(mManager.mClient.myHandle(), mChat.connection().clientId());
+        if (EndpointId::greaterThanForJs(ourEndPointId, peerEndPointId))
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
                             "Our peerId is greater, ignoring received SESSION");
