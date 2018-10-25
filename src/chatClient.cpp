@@ -3246,8 +3246,8 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         {
             if (mOwnPriv != chatd::PRIV_NOTPRESENT)
             {
-                // in case of upgrade from (invalid) previewer to participant, (chat-link was invalidated
-                // during preview), the room was disabled --> enable it back
+                // in case chat-link was invalidated during preview, the room was disabled
+                // now, we upgrade from (invalid) previewer to participant --> enable it back
                 if (mChat->isDisabled())
                 {
                     KR_LOG_WARNING("Enable chatroom previously in preview mode");
