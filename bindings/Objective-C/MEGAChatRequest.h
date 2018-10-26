@@ -31,7 +31,6 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeSetPresencePersist,
     MEGAChatRequestTypeSetPresenceAutoaway,
     MEGAChatRequestTypeLoadAudioVideoDevices,
-    MEGAChatMessageTypeArchiveChatRoom,
     MEGAChatRequestTypeArchiveChatRoom,
     MEGAChatRequestTypePushReceived,
     MEGAChatRequestTypeLoadChatLink,
