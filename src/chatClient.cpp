@@ -797,8 +797,6 @@ void Client::initWithDbSession(const char* sid)
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this, mMyHandle));
 
-        //We need to ensure that the DB does not contain any record related with a preview
-        chats->previewsCleanup();
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -1476,13 +1474,21 @@ void Client::terminate(bool deleteDb)
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
 
-    //We need to clean all previews records from cache
-    chats->previewsCleanup();
-
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
         rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
+
+    // pre-destroy chatrooms in preview mode (cleanup from DB + send HANDLELEAVE)
+    // Otherwise, DB will be already closed when the GroupChatRoom dtor is called
+    for (auto it = chats->begin(); it != chats->end(); it++)
+    {
+        if (it->second->previewMode())
+        {
+            delete it->second;
+            chats->erase(it);
+        }
+    }
 
     disconnect();
     mUserAttrCache.reset();
@@ -2325,24 +2331,19 @@ ChatRoomList::ChatRoomList(Client& aClient)
 :mKarereClient(aClient)
 {}
 
-void ChatRoomList::previewsCleanup()
-{
-    SqliteStmt stmt(mKarereClient.db, "select chatid from chats where preview_mode = '1'");
-    while(stmt.step())
-    {
-        auto chatid = stmt.uint64Col(0);
-
-        auto it = find(chatid);
-        if (it != end())
-        {
-            ((GroupChatRoom*)it->second)->closePreview();
-        }
-    }
-}
-
 void ChatRoomList::loadFromDb()
 {
-    SqliteStmt stmt(mKarereClient.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, public_chat, unified_key from chats");
+    auto db = mKarereClient.db;
+
+    //We need to ensure that the DB does not contain any record related with a preview
+    SqliteStmt stmtPreviews(db, "select chatid from chats where preview_mode = '1'");
+    while(stmtPreviews.step())
+    {
+        Id chatid = stmtPreviews.uint64Col(0);
+        previewCleanup(chatid);
+    }
+
+    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, public_chat, unified_key from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -2462,9 +2463,8 @@ void ChatRoomList::removeRoomPreview(Id chatid)
     }
 
     GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
-    groupchat->closePreview();
-    groupchat->deleteSelf();
     erase(it);
+    delete groupchat;
 }
 
 void GroupChatRoom::setRemoved()
@@ -2666,6 +2666,11 @@ GroupChatRoom::~GroupChatRoom()
     if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
     {
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
+    }
+
+    if (previewMode())
+    {
+        parent.previewCleanup(mChatid);
     }
 
     if (parent.mKarereClient.mChatdClient)
@@ -3095,43 +3100,20 @@ bool GroupChatRoom::previewMode() const
     return mChat->previewMode();
 }
 
-void GroupChatRoom::closePreview()
+void ChatRoomList::previewCleanup(Id chatid)
 {
-    // marshall because it may be called from app's thread (removeRoomPreview())
-    // and we need to send a `HANDLELEAVE` through the socket
-    auto wptr = weakHandle();
-    marshallCall([wptr, this]()
+    auto db = mKarereClient.db;
+    if (db.isOpen())   // upon karere::Client destruction, DB is already closed
     {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        KR_LOG_DEBUG("GroupChatRoom[%s]: Closing preview...", ID_CSTR(mChatid));
-
-        if (parent.mKarereClient.mChatdClient && mOwnPriv != chatd::PRIV_NOTPRESENT)
-        {
-            parent.mKarereClient.mChatdClient->leave(mChatid);  // sends HANDLELEAVE to chatd
-        }
-
-        chatCleanup();
-    }, parent.mKarereClient.appCtx);
-}
-
-void GroupChatRoom::chatCleanup()
-{
-    auto db = parent.mKarereClient.db;
-    if (db.isOpen())   // upon karere::Client destruction, DB is already closed and/or removed
-    {
-        db.query("delete from chat_peers where chatid = ?", mChatid);
-        db.query("delete from chat_vars where chatid = ?", mChatid);
-        db.query("delete from chats where chatid = ?", mChatid);
-        db.query("delete from history where chatid = ?", mChatid);
-        db.query("delete from manual_sending where chatid = ?", mChatid);
-        db.query("delete from sending where chatid = ?", mChatid);
-        db.query("delete from sendkeys where chatid = ?", mChatid);
+        db.query("delete from chat_peers where chatid = ?", chatid);
+        db.query("delete from chat_vars where chatid = ?", chatid);
+        db.query("delete from chats where chatid = ?", chatid);
+        db.query("delete from history where chatid = ?", chatid);
+        db.query("delete from manual_sending where chatid = ?", chatid);
+        db.query("delete from sending where chatid = ?", chatid);
+        db.query("delete from sendkeys where chatid = ?", chatid);
         // TODO: uncomment the following line when the node-history buffer is supported
-        // d.query("delete from node_history where chatid = ?", mChatid);
+        // d.query("delete from node_history where chatid = ?", chatid);
     }
 }
 

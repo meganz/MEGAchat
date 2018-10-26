@@ -429,12 +429,6 @@ public:
 
     virtual bool previewMode() const;
 
-    /** Blocks the preview: sends HANDLELEAVE to chatd and cleands DB */
-    void closePreview();
-
-    /** Cleans the related DB records */
-    void chatCleanup();
-
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     int getNumPeers() const;
@@ -456,7 +450,7 @@ public:
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
-    void previewsCleanup();
+    void previewCleanup(karere::Id chatid);
     void onChatsUpdate(mega::MegaTextChatList& chats);
 /** @endcond PRIVATE */
 };
