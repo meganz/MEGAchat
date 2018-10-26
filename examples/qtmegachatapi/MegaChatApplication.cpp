@@ -706,7 +706,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     MegaChatRoom *room = mMegaChatApi->getChatRoom(chatid);
                     if (room)
                     {
-                        if (room->isPreview())
+                        if (room->isPreview() && room->isActive())
                         {
                             QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to open a chat in preview mode twice"));
                         }

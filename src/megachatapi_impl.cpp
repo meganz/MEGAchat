@@ -822,8 +822,18 @@ void MegaChatApiImpl::sendPendingRequests()
                        GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatId);
                        if (room)
                        {
-                           MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
-                           fireOnChatRequestFinish(request, megaChatError);
+                           if (room->isActive()
+                              || (!room->isActive() && !room->previewMode()))
+                           {
+                               MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
+                               fireOnChatRequestFinish(request, megaChatError);
+                           }
+                           else
+                           {
+                               MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                               room->enablePreview(ph);
+                               fireOnChatRequestFinish(request, megaChatError);
+                           }
                        }
                        else
                        {

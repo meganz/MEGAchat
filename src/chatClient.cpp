@@ -3079,6 +3079,13 @@ void ChatRoom::notifyChatModeChanged()
     }, parent.mKarereClient.appCtx);
 }
 
+void GroupChatRoom::enablePreview(uint64_t ph)
+{
+    mChat->setPublicHandle(ph);
+    chat().disable(false);
+    connect();
+}
+
 bool GroupChatRoom::publicChat() const
 {
     return (mChat->crypto()->isPublicChat());
