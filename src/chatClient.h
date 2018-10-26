@@ -171,6 +171,11 @@ public:
      *  @param av Whether to initially send video and/or audio
      */
     virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+
+    /** @brief Joins a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
 #endif
 
     //chatd::Listener implementation
@@ -312,7 +317,7 @@ public:
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    bool syncMembers(const mega::MegaTextChat& chat);   
+    bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
@@ -559,8 +564,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalHandler,
-              public ::mega::MegaGlobalListener,
+class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
               public karere::DeleteTrackable
@@ -845,14 +849,10 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
-
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
-#ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
-#endif
 
     promise::Promise<void> pushReceived();
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception

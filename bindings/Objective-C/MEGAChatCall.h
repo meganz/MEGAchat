@@ -1,5 +1,7 @@
 
 #import <Foundation/Foundation.h>
+#import "MEGAHandleList.h"
+#import "MEGAChatSession.h"
 
 typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusInitial = 0,
@@ -8,8 +10,9 @@ typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusRingIn,
     MEGAChatCallStatusJoining,
     MEGAChatCallStatusInProgress,
-    MEGAChatCallStatusTerminating,
-    MEGAChatCallStatusDestroyed
+    MEGAChatCallStatusTerminatingUserParticipation,
+    MEGAChatCallStatusDestroyed,
+    MEGAChatCallStatusUserNoPresent
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallSessionStatus) {
@@ -35,12 +38,16 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
+    MEGAChatCallChangeTypeNoChages = 0x00,
     MEGAChatCallChangeTypeStatus = 0x01,
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
     MEGAChatCallChangeTypeRemoteAVFlags = 0x04,
     MEGAChatCallChangeTypeTemporaryError = 0x08,
     MEGAChatCallChangeTypeRingingStatus = 0x10,
-    MEGAChatCallChangeTypeSessionStatus = 0x20
+    MEGAChatCallChangeTypeSessionStatus = 0x20,
+    MEGAChatCallChangeTypeCallComposition = 0x40,
+    MEGAChatCallChangeTypeNetworkQuality = 0x80,
+    MEGAChatCallChangeTypeAudioLevel = 0x100
 };
 
 @interface MEGAChatCall : NSObject
@@ -55,16 +62,19 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly) NSString *temporaryError;
 @property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
-@property (nonatomic, readonly, getter=hasRemoteAudio) BOOL remoteAudio;
-@property (nonatomic, readonly, getter=hasRemoteVideo) BOOL remoteVideo;
+@property (nonatomic, readonly, getter=hasAudioInitialCall) BOOL audioInitialCall;
+@property (nonatomic, readonly, getter=hasVideoInitialCall) BOOL videoInitialCall;
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
 @property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
 @property (nonatomic, readonly) uint64_t peerSessionStatusChange;
+@property (nonatomic, readonly) NSInteger numParticipants;
+@property (nonatomic, readonly) MEGAHandleList *sessions;
+@property (nonatomic, readonly) MEGAHandleList *participants;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
-- (MEGAChatCallSessionStatus)sessionStatusForPeer:(uint64_t)peerId;
 
+- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId;
 - (instancetype)clone;
 
 @end

@@ -13,6 +13,7 @@
 extern JavaVM *MEGAjvm;
 extern jclass applicationClass;
 extern jmethodID startVideoCaptureMID;
+extern jmethodID startVideoCaptureWithParametersMID;
 extern jmethodID stopVideoCaptureMID;
 extern jobject surfaceTextureHelper;
 #endif
@@ -173,7 +174,22 @@ void InputDeviceShared<webrtc::VideoTrackInterface, webrtc::VideoTrackSourceInte
     rtc::Thread *currentThread = rtc::ThreadManager::Instance()->CurrentThread();
     mSource = new rtc::RefCountedObject<webrtc::AndroidVideoTrackSource>(currentThread, env, surfaceTextureHelper, false);
     rtc::scoped_refptr<webrtc::VideoTrackSourceProxy> proxySource = webrtc::VideoTrackSourceProxy::Create(currentThread, currentThread, mSource);
-    env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jlong)proxySource.release(), surfaceTextureHelper);
+    if (startVideoCaptureWithParametersMID)
+    {
+        std::string widthString;
+        mOptions->constraints.GetMandatory().FindFirst(webrtc::MediaConstraintsInterface::kMinWidth, &widthString);
+        int width = std::atoi(widthString.c_str());
+        std::string heightString;
+        mOptions->constraints.GetMandatory().FindFirst(webrtc::MediaConstraintsInterface::kMinHeight, &heightString);
+        int height = std::atoi(heightString.c_str());
+        int fps = 15;
+        env->CallStaticVoidMethod(applicationClass, startVideoCaptureWithParametersMID, (jint)width, (jint)height, (jint)fps, (jlong)proxySource.release(), surfaceTextureHelper);
+    }
+    else
+    {
+        env->CallStaticVoidMethod(applicationClass, startVideoCaptureMID, (jlong)proxySource.release(), surfaceTextureHelper);
+    }
+
     MEGAjvm->DetachCurrentThread();
 #endif
 

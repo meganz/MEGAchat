@@ -367,6 +367,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 {
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mHeartbeatEnabled = false;
+    mClientId = 0;      // clientid change with new connections
     auto oldState = mState;
     mState = kStateDisconnected;
 
@@ -384,7 +385,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 #ifndef KARERE_DISABLE_WEBRTC
         if (mChatdClient.karereClient->rtc)
         {
-            mChatdClient.karereClient->rtc->removeCall(chatid);
+            mChatdClient.karereClient->rtc->removeCall(chatid, true);
         }
 #endif
     }
@@ -445,6 +446,20 @@ void Connection::sendEcho()
 
     CHATDS_LOG_DEBUG("send ECHO");
     sendBuf(Command(OP_ECHO));
+}
+
+void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
+{
+    Command msg(OP_RTMSG_BROADCAST);
+    msg.write<uint64_t>(1, chatid.val);
+    msg.write<uint64_t>(9, 0);
+    msg.write<uint32_t>(17, 0);
+    msg.write<uint16_t>(21, 10);        // Payload length -> opCode(1) + callid(8) + termCode(1)
+    msg.write<uint8_t>(23, rtcModule::RTCMD_CALL_REQ_DECLINE);          // RTCMD_CALL_REQ_DECLINE
+    msg.write<uint64_t>(24, callid.val);
+    msg.write<uint8_t>(32, rtcModule::kErrNotSupported);         // Termination code kErrNotSupported = 37
+    auto& chat = mChatdClient.chats(chatid);
+    chat.sendCommand(std::move(msg));
 }
 
 Promise<void> Connection::reconnect()
@@ -1423,14 +1438,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 mChatdClient.chats(chatid).onEndCall(userid, clientid);
-#ifndef KARERE_DISABLE_WEBRTC
-                assert(mChatdClient.mRtcHandler);
-                if (mChatdClient.mRtcHandler)    // in case chatd broadcast this opcode, instead of send it to the endpoint
-                {
-                    mChatdClient.mRtcHandler->onUserOffline(chatid, userid, clientid);
-                }
-#endif
-
                 break;
             }
             case OP_CALLDATA:
@@ -1443,15 +1450,26 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
-                pos += payloadLen;
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler && userid != mChatdClient.karereClient->myHandle())
+                if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);
                     mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
+
+                pos += payloadLen;
+#else
+                READ_ID(callid, 22);
+                READ_8(state, 30);
+                if (state == rtcModule::kCallDataRinging) // Ringing state
+                {
+                    sendCallReqDeclineNoSupport(chatid, callid);
+                }
+
+                pos += payloadLen - 9;  // 9 -> callid(8) + state(1)
 #endif
+
                 break;
             }
             case OP_RTMSG_ENDPOINT:
@@ -1533,7 +1551,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_32(duration, 8);
                 CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
-                // TODO: add management of calltime (for groupcalling)
+#ifndef KARERE_DISABLE_WEBRTC
+                if (mChatdClient.mRtcHandler)
+                {
+                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
+                }
+#endif
                 break;
             }
             default:
@@ -1795,13 +1818,24 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 }
 void Chat::onInCall(karere::Id userid, uint32_t clientid)
 {
-    mCallParticipants.emplace(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
+    assert(mClient.mRtcHandler);
+    if (mClient.mRtcHandler)
+    {
+        mClient.mRtcHandler->handleInCall(mChatId, userid, clientid);
+    }
+#endif
 }
 
 void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
-    EndpointId key(userid, clientid);
-    mCallParticipants.erase(key);
+#ifndef KARERE_DISABLE_WEBRTC
+    assert(mClient.mRtcHandler);
+    if (mClient.mRtcHandler)
+    {
+        mClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
+    }
+#endif
 }
 
 void Chat::initChat()
@@ -3801,6 +3835,13 @@ void Chat::onJoinComplete()
             findAndNotifyLastTextMsg();
         }
     }
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (mClient.karereClient->rtc)
+    {
+        mClient.karereClient->rtc->removeCallWithoutParticipants(mChatId);
+    }
+#endif
 }
 
 void Chat::resetGetHistory()
