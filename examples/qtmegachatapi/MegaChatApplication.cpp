@@ -141,7 +141,7 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     mSid = NULL;
 
     mMainWin->setWindowTitle("Anonymous mode");
-    mMegaChatApi->loadChatLink(chatlink.c_str());
+    mMegaChatApi->openChatPreview(chatlink.c_str());
     connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
     mMainWin->show();
     return true;
@@ -619,11 +619,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         }
                         else if (e->getErrorCode() == MegaChatError::ERROR_ARGS)
                         {
-                            QMessageBox::warning(nullptr, tr("Export chat link"), tr("You need to set a chat title before"));
+                            QMessageBox::warning(nullptr, tr("Create chat link"), tr("You need to set a chat title before"));
                         }
                         else
                         {
-                            QMessageBox::critical(nullptr, tr("Export chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+                            QMessageBox::critical(nullptr, tr("Create chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
                         }
                     }
                     else
@@ -646,13 +646,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     {
                         QString chatlink (request->getText());
                         msg.setDetailedText(chatlink);
+                        foreach (QAbstractButton *button, msg.buttons())
+                        {
+                            if (msg.buttonRole(button) == QMessageBox::ActionRole)
+                            {
+                                button->click();
+                                break;
+                            }
+                        }
                         msg.exec();
                     }
                 }
             }
             break;
 
-        case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
+        case MegaChatRequest::TYPE_LOAD_PREVIEW:
         {
             MegaChatHandle chatid = request->getChatHandle();
             bool checkChatLink = !request->getFlag();
@@ -678,7 +686,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 int ret = msgBox.exec();
                 if (ret == QMessageBox::Ok)
                 {
-                    this->mMegaChatApi->loadChatLink(request->getLink());
+                    this->mMegaChatApi->openChatPreview(request->getLink());
                 }
 
                 delete chatHandle_64;
@@ -716,7 +724,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                             if (ret == QMessageBox::Ok)
                             {
                                 MegaChatHandle ph = request->getUserHandle();
-                                this->mMegaChatApi->rejoinChatLink(chatid, ph);
+                                this->mMegaChatApi->autorejoinPublicChat(chatid, ph);
                             }
                         }
                         delete room;
@@ -730,7 +738,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             break;
         }
 
-        case MegaChatRequest::TYPE_CHAT_LINK_CLOSE:
+        case MegaChatRequest::TYPE_SET_PRIVATE_MODE:
         {
             if(e->getErrorCode() != MegaChatError::ERROR_OK)
             {
@@ -743,7 +751,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             break;
         }
 
-        case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
+        case MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT:
         {
             if(e->getErrorCode() == MegaChatError::ERROR_OK)
             {

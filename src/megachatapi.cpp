@@ -433,7 +433,7 @@ void MegaChatApi::queryChatLink(MegaChatHandle chatid, MegaChatRequestListener *
     pImpl->chatLinkHandle(chatid, false, false, listener);
 }
 
-void MegaChatApi::exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApi::createChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->chatLinkHandle(chatid, false, true, listener);
 }
@@ -443,14 +443,14 @@ void MegaChatApi::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int pri
     pImpl->inviteToChat(chatid, uh, privilege, listener);
 }
 
-void MegaChatApi::joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApi::autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->joinChatLink(chatid, listener);
+    pImpl->autojoinPublicChat(chatid, listener);
 }
 
-void MegaChatApi::rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener)
+void MegaChatApi::autorejoinPublicChat(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener)
 {
-    pImpl->rejoinChatLink(chatid, ph, listener);
+    pImpl->autorejoinPublicChat(chatid, ph, listener);
 }
 
 void MegaChatApi::removeFromChat(MegaChatHandle chatid, MegaChatHandle uh, MegaChatRequestListener *listener)
@@ -483,9 +483,9 @@ void MegaChatApi::setChatTitle(MegaChatHandle chatid, const char *title, MegaCha
     pImpl->setChatTitle(chatid, title, listener);
 }
 
-void MegaChatApi::loadChatLink(const char *link,MegaChatRequestListener *listener)
+void MegaChatApi::openChatPreview(const char *link,MegaChatRequestListener *listener)
 {
-    pImpl->loadChatLink(link, listener);
+    pImpl->openChatPreview(link, listener);
 }
 
 void MegaChatApi::checkChatLink(const char *link, MegaChatRequestListener *listener)
@@ -493,9 +493,9 @@ void MegaChatApi::checkChatLink(const char *link, MegaChatRequestListener *liste
     pImpl->checkChatLink(link, listener);
 }
 
-void MegaChatApi::closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApi::setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->closeChatLink(chatid, listener);
+    pImpl->setPublicChatToPrivate(chatid, listener);
 }
 
 void MegaChatApi::removeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
@@ -518,9 +518,9 @@ void MegaChatApi::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener *lis
     pImpl->closeChatRoom(chatid, listener);
 }
 
-void MegaChatApi::closePreview(MegaChatHandle chatid)
+void MegaChatApi::closeChatPreview(MegaChatHandle chatid)
 {
-    pImpl->closePreview(chatid);
+    pImpl->closeChatPreview(chatid);
 }
 
 int MegaChatApi::loadMessages(MegaChatHandle chatid, int count)

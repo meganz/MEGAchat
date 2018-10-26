@@ -28,7 +28,7 @@ class ChatItemWidget : public QWidget
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
-        virtual void onPreviersCountChanged(int count);
+        virtual void onPreviewersCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
@@ -54,9 +54,9 @@ class ChatItemWidget : public QWidget
         void setTitle();
         void truncateChat();
         void queryChatLink();
-        void exportChatLink();
-        void closeChatLink();
-        void closePreview();
+        void createChatLink();
+        void setPublicChatToPrivate();
+        void closeChatPreview();
         void removeChatLink();
         void archiveChat(bool checked);
         void on_mJoinBtn_clicked();

@@ -1234,9 +1234,9 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
-        TYPE_PUSH_RECEIVED, TYPE_LOAD_CHAT_LINK,
-        TYPE_CHAT_LINK_HANDLE, TYPE_CHAT_LINK_CLOSE,
-        TYPE_CHAT_LINK_JOIN,
+        TYPE_PUSH_RECEIVED, TYPE_LOAD_PREVIEW,
+        TYPE_CHAT_LINK_HANDLE, TYPE_SET_PRIVATE_MODE,
+        TYPE_AUTOJOIN_PUBLIC_CHAT,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2613,13 +2613,13 @@ public:
      * This function allows to create public chats, where the moderator can create chat links to share
      * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
      * moderator can create/get a public handle for the chatroom and generate a URL by using
-     * \c MegaChatApi::exportChatLink. The chat-link can be deleted at any time by any moderator
+     * \c MegaChatApi::createChatLink. The chat-link can be deleted at any time by any moderator
      * by using \c MegaChatApi::removeChatLink.
      *
-     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::closePublicChat.
+     * The chatroom remains in the public mode until a moderator calls \c MegaChatApi::setPublicChatToPrivate.
      *
-     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatLink.
-     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::joinChatLink.
+     * Any user can preview the chatroom thanks to the chat-link by using \c MegaChatApi::openChatPreview.
+     * Any user can join the chatroom thanks to the chat-link by using \c MegaChatApi::autojoinPublicChat.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_CHATROOM
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2695,7 +2695,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void exportChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void createChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Adds a user to an existing chat. To do this you must have the
@@ -2726,7 +2726,7 @@ public:
      * @brief Allow a user to add himself to an existing public chat. To do this the public chat
      * must have a valid public handle.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns invalid handle to identify that is an autojoin
@@ -2739,17 +2739,17 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allow a user to rejoin to an existing public chat. To do this the public chat
      * must have a valid public handle.
      *
      * This function must be called only after calling:
-     *  - MegaChatApi::loadChatLink and receive MegaChatError::ERROR_ACCESS (You are trying to
+     *  - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_ACCESS (You are trying to
      *  preview a public chat wich you were part of, so you have to rejoin it)
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns the public handle of the chat to identify that
@@ -2764,7 +2764,7 @@ public:
      * @param ph MegaChatHandle that corresponds with the public handle of chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener = NULL);
+    void autorejoinPublicChat(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Remove another user from a chat. To remove a user you need to have the
@@ -2912,14 +2912,14 @@ public:
      * a MegaChatApi::closeChatRoom as usual.
      *
      * The previewer may choose to join the public chat permanently, becoming a participant
-     * with read-write privilege, by calling MegaChatApi::joinChatLink.
+     * with read-write privilege, by calling MegaChatApi::autojoinPublicChat.
      *
      * Instead, if the previewer is not interested in the chat anymore, it can remove it from
-     * the list of chats by calling MegaChatApi::closePreview.
+     * the list of chats by calling MegaChatApi::closeChatPreview.
      * @note If the previewer doesn't explicitely close the preview, it will be lost if the
      * app is closed. A preview of a chat is not persisted in cache.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
      *
@@ -2930,7 +2930,7 @@ public:
      *      + If the chatroom is not in preview mode but is active, the user is trying to preview a
      *      chat which he is part of.
      *      + If the chatroom is not in preview mode but is inactive, the user is trying to preview a
-     *      chat which he was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
+     *      chat which he was part of. In this case the user will have to call MegaChatApi::autorejoinPublicChat to join
      *      to autojoin the chat again. Note that you won't be able to preview a public chat any more, once
      *      you have been part of the chat.
      *
@@ -2947,7 +2947,7 @@ public:
      * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request
      */
-    void loadChatLink(const char *link, MegaChatRequestListener *listener = NULL);
+    void openChatPreview(const char *link, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Allows any user to obtain basic information abouts a public chat if
@@ -2955,7 +2955,7 @@ public:
      *
      * This function returns the actual \c chatid, the number of peers and also the title.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
      *
@@ -2978,7 +2978,7 @@ public:
      *
      * This function set the chat mode to private and invalidates the public handle if exists
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_CLOSE
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRIVATE_MODE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
      *
@@ -2995,7 +2995,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    void closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Invalidates the currect public handle
@@ -3075,7 +3075,7 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      */
-    void closePreview(MegaChatHandle chatid);
+    void closeChatPreview(MegaChatHandle chatid);
 
     /**
      * @brief Initiates fetching more history of the specified chatroom.

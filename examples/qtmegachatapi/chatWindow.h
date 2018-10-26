@@ -97,9 +97,9 @@ class ChatWindow : public QDialog,
         void onLeaveGroupChat();
         void onChangeTitle();
         void onQueryChatLink();
-        void onExportChatLink();
+        void onCreateChatLink();
         void onRemoveChatLink();
-        void onCloseChatLink();
+        void onSetPublicChatToPrivate();
         void onUnarchiveChat();
         void onArchiveChat();
 

@@ -383,11 +383,11 @@ void MainWindow::on_bSettings_clicked()
     auto actPubChat = menu.addAction(tr("Create public chat"));
     connect(actPubChat, SIGNAL(triggered()), this, SLOT(onAddPubChatGroup()));
 
-    auto actLoadLink = menu.addAction(tr("Preview chat-link"));
-    connect(actLoadLink,  &QAction::triggered, this, [this] {loadChatLink(true);});
+    auto actPreviewChat = menu.addAction(tr("Preview public chat"));
+    connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
 
     auto actCheckLink = menu.addAction(tr("Check chat-link"));
-    connect(actCheckLink,  &QAction::triggered, this, [this] {loadChatLink(false);});
+    connect(actCheckLink,  &QAction::triggered, this, [this] {openChatPreview(false);});
 
     menu.addSeparator();
     auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
@@ -548,7 +548,7 @@ void MainWindow::addChatWidget(const MegaChatListItem* chatListItem)
     }
 }
 
-void MainWindow::closePreview(ChatItemWidget *item)
+void MainWindow::closeChatPreview(ChatItemWidget *item)
 {
     //Close and remove chatWindow in case that exists
     ChatWindow *auxWindow;
@@ -558,8 +558,8 @@ void MainWindow::closePreview(ChatItemWidget *item)
         auxWindow->deleteLater();
     }
 
-    //Call closePreview
-    mMegaChatApi->closePreview(item->getChatId());
+    //Call closeChatPreview
+    mMegaChatApi->closeChatPreview(item->getChatId());
 
     //Remove widget
     const MegaChatListItem * auxitem = this->getLocalChatListItem(item->getChatId());
@@ -653,7 +653,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
             ChatItemWidget *auxItem = getChatItemWidget(chatid, false);
             if(auxItem)
             {
-                auxItem->onPreviersCountChanged(item->getNumPreviewers());
+                auxItem->onPreviewersCountChanged(item->getNumPreviewers());
             }
         }
 
@@ -728,7 +728,7 @@ void MainWindow::onWebRTCsetting()
 #endif
 }
 
-void MainWindow::loadChatLink(bool create)
+void MainWindow::openChatPreview(bool create)
 {
     std::string chatLink;
     QString qChatLink = QInputDialog::getText(this, tr("Load chat link"), tr("Enter a valid chatlink"));
@@ -741,7 +741,7 @@ void MainWindow::loadChatLink(bool create)
             return;
         }
        create
-        ?mMegaChatApi->loadChatLink(chatLink.c_str())
+        ?mMegaChatApi->openChatPreview(chatLink.c_str())
         :mMegaChatApi->checkChatLink(chatLink.c_str());
     }
 }

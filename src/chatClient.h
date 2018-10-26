@@ -418,7 +418,7 @@ public:
     /** TODO
      *
      */
-    promise::Promise<void> joinChatLink(uint64_t ph);
+    promise::Promise<void> autojoinPublicChat(uint64_t ph);
 
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
@@ -785,11 +785,11 @@ public:
      *
      * @return The chatid, the connection url, the encrypted title, and the number of participants.
      */
-    promise::Promise<ReqResult> loadChatLink(uint64_t publicHandle, const std::string &key);
+    promise::Promise<ReqResult> openChatPreview(uint64_t publicHandle, const std::string &key);
 
     /**
-     * @brief This function allows to create a public chat room. This function should be called after call loadChatLink with createChat flag set to true
-     * to avoid that loadChatLink creates the chat room
+     * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
+     * to avoid that openChatPreview creates the chat room
      */
     void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url);
 
@@ -801,7 +801,7 @@ public:
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */
-    promise::Promise<void> closeChatLink(karere::Id chatid);
+    promise::Promise<void> setPublicChatToPrivate(karere::Id chatid);
 
     /** @brief This function creates a public handle if not exists
      */

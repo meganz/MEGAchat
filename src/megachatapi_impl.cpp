@@ -488,7 +488,7 @@ void MegaChatApiImpl::sendPendingRequests()
             break;
         }
 
-        case MegaChatRequest::TYPE_CHAT_LINK_JOIN:
+        case MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT:
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
@@ -524,7 +524,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 ph = chatroom->getPublicHandle();
             }
 
-            ((GroupChatRoom *)chatroom)->joinChatLink(ph)
+            ((GroupChatRoom *)chatroom)->autojoinPublicChat(ph)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -740,7 +740,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_LOAD_CHAT_LINK:
+        case MegaChatRequest::TYPE_LOAD_PREVIEW:
         {
             string parsedLink = request->getLink();
             if (parsedLink.empty())
@@ -789,7 +789,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->loadChatLink(ph, unifiedKey)
+            mClient->openChatPreview(ph, unifiedKey)
             .then([request, this, unifiedKey](ReqResult result)
             {
                 assert(result);
@@ -854,7 +854,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_CHAT_LINK_CLOSE:
+        case MegaChatRequest::TYPE_SET_PRIVATE_MODE:
         {
             MegaChatHandle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
@@ -882,7 +882,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->closeChatLink(chatid)
+            mClient->setPublicChatToPrivate(chatid)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2586,17 +2586,17 @@ void MegaChatApiImpl::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int
     waiter->notify();
 }
 
-void MegaChatApiImpl::joinChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_JOIN, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT, listener);
     request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::rejoinChatLink(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener)
+void MegaChatApiImpl::autorejoinPublicChat(MegaChatHandle chatid, MegaChatHandle ph, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_JOIN, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(ph);
     requestQueue.push(request);
@@ -2640,9 +2640,9 @@ void MegaChatApiImpl::setChatTitle(MegaChatHandle chatid, const char *title, Meg
     waiter->notify();
 }
 
-void MegaChatApiImpl::loadChatLink(const char *link, MegaChatRequestListener *listener)
+void MegaChatApiImpl::openChatPreview(const char *link, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_PREVIEW, listener);
     request->setLink(link);
     request->setFlag(true);
     requestQueue.push(request);
@@ -2651,16 +2651,16 @@ void MegaChatApiImpl::loadChatLink(const char *link, MegaChatRequestListener *li
 
 void MegaChatApiImpl::checkChatLink(const char *link, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_CHAT_LINK, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOAD_PREVIEW, listener);
     request->setLink(link);
     request->setFlag(false);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::closeChatLink(MegaChatHandle chatid, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHAT_LINK_CLOSE, listener);
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRIVATE_MODE, listener);
     request->setChatHandle(chatid);
     requestQueue.push(request);
     waiter->notify();
@@ -2710,7 +2710,7 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::closePreview(MegaChatHandle chatid)
+void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 {
     sdkMutex.lock();
     mClient->chats->removeRoomPreview(chatid);
@@ -4201,10 +4201,10 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
-        case TYPE_LOAD_CHAT_LINK: return "LOAD_CHAT_LINK";
-        case TYPE_CHAT_LINK_HANDLE: return "CHAT_LINK_HANDLE";
-        case TYPE_CHAT_LINK_CLOSE: return "CHAT_LINK_CLOSE";
-        case TYPE_CHAT_LINK_JOIN: return "TYPE_CHAT_LINK_JOIN";
+        case TYPE_LOAD_PREVIEW: return "TYPE_LOAD_PREVIEW";
+        case TYPE_CHAT_LINK_HANDLE: return "TYPE_CHAT_LINK_HANDLE";
+        case TYPE_SET_PRIVATE_MODE: return "TYPE_SET_PRIVATE_MODE";
+        case TYPE_AUTOJOIN_PUBLIC_CHAT: return "TYPE_AUTOJOIN_PUBLIC_CHAT";
     }
     return "UNKNOWN";
 }

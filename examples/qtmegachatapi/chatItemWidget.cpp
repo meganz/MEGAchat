@@ -20,7 +20,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     ui->setupUi(this);
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
-    onPreviersCountChanged(item->getNumPreviewers());
+    onPreviewersCountChanged(item->getNumPreviewers());
 
     if (item->isArchived())
     {
@@ -367,7 +367,7 @@ void ChatItemWidget::onUnreadCountChanged(int count)
     ui->mUnreadIndicator->adjustSize();
 }
 
-void ChatItemWidget::onPreviersCountChanged(int count)
+void ChatItemWidget::onPreviewersCountChanged(int count)
 {
     ui->mPreviewersIndicator->setText(QString::number(count));
     ui->mPreviewersIndicator->setVisible(count != 0);
@@ -480,24 +480,24 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
+    auto actExportLink = clMenu->addAction(tr("Create chat link"));
+    connect(actExportLink, SIGNAL(triggered()), this, SLOT(createChatLink()));
+
     auto actQueryLink = clMenu->addAction(tr("Query chat link"));
     connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
-
-    auto actExportLink = clMenu->addAction(tr("Export chat link"));
-    connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
 
     auto actRemoveLink = clMenu->addAction(tr("Remove chat link"));
     connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
 
-    auto joinChatLink = clMenu->addAction("Join chat link");
-    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    auto autojoinPublicChat = clMenu->addAction("Join chat link");
+    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
 
-    auto actClosePreview = clMenu->addAction(tr("Close preview"));
-    connect(actClosePreview, SIGNAL(triggered()), this, SLOT(closePreview()));
+    auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
+    connect(actcloseChatPreview, SIGNAL(triggered()), this, SLOT(closeChatPreview()));
 
     menu.addSeparator();
     auto actSetPrivate = clMenu->addAction(tr("Set chat private"));
-    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
+    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(setPublicChatToPrivate()));
 
     delete chatRoom;
     menu.exec(event->globalPos());
@@ -517,25 +517,25 @@ void ChatItemWidget::queryChatLink()
     }
 }
 
-void ChatItemWidget::exportChatLink()
+void ChatItemWidget::createChatLink()
 {
     if (mChatId != MEGACHAT_INVALID_HANDLE)
     {
-        mMegaChatApi->exportChatLink(mChatId);
+        mMegaChatApi->createChatLink(mChatId);
     }
 }
 
-void ChatItemWidget::closeChatLink()
+void ChatItemWidget::setPublicChatToPrivate()
 {
     if (mChatId != MEGACHAT_INVALID_HANDLE)
     {
-        mMegaChatApi->closeChatLink(mChatId);
+        mMegaChatApi->setPublicChatToPrivate(mChatId);
     }
 }
 
-void ChatItemWidget::closePreview()
+void ChatItemWidget::closeChatPreview()
 {
-    mMainWin->closePreview(this);
+    mMainWin->closeChatPreview(this);
 }
 
 void ChatItemWidget::removeChatLink()
@@ -552,7 +552,7 @@ void ChatItemWidget::on_mJoinBtn_clicked()
     if (ret != QMessageBox::Yes)
         return;
 
-    this->mMegaChatApi->joinChatLink(mChatId);
+    this->mMegaChatApi->autojoinPublicChat(mChatId);
 }
 
 void ChatItemWidget::archiveChat(bool checked)

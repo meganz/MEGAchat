@@ -635,25 +635,25 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
+    //Create chat link
+    auto createChatLink = clMenu->addAction("Create chat link");
+    connect(createChatLink, SIGNAL(triggered()), this, SLOT(onCreateChatLink()));
+
     //Query chat link
     auto queryChatLink = clMenu->addAction("Query chat link");
     connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
-
-    //Export chat link
-    auto exportChatLink = clMenu->addAction("Export chat link");
-    connect(exportChatLink, SIGNAL(triggered()), this, SLOT(onExportChatLink()));
 
     //Remove chat link
     auto removeChatLink = clMenu->addAction("Remove chat link");
     connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
 
     //Auto-join chat link
-    auto joinChatLink = clMenu->addAction("Join chat link");
-    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    auto autojoinPublicChat = clMenu->addAction("Join chat link");
+    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
 
     //Close chat link
-    auto closeChatLink = clMenu->addAction("Close chat link");
-    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
+    auto setPublicChatToPrivate = clMenu->addAction("Close chat link");
+    connect(setPublicChatToPrivate, SIGNAL(triggered()), this, SLOT(onSetPublicChatToPrivate()));
 }
 
 void ChatWindow::onQueryChatLink()
@@ -664,11 +664,11 @@ void ChatWindow::onQueryChatLink()
     }
 }
 
-void ChatWindow::onExportChatLink()
+void ChatWindow::onCreateChatLink()
 {
     if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
     {
-        mMegaChatApi->exportChatLink(mChatRoom->getChatId());
+        mMegaChatApi->createChatLink(mChatRoom->getChatId());
     }
 }
 void ChatWindow::onRemoveChatLink()
@@ -679,11 +679,11 @@ void ChatWindow::onRemoveChatLink()
     }
 }
 
-void ChatWindow::onCloseChatLink()
+void ChatWindow::onSetPublicChatToPrivate()
 {
     if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
     {
-        mMegaChatApi->closeChatLink(mChatRoom->getChatId());
+        mMegaChatApi->setPublicChatToPrivate(mChatRoom->getChatId());
     }
 }
 
@@ -851,7 +851,7 @@ void ChatWindow::on_mJoinBtn_clicked()
     if (ret != QMessageBox::Yes)
         return;
 
-    this->mMegaChatApi->joinChatLink(this->mChatRoom->getChatId());
+    this->mMegaChatApi->autojoinPublicChat(this->mChatRoom->getChatId());
 }
 
 void ChatWindow::on_mSettingsBtn_clicked()

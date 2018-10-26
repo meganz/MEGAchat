@@ -63,7 +63,7 @@ class MainWindow :
         virtual ~MainWindow();
         void addChatWidget(const megachat::MegaChatListItem *chatListItem);
         void removeChatWidget(const megachat::MegaChatListItem* chatListItem);
-        void closePreview(ChatItemWidget *item);
+        void closeChatPreview(ChatItemWidget *item);
         void addContact(mega::MegaUser *contact);
         void clearContactChatList();
         void orderContactChatList();
@@ -102,7 +102,7 @@ class MainWindow :
         void setNContacts(int nContacts);
         void createChatRoom(megachat::MegaChatPeerList *peerList, bool isGroup, bool isPublic);
         void setTwoFactorAvailable(bool twoFactorAvailable);
-        void loadChatLink(bool create);
+        void openChatPreview(bool create);
         MegaLoggerApplication *mLogger;
 
     protected:

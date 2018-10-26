@@ -416,7 +416,7 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 }
 
 
-promise::Promise<ReqResult> Client::loadChatLink(uint64_t publicHandle, const std::string &key)
+promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle, const std::string &key)
 {
     auto wptr = weakHandle();
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
@@ -475,7 +475,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
     }
 }
 
-promise::Promise<void> Client::closeChatLink(karere::Id chatid)
+promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
 {
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
     promise::Promise<std::shared_ptr<Buffer>> pms;
@@ -2772,7 +2772,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
     });
 }
 
-promise::Promise<void> GroupChatRoom::joinChatLink(uint64_t ph)
+promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
 {
     Id myHandle(parent.mKarereClient.myHandle());
 
