@@ -103,6 +103,10 @@ using namespace megachat;
     return self.megaChatListItem ? self.megaChatListItem->isActive() : NO;
 }
 
+- (NSUInteger)previewersCount {
+    return self.megaChatListItem ? self.megaChatListItem->getNumPreviewers() : 0;
+}
+
 - (NSString *)lastMessage {
     if (!self.megaChatListItem) return nil;
     const char *ret = self.megaChatListItem->getLastMessage();

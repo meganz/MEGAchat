@@ -111,6 +111,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isArchived() : NO;
 }
 
+- (NSUInteger)previewersCount {
+    return self.megaChatRoom ? self.megaChatRoom->getNumPreviewers() : 0;
+}
+
 - (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {
     return self.megaChatRoom ? self.megaChatRoom->getPeerPrivilegeByHandle(userHande) : -2;
 }
