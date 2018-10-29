@@ -2205,7 +2205,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
-    std::string newTitle = mTitleString;
+    std::string newTitle;
     if (mPeers.empty())
     {
         time_t ts = mCreationTs;
