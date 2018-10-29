@@ -1486,6 +1486,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                break;
             }
             case OP_ECHO:
             {
@@ -1496,7 +1497,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                     cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
                     mEchoTimer = 0;
                 }
-
                 break;
             }
             case OP_ADDREACTION:
