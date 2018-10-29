@@ -221,6 +221,9 @@ using namespace megachat;
         case MEGAChatRoomChangeTypeChatMode:
             result = @"Chat mode";
             break;
+        case MEGAChatRoomChangeTypeUpdatePreviewers:
+            result = @"Update previewers";
+            break;
             
         default:
             result = @"Default";

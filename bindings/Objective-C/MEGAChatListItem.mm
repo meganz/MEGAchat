@@ -173,6 +173,9 @@ using namespace megachat;
         case MEGAChatListItemChangeTypeChatMode:
             result = @"Chat mode";
             break;
+        case MEGAChatListItemChangeTypeUpdatePreviewers:
+            result = @"Update previewers";
+            break;
             
         default:
             result = @"Default";
