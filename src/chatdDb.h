@@ -186,7 +186,7 @@ public:
             int rowid = stmt.intCol(0);
             uint8_t opcode = stmt.intCol(1);
             karere::Id msgid = stmt.int64Col(2);
-            karere::Id userid = mChat.client().userId();
+            karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
             unsigned char type = (unsigned char)stmt.intCol(5);
             uint32_t ts = stmt.intCol(6);
@@ -299,7 +299,7 @@ public:
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mChat.chatId() << mChat.client().userId()   // skip own messages
+        stmt << mChat.chatId() << mChat.client().myHandle()   // skip own messages
              << chatd::Message::kNotEncrypted               // include decrypted messages
              << chatd::Message::kEncryptedMalformed         // include encrypted messages due to malformed payload
              << chatd::Message::kEncryptedSignature         // include encrypted messages due to invalid signature
@@ -329,7 +329,7 @@ public:
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().userId(),
+            auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
@@ -349,7 +349,7 @@ public:
 
         Buffer buf;
         stmt.blobCol(4, buf);
-        auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().userId(),
+        auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().myHandle(),
                                       stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
         item.msg = msg;

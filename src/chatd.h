@@ -583,7 +583,7 @@ public:
         ManualSendReason reason;
     };
 
-    Client& mClient;
+    Client& mChatdClient;
 
 protected:
     Connection& mConnection;
@@ -716,7 +716,6 @@ protected:
     void findAndNotifyLastTextMsg();
     void notifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
-    bool manualResendWhenUserJoins() const;
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
@@ -736,7 +735,7 @@ public:
     /** @brief The chatid of this chat */
     karere::Id chatId() const { return mChatId; }
     /** @brief The chatd client */
-    Client& client() const { return mClient; }
+    Client& client() const { return mChatdClient; }
     Connection& connection() const { return mConnection; }
     /** @brief The lowest index of a message in the RAM history buffer */
     Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
@@ -1129,82 +1128,34 @@ public:
 class Client
 {
 protected:
-/// maps the chatd shard number to its corresponding Shard connection
+    karere::Id mMyHandle;
+
+    // maps the chatd shard number to its corresponding Shard connection
     std::map<int, std::shared_ptr<Connection>> mConnections;
-/// maps a chatid to the handling Shard connection
+
+    // maps a chatid to the handling Shard connection
     std::map<karere::Id, Connection*> mConnectionForChatId;
-/// maps chatids to the Message object
+
+    // maps chatids to the Chat object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
-/// set of seen timers
+
+    // set of seen timers
     std::set<megaHandle> mSeenTimers;
-    karere::Id mUserId;
+
     bool mMessageReceivedConfirmation = false;
+
+    // value of richPreview's user-attribute
     uint8_t mRichLinkState = kRichLinkNotDefined;
+
+    // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
-    Connection& chatidConn(karere::Id chatid)
-    {
-        auto it = mConnectionForChatId.find(chatid);
-        if (it == mConnectionForChatId.end())
-            throw std::runtime_error("chatidConn: Unknown chatid "+chatid.toString());
-        return *it->second;
-    }
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
     void sendKeepalive();
     void sendEcho();
+
 public:
-    enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
-    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
-    unsigned inactivityCheckIntervalSec = 20;
-    uint32_t options = 0;
-    MyMegaApi *mApi;
-    karere::Client *karereClient;
-    uint8_t mKeepaliveType = OP_KEEPALIVE;
-    IRtcHandler* mRtcHandler = nullptr;
-    karere::Id userId() const { return mUserId; }
-    void setKeepaliveType(bool isInBackground);
-    uint8_t keepaliveType() { return mKeepaliveType; }
-    Client(karere::Client *client, karere::Id userId);
-    ~Client();
-    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
-    {
-        auto it = mChatForChatId.find(chatid);
-        return (it == mChatForChatId.end()) ? nullptr : it->second;
-    }
-    Chat& chats(karere::Id chatid) const
-    {
-        auto it = mChatForChatId.find(chatid);
-        if (it == mChatForChatId.end())
-            throw std::runtime_error("chatidChat: Unknown chatid "+chatid.toString());
-        return *it->second;
-    }
-    /** @brief Joins the specifed chatroom on the specified shard, using the specified
-     * url, and assocuates the specified Listener and ICRypto instances
-     * with the newly created Chat object.
-     */
-    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-    Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
-    /** @brief Leaves the specified chatroom */
-    void leave(karere::Id chatid);
-    void disconnect();
-    void retryPendingConnections(bool disconnect);
-    void heartbeat();
-    bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
-    void notifyUserIdle();
-    void notifyUserActive();
-    /** Changes the Rtc handler, returning the old one */
-    IRtcHandler* setRtcHandler(IRtcHandler* handler);
-    /** Clean the timers set */
-    void cancelTimers();
-    bool isMessageReceivedConfirmationActive() const;
-    uint8_t richLinkState() const;
-    friend class Connection;
-    friend class Chat;
-
-    bool areAllChatsLoggedIn();
-
-
     // Chatd Version:
     // - Version 0: initial version
     // - Version 1:
@@ -1215,7 +1166,55 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    static const unsigned chatdVersion = 4;
+    enum :unsigned { kChatdProtocolVersion = 4 };
+
+    Client(karere::Client *aKarereClient);
+    ~Client();
+
+    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
+
+    MyMegaApi *mApi;
+    karere::Client *mKarereClient;
+    IRtcHandler* mRtcHandler = nullptr;
+    uint8_t mKeepaliveType = OP_KEEPALIVE;
+
+    /* --- getters --- */
+    const karere::Id myHandle() const;
+    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const;
+    Chat& chats(karere::Id chatid) const;
+    uint8_t richLinkState() const;
+    bool areAllChatsLoggedIn();
+
+    uint8_t keepaliveType();
+    void setKeepaliveType(bool isInBackground);
+
+    /** @brief Joins the specifed chatroom on the specified shard, using the specified url, and
+     * associates the specified Listener and ICrypto instances with the newly created Chat object.
+     */
+    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
+    Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
+
+    /** @brief Leaves the specified chatroom */
+    void leave(karere::Id chatid);
+
+    void disconnect();
+    void retryPendingConnections(bool disconnect);
+    void heartbeat();
+
+    void notifyUserIdle();
+    void notifyUserActive();
+
+    /** Changes the Rtc handler, returning the old one */
+    IRtcHandler* setRtcHandler(IRtcHandler* handler);
+
+    /** Clean the timers set */
+    void cancelSeenTimers();
+
+    // True if clients send confirmation to chatd when they receive a new message
+    bool isMessageReceivedConfirmationActive() const;
+
+    friend class Connection;
+    friend class Chat;
 };
 
 static inline const char* connStateToStr(Connection::State state)

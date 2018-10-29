@@ -824,7 +824,7 @@ void Call::handleReject(RtMessage& packet)
         return;
     }
 
-    if (packet.userid != mChat.client().userId())
+    if (packet.userid != mChat.client().myHandle())
     {
         if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
         {
@@ -1598,7 +1598,7 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
     }
     else if (mState >= kStateInProgress)
     {
-        destroy(TermCode::kErrUserOffline, userid == mChat.client().karereClient->myHandle());
+        destroy(TermCode::kErrUserOffline, userid == mChat.client().mKarereClient->myHandle());
     }
 }
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
@@ -1795,7 +1795,7 @@ string Session::getDeviceInfo() const
 {
     // UserAgent Format
     // MEGA<app>/<version> (platform) Megaclient/<version>
-    std::string userAgent = mCall.mChat.mClient.karereClient->api.sdk.getUserAgent();
+    std::string userAgent = mCall.mChat.mChatdClient.mKarereClient->api.sdk.getUserAgent();
 
     std::string androidId = "MEGAAndroid";
     std::string iosId = "MEGAiOS";
