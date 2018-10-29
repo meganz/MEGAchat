@@ -558,12 +558,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->queryChatLink(chatId);
 }
 
-- (void)exportChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->exportChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)createChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->createChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)exportChatLink:(uint64_t)chatId {
-    self.megaChatApi->exportChatLink(chatId);
+- (void)createChatLink:(uint64_t)chatId {
+    self.megaChatApi->createChatLink(chatId);
 }
 
 - (void)inviteToChat:(uint64_t)chatId user:(uint64_t)userHandle privilege:(NSInteger)privilege delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -574,20 +574,20 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->inviteToChat(chatId, userHandle, (int)privilege);
 }
 
-- (void)joinChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->joinChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->autojoinPublicChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)joinChatLink:(uint64_t)chatId {
-    self.megaChatApi->joinChatLink(chatId);
+- (void)autojoinPublicChat:(uint64_t)chatId {
+    self.megaChatApi->autojoinPublicChat(chatId);
 }
 
-- (void)rejoinChatLink:(uint64_t)chatId publicHandle:(uint64_t)publicHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->rejoinChatLink(chatId, publicHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->autorejoinPublicChat(chatId, publicHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)rejoinChatLink:(uint64_t)chatId publicHandle:(uint64_t)publicHandle {
-    self.megaChatApi->rejoinChatLink(chatId, publicHandle);
+- (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle {
+    self.megaChatApi->autorejoinPublicChat(chatId, publicHandle);
 }
 
 - (void)removeFromChat:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -638,12 +638,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->setChatTitle(chatId, title ? [title UTF8String] : NULL);
 }
 
-- (void)loadChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->loadChatLink(link ? [link.absoluteString UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)openChatPreview:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->openChatPreview(link ? [link.absoluteString UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)loadChatLink:(NSURL *)link {
-    self.megaChatApi->loadChatLink(link ? [link.absoluteString UTF8String] : NULL);
+- (void)openChatPreview:(NSURL *)link {
+    self.megaChatApi->openChatPreview(link ? [link.absoluteString UTF8String] : NULL);
 }
 
 - (void)checkChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -654,12 +654,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->checkChatLink(link ? [link.absoluteString UTF8String] : NULL);
 }
 
-- (void)closeChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->closeChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)setPublicChatToPrivate:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setPublicChatToPrivate(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)closeChatLink:(uint64_t)chatId {
-    self.megaChatApi->closeChatLink(chatId);
+- (void)setPublicChatToPrivate:(uint64_t)chatId {
+    self.megaChatApi->setPublicChatToPrivate(chatId);
 }
 
 -(void)removeChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -692,8 +692,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)closePreview:(uint64_t)chatId {
-    self.megaChatApi->closePreview(chatId);
+- (void)closeChatPreview:(uint64_t)chatId {
+    self.megaChatApi->closeChatPreview(chatId);
 }
 
 - (MEGAChatSource)loadMessagesForChat:(uint64_t)chatId count:(NSInteger)count {
