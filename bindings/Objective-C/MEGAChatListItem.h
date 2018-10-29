@@ -30,7 +30,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic, getter=isPreview) BOOL preview;
 @property (readonly, nonatomic) uint64_t peerHandle;
 @property (readonly, nonatomic, getter=isActive) BOOL active;
-@property (readonly, nonatomic) NSInteger previewersCount;
+@property (readonly, nonatomic) NSUInteger previewersCount;
 
 @property (readonly, nonatomic) NSString *lastMessage;
 @property (readonly, nonatomic) MEGAChatMessageType lastMessageType;
