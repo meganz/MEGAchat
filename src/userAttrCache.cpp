@@ -55,7 +55,7 @@ inline static Buffer* bufFromTLV(const ::mega::MegaStringMap *map, const char *k
     return buf ? new Buffer(buf, strlen(buf)) : new Buffer(nullptr, 0);
 }
 
-Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
+Buffer* getDataNotImpl(const ::mega::MegaRequest& /*req*/)
 {
      throw std::runtime_error("Not implemented");
 }
@@ -334,7 +334,7 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     notify();
 }
 
-void UserAttrCacheItem::errorNoDb(int errCode)
+void UserAttrCacheItem::errorNoDb(int /*errCode*/)
 {
     pending = kCacheFetchNotPending;
     data.reset();
@@ -469,7 +469,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         if (!data->empty())
             ctx->firstname.assign(data->buf(), data->dataSize());
     })
-    .fail([](const Error& err)
+    .fail([](const Error& /*err*/)
     {
         return _Void();
     });
@@ -480,7 +480,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         if (!data->empty())
             ctx->lastname.assign(data->buf(), data->dataSize());
     })
-    .fail([](const Error& err)
+    .fail([](const Error& /*err*/)
     {
         return _Void();
     });

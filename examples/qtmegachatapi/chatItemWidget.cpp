@@ -20,7 +20,33 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     ui->setupUi(this);
     int unreadCount = mMainWin->getLocalChatListItem(mChatId)->getUnreadCount();
     onUnreadCountChanged(unreadCount);
-    ui->mName->setText(item->getTitle());
+
+    if (item->isArchived())
+    {
+        QString text = NULL;
+        text.append(item->getTitle())
+        .append(" [A]");
+        ui->mName->setText(text);
+        ui->mName->setStyleSheet("color:#DEF0FC;");
+        ui->mAvatar->setStyleSheet("color:#DEF0FC;");
+    }
+    else
+    {
+        if (!item->isActive())
+        {
+            QString text = NULL;
+            text.append(item->getTitle())
+            .append(" [H]");
+            ui->mName->setText(text);
+            ui->mName->setStyleSheet("color:#FFC9C6;");
+            ui->mAvatar->setStyleSheet("color:#FFC9C6;");
+        }
+        else
+        {
+            ui->mName->setText(item->getTitle());
+            ui->mName->setStyleSheet("color:#FFFFFF; font-weight:bold;");
+        }
+    }
 
     if (!item->isGroup())
     {
@@ -77,19 +103,17 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         else
         {
             const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
-            if (msgAuthor)
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
             {
                 mLastMsgAuthor.assign(msgAuthor);
             }
             else
             {
-                mLastMsgAuthor = "Unknown participant";
-                mMegaChatApi->getUserFirstname(lastMessageSender);
+                mLastMsgAuthor = "Loading firstname...";
             }
-            delete msgAuthor;
+            delete [] msgAuthor;
         }
     }
-
     switch (lastMessageType)
     {
         case megachat::MegaChatMessage::TYPE_INVALID:
@@ -331,7 +355,7 @@ ChatWindow *ChatItemWidget::getChatWindow()
     return mChatWindow;
 }
 
-void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent *event)
+void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
     showChatWindow();
 }
@@ -375,23 +399,52 @@ void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
 
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
-    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
-    bool canChangePrivs = (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_MODERATOR);
-
     QMenu menu(this);
-    if (mMainWin->getLocalChatListItem(mChatId)->isGroup())
-    {
-        auto actLeave = menu.addAction(tr("Leave group chat"));
-        connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
-        auto actTopic = menu.addAction(tr("Set chat topic"));
-        actTopic->setEnabled(canChangePrivs);
-        connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
-    }
-    delete chatRoom;
+    megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+
+    auto actLeave = menu.addAction(tr("Leave group chat"));
+    connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
+
+    auto actTopic = menu.addAction(tr("Set chat topic"));
+    connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
 
     auto actTruncate = menu.addAction(tr("Truncate chat"));
-    actTruncate->setEnabled(canChangePrivs);
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
+
+    auto actArchive = menu.addAction("Archive chat");
+    connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(archiveChat(bool)));
+    actArchive->setCheckable(true);
+    actArchive->setChecked(chatRoom->isArchived());
+
+    QMenu *clMenu = menu.addMenu("Chat links");
+
+    auto actQueryLink = clMenu->addAction(tr("Query chat link"));
+    connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    auto actExportLink = clMenu->addAction(tr("Export chat link"));
+    connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    auto actRemoveLink = clMenu->addAction(tr("Remove chat link"));
+    connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    auto joinChatLink = clMenu->addAction("Join chat link");
+    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    auto actClosePreview = clMenu->addAction(tr("Close preview"));
+    connect(actClosePreview, SIGNAL(triggered()), this, SLOT(closePreview()));
+    // TODO: connect to slot in chat-links branch once merged
+
+    menu.addSeparator();
+    auto actSetPrivate = clMenu->addAction(tr("Set chat private"));
+    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
+    // TODO: connect to slot in chat-links branch once merged
+
+
+    delete chatRoom;
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -399,6 +452,16 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 void ChatItemWidget::truncateChat()
 {
     this->mMegaChatApi->clearChatHistory(mChatId);
+}
+
+void ChatItemWidget::archiveChat(bool checked)
+{
+    MegaChatRoom *room = mMegaChatApi->getChatRoom(mChatId);
+    if (room->isArchived() != checked)
+    {
+        mMegaChatApi->archiveChat(mChatId, checked);
+    }
+    delete room;
 }
 
 void ChatItemWidget::setTitle()

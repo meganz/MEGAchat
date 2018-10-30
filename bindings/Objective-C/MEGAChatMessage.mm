@@ -5,6 +5,7 @@
 
 #import "MEGAChatContainsMeta+init.h"
 #import "MEGANodeList+init.h"
+#import "MEGAHandleList+init.h"
 #import "MEGASdk.h"
 
 using namespace megachat;
@@ -52,13 +53,14 @@ using namespace megachat;
     NSString *base64MessageId = [MEGASdk base64HandleForUserHandle:self.messageId];
     NSString *base64TemporalId = [MEGASdk base64HandleForUserHandle:self.temporalId];
     NSString *base64userHandle = [MEGASdk base64HandleForUserHandle:self.userHandle];
+    NSString *endCallReason = [MEGAChatMessage stringForEndCallReason:self.termCode];
 
 #ifdef DEBUG
-    return [NSString stringWithFormat:@"<%@: messageId=%@, temporalId=%@, status=%@, index=%ld, user handle=%@, type=%@, timestamp=%@, content=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@>",
-            [self class],base64MessageId, base64TemporalId, status,  self.messageIndex, base64userHandle, type, self.timestamp, self.content, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code];
+    return [NSString stringWithFormat:@"<%@: messageId=%@, temporalId=%@, status=%@, index=%ld, user handle=%@, type=%@, timestamp=%@, content=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@, end call reason=%@>",
+            [self class],base64MessageId, base64TemporalId, status,  self.messageIndex, base64userHandle, type, self.timestamp, self.content, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code, endCallReason];
 #else
-    return [NSString stringWithFormat:@"<%@: messageId=%@, temporalId=%@, status=%@, index=%ld, user handle=%@, type=%@, timestamp=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@>",
-            [self class],base64MessageId, base64TemporalId, status,  self.messageIndex, base64userHandle, type, self.timestamp, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code];
+    return [NSString stringWithFormat:@"<%@: messageId=%@, temporalId=%@, status=%@, index=%ld, user handle=%@, type=%@, timestamp=%@, edited=%@, deleted=%@, editable=%@, management message=%@, userHandleOfAction=%lld, privilege=%ld, changes=%@, code=%@, end call reason=%@>",
+            [self class],base64MessageId, base64TemporalId, status,  self.messageIndex, base64userHandle, type, self.timestamp, @(self.edited), @(self.deleted), @(self.editable), @(self.managementMessage), self.userHandleOfAction, (long)self.privilege, changes, code, endCallReason];
 #endif
 }
 
@@ -138,6 +140,18 @@ using namespace megachat;
 
 - (MEGANodeList *)nodeList {
     return self.megaChatMessage ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)handleList {
+    return self.megaChatMessage ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatMessage->getMegaHandleList() cMemoryOwn:YES] : nil;
+}
+
+- (NSInteger)duration {
+    return self.megaChatMessage ? self.megaChatMessage->getDuration() : 0;
+}
+
+- (MEGAChatMessageEndCallReason)termCode {
+    return (MEGAChatMessageEndCallReason) (self.megaChatMessage ? self.megaChatMessage->getTermCode() : 0);
 }
 
 - (uint64_t)rowId {
@@ -251,6 +265,10 @@ using namespace megachat;
             break;
         case MEGAChatMessageTypeContainsMeta:
             result = @"Contains meta";
+            break;
+        case MEGAChatMessageTypeCallEnded:
+            result = @"Call ended";
+            break;
             
         default:
             result = @"Default";
@@ -274,6 +292,32 @@ using namespace megachat;
         case MEGAChatMessageReasonNoWriteAccess:
             result = @"No write access";
             break;
+        default:
+            result = @"Default";
+            break;
+    }
+    return result;
+}
+
++ (NSString *)stringForEndCallReason:(MEGAChatMessageEndCallReason)reason {
+    NSString *result;
+    switch (reason) {
+        case MEGAChatMessageEndCallReasonEnded:
+            result = @"Ended";
+            break;
+        case MEGAChatMessageEndCallReasonRejected:
+            result = @"Rejected";
+            break;
+        case MEGAChatMessageEndCallReasonNoAnswer:
+            result = @"No answer";
+            break;
+        case MEGAChatMessageEndCallReasonFailed:
+            result = @"Failed";
+            break;
+        case MEGAChatMessageEndCallReasonCancelled:
+            result = @"Cancelled";
+            break;
+            
         default:
             result = @"Default";
             break;

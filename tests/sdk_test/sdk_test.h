@@ -68,9 +68,9 @@ private:
             LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
             LOG_debug << "Launching test: " << title; \
-            std::cout << "[" << " RUN    " << "] " << title << endl; \
+            std::cout << "[" << " RUN    " << "] " << title << std::endl; \
             test; \
-            std::cout << "[" << "     OK " << "] " << title << endl; \
+            std::cout << "[" << "     OK " << "] " << title << std::endl; \
             LOG_debug << "Cleaning test environment: " << title; \
             t.TearDown(); \
             t.mOKTests ++; \
@@ -83,7 +83,7 @@ private:
             { \
                 std::cout << e.msg() << std::endl; \
             } \
-            std::cout << "[" << " FAILED " << "] " << title << endl; \
+            std::cout << "[" << " FAILED " << "] " << title << std::endl; \
             LOG_debug << "Cleaning test environment after failure: " << title; \
             t.TearDown(); \
             t.mFailedTests ++; \
@@ -202,6 +202,7 @@ public:
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
+    void TEST_SendRichLink(unsigned int a1, unsigned int a2);
 
     unsigned mOKTests;
     unsigned mFailedTests;
@@ -270,6 +271,7 @@ private:
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool chatArchived[NUM_ACCOUNTS];
 
     std::string mFirstname;
     std::string mLastname;
@@ -390,6 +392,7 @@ public:
     bool chatUpdated[NUM_ACCOUNTS];
     bool userTyping[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
+    bool archiveUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);

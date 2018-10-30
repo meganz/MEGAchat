@@ -8,7 +8,8 @@ typedef NS_ENUM (NSInteger, MEGAChatListItemChangeType) {
     MEGAChatListItemChangeTypeTitle        = 0x10,
     MEGAChatListItemChangeTypeClosed       = 0x20,
     MEGAChatListItemChangeTypeLastMsg      = 0x40,
-    MEGAChatListItemChangeTypeLastTs       = 0x80
+    MEGAChatListItemChangeTypeLastTs       = 0x80,
+    MEGAChatListItemChangeTypeArchived     = 0x100
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatMessageType);

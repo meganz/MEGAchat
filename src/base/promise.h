@@ -158,7 +158,7 @@ public:
 
     inline C*& operator[](int idx)
     {
-        assert((idx >= 0) && (idx < items.size()));
+        assert((idx >= 0) && (idx < (int)items.size()));
         return items[idx];
     }
     inline const C*& operator[](int idx) const
@@ -323,13 +323,13 @@ protected:
         static Promise<Out> call(CB& cb, const In& val) {  return cb(val);  }
 
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && !std::is_same<CbOut, void>::value, int>::type>
-        static Promise<Out> call(CB& cb, const _Void& val) {  return cb();   }
+        static Promise<Out> call(CB& cb, const _Void& /*val*/) {  return cb();   }
 
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
         static Promise<void> call(CB& cb, const In& val){ cb(val); return _Void(); }
 
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
-        static Promise<void> call(CB& cb, const _Void& val) { cb(); return _Void(); }
+        static Promise<void> call(CB& cb, const _Void& /*val*/) { cb(); return _Void(); }
     };
 //===
     void reset(SharedObj* other=NULL)

@@ -7,9 +7,10 @@
 #include <base/promise.h>
 #include <base/timers.hpp>
 #include <karereId.h>
-#include "url.h"
+#include <url.h>
 #include <base/trackDelete.h>
-#include "net/websocketsIO.h"
+#include <net/websocketsIO.h>
+#include <base/retryHandler.h>
 
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
@@ -41,6 +42,7 @@ public:
         kInvalid = 0xff,
         kFlagsMask = 0xf0
     };
+
     Presence(Code pres = kInvalid): mPres(pres){}
     Code code() const { return mPres & ~kFlagsMask; }
     Code status() const { return code(); }
@@ -51,6 +53,7 @@ public:
     const char* toString() const { return toString(mPres); }
     bool canWebRtc() { return mPres & kClientCanWebrtc; }
     bool isMobile() { return mPres & kClientIsMobile; }
+
 protected:
     Code mPres;
 };
@@ -73,11 +76,6 @@ inline const char* Presence::toString(Code pres)
 namespace presenced
 {
 enum { kKeepaliveSendInterval = 25, kKeepaliveReplyTimeout = 15 };
-enum: karere::Presence::Code
-{
-    kPresFlagsMask = 0xf0,
-    kPresFlagInProgress = 0x10 // used internally
-};
 enum: uint8_t
 {
     /**
@@ -114,7 +112,7 @@ enum: uint8_t
     OP_USERACTIVE = 3,
 
     /**
-      * @brief
+      * @brief (Deprecated)
       * C->S
       * Client must send all of the peers it wants to see its status when the connection is
       * (re-)established. This command is sent after OP_HELLO and every time the user wants
@@ -124,15 +122,15 @@ enum: uint8_t
       */
     OP_ADDPEERS = 4,
 
-    /**
-      * @brief
-      * C->S
-      * This command is sent when the client doesn't want to know the status of a peer or a contact
-      * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
-      * in any groupchat any longer.
-      *
-      * <1> <peerHandle>
-      */
+     /**
+     * @brief (Deprecated)
+     * C->S
+     * This command is sent when the client doesn't want a peer to see its status
+     * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+     * in any groupchat any longer.
+     *
+     * <1> <peerHandle>
+     */
     OP_DELPEERS = 5,
 
     /**
@@ -163,15 +161,63 @@ enum: uint8_t
       *     bits 0-1: user status config (offline, away, online, do-not-disturb)
       *     bit 2: override active (presenced uses the configured status if this is set)
       *     bit 3: timeout active (ignored by presenced, relevant for clients)
-      *     bits 4-15 timeout (pseudo floating point, calculated as:
+      *     bits 4-14 timeout (pseudo floating point, calculated as:
       *
       *         autoawaytimeout = prefs >> 4;
       *         if (autoawaytimeout > 600)
       *         {
       *             autoawaytimeout = (autoawaytimeout - 600) * 60 + 600;
       *         }
+      *
+      *     bit 15: flag to enable/disable visibility of last-green timestamp
       */
-    OP_PREFS = 7
+    OP_PREFS = 7,
+
+    /**
+      * @brief
+      * C->S
+      * Client must send all of the peers it wants to see its status when the connection is
+      * (re-)established. This command is sent after OP_HELLO and every time the user wants
+      * to subscribe to the status of a new peer or contact.
+      *
+     * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+     * between different clients sending outdated list of users. If presenced receives an outdated
+     * list, the command will be discarded.
+     *
+      * <sn.8> <numberOfPeers.4> <peerHandle1.8>...<peerHandleN.8>
+      */
+    OP_SNADDPEERS = 8,
+
+     /**
+     * @brief
+     * C->S
+     * This command is sent when the client doesn't want a peer to see its status
+     * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+     * in any groupchat any longer.
+     *
+     * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+     * between different clients sending outdated list of users. If presenced receives an outdated
+     * list, the command will be discarded.
+     *
+     * <sn.8> <1.4> <peerHandle.8>
+     */
+    OP_SNDELPEERS = 9,
+
+    /**
+    * @brief
+    * C->S
+    * This command is sent when the client wants to know the last time that a user has been green
+    *
+    * <peerHandle.8>
+    *
+    * S->C
+    * This command is sent by server as answer of a previous request from the client.
+    * There will be no reply if the user was not ever seen by presenced
+    * Maximun time value is 65535 minutes
+    *
+    * <peerHandle.8><minutes.2>
+    */
+   OP_LASTGREEN = 10
 };
 
 class Config
@@ -181,19 +227,28 @@ protected:
     bool mPersist = false;
     bool mAutoawayActive = false;
     time_t mAutoawayTimeout = 0;
+    bool mLastGreenVisible = false;
+
 public:
+    enum { kMaxAutoawayTimeout = 87420 };   // (in seconds, 1.447 minutes + 600 seconds)
+    enum { kLastGreenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
+
     Config(karere::Presence pres=karere::Presence::kInvalid,
-          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600)
-        :mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
-          mAutoawayTimeout(aaTimeout){}
+          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool lastGreenVisible = false)
+        : mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
+          mAutoawayTimeout(aaTimeout), mLastGreenVisible(lastGreenVisible){}
     explicit Config(uint16_t code) { fromCode(code); }
+
     karere::Presence presence() const { return mPresence; }
     bool persist() const { return mPersist; }
     bool autoawayActive() const { return mAutoawayActive; }
     time_t autoawayTimeout() const { return mAutoawayTimeout; }
+    bool lastGreenVisible() const { return mLastGreenVisible;}
+
     void fromCode(uint16_t code);
     uint16_t toCode() const;
     std::string toString() const;
+
     friend class Client;
 };
 
@@ -254,13 +309,15 @@ protected:
     ConnState mConnState = kConnNew;
     Listener* mListener;
     karere::Client *karereClient;
-    karere::Url mUrl;
     MyMegaApi *mApi;
     bool mHeartbeatEnabled = false;
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
     promise::Promise<void> mConnectPromise;
-    promise::Promise<void> mLoginPromise;
     uint8_t mCapabilities;
-    bool usingipv6;
+    karere::Url mUrl;
+    bool usingipv6; // ip version to try first (both are tried)
+    std::string mTargetIp;
+    DNScache &mDNScache;
     karere::Id mMyHandle;
     Config mConfig;
     bool mLastSentUserActive = false;
@@ -270,16 +327,15 @@ protected:
     time_t mTsLastSend = 0;
     bool mPrefsAckWait = false;
     IdRefMap mCurrentPeers;
-    void initWebsocketCtx();
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
-    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
+    virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t /*preason_len*/);
     virtual void wsHandleMsgCb(char *data, size_t len);
     
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect(const std::string& url=std::string());
-    void notifyLoggedIn();
+    void abortRetryController();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
     bool sendCommand(const Command& cmd);
@@ -294,6 +350,7 @@ protected:
     void configChanged();
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
+    void updatePeers(const std::vector<karere::Id> &peers, bool addOrRemove);
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
@@ -302,6 +359,9 @@ public:
     bool isOnline() const { return (mConnState >= kConnected); }
     bool setPresence(karere::Presence pres);
     bool setPersist(bool enable);
+    bool setLastGreenVisible(bool enable);
+    bool requestLastGreen(karere::Id userid);
+
 
     /** @brief Enables or disables autoaway
      * @param timeout The timeout in seconds after which the presence will be
@@ -312,7 +372,8 @@ public:
     connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
         const Config& Config);
     void disconnect();
-    promise::Promise<void> retryPendingConnection();
+    void doConnect();
+    void retryPendingConnection(bool disconnect);
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
@@ -330,6 +391,7 @@ public:
     virtual void onConnStateChange(Client::ConnState state) = 0;
     virtual void onPresenceChange(karere::Id userid, karere::Presence pres) = 0;
     virtual void onPresenceConfigChanged(const Config& Config, bool pending) = 0;
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
     virtual void onDestroy(){}
 };
 
@@ -344,6 +406,9 @@ inline const char* Command::opcodeToStr(uint8_t opcode)
         case OP_HELLO: return "HELLO";
         case OP_ADDPEERS: return "ADDPEERS";
         case OP_DELPEERS: return "DELPEERS";
+        case OP_SNADDPEERS: return "SNADDPEERS";
+        case OP_SNDELPEERS: return "SNDELPEERS";
+        case OP_LASTGREEN: return "LASTGREEN";
         default: return "(invalid)";
     }
 }

@@ -446,7 +446,7 @@ public:
             for (const auto& item: mRoom.peers())
             {
                 auto& peer = *item.second;
-                const std::string* email = mRoom.parent.client.contactList->getUserEmail(item.first);
+                const std::string* email = mRoom.parent.mKarereClient.contactList->getUserEmail(item.first);
                 auto line = QString(" %1 (%2, %3): priv %4\n").arg(QString(peer.name().c_str()+1))
                         .arg(email?QString::fromStdString(*email):tr("(email unknown)"))
                         .arg(QString::fromStdString(karere::Id(item.first).toString()))

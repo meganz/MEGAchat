@@ -28,6 +28,7 @@
 		A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8AA1F979CDC0075646F /* MEGAChatCall.mm */; };
 		A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */; };
 		A835A8B61F97AE240075646F /* DelegateMEGAChatVideoListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */; };
+		A8373880213019CA0014328D /* DelegateMEGAChatNotificationListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */; };
 		A838B20A1E9685A200875D96 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2051E9685A200875D96 /* logger.cpp */; };
 		A838B2211E9685F000875D96 /* strongvelope.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A838B2201E9685F000875D96 /* strongvelope.cpp */; };
 		A83D5BF41F974AF900A038F7 /* rtcStats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A83D5BF11F974AF900A038F7 /* rtcStats.cpp */; };
@@ -179,6 +180,9 @@
 		A835A8B21F97A74B0075646F /* DelegateMEGAChatCallListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatCallListener.mm; path = Private/DelegateMEGAChatCallListener.mm; sourceTree = "<group>"; };
 		A835A8B41F97AE240075646F /* DelegateMEGAChatVideoListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatVideoListener.h; path = Private/DelegateMEGAChatVideoListener.h; sourceTree = "<group>"; };
 		A835A8B51F97AE240075646F /* DelegateMEGAChatVideoListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatVideoListener.mm; path = Private/DelegateMEGAChatVideoListener.mm; sourceTree = "<group>"; };
+		A837387A213018CB0014328D /* MEGAChatNotificationDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatNotificationDelegate.h; sourceTree = "<group>"; };
+		A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatNotificationListener.mm; path = Private/DelegateMEGAChatNotificationListener.mm; sourceTree = "<group>"; };
+		A837387F213019CA0014328D /* DelegateMEGAChatNotificationListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatNotificationListener.h; path = Private/DelegateMEGAChatNotificationListener.h; sourceTree = "<group>"; };
 		A838B1F81E96855400875D96 /* libKarere.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKarere.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		A838B2051E9685A200875D96 /* logger.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = logger.cpp; path = ../../src/base/logger.cpp; sourceTree = "<group>"; };
 		A838B2201E9685F000875D96 /* strongvelope.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = strongvelope.cpp; path = ../../src/strongvelope/strongvelope.cpp; sourceTree = "<group>"; };
@@ -361,6 +365,8 @@
 				A835A8AC1F979EE30075646F /* MEGAChatCall+init.h */,
 				77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */,
 				77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */,
+				A837387F213019CA0014328D /* DelegateMEGAChatNotificationListener.h */,
+				A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */,
 			);
 			name = private;
 			sourceTree = "<group>";
@@ -401,6 +407,7 @@
 				77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */,
 				77875CDB2097A80700B8340F /* MEGAChatRichPreview.h */,
 				77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */,
+				A837387A213018CB0014328D /* MEGAChatNotificationDelegate.h */,
 			);
 			name = binding;
 			sourceTree = "<group>";
@@ -560,6 +567,7 @@
 				A879F3C01F96683A007C5394 /* base64url.cpp in Sources */,
 				77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */,
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
+				A8373880213019CA0014328D /* DelegateMEGAChatNotificationListener.mm in Sources */,
 				77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */,
 				A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */,
 				A879F3C21F96683A007C5394 /* presenced.cpp in Sources */,

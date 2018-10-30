@@ -507,7 +507,7 @@ void CListChatItem::truncateChat()
     auto& thisroom = room();
     if (thisroom.chat().empty())
         return;
-    thisroom.parent.client.api.call(
+    thisroom.parent.mKarereClient.api.call(
         &::mega::MegaApi::truncateChat,
         thisroom.chatid(),
         thisroom.chat().at(thisroom.chat().highnum()).id().val);
