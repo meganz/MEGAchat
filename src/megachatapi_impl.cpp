@@ -5280,13 +5280,7 @@ void MegaChatRoomHandler::onPreviewersUpdate()
     {
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onPreviewersUpdate();
-
-        if (mChat)
-        {
-            MegaChatRoomPrivate *chatroom = new MegaChatRoomPrivate(*mRoom);
-            chatroom->setNumPreviewers(mRoom->getNumPreviewers());
-            fireOnChatRoomUpdate(chatroom);
-        }
+        onPreviewersCountUpdate(mChat->getNumPreviewers());
     }
 }
 

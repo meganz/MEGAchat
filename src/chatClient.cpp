@@ -3017,16 +3017,10 @@ void ChatRoom::onUnreadChanged()
 
 void ChatRoom::onPreviewersUpdate()
 {
-    auto numPreviewers = mChat->getNumPreviewers();
-
     IApp::IChatListItem *room = roomGui();
     if (room)
     {
-        room->onPreviewersCountUpdate(numPreviewers);
-    }
-    if (mAppChatHandler)
-    {
-        mAppChatHandler->onPreviewersCountUpdate(numPreviewers);
+        room->onPreviewersCountUpdate(mChat->getNumPreviewers());
     }
 }
 
