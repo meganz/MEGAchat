@@ -1254,6 +1254,12 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 {
     app.onPresenceConfigChanged(state, pending);
 }
+
+void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+{
+    app.onPresenceLastGreenUpdated(userid, lastGreen);
+}
+
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 

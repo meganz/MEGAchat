@@ -38,5 +38,6 @@ private slots:
     void onCreateGroupChat();
     void onCreatePeerChat();
     void onContactRemove();
+    void onRequestLastGreen();
 };
 #endif // CONTACITEMWIDGET_H

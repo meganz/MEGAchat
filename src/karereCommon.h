@@ -149,7 +149,9 @@ enum: uint8_t
     /** Client has webrtc capabilities */
     kClientCanWebrtc = 0x80,
     /** Client is a mobile application */
-    kClientIsMobile = 0x40
+    kClientIsMobile = 0x40,
+    /** Client can use bit 15 from preferences to handle last-green's visibility */
+    kClientSupportLastGreen = 0x20
 };
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql

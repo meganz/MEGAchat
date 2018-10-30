@@ -268,6 +268,16 @@ void MegaChatApi::setPresencePersist(bool enable, MegaChatRequestListener *liste
     pImpl->setPresencePersist(enable, listener);
 }
 
+void MegaChatApi::setLastGreenVisible(bool enable, MegaChatRequestListener *listener)
+{
+    pImpl->setLastGreenVisible(enable, listener);
+}
+
+void MegaChatApi::requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener)
+{
+    pImpl->requestLastGreen(userid, listener);
+}
+
 void MegaChatApi::signalPresenceActivity(MegaChatRequestListener *listener)
 {
     pImpl->signalPresenceActivity(listener);
@@ -276,6 +286,11 @@ void MegaChatApi::signalPresenceActivity(MegaChatRequestListener *listener)
 int MegaChatApi::getOnlineStatus()
 {
     return pImpl->getOnlineStatus();
+}
+
+bool MegaChatApi::isOnlineStatusPending()
+{
+    return pImpl->isOnlineStatusPending();
 }
 
 MegaChatPresenceConfig *MegaChatApi::getPresenceConfig()
@@ -1106,6 +1121,11 @@ void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi */*api*/, MegaCha
 
 }
 
+void MegaChatListener::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle /*userhandle*/, int /*lastGreen*/)
+{
+
+}
+
 MegaChatListItem *MegaChatListItem::copy() const
 {
     return NULL;
@@ -1468,6 +1488,11 @@ bool MegaChatPresenceConfig::isPending() const
 }
 
 bool MegaChatPresenceConfig::isSignalActivityRequired() const
+{
+    return false;
+}
+
+bool MegaChatPresenceConfig::isLastGreenVisible() const
 {
     return false;
 }
