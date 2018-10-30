@@ -69,7 +69,7 @@ void CallGui::connectPeerCallGui()
     }
 }
 
-MegaChatHandle CallGui::getPeer()
+MegaChatHandle CallGui::getPeer() const
 {
     return mPeerid;
 }

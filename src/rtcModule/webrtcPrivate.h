@@ -271,6 +271,7 @@ public:
     virtual void hangupAll(TermCode reason);
 //==
     virtual ~RtcModule() {}
+    void retryCall(karere::Id chatid, karere::AvFlags av);
 protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;
@@ -280,6 +281,7 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, ICallHandler *> mCallHandlers;
+    std::map<karere::Id, karere::AvFlags> mRetryCall;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);

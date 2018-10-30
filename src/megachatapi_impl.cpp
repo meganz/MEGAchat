@@ -6654,9 +6654,16 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
     }
     else
     {
-        chatCall->setStatus(call->state());
-        chatCall->setLocalAudioVideoFlags(call->sentAv());
-        assert(chatCall->getId() == call->id());
+        if (chatCall->getId() != call->id())
+        {
+            delete chatCall;
+            chatCall = new MegaChatCallPrivate(*call);
+        }
+        else
+        {
+            chatCall->setStatus(call->state());
+            chatCall->setLocalAudioVideoFlags(call->sentAv());
+        }
     }
 }
 

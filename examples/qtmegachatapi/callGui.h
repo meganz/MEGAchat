@@ -48,7 +48,7 @@ class CallGui: public QWidget
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
         virtual void onLocalMediaError(const std::string err);
         virtual void onVideoRecv();
-        MegaChatHandle getPeer();
+        MegaChatHandle getPeer() const;
 
     friend class RemoteCallListener;
     friend class LocalCallListener;

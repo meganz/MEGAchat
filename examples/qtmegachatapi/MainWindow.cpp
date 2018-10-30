@@ -181,11 +181,24 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 std::set<CallGui *> *setOfCallGui = auxChatWindow->getCallGui();
 
+                bool hasOwnCallGui = false;
                 if (setOfCallGui->size() != 0)
                 {
-                    auxChatWindow->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
+                    for (auto it = setOfCallGui->begin(); it != setOfCallGui->end(); it++)
+                    {
+                        if ((*it)->getPeer() == mMegaChatApi->getMyUserHandle())
+                        {
+                            hasOwnCallGui = true;
+                        }
+                    }
                 }
 
+                if (!hasOwnCallGui)
+                {
+                    auxChatWindow->createCallGui(call->hasLocalVideo(), mMegaChatApi->getMyUserHandle());
+                }
+
+                auxChatWindow->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
                 break;
             }
         }
