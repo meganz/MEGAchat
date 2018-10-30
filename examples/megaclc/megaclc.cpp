@@ -648,7 +648,6 @@ void exec_login(ac::ACState& s)
 {
     if (!g_megaApi->isLoggedIn())
     {
-        byte session[64];
         bool hasemail = s.words[1].s.find_first_of('@') != string::npos;
         if (s.words.size() == 3 && hasemail)
         {
@@ -675,7 +674,7 @@ void exec_login(ac::ACState& s)
             }
             conlock(cout) << "Failed to get a valid session id from file " << filename << endl;
         }
-        else if (s.words.size() == 2 && s.words[1].s.size() < sizeof session * 4 / 3)
+        else if (s.words.size() == 2 && s.words[1].s.size() < 64 * 4 / 3)
         {
             {
                 conlock(cout) << "Resuming session..." << endl;
@@ -1518,7 +1517,7 @@ static void process_line(const char* l)
         try
         {
             std::string consoleOutput;
-            ac::autoExec(string(l), string::npos, autocompleteTemplate, false, consoleOutput); // todo: pass correct unixCompletions flag
+            ac::autoExec(string(l), string::npos, autocompleteTemplate, false, consoleOutput, true); // todo: pass correct unixCompletions flag
             if (!consoleOutput.empty())
             {
                 conlock(cout) << consoleOutput << flush;
@@ -1684,7 +1683,7 @@ int main()
 
     string basePath = getenv("USERPROFILE");
     basePath += "\\MEGAclc";
-    std::experimental::filesystem::create_directory(basePath);
+    std::filesystem::create_directory(basePath);
 
     g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
