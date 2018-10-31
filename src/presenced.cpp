@@ -346,6 +346,12 @@ bool Client::sendKeepalive(time_t now)
 
 void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
 {
+    if (addOrRemove && peers.empty())
+    {
+        PRESENCED_LOG_DEBUG("updatePeers: no peers to allow to see the presence status");
+        return;
+    }
+
     assert(peers.size());
     const char *buf = mApi->sdk.getSequenceNumber();
     Id scsn(buf, strlen(buf));
