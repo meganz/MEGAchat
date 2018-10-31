@@ -95,6 +95,7 @@ class MainWindow :
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
+        void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int lastGreen);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
         void updateToolTipMyInfo(megachat::MegaChatHandle myHandle);
         void activeControls(bool active);
@@ -142,6 +143,7 @@ class MainWindow :
         void onTwoFactorDisable();
         void onTwoFactorCheck();
         void onPrintMyInfo();
+        void onlastGreenVisibleClicked();
         void closeEvent(QCloseEvent *event);
 
     signals:

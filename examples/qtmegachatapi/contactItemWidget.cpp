@@ -61,6 +61,9 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     auto printAction = menu.addAction(tr("Print contact info"));
     connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
 
+    auto lastGreenAction = menu.addAction(tr("Last time user was online"));
+    connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
+
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -175,6 +178,11 @@ void ContactItemWidget::onContactRemove()
     mMegaApi->removeContact(contact);
     delete email;
     delete contact;
+}
+
+void ContactItemWidget::onRequestLastGreen()
+{
+    mMegaChatApi->requestLastGreen(mUserHandle);
 }
 
 void ContactItemWidget::updateTitle(const char * firstname)

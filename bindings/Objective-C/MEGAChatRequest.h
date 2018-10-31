@@ -37,6 +37,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeChatLinkHandle,
     MEGAChatRequestTypeSetPrivateMode,
     MEGAChatRequestTypeAutojoinPublicChat
+    MEGAChatRequestTypeSetLastGreenVisible,
+    MEGAChatRequestTypeSetLastGreen
 };
 
 enum {

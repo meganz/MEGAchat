@@ -63,4 +63,8 @@ using namespace megachat;
     return self.megaChatPresenceConfig ? self.megaChatPresenceConfig->isSignalActivityRequired() : NO;
 }
 
+- (BOOL)isLastGreenVisible {
+    return self.megaChatPresenceConfig ? self.megaChatPresenceConfig->isLastGreenVisible() : NO;
+}
+
 @end

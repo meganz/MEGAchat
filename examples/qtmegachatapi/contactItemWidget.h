@@ -23,6 +23,7 @@ class ContactItemWidget : public QWidget
         void updateTitle(const char *firstname);
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
+        void createChatRoom(megachat::MegaChatHandle uh, bool isGroup, bool isPublic);
 
     private:
         Ui::ChatItem *ui;
@@ -32,13 +33,12 @@ class ContactItemWidget : public QWidget
         QListWidgetItem *mListWidgetItem;
         MainWindow *mMainWin;
 
-        void createChatRoom(megachat::MegaChatHandle uh, bool isGroup, bool isPublic);
-
     private slots:
         void onPrintContactInfo();
         void onCreatePeerChat();
         void onCreateGroupChat();
         void onCreatePublicGroupChat();
         void onContactRemove();
+        void onRequestLastGreen();
 };
 #endif // CONTACITEMWIDGET_H

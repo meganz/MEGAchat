@@ -74,6 +74,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) MEGAChatListItemList *inactiveChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *archivedChatListItems;
 @property (nonatomic, readonly, getter=areAllChatsLoggedIn) BOOL allChatsLoggedIn;
+@property (nonatomic, readonly, getter=isOnlineStatusPending) BOOL onlineStatusPending;
 
 #pragma mark - Init
 
@@ -111,6 +112,10 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout;
 - (void)setPresencePersist:(BOOL)enable;
+- (void)setLastGreenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setLastGreenVisible:(BOOL)enable;
+- (void)requestLastGreen:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)requestLastGreen:(uint64_t)userHandle;
 - (BOOL)isSignalActivityRequired;
 - (void)signalPresenceActivity;
 - (MEGAChatPresenceConfig *)presenceConfig;

@@ -139,7 +139,7 @@ using namespace megachat;
 }
 
 - (MEGANodeList *)nodeList {
-    return self.megaChatMessage ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatMessage->getMegaNodeList() ? [[MEGANodeList alloc] initWithNodeList:self.megaChatMessage->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
 }
 
 - (MEGAHandleList *)handleList {
@@ -159,7 +159,7 @@ using namespace megachat;
 }
 
 - (MEGAChatContainsMeta *)containsMeta {
-    return self.megaChatMessage ? [[MEGAChatContainsMeta alloc] initWithMegaChatContainsMeta:self.megaChatMessage->getContainsMeta()->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatMessage->getContainsMeta() ? [[MEGAChatContainsMeta alloc] initWithMegaChatContainsMeta:self.megaChatMessage->getContainsMeta()->copy() cMemoryOwn:YES] : nil;
 }
 
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType {
