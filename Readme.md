@@ -102,7 +102,7 @@ Version 2.0.x will **not** work, you need at least 2.1.x. You may need to build 
  - `Webrtc` - Needed by MegaSDK and MEGAchat.  
 
 
-### Python version ###
+### Python version (deprecated) ###
 Since the Chromium build system (at least the curent revision) relies heavily
 on python, and it assumes the python version is 2.7, the `python` command must
 map to python2 instead of python3. This may not be true on more recent systems.
