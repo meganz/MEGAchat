@@ -86,6 +86,10 @@ Change directory to the root of the MEGAchat checkout
 
 *NOTE: `[withExamples]` option will build the example QTapp to test MEGAchat
 
+Now you're ready. Open `<MEGAchat>/contrib/qt/MEGAchat.pro` in QtCreator and hit `Build` button.
+
+You may need to change the "Build directory" in the project setting to `<MEGAchat>/build` if building complains about files not found.
+
 ### List of dependencies
  - `cmake` and `ccmake` 
  * Windows
