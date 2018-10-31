@@ -43,7 +43,7 @@ Checkout the MEGAchat repository:
 
  - `git clone --recursive https://github.com/meganz/MEGAchat.git`    
 
-The Megachat sources are at MEGAchat_repository_dir/src
+The Megachat sources are at `MEGAchat_repository_dir/src`
 
 *NOTE the `--recursive` switch - the repository contains git submodules that need to be checked out as well.
 
@@ -77,12 +77,12 @@ Change directory to the root of the MEGAchat checkout
 
 ## Automated build system ##
 
-To build MEGAchat, you can do it with an automated script **build_with_webrtc.sh**.   
+To build MEGAchat, you can do it with an automated script `build_with_webrtc.sh`.   
 Change directory to the root of the MEGAchat checkout  
 
- - `cd ./third-party/mega/bindings/qt/`  
+ - `cd ./third-party/mega/bindings/qt/` (This step is neccesary to set the right current path for the script)  
 
- - `The sintax to invoke the script is:` **build_with_webrtc.sh <all | clean> [withExamples]**
+ - The sintax to invoke the script is: `build_with_webrtc.sh <all | clean> [withExamples]`
 
 *NOTE: `[withExamples]` option will build the example QTapp to test MEGAchat
 
@@ -128,6 +128,7 @@ Change directory to the root of the MEGAchat checkout
  - `make`    
 
 Once the compilation has finished we can find the QTapp binary in
+
  - `./build/MEGAChatQt/megachat`
 
 ## Building the Doxygen documentation ##
