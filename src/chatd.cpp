@@ -1043,7 +1043,6 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
     }
     else //have to fetch history from server
     {
-        mServerOldHistCbEnabled = true;
         if (mHaveAllHistory)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: No more history exists");
@@ -1068,6 +1067,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
                 requestHistoryFromServer(-count);
             }, mClient.karereClient->appCtx);
         }
+        mServerOldHistCbEnabled = true;
         return kHistSourceServer;
     }
 }
@@ -1361,7 +1361,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 else if (op == OP_RANGE && reason == 1)
                 {
                     chat.clearHistory();
-                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
+                    // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
+                    chat.mServerOldHistCbEnabled = mChatdClient.karereClient->isChatRoomOpened(chatid);
+                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount);
                 }
                 else if (op == OP_NEWKEY)
                 {
@@ -1753,7 +1755,6 @@ void Chat::clearHistory()
     initChat();
     CALL_DB(clearHistory);
     CALL_CRYPTO(onHistoryReload);
-    mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
 }
 
@@ -3644,14 +3645,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         // old message
         // local messages are obtained on-demand, so if isLocal,
         // then always send to app
-        bool isChatRoomOpened = false;
-
-        auto it = mClient.karereClient->chats->find(mChatId);
-        if (it != mClient.karereClient->chats->end())
-        {
-            isChatRoomOpened = it->second->hasChatHandler();
-        }
-
+        bool isChatRoomOpened = mClient.karereClient->isChatRoomOpened(mChatId);
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
