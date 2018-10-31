@@ -165,6 +165,7 @@ void ChatMessage::updateContent()
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                ui->bSettings->show();
                 text.clear();
                 break;
             }
@@ -426,13 +427,13 @@ void ChatMessage::onMessageRemoveLinkAction()
     megaChatApi->removeRichLink(mChatId, mMessage->getMsgId());
 }
 
-void ChatMessage::cancelMsgEdit(bool clicked)
+void ChatMessage::cancelMsgEdit(bool /*clicked*/)
 {
     clearEdit();
     mChatWindow->ui->mMessageEdit->setText(QString());
 }
 
-void ChatMessage::saveMsgEdit(bool clicked)
+void ChatMessage::saveMsgEdit(bool /*clicked*/)
 {
     std::string editedMsg = mChatWindow->ui->mMessageEdit->toPlainText().toStdString();
     std::string previousContent = mMessage->getContent();
@@ -554,5 +555,49 @@ void ChatMessage::onDiscardManualSending()
    mChatWindow->eraseChatMessage(mMessage, true);
 }
 
+void ChatMessage::on_bSettings_clicked()
+{
+    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        return;
+    }
 
+    QMenu menu(this);
+    menu.setAttribute(Qt::WA_DeleteOnClose);
+    switch (mMessage->getType())
+    {
+        case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
+        {
+            mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+            for(int i = 0; i < nodeList->size(); i++)
+            {
+                QString text("Download \"");
+                text.append(nodeList->get(i)->getName()).append("\"");
+                auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    QPoint pos = ui->bSettings->pos();
+    pos.setX(pos.x() + ui->bSettings->width());
+    pos.setY(pos.y() + ui->bSettings->height());
+    menu.exec(mapToGlobal(pos));
+}
 
+void ChatMessage::onNodeDownload(mega::MegaNode *node)
+{
+    std::string target(mChatWindow->mMegaChatApi->getAppDir());
+    target.append("/").append(node->getName());
+
+    QMessageBox msgBoxAns;
+    std::string message("Node will be saved in "+target+".\nDo you want to continue?");
+    msgBoxAns.setText(message.c_str());
+    msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+    if (msgBoxAns.exec() == QMessageBox::Ok)
+    {
+        mChatWindow->mMegaApi->startDownload(node, target.c_str());
+    }
+}

@@ -266,7 +266,7 @@ bool Client::areAllChatsLoggedIn()
 
     if (allConnected)
     {
-        CHATD_LOG_DEBUG("We are now logged in to all chats");
+        CHATD_LOG_DEBUG("We are logged in to all chats");
     }
 
     return allConnected;
@@ -1001,10 +1001,9 @@ HistSource Chat::getHistory(unsigned count)
                 auto& msg = at(i);
                 if (msg.isPendingToDecrypt())
                 {
-                    assert(false);
                     CHATID_LOG_WARNING("Skipping the load of a message still encrypted. "
                                        "msgid: %s idx: %d", ID_CSTR(msg.id()), i);
-                    continue;
+                    break;
                 }
 
                 CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
@@ -2235,7 +2234,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         assert(keyCmd->localKeyid() == msg->keyid);
         assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
 
-        SendingItem item = mSending.front();
+        SendingItem &item = mSending.front();
         item.msgCmd = msgCmd;
         item.keyCmd = keyCmd;
         CALL_DB(addBlobsToSendingItem, rowid, item.msgCmd, item.keyCmd, msg->keyid);

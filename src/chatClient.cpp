@@ -676,7 +676,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
-        bool loggedOut = (errorCode == ::mega::MegaError::API_OK && request->getFlag());    // SDK has been logged out normally closing session
+        bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
+                          && request->getFlag());    // SDK has been logged out normally closing session
+
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
             KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
@@ -1201,7 +1203,10 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
         for (auto& peer: members)
         {
-            peers.insert(peer.first);
+            if (!contactList->isExContact(peer.first))
+            {
+                peers.insert(peer.first);
+            }
         }
     }
 
@@ -1786,7 +1791,12 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
 
         if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
-            parent.mKarereClient.presenced().addPeer(userid);
+        {
+            if (!parent.mKarereClient.contactList->isExContact(userid))
+            {
+                parent.mKarereClient.presenced().addPeer(userid);
+            }
+        }
     }
     if (saveToDb)
     {
@@ -2165,6 +2175,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         if (mTitleString == title)
         {
             KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
+            return;
         }
         else
         {
@@ -2194,15 +2205,15 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
-    mTitleString.clear();
+    std::string newTitle;
     if (mPeers.empty())
     {
         time_t ts = mCreationTs;
         const struct tm *time = localtime(&ts);
         char date[18];
         strftime(date, sizeof(date), "%Y-%m-%d %H:%M", time);
-        mTitleString = "Chat created on ";
-        mTitleString.append(date);
+        newTitle = "Chat created on ";
+        newTitle.append(date);
     }
     else
     {
@@ -2215,18 +2226,25 @@ void GroupChatRoom::makeTitleFromMemberNames()
             {
                 auto& email = m.second->mEmail;
                 if (!email.empty())
-                    mTitleString.append(email).append(", ");
+                    newTitle.append(email).append(", ");
                 else
-                    mTitleString.append("..., ");
+                    newTitle.append("..., ");
             }
             else
             {
-                mTitleString.append(name.substr(1)).append(", ");
+                newTitle.append(name.substr(1)).append(", ");
             }
         }
-        mTitleString.resize(mTitleString.size()-2); //truncate last ", "
+        newTitle.resize(newTitle.size()-2); //truncate last ", "
     }
-    assert(!mTitleString.empty());
+    assert(!newTitle.empty());
+    if (newTitle == mTitleString)
+    {
+        KR_LOG_DEBUG("makeTitleFromMemberNames: same title than existing one, skipping update");
+        return;
+    }
+
+    mTitleString = newTitle;
     notifyTitleChanged();
 }
 
@@ -2828,14 +2846,7 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 
     auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-    {
-        if (!mChatRoom)
-        {
-            client.presenced().removePeer(mUserid);
-        }
-    }
-    else if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
     {
         client.presenced().removePeer(mUserid, true);
     }
@@ -2944,6 +2955,17 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     if (it == end())
         return nullptr;
     return &(it->second->email());
+}
+
+bool ContactList::isExContact(Id userid)
+{
+    auto it = find(userid);
+    if (it == end() || (it != end() && it->second->visibility() != mega::MegaUser::VISIBILITY_HIDDEN))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 Contact* ContactList::contactFromEmail(const std::string &email) const
