@@ -206,7 +206,7 @@ void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pe
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[state.presence().status()]));
 }
 
-void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen)
+void onPresenceLastGreenUpdated(karere::Id /*userid*/, uint16_t /*lastGreen*/)
 {
 }
 
