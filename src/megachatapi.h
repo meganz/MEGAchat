@@ -4491,8 +4491,7 @@ public:
     virtual const char *getAuthorizationToken() const;
 
     /**
-     * @brief getTitle Returns the title of the chat, if any.
-     * @brief Returns the title of the chat
+     * @brief Returns the title of the chat, if any.
      *
      * In case the chatroom has not a customized title, it will be created using the
      * names of participants.

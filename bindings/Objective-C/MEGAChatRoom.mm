@@ -81,6 +81,16 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isPreview() : NO;
 }
 
+- (NSString *)authorizationToken {
+    const char *val = self.megaChatRoom->getAuthorizationToken();
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
+}
+
 - (NSString *)title {
     if (!self.megaChatRoom) return nil;
     const char *ret = self.megaChatRoom->getTitle();
