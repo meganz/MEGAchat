@@ -117,6 +117,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
+    sdkMutex.lock();
     while (true)
     {
         sdkMutex.unlock();

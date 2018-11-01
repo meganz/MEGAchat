@@ -1085,23 +1085,23 @@ int MegaChatPeerList::size() const
 }
 
 
-void MegaChatVideoListener::onChatVideoData(MegaChatApi */*api*/, MegaChatHandle /*chatid*/, int /*width*/, int /*height*/, char */*buffer*/, size_t /*size*/)
+void MegaChatVideoListener::onChatVideoData(MegaChatApi * /*api*/, MegaChatHandle /*chatid*/, int /*width*/, int /*height*/, char * /*buffer*/, size_t /*size*/)
 {
 
 }
 
 
-void MegaChatCallListener::onChatCallUpdate(MegaChatApi */*api*/, MegaChatCall */*call*/)
+void MegaChatCallListener::onChatCallUpdate(MegaChatApi * /*api*/, MegaChatCall * /*call*/)
 {
 
 }
 
-void MegaChatListener::onChatListItemUpdate(MegaChatApi */*api*/, MegaChatListItem */*item*/)
+void MegaChatListener::onChatListItemUpdate(MegaChatApi * /*api*/, MegaChatListItem * /*item*/)
 {
 
 }
 
-void MegaChatListener::onChatInitStateUpdate(MegaChatApi */*api*/, int /*newState*/)
+void MegaChatListener::onChatInitStateUpdate(MegaChatApi * /*api*/, int /*newState*/)
 {
 
 }
@@ -1111,17 +1111,17 @@ void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* /*api*/, MegaChatHa
 
 }
 
-void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi */*api*/, MegaChatPresenceConfig */*config*/)
+void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi * /*api*/, MegaChatPresenceConfig * /*config*/)
 {
 
 }
 
-void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi */*api*/, MegaChatHandle /*chatid*/, int /*newState*/)
+void MegaChatListener::onChatConnectionStateUpdate(MegaChatApi * /*api*/, MegaChatHandle /*chatid*/, int /*newState*/)
 {
 
 }
 
-void MegaChatListener::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle /*userhandle*/, int /*lastGreen*/)
+void MegaChatListener::onChatPresenceLastGreen(MegaChatApi * /*api*/, MegaChatHandle /*userhandle*/, int /*lastGreen*/)
 {
 
 }
@@ -1221,27 +1221,27 @@ MegaChatHandle MegaChatListItem::getLastMessageHandle() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi */*api*/, MegaChatRoom */*chat*/)
+void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi * /*api*/, MegaChatRoom * /*chat*/)
 {
 
 }
 
-void MegaChatRoomListener::onMessageLoaded(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
+void MegaChatRoomListener::onMessageLoaded(MegaChatApi * /*api*/, MegaChatMessage * /*msg*/)
 {
 
 }
 
-void MegaChatRoomListener::onMessageReceived(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
+void MegaChatRoomListener::onMessageReceived(MegaChatApi * /*api*/, MegaChatMessage * /*msg*/)
 {
 
 }
 
-void MegaChatRoomListener::onMessageUpdate(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
+void MegaChatRoomListener::onMessageUpdate(MegaChatApi * /*api*/, MegaChatMessage * /*msg*/)
 {
 
 }
 
-void MegaChatRoomListener::onHistoryReloaded(MegaChatApi */*api*/, MegaChatRoom */*chat*/)
+void MegaChatRoomListener::onHistoryReloaded(MegaChatApi * /*api*/, MegaChatRoom * /*chat*/)
 {
 
 }
