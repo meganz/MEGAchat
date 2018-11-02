@@ -560,7 +560,7 @@ public class MegaChatApiJava {
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getLink - Returns the chat-link for the chatroom
+     * - MegaChatRequest::getText - Returns the chat-link for the chatroom
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
@@ -571,8 +571,8 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    public void exportChatLink(long chatid, MegaChatRequestListenerInterface listener){
-        megaChatApi.exportChatLink(chatid, createDelegateRequestListener(listener));
+    public void createChatLink(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.createChatLink(chatid, createDelegateRequestListener(listener));
     }
 
     /**
@@ -635,7 +635,7 @@ public class MegaChatApiJava {
      * Allow a user to add himself to an existing public chat. To do this the public chat
      * must have a valid public handle.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns invalid handle to identify that is an autojoin
@@ -648,8 +648,8 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    public void joinChatLink(long chatid, MegaChatRequestListenerInterface listener){
-        megaChatApi.joinChatLink(chatid, createDelegateRequestListener(listener));
+    public void autojoinPublicChat(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.autojoinPublicChat(chatid, createDelegateRequestListener(listener));
     }
 
     /**
@@ -657,13 +657,14 @@ public class MegaChatApiJava {
      * must have a valid public handle.
      *
      * This function must be called only after calling:
-     *  - MegaChatApi::loadChatLink and receive MegaChatError::ERROR_ACCESS (You are trying to
+     *  - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_ACCESS (You are trying to
      *  preview a public chat wich you were part of, so you have to rejoin it)
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_JOIN
+     * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat
+     * - MegaChatRequest::getUserHandle - Returns the public handle of the chat to identify that
+     * is a rejoin
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
@@ -674,8 +675,8 @@ public class MegaChatApiJava {
      * @param ph MegaChatHandle that corresponds with the public handle of chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    public void rejoinChatLink(long chatid, long ph, MegaChatRequestListenerInterface listener){
-        megaChatApi.rejoinChatLink(chatid, ph, createDelegateRequestListener(listener));
+    public void autorejoinPublicChat(long chatid, long ph, MegaChatRequestListenerInterface listener){
+        megaChatApi.autorejoinPublicChat(chatid, ph, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1478,14 +1479,14 @@ public class MegaChatApiJava {
      * a MegaChatApi::closeChatRoom as usual.
      *
      * The previewer may choose to join the public chat permanently, becoming a participant
-     * with read-write privilege, by calling MegaChatApi::joinChatLink.
+     * with read-write privilege, by calling MegaChatApi::autojoinPublicChat.
      *
      * Instead, if the previewer is not interested in the chat anymore, it can remove it from
-     * the list of chats by calling MegaChatApi::closePreview.
+     * the list of chats by calling MegaChatApi::closeChatPreview.
      * @note If the previewer doesn't explicitely close the preview, it will be lost if the
      * app is closed. A preview of a chat is not persisted in cache.
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_CHAT_LINK
+     * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
      *
@@ -1496,7 +1497,7 @@ public class MegaChatApiJava {
      *      + If the chatroom is not in preview mode but is active, the user is trying to preview a
      *      chat which he is part of.
      *      + If the chatroom is not in preview mode but is inactive, the user is trying to preview a
-     *      chat which he was part of. In this case the user will have to call MegaChatApi::rejoinChatLink to join
+     *      chat which he was part of. In this case the user will have to call MegaChatApi::autorejoinPublicChat to join
      *      to autojoin the chat again. Note that you won't be able to preview a public chat any more, once
      *      you have been part of the chat.
      *
@@ -1513,8 +1514,8 @@ public class MegaChatApiJava {
      * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request
      */
-    public void loadChatLink(String link, MegaChatRequestListenerInterface listener){
-        megaChatApi.loadChatLink(link, createDelegateRequestListener(listener));
+    public void openChatPreview(String link, MegaChatRequestListenerInterface listener){
+        megaChatApi.openChatPreview(link, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1548,7 +1549,7 @@ public class MegaChatApiJava {
      *
      * This function set the chat mode to private and invalidates the public handle if exists
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_CLOSE
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_PRIVATE_MODE
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chatId of the chat
      *
@@ -1565,8 +1566,8 @@ public class MegaChatApiJava {
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
-    public void closeChatLink(long chatid, MegaChatRequestListenerInterface listener){
-        megaChatApi.closeChatLink(chatid, createDelegateRequestListener(listener));
+    public void setPublicChatToPrivate(long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.setPublicChatToPrivate(chatid, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1671,8 +1672,8 @@ public class MegaChatApiJava {
      *
      * @param chatid MegaChatHandle that identifies the chat room
      */
-    public void closePreview(long chatid){
-        megaChatApi.closePreview(chatid);
+    public void closeChatPreview(long chatid){
+        megaChatApi.closeChatPreview(chatid);
     }
 
     /**
