@@ -1612,7 +1612,14 @@ void Chat::onFetchHistDone()
         else
         {
             mServerFetchState = kHistNotFetching;
-            mNextHistFetchIdx = lownum()-1;
+            // if app tries to load messages before first join and there's no local history available yet,
+            // they received a `HistSource == kSourceNotLoggedIn`. During login, received messages won't be
+            // notified, but after login the app can attempt to load messages again and should be notified
+            // about messages from the beginning
+            if (!mIsFirstJoin)
+            {
+                mNextHistFetchIdx = lownum()-1;
+            }
         }
         if (mLastServerHistFetchCount <= 0)
         {
