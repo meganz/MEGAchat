@@ -1487,12 +1487,18 @@ void Client::terminate(bool deleteDb)
 
     // pre-destroy chatrooms in preview mode (cleanup from DB + send HANDLELEAVE)
     // Otherwise, DB will be already closed when the GroupChatRoom dtor is called
-    for (auto it = chats->begin(); it != chats->end(); it++)
+    for (auto it = chats->begin(); it != chats->end();)
     {
         if (it->second->previewMode())
         {
             delete it->second;
-            chats->erase(it);
+            auto itToRemove = it;
+            it++;
+            chats->erase(itToRemove);
+        }
+        else
+        {
+            it++;
         }
     }
 
