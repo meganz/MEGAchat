@@ -395,6 +395,16 @@ void Client::onSyncReceived(Id chatid)
     }
 }
 
+bool Client::isChatRoomOpened(Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it != chats->end())
+    {
+        return it->second->hasChatHandler();
+    }
+    return false;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
