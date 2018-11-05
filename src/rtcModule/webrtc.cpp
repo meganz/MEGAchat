@@ -1252,7 +1252,7 @@ void Call::msgJoin(RtMessage& packet)
             newSid,
             mManager.mOwnAnonId,
             encKey,
-            id());
+            mId);
 
         mSentSessions[endPointId] = std::make_pair(newSid, ownHashKey);
         cancelSessionRetryTimer(endPointId.userid, endPointId.clientid);
