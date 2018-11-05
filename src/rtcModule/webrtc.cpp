@@ -2748,6 +2748,7 @@ bool Session::verifySdpFingerprints(const std::string& sdp)
 
 void Session::msgIceCandidate(RtMessage& packet)
 {
+    assert(!mPeerSdpAnswer.empty() || !mPeerSdpOffer.empty());
     // sid.8 mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     auto mLineIdx = packet.payload.read<uint8_t>(8);
     auto midLen = packet.payload.read<uint8_t>(9);
@@ -2893,9 +2894,9 @@ const StateDesc Call::sStateDesc = {
 const StateDesc Session::sStateDesc = {
     .transMap = {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
-        { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kSWaitSdpOffer
+        { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kStateWaitSdpOffer
         { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
-        { kStateInProgress, kStateTerminating },               //for kStateWaitSdpAnswer
+        { kStateInProgress, kStateTerminating },         //for kStateWaitSdpAnswer
         { kStateTerminating },                           //for kStateInProgress
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
