@@ -1,11 +1,11 @@
 #  Building MEGAchat #
 
-The following steps will guide you to build MEGAchat library (including tests and Qtapp). In summary, you need to:  
+The following steps will guide you to build MEGAchat library (including tests and QtApp). In summary, you need to:  
 
  - Build WebRTC  
  - Clone MEGAchat  
  - Clone MEGA SDK in `<MEGAchat>/third-party/`  
- - Compile example QTapp  
+ - Compile example QtApp  
 
 ## Prerequisites ##
 
@@ -43,19 +43,17 @@ Checkout the MEGAchat repository:
 
  - `git clone --recursive https://github.com/meganz/MEGAchat.git`    
 
-The Megachat sources are at `MEGAchat_repository_dir/src`
+The MEGAchat sources are at `MEGAchat/src`
 
 *NOTE the `--recursive` switch - the repository contains git submodules that need to be checked out as well.
 
 ## Get SDK code ##
 
-Change directory to the root of the MEGAchat checkout  
+Change directory to the root of the MEGAchat checkout:
 
  - `cd ./third-party/`  
- - `git clone https://github.com/meganz/sdk.git`    
- - `mv sdk mega`    
- - `cd mega`    
- - `./autogen`    
+ - `git clone https://github.com/meganz/sdk.git mega`
+ - `./autogen.sh`    
  - `./configure`    
 
 
@@ -77,16 +75,15 @@ Change directory to the root of the MEGAchat checkout
 
 ## Automated build system ##
 
-To build MEGAchat, you can do it with an automated script `build_with_webrtc.sh`.   
-Change directory to the root of the MEGAchat checkout  
+To build MEGAchat, you can do it with an automated script `build_with_webrtc.sh`:
 
- - `cd ./third-party/mega/bindings/qt/` (This step is neccesary to set the right current path for the script)  
+ - `cd <MEGAchat>/third-party/mega/bindings/qt/` (This step is neccesary to set the right current path for the script)  
 
- - The sintax to invoke the script is: `build_with_webrtc.sh <all | clean> [withExamples]`
+ - `./build_with_webrtc.sh <all | clean> [withExamples]`
 
-*NOTE: `[withExamples]` option will build the example QTapp to test MEGAchat
+*NOTE: `[withExamples]` option will build the example QtApp. You can test it by executing `./<MEGAchat>/build/MEGAChatQt/megachat`
 
-Now you're ready. Open `<MEGAchat>/contrib/qt/MEGAchat.pro` in QtCreator and hit `Build` button.
+Now that you're ready, you can open `<MEGAchat>/contrib/qt/MEGAchat.pro` in QtCreator and hit `Build` button, edit sources and play around.
 
 You may need to change the "Build directory" in the project setting to `<MEGAchat>/build` if building complains about files not found.
 
@@ -121,17 +118,16 @@ build webrtc, before invoking `build-webrtc.sh`:
 
 ## Manual build the MEGAchat codebase, including a test app ##
 
-In case you want to compile example QTapp manually, you can follow the steps below.
+In case you want to compile example QtApp manually, you can follow the steps below.
 
 Change directory to the root of the MEGAchat checkout  
 
  - `mkdir ./build`    
  - `cd ./build`    
- - `qmake ../contrib/QtCreator/MEGAchat.pro -spec linux-g++ CONFIG+=qml_debug CONFIG+=force_debug_info CONFIG+=separate_debug_info && /usr/bin/make _all`    
- - `cd ./MEGAChatQt/`    
- - `make`    
+ - `qmake ../contrib/QtCreator/MEGAchat.pro -spec linux-g++ CONFIG+=qml_debug CONFIG+=force_debug_info CONFIG+=separate_debug_info`    
+ - `make all -j8`
 
-Once the compilation has finished we can find the QTapp binary in
+Once the compilation has finished we can find the QtApp binary in
 
  - `./build/MEGAChatQt/megachat`
 
