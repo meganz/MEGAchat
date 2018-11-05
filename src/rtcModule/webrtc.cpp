@@ -1291,7 +1291,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         switch (mPredestroyState)
         {
         case kStateReqSent:
-            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, code);
+            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, (code == TermCode::kDestroyByCallCollision) ? TermCode::kUserHangup : code);
             code = kCallReqCancel;  // overwrite code for onDestroy() callback
             pms = promise::_Void();
             break;
@@ -1698,6 +1698,9 @@ uint8_t Call::convertTermCodeToCallDataCode()
             assert(false);
             break;
 
+        case kDestroyByCallCollision:
+            codeToChatd = kCallDataReasonRejected;
+            break;
         case kAnswerTimeout:
         case kRingOutTimeout:
             codeToChatd = kCallDataReasonNoAnswer;
@@ -1769,10 +1772,9 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            assert(reason == TermCode::kUserHangup ||
-                   reason == TermCode::kAppTerminating ||
-                   reason == TermCode::kAnswerTimeout ||
-                   reason == TermCode::kRingOutTimeout);
+
+            assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout ||
+                   reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision);
         }
 
         destroy(reason, true);

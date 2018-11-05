@@ -200,6 +200,7 @@ public:
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
+    void TEST_SendRichLink(unsigned int a1, unsigned int a2);
 
     unsigned mOKTests;
     unsigned mFailedTests;

@@ -147,6 +147,7 @@ public:
     virtual bool isPersist() const;
     virtual bool isPending() const;
     virtual bool isSignalActivityRequired() const;
+    virtual bool isLastGreenVisible() const;
 
 private:
     int status;
@@ -154,6 +155,7 @@ private:
     bool autoawayEnabled;
     int64_t autoawayTimeout;
     bool pending;
+    bool lastGreenVisible;
 };
 
 
@@ -956,6 +958,7 @@ public:
     void fireOnChatInitStateUpdate(int newState);
     void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
+    void fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen);
     void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
 
     // MegaChatNotificationListener callbacks
@@ -969,6 +972,7 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
     int getConnectionState();
     int getChatConnectionState(MegaChatHandle chatid);
+    bool areAllChatsLoggedIn();
     static int convertChatConnectionState(chatd::ChatState state);
     void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
     void logout(MegaChatRequestListener *listener = NULL);
@@ -981,6 +985,8 @@ public:
     void setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener = NULL);
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
     void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
+    void setLastGreenVisible(bool enable, MegaChatRequestListener *listener = NULL);
+    void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
     MegaChatPresenceConfig *getPresenceConfig();
     bool isSignalActivityRequired();
 
@@ -1083,12 +1089,13 @@ public:
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onInitStateChange(int newState);
-    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
     virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid,  uint32_t duration = 0);
 #endif
+    virtual void onInitStateChange(int newState);
+    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
 
     // rtcModule::IChatListHandler implementation
     virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);
@@ -1191,7 +1198,7 @@ public:
     /**
      * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
      * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param data vector of int32_t
+     * @param vector vector of int32_t
      * @return binary string
      */
     static std::string vector_to_b(std::vector<int32_t> vector);

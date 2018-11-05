@@ -510,6 +510,28 @@ protected:
     uint8_t mState = kNone;
 };
 
+class FilteredHistory
+{
+public:
+    FilteredHistory(DbInterface *db);
+    void addMessage(const Message &msg, bool isNew);
+    void deleteMessage(const Message &msg);
+    void truncateHistory(karere::Id id);
+    Idx newestIdx() const;
+    Idx oldestIdx() const;
+    Idx oldestLoadedIdx() const;
+    void clear();
+protected:
+    std::list<std::unique_ptr<Message>> mBuffer;
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
+    DbInterface *mDb;
+    Idx mNewest;
+    Idx mOldest;
+    Idx mOldestLoaded;
+
+    void init();
+};
+
 struct ChatDbInfo;
 
 /** @brief Represents a single chatroom together with the message history.
@@ -531,7 +553,7 @@ public:
         SendingItem(uint8_t aOpcode, Message* aMsg, const karere::SetOfIds& aRcpts, uint64_t aRowid=0);
         ~SendingItem();
 
-        uint8_t mOpcode;    // NEWMSG, MSGUPDX or MSGUPD
+        uint8_t mOpcode;    // NEWMSG, NEWNODEMSG, MSGUPDX or MSGUPD
 
         /** When sending a message, we attach the Message object here to avoid
         * double-converting it when queued as a raw command in Sending, and after
@@ -540,12 +562,12 @@ public:
         karere::SetOfIds recipients;
         uint64_t rowid; // in the sending table of DB cache
 
-        MsgCommand *msgCmd = NULL;  // stores the encrypted NEWMSG/MSGUPDX/MSGUPD
+        MsgCommand *msgCmd = NULL;  // stores the encrypted NEWMSG/NEWNODEMSG/MSGUPDX/MSGUPD
         KeyCommand *keyCmd = NULL;  // stores the encrypted NEWKEY, if needed
         uint8_t opcode() const { return mOpcode; }
         void setOpcode(uint8_t op) { mOpcode = op; }
 
-        bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
+        bool isMessage() const { return ((mOpcode == OP_NEWMSG) || (mOpcode == OP_NEWNODEMSG) || (mOpcode == OP_MSGUPD) || (mOpcode == OP_MSGUPDX)); }
         bool isEdit() const { return mOpcode == OP_MSGUPD || mOpcode == OP_MSGUPDX; }
         void setKeyId(KeyId keyid)
         {
@@ -572,6 +594,7 @@ protected:
     Idx mForwardStart;
     std::vector<std::unique_ptr<Message>> mForwardList;
     std::vector<std::unique_ptr<Message>> mBackwardList;
+    std::unique_ptr<FilteredHistory> mAttachmentNodes;
     OutputQueue mSending;
     OutputQueue::iterator mNextUnsent;
     bool mIsFirstJoin = true;
@@ -1281,6 +1304,15 @@ public:
 
     /// load a single message from the manual-sending queue
     virtual void loadManualSendItem(uint64_t rowid, Chat::ManualSendItem& item) = 0;
+
+
+    //  <<<--- Management of the FILTERED HISTORY --->>>
+
+    virtual void addMsgToNodeHistory(const Message& msg, Idx idx) = 0;
+    virtual void deleteMsgFromNodeHistory(const Message& msg) = 0;
+    virtual void truncateNodeHistory(karere::Id id) = 0;
+    virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
+    virtual void clearNodeHistory() = 0;
 
 
 //  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>

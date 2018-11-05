@@ -340,6 +340,32 @@ public:
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
+    /**
+     * @brief Called when client receives from presenced last time that a user has been green
+     *
+     * @note If the requested user has disabled the visibility of last-green or has never been green,
+     * this callback will NOT be triggered at all.
+     *
+     * If the value of \c lastGreen is 65535 minutes (the maximum), apps should show "long time ago"
+     * or similar, rather than the specific time period.
+     *
+     * @param userid User id whose last green is notified
+     * @param lastGreen Time elapsed (minutes) since the last time user was green
+     */
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    /**
+     * @brief Called by karere when there is an incoming call.
+     *
+     * The app must create a rtcModule::ICallHandler to handle events related to
+     * that call.
+     * @param call The \c rtcModule::ICall instance that represents the call. To
+     * answer, do `call.answer()`, to reject, do `call.hangup()`
+     */
+    virtual rtcModule::ICallHandler* onIncomingCall(rtcModule::ICall& call, karere::AvFlags av) = 0;
+#endif
+
     /** @brief Called when the karere::Client changes its initialization or termination state.
      * Look at karere::Client::InitState for the possible values of the client init
      * state and their meaning.

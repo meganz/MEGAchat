@@ -820,7 +820,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     // if keyid has not been assigned yet...
     if (msg->keyid == CHATD_KEYID_INVALID)
     {
-        assert(msgCmd->opcode() == OP_NEWMSG);
+        assert(msgCmd->opcode() == OP_NEWMSG || msgCmd->opcode() == OP_NEWNODEMSG);
         // MSGUPDXs are created with keyid=INVALID, but as soon as the precedent NEWMSG
         // is encrypted, their corresponding MSGUPDX in the sending queue get their keyid
         // updated to the keyid used for the original NEWMSG
@@ -869,7 +869,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
     }
     else    // confirmed keyid
     {
-        assert(msgCmd->opcode() != OP_NEWMSG);  // new messages, at this stage, have an invalid keyid
+        assert(msgCmd->opcode() != OP_NEWMSG && msgCmd->opcode() != OP_NEWNODEMSG);  // new messages, at this stage, have an invalid keyid
 
         auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
