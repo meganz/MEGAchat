@@ -2029,11 +2029,18 @@ public:
     void localLogout(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Set your online status.
+     * @brief Set your configuration for online status.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHAT_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getNumber - Returns the new status of the user in chat.
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS when this function is
+     * called with the same value \c status than the currently cofigured status.
+     * @see MegaChatPresenceConfig::getOnlineStatus to check the current status.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called and the connection to presenced is down.
      *
      * @param status Online status in the chat.
      *
@@ -2152,7 +2159,11 @@ public:
     void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Get your online status.
+     * @brief Get your currently online status.
+     *
+     * @note This function may return a different online status than the online status from
+     * MegaChatPresenceConfig::getOnlineStatus. In example, when the user has configured the
+     * autoaway option, after the timeout has expired, the status will be Away instead of Online.
      *
      * It can be one of the following values:
      * - MegaChatApi::STATUS_OFFLINE = 1
