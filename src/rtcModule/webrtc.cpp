@@ -1223,7 +1223,7 @@ void Call::msgJoin(RtMessage& packet)
         {
             if (itSession->second->peer() == packet.userid && itSession->second->peerClient() == packet.clientid)
             {
-                SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: %d) to whom we already have a session",
+                SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) to whom we already have a session",
                                 itSession->second->peer().toString(), itSession->second->peerClient());
                 return;
             }
