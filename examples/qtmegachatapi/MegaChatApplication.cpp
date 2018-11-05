@@ -208,9 +208,9 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *use
                     mFirstnamesMap.erase(userHandle);
                     getFirstname(userHandle);
                 }
-                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
+                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->mShowInactive != true)
                 {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
+                     mMainWin->orderContactChatList();
                 }
             }
         }
@@ -479,7 +479,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     break;
                 }
 
-                mMainWin->addLocalChatListItem(chatListItem);
+                mMainWin->addOrUpdateLocalChatListItem(chatListItem);
                 delete chatListItem;
                 chatListItem = mMainWin->getLocalChatListItem(chatid);
                 mMainWin->addChat(chatListItem);
@@ -498,10 +498,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
             {
                 QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
-            }
-            else
-            {
-                 mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
             }
             break;
 
