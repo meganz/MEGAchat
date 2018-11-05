@@ -671,7 +671,7 @@ void Config::fromCode(uint16_t code)
     {
         mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
     }
-    mLastGreenVisible = (code & ~Config::kLastGreenVisibleMask);
+    mLastGreenVisible = !(code & Config::kLastGreenVisibleMask);
 }
 
 uint16_t Config::toCode() const
