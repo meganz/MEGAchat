@@ -6627,6 +6627,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const MegaChatPrese
     this->autoawayEnabled = config.isAutoawayEnabled();
     this->autoawayTimeout = config.getAutoawayTimeout();
     this->persistEnabled = config.isPersist();
+    this->lastGreenVisible = config.isLastGreenVisible();
     this->pending = config.isPending();
 }
 
