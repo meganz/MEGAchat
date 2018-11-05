@@ -16,7 +16,10 @@ You may need to install the following packages in your system
  - `libtool`  
  - `python`  
  - `g++`  
- - `qt`
+ - `qt`  
+ - `gtests`  
+
+*NOTE: `gtests` are only needed if you want to compile and execute MEGAchat automatic tests. Versions under 1.7.0 could cause incompatibilities. 
 
 ## Chromium build system ##
 
@@ -56,6 +59,11 @@ Change directory to the root of the MEGAchat checkout:
  - `./autogen.sh`    
  - `./configure`    
 
+When you execute `./configure` you have the following optional parameters:
+
+ - `--enable-debug` (To enable support for running in debug mode)     
+ - `--enable-chat`  (To enable chat support)    
+ - `--enable-tests --with-gtest= path_to_gtest` (To enable automatic tests)    
 
 ## QT version ##
 
@@ -130,6 +138,14 @@ Change directory to the root of the MEGAchat checkout
 Once the compilation has finished we can find the QtApp binary in
 
  - `./build/MEGAChatQt/megachat`
+
+
+## Automatic tests ##
+
+Megachat provides an automatic test tool to check the performance of MEGAChat. To configure and compile tests when you configure `SDK`, you will have to add `--enable-tests --with-gtest = path_to_gtest` as It's explained above.  
+
+Once you have configured and compiled MEGAChat you could find automatic tests binary at `MEGAchat_Dir/build/MEGAChatQt/MEGAchatTests`.  
+To be able to run automatic tests you have to execute the binary file without parameters and follow the instructions given by the program.
 
 ## Building the Doxygen documentation ##
 
