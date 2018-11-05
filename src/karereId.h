@@ -27,7 +27,7 @@ public:
     static const Id inval() { return ~((uint64_t)0); }
     static const Id COMMANDER() { return Id("gTxFhlOd_LQ"); }
     /** Comparison at byte level, necessary to compatibility with the webClient (javascript)*/
-    static bool greaterThanForJs(Id first, Id second)
+    static bool greaterThanForJs(const Id &first, const Id &second)
     {
         return (memcmp(&(first.val), &(second.val), sizeof(uint64_t)) > 0);
     }
