@@ -109,6 +109,8 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
+    bool isCallInProgress() const;
+
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
 
@@ -538,6 +540,7 @@ public:
     IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
+    bool isExContact(karere::Id userid);
     /** @endcond */
 };
 
@@ -624,6 +627,11 @@ public:
 
         /** The session has expired or has been closed. */
         kInitErrSidInvalid
+    };
+
+    enum
+    {
+        kHeartbeatTimeout = 10000     /// Timeout for heartbeats (ms)
     };
 
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
@@ -784,7 +792,7 @@ public:
      * @brief Retry pending connections to chatd and presenced
      * @return A promise to track the result of the action.
      */
-    promise::Promise<void> retryPendingConnections();
+    void retryPendingConnections(bool disconnect);
 
     /**
      * @brief A convenience method that logs in the Mega SDK and then inits
@@ -841,7 +849,7 @@ public:
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
-    bool isCallInProgress() const;
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
@@ -920,6 +928,7 @@ protected:
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 
     //==
     friend class ChatRoom;

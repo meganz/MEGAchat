@@ -128,6 +128,7 @@ public:
         TERM_CODE_APP_TERMINATING   = 7,    /// The application is terminating
         TERM_CODE_BUSY              = 9,    /// Peer is in another call
         TERM_CODE_NOT_FINISHED      = 10,   /// The call is in progress, no termination code yet
+        TERM_CODE_DESTROY_BY_COLLISION   = 19,   /// The call has finished by a call collision
         TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
@@ -368,6 +369,18 @@ public:
      * @return True if the call has been ignored, false otherwise.
      */
     virtual bool isIgnored() const;
+
+    /**
+     * @brief Returns if call is incoming
+     * @return Ture if incoming call, false if outgoing
+     */
+    virtual bool isIncoming() const;
+
+    /**
+     * @brief Returns if call is outgoing
+     * @return Ture if outgoing call, false if incoming
+     */
+    virtual bool isOutgoing() const;
 };
 
 /**
@@ -766,10 +779,10 @@ public:
         TYPE_CHAT_TITLE             = 5,    /// Management message indicating the title of the chat has changed
         TYPE_CALL_ENDED             = 6,    /// Management message indicating a call has finished
         TYPE_HIGHEST_MANAGEMENT     = 6,
-        TYPE_NODE_ATTACHMENT        = 16,   /// User message including info about shared nodes
-        TYPE_REVOKE_NODE_ATTACHMENT = 17,   /// User message including info about a node that has stopped being shared (obsolete)
-        TYPE_CONTACT_ATTACHMENT     = 18,   /// User message including info about shared contacts
-        TYPE_CONTAINS_META          = 19,   /// User message including additional metadata (ie. rich-preview for links)
+        TYPE_NODE_ATTACHMENT        = 101,   /// User message including info about shared nodes
+        TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
+        TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
+        TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
     };
 
     enum
@@ -1217,7 +1230,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
-        TYPE_PUSH_RECEIVED,
+        TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1515,11 +1528,19 @@ public:
  * @note The autoaway settings are preserved even when the auto-away mechanism is inactive (i.e. when
  * the status is other than online or the user has enabled the persistence of the status.
  * When the autoaway mechanish is enabled, it requires the app calls \c MegaChatApi::signalPresenceActivity
- * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout. *
+ * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout.
  * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired
  * or also by checking \c MegaChatPresenceConfig::isSignalActivityRequired.
  *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
+ *
+ * - Last-green visibility: if enabled, the last-time the user was seen as MegaChatApi::STATUS_ONLINE will
+ * be retrievable by other users. If disabled, it's kept secret.
+ *
+ * @note The last-green visibility can be changed by MegaChatApi::setLastGreenVisible and can be checked by
+ * MegaChatPresenceConfig::isLastGreenVisible. The last-green time for other users can be retrieved
+ * by MegaChatApi::requestLastGreen.
+ * @note While the last-green visibility is disabled, the last-green time will not be recorded by the server.
  *
  * - Pending: if true, it means the configuration is being saved in the server, but not confirmed yet
  *
@@ -1592,6 +1613,11 @@ public:
      * @return True if the app is required to call MegaChatApi::signalPresenceActivity
      */
     virtual bool isSignalActivityRequired() const;
+
+    /**
+     * @return True if our last green is visible to other users
+     */
+    virtual bool isLastGreenVisible() const;
 };
 
 /**
@@ -1770,9 +1796,6 @@ public:
      */
     MegaChatApi(mega::MegaApi *megaApi);
 
-//    // chat will use its own megaApi, a new instance
-//    MegaChatApi(const char *appKey, const char* appDir);
-
     virtual ~MegaChatApi();
 
     static const char *getAppDir();
@@ -1928,19 +1951,24 @@ public:
     void disconnect(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Returns the current state of the connection
+     * @brief Returns the current state of the client
      *
      * It can be one of the following values:
      *  - MegaChatApi::DISCONNECTED = 0
      *  - MegaChatApi::CONNECTING   = 1
      *  - MegaChatApi::CONNECTED    = 2
      *
-     * @return The state of connection
+     * @note Even if this function returns CONNECTED, it does not mean the client
+     * is fully connected to chatd and presenced. It means the client has been requested
+     * to connect, in contrast to the offline mode.
+     * @see MegaChatApi::getChatConnectionState and MegaChatApi::areAllChatsLoggedIn.
+     *
+     * @return The connection's state of the client
      */
     int getConnectionState();
 
     /**
-     * @brief Returns the current state of the connection to chatd
+     * @brief Returns the current state of the connection to chatd for a given chatroom
      *
      * The possible values are:
      *  - MegaChatApi::CHAT_CONNECTION_OFFLINE      = 0
@@ -1948,19 +1976,29 @@ public:
      *  - MegaChatApi::CHAT_CONNECTION_LOGGING      = 2
      *  - MegaChatApi::CHAT_CONNECTION_ONLINE       = 3
      *
+     * You can check if all chats are online with MegaChatApi::areAllChatsLoggedIn.
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return The state of connection
      */
     int getChatConnectionState(MegaChatHandle chatid);
     
     /**
+     * @brief Check whether client is logged in into all chats
+     *
+     * @return True if connection to chatd is MegaChatApi::CHAT_CONNECTION_ONLINE, false otherwise.
+     */
+    bool areAllChatsLoggedIn();
+
+    /**
      * @brief Refresh DNS servers and retry pending connections
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      *
+     * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
      * @param listener MegaChatRequestListener to track this request
      */
-    void retryPendingConnections(MegaChatRequestListener *listener = NULL);
+    void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session
@@ -2023,10 +2061,15 @@ public:
      * \c signalPresenceActivity regularly in order to keep the current online status.
      * Otherwise, after \c timeout seconds, the online status will be changed to away.
      *
+     * The maximum timeout for the autoaway feature is 87420 seconds, roughly a day.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag() - Returns true if autoaway is enabled.
      * - MegaChatRequest::getNumber - Returns the specified timeout.
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS when this function is
+     * called with a larger timeout than the maximum allowed, 87420 seconds.
      *
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
@@ -2048,6 +2091,47 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Enable/disable the visibility of when the logged-in user was online (green)
+     *
+     * If this option is disabled, the last-green won't be available for other users when it is
+     * requested through MegaChatApi::requestLastGreen. The visibility is enabled by default.
+     *
+     * While this option is disabled and the user sets the green status temporary, the number of
+     * minutes since last-green won't be updated. Once enabled back, the last-green will be the
+     * last-green while the visibility was enabled (or updated if the user sets the green status).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true when attempt to enable visibility of last-green.
+     *
+     * @param enable True to enable the visibility of our last green
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setLastGreenVisible(bool enable, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Request the number of minutes since the user was seen as green by last time.
+     *
+     * Apps may call this function to retrieve the minutes elapsed since the user was seen
+     * as green (MegaChatApi::STATUS_ONLINE) by last time.
+     * Apps must NOT call this function if the current status of the user is already green.
+     *
+     * The number of minutes since the user was seen as green by last time, if any, will
+     * be notified in the MegaChatListener::onChatPresenceLastGreen callback. Note that,
+     * if the user was never seen green by presenced or the user has disabled the visibility
+     * of the last-green with MegaChatApi::setLastGreenVisible, there will be no notification
+     * at all.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LAST_GREEN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle() - Returns the handle of the user
+     *
+     * @param userid MegaChatHandle from user that last green has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Signal there is some user activity
@@ -2084,6 +2168,20 @@ public:
      * The user is busy and don't want to be disturbed.
      */
     int getOnlineStatus();
+
+    /**
+     * @brief Check if the online status is already confirmed by the server
+     *
+     * When a new online status is requested by MegaChatApi::setOnlineStatus, it's not
+     * immediately set, but sent to server for confirmation. If the status is not confirmed
+     * the requested online status will not be seen by other users yet.
+     *
+     * The apps may use this function to indicate the status is not confirmed somehow, like
+     * with a slightly different icon, blinking or similar.
+     *
+     * @return True if the online status is confirmed by server
+     */
+    bool isOnlineStatusPending();
 
     /**
      * @brief Get the current presence configuration
@@ -2144,7 +2242,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns the value of 1st parameter
      *
-     * @param status True if the the app is in background, false if in foreground.
+     * @param background True if the the app is in background, false if in foreground.
      */
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
@@ -3622,7 +3720,8 @@ public:
         CHANGE_TYPE_CLOSED          = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_LAST_MSG        = 0x40, /// Last message recorded in the history, or chatroom creation data if no history at all (not even clear-history message)
         CHANGE_TYPE_LAST_TS         = 0x80, /// Timestamp of the last activity
-        CHANGE_TYPE_ARCHIVE         = 0X100 /// Archived or unarchived
+        CHANGE_TYPE_ARCHIVE         = 0x100,/// Archived or unarchived
+        CHANGE_TYPE_CALL            = 0x200 /// There's a new call or a call has finished
     };
 
     virtual ~MegaChatListItem() {}
@@ -3778,6 +3877,12 @@ public:
     virtual bool isArchived() const;
 
     /**
+     * @brief Returns whether the chat has a call in progress or not.
+     * @return True if a call is in progress in this chat, false otherwise.
+     */
+    virtual bool isCallInProgress() const;
+
+    /**
      * @brief Returns the userhandle of the Contact in 1on1 chatrooms
      *
      * The returned value is only valid for 1on1 chatrooms. For groupchats, it will
@@ -3822,7 +3927,7 @@ public:
         CHANGE_TYPE_CLOSED              = 0x20, /// The chatroom has been left by own user
         CHANGE_TYPE_OWN_PRIV            = 0x40, /// Our privilege level has changed
         CHANGE_TYPE_USER_STOP_TYPING    = 0x80, /// User has stopped to typing. \see MegaChatRoom::getUserTyping()
-        CHANGE_TYPE_ARCHIVE             = 0X100 /// Archived or unarchived
+        CHANGE_TYPE_ARCHIVE             = 0x100 /// Archived or unarchived
     };
 
     enum {
@@ -4141,6 +4246,23 @@ public:
      * @param newState New state of the connection
      */
     virtual void onChatConnectionStateUpdate(MegaChatApi* api, MegaChatHandle chatid, int newState);
+
+    /**
+     * @brief This function is called when server notifies last-green's time of the a user
+     *
+     * In order to receive this notification, MegaChatApi::requestLastGreen has to be called previously.
+     *
+     * @note If the requested user has disabled the visibility of last-green or has never been green,
+     * this callback will NOT be triggered at all.
+     *
+     * If the value of \c lastGreen is 65535 minutes (the maximum), apps should show "long time ago"
+     * or similar, rather than the specific time period.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param userhandle MegaChatHandle of the user whose last time green is notified
+     * @param lastGreen Time elapsed (minutes) since the last time user was green
+     */
+    virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
 };
 
 /**
@@ -4278,13 +4400,6 @@ public:
      *  - Edition/deletion of received unseen messages.
      *  - Trucate of history (for both, when truncate is ours or theirs).
      *  - Changes on the lastest message seen by us (don't notify previous unseen messages).
-     *
-     * @note This notifications cover every chatroom that is not opened. For the opened chatroom,
-     * you will not get these notifications (the user is not interested on getting notifications for
-     * events happening in the chatroom that is currently looking at).
-     * Rembember to close the chatroom if the apps enters in background, since you will get a push
-     * notification but, once the app resumes, you will not get notifications about a chatroom if
-     * it's opened.
      *
      * Depending on the status of the message (seen or unseen), if it has been edited/deleted,
      * or even on the type of the message (truncate), the app should add/update/clear the corresponding

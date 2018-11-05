@@ -48,7 +48,7 @@ using namespace megachat;
 }
 
 - (MEGAChatRoom *)chatRoomAtIndex:(NSUInteger)index {
-    return self.megaChatRoomList ? [[MEGAChatRoom alloc] initWithMegaChatRoom:self.megaChatRoomList->get((unsigned int)index)->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatRoomList->get((unsigned int)index) ? [[MEGAChatRoom alloc] initWithMegaChatRoom:self.megaChatRoomList->get((unsigned int)index)->copy() cMemoryOwn:YES] : nil;
 }
 
 @end

@@ -96,6 +96,7 @@ enum TermCode: uint8_t
     kCallGone = 8,
     kBusy = 9,                  // < Peer is in another call
     kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
+    kDestroyByCallCollision = 19,// < The call has finished by a call collision
     kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
     kErrorFirst = 21,           // < First enum specifying call termination due to error
     kErrApiTimeout = 22,        // < Mega API timed out on some request (usually for RSA keys)
@@ -257,6 +258,7 @@ public:
     void changeHandler(ICallHandler* handler) { mHandler = handler; }
     TermCode termCode() const {return mTermCode; }
     bool isJoiner() { return mIsJoiner; }
+    bool isInProgress() const;
     ICallHandler *callHandler() { return mHandler; }
     virtual karere::AvFlags sentAv() const = 0;
     virtual void hangup(TermCode reason=TermCode::kInvalid) = 0;
@@ -344,7 +346,7 @@ public:
     virtual bool isCaptureActive() const = 0;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
-    virtual bool isCallInProgress() const = 0;
+    virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;
     virtual void removeCall(karere::Id chatid) = 0;
 
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;

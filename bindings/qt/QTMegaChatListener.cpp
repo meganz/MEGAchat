@@ -52,6 +52,14 @@ void QTMegaChatListener::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatH
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
+void QTMegaChatListener::onChatPresenceLastGreen(MegaChatApi *api, MegaChatHandle userhandle, int lastGreen)
+{
+    QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnChatPresenceLastGreen);
+    event->setChatHandle(userhandle);
+    event->setStatus(lastGreen);
+    QCoreApplication::postEvent(this, event, INT_MIN);
+}
+
 void QTMegaChatListener::customEvent(QEvent *e)
 {
     QTMegaChatEvent *event = (QTMegaChatEvent *)e;
@@ -71,6 +79,9 @@ void QTMegaChatListener::customEvent(QEvent *e)
             break;
         case QTMegaChatEvent::OnChatConnectionStateUpdate:
             if (listener) listener->onChatConnectionStateUpdate(event->getMegaChatApi(), event->getChatHandle(), event->getStatus());
+            break;
+        case QTMegaChatEvent::OnChatPresenceLastGreen:
+            if (listener) listener->onChatPresenceLastGreen(event->getMegaChatApi(), event->getChatHandle(), event->getStatus());
             break;
         default:
             break;

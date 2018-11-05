@@ -45,8 +45,8 @@
 #endif
 
 #define KARERE_LOGIN_TIMEOUT 15000
-#define KARERE_RECONNECT_DELAY_MAX 10000
 #define KARERE_RECONNECT_DELAY_INITIAL 1000
+#define KARERE_RECONNECT_DELAY_MAX 5000
 
 #define KARERE_DEFAULT_TURN_SERVERS \
    "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
@@ -149,7 +149,9 @@ enum: uint8_t
     /** Client has webrtc capabilities */
     kClientCanWebrtc = 0x80,
     /** Client is a mobile application */
-    kClientIsMobile = 0x40
+    kClientIsMobile = 0x40,
+    /** Client can use bit 15 from preferences to handle last-green's visibility */
+    kClientSupportLastGreen = 0x20
 };
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql

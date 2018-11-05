@@ -86,7 +86,8 @@ enum Opcode
       *   managed across devices.
       * Send: <chatid> <msgid>
       *
-      * S->C: The last seen message has been updated from another device.
+      * S->C: The last seen message has been updated (from another device or current
+      * device). Also received as part of the login process.
       * Receive: <chatid> <msgid>
       */
     OP_SEEN = 5,
@@ -338,7 +339,30 @@ enum Opcode
       */
     OP_SYNC = 38,
 
-    OP_LAST = OP_DELREACTION
+    /**
+      ** @brief <chatid> <callDuration.4>
+      *
+      * S->C: inform about call duration in seconds for a call that exists before we get online.
+      * It is sent before any INCALL or CALLDATA.
+      */
+    OP_CALLTIME = 42,
+
+    /**
+      ** @brief
+      *
+      * C->S: Add new message to this chat. msgid is a temporary random 64-bit
+      *    integer ("msgxid"). No two such msgxids must be generated in the same chat
+      *    in the same server-time second, or only the first NEWNODEMSG will be written.
+      *
+      *    This opcode must be used, instead of OP_NEWMSG, to send messages that include
+      *    node/s attachment/s (type kMsgNodeAttachment). Messages sent with this opcode
+      *    will behave exactly as the ones sent with OP_NEWMSG, but chatd will mark them
+      *    as attachments. In result, client can use OP_NODEHIST to retrieve messages of
+      *    this type.
+      */
+    OP_NEWNODEMSG = 44,
+
+    OP_LAST = OP_CALLTIME
 };
 
 // privilege levels
@@ -366,11 +390,12 @@ public:
         kMsgChatTitle         = 0x05,
         kMsgCallEnd           = 0x06,
         kMsgManagementHighest = 0x06,
-        kMsgUserFirst         = 0x10,
-        kMsgAttachment        = 0x10,
-        kMsgRevokeAttachment  = 0x11,
-        kMsgContact           = 0x12,
-        kMsgContainsMeta      = 0x13
+        kMsgOffset            = 0x55,   // Offset between old message types and new message types
+        kMsgUserFirst         = 0x65,
+        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
+        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
+        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
+        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
     };
     enum Status
     {
@@ -521,6 +546,12 @@ public:
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+
+    Message(const Message& msg)
+        : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
+          userid(msg.userid), ts(msg.ts), updated(msg.updated), keyid(msg.keyid), type(msg.type), backRefId(msg.backRefId),
+          backRefs(msg.backRefs), userp(msg.userp), userFlags(msg.userFlags), richLinkRemoved(msg.richLinkRemoved)
+    {}
 
     /** @brief Returns the ManagementInfo structure contained within the message
      * content. Throws if the message is not a management message, or if the
@@ -675,7 +706,7 @@ public:
     bool isMessage() const
     {
         auto op = opcode();
-        return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
+        return ((op == OP_NEWMSG) || (op == OP_NEWNODEMSG)|| (op == OP_MSGUPD) || (op == OP_MSGUPDX));
     }
     uint8_t opcode() const { return read<uint8_t>(0); }
     static const char* opcodeToStr(uint8_t opcode);

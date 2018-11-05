@@ -24,7 +24,6 @@ using namespace karere;
       }                                                                                         \
     } while(0)
 
-
 namespace presenced
 {
 
@@ -45,16 +44,14 @@ Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
 
 void Client::pushPeers()
 {
-    Command cmd(OP_ADDPEERS, 4 + mCurrentPeers.size()*8);
-    cmd.append<uint32_t>(mCurrentPeers.size());
+    std::vector<karere::Id> peers;
+
     for (auto& peer: mCurrentPeers)
     {
-        cmd.append<uint64_t>(peer.first);
+        peers.push_back(peer.first);
     }
-    if (cmd.dataSize() > 1)
-    {
-        sendCommand(std::move(cmd));
-    }
+
+    updatePeers(peers, true);
 }
 
 void Client::wsConnectCb()
@@ -64,6 +61,7 @@ void Client::wsConnectCb()
     setConnState(kConnected);
     assert(!mConnectPromise.done());
     mConnectPromise.resolve();
+    mRetryCtrl.reset();
 }
 
 void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*reason_len*/)
@@ -104,9 +102,10 @@ std::string Config::toString() const
     std::string result;
     result.reserve(64);
     result.append("pres: ").append(mPresence.toString())
-          .append(", persist: ").append(mPersist ? "1":"0")
-          .append(", aaActive: ").append(mAutoawayActive ? "1":"0")
-          .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout));
+          .append(", persist: ").append(mPersist ? "1" : "0")
+          .append(", aaActive: ").append(mAutoawayActive ? "1" : "0")
+          .append(", aaTimeout: ").append(std::to_string(mAutoawayTimeout))
+          .append(", hideLastGreen: ").append(mLastGreenVisible ? "0" : "1");
     return result;
 }
 
@@ -130,12 +129,27 @@ bool Client::setPersist(bool enable)
     return sendPrefs();
 }
 
+bool Client::setLastGreenVisible(bool enable)
+{
+    if (enable == mConfig.mLastGreenVisible)
+        return true;
+    mConfig.mLastGreenVisible = enable;
+    signalActivity(true);
+    return sendPrefs();
+}
+
+bool Client::requestLastGreen(Id userid)
+{
+    return sendCommand(Command(OP_LASTGREEN) + userid);
+}
+
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
     if (enable)
     {
         mConfig.mPersist = false;
     }
+
     mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
     signalActivity(true);
@@ -165,6 +179,20 @@ void Client::signalActivity(bool force)
         sendUserActive(true, force);
 }
 
+void Client::abortRetryController()
+{
+    if (!mRetryCtrl)
+    {
+        return;
+    }
+
+    assert(!isOnline());
+
+    PRESENCED_LOG_DEBUG("Reconnection was aborted");
+    mRetryCtrl->abort();
+    mRetryCtrl.reset();
+}
+
 Promise<void>
 Client::reconnect(const std::string& url)
 {
@@ -186,16 +214,17 @@ Client::reconnect(const std::string& url)
 
         setConnState(kResolving);
 
+        // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
+        abortRetryController();
+
+        // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        return retry("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr)
+        mRetryCtrl.reset(createRetryController("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
-
-                promise::Promise<void> pms = Promise<void>();
-                pms.resolve();
-                return pms;
+                return promise::_Void();
             }
 
             disconnect();
@@ -300,8 +329,12 @@ Client::reconnect(const std::string& url)
                 mHeartbeatEnabled = true;
                 login();
             });
-        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL);
+
+        }, wptr, karereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
+
+        return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
+
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
@@ -309,6 +342,32 @@ bool Client::sendKeepalive(time_t now)
 {
     mTsLastPingSent = now ? now : time(NULL);
     return sendCommand(Command(OP_KEEPALIVE));
+}
+
+void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
+{
+    if (addOrRemove && peers.empty())
+    {
+        PRESENCED_LOG_DEBUG("updatePeers: no peers to allow to see the presence status");
+        return;
+    }
+
+    assert(peers.size());
+    const char *buf = mApi->sdk.getSequenceNumber();
+    Id scsn(buf, strlen(buf));
+    delete [] buf;
+    size_t numPeers = peers.size();
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
+
+    Command cmd(addOrRemove ? OP_SNADDPEERS : OP_SNDELPEERS, totalSize);
+    cmd.append<uint64_t>(scsn.val);
+    cmd.append<uint32_t>(numPeers);
+    for (unsigned int i = 0; i < numPeers; i++)
+    {
+        cmd.append<uint64_t>(peers[i].val);
+    }
+
+    sendCommand(std::move(cmd));
 }
 
 void Client::heartbeat()
@@ -419,16 +478,28 @@ void Client::doConnect()
     }
 }
 
-promise::Promise<void> Client::retryPendingConnection()
+void Client::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        setConnState(kDisconnected);
-        mHeartbeatEnabled = false;
-        PRESENCED_LOG_WARNING("Retry pending connections...");
-        return reconnect();
+        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+        {
+            PRESENCED_LOG_WARNING("Abort backoff and reconnect immediately");
+            mRetryCtrl->restart();
+        }
+        else if (disconnect)
+        {
+            setConnState(kDisconnected);
+            mHeartbeatEnabled = false;
+            abortRetryController();
+            PRESENCED_LOG_WARNING("Retry pending connection...");
+            reconnect();
+        }
     }
-    return promise::Error("No valid URL provided to retry pending connections");
+    else
+    {
+        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+    }
 }
 
 bool Client::sendBuf(Buffer&& buf)
@@ -490,17 +561,21 @@ void Command::toString(char* buf, size_t bufsize) const
         case OP_HELLO:
         {
             uint8_t caps = read<uint8_t>(2);
-            snprintf(buf, bufsize, "HELLO - version 0x%02X, caps: (%s,%s)",
+            snprintf(buf, bufsize, "HELLO - version 0x%02X, caps: (%s,%s,%s)",
                 read<uint8_t>(1),
                 (caps & karere::kClientCanWebrtc) ? "webrtc" : "nowebrtc",
-                (caps & karere::kClientIsMobile) ? "mobile" : "desktop");
+                (caps & karere::kClientIsMobile) ? "mobile" : "desktop",
+                (caps & karere::kClientSupportLastGreen ? "last-green" : "no-last-green"));
             break;
         }
-        case OP_ADDPEERS:
+        case OP_SNADDPEERS:
         {
-            uint32_t numPeers = read<uint32_t>(1);
+            Id sn = read<uint64_t>(1);
+            uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
-            tmpString.append("ADDPEERS - ");
+            tmpString.append("SNADDPEERS - ");
+            tmpString.append(ID_CSTR(sn));
+            tmpString.append(" - NumPeers: ");
             tmpString.append(to_string(numPeers));
             tmpString.append(" peer/s: ");
             for (unsigned int i = 0; i < numPeers; i++)
@@ -510,14 +585,17 @@ void Command::toString(char* buf, size_t bufsize) const
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
             }
-            snprintf(buf, bufsize, "%s",tmpString.c_str());
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
         }
-        case OP_DELPEERS:
+        case OP_SNDELPEERS:
         {
-            uint32_t numPeers = read<uint32_t>(1);
+            Id sn = read<uint64_t>(1);
+            uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
-            tmpString.append("DELPEERS - ");
+            tmpString.append("SNDELPEERS - ");
+            tmpString.append(ID_CSTR(sn));
+            tmpString.append(" - NumPeers: ");
             tmpString.append(to_string(numPeers));
             tmpString.append(" peer/s: ");
             for (unsigned int i = 0; i < numPeers; i++)
@@ -527,7 +605,22 @@ void Command::toString(char* buf, size_t bufsize) const
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
             }
-            snprintf(buf, bufsize, "%s",tmpString.c_str());
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
+            break;
+        }
+        case OP_LASTGREEN:
+        {
+            Id user = read<uint64_t>(1);
+            string tmpString;
+            tmpString.append("LASTGREEN - ");
+            tmpString.append(ID_CSTR(user));
+            if (size() > 9)
+            {
+                uint16_t lastGreen = read<uint16_t>(9);
+                tmpString.append(" Last green: ");
+                tmpString.append(to_string(lastGreen));
+            }
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
         }
         default:
@@ -541,7 +634,7 @@ void Command::toString(char* buf, size_t bufsize) const
 
 void Client::login()
 {
-    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion+mCapabilities);
+    sendCommand(Command(OP_HELLO) + (uint8_t)kProtoVersion + mCapabilities);
 
     if (mPrefsAckWait)
     {
@@ -579,20 +672,27 @@ void Config::fromCode(uint16_t code)
     mPresence = (code & 3) + karere::Presence::kOffline;
     mPersist = !!(code & 4);
     mAutoawayActive = !(code & 8);
-    mAutoawayTimeout = code >> 4;
-    if (mAutoawayTimeout > 600)
-        mAutoawayTimeout = (600+(mAutoawayTimeout-600)*60);
+    mAutoawayTimeout = (code & ~Config::kLastGreenVisibleMask) >> 4;
+    if (mAutoawayTimeout > 600) // if longer than 10 minutes, use 10m + number of minutes (in seconds)
+    {
+        mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
+    }
+    mLastGreenVisible = (code & ~Config::kLastGreenVisibleMask);
 }
 
 uint16_t Config::toCode() const
 {
+    uint32_t autoawayTimeout = mAutoawayTimeout;
+    if (autoawayTimeout > 600)  // if longer than 10 minutes, convert into 10m (in seconds) + number of minutes
+    {
+        autoawayTimeout = 600 + (mAutoawayTimeout - 600) / 60;
+    }
+
     return ((mPresence.code() - karere::Presence::kOffline) & 3)
           | (mPersist ? 4 : 0)
           | (mAutoawayActive ? 0 : 8)
-          | (((mAutoawayTimeout > 600)
-               ? (600+(mAutoawayTimeout-600)/60)
-               : mAutoawayTimeout)
-            << 4);
+          | (autoawayTimeout << 4)
+          | (mLastGreenVisible ? 0 : Config::kLastGreenVisibleMask);
 }
 
 Client::~Client()
@@ -687,6 +787,14 @@ void Client::handleMessage(const StaticBuffer& buf)
                 configChanged();
                 break;
             }
+            case OP_LASTGREEN:
+            {
+                READ_ID(userid, 0);
+                READ_16(lastGreen, 8);
+                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %d", ID_CSTR(userid), lastGreen);
+                CALL_LISTENER(onPresenceLastGreenUpdated, userid, lastGreen);
+                break;
+            }
             default:
             {
                 PRESENCED_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
@@ -732,7 +840,9 @@ void Client::addPeer(karere::Id peer)
     int result = mCurrentPeers.insert(peer);
     if (result == 1) //refcount = 1, wasnt there before
     {
-        sendCommand(Command(OP_ADDPEERS)+(uint32_t)(1)+peer);
+        std::vector<karere::Id> peers;
+        peers.push_back(peer);
+        updatePeers(peers, true);
     }
 }
 void Client::removePeer(karere::Id peer, bool force)
@@ -758,7 +868,10 @@ void Client::removePeer(karere::Id peer, bool force)
     {
         assert(it->second == 0);
     }
+
     mCurrentPeers.erase(it);
-    sendCommand(Command(OP_DELPEERS)+(uint32_t)(1)+peer);
+    std::vector<karere::Id> peers;
+    peers.push_back(peer);
+    updatePeers(peers, false);
 }
 }
