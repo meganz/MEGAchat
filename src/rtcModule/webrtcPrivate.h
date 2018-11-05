@@ -44,10 +44,13 @@ protected:
     static const StateDesc sStateDesc;
     artc::tspMediaStream mRemoteStream;
     std::shared_ptr<artc::StreamPlayer> mRemotePlayer;
-    std::string mOwnSdp;
-    std::string mPeerSdp;
-    SdpKey mOwnSdpKey;
-    SdpKey mPeerSdpKey;
+    std::string mOwnSdpOffer;
+    std::string mOwnSdpAnswer;
+    std::string mPeerSdpOffer;
+    std::string mPeerSdpAnswer;
+    SdpKey mPeerHash;
+    SdpKey mOwnHashKey;
+    SdpKey mPeerHashKey;
     artc::myPeerConnection<Session> mRtcConn;
     std::string mName;
     ISessionHandler* mHandler = NULL;
@@ -62,11 +65,8 @@ protected:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
-    void createRtcConn();
-    void sendCmdSession(RtMessage& packet);
     void sendAv(karere::AvFlags av);
     promise::Promise<void> sendOffer();
-    void msgSdpOfferSendAnswer(RtMessage& packet);
     void msgSdpAnswer(RtMessage& packet);
     void msgSessTerminateAck(RtMessage& packet);
     void msgSessTerminate(RtMessage& packet);
@@ -75,7 +75,7 @@ protected:
     void mungeSdp(std::string& sdp);
     void onVideoRecv();
     void submitStats(TermCode termCode, const std::string& errInfo);
-    bool verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash);
+    bool verifySdpFingerprints(const std::string& sdp);
     template<class... Args>
     bool cmd(uint8_t type, Args... args);
     void destroy(TermCode code, const std::string& msg="");
@@ -88,12 +88,14 @@ protected:
 
 public:
     RtcModule& mManager;
-    Session(Call& call, RtMessage& packet);
+    Session(Call& call, RtMessage& packet, SdpKey sdpkey);
     ~Session();
     void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
     void manageNetworkQuality(stats::Sample* sample);
+    void createRtcConn();
+    void veryfySdpOfferSendAnswer();
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -135,6 +137,7 @@ protected:
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
+    std::map<chatd::EndpointId, std::pair<karere::Id, SdpKey> > mSentSessions;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;
@@ -156,6 +159,7 @@ protected:
     void msgRinging(RtMessage& packet);
     void msgCallReqDecline(RtMessage& packet);
     void msgCallReqCancel(RtMessage& packet);
+    void msgSdpOffer(RtMessage& packet);
     void handleReject(RtMessage& packet);
     void handleBusy(RtMessage& packet);
     void getLocalStream(karere::AvFlags av, std::string& errors);
@@ -229,9 +233,6 @@ public:
         notDefined
     };
 
-    //TODO: set valid values
-    int maxBr = 1000;
-    int maxGroupBr = 1000;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);

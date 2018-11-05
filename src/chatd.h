@@ -325,17 +325,41 @@ public:
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
+    enum {kBufferSize = 12};
     karere::Id userid;
     uint32_t clientid;
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    unsigned char buffer[kBufferSize];
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
+    {
+        memcpy(buffer, &userid.val , 8);
+        memcpy(buffer + 8, &clientid, 4);
+    }
+
     bool operator<(EndpointId other) const
     {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
+        if (userid.val < other.userid.val)
+        {
+            return true;
+        }
+        else if (userid.val > other.userid.val)
+        {
+            return false;
+        }
+        else
+        {
+            return (clientid < other.clientid);
+        }
+    }
+
+    bool operator>(EndpointId other) const
+    {
+        return other < *this;
+    }
+
+    /** Comparison at byte level, necessary to compatibility with the webClient (javascript)*/
+    static bool greaterThanForJs(EndpointId first, EndpointId second)
+    {
+        return (memcmp(first.buffer, second.buffer, kBufferSize) > 0);
     }
 };
 

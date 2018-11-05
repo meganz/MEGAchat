@@ -260,6 +260,7 @@ public:
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
     karere::Id peer() const { return mPeer; }
+    uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
 };
