@@ -1184,7 +1184,8 @@ void Call::msgSession(RtMessage& packet)
         if (EndpointId::greaterThanForJs(ourEndPointId, peerEndPointId))
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
-                            "Our peerId is greater, ignoring received SESSION");
+                            "Our endpoint is greater (userid %s, clientid 0x%x), ignoring received SESSION"
+                            , ourEndPointId.userid.toString().c_str(), ourEndPointId.clientid );
 
             return;
         }
