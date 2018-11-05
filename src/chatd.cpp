@@ -3675,8 +3675,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     //handle last text message
     if (msg.isValidLastMessage())
     {
-        if ((mLastTextMsg.state() != LastTextMsgState::kHave) //we don't have any last-text-msg yet, just use any
-        || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
+        if (!mLastTextMsg.isValid()  // we don't have any last-text-msg yet, just use any
+                || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
         || (idx > mLastTextMsg.idx())) //we have a newer message
         {
             onLastTextMsgUpdated(msg, idx);
@@ -3690,8 +3690,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         onMsgTimestamp(msg.ts);
     }
-
-    onMsgTimestamp(msg.ts);
 
     if (msg.type == Message::Type::kMsgAttachment)
     {
