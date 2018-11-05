@@ -127,8 +127,8 @@ Change directory to the root of the MEGAchat checkout
 
  - `mkdir ./build`    
  - `cd ./build`    
- - `qmake ./contrib/QtCreator/MEGAchat.pro -spec linux-g++ CONFIG+=qml_debug CONFIG+=force_debug_info CONFIG+=separate_debug_info && /usr/bin/make _all`    
- - `cd ./build/MEGAChatQt/`    
+ - `qmake ../contrib/QtCreator/MEGAchat.pro -spec linux-g++ CONFIG+=qml_debug CONFIG+=force_debug_info CONFIG+=separate_debug_info && /usr/bin/make _all`    
+ - `cd ./MEGAChatQt/`    
  - `make`    
 
 Once the compilation has finished we can find the QTapp binary in
