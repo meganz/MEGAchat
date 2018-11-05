@@ -3108,7 +3108,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                     mAttachmentNodes->deleteMessage(*msg);
                 }
 
-                // update last-ts (and last message?)
+                findAndNotifyLastTextMsg();
             }
 
             if (msg->type == Message::kMsgTruncate)
