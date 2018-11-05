@@ -1236,6 +1236,7 @@ void Call::msgJoin(RtMessage& packet)
             // Send OP_CALLDATA with call inProgress
             if (!chat().isGroup() && !sendCallData(CallDataState::kCallDataNotRinging))
             {
+                SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) because cannot send CALLDATA (offline)", packet.userid.toString().c_str(), packet.clientid);
                 return;
             }
         }
