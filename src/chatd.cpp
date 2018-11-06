@@ -4625,18 +4625,24 @@ HistSource FilteredHistory::getHistory(uint32_t count)
     {
         if (!mFetchingFromServer)
         {
-            mFetchingFromServer = true;
-            Id oldestMsgid;
-            if (!mBuffer.empty())
+            const Message *msgNode = !mBuffer.empty() ? mBuffer.back().get() : NULL;
+            const Message *msgText = mChat->oldest();
+            Id oldestMsgid = Id::inval();
+            if (msgNode && msgText)
             {
-                oldestMsgid = mBuffer.back()->id();
+                oldestMsgid = (msgNode->ts >= msgText->ts) ? msgNode->id() : msgText->id();
             }
-            else
+            else if (msgNode)
             {
-                const Message* msg = mChat->oldest();
-                oldestMsgid = msg ? msg->id() : Id::inval();
+                oldestMsgid = msgNode->id();
             }
+            else if (msgText)
+            {
+                oldestMsgid = msgText->id();
+            }
+            // else --> no history at all, use invalid id
 
+            mFetchingFromServer = true;
             mChat->requestNodeHistoryFromServer(oldestMsgid, count);
         }
         return HistSource::kHistSourceServer;
