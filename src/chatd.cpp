@@ -1160,6 +1160,36 @@ void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
     }, mClient.karereClient->appCtx);
 }
 
+Message *Chat::oldest() const
+{
+    if (!mBackwardList.empty())
+    {
+        return mBackwardList.back().get();
+    }
+
+    if (!mForwardList.empty())
+    {
+        return mForwardList.front().get();
+    }
+
+    return NULL;
+}
+
+Message *Chat::newest() const
+{
+    if (!mForwardList.empty())
+    {
+        return mForwardList.back().get();
+    }
+
+    if (!mBackwardList.empty())
+    {
+        return mBackwardList.front().get();
+    }
+
+    return NULL;
+}
+
 Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
     ICrypto* crypto, bool isGroup)
@@ -4461,13 +4491,13 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
         mIdToMsgMap[msgid] =  mBuffer.begin();
         mNewestIdx++;
         CALL_DB_FH(addMsgToNodeHistory, msg, mNewestIdx);
-        CALL_LISTENER_FH(onReceived, &(*mBuffer.front()), mNewestIdx);
+        CALL_LISTENER_FH(onReceived, mBuffer.front().get(), mNewestIdx);
     }
     else    // from DB or from NODEHIST/HIST
     {
         if (mIdToMsgMap.find(msgid) == mIdToMsgMap.end())  // if it doesn't exist
         {
-            mBuffer.emplace_back(isLocal ? &msg : new Message(msg));
+            mBuffer.emplace_back(isLocal ? &msg : new Message(msg));    // if it's local (from DB), take the ownership
             mIdToMsgMap[msgid] = --mBuffer.end();
             mOldestIdx--;
             if (!isLocal)

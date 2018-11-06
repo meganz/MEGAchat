@@ -558,9 +558,13 @@ protected:
     /** Iterator pointing to the next message to be notified from buffer in memory */
     std::list<std::unique_ptr<Message>>::iterator mNextMsgToNotify;
 
-    void init();
+    /** True if we reached the beginning of the history */
     bool mHaveAllHistory = false;
+
+    /** True while fetching messages from server via NODEHIST is in progress*/
     bool mFetchingFromServer = false;
+
+    void init();
 };
 
 struct ChatDbInfo;
@@ -1154,10 +1158,10 @@ public:
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
 
     /** Returns oldest message in  the history buffer*/
-    Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
+    Message* oldest() const;
 
     /** Returns newest message in  the history buffer*/
-    Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
+    Message* newest() const;
 
     /** Returns true when fetch in-flight is a NODEHIST */
     bool isFetchingNodeHistory() const;
