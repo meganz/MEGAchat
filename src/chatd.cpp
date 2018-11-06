@@ -2063,10 +2063,7 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     // last text msg stuff
-    if (msg->isValidLastMessage())
-    {
-        onLastTextMsgUpdated(*msg);
-    }
+    onLastTextMsgUpdated(*msg);
     onMsgTimestamp(msg->ts);
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
@@ -3664,7 +3661,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             handleTruncate(msg, idx);
         }
-        onMsgTimestamp(msg.ts);
         return;
     }
 
@@ -3674,9 +3670,9 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     //handle last text message
     if (msg.isValidLastMessage())
     {
-        if ((mLastTextMsg.state() != LastTextMsgState::kHave) //we don't have any last-text-msg yet, just use any
-        || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
-        || (idx > mLastTextMsg.idx())) //we have a newer message
+        if (!mLastTextMsg.isValid()  // we don't have any last-text-msg yet, just use any
+                || (mLastTextMsg.idx() == CHATD_IDX_INVALID) //current last-text-msg is a pending send, always override it
+                || (idx > mLastTextMsg.idx())) //we have a newer message
         {
             onLastTextMsgUpdated(msg, idx);
         }
@@ -3687,7 +3683,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             notifyLastTextMsg();
         }
     }
-    onMsgTimestamp(msg.ts);
 
     if (msg.type == Message::Type::kMsgAttachment)
     {
@@ -3697,8 +3692,14 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
 void Chat::onMsgTimestamp(uint32_t ts)
 {
-    if (ts <= mLastMsgTs)
+    if (ts == mLastMsgTs)
         return;
+
+    if (ts < mLastMsgTs)
+    {
+        CHATID_LOG_WARNING("onMsgTimestamp: moving last-ts to an older ts (last-msg was deleted or history was truncated)");
+    }
+
     mLastMsgTs = ts;
     CALL_LISTENER(onLastMessageTsUpdated, ts);
 }
@@ -3851,6 +3852,15 @@ void Chat::notifyLastTextMsg()
 {
     CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
     mLastTextMsg.mIsNotified = true;
+
+    // upon deletion of lastMessage and/or truncate, need to find the new suitable
+    // lastMessage through the history. In that case, we need to notify also the
+    // message's timestamp to reorder the list of chats
+    Message *lastMsg = findOrNull(mLastTextMsg.idx());
+    if (lastMsg)
+    {
+        onMsgTimestamp(lastMsg->ts);
+    }
 }
 
 uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
