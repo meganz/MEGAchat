@@ -576,12 +576,13 @@ void ChatWindow::onShowAttachments(bool active)
         connect(mAttachmentList, SIGNAL(requestHistory()), this, SLOT(onAttachmentRequestHistory()));
         connect(mAttachmentList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
         connect(mFrameAttachments, SIGNAL(destroyed(QObject*)), this, SLOT(onAttachmentsClosed(QObject*)));
+
+        loadedAttachments = 0;
+        mScrollToBottomAttachments = true;
+
         megaChatNodeHistoryListenerDelegate = new megachat::QTMegaChatNodeHistoryListener(mMegaChatApi, this);
         mMegaChatApi->openNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
         mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
-        loadedMessages = 0;
-        loadedAttachments = 0;
-        mScrollToBottomAttachments = true;
     }
     else
     {
