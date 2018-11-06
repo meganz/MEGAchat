@@ -887,19 +887,6 @@ const megachat::MegaChatListItem *MainWindow::getLocalChatListItem(megachat::Meg
     return NULL;
 }
 
-void MainWindow::updateLocalChatListItem(MegaChatListItem *item)
-{
-    std::map<megachat::MegaChatHandle, const MegaChatListItem *>::iterator itItem;
-    itItem = mLocalChatListItems.find(item->getChatId());
-    if (itItem != mLocalChatListItems.end())
-    {
-        const megachat::MegaChatListItem *auxItem = itItem->second;
-        mLocalChatListItems.erase(itItem);
-        addOrUpdateLocalChatListItem(item);
-        delete auxItem;
-    }
-}
-
 std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 {
     std::list<Chat> *chatList = new std::list<Chat>;

@@ -79,7 +79,6 @@ class MainWindow :
         void addOrUpdateLocalChatListItem(const megachat::MegaChatListItem *item);
         void updateLocalChatListItems();
         void createFactorMenu(bool factorEnabled);
-        void updateLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
