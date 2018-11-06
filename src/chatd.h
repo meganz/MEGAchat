@@ -517,6 +517,30 @@ protected:
     uint8_t mState = kNone;
 };
 
+/**
+ * @brief The generic class to manage history applying filters
+ *
+ * This class allows to add/delete messages and truncate history, as well as
+ * retrieve/load messages by the app (from RAM, DB's cache and/or server).
+ *
+ * A FilteredHistoryHandler can be registered by FilteredHistory::setHandler in order to
+ * receive callbacks when a message is received, loaded and deleted, or when the history
+ * is truncated.
+ *
+ * Currently, this class is used exclusively to manage history of nodes/attachments.
+ * In consequence, it uses the method Chat::requestNodeHistoryFromServer to fetch
+ * new nodes from chatd through NODEHIST. Note that node-messages are also added to
+ * the filtered history if a received/retrieved message (NEWMSG/OLDMSG) is a node-message.
+ *
+ * However, since NODEHIST only returns messages tagged in chatd as attachments via
+ * the NEWNODEMSG, the algorithm may suffer from two issues:
+ *
+ *  1. Attachments in the filtered history may not preserve the order in the history, since
+ * tagged attachments may be added to the node-history earlier than older non-tagged attachments.
+ *  2. Once all tagged attachments are loaded via NODEHIST, older non-tagged attachments (retrieved
+ * via HIST) won't be notified until the app is restarted because it's considered all node-history
+ * is already loaded.
+ */
 class FilteredHistory
 {
 public:
