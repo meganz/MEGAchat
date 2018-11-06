@@ -933,6 +933,7 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
     bool anonymousMode() const;
+    bool isChatRoomOpened(Id chatid);
 
 protected:
     void heartbeat();

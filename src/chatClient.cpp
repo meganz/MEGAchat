@@ -565,6 +565,16 @@ void Client::onSyncReceived(Id chatid)
     }
 }
 
+bool Client::isChatRoomOpened(Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it != chats->end())
+    {
+        return it->second->hasChatHandler();
+    }
+    return false;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -1668,13 +1678,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 //Add entry to map
                 userKeyMap->set(mMyHandle.toString().c_str(), oKeyB64.c_str());
                 return api.call(&mega::MegaApi::createPublicChat, sdkPeers.get(), userKeyMap,
-                                !enctitleB64.empty() ? enctitleB64.c_str() : NULL);
+                                !enctitleB64.empty() ? enctitleB64.c_str() : nullptr);
             });
         }
         else
         {
             createChatPromise = api.call(&mega::MegaApi::createChat, true, sdkPeers.get(),
-                                         !enctitleB64.empty() ? enctitleB64.c_str() : NULL);
+                                         !enctitleB64.empty() ? enctitleB64.c_str() : nullptr);
         }
 
         return createChatPromise
