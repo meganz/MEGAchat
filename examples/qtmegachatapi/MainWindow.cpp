@@ -552,6 +552,7 @@ void MainWindow::addChatWidget(const MegaChatListItem* chatListItem)
     if(auxItem)
     {
         chatItemWidget->mChatWindow = auxItem->mChatWindow;
+        auxItem->mChatWindow = NULL;
         auxItem->deleteLater();
     }
 }
@@ -627,7 +628,23 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         //The chatroom has been left by own user
         if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CLOSED))
         {
-            chatItemWidget->showAsHidden();
+            if (!mShowInactive)
+            {
+                ChatItemWidget *auxItem = getChatItemWidget(chatid, false);
+                if(auxItem)
+                {
+                    if (auxItem->mChatWindow)
+                    {
+                        QMessageBox::warning(this, tr("MEGAchat"), tr("Your privilege has changed to removed, and inactive chats are hidden so your chat window will be closed"));
+                        auxItem->mChatWindow->deleteLater();
+                        auxItem->invalidChatWindowHandle();
+                    }
+                }
+            }
+            else
+            {
+                chatItemWidget->showAsHidden();
+            }
             needReorder = true;
         }
 
@@ -648,6 +665,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
                 {
                     if (auxItem->mChatWindow)
                     {
+                        QMessageBox::warning(this, tr("MEGAchat"), tr("This chat has been archived, and archived chats are hidden so your chat window will be closed"));
                         auxItem->mChatWindow->deleteLater();
                         auxItem->invalidChatWindowHandle();
                     }
