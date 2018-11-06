@@ -1046,10 +1046,9 @@ HistSource Chat::getHistory(unsigned count)
                 auto& msg = at(i);
                 if (msg.isPendingToDecrypt())
                 {
-                    assert(false);
                     CHATID_LOG_WARNING("Skipping the load of a message still encrypted. "
                                        "msgid: %s idx: %d", ID_CSTR(msg.id()), i);
-                    continue;
+                    break;
                 }
 
                 CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
@@ -1094,7 +1093,6 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
     }
     else //have to fetch history from server
     {
-        mServerOldHistCbEnabled = true;
         if (mHaveAllHistory)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: No more history exists");
@@ -1119,6 +1117,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
                 requestHistoryFromServer(-count);
             }, mClient.karereClient->appCtx);
         }
+        mServerOldHistCbEnabled = true;
         return kHistSourceServer;
     }
 }
@@ -1446,7 +1445,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                 else if (op == OP_RANGE && reason == 1)
                 {
                     chat.clearHistory();
-                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
+                    // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
+                    chat.mServerOldHistCbEnabled = mChatdClient.karereClient->isChatRoomOpened(chatid);
+                    chat.getHistoryFromDbOrServer(chat.initialHistoryFetchCount);
                 }
                 else if (op == OP_NEWKEY)
                 {
@@ -1714,7 +1715,14 @@ void Chat::onFetchHistDone()
         else
         {
             mServerFetchState = kHistNotFetching;
-            mNextHistFetchIdx = lownum()-1;
+            // if app tries to load messages before first join and there's no local history available yet,
+            // they received a `HistSource == kSourceNotLoggedIn`. During login, received messages won't be
+            // notified, but after login the app can attempt to load messages again and should be notified
+            // about messages from the beginning
+            if (!mIsFirstJoin)
+            {
+                mNextHistFetchIdx = lownum()-1;
+            }
         }
         if (mLastServerHistFetchCount <= 0)
         {
@@ -1858,7 +1866,6 @@ void Chat::clearHistory()
     initChat();
     CALL_DB(clearHistory);
     CALL_CRYPTO(onHistoryReload);
-    mServerOldHistCbEnabled = true;
     CALL_LISTENER(onHistoryReloaded);
 }
 
@@ -2370,7 +2377,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         assert(keyCmd->localKeyid() == msg->keyid);
         assert(msgCmd->keyId() == CHATD_KEYID_UNCONFIRMED);
 
-        SendingItem item = mSending.front();
+        SendingItem &item = mSending.front();
         item.msgCmd = msgCmd;
         item.keyCmd = keyCmd;
         CALL_DB(addBlobsToSendingItem, rowid, item.msgCmd, item.keyCmd, msg->keyid);
@@ -3789,14 +3796,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         // old message
         // local messages are obtained on-demand, so if isLocal,
         // then always send to app
-        bool isChatRoomOpened = false;
-
-        auto it = mClient.karereClient->chats->find(mChatId);
-        if (it != mClient.karereClient->chats->end())
-        {
-            isChatRoomOpened = it->second->hasChatHandler();
-        }
-
+        bool isChatRoomOpened = mClient.karereClient->isChatRoomOpened(mChatId);
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
         {
             CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);

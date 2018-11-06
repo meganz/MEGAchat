@@ -275,6 +275,12 @@ void MegaChatApiImpl::sendPendingRequests()
             int64_t timeout = request->getNumber();
             bool enable = request->getFlag();
 
+            if (timeout > presenced::Config::kMaxAutoawayTimeout)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             mClient->presenced().setAutoaway(enable, timeout);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -289,6 +295,24 @@ void MegaChatApiImpl::sendPendingRequests()
 
             mClient->presenced().setPersist(enable);
 
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
+        case MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE:
+        {
+            bool enable = request->getFlag();
+            mClient->presenced().setLastGreenVisible(enable);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+
+            break;
+        }
+        case MegaChatRequest::TYPE_LAST_GREEN:
+        {
+            MegaChatHandle userid = request->getUserHandle();
+            mClient->presenced().requestLastGreen(userid);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
@@ -340,16 +364,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            std::vector<promise::Promise<void> > promises;
-            if (status == MegaChatApi::STATUS_ONLINE)
-            {
-                // if setting to online, better to use dynamic in order to avoid sticky online that
-                // would be kept even when the user goes offline
-                promises.push_back(mClient->setPresence(karere::Presence::kClear));
-            }
-
-            promises.push_back(mClient->setPresence(request->getNumber()));
-            promise::when(promises)
+            mClient->setPresence(request->getNumber())
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1258,10 +1273,11 @@ int MegaChatApiImpl::init(const char *sid)
     if (!mClient)
     {
 #ifndef KARERE_DISABLE_WEBRTC
-        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc;
+        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc | kClientSupportLastGreen;
 #else
-        uint8_t caps = karere::kClientIsMobile;
+        uint8_t caps = karere::kClientIsMobile | kClientSupportLastGreen;
 #endif
+
         mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);
         terminating = false;
     }
@@ -1704,6 +1720,14 @@ void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *con
     delete config;
 }
 
+void MegaChatApiImpl::fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onChatPresenceLastGreen(chatApi, userhandle, lastGreen);
+    }
+}
+
 void MegaChatApiImpl::fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState)
 {
     bool allConnected = (newState == MegaChatApi::CHAT_CONNECTION_ONLINE) ? mClient->mChatdClient->areAllChatsLoggedIn() : false;
@@ -1838,6 +1862,22 @@ void MegaChatApiImpl::setPresencePersist(bool enable, MegaChatRequestListener *l
 void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SIGNAL_ACTIVITY, listener);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::setLastGreenVisible(bool enable, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE, listener);
+    request->setFlag(enable);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LAST_GREEN, listener);
+    request->setUserHandle(userid);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3721,6 +3761,11 @@ void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bo
     fireOnChatPresenceConfigUpdate(config);
 }
 
+void MegaChatApiImpl::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+{
+    fireOnChatPresenceLastGreenUpdated(userid, lastGreen);
+}
+
 ChatRequestQueue::ChatRequestQueue()
 {
     mutex.init(false);
@@ -3930,6 +3975,8 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_PRESENCE_AUTOAWAY: return "SET_PRESENCE_AUTOAWAY";
         case TYPE_ARCHIVE_CHATROOM: return "ARCHIVE_CHATROOM";
         case TYPE_PUSH_RECEIVED: return "PUSH_RECEIVED";
+        case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
+        case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
     }
     return "UNKNOWN";
 }
@@ -6706,6 +6753,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const MegaChatPrese
     this->autoawayEnabled = config.isAutoawayEnabled();
     this->autoawayTimeout = config.getAutoawayTimeout();
     this->persistEnabled = config.isPersist();
+    this->lastGreenVisible = config.isLastGreenVisible();
     this->pending = config.isPending();
 }
 
@@ -6715,6 +6763,7 @@ MegaChatPresenceConfigPrivate::MegaChatPresenceConfigPrivate(const presenced::Co
     this->autoawayEnabled = config.autoawayActive();
     this->autoawayTimeout = config.autoawayTimeout();
     this->persistEnabled = config.persist();
+    this->lastGreenVisible = config.lastGreenVisible();
     this->pending = isPending;
 }
 
@@ -6759,6 +6808,11 @@ bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
             && status != MegaChatApi::STATUS_OFFLINE
             && status != MegaChatApi::STATUS_AWAY
             && autoawayEnabled && autoawayTimeout);
+}
+
+bool MegaChatPresenceConfigPrivate::isLastGreenVisible() const
+{
+    return lastGreenVisible;
 }
 
 MegaChatAttachedUser::MegaChatAttachedUser(MegaChatHandle contactId, const std::string &email, const std::string& name)

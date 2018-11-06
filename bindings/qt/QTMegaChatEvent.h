@@ -21,6 +21,7 @@ public:
         OnChatOnlineStatusUpdate,
         OnChatPresenceConfigUpdate,
         OnChatConnectionStateUpdate,
+        OnChatPresenceLastGreen,
         OnChatRoomUpdate,
         OnMessageLoaded,
         OnMessageReceived,
@@ -68,7 +69,6 @@ public:
     void setHeight(int height);
     void setBuffer(char *buffer);
     void setSize(size_t size);
-
 
 private:
     MegaChatApi *megaChatApi;

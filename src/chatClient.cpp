@@ -395,6 +395,16 @@ void Client::onSyncReceived(Id chatid)
     }
 }
 
+bool Client::isChatRoomOpened(Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it != chats->end())
+    {
+        return it->second->hasChatHandler();
+    }
+    return false;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -1203,7 +1213,10 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
         for (auto& peer: members)
         {
-            peers.insert(peer.first);
+            if (!contactList->isExContact(peer.first))
+            {
+                peers.insert(peer.first);
+            }
         }
     }
 
@@ -1251,6 +1264,12 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 {
     app.onPresenceConfigChanged(state, pending);
 }
+
+void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+{
+    app.onPresenceLastGreenUpdated(userid, lastGreen);
+}
+
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 
@@ -1372,7 +1391,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
     }
-    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get())
+    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), nullptr)
     .then([this](ReqResult result)->Promise<karere::Id>
     {
         auto& list = *result->getMegaTextChatList();
@@ -1788,7 +1807,12 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
 
         if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
-            parent.mKarereClient.presenced().addPeer(userid);
+        {
+            if (!parent.mKarereClient.contactList->isExContact(userid))
+            {
+                parent.mKarereClient.presenced().addPeer(userid);
+            }
+        }
     }
     if (saveToDb)
     {
@@ -2197,7 +2221,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
-    std::string newTitle = mTitleString;
+    std::string newTitle;
     if (mPeers.empty())
     {
         time_t ts = mCreationTs;
@@ -2838,14 +2862,7 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 
     auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
-    {
-        if (!mChatRoom)
-        {
-            client.presenced().removePeer(mUserid);
-        }
-    }
-    else if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
     {
         client.presenced().removePeer(mUserid, true);
     }
@@ -2956,6 +2973,17 @@ const std::string* ContactList::getUserEmail(uint64_t userid) const
     return &(it->second->email());
 }
 
+bool ContactList::isExContact(Id userid)
+{
+    auto it = find(userid);
+    if (it == end() || (it != end() && it->second->visibility() != mega::MegaUser::VISIBILITY_HIDDEN))
+    {
+        return false;
+    }
+
+    return true;
+}
+
 Contact* ContactList::contactFromEmail(const std::string &email) const
 {
     for (auto it = begin(); it != end(); it++)
@@ -3052,7 +3080,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_OPER);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers)
+    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
         auto& list = *result->getMegaTextChatList();

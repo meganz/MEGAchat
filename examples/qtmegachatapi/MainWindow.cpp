@@ -353,6 +353,13 @@ void MainWindow::on_bSettings_clicked()
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
     // TODO: connect to slot once chat-links branch is merged
 
+    menu.addSeparator();
+    MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+    auto actlastGreenVisible = menu.addAction("Enable/Disable Last-Green");
+    connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
+    actlastGreenVisible->setCheckable(true);
+    actlastGreenVisible->setChecked(presenceConfig->isLastGreenVisible());
+    delete presenceConfig;
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -727,7 +734,33 @@ void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfi
         : kOnlineSymbol_Set);
 
     ui->bOnlineStatus->setStyleSheet(
-        kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
+                kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
+}
+
+void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle userhandle, int lastGreen)
+{
+    const char *firstname = mApp->getFirstname(userhandle);
+    if (!firstname)
+    {
+        firstname = mMegaApi->userHandleToBase64(userhandle);
+    }
+
+    std::string str;
+    str.append("User: ");
+    str.append(firstname);
+    str.append("\nLast time green: ");
+    str.append(std::to_string(lastGreen));
+    str.append(" minutes ago");
+
+    QMessageBox* msgBox = new QMessageBox(this);
+    msgBox->setIcon( QMessageBox::Information );
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setStandardButtons(QMessageBox::Ok);
+    msgBox->setWindowTitle( tr("Last time green"));
+    msgBox->setText(str.c_str());
+    msgBox->setModal(false);
+    msgBox->show();
+    delete firstname;
 }
 
 int MainWindow::getNContacts() const
@@ -894,4 +927,11 @@ void MainWindow::on_mLogout_clicked()
     {
         mMegaApi->logout();
     }
+}
+
+void MainWindow::onlastGreenVisibleClicked()
+{
+    MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+    mMegaChatApi->setLastGreenVisible(!presenceConfig->isLastGreenVisible());
+    delete presenceConfig;
 }

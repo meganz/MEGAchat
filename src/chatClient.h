@@ -529,6 +529,7 @@ public:
     IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
+    bool isExContact(karere::Id userid);
     /** @endcond */
 };
 
@@ -848,6 +849,8 @@ public:
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
 
+    bool isChatRoomOpened(Id chatid);
+
 protected:
     void heartbeat();
     void setInitState(InitState newState);
@@ -916,6 +919,7 @@ protected:
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 
     //==
     friend class ChatRoom;

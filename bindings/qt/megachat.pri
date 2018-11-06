@@ -135,7 +135,7 @@ else {
 
 karereDbSchemaTarget.target = karereDbSchema.cpp
 karereDbSchemaTarget.depends = FORCE
-karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
+karereDbSchemaTarget.commands = cmake -P $$MEGACHAT_BASE_PATH/src/genDbSchema.cmake
 PRE_TARGETDEPS += karereDbSchema.cpp
 QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
 

@@ -661,6 +661,7 @@ protected:
 
     /** @brief Whether we have more not-loaded history in db */
     bool mHasMoreHistoryInDb = false;
+    /** When true, OLDMSGs received from chatd are notified to the app */
     bool mServerOldHistCbEnabled = false;
     /** @brief Have reached the beggining of the history (not necessarily the end of it) */
     bool mHaveAllHistory = false;
