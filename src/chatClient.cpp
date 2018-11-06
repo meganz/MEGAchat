@@ -1340,13 +1340,21 @@ void Client::terminate(bool deleteDb)
 
 promise::Promise<void> Client::setPresence(Presence pres)
 {
-    if (!mPresencedClient.setPresence(pres))
-        return promise::Error("Not connected");
-    else
+    if (pres == mPresencedClient.config().presence())
     {
-        app.onPresenceChanged(mMyHandle, pres, true);
-        return promise::_Void();
+        std::string err = "setPresence: tried to change online state to the current configured state (";
+        err.append(mOwnPresence.toString(mOwnPresence)).append(")");
+        return promise::Error(err, kErrorArgs);
     }
+
+    bool ret = mPresencedClient.setPresence(pres);
+    if (!ret)
+    {
+        return promise::Error("setPresence: not connected", kErrorAccess);
+    }
+
+    app.onPresenceChanged(mMyHandle, pres, true);
+    return promise::_Void();
 }
 
 void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)

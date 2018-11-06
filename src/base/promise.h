@@ -92,7 +92,12 @@ struct ErrorShared
 
 enum
 {
-    kErrorTypeGeneric = 1
+    kErrorTypeGeneric       =   1,
+    kErrorUnknown           =  -1,
+    kErrorArgs              =  -2,
+    kErrorNoEnt             =  -9,
+    kErrorAccess            = -11,
+    kErrorAlreadyExist      = -12
 };
 enum
 {
