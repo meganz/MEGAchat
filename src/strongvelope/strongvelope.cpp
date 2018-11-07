@@ -1121,6 +1121,8 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 void ProtocolHandler::prefetchAnonymousAttributes(karere::Id userId)
 {
     mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
+    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
 }
 
 //We should have already received and decrypted the key in advance
