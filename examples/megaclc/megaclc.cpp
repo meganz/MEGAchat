@@ -24,9 +24,6 @@
 // Currently only built under Visual Studio.
 
 #include <iomanip>
-#ifdef _WIN32
-    #include <filesystem>
-#endif
 #include <fstream>
 #include <mutex>
 
@@ -42,6 +39,7 @@
 #include <megaapi.h>
 #include <megachatapi.h>
 #include <karereId.h>
+#include <mega/autocomplete.h>
 
 using namespace std;
 namespace m = ::mega;
@@ -49,7 +47,28 @@ namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
 
+#if (__cplusplus >= 201700L)
+    #include <filesystem>
+    namespace fs = std::filesystem;
+#else
+#ifdef WIN32
+    #include <filesystem>
+    namespace fs = std::experimental::filesystem;
+#else
+    #include <experimental/filesystem>
+    namespace fs = std::experimental::filesystem;
+#endif
+#endif
 
+void WaitMillisec(unsigned n)
+{
+#ifdef WIN32
+    Sleep(n);
+#else
+    usleep(n*1000);
+#endif
+}
+	
 
 struct ConsoleLock
 {
@@ -191,6 +210,7 @@ static void setprompt(prompttype p)
 }
 
 // readline callback - exit if EOF, add to history unless password
+static char* line = NULL;
 static void store_line(char* l)
 {
     if (!l)
@@ -206,6 +226,7 @@ static void store_line(char* l)
     }
 #endif
 
+    line = l;
 }
 
 struct CLCListener : public c::MegaChatListener
@@ -1404,11 +1425,12 @@ void exec_detail(ac::ACState& s)
     g_detailHigh = s.words[1].s == "high";
 }
 
-
+#ifdef WIN32
 void exec_dos_unix(ac::ACState& s)
 {
     static_cast<m::WinConsole*>(console.get())->setAutocompleteStyle(s.words[1].s == "unix");
 }
+#endif
 
 ac::ACN autocompleteTemplate;
 
@@ -1417,10 +1439,12 @@ void exec_help(ac::ACState& s)
     conlock(cout) << *autocompleteTemplate << flush;
 }
 
+#ifdef WIN32
 void exec_history(ac::ACState& s)
 {
     static_cast<m::WinConsole*>(console.get())->outputHistory();
 }
+#endif
 
 void exec_quit(ac::ACState& s)
 {
@@ -1489,9 +1513,13 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_savecurrentstate, sequence(text("savecurrentstate")));
 
     p->Add(exec_detail,     sequence(text("detail"), opt(either(text("high"), text("low")))));
+#ifdef WIN32
     p->Add(exec_dos_unix,   sequence(text("autocomplete"), opt(either(text("unix"), text("dos")))));
+#endif
     p->Add(exec_help,       sequence(either(text("help"), text("?"))));
+#ifdef WIN32
     p->Add(exec_history,    sequence(text("history")));
+#endif
     p->Add(exec_repeat,     sequence(text("repeat"), wholenumber(5), param("command")));
     p->Add(exec_quit,       sequence(either(text("quit"), text("q"))));
     p->Add(exec_quit,       sequence(text("exit")));
@@ -1531,9 +1559,48 @@ static void process_line(const char* l)
     }
 }
 
+#ifndef NO_READLINE
+char* longestCommonPrefix(ac::CompletionState& acs)
+{
+    string s = acs.completions[0].s;
+    for (int i = acs.completions.size(); i--; )
+    {
+        for (unsigned j = 0; j < acs.completions[i].s.size(); ++j)
+        {
+            if (j < s.size() && s[j] != acs.completions[i].s[j])
+            {
+                s.erase(j, string::npos);
+                break;
+            }
+        }
+    }
+    return strdup(s.c_str());
+}
+
+char** my_rl_completion(const char *text, int start, int end)
+{
+    rl_attempted_completion_over = 1;
+
+    std::string line(rl_line_buffer, end);
+    ac::CompletionState acs = ac::autoComplete(line, line.size(), autocompleteTemplate, true); 
+    
+    if (acs.completions.empty())
+    {
+        return NULL;
+    }
+
+    char** result = (char**)malloc((sizeof(char*)*(2+acs.completions.size())));
+    for (int i = acs.completions.size(); i--; )
+    {
+        result[i+1] = strdup(acs.completions[i].s.c_str());
+    }
+    result[acs.completions.size()] = NULL;
+    result[0] = longestCommonPrefix(acs);
+    return result;
+}
+#endif
 
 int responseprogress = -1;  // loading progress of lengthy API responses
-static char* line;
 
 // main loop
 void megaclc()
@@ -1541,6 +1608,7 @@ void megaclc()
 #ifndef NO_READLINE
     char *saved_line = NULL;
     int saved_point = 0;
+    rl_attempted_completion_function = my_rl_completion;
 
     rl_save_prompt();
 #elif defined(WIN32) && defined(NO_READLINE)
@@ -1574,13 +1642,24 @@ void megaclc()
         // command editing loop - exits when a line is submitted or the engine requires the CPU
         while (!line)
         {
-            Sleep(1);
+            WaitMillisec(1);
 
+#ifdef NO_READLINE
             {
                 auto cl = conlock(cout);
                 static_cast<m::WinConsole*>(console.get())->consolePeek();
                 line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
             }
+#else
+            if (prompt == COMMAND)
+            {
+                rl_callback_read_char();
+            }
+            else
+            {
+                console->readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &line);
+            }
+#endif
 
             if (g_signalPresencePeriod > 0 && g_signalPresenceLastSent + g_signalPresencePeriod < time(NULL))
             {
@@ -1681,11 +1760,15 @@ int main()
     m::SimpleLogger::setAllOutputs(&cout);
 #endif 
 
-    string basePath = getenv("USERPROFILE");
-    basePath += "\\MEGAclc";
-    std::filesystem::create_directory(basePath);
+#ifdef WIN32
+    fs::path basePath = getenv("USERPROFILE");
+#else
+    fs::path basePath = getenv("HOME");
+#endif
+    basePath /= "temp_MEGAclc";
+    fs::create_directory(basePath);
 
-    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.c_str(), "MEGAclc"));
+    g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.u8string().c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
     g_chatApi->setLoggerObject(&g_chatLogger);
