@@ -267,8 +267,7 @@ bool Client::openDb(const std::string& sid)
                 else
                 {
                     // no chats --> only update cache schema
-                    db.query("ALTER TABLE `chats` ADD public_chat tinyint");
-                    db.query("ALTER TABLE `chats` ADD preview_mode tinyint");
+                    db.query("ALTER TABLE `chats` ADD mode tinyint");
                     db.query("ALTER TABLE `chats` ADD unified_key blob");
                     KR_LOG_WARNING("Updating cache schema ...");
                     ok = true;
@@ -1918,7 +1917,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
     db.query("insert or replace into chats(chatid, shard, peer, peer_priv, "
-             "own_priv, ts_created, archived, public_chat, preview_mode) values(?,?,-1,0,?,?,?,?,0)",
+             "own_priv, ts_created, archived, mode) values(?,?,-1,0,?,?,?,?)",
              mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), isPublicChat);
     db.query("delete from chat_peers where chatid=?", mChatid); // clean any obsolete data
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
@@ -2023,7 +2022,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, public_chat, preview_mode, unified_key) values(?,?,-1,0,?,?,1,1,?)",
+        "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
 
     KR_LOG_DEBUG("Title update in cache");
@@ -2184,8 +2183,7 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
             mChat->setPublicHandle(Id::inval());
 
             //Remove preview mode flag from DB
-            auto db = parent.mKarereClient.db;
-            db.query("update chats set preview_mode = 0 where chatid = ?", mChatid);
+            parent.mKarereClient.db.query("update chats set mode = '1' where chatid = ?", mChatid);
         }
     }
 
@@ -2358,14 +2356,14 @@ void ChatRoomList::loadFromDb()
     auto db = mKarereClient.db;
 
     //We need to ensure that the DB does not contain any record related with a preview
-    SqliteStmt stmtPreviews(db, "select chatid from chats where preview_mode = '1'");
+    SqliteStmt stmtPreviews(db, "select chatid from chats where mode = '2'");
     while(stmtPreviews.step())
     {
         Id chatid = stmtPreviews.uint64Col(0);
         previewCleanup(chatid);
     }
 
-    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, public_chat, unified_key from chats");
+    SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -3336,19 +3334,11 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 
 void GroupChatRoom::setChatPrivateMode()
 {
-    bool wasPreviewMode = previewMode();
-
     //Update strongvelope
     chat().crypto()->setPrivateChatMode();
 
     //Update cache
-    auto db = parent.mKarereClient.db;
-    if (wasPreviewMode)
-    {
-        //Remove preview mode flag from DB
-        db.query("update chats set preview_mode = 0 where chatid = ?", mChatid);
-    }
-    db.query("update chats set public_chat = 0 where chatid = ?", mChatid);
+    parent.mKarereClient.db.query("update chats set mode = '0' where chatid = ?", mChatid);
 
     notifyChatModeChanged();
 }

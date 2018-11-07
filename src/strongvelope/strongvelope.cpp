@@ -536,9 +536,17 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
         STRONGVELOPE_LOG_WARNING("KRCHAT_FORCE_RSA env var detected, will force RSA for key encryption");
     }
 
-    mChatMode = isPublic ? CHAT_MODE_PUBLIC : CHAT_MODE_PRIVATE;
+    if (isPublic)
+    {
+        mChatMode = CHAT_MODE_PUBLIC;
+        assert(unifiedKey && !unifiedKey->empty());
+    }
+    else
+    {
+        mChatMode = CHAT_MODE_PRIVATE;
+    }
 
-    if (unifiedKey && !unifiedKey->empty())
+    if (unifiedKey && !unifiedKey->empty()) // also for private mode if chat was public before
     {
         if (isUnifiedKeyEncrypted == kKeyDecrypted) // from chat-link, creation's API request or cache
         {
