@@ -2063,8 +2063,11 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
     // last text msg stuff
-    onLastTextMsgUpdated(*msg);
-    onMsgTimestamp(msg->ts);
+    if (msg->isValidLastMessage())
+    {
+        onLastTextMsgUpdated(*msg);
+        onMsgTimestamp(msg->ts);
+    }
 
     int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
     postMsgToSending(opcode, msg, recipients);
