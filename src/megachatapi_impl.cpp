@@ -855,8 +855,9 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::string url = result->getLink() ? result->getLink() : "";
                            int shard = result->getAccess();
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
+                           uint32_t ts = result->getNumber();
 
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, numPeers, decryptedTitle, key, url);
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, numPeers, decryptedTitle, key, url, ts);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
                        }
