@@ -1375,7 +1375,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
     }
-    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get())
+    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), nullptr)
     .then([this](ReqResult result)->Promise<karere::Id>
     {
         auto& list = *result->getMegaTextChatList();
@@ -3064,7 +3064,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_OPER);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers)
+    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
         auto& list = *result->getMegaTextChatList();
