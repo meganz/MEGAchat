@@ -1506,7 +1506,8 @@ void Call::hangup(TermCode reason)
         else
         {
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout ||
-                   reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision);
+                   reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision
+                   || reason == TermCode::kAppTerminating);
         }
 
         destroy(reason, true);
@@ -1522,8 +1523,9 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            reason = TermCode::kInvalid; //silence warning about uninitialized
-            assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
+            assert(reason == TermCode::kAppTerminating
+                   || (false && "Hangup reason can only be undefined, kBusy or kAppTerminating when hanging up call in state kRingIn"));
+            reason = TermCode::kInvalid;
         }
         assert(mSessions.empty());
         destroy(reason, true);
