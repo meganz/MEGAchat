@@ -771,6 +771,8 @@ void MegaChatApiImpl::sendPendingRequests()
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
             handle h = request->getUserHandle();
+            bool isVoiceMessage = request->getFlag();
+
             if (chatid == MEGACHAT_INVALID_HANDLE ||
                     ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
             {
@@ -805,7 +807,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete nodeListAux;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(nodeList);
+            const char *buffer = JSonUtils::generateAttachNodeJSon(nodeList, isVoiceMessage);
             if (!buffer)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -2654,6 +2656,17 @@ void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandl
     requestQueue.push(request);
     waiter->notify();
 }
+
+void MegaChatApiImpl::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(nodehandle);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
@@ -5816,6 +5829,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     this->rowId = msg->getRowId();
     this->megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     this->megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
+    this->mIsVoiceMessage = msg->isVoiceMessage();
 
     if (msg->getUsersCount() != 0)
     {
@@ -5875,7 +5889,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            megaNodeList = JSonUtils::parseAttachNodeJSon(msg.toText().c_str());
+            megaNodeList = JSonUtils::parseAttachNodeJSon(msg.toText().c_str(), mIsVoiceMessage);
             break;
         }
         case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:
@@ -5989,6 +6003,11 @@ MegaChatHandle MegaChatMessagePrivate::getUserHandle() const
 int MegaChatMessagePrivate::getType() const
 {
     return type;
+}
+
+bool MegaChatMessagePrivate::isVoiceMessage() const
+{
+    return mIsVoiceMessage;
 }
 
 int64_t MegaChatMessagePrivate::getTimestamp() const
@@ -6872,7 +6891,7 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
+const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, bool isVoiceMessage)
 {
     if (!nodes)
     {
@@ -6969,6 +6988,12 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         // ts -> time stamp
         jsonNode.AddMember(rapidjson::Value("ts"), rapidjson::Value(megaNode->getModificationTime()), jSonAttachmentNodes.GetAllocator());
 
+        // vm -> voice message
+        if (isVoiceMessage)
+        {
+            jsonNode.AddMember(rapidjson::Value("vm"), rapidjson::Value((uint64_t)1), jSonAttachmentNodes.GetAllocator());
+        }
+
         jSonAttachmentNodes.PushBack(jsonNode, jSonAttachmentNodes.GetAllocator());
     }
 
@@ -6979,7 +7004,7 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
     return MegaApi::strdup(buffer.GetString());
 }
 
-MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
+MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json, bool &isVoiceMessage)
 {
     if (!json || strcmp(json, "") == 0)
     {
@@ -7106,6 +7131,20 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fa = iteratorFa->value.GetString();
         }
 
+        // vm -> voice message
+        rapidjson::Value::ConstMemberIterator iteratorVm = file.FindMember("vm");
+        if (iteratorVm != file.MemberEnd()
+                && iteratorVm->value.IsInt64()
+                && iteratorVm->value == 1)
+        {
+            API_LOG_DEBUG("parseAttachNodeJSon: VOICE_MESSAGE");
+            isVoiceMessage = true;
+        }
+        else
+        {
+            isVoiceMessage = false;
+        }
+
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
                              megaHandle, &key, &attrstring, &fa, sdkFingerprint, INVALID_HANDLE,
@@ -7213,7 +7252,8 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             std::string messageAttach = content;
             messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
 
-            MegaNodeList *megaNodeList = JSonUtils::parseAttachNodeJSon(messageAttach.c_str());
+            bool isVoiceMessage;
+            MegaNodeList *megaNodeList = JSonUtils::parseAttachNodeJSon(messageAttach.c_str(), isVoiceMessage);
             if (megaNodeList && megaNodeList->size() > 0)
             {
                 for (int i = 0; i < megaNodeList->size() - 1; ++i)

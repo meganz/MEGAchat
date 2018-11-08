@@ -690,6 +690,7 @@ public:
     virtual int getMsgIndex() const;
     virtual MegaChatHandle getUserHandle() const;
     virtual int getType() const;
+    virtual bool isVoiceMessage() const;
     virtual int64_t getTimestamp() const;
     virtual const char *getContent() const;
     virtual bool isEdited() const;
@@ -744,6 +745,7 @@ private:
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
     const MegaChatContainsMeta *mContainsMeta = NULL;
+    bool mIsVoiceMessage = false;
 };
 
 //Thread safe request queue
@@ -985,6 +987,7 @@ public:
     MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+    void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
@@ -1154,9 +1157,9 @@ class JSonUtils
 {
 public:
     // you take the ownership of the returned value. NULL if error
-    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
+    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes, bool isVoiceMessage);
     // you take the ownership of returned value. NULL if error
-    static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+    static mega::MegaNodeList *parseAttachNodeJSon(const char* json, bool &isVoiceMessage);
     // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
 
