@@ -3,6 +3,7 @@
 #include "assert.h"
 #include <QMenu>
 #include <QFileDialog>
+#include <QRadioButton>
 
 ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
     : QDialog(parent),
@@ -761,6 +762,38 @@ void ChatWindow::on_mAttachBtn_clicked()
     delete parent;
 }
 
+void ChatWindow::attachNode(QGroupBox *groupBox, mega::MegaHandle nodeHandle)
+{
+    int num = groupBox->children().size();
+    for (int i=0; i< num; i++)
+    {
+       QRadioButton *btn = (QRadioButton *) groupBox->children().at(i);
+       if (btn->isChecked())
+       {
+           if (btn->objectName() == "vc")
+           {
+               mMegaChatApi->attachVoiceMessage(mChatRoom->getChatId(), nodeHandle);
+               break;
+           }
+           else if  (btn->objectName() == "f")
+           {
+               mMegaChatApi->attachNode(mChatRoom->getChatId(), nodeHandle);
+               break;
+           }
+       }
+    }
+
+    groupBox->close();
+    if(groupBox->layout())
+    {
+        while (groupBox->layout()->count()>0)
+        {
+          delete groupBox->layout()->takeAt(0);
+        }
+    }
+    delete layout();
+}
+
 void ChatWindow::on_mCancelTransfer(QAbstractButton*)
 {
     mMegaApi->cancelTransfers(::mega::MegaTransfer::TYPE_UPLOAD);
@@ -786,8 +819,33 @@ void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transf
             mUploadDlg->hide();
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
-                QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
-                mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+                mega::MegaHandle nodeHandle = transfer->getNodeHandle();
+                QGroupBox *groupBox = new QGroupBox(tr("Transfer finished"));
+                QRadioButton *radio1 = new QRadioButton(tr("Attach as file"));
+                QRadioButton *radio2 = new QRadioButton(tr("Attach as voice clip"));
+
+                radio1->setObjectName("f");
+                radio2->setObjectName("vc");
+
+                QObject::connect(radio1,SIGNAL(clicked(bool)),this,SLOT(clickkedstate(bool)));
+                radio1->setAutoExclusive(true);
+                QObject::connect(radio2,SIGNAL(clicked(bool)),this,SLOT(clickkedstate(bool)));
+                radio2->setAutoExclusive(true);
+
+                radio1->setChecked(true);
+                radio2->setChecked(false);
+
+                QVBoxLayout *vbox = new QVBoxLayout;
+                vbox->addWidget(radio1);
+                vbox->addWidget(radio2);
+                vbox->addStretch(1);
+
+                QPushButton *btn = new QPushButton("Accept");
+                vbox->addWidget(btn);
+                groupBox->setLayout(vbox);
+                groupBox->show();
+
+                connect(btn,  &QPushButton::clicked, this, [this, groupBox, nodeHandle]{attachNode(groupBox, nodeHandle);});
             }
             else
             {

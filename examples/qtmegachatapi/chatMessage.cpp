@@ -2,7 +2,7 @@
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
-
+#include <QClipboard>
 const char* messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
@@ -160,8 +160,17 @@ void ChatMessage::updateContent()
                     .append(" bytes");
                     delete auxNodeHandle_64;
                 }
+
+                if (mMessage->isVoiceMessage())
+                {
+                    ui->mMsgDisplay->setStyleSheet("background-color: #ffc4e7\n");
+                }
+                else
+                {
+                    ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
+                }
+
                 ui->mMsgDisplay->setText(text);
-                ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
@@ -571,10 +580,26 @@ void ChatMessage::on_bSettings_clicked()
             mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
             for(int i = 0; i < nodeList->size(); i++)
             {
+
                 QString text("Download \"");
                 text.append(nodeList->get(i)->getName()).append("\"");
                 auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
                 connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
+                text.clear();
+
+                text.append("Play voice clip \"");
+                text.append(nodeList->get(i)->getName()).append("\"");
+                auto actPlay = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actPlay,  &QAction::triggered, this, [this, nodeList, i]{onNodePlay(nodeList->get(i));});
+
+                if (mMessage->isVoiceMessage())
+                {
+                    actDownload->setEnabled(false);
+                }
+                else
+                {
+                    actPlay->setEnabled(false);
+                }
             }
             break;
         }
@@ -599,5 +624,41 @@ void ChatMessage::onNodeDownload(mega::MegaNode *node)
     if (msgBoxAns.exec() == QMessageBox::Ok)
     {
         mChatWindow->mMegaApi->startDownload(node, target.c_str());
+    }
+}
+
+void ChatMessage::onNodePlay(mega::MegaNode *node)
+{
+    if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
+    {
+        mChatWindow->mMegaApi->httpServerStart();
+    }
+    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
+
+    if (localUrl)
+    {
+        QClipboard *clipboard = QApplication::clipboard();
+        QString clipUrl(localUrl);
+        QMessageBox msg;
+        msg.setText("Voice message URL:");
+        msg.setIcon(QMessageBox::Information);
+        msg.setDetailedText(clipUrl);
+        msg.addButton(tr("Ok"), QMessageBox::ActionRole);
+
+        QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
+        copyButton->disconnect();
+        connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(clipUrl);});
+
+        foreach (QAbstractButton *button, msg.buttons())
+        {
+            if (msg.buttonRole(button) == QMessageBox::ActionRole)
+            {
+                button->click();
+                break;
+            }
+        }
+        msg.setStyleSheet("width: 150px;");
+        msg.exec();
+        delete localUrl;
     }
 }

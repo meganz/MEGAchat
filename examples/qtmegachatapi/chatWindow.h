@@ -59,6 +59,7 @@ class ChatWindow : public QDialog,
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
         void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
+        void attachNode(QGroupBox *groupBox, mega::MegaHandle nodeHandle);
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
