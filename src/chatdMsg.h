@@ -397,6 +397,13 @@ public:
         kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
         kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
     };
+
+    enum ContainstMetaSubType: uint8_t
+    {
+        kRichLink             = 0x00,
+        kGeoLocation          = 0x01
+    };
+
     enum Status
     {
         kSending, //< Message has not been sent or is not yet confirmed by the server

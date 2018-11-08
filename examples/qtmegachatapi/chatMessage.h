@@ -22,7 +22,7 @@ class ChatMessage: public QWidget
         megachat::MegaChatApi* megaChatApi;
         QListWidgetItem * mListWidgetItem;
         void updateToolTip();
-        void showRichLinkData();
+        void showContainsMetaData();
         void setMessageContent(const char * content);
         ChatWindow *mChatWindow;
         friend class ChatWindow;

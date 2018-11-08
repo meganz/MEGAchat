@@ -32,7 +32,6 @@
 
 #include <megaapi_impl.h>
 
-#include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
@@ -2655,6 +2654,67 @@ void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandl
     waiter->notify();
 }
 
+MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img)
+{
+    std::string textMessage("https://www.google.com/maps/search/?api=1&query=");
+    textMessage.append(std::to_string(latitude)).append(",").append(std::to_string(longitude));
+
+    rapidjson::Document jSonContainsMeta(rapidjson::kObjectType);
+    rapidjson::Value nodeTextMessage(rapidjson::kStringType);
+    nodeTextMessage.SetString(textMessage.c_str(), textMessage.length(), jSonContainsMeta.GetAllocator());
+    jSonContainsMeta.AddMember(rapidjson::Value("textMessage"), nodeTextMessage, jSonContainsMeta.GetAllocator());
+
+    rapidjson::Value jSonExtra(rapidjson::kArrayType);
+    rapidjson::Value jSonGeolocation(rapidjson::kObjectType);
+    rapidjson::Value jSonLongitude(rapidjson::kStringType);
+    std::string longitudeString = std::to_string(longitude);
+    jSonLongitude.SetString(longitudeString.c_str(), longitudeString.length());
+    jSonGeolocation.AddMember(rapidjson::Value("lng"), jSonLongitude, jSonContainsMeta.GetAllocator());
+
+    rapidjson::Value jSonLatitude(rapidjson::kStringType);
+    std::string latitudeString = std::to_string(latitude);
+    jSonLatitude.SetString(latitudeString.c_str(), latitudeString.length());
+    jSonGeolocation.AddMember(rapidjson::Value("la"), jSonLatitude, jSonContainsMeta.GetAllocator());
+
+    if (img)
+    {
+        rapidjson::Value jSonImage(rapidjson::kStringType);
+        jSonImage.SetString(img, strlen(img), jSonContainsMeta.GetAllocator());
+        jSonGeolocation.AddMember(rapidjson::Value("img"), jSonImage, jSonContainsMeta.GetAllocator());
+    }
+
+    jSonExtra.PushBack(jSonGeolocation, jSonContainsMeta.GetAllocator());
+    jSonContainsMeta.AddMember(rapidjson::Value("extra"), jSonExtra, jSonContainsMeta.GetAllocator());
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jSonContainsMeta.Accept(writer);
+
+    std::string message((const char*)buffer.GetString(), buffer.GetSize());
+    message.insert(message.begin(), Message::ContainstMetaSubType::kGeoLocation);
+    message.insert(message.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
+    message.insert(message.begin(), 0x0);
+
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Message *m = chatroom->chat().msgSubmit(message.c_str(), message.size(), Message::kMsgContainsMeta , NULL);
+
+        if (!m)
+        {
+            sdkMutex.unlock();
+            return NULL;
+        }
+        megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
@@ -2749,13 +2809,16 @@ MegaChatMessage *MegaChatApiImpl::removeRichLink(MegaChatHandle chatid, MegaChat
     {
         Chat &chat = chatroom->chat();
         Message *originalMsg = findMessage(chatid, msgid);
-        if (!originalMsg || originalMsg->type != Message::kMsgContainsMeta)
+        if (!originalMsg || originalMsg->type != Message::kMsgContainsMeta || originalMsg->size() < 3)
         {
             sdkMutex.unlock();
             return NULL;
         }
 
-        const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(originalMsg->toText().c_str());
+        std::string msgText = originalMsg->toText();
+        uint8_t type = msgText.c_str()[0];
+        const char *jsonBegin = msgText.c_str() + 1;
+        const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(jsonBegin, type);
         if (!containsMeta || containsMeta->getType() != MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
         {
             delete containsMeta;
@@ -5837,10 +5900,9 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
-    string tmp(msg.buf(), msg.size());
-
     if (msg.type == TYPE_NORMAL || msg.type == TYPE_CHAT_TITLE)
     {
+        string tmp(msg.buf(), msg.size());
         this->msg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
     }
     else    // for other types, content is irrelevant
@@ -5890,9 +5952,12 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
-             if (msg.toText().length() > 2)
+            std::string textMsg = msg.toText();
+             if (textMsg.length() > 2)
              {
-                 mContainsMeta = JSonUtils::parseContainsMeta(msg.toText().c_str());
+                 uint8_t type = textMsg.c_str()[0];
+                 const char *jsonBegin = textMsg.c_str() + 1;
+                 mContainsMeta = JSonUtils::parseContainsMeta(jsonBegin, type);
              }
              else
              {
@@ -5999,10 +6064,9 @@ int64_t MegaChatMessagePrivate::getTimestamp() const
 const char *MegaChatMessagePrivate::getContent() const
 {
     // if message contains meta and is of rich-link type, return the original content
-    if (type == MegaChatMessage::TYPE_CONTAINS_META
-            && getContainsMeta()->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+    if (type == MegaChatMessage::TYPE_CONTAINS_META)
     {
-        return getContainsMeta()->getRichPreview()->getText();
+        return getContainsMeta()->getTextMessage();
 
     }
     return msg;
@@ -6711,9 +6775,19 @@ int MegaChatContainsMetaPrivate::getType() const
     return mType;
 }
 
+const char *MegaChatContainsMetaPrivate::getTextMessage() const
+{
+    return mText.c_str();
+}
+
 const MegaChatRichPreview *MegaChatContainsMetaPrivate::getRichPreview() const
 {
     return mRichPreview;
+}
+
+const MegaChatGeolocation *MegaChatContainsMetaPrivate::getGeolocation() const
+{
+    return mGeolocation;
 }
 
 void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPreview)
@@ -6726,13 +6800,37 @@ void MegaChatContainsMetaPrivate::setRichPreview(MegaChatRichPreview *richPrevie
     if (richPreview)
     {
         mType = MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW;
-        mRichPreview = richPreview->copy();
+        mRichPreview = richPreview;
     }
     else
     {
         mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
         mRichPreview = NULL;
     }
+}
+
+void MegaChatContainsMetaPrivate::setGeolocation(MegaChatGeolocation *geolocation)
+{
+    if (mGeolocation)
+    {
+        delete mGeolocation;
+    }
+
+    if (geolocation)
+    {
+        mType = MegaChatContainsMeta::CONTAINS_META_GEOLOCATION;
+        mGeolocation = geolocation;
+    }
+    else
+    {
+        mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
+        mGeolocation = NULL;
+    }
+}
+
+void MegaChatContainsMetaPrivate::setTextMessage(const string &text)
+{
+    mText = text;
 }
 
 MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsMeta *containsMeta)
@@ -6744,6 +6842,8 @@ MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsM
 
     this->mType = containsMeta->getType();
     this->mRichPreview = containsMeta->getRichPreview() ? containsMeta->getRichPreview()->copy() : NULL;
+    this->mGeolocation = containsMeta->getGeolocation() ? containsMeta->getGeolocation()->copy() : NULL;
+    this->mText = containsMeta->getTextMessage();
 }
 
 MegaChatContainsMetaPrivate::~MegaChatContainsMetaPrivate()
@@ -7232,15 +7332,16 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
-            std::string metaContained = content;
-            metaContained.erase(metaContained.begin(), metaContained.begin() + 2);
-            const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(metaContained.c_str());
-            if (containsMeta->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+            if (content.size() > 4)
             {
-                messageContents = containsMeta->getRichPreview()->getText();
+                // Remove the first three characters. [0] = 0x0 | [1] = Message::kMsgContaintsMeta | [2] = subtype
+                uint8_t type = content.c_str()[2];
+                const char *jsonBegin = content.c_str() + 3;
+                const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(jsonBegin, type);
+                messageContents = containsMeta->getTextMessage();
+                delete containsMeta;
             }
 
-            delete containsMeta;
             break;
         }
         default:
@@ -7253,17 +7354,47 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     return messageContents;
 }
 
-const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json)
+const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8_t type)
 {
     MegaChatContainsMetaPrivate *containsMeta = new MegaChatContainsMetaPrivate();
-    int type = (int)json[0];
+    if (!json || !strlen(json))
+    {
+        API_LOG_ERROR("parseContainsMeta: invalid JSon struct - JSon contains no data, only includes type of meta");
+        return containsMeta;
+    }
+
+    rapidjson::StringStream stringStream(json);
+
+    rapidjson::Document document;
+    document.ParseStream(stringStream);
+
+    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    {
+        API_LOG_ERROR("parseContainsMeta: Parser json error");
+        return containsMeta;
+    }
+
+    rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
+    if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
+    {
+        API_LOG_ERROR("parseRichPreview: invalid JSon struct - \"textMessage\" field not found");
+        return NULL;
+    }
+
+    std::string textMessage = iteratorTestMessage->value.GetString();
+    containsMeta->setTextMessage(textMessage);
     switch (type)
     {
         case MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
         {
-            MegaChatRichPreview *richPreview = parseRichPreview(&json[1]);
+            MegaChatRichPreview *richPreview = parseRichPreview(document);
             containsMeta->setRichPreview(richPreview);
-            delete richPreview;
+            break;
+        }
+        case MegaChatContainsMeta::CONTAINS_META_GEOLOCATION:
+        {
+            MegaChatGeolocation *geolocation = parseGeolocation(document);
+            containsMeta->setGeolocation(geolocation);
             break;
         }
         default:
@@ -7276,25 +7407,8 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json)
     return containsMeta;
 }
 
-MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
+MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document)
 {
-    if (!json  || strcmp(json, "") == 0)
-    {
-        API_LOG_ERROR("parseRichPreview: invalid JSon struct - JSon contains no data, only includes type of meta");
-        return NULL;
-    }
-
-    rapidjson::StringStream stringStream(json);
-
-    rapidjson::Document document;
-    document.ParseStream(stringStream);
-
-    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
-    {
-        API_LOG_ERROR("parseRichPreview: Parser json error");
-        return NULL;
-    }
-
     rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
     if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
     {
@@ -7368,6 +7482,50 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(const char *json)
     return richPreview;
 }
 
+MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
+{
+    rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
+    if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
+    {
+        API_LOG_ERROR("parseGeolocation: invalid JSon struct - \"extra\" field not found");
+        return NULL;
+    }
+
+    float longitude;
+    float latitude;
+    std::string image;
+
+    if (iteratorExtra->value.Capacity() == 1)
+    {
+        const rapidjson::Value &geolocationValue = iteratorExtra->value[0];
+
+        rapidjson::Value::ConstMemberIterator iteratorLongitude = geolocationValue.FindMember("lng");
+        if (iteratorLongitude != geolocationValue.MemberEnd() && iteratorLongitude->value.IsString())
+        {
+            std::string longitudeString = iteratorLongitude->value.GetString();
+            longitude = atof(longitudeString.c_str());
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorLatitude = geolocationValue.FindMember("la");
+        if (iteratorLatitude != geolocationValue.MemberEnd() && iteratorLatitude->value.IsString())
+        {
+            std::string latitudeString = iteratorLatitude->value.GetString();
+            latitude = atof(latitudeString.c_str());
+        }
+
+        rapidjson::Value::ConstMemberIterator iteratorImage = geolocationValue.FindMember("img");
+        if (iteratorImage != geolocationValue.MemberEnd() && iteratorImage->value.IsString())
+        {
+            const char *imagePointer = iteratorImage->value.GetString();
+            image = std::string(imagePointer, iteratorImage->value.GetStringLength());
+        }
+    }
+
+    MegaChatGeolocation *geolocation = new MegaChatGeolocationPrivate(longitude, latitude, image);
+
+    return geolocation;
+}
+
 string JSonUtils::getImageFormat(const char *imagen)
 {
     std::string format;
@@ -7385,4 +7543,36 @@ string JSonUtils::getImageFormat(const char *imagen)
 const char *MegaChatRichPreviewPrivate::getDomainName() const
 {
     return mDomainName.c_str();
+}
+
+MegaChatGeolocationPrivate::MegaChatGeolocationPrivate(float longitude, float latitude, const string &image)
+    : mLongitude(longitude), mLatitude(latitude), mImage(image)
+{
+}
+
+MegaChatGeolocationPrivate::MegaChatGeolocationPrivate(const MegaChatGeolocationPrivate *geolocation)
+{
+    mLongitude = geolocation->mLongitude;
+    mLatitude = geolocation->mLatitude;
+    mImage = geolocation->mImage;
+}
+
+MegaChatGeolocation *MegaChatGeolocationPrivate::copy() const
+{
+    return new MegaChatGeolocationPrivate(this);
+}
+
+float MegaChatGeolocationPrivate::getLongitude() const
+{
+    return mLongitude;
+}
+
+float MegaChatGeolocationPrivate::getLatitude() const
+{
+    return mLatitude;
+}
+
+const char *MegaChatGeolocationPrivate::getImage() const
+{
+    return mImage.size() ? mImage.c_str() : NULL;
 }

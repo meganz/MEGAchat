@@ -761,6 +761,11 @@ void ChatWindow::on_mAttachBtn_clicked()
     delete parent;
 }
 
+void ChatWindow::on_mGeoLocationBtn_clicked()
+{
+    mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
+}
+
 void ChatWindow::on_mCancelTransfer(QAbstractButton*)
 {
     mMegaApi->cancelTransfers(::mega::MegaTransfer::TYPE_UPLOAD);

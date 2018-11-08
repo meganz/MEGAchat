@@ -43,6 +43,7 @@
 #include <logger.h>
 
 #include "net/websocketsIO.h"
+#include <rapidjson/document.h>
 
 #include <stdint.h>
 
@@ -985,6 +986,7 @@ public:
     MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+    MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
@@ -1110,6 +1112,24 @@ protected:
     std::string mDomainName;
 };
 
+class MegaChatGeolocationPrivate : public MegaChatGeolocation
+{
+public:
+    MegaChatGeolocationPrivate(float longitude, float latitude, const std::string &image);
+    MegaChatGeolocationPrivate(const MegaChatGeolocationPrivate *geolocation);
+    virtual ~MegaChatGeolocationPrivate() {}
+    virtual MegaChatGeolocation *copy() const;
+
+    virtual float getLongitude() const;
+    virtual float getLatitude() const;
+    virtual const char *getImage() const;
+
+protected:
+    float mLongitude;
+    float mLatitude;
+    std::string mImage;
+};
+
 class MegaChatContainsMetaPrivate : public MegaChatContainsMeta
 {
 public:
@@ -1119,14 +1139,20 @@ public:
     virtual MegaChatContainsMeta *copy() const;
 
     virtual int getType() const;
+    virtual const char *getTextMessage() const;
     virtual const MegaChatRichPreview *getRichPreview() const;
+    virtual const MegaChatGeolocation *getGeolocation() const;
 
     // This function take the property from memory that it receives as parameter
     void setRichPreview(MegaChatRichPreview *richPreview);
+    void setGeolocation(MegaChatGeolocation *geolocation);
+    void setTextMessage(const std::string &text);
 
 protected:
     int mType = MegaChatContainsMeta::CONTAINS_META_INVALID;
+    std::string mText;
     MegaChatRichPreview *mRichPreview = NULL;
+    MegaChatGeolocation *mGeolocation = NULL;
 };
 
 class DataTranslation
@@ -1169,8 +1195,9 @@ public:
      * by ASCII character '0x01'
      */
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-    static const MegaChatContainsMeta *parseContainsMeta(const char* json);
-    static MegaChatRichPreview *parseRichPreview(const char* json);
+    static const MegaChatContainsMeta *parseContainsMeta(const char* json, uint8_t type);
+    static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document);
+    static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
 
 private:
     static std::string getImageFormat(const char* imagen);
