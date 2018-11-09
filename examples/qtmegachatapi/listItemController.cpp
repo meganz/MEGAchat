@@ -73,17 +73,26 @@ ContactItemWidget *ContactListItemController::getWidget() const
     return mWidget;
 }
 
-void ContactListItemController::setWidget(ContactItemWidget *widget)
-{
-    mWidget = widget;
-}
-
 mega::MegaUser *ContactListItemController::getItem() const
 {
     return mItem;
 }
 
-void ContactListItemController::setItem(mega::MegaUser *item)
+void ContactListItemController::updateWidget(ContactItemWidget *widget)
 {
+    if (mWidget)
+    {
+        delete mWidget;
+    }
+
+    mWidget = widget;
+}
+
+void ContactListItemController::updateItem(mega::MegaUser *item)
+{
+    if (mItem)
+    {
+        delete mItem;
+    }
     mItem = item;
 }

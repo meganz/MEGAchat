@@ -170,50 +170,13 @@ void MegaChatApplication::addChats()
     delete chatList;
 }
 
-
-void MegaChatApplication::addContacts()
-{
-    MegaUser * contact = NULL;
-    MegaUserList *contactList = mMegaApi->getContacts();
-
-    for (int i=0; i<contactList->size(); i++)
-    {
-        contact = contactList->get(i);
-        const char *contactEmail = contact->getEmail();
-        megachat::MegaChatHandle userHandle = mMegaChatApi->getUserHandleByEmail(contactEmail);
-        if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
-            mMainWin->addContact(contact);
-    }
-    delete contactList;
-}
-
 void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
 {
+    //TODO: Improve this method because order method will request userlist again
+    //create a local user list like chats
     if(userList && mMainWin)
     {
-        for(int i = 0; i < userList->size(); i++)
-        {
-            mega::MegaUser *user = userList->get(i);
-            mega::MegaHandle userHandle = user->getHandle();
-            std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
-            itContacts = this->mMainWin->contactWidgets.find(userHandle);
-            if (itContacts == this->mMainWin->contactWidgets.end())
-            {
-                mMainWin->addContact(user);
-            }
-            else
-            {
-                if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
-                {
-                    mFirstnamesMap.erase(userHandle);
-                    getFirstname(userHandle);
-                }
-                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->mShowInactive != true)
-                {
-                     mMainWin->orderContactChatList();
-                }
-            }
-        }
+        mMainWin->orderContactChatList();
     }
 }
 
