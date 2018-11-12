@@ -355,17 +355,6 @@ public:
     /** @brief The title of the chatroom */
     virtual const char *titleString() const { return mTitleString.c_str(); }
 
-    /** @brief The 'presence' of the chatroom - it's actually the online state,
-     * and can be only online or offline, depending on whether we are connected
-     * to the chatd chatroom
-     */
-    virtual Presence presence() const
-    {
-        return (mChat->onlineState() == chatd::kChatStateOnline)
-                ? Presence::kOnline
-                : Presence::kOffline;
-    }
-
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.
      * @note Do not use this method to exclude yourself. Instead, call leave()
@@ -866,6 +855,8 @@ public:
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
 
+    bool isChatRoomOpened(Id chatid);
+
 protected:
     void heartbeat();
     void setInitState(InitState newState);
@@ -934,6 +925,7 @@ protected:
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 
     //==
     friend class ChatRoom;

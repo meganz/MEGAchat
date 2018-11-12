@@ -144,6 +144,7 @@ public:
     virtual bool isPersist() const;
     virtual bool isPending() const;
     virtual bool isSignalActivityRequired() const;
+    virtual bool isLastGreenVisible() const;
 
 private:
     int status;
@@ -151,6 +152,7 @@ private:
     bool autoawayEnabled;
     int64_t autoawayTimeout;
     bool pending;
+    bool lastGreenVisible;
 };
 
 
@@ -453,6 +455,30 @@ private:
     // nodes with granted/revoked access from loaded messsages
     std::map<MegaChatHandle, bool> attachmentsAccess;  // handle, access
     std::map<MegaChatHandle, std::set<MegaChatHandle>> attachmentsIds;    // nodehandle, msgids
+};
+
+class MegaChatNodeHistoryHandler : public chatd::FilteredHistoryHandler
+{
+public:
+    MegaChatNodeHistoryHandler(MegaChatApi *api);
+     virtual ~MegaChatNodeHistoryHandler(){}
+
+    void fireOnAttachmentReceived(MegaChatMessage *message);
+    void fireOnAttachmentLoaded(MegaChatMessage *message);
+    void fireOnAttachmentDeleted(karere::Id id);
+    void fireOnTruncate(karere::Id id);
+
+    virtual void onReceived(chatd::Message* msg, chatd::Idx idx);
+    virtual void onLoaded(chatd::Message* msg, chatd::Idx idx);
+    virtual void onDeleted(karere::Id id);
+    virtual void onTruncated(karere::Id id);
+
+    void addMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
+    void removeMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
+
+protected:
+    std::set<MegaChatNodeHistoryListener *>nodeHistoryListeners;
+    MegaChatApi *chatApi;
 };
 
 class LoggerHandler : public karere::Logger::ILoggerBackend
@@ -813,6 +839,7 @@ private:
     std::set<MegaChatPeerListItemHandler *> chatPeerListItemHandler;
     std::set<MegaChatGroupListItemHandler *> chatGroupListItemHandler;
     std::map<MegaChatHandle, MegaChatRoomHandler*> chatRoomHandler;
+    std::map<MegaChatHandle, MegaChatNodeHistoryHandler*> nodeHistoryHandlers;
 
     int reqtag;
     std::map<int, MegaChatRequestPrivate *> requestMap;
@@ -862,6 +889,11 @@ public:
 
     static void setCatchException(bool enable);
     static bool hasUrl(const char* text);
+    bool openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    bool closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    void addNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    void removeNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+    int loadAttachments(MegaChatHandle chatid, int count);
 
     // ============= Listeners ================
 
@@ -903,6 +935,7 @@ public:
     void fireOnChatInitStateUpdate(int newState);
     void fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, int status, bool inProgress);
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
+    void fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen);
     void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
 
     // MegaChatNotificationListener callbacks
@@ -929,6 +962,8 @@ public:
     void setPresenceAutoaway(bool enable, int64_t timeout, MegaChatRequestListener *listener = NULL);
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
     void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
+    void setLastGreenVisible(bool enable, MegaChatRequestListener *listener = NULL);
+    void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
     MegaChatPresenceConfig *getPresenceConfig();
     bool isSignalActivityRequired();
 
@@ -1030,6 +1065,7 @@ public:
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
 #endif
@@ -1137,7 +1173,7 @@ public:
     /**
      * @brief Transform int32_t vector into a birnary string. For example: string.length() = 32 => vector.size() = 8
      * The vector input is similar to "[669070598,-250738112,2059051645,-1942187558, 324123143, 86148965]"
-     * @param data vector of int32_t
+     * @param vector vector of int32_t
      * @return binary string
      */
     static std::string vector_to_b(std::vector<int32_t> vector);

@@ -46,7 +46,7 @@ using namespace megachat;
 }
 
 - (MEGAChatRichPreview *)richPreview {
-    return self.megaChatContainsMeta ? [[MEGAChatRichPreview alloc] initWithMegaChatRichPreview:self.megaChatContainsMeta->getRichPreview()->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatContainsMeta->getRichPreview() ? [[MEGAChatRichPreview alloc] initWithMegaChatRichPreview:self.megaChatContainsMeta->getRichPreview()->copy() cMemoryOwn:YES] : nil;
 }
 
 @end

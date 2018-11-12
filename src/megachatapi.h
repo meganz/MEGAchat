@@ -57,6 +57,7 @@ class MegaChatVideoListener;
 class MegaChatListener;
 class MegaChatNotificationListener;
 class MegaChatListItem;
+class MegaChatNodeHistoryListener;
 
 /**
  * @brief Provide information about a call
@@ -1230,7 +1231,7 @@ public:
         TYPE_SEND_TYPING_NOTIF, TYPE_SIGNAL_ACTIVITY,
         TYPE_SET_PRESENCE_PERSIST, TYPE_SET_PRESENCE_AUTOAWAY,
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
-        TYPE_PUSH_RECEIVED,
+        TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -1528,11 +1529,19 @@ public:
  * @note The autoaway settings are preserved even when the auto-away mechanism is inactive (i.e. when
  * the status is other than online or the user has enabled the persistence of the status.
  * When the autoaway mechanish is enabled, it requires the app calls \c MegaChatApi::signalPresenceActivity
- * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout. *
+ * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout.
  * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired
  * or also by checking \c MegaChatPresenceConfig::isSignalActivityRequired.
  *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
+ *
+ * - Last-green visibility: if enabled, the last-time the user was seen as MegaChatApi::STATUS_ONLINE will
+ * be retrievable by other users. If disabled, it's kept secret.
+ *
+ * @note The last-green visibility can be changed by MegaChatApi::setLastGreenVisible and can be checked by
+ * MegaChatPresenceConfig::isLastGreenVisible. The last-green time for other users can be retrieved
+ * by MegaChatApi::requestLastGreen.
+ * @note While the last-green visibility is disabled, the last-green time will not be recorded by the server.
  *
  * - Pending: if true, it means the configuration is being saved in the server, but not confirmed yet
  *
@@ -1605,6 +1614,11 @@ public:
      * @return True if the app is required to call MegaChatApi::signalPresenceActivity
      */
     virtual bool isSignalActivityRequired() const;
+
+    /**
+     * @return True if our last green is visible to other users
+     */
+    virtual bool isLastGreenVisible() const;
 };
 
 /**
@@ -2016,11 +2030,18 @@ public:
     void localLogout(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Set your online status.
+     * @brief Set your configuration for online status.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHAT_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getNumber - Returns the new status of the user in chat.
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS when this function is
+     * called with the same value \c status than the currently cofigured status.
+     * @see MegaChatPresenceConfig::getOnlineStatus to check the current status.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called and the connection to presenced is down.
      *
      * @param status Online status in the chat.
      *
@@ -2048,10 +2069,15 @@ public:
      * \c signalPresenceActivity regularly in order to keep the current online status.
      * Otherwise, after \c timeout seconds, the online status will be changed to away.
      *
+     * The maximum timeout for the autoaway feature is 87420 seconds, roughly a day.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag() - Returns true if autoaway is enabled.
      * - MegaChatRequest::getNumber - Returns the specified timeout.
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS when this function is
+     * called with a larger timeout than the maximum allowed, 87420 seconds.
      *
      * @param enable True to enable the autoaway feature
      * @param timeout Seconds to wait before turning away (if no activity has been signalled)
@@ -2075,6 +2101,47 @@ public:
     void setPresencePersist(bool enable, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Enable/disable the visibility of when the logged-in user was online (green)
+     *
+     * If this option is disabled, the last-green won't be available for other users when it is
+     * requested through MegaChatApi::requestLastGreen. The visibility is enabled by default.
+     *
+     * While this option is disabled and the user sets the green status temporary, the number of
+     * minutes since last-green won't be updated. Once enabled back, the last-green will be the
+     * last-green while the visibility was enabled (or updated if the user sets the green status).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag() - Returns true when attempt to enable visibility of last-green.
+     *
+     * @param enable True to enable the visibility of our last green
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setLastGreenVisible(bool enable, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Request the number of minutes since the user was seen as green by last time.
+     *
+     * Apps may call this function to retrieve the minutes elapsed since the user was seen
+     * as green (MegaChatApi::STATUS_ONLINE) by last time.
+     * Apps must NOT call this function if the current status of the user is already green.
+     *
+     * The number of minutes since the user was seen as green by last time, if any, will
+     * be notified in the MegaChatListener::onChatPresenceLastGreen callback. Note that,
+     * if the user was never seen green by presenced or the user has disabled the visibility
+     * of the last-green with MegaChatApi::setLastGreenVisible, there will be no notification
+     * at all.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LAST_GREEN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle() - Returns the handle of the user
+     *
+     * @param userid MegaChatHandle from user that last green has been requested
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Signal there is some user activity
      *
      * When the presence configuration is set to autoaway (and persist is false), this
@@ -2093,7 +2160,11 @@ public:
     void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Get your online status.
+     * @brief Get your currently online status.
+     *
+     * @note This function may return a different online status than the online status from
+     * MegaChatPresenceConfig::getOnlineStatus. In example, when the user has configured the
+     * autoaway option, after the timeout has expired, the status will be Away instead of Online.
      *
      * It can be one of the following values:
      * - MegaChatApi::STATUS_OFFLINE = 1
@@ -2109,6 +2180,20 @@ public:
      * The user is busy and don't want to be disturbed.
      */
     int getOnlineStatus();
+
+    /**
+     * @brief Check if the online status is already confirmed by the server
+     *
+     * When a new online status is requested by MegaChatApi::setOnlineStatus, it's not
+     * immediately set, but sent to server for confirmation. If the status is not confirmed
+     * the requested online status will not be seen by other users yet.
+     *
+     * The apps may use this function to indicate the status is not confirmed somehow, like
+     * with a slightly different icon, blinking or similar.
+     *
+     * @return True if the online status is confirmed by server
+     */
+    bool isOnlineStatusPending();
 
     /**
      * @brief Get the current presence configuration
@@ -2169,7 +2254,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns the value of 1st parameter
      *
-     * @param status True if the the app is in background, false if in foreground.
+     * @param background True if the the app is in background, false if in foreground.
      */
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
 
@@ -3614,6 +3699,87 @@ public:
      */
     static bool hasUrl(const char* text);
 
+    /**
+     * @brief This method should be called when a node history is opened
+     *
+     * One node history only can be opened once before it will be closed
+     * The same listener should be provided at MegaChatApi::closeChatRoom to unregister it
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatNodeHistoryListener to receive node history events. NULL is not allowed.
+     *
+     * @return True if success, false if listener is NULL or the chatroom is not found
+     */
+    bool openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief This method should be called when a node history is closed
+     *
+     * Note that this listener should be the one registered by MegaChatApi::openNodeHistory
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatNodeHistoryListener to receive node history events. NULL is not allowed.
+     *
+     * @return True if success, false if listener is NULL or the chatroom is not found
+     */
+    bool closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief Register a listener to receive all events about a specific node history
+     *
+     * You can use MegaChatApi::removeNodeHistoryListener to stop receiving events.
+     *
+     * Note this listener is feeded with data from a node history that is opened. It
+     * is required to call \c MegaChatApi::openNodeHistory. Otherwise, the listener
+     * will NOT receive any callback.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener Listener that will receive node history events
+     */
+    void addNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatNodeHistoryListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    void removeNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief Initiates fetching more node history of the specified chatroom.
+     *
+     * The loaded messages will be notified one by one through the MegaChatNodeHistoryListener
+     * specified at MegaChatApi::openNodeHistory (and through any other listener you may have
+     * registered by calling MegaChatApi::addNodeHistoryListener).
+     *
+     * The corresponding callback is MegaChatNodeHistoryListener::onAttachmentLoaded.
+     *
+     * Messages are always loaded and notified in strict order, from newest to oldest.
+     *
+     * @note The actual number of messages loaded can be less than \c count. Because
+     * the history being shorter than requested. Additionally, if the fetch is local
+     * and there's no more history locally available, the number of messages could be
+     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
+     *
+     * When there are no more history available from the reported source of messages
+     * (local / remote), or when the requested \c count has been already loaded,
+     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL message.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param count The number of requested messages to load.
+     *
+     * @return Return the source of the messages that is going to be fetched. The possible values are:
+     *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
+     *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
+     *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
+     *
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+     */
+    int loadAttachments(MegaChatHandle chatid, int count);
+
 private:
     MegaChatApiImpl *pImpl;
 };
@@ -4173,6 +4339,23 @@ public:
      * @param newState New state of the connection
      */
     virtual void onChatConnectionStateUpdate(MegaChatApi* api, MegaChatHandle chatid, int newState);
+
+    /**
+     * @brief This function is called when server notifies last-green's time of the a user
+     *
+     * In order to receive this notification, MegaChatApi::requestLastGreen has to be called previously.
+     *
+     * @note If the requested user has disabled the visibility of last-green or has never been green,
+     * this callback will NOT be triggered at all.
+     *
+     * If the value of \c lastGreen is 65535 minutes (the maximum), apps should show "long time ago"
+     * or similar, rather than the specific time period.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param userhandle MegaChatHandle of the user whose last time green is notified
+     * @param lastGreen Time elapsed (minutes) since the last time user was green
+     */
+    virtual void onChatPresenceLastGreen(MegaChatApi* api, MegaChatHandle userhandle, int lastGreen);
 };
 
 /**
@@ -4324,6 +4507,69 @@ public:
      * @param msg MegaChatMessage representing a 1on1 or groupchat in the list.
      */
     virtual void onChatNotification(MegaChatApi* api, MegaChatHandle chatid, MegaChatMessage *msg);
+};
+
+/**
+ * @brief Interface to receive information about node history of a chatroom.
+ *
+ * A pointer to an implementation of this interface is required when calling MegaChatApi::openNodeHistory.
+ * When node history of a chatroom is closed (MegaChatApi::closeNodeHistory), the listener is automatically removed.
+ * You can also register additional listeners by calling MegaChatApi::addNodeHistoryListener and remove them
+ * by using MegaChatApi::removeNodeHistoryListener
+ *
+ * The implementation will receive callbacks from an internal worker thread.
+ */
+class MegaChatNodeHistoryListener
+{
+public:
+    virtual ~MegaChatNodeHistoryListener() {}
+
+    /**
+     * @brief This function is called when new attachment messages are loaded
+     *
+     * You can use MegaChatApi::loadAttachments to request loading messages.
+     *
+     * When there are no more message to load from the source reported by MegaChatApi::loadAttachments or
+     * there are no more history at all, this function is also called, but the second parameter will be NULL.
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
+     * object will be valid until this function returns. If you want to save the MegaChatMessage object,
+     * use MegaChatMessage::copy for the message.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg The MegaChatMessage object, or NULL if no more history available.
+     */
+    virtual void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
+
+    /**
+     * @brief This function is called when a new attachment message is received
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
+     * object will be valid until this function returns. If you want to save the MegaChatMessage object,
+     * use MegaChatMessage::copy for the message.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg MegaChatMessage representing the received message
+     */
+    virtual void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
+
+    /**
+     * @brief This function is called when an attachment message is deleted
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msgid id of the message that has been deleted
+     */
+    virtual void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
+
+    /**
+     * @brief This function is called when history is trucated
+     *
+     * If no messages are left in the node-history, the msgid will be MEGACHAT_INVALID_HANDLE.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msgid id of the message from which history has been trucated
+     */
+    virtual void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
 };
 
 }

@@ -395,6 +395,16 @@ void Client::onSyncReceived(Id chatid)
     }
 }
 
+bool Client::isChatRoomOpened(Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it != chats->end())
+    {
+        return it->second->hasChatHandler();
+    }
+    return false;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -1254,6 +1264,12 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 {
     app.onPresenceConfigChanged(state, pending);
 }
+
+void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+{
+    app.onPresenceLastGreenUpdated(userid, lastGreen);
+}
+
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 
@@ -1324,13 +1340,21 @@ void Client::terminate(bool deleteDb)
 
 promise::Promise<void> Client::setPresence(Presence pres)
 {
-    if (!mPresencedClient.setPresence(pres))
-        return promise::Error("Not connected");
-    else
+    if (pres == mPresencedClient.config().presence())
     {
-        app.onPresenceChanged(mMyHandle, pres, true);
-        return promise::_Void();
+        std::string err = "setPresence: tried to change online state to the current configured state (";
+        err.append(mOwnPresence.toString(mOwnPresence)).append(")");
+        return promise::Error(err, kErrorArgs);
     }
+
+    bool ret = mPresencedClient.setPresence(pres);
+    if (!ret)
+    {
+        return promise::Error("setPresence: not connected", kErrorAccess);
+    }
+
+    app.onPresenceChanged(mMyHandle, pres, true);
+    return promise::_Void();
 }
 
 void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
@@ -1375,7 +1399,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers)
     {
         sdkPeers->addPeer(peer.first, peer.second);
     }
-    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get())
+    return api.call(&mega::MegaApi::createChat, true, sdkPeers.get(), nullptr)
     .then([this](ReqResult result)->Promise<karere::Id>
     {
         auto& list = *result->getMegaTextChatList();
@@ -2205,7 +2229,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 void GroupChatRoom::makeTitleFromMemberNames()
 {
     mHasTitle = false;
-    std::string newTitle = mTitleString;
+    std::string newTitle;
     if (mPeers.empty())
     {
         time_t ts = mCreationTs;
@@ -3064,7 +3088,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_OPER);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers)
+    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {
         auto& list = *result->getMegaTextChatList();

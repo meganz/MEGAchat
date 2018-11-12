@@ -94,7 +94,6 @@ public:
  *
  * @param type Record type code byte
  * @param value Binary payload of record.
- * @param output Single binary encoded TLV record.
  */
 
 void addRecord(uint8_t type, const StaticBuffer& value)
