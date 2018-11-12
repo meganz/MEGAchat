@@ -750,6 +750,15 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->pushReceived(beep);
 }
 
+- (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->pushReceived(beep, chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId {
+    self.megaChatApi->pushReceived(beep, chatId);
+}
+
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
