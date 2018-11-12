@@ -313,7 +313,7 @@ void Chat::connect()
     // attempt a connection ONLY if this is a new shard.
     if (mConnection.state() == Connection::kStateNew)
     {
-        mConnection.mState = Connection::kStateFetchingUrl;
+        mConnection.setState(Connection::kStateFetchingUrl);
         auto wptr = getDelTracker();
         mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId)
         .then([wptr, this](ReqResult result)
@@ -375,19 +375,14 @@ void Chat::login()
         join();
 }
 
-Connection::Connection(Client& client, int shardNo)
-: mChatdClient(client), mShardNo(shardNo),
+Connection::Connection(Client& chatdClient, int shardNo)
+: mChatdClient(chatdClient), mShardNo(shardNo),
   mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache)
 {}
 
 void Connection::wsConnectCb()
 {
-    CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
-    mDNScache.connectDone(mUrl.host, mTargetIp);
-    mState = kStateConnected;
-    assert(!mConnectPromise.done());
-    mConnectPromise.resolve();
-    mRetryCtrl.reset();
+    setState(kStateConnected);
 }
 
 void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
@@ -404,14 +399,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mState;
-    mState = kStateDisconnected;
-    mHeartbeatEnabled = false;
-
-    if (mEchoTimer)
-    {
-        cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
-        mEchoTimer = 0;
-    }
+    setState(kStateDisconnected);
 
     for (auto& chatid: mChatIds)
     {
@@ -474,14 +462,63 @@ void Connection::sendEcho()
         CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
         mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
 
-        mState = kStateDisconnected;
-        mHeartbeatEnabled = false;
+        setState(kStateDisconnected);
         reconnect();
 
     }, kEchoTimeout * 1000, mChatdClient.mKarereClient->appCtx);
 
     CHATDS_LOG_DEBUG("send ECHO");
     sendBuf(Command(OP_ECHO));
+}
+
+void Connection::setState(State state)
+{
+    if (mState == state)
+    {
+        CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
+    }
+
+    CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
+    mState = state;
+
+    if (mState == kStateDisconnected)
+    {
+        mHeartbeatEnabled = false;
+        if (mEchoTimer)
+        {
+            cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
+            mEchoTimer = 0;
+        }
+    }
+    else if (mState == kStateConnected)
+    {
+        CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
+
+        mDNScache.connectDone(mUrl.host, mTargetIp);
+        assert(!mConnectPromise.done());
+        mConnectPromise.resolve();
+        mRetryCtrl.reset();
+    }
+}
+
+Connection::State Connection::state() const
+{
+    return mState;
+}
+
+bool Connection::isOnline() const
+{
+    return mState == kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
+}
+
+const std::set<Id> &Connection::chatIds() const
+{
+    return mChatIds;
+}
+
+uint32_t Connection::clientId() const
+{
+    return mClientId;
 }
 
 Promise<void> Connection::reconnect()
@@ -496,7 +533,7 @@ Promise<void> Connection::reconnect()
         if (!mUrl.isValid())
             throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
 
-        mState = kStateResolving;
+        setState(kStateResolving);
 
         // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
         abortRetryController();
@@ -523,7 +560,7 @@ Promise<void> Connection::reconnect()
             string ipv4, ipv6;
             bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
 
-            mState = kStateResolving;
+            setState(kStateResolving);
             CHATDS_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
             for (auto& chatid: mChatIds)
@@ -670,7 +707,7 @@ void Connection::doConnect()
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
-    mState = kStateConnecting;
+    setState(kStateConnecting);
     CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", mTargetIp.c_str());
 
     bool rt = wsConnect(mChatdClient.mKarereClient->websocketIO, mTargetIp.c_str(),
@@ -727,17 +764,10 @@ void Connection::retryPendingConnection(bool disconnect)
         }
         else if (disconnect)
         {
-            mState = kStateDisconnected;
-            mHeartbeatEnabled = false;
-
-            if (mEchoTimer)
-            {
-                cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
-                mEchoTimer = 0;
-            }
-            abortRetryController();
-
             CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
+
+            setState(kStateDisconnected);
+            abortRetryController();
             reconnect();
         }
         else
@@ -751,6 +781,11 @@ void Connection::retryPendingConnection(bool disconnect)
     }
 }
 
+Connection::~Connection()
+{
+    disconnect();
+}
+
 void Connection::heartbeat()
 {
     // if a heartbeat is received but we are already offline...
@@ -760,13 +795,8 @@ void Connection::heartbeat()
     if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
-        mState = kStateDisconnected;
-        mHeartbeatEnabled = false;
-        if (mEchoTimer)
-        {
-            cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
-            mEchoTimer = 0;
-        }
+
+        setState(kStateDisconnected);
         reconnect();
     }
 }
