@@ -244,35 +244,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history "
-            "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
-        stmt << mChat.chatId() << idx << count;
-        int i = 0;
-        while(stmt.step())
-        {
-            i++;
-            karere::Id msgid(stmt.uint64Col(0));
-            karere::Id userid(stmt.uint64Col(1));
-            unsigned ts = stmt.uintCol(2);
-            chatd::KeyId keyid = stmt.uintCol(6);
-            Buffer buf;
-            stmt.blobCol(4, buf);
-#ifndef NDEBUG
-            auto idx = stmt.intCol(5);
-            if(idx != mChat.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
-            {
-                CHATD_LOG_ERROR("chatid %s: fetchDbHistory: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(),
-                    mChat.lownum()-1-(int)messages.size(), idx);
-                assert(false);
-            }
-#endif
-            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
-                false, keyid, (unsigned char)stmt.intCol(3));
-            msg->backRefId = stmt.uint64Col(7);
-            msg->setEncrypted((uint8_t)stmt.intCol(9));
-            messages.push_back(msg);
-        }
+        loadMessages(count, idx, messages, "history");
     }
 
     virtual chatd::Idx getIdxOfMsgid(karere::Id msgid, const std::string &table)
@@ -441,8 +413,8 @@ public:
 
     virtual void deleteMsgFromNodeHistory(const chatd::Message& msg)
     {
-        mDb.query("update node_history set data = ?, updated = ? where chatid = ? and msgid = ?",
-                  msg, msg.updated, mChat.chatId(), msg.id());
+        mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
+                  msg, msg.updated, msg.type, mChat.chatId(), msg.id());
         assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
     }
 
@@ -466,6 +438,46 @@ public:
 
         oldest = count ? stmt.intCol(0) : 0;
         newest = count ? stmt.intCol(1) : -1;
+    }
+
+    virtual void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
+    {
+        loadMessages(count, idx, messages, "node_history");
+    }
+
+    void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table)
+    {
+        std::string query = "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from " + table +
+                            " where chatid = ?1 and idx <= ?2 order by idx desc limit ?3";
+
+        SqliteStmt stmt(mDb, query.c_str());
+        stmt << mChat.chatId() << idx << count;
+        int i = 0;
+        while(stmt.step())
+        {
+            i++;
+            karere::Id msgid(stmt.uint64Col(0));
+            karere::Id userid(stmt.uint64Col(1));
+            unsigned ts = stmt.uintCol(2);
+            chatd::KeyId keyid = stmt.uintCol(6);
+            Buffer buf;
+            stmt.blobCol(4, buf);
+#ifndef NDEBUG
+            auto tableIdx = stmt.intCol(5);
+            if(tableIdx != idx - (int)messages.size()) //we go backward in history, hence the -messages.size()
+            {
+                CHATD_LOG_ERROR("chatid %s: loadMessages from table %s: History discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(), table.c_str(),
+                    idx - (int)messages.size(), tableIdx);
+                assert(false);
+            }
+#endif
+            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
+                false, keyid, (unsigned char)stmt.intCol(3));
+            msg->backRefId = stmt.uint64Col(7);
+            msg->setEncrypted((uint8_t)stmt.intCol(9));
+            messages.push_back(msg);
+        }
     }
 };
 

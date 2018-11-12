@@ -303,6 +303,16 @@ public:
      */
     virtual void onHistoryReloaded(){}
 };
+
+class FilteredHistoryHandler
+{
+public:
+    virtual void onReceived(Message* /*msg*/, chatd::Idx idx) = 0;
+    virtual void onLoaded(Message* /*msg*/, chatd::Idx idx) = 0;
+    virtual void onDeleted(karere::Id /*id*/) = 0;
+    virtual void onTruncated(karere::Id /*id*/) = 0;
+};
+
 class Connection;
 
 class IRtcHandler
@@ -507,24 +517,76 @@ protected:
     uint8_t mState = kNone;
 };
 
+/**
+ * @brief The generic class to manage history applying filters
+ *
+ * This class allows to add/delete messages and truncate history, as well as
+ * retrieve/load messages by the app (from RAM, DB's cache and/or server).
+ *
+ * A FilteredHistoryHandler can be registered by FilteredHistory::setHandler in order to
+ * receive callbacks when a message is received, loaded and deleted, or when the history
+ * is truncated.
+ *
+ * Currently, this class is used exclusively to manage history of nodes/attachments.
+ * In consequence, it uses the method Chat::requestNodeHistoryFromServer to fetch
+ * new nodes from chatd through NODEHIST. Note that node-messages are also added to
+ * the filtered history if a received/retrieved message (NEWMSG/OLDMSG) is a node-message.
+ *
+ * However, since NODEHIST only returns messages tagged in chatd as attachments via
+ * the NEWNODEMSG, the algorithm may suffer from two issues:
+ *
+ *  1. Attachments in the filtered history may not preserve the order in the history, since
+ * tagged attachments may be added to the node-history earlier than older non-tagged attachments.
+ *  2. Once all tagged attachments are loaded via NODEHIST, older non-tagged attachments (retrieved
+ * via HIST) won't be notified until the app is restarted because it's considered all node-history
+ * is already loaded.
+ */
 class FilteredHistory
 {
 public:
-    FilteredHistory(DbInterface *db);
-    void addMessage(const Message &msg, bool isNew);
+    FilteredHistory(DbInterface &db, Chat &chat);
+
+    void addMessage(Message &msg, bool isNew, bool isLocal);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
-    Idx newestIdx() const;
-    Idx oldestIdx() const;
-    Idx oldestLoadedIdx() const;
     void clear();
+
+    HistSource getHistory(uint32_t count);
+    void setHaveAllHistory(bool haveAllHistory);
+
+    karere::Id getOldestMsgId() const;
+    void setHandler(FilteredHistoryHandler *handler);
+    void unsetHandler();
+    void finishFetchingFromServer();
+
 protected:
-    std::list<std::unique_ptr<Message>> mBuffer;
-    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
     DbInterface *mDb;
-    Idx mNewest;
-    Idx mOldest;
-    Idx mOldestLoaded;
+    Chat *mChat;
+    FilteredHistoryHandler *mListener;
+
+    /** Contains the messages in the history-buffer */
+    std::list<std::unique_ptr<Message>> mBuffer;
+
+    /** Maps msgid's to their position in the history-buffer */
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
+
+    /** Index of the newest (most recent) message loaded in RAM */
+    Idx mNewestIdx;
+
+    /** Index of the oldest message loaded in RAM */
+    Idx mOldestIdx;
+
+    /** Index of the oldest message available in DB */
+    Idx mOldestIdxInDb;
+
+    /** Iterator pointing to the next message to be notified from buffer in memory */
+    std::list<std::unique_ptr<Message>>::iterator mNextMsgToNotify;
+
+    /** True if we reached the beginning of the history */
+    bool mHaveAllHistory = false;
+
+    /** True while fetching messages from server via NODEHIST is in progress*/
+    bool mFetchingFromServer = false;
 
     void init();
 };
@@ -581,6 +643,12 @@ public:
         uint64_t rowid;
         uint8_t opcode;
         ManualSendReason reason;
+    };
+
+    enum FetchType
+    {
+        kFetchMessages,
+        kFetchNodeHistory
     };
 
     Client& mClient;
@@ -666,6 +734,17 @@ protected:
     uint32_t mLastMsgTs;
     bool mIsGroup;
     std::set<karere::Id> mMsgsToUpdateWithRichLink;
+    /** Indicates the type of fetchs in-flight */
+    std::queue <FetchType> mFetchRequest;
+    /** Num of node-attachment messages requested to server */
+    uint32_t mAttachNodesRequestedToServer = 0;
+    /** Num of node-attachment messages received from server during fetch in-flight */
+    uint32_t mAttachNodesReceived = 0;
+    bool mAttachmentHistDoneReceived = false;
+    std::queue <Message *> mAttachmentsPendingToDecrypt;
+    bool mDecryptionAttachmentsHalted = false;
+    /** True when node-attachments are pending to decrypt and history is truncated --> discard message being decrypted */
+    bool mTruncateAttachment = false;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -674,8 +753,6 @@ protected:
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
-    Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
-    Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
     void clear()
     {
         mBackwardList.clear();
@@ -688,6 +765,7 @@ protected:
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
+    bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
     void onJoinComplete();
@@ -726,6 +804,7 @@ protected:
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
     void manageRichLinkMessage(Message &message);
+    void attachmentHistDone();
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
@@ -781,6 +860,12 @@ public:
 
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
+
+    /** @brief True if joining into chatd (already connected to chatd via socket) */
+    bool isJoining() const { return mOnlineState == kChatStateJoining; }
+
+    /** @brief True if logged-in into chatd (HISTDONE received after JOIN/JOINRANGEHIST) */
+    bool isLoggedIn() const { return mOnlineState == kChatStateOnline; }
 
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
@@ -917,6 +1002,8 @@ public:
      * the fetch is from server.
      */
     HistSource getHistory(unsigned count);
+
+    HistSource getNodeHistory(uint32_t count);
 
     /**
      * @brief Resets sending of history to the app, so that next getHistory()
@@ -1091,6 +1178,19 @@ public:
     void clearHistory();
     void sendSync();
 
+    /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
+    void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
+
+    /** Returns oldest message in  the history buffer*/
+    Message* oldest() const;
+
+    /** Returns newest message in  the history buffer*/
+    Message* newest() const;
+
+    /** Returns true when fetch in-flight is a NODEHIST */
+    bool isFetchingNodeHistory() const;
+    void setNodeHistoryHandler(FilteredHistoryHandler *handler);
+    void unsetHandlerToNodeHistory();
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
@@ -1313,6 +1413,7 @@ public:
     virtual void truncateNodeHistory(karere::Id id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
     virtual void clearNodeHistory() = 0;
+    virtual void fetchDbNodeHistory(Idx idx, unsigned count, std::vector<chatd::Message*>& messages) = 0;
 
 
 //  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
