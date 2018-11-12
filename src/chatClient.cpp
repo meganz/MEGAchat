@@ -434,7 +434,7 @@ void Client::saveDb()
     }
 }
 
-promise::Promise<void> Client::pushReceived()
+promise::Promise<void> Client::pushReceived(Id chatid)
 {
     // if already sent SYNCs or we are not logged in right now...
     if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
@@ -459,13 +459,22 @@ promise::Promise<void> Client::pushReceived()
 
     }, chatd::kSyncTimeout, appCtx);
 
-    for (auto& item: *chats)
+    if (chatid.isValid())
     {
-        ChatRoom *chat = item.second;
-        if (!chat->chat().isDisabled())
+        ChatRoom *chat = chats->at(chatid);
+        mSyncCount++;
+        chat->sendSync();
+    }
+    else
+    {
+        for (auto& item: *chats)
         {
-            mSyncCount++;
-            chat->sendSync();
+            ChatRoom *chat = item.second;
+            if (!chat->chat().isDisabled())
+            {
+                mSyncCount++;
+                chat->sendSync();
+            }
         }
     }
 

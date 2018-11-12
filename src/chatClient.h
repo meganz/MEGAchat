@@ -849,7 +849,7 @@ public:
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
 
-    promise::Promise<void> pushReceived();
+    promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
