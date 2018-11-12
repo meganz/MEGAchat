@@ -353,30 +353,66 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected};
+    enum State {
+        kStateNew,
+        kStateFetchingUrl,
+        kStateDisconnected,
+        kStateResolving,
+        kStateConnecting,
+        kStateConnected};
+
     enum {
         kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
         kEchoTimeout = 1    // echo to check connection is alive when back to foreground
-         };
+    };
 
 protected:
+    Connection(Client& chatdClient, int shardNo);
+
     Client& mChatdClient;
+
+    /** Shard number for which the Connection is configured */
     int mShardNo;
+
+    /** Set of chats using the Connection object */
     std::set<karere::Id> mChatIds;
-    State mState = kStateNew;
-    karere::Url mUrl;
-    bool usingipv6 = false; // ip version to try first (both are tried)
-    std::string mTargetIp;
-    DNScache &mDNScache;
-    bool mHeartbeatEnabled = false;
-    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
-    time_t mTsLastRecv = 0;
-    megaHandle mEchoTimer = 0;
-    promise::Promise<void> mConnectPromise;
+
+    /** Client ID is received upon login to chatd, based on a seed */
     uint32_t mClientId = 0;
-    Connection(Client& client, int shardNo);
-    State state() { return mState; }
+
+    /** Current state of the connection */
+    State mState = kStateNew;
+
+    /** When enabled, hearbeat() method is called periodically */
+    bool mHeartbeatEnabled = false;
+
+    /** URL retrieved from API to establish the connection */
+    karere::Url mUrl;
+
+    /** DNS cache to store resolved IPs */
+    DNScache &mDNScache;
+
+    /** Target IP address being used for the reconnection in-flight */
+    std::string mTargetIp;
+
+    /** ip version to try first (both are tried) */
+    bool usingipv6 = false;
+
+    /** RetryController that manages the reconnection's attempts */
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
+
+    /** Input promise for the RetryController
+     *  - If it fails: a new attempt is schedulled
+     *  - If it success: the reconnection is taken as done */
+    promise::Promise<void> mConnectPromise;
+
+    /** Timestamp of the last received data from chatd */
+    time_t mTsLastRecv = 0;
+
+    /** Handler of the timeout for the ECHO command */
+    megaHandle mEchoTimer = 0;
     
+    // ---- callbacks called from libwebsocketsIO ----
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
@@ -398,19 +434,15 @@ protected:
     void sendEcho();
     friend class Client;
     friend class Chat;
+
 public:
-    State state() const { return mState; }
-    bool isOnline() const
-    {
-        return mState == kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
-    }
-    const std::set<karere::Id>& chatIds() const { return mChatIds; }
-    uint32_t clientId() const { return mClientId; }
+    void setState(State state);
+    State state() const;
+    bool isOnline() const;
+    const std::set<karere::Id>& chatIds() const;
+    uint32_t clientId() const;
     void retryPendingConnection(bool disconnect);
-    virtual ~Connection()
-    {
-        disconnect();
-    }
+    virtual ~Connection();
 
     void heartbeat();
 
@@ -1322,11 +1354,12 @@ static inline const char* connStateToStr(Connection::State state)
 {
     switch (state)
     {
-    case Connection::State::kStateDisconnected: return "Disconnected";
-    case Connection::State::kStateConnecting: return "Connecting";
-    case Connection::State::kStateConnected: return "Connected";
     case Connection::State::kStateNew: return "New";
     case Connection::State::kStateFetchingUrl: return "Fetching URL";
+    case Connection::State::kStateDisconnected: return "Disconnected";
+    case Connection::State::kStateResolving: return "Resolving DNS";
+    case Connection::State::kStateConnecting: return "Connecting";
+    case Connection::State::kStateConnected: return "Connected";
     default: return "(invalid)";
     }
 }
