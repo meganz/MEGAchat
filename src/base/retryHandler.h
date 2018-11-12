@@ -145,7 +145,7 @@ public:
     {}
     ~RetryController()
     {
-        //RETRY_LOG("Deleting RetryController instance");
+        RETRY_LOG("Deleting RetryController instance");
     }
     /** @brief Starts the retry attempts */
     promise::PromiseBase& start(unsigned delay=0)
@@ -157,6 +157,7 @@ public:
         mCurrentAttemptNo = 1; //mCurrentAttempt increments immediately before the wait delay (if any)
         if (delay)
         {
+            RETRY_LOG("Starting retry after the initial delay (%ds)", delay);
             mState = kStateRetryWait;
             auto wptr = weakHandle();
             mTimer = setTimeout([wptr, this]()
@@ -224,6 +225,7 @@ public:
      */
     void restart(unsigned delay=0)
     {
+        RETRY_LOG("Restarting RetryController...");
         if (mState == kStateFinished)
         {
             throw std::runtime_error("restart: Already in finished state");
@@ -231,6 +233,7 @@ public:
         else if (mState == kStateInProgress)
         {
             mRestart = delay ? delay : 1; //schedNextRetry will do the actual restart once the current attempt finishes
+            RETRY_LOG("Attempt in-progress. RetryController will restart once the current attempt finishes.");
         }
         else //kStateRetryWait or kStateNotStarted
         {
@@ -282,6 +285,7 @@ protected:
                 RETRY_LOG("A previous timed-out/aborted attempt returned success");
                 return ret;
             }
+            RETRY_LOG("Input promise succeed. RetryController will be deleted now");
             cancelTimer();
             mState = kStateFinished;
             mPromise.resolve(ret);
@@ -320,6 +324,7 @@ protected:
     //set an attempt timeout timer
         if (mAttemptTimeout)
         {
+            RETRY_LOG("Setting a timeout for attempt %zu: %u seconds", mCurrentAttemptNo, mAttemptTimeout);
             auto wptr = weakHandle();
             mTimer = setTimeout([wptr, this, attempt]()
             {
@@ -334,13 +339,17 @@ protected:
                     auto id = mCurrentAttemptId;
                     callFuncIfNotNull(mCancelFunc);
                     if (id != mCurrentAttemptId) //cancelFunc failed the input promise and a retry was already scheduled as a result, we have to bail out
+                    {
+                        RETRY_LOG("cancelFunc failed the input promise and a retry was already scheduled as a result: bail out!");
                         return;
+                    }
                 }
                 schedNextRetry(timeoutError);
             }, mAttemptTimeout, appCtx);
         }
         mState = kStateInProgress;
 
+        RETRY_LOG("Starting attempt %zu...", mCurrentAttemptNo);
         auto pms = mFunc(mCurrentAttemptNo, wptr);
         attachThenHandler(pms, attempt);
         pms.fail([this, attempt](const promise::Error& err)
@@ -371,6 +380,7 @@ protected:
         mCurrentAttemptId++;
         if (mMaxAttemptCount && (mCurrentAttemptNo > mMaxAttemptCount)) //give up
         {
+            RETRY_LOG("Maximum number of attempts (%u) has been reached. RetryController will give up now.");
             mState = kStateFinished;
             mPromise.reject(err);
             mPromise = promise::Promise<RetType>();
