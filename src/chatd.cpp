@@ -503,7 +503,7 @@ Promise<void> Connection::reconnect()
 
         // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        mRetryCtrl.reset(createRetryController("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
+        mRetryCtrl.reset(createRetryController("chatd", [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
@@ -533,17 +533,43 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);
             }
 
+            auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client was deleted.");
+                    return;
+                }
+                if (!mRetryCtrl)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                    assert(isOnline());
+                    assert(cachedIPs);
+                    return;
+                }
+                if (mRetryCtrl.get() != retryCtrl)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
+                    return;
+                }
+                if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                                     attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
 
                 if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
+                    if (isOnline() && cachedIPs)
+                    {
+                        assert(false);  // this case should be handled already at: if (!mRetryCtrl)
+                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        return;
+                    }
+
                     string errStr;
                     if (statusDNS < 0)
                     {
@@ -554,12 +580,6 @@ Promise<void> Connection::reconnect()
                     {
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
                         errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
-                    }
-
-                    if (isOnline() && cachedIPs)
-                    {
-                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
-                        return;
                     }
 
                     // if connection already started, first abort/cancel
