@@ -384,6 +384,14 @@ enum Opcode
     OP_NEWNODEMSG = 44,
 
     /**
+      * @brief
+      * C->S: Requests the count older attach messages from msgid, which will be sent as a sequence
+      *    of OLDMSGs, followed by a HISTDONE.
+      * Send: <chatid> <msgid> <count>
+      */
+    OP_NODEHIST = 45,
+
+    /**
       ** @brief <chatid> <count>
       *
       * S->C: inform about any change in the number of users in preview mode in a chat.

@@ -367,16 +367,6 @@ public:
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
 
-    /** @brief The 'presence' of the chatroom - it's actually the online state,
-     * and can be only online or offline, depending on whether we are connected
-     * to the chatd chatroom
-     */
-    virtual Presence presence() const
-    {
-        return (mChat->onlineState() == chatd::kChatStateOnline)
-                ? Presence::kOnline
-                : Presence::kOffline;
-    }
 
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.

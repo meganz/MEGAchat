@@ -108,7 +108,6 @@ class MainWindow :
 
     protected:
         Ui::MainWindow *ui;
-        bool mTwoFactorAvailable = false;
         bool mShowInactive = false;
         bool mShowArchived = false;
         QMenu *onlineStatus;

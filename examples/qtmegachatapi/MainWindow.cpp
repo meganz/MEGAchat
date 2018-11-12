@@ -742,11 +742,6 @@ void MainWindow::onAddPubChatGroup()
     delete list;
 }
 
-void MainWindow::setTwoFactorAvailable(bool twoFactorAvailable)
-{
-    mTwoFactorAvailable = twoFactorAvailable;
-}
-
 void MainWindow::onWebRTCsetting()
 {
 #ifndef KARERE_DISABLE_WEBRTC
@@ -806,7 +801,21 @@ void MainWindow::setOnlineStatus()
 
 void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chatid, int newState)
 {
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it = chatWidgets.find(chatid);
+    if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
+    {
+        updateLocalChatListItems();
+        orderContactChatList();
+        megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
+        if (presenceConfig)
+        {
+            onChatPresenceConfigUpdate(mMegaChatApi, presenceConfig);
+        }
+        delete presenceConfig;
+        return;
+    }
+    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
+    it = chatWidgets.find(chatid);
+
     if (it != chatWidgets.end())
     {
         ChatItemWidget * chatItemWidget = it->second;

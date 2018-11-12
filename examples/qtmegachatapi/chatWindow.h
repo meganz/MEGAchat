@@ -2,6 +2,7 @@
 #define CHATWINDOW_H
 #include "ui_chatWindow.h"
 #include "QTMegaChatRoomListener.h"
+#include "QTMegaChatNodeHistoryListener.h"
 #include "megachatapi.h"
 #include "chatItemWidget.h"
 #include "chatMessage.h"
@@ -32,7 +33,8 @@ class ChatItemWidget;
 
 class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
-        public mega::MegaTransferListener
+        public mega::MegaTransferListener,
+        public megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
     public:
@@ -44,6 +46,10 @@ class ChatWindow : public QDialog,
         void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
         void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
+        void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
+        void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
+        void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
+        void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);
@@ -84,6 +90,11 @@ class ChatWindow : public QDialog,
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        int loadedAttachments;
+        bool mScrollToBottomAttachments;
+        megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
+        MyMessageList *mAttachmentList = NULL;
+        QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
 
     private slots:
@@ -102,21 +113,23 @@ class ChatWindow : public QDialog,
         void onSetPublicChatToPrivate();
         void onUnarchiveChat();
         void onArchiveChat();
+        void onShowAttachments(bool active);
+        void onAttachmentRequestHistory();
+        void on_mAttachBtn_clicked();
+        void on_mCancelTransfer(QAbstractButton *);
+        void onArchiveClicked(bool);
+        void onAttachmentsClosed(QObject*);
+        void on_mJoinBtn_clicked();
+        void on_mSettingsBtn_clicked();
+        void createCallGui(bool);
+        void onVideoCallBtn(bool);
+        void onAudioCallBtn(bool);
+        void deleteCallGui();
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
         void closeEvent(QCloseEvent *event);
 #endif
-
-        void on_mJoinBtn_clicked();
-        void on_mSettingsBtn_clicked();
-        void on_mAttachBtn_clicked();
-        void on_mCancelTransfer(QAbstractButton *);
-        void onArchiveClicked(bool);
-        void createCallGui(bool);
-        void onVideoCallBtn(bool);
-        void onAudioCallBtn(bool);
-        void deleteCallGui();
 
     friend class CallGui;
     friend class ChatMessage;

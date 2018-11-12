@@ -1757,6 +1757,141 @@ bool MegaChatApiImpl::hasUrl(const char *text)
     return chatd::Message::hasUrl(text, url);
 }
 
+bool MegaChatApiImpl::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    if (!listener || chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        return false;
+    }
+
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        auto it = nodeHistoryHandlers.find(chatid);
+        if (it != nodeHistoryHandlers.end())
+        {
+            sdkMutex.unlock();
+            API_LOG_WARNING("openNodeHistory: node history is already open for this chatroom (chatid: %s), close it before open it again", karere::Id(chatid).toString().c_str());
+            throw std::runtime_error("App node history handler is already set, remove it first");
+            return false;
+        }
+
+        MegaChatNodeHistoryHandler *handler = new MegaChatNodeHistoryHandler(chatApi);
+        chatroom->chat().setNodeHistoryHandler(handler);
+        nodeHistoryHandlers[chatid] = handler;
+        handler->addMegaNodeHistoryListener(listener);
+    }
+
+    sdkMutex.unlock();
+    return chatroom;
+}
+
+bool MegaChatApiImpl::closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    if (!listener || chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        return false;
+    }
+
+    sdkMutex.lock();
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        auto it = nodeHistoryHandlers.find(chatid);
+        if (it != nodeHistoryHandlers.end())
+        {
+            MegaChatNodeHistoryHandler *handler = it->second;
+            nodeHistoryHandlers.erase(it);
+            delete handler;
+            chatroom->chat().unsetHandlerToNodeHistory();
+
+            sdkMutex.unlock();
+            return true;
+        }
+    }
+
+    sdkMutex.unlock();
+    return false;
+}
+
+void MegaChatApiImpl::addNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    if (!listener || chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    auto it = nodeHistoryHandlers.find(chatid);
+    if (it != nodeHistoryHandlers.end())
+    {
+        MegaChatNodeHistoryHandler *handler = it->second;
+        handler->addMegaNodeHistoryListener(listener);
+
+    }
+    else
+    {
+        assert(false);
+        API_LOG_WARNING("addNodeHistoryListener: node history handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+    }
+
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::removeNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    if (!listener || chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        return;
+    }
+
+    sdkMutex.lock();
+    auto it = nodeHistoryHandlers.find(chatid);
+    if (it != nodeHistoryHandlers.end())
+    {
+        MegaChatNodeHistoryHandler *handler = it->second;
+        handler->removeMegaNodeHistoryListener(listener);
+
+    }
+    else
+    {
+        assert(false);
+        API_LOG_WARNING("removeNodeHistoryListener: node history handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+    }
+
+    sdkMutex.unlock();
+
+}
+
+int MegaChatApiImpl::loadAttachments(MegaChatHandle chatid, int count)
+{
+    int ret = MegaChatApi::SOURCE_NONE;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        HistSource source = chat.getNodeHistory(count);
+        switch (source)
+        {
+        case kHistSourceNone:   ret = MegaChatApi::SOURCE_NONE; break;
+        case kHistSourceRam:
+        case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
+        case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
+        case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
+        default:
+            API_LOG_ERROR("Unknown source of messages at loadAttachments()");
+            break;
+        }
+    }
+
+    sdkMutex.unlock();
+    return ret;
+}
+
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
 {
     API_LOG_INFO("Request (%s) starting", request->getRequestString());
@@ -7948,4 +8083,83 @@ string JSonUtils::getImageFormat(const char *imagen)
 const char *MegaChatRichPreviewPrivate::getDomainName() const
 {
     return mDomainName.c_str();
+}
+
+MegaChatNodeHistoryHandler::MegaChatNodeHistoryHandler(MegaChatApi *api)
+    : chatApi(api)
+{
+}
+
+void MegaChatNodeHistoryHandler::fireOnAttachmentReceived(MegaChatMessage *message)
+{
+    for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
+    {
+        (*it)->onAttachmentReceived(chatApi, message);
+    }
+
+    delete message;
+}
+
+void MegaChatNodeHistoryHandler::fireOnAttachmentLoaded(MegaChatMessage *message)
+{
+    for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
+    {
+        (*it)->onAttachmentLoaded(chatApi, message);
+    }
+
+    delete message;
+}
+
+void MegaChatNodeHistoryHandler::fireOnAttachmentDeleted(Id id)
+{
+    for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
+    {
+        (*it)->onAttachmentDeleted(chatApi, id);
+    }
+}
+
+void MegaChatNodeHistoryHandler::fireOnTruncate(Id id)
+{
+    for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
+    {
+        (*it)->onTruncate(chatApi, id);
+    }
+}
+
+void MegaChatNodeHistoryHandler::onReceived(Message *msg, Idx idx)
+{
+    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(*msg, Message::Status::kServerReceived, idx);
+    fireOnAttachmentReceived(message);
+}
+
+void MegaChatNodeHistoryHandler::onLoaded(Message *msg, Idx idx)
+{
+    MegaChatMessagePrivate *message = NULL;
+    if (msg)
+    {
+        message = new MegaChatMessagePrivate(*msg, Message::Status::kServerReceived, idx);
+    }
+
+    fireOnAttachmentLoaded(message);
+}
+
+void MegaChatNodeHistoryHandler::onDeleted(Id id)
+{
+    fireOnAttachmentDeleted(id);
+}
+
+void MegaChatNodeHistoryHandler::onTruncated(Id id)
+{
+    fireOnTruncate(id);
+}
+
+
+void MegaChatNodeHistoryHandler::addMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener)
+{
+    nodeHistoryListeners.insert(listener);
+}
+
+void MegaChatNodeHistoryHandler::removeMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener)
+{
+    nodeHistoryListeners.insert(listener);
 }

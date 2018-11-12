@@ -15,6 +15,8 @@
 #import "MEGAChatCallDelegate.h"
 #import "MEGAChatVideoDelegate.h"
 #import "MEGAChatNotificationDelegate.h"
+#import "MEGAChatNodeHistoryDelegate.h"
+
 
 #import "MEGASdk.h"
 
@@ -312,5 +314,14 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 #pragma mark - Rich links
 
 + (BOOL)hasUrl:(NSString *)text;
+
+#pragma mark - Node history
+
+- (BOOL)openNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (BOOL)closeNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (void)addNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (void)removeNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count;
+
 
 @end

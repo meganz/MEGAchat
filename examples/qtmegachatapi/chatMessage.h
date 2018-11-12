@@ -28,7 +28,7 @@ class ChatMessage: public QWidget
         friend class ChatWindow;
 
     public:
-        ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
+        ChatMessage(ChatWindow *window, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
         virtual ~ChatMessage();
         std::string managementInfoToString() const;
 

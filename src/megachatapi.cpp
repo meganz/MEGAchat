@@ -802,6 +802,31 @@ bool MegaChatApi::hasUrl(const char *text)
     return MegaChatApiImpl::hasUrl(text);
 }
 
+bool MegaChatApi::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    return pImpl->openNodeHistory(chatid, listener);
+}
+
+bool MegaChatApi::closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    return pImpl->closeNodeHistory(chatid, listener);
+}
+
+void MegaChatApi::addNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    pImpl->addNodeHistoryListener(chatid, listener);
+}
+
+void MegaChatApi::removeNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener)
+{
+    pImpl->removeNodeHistoryListener(chatid, listener);
+}
+
+int MegaChatApi::loadAttachments(MegaChatHandle chatid, int count)
+{
+    return pImpl->loadAttachments(chatid, count);
+}
+
 void MegaChatApi::addChatListener(MegaChatListener *listener)
 {
     pImpl->addChatListener(listener);
@@ -1620,4 +1645,20 @@ const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
 const char *MegaChatRichPreview::getDomainName() const
 {
     return NULL;
+}
+
+void MegaChatNodeHistoryListener::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
+{
+}
+
+void MegaChatNodeHistoryListener::onAttachmentReceived(MegaChatApi */*api*/, MegaChatMessage */*msg*/)
+{
+}
+
+void MegaChatNodeHistoryListener::onAttachmentDeleted(MegaChatApi */*api*/, MegaChatHandle /*msgid*/)
+{
+}
+
+void MegaChatNodeHistoryListener::onTruncate(MegaChatApi */*api*/, MegaChatHandle /*msgid*/)
+{
 }

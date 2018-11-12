@@ -272,7 +272,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *use
                 }
                 else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->mShowInactive != true)
                 {
-                    mMainWin->orderContactChatList();
+                     mMainWin->orderContactChatList();
                 }
             }
         }
