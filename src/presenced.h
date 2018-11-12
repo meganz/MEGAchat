@@ -51,8 +51,11 @@ public:
     bool isValid() const { return mPres != kInvalid; }
     inline static const char* toString(Code pres);
     const char* toString() const { return toString(mPres); }
+
+    // capabilities
     bool canWebRtc() { return mPres & kClientCanWebrtc; }
     bool isMobile() { return mPres & kClientIsMobile; }
+    bool canLastGreen() { return mPres & kClientSupportLastGreen; }
 
 protected:
     Code mPres;
@@ -354,32 +357,36 @@ protected:
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
+
+    // config management
     const Config& config() const { return mConfig; }
     bool isConfigAcknowledged() { return mPrefsAckWait; }
-    bool isOnline() const { return (mConnState >= kConnected); }
     bool setPresence(karere::Presence pres);
-    bool setPersist(bool enable);
-    bool setLastGreenVisible(bool enable);
-    bool requestLastGreen(karere::Id userid);
-
-
     /** @brief Enables or disables autoaway
      * @param timeout The timeout in seconds after which the presence will be
      *  set to away
      */
     bool setAutoaway(bool enable, time_t timeout);
+    bool autoAwayInEffect();
+    bool setPersist(bool enable);
+    bool setLastGreenVisible(bool enable);
+    bool requestLastGreen(karere::Id userid);
+
+    // connection's management
+    bool isOnline() const { return (mConnState >= kConnected); }
     promise::Promise<void>
-    connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers,
-        const Config& Config);
+    connect(const std::string& url, karere::Id myHandle, IdRefMap&& peers, const Config& Config);
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect);
+
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
     void signalActivity(bool force = false);
-    bool autoAwayInEffect();
+
+    // peers management
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
     ~Client();

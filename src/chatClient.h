@@ -860,6 +860,8 @@ public:
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
 
+    bool isChatRoomOpened(Id chatid);
+
 protected:
     void heartbeat();
     void setInitState(InitState newState);
