@@ -683,17 +683,22 @@ public:
     char mMyPubRsa[512] = {0};
     unsigned short mMyPubRsaLen = 0;
 
-    IApp::ILoginDialog::Handle mLoginDlg;
-
     /** @brief The contact list of the client */
     std::unique_ptr<ContactList> contactList;
 
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
 
-    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
-    int mSyncCount = -1;                     // to track if all chats returned SYNC
-    promise::Promise<void> mSyncPromise;    // resolved only when up to date    
+    // timer for receiving acknowledge of SYNCs
+    megaHandle mSyncTimer = 0;
+
+    // to track if all chats returned SYNC
+    int mSyncCount = -1;
+
+    // resolved only when up to date
+    promise::Promise<void> mSyncPromise;
+
+    IApp::ILoginDialog::Handle mLoginDlg;
 
 protected:
     Id mMyHandle = Id::null(); //mega::UNDEF
@@ -722,6 +727,7 @@ protected:
     megaHandle mHeartbeatTimer = 0;
 
 public:
+
     /**
      * @brief Creates a karere Client.
      *
@@ -916,7 +922,7 @@ public:
     virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
 #endif
 
-    promise::Promise<void> pushReceived();
+    promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);

@@ -2150,7 +2150,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Notify MEGAchat a push has been received
+     * Notify MEGAchat a push has been received (in Android)
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
@@ -2159,7 +2159,9 @@ public class MegaChatApiJava {
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)     *
+     * - MegaChatRequest::getChatHandle - Return MEGACHAT_INVALID_HANDLE
+     * - MegaChatRequest::getParamType - Return 0
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param listener MegaChatRequestListener to track this request
@@ -2169,7 +2171,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Notify MEGAchat a push has been received
+     * Notify MEGAchat a push has been received (in Android)
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
@@ -2178,12 +2180,35 @@ public class MegaChatApiJava {
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)     *
+     * - MegaChatRequest::getChatHandle - Return MEGACHAT_INVALID_HANDLE
+     * - MegaChatRequest::getParamType - Return 0
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      */
     public void pushReceived(boolean beep){
         megaChatApi.pushReceived(beep);
+    }
+
+    /**
+     * Notify MEGAchat a push has been received (in iOS)
+     *
+     * This method should be called when the iOS app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * for one specific chatroom or for every chatroom.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getChatHandle - Return the chatid to check for updates
+     * - MegaChatRequest::getParamType - Return 1
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void pushReceived(boolean beep, long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.pushReceived(beep, chatid, createDelegateRequestListener(listener));
     }
 
     // Call management

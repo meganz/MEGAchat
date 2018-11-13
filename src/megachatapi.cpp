@@ -660,7 +660,12 @@ void MegaChatApi::saveCurrentState()
 
 void MegaChatApi::pushReceived(bool beep, MegaChatRequestListener *listener)
 {
-    pImpl->pushReceived(beep, listener);
+    pImpl->pushReceived(beep, MEGACHAT_INVALID_HANDLE, 0, listener);
+}
+
+void MegaChatApi::pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->pushReceived(beep, chatid, 1, listener);
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
