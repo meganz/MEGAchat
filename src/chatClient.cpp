@@ -2486,21 +2486,30 @@ void ChatRoom::notifyRejoinedChat()
 
 void ChatRoomList::removeRoomPreview(Id chatid)
 {
-    auto it = find(chatid);
-    if (it == end())
+    auto wptr = mKarereClient.weakHandle();
+    marshallCall([wptr, this, chatid]()
     {
-        CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
-        return;
-    }
-    if (!it->second->previewMode())
-    {
-        CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
-        return;
-    }
+        if (wptr.deleted())
+        {
+            return;
+        }
 
-    GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
-    erase(it);
-    delete groupchat;
+        auto it = find(chatid);
+        if (it == end())
+        {
+            CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
+            return;
+        }
+        if (!it->second->previewMode())
+        {
+            CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
+            return;
+        }
+
+        GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
+        erase(it);
+        delete groupchat;
+    },mKarereClient.appCtx);
 }
 
 void GroupChatRoom::setRemoved()
