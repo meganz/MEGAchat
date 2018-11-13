@@ -652,9 +652,14 @@ public:
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
 
-    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
-    int mSyncCount = -1;                     // to track if all chats returned SYNC
-    promise::Promise<void> mSyncPromise;    // resolved only when up to date
+    // timer for receiving acknowledge of SYNCs
+    megaHandle mSyncTimer = 0;
+
+    // to track if all chats returned SYNC
+    int mSyncCount = -1;
+
+    // resolved only when up to date
+    promise::Promise<void> mSyncPromise;
 
     IApp::ILoginDialog::Handle mLoginDlg;
 
@@ -686,6 +691,7 @@ protected:
     megaHandle mHeartbeatTimer = 0;
 
 public:
+
     /**
      * @brief Creates a karere Client.
      *

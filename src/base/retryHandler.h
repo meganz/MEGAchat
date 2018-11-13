@@ -175,7 +175,7 @@ public:
     }
     /**
      * @brief abort Aborts the retry attemts
-     * @return Whether the abort was actually pefrormed, or it was not needed
+     * @return Whether the abort was actually performed, or it was not needed
      * (i.e. not yet started or already finished). When the retries
      * are aborted, the output promise is immediately rejected with an error of type
      * 1 (generic), code 2 (abort) and text "aborted".
@@ -325,10 +325,12 @@ protected:
             {
                 if (wptr.deleted())
                     return;
+
+                RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
                 assert(attempt == mCurrentAttemptId); //if we are in a next attempt, cancelTimer() should have been called and this callback should never fire
                 mTimer = 0;
+
                 static const promise::Error timeoutError("timeout", promise::kErrTimeout, promise::kErrorTypeGeneric);
-                RETRY_LOG("Attempt %zu timed out after %u ms", mCurrentAttemptNo, mAttemptTimeout);
                 if (!std::is_same<CancelFunc, std::nullptr_t>::value)
                 {
                     auto id = mCurrentAttemptId;
