@@ -187,7 +187,7 @@ bool Client::openDb(const std::string& sid)
         if (cachedVersionSuffixPos != std::string::npos)
         {
             std::string cachedVersionSuffix = cachedVersion.substr(cachedVersionSuffixPos + 1);
-            if (cachedVersionSuffix == "2" && gDbSchemaVersionSuffix == "3")
+            if (cachedVersionSuffix == "2" && (strcmp(gDbSchemaVersionSuffix, "3") == 0))
             {
                 KR_LOG_WARNING("Clearing history from cached chats...");
 
@@ -202,7 +202,7 @@ bool Client::openDb(const std::string& sid)
 
                 ok = true;
             }
-            else if (cachedVersionSuffix == "3" &&  gDbSchemaVersionSuffix == "4")
+            else if (cachedVersionSuffix == "3" && (strcmp(gDbSchemaVersionSuffix, "4") == 0))
             {
                 // clients with version 3 need to force a full-reload of SDK's cache to retrieve
                 // "deleted" chats from API, since it used to not return them. It should only be
@@ -222,7 +222,7 @@ bool Client::openDb(const std::string& sid)
 
                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
             }
-            else if (cachedVersionSuffix == "4" &&  gDbSchemaVersionSuffix == "5")
+            else if (cachedVersionSuffix == "4" && (strcmp(gDbSchemaVersionSuffix, "5") == 0))
             {
                 // clients with version 4 need to create a new table `node_history` and populate it with
                 // node's attachments already in cache. Futhermore, the existing types for special messages
@@ -252,7 +252,7 @@ bool Client::openDb(const std::string& sid)
                 KR_LOG_WARNING("%d messages added to node history", count);
                 ok = true;
             }
-            else if (cachedVersionSuffix == "5" && gDbSchemaVersionSuffix == "6")
+            else if (cachedVersionSuffix == "5" && (strcmp(gDbSchemaVersionSuffix, "6") == 0))
             {
                 // Clients with version 5 need to force a full-reload of SDK's in case there's at least one group chat.
                 // Otherwise the cache schema must be updated to support public chats
@@ -460,7 +460,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
         .fail([wptr, this, chatId, auxCrypto](const promise::Error& err)
         {
             wptr.throwIfDeleted();
-            KR_LOG_ERROR("Error decrypting chat title for chat link preview %s:\n%s\.", ID_CSTR(chatId), err.what());
+            KR_LOG_ERROR("Error decrypting chat title for chat link preview %s:\n%s", ID_CSTR(chatId), err.what());
             delete auxCrypto;
             return err;
         });
@@ -1737,7 +1737,7 @@ promise::Promise<void> GroupChatRoom::excludeMember(uint64_t userid)
 }
 
 ChatRoom::ChatRoom(ChatRoomList& aParent, const uint64_t& chatid, bool aIsGroup,
-  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& aTitle)
+  unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& aTitle)
    :parent(aParent), mChatid(chatid),
     mShardNo(aShard), mIsGroup(aIsGroup),
     mOwnPriv(aOwnPriv), mCreationTs(ts), mIsArchived(aIsArchived), mTitleString(aTitle), mHasTitle(false)
@@ -1991,7 +1991,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 
 //Resume from cache
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived,
+    unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
     const std::string& title, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
     :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
     mRoomGui(nullptr)
@@ -2019,7 +2019,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title,
+    unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
     const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr), mNumPeers(aNumPeers)
@@ -2090,7 +2090,7 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts, bool aIsArchived)
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, int64_t ts, bool aIsArchived)
 :ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived), mPeer(peer),
   mPeerPriv(peerPriv),
   mRoomGui(nullptr)
@@ -2405,7 +2405,7 @@ void ChatRoomList::loadFromDb()
             {
                 const char *pos = unifiedKeyBuf.buf();
                 isUnifiedKeyEncrypted = (uint8_t)*pos;  pos++;
-                int len = unifiedKeyBuf.size() - 1;
+                size_t len = unifiedKeyBuf.size() - 1;
                 assert( (isUnifiedKeyEncrypted == strongvelope::kKeyDecrypted && len == 16)
                         || (isUnifiedKeyEncrypted == strongvelope::kKeyEncrypted && len == 24)  // encrypted version includes invitor's userhandle (8 bytes)
                         || (isUnifiedKeyEncrypted));

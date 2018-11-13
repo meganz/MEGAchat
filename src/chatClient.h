@@ -65,7 +65,7 @@ protected:
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
-    uint32_t mCreationTs;
+    int64_t mCreationTs;
     bool mIsArchived;
     std::string mTitleString;
     bool mHasTitle;
@@ -105,7 +105,7 @@ public:
     virtual void connect(const char *url = NULL) = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
-             unsigned char shard, chatd::Priv ownPriv, uint32_t ts, bool isArchived,
+             unsigned char shard, chatd::Priv ownPriv, int64_t ts, bool isArchived,
              const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
@@ -239,7 +239,7 @@ protected:
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
-            chatd::Priv peerPriv, uint32_t ts, bool aIsArchived);
+            chatd::Priv peerPriv, int64_t ts, bool aIsArchived);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 
@@ -348,11 +348,11 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-                unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-                unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
+                unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
                 const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl);
     ~GroupChatRoom();
