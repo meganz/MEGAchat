@@ -526,7 +526,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         if (wptr.deleted())
             return;
         loadContactListFromApi(*contactList);
-        mChatdClient.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -633,7 +633,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        mChatdClient.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -2471,7 +2471,7 @@ void GroupChatRoom::onUserLeave(Id userid)
 
 void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    if (userid == parent.mKarereClient.mChatdClient->userId())
+    if (userid == parent.mKarereClient.myHandle())
         syncOwnPriv(privilege);
     else if (userid.val == mPeer)
         syncPeerPriv(privilege);
