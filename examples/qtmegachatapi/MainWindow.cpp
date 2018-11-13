@@ -373,8 +373,15 @@ void MainWindow::on_bSettings_clicked()
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     auto actlastGreenVisible = menu.addAction("Enable/Disable Last-Green");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
-    actlastGreenVisible->setCheckable(true);
-    actlastGreenVisible->setChecked(presenceConfig->isLastGreenVisible());
+    if (presenceConfig)
+    {
+        actlastGreenVisible->setCheckable(true);
+        actlastGreenVisible->setChecked(presenceConfig->isLastGreenVisible());
+    }
+    else
+    {
+        actlastGreenVisible->setEnabled(false);
+    }
     delete presenceConfig;
 
     QPoint pos = ui->bSettings->pos();
