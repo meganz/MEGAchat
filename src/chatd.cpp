@@ -540,7 +540,7 @@ Promise<void> Connection::reconnect()
 
         // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        mRetryCtrl.reset(createRetryController("chatd", [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> Promise<void>
+        mRetryCtrl.reset(createRetryController("chatd] [shard "+std::to_string(mShardNo), [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
