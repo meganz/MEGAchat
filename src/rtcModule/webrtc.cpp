@@ -308,9 +308,15 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 
     updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-    if (state == Call::CallDataState::kCallDataRinging)
+    if (state == Call::CallDataState::kCallDataRinging ||
+            state == Call::CallDataState::kCallDataSessionKeepRinging)
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        auto itCallHandler = mCallHandlers.find(chatid);
+        if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
+        {
+            itCallHandler->second->setInitialTimeStamp(time(NULL));
+        }
     }
     else if (state == Call::CallDataState::kCallDataNotRinging)
     {
@@ -324,6 +330,14 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         if (chat.isGroup() && itCall->second->state() == Call::kStateRingIn)
         {
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
+        }
+    }
+    else if (state == Call::CallDataState::kCallDataSession)
+    {
+        auto itCallHandler = mCallHandlers.find(chatid);
+        if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
+        {
+            itCallHandler->second->setInitialTimeStamp(time(NULL));
         }
     }
 }
@@ -1627,7 +1641,6 @@ bool Call::join(Id userid)
         return false;
     }
 
-    sendCallData(CallDataState::kCallDataSession);
     startIncallPingTimer();
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
@@ -1956,6 +1969,9 @@ void Call::notifySessionConnected(Session& sess)
 {
     if (mCallStartedSignalled)
         return;
+
+    sendCallData(isCaller() ? CallDataState::kCallDataSessionKeepRinging : CallDataState::kCallDataSession);
+
     mCallStartedSignalled = true;
     FIRE_EVENT(CALL, onCallStarted);
 }

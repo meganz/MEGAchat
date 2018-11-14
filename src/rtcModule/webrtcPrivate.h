@@ -116,11 +116,12 @@ class Call: public ICall
 {
     enum CallDataState
     {
-        kCallDataNotRinging     = 0,
-        kCallDataRinging        = 1,
-        kCallDataEnd            = 2,
-        kCallDataSession        = 3,
-        kCallDataMute           = 4
+        kCallDataNotRinging             = 0,
+        kCallDataRinging                = 1,
+        kCallDataEnd                    = 2,
+        kCallDataSession                = 3,
+        kCallDataMute                   = 4,
+        kCallDataSessionKeepRinging     = 5
     };
 
     enum

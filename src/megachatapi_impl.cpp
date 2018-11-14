@@ -6874,12 +6874,6 @@ void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags f
     if (chatCall)
     {
         bool notify = chatCall->addOrUpdateParticipant(userid, clientid, flags);
-
-        if (chatCall->getNumParticipants() == 2 && !chatCall->getInitialTimeStamp())
-        {
-            chatCall->setInitialTimeStamp(time(NULL));
-        }
-
         if (notify)
         {
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -6945,6 +6939,21 @@ void MegaChatCallHandler::setCallId(karere::Id callid)
     {
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
+}
+
+void MegaChatCallHandler::setInitialTimeStamp(int64_t timeStamp)
+{
+    assert(chatCall);
+    if (!chatCall->getInitialTimeStamp())
+    {
+        chatCall->setInitialTimeStamp(timeStamp);
+    }
+}
+
+int64_t MegaChatCallHandler::getInitialTimeStamp()
+{
+    assert(chatCall);
+    return chatCall->getInitialTimeStamp();
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
