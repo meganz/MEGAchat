@@ -824,7 +824,7 @@ void Call::handleReject(RtMessage& packet)
         return;
     }
 
-    if (packet.userid != mChat.client().userId())
+    if (packet.userid != mChat.client().myHandle())
     {
         if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
         {
@@ -1506,7 +1506,8 @@ void Call::hangup(TermCode reason)
         else
         {
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout ||
-                   reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision);
+                   reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision
+                   || reason == TermCode::kAppTerminating);
         }
 
         destroy(reason, true);
@@ -1522,8 +1523,9 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-            reason = TermCode::kInvalid; //silence warning about uninitialized
-            assert(false && "Hangup reason can only be undefined or kBusy when hanging up call in state kRingIn");
+            assert(reason == TermCode::kAppTerminating
+                   || (false && "Hangup reason can only be undefined, kBusy or kAppTerminating when hanging up call in state kRingIn"));
+            reason = TermCode::kInvalid;
         }
         assert(mSessions.empty());
         destroy(reason, true);
@@ -1598,7 +1600,7 @@ void Call::onUserOffline(Id userid, uint32_t clientid)
     }
     else if (mState >= kStateInProgress)
     {
-        destroy(TermCode::kErrUserOffline, userid == mChat.client().karereClient->myHandle());
+        destroy(TermCode::kErrUserOffline, userid == mChat.client().mKarereClient->myHandle());
     }
 }
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
@@ -1795,7 +1797,7 @@ string Session::getDeviceInfo() const
 {
     // UserAgent Format
     // MEGA<app>/<version> (platform) Megaclient/<version>
-    std::string userAgent = mCall.mChat.mClient.karereClient->api.sdk.getUserAgent();
+    std::string userAgent = mCall.mChat.mChatdClient.mKarereClient->api.sdk.getUserAgent();
 
     std::string androidId = "MEGAAndroid";
     std::string iosId = "MEGAiOS";

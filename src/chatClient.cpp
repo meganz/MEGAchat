@@ -434,7 +434,7 @@ void Client::saveDb()
     }
 }
 
-promise::Promise<void> Client::pushReceived()
+promise::Promise<void> Client::pushReceived(Id chatid)
 {
     // if already sent SYNCs or we are not logged in right now...
     if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
@@ -459,13 +459,22 @@ promise::Promise<void> Client::pushReceived()
 
     }, chatd::kSyncTimeout, appCtx);
 
-    for (auto& item: *chats)
+    if (chatid.isValid())
     {
-        ChatRoom *chat = item.second;
-        if (!chat->chat().isDisabled())
+        ChatRoom *chat = chats->at(chatid);
+        mSyncCount++;
+        chat->sendSync();
+    }
+    else
+    {
+        for (auto& item: *chats)
         {
-            mSyncCount++;
-            chat->sendSync();
+            ChatRoom *chat = item.second;
+            if (!chat->chat().isDisabled())
+            {
+                mSyncCount++;
+                chat->sendSync();
+            }
         }
     }
 
@@ -517,7 +526,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         if (wptr.deleted())
             return;
         loadContactListFromApi(*contactList);
-        mChatdClient.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -624,7 +633,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        mChatdClient.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -2462,7 +2471,7 @@ void GroupChatRoom::onUserLeave(Id userid)
 
 void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    if (userid == parent.mKarereClient.mChatdClient->userId())
+    if (userid == parent.mKarereClient.myHandle())
         syncOwnPriv(privilege);
     else if (userid.val == mPeer)
         syncPeerPriv(privilege);

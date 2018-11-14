@@ -21,6 +21,7 @@
 #import "DelegateMEGAChatCallListener.h"
 #import "DelegateMEGAChatVideoListener.h"
 #import "DelegateMEGAChatNotificationListener.h"
+#import "DelegateMEGAChatNodeHistoryListener.h"
 
 #import <set>
 #import <pthread.h>
@@ -38,6 +39,7 @@ using namespace megachat;
 @property (nonatomic, assign) std::set<DelegateMEGAChatVideoListener *>activeChatLocalVideoListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatVideoListener *>activeChatRemoteVideoListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNotificationListener *>activeChatNotificationListeners;
+@property (nonatomic, assign) std::set<DelegateMEGAChatNodeHistoryListener *>activeChatNodeHistoryListeners;
 
 - (MegaChatRequestListener *)createDelegateMEGAChatRequestListener:(id<MEGAChatRequestDelegate>)delegate singleListener:(BOOL)singleListener;
 
@@ -748,6 +750,15 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->pushReceived(beep);
 }
 
+- (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->pushReceived(beep, chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId {
+    self.megaChatApi->pushReceived(beep, chatId);
+}
+
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1011,12 +1022,69 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return delegateListener;
 }
 
+- (MegaChatNodeHistoryListener *)createDelegateMEGAChatNodeHistoryListener:(id<MEGAChatNodeHistoryDelegate>)delegate singleListener:(BOOL)singleListener {
+    if (delegate == nil) return nil;
+    
+    DelegateMEGAChatNodeHistoryListener *delegateListener = new DelegateMEGAChatNodeHistoryListener(self, delegate, singleListener);
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatNodeHistoryListeners.insert(delegateListener);
+    pthread_mutex_unlock(&listenerMutex);
+    return delegateListener;
+}
+
+#pragma mark - Exceptions
+
 + (void)setCatchException:(BOOL)enable {
     MegaChatApi::setCatchException(enable);
 }
 
+#pragma mark - Rich links
+
 + (BOOL)hasUrl:(NSString *)text {
     return MegaChatApi::hasUrl(text ? [text UTF8String] : NULL);
+}
+
+#pragma mark - Node history
+
+- (BOOL)openNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate {
+    return self.megaChatApi->openNodeHistory(chatId, [self createDelegateMEGAChatNodeHistoryListener:delegate singleListener:YES]);
+}
+
+- (BOOL)closeNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate {
+    return self.megaChatApi->closeNodeHistory(chatId, [self createDelegateMEGAChatNodeHistoryListener:delegate singleListener:YES]);
+}
+
+- (void)addNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate {
+    self.megaChatApi->addNodeHistoryListener(chatId, [self createDelegateMEGAChatNodeHistoryListener:delegate singleListener:NO]);
+}
+
+- (void)removeNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate {
+    
+    std::vector<DelegateMEGAChatNodeHistoryListener *> listenersToRemove;
+    
+    pthread_mutex_lock(&listenerMutex);
+    std::set<DelegateMEGAChatNodeHistoryListener *>::iterator it = _activeChatNodeHistoryListeners.begin();
+    while (it != _activeChatNodeHistoryListeners.end()) {
+        DelegateMEGAChatNodeHistoryListener *delegateListener = *it;
+        if (delegateListener->getUserListener() == delegate) {
+            listenersToRemove.push_back(delegateListener);
+            _activeChatNodeHistoryListeners.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+    pthread_mutex_unlock(&listenerMutex);
+    
+    for (int i = 0; i < listenersToRemove.size(); i++)
+    {
+        self.megaChatApi->removeNodeHistoryListener(chatId, (listenersToRemove[i]));
+        delete listenersToRemove[i];
+    }
+}
+
+- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count {
+    return self.megaChatApi->loadAttachments(chatId, (int)count);
 }
 
 @end
