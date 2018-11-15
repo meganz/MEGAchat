@@ -220,11 +220,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 }
 #endif
-void MainWindow::clearContactChatList()
-{
-    clearContactWidgetList();
-    clearChatWidgetList();
-}
 
 void MainWindow::clearContactWidgetList()
 {
@@ -238,6 +233,24 @@ void MainWindow::clearChatWidgetList()
     chatWidgets.clear();
 }
 
+void MainWindow::clearQtChatWidgetList()
+{
+    ui->chatList->clear();
+}
+
+void MainWindow::clearChatWidgets()
+{
+    std::map<megachat::MegaChatHandle, ChatListItemController *>::iterator it;
+    for (it = chatControllers .begin(); it != chatControllers.end(); it++)
+    {
+        ChatListItemController * itemController = it->second;
+        if(itemController)
+        {
+            itemController->addOrUpdateWidget(nullptr);
+        }
+    }
+}
+
 void MainWindow::orderContactList()
 {
     clearContactWidgetList();
@@ -249,6 +262,13 @@ void MainWindow::orderChatList()
     mNeedReorder = false;
     auxChatWidgets = chatWidgets;
     clearChatWidgetList();
+
+    //TODO: uncomment when revamping has finished
+    //Clean chat Qt widgets container
+    clearQtChatWidgetList();
+
+    // Clean the ChatItemWidgets in ChatListItemController list
+    //clearChatWidgets();
 
     if (mShowArchived)
     {
@@ -925,6 +945,18 @@ void MainWindow::updateLocalChatListItems()
         addOrUpdateLocalChatListItem(chatList->get(i));
     }
     delete chatList;
+}
+
+ChatListItemController* MainWindow::getChatControllerById(MegaChatHandle chatId)
+{
+    std::map<mega::MegaHandle, ChatListItemController *> ::iterator it;
+    it = this->chatControllers.find(chatId);
+    if (it != chatControllers.end())
+    {
+        return it->second;
+    }
+
+    return nullptr;
 }
 
 void MainWindow::addOrUpdateLocalChatListItem(const MegaChatListItem *item)

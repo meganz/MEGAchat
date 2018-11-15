@@ -65,7 +65,6 @@ class MainWindow :
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addOrUpdateContactController(mega::MegaUser *contact);
         ContactItemWidget *addContactWidget(mega::MegaUser *user);
-        void clearContactChatList();
         void orderContactList();
         void orderChatList();
         void clearContactWidgetList();
@@ -76,6 +75,13 @@ class MainWindow :
         void addActiveChats();
         void createSettingsMenu();
         bool needReorder(megachat::MegaChatListItem *newItem, const megachat::MegaChatListItem *oldItem);
+
+        /* This function clear the chat widget container list,leaving intact chatController list*/
+        void clearQtChatWidgetList();
+
+        /* This function clear the ChatItemWidgets in ChatListItemController list*/
+        void clearChatWidgets();
+
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
@@ -86,6 +92,7 @@ class MainWindow :
         //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
         void addOrUpdateLocalChatListItem(const megachat::MegaChatListItem *item);
         void updateLocalChatListItems();
+        ChatListItemController* getChatControllerById(megachat::MegaChatHandle chatId);
         void createFactorMenu(bool factorEnabled);
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
