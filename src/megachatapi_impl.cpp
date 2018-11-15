@@ -2975,16 +2975,15 @@ MegaChatMessage *MegaChatApiImpl::removeRichLink(MegaChatHandle chatid, MegaChat
     {
         Chat &chat = chatroom->chat();
         Message *originalMsg = findMessage(chatid, msgid);
-        if (!originalMsg || originalMsg->type != Message::kMsgContainsMeta || originalMsg->size() < 3)
+        if (!originalMsg || originalMsg->containMetaSubtype() != Message::ContainsMetaSubType::kRichLink)
         {
             sdkMutex.unlock();
             return NULL;
         }
 
-        std::string msgText = originalMsg->toText();
-        uint8_t type = msgText.c_str()[0];
-        const char *jsonBegin = msgText.c_str() + 1;
-        const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(jsonBegin, type);
+        uint8_t containsMetaType = originalMsg->containMetaSubtype();
+        std::string containsMetaJson = originalMsg->containsMetaJson();
+        const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(containsMetaJson.c_str(), containsMetaType);
         if (!containsMeta || containsMeta->getType() != MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
         {
             delete containsMeta;

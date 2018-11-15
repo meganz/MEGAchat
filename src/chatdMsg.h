@@ -655,6 +655,14 @@ public:
                     || type == kMsgContainsMeta)
                 );
     }
+    ContainsMetaSubType containMetaSubtype() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 2) ? ((ContainsMetaSubType)*(buf()+2)) : ContainsMetaSubType::kInvalid;
+    }
+    std::string containsMetaJson() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
+    }
 
     /** @brief Convert attachment etc. special messages to text */
     std::string toText() const
