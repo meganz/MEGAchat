@@ -25,19 +25,9 @@ ChatWindow *ChatListItemController::getChatWindow() const
     return mChatWindow;
 }
 
-void ChatListItemController::setChatWindow(ChatWindow *chatWindow)
-{
-    mChatWindow = chatWindow;
-}
-
 ChatItemWidget *ChatListItemController::getWidget() const
 {
     return mWidget;
-}
-
-void ChatListItemController::setWidget(ChatItemWidget *widget)
-{
-    mWidget = widget;
 }
 
 megachat::MegaChatListItem *ChatListItemController::getItem() const
@@ -45,8 +35,31 @@ megachat::MegaChatListItem *ChatListItemController::getItem() const
     return mItem;
 }
 
-void ChatListItemController::setItem(megachat::MegaChatListItem *item)
+void ChatListItemController::addOrUpdateChatWindow(ChatWindow *chatWindow)
 {
+    if (mChatWindow)
+    {
+        delete mChatWindow;
+    }
+
+    mChatWindow = chatWindow;
+}
+
+void ChatListItemController::addOrUpdateWidget(ChatItemWidget *widget)
+{
+    if (mWidget)
+    {
+        delete mWidget;
+    }
+    mWidget = widget;
+}
+
+void ChatListItemController::addOrUpdateItem(megachat::MegaChatListItem *item)
+{
+    if (mItem)
+    {
+        delete mItem;
+    }
     mItem = item;
 }
 

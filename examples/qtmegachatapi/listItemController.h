@@ -20,15 +20,15 @@ class ChatListItemController :
     public ListItemController
 {
     public:
-        ChatListItemController(megachat::MegaChatListItem *item, ChatItemWidget *widget, ChatWindow *chatWindow = NULL);
+        ChatListItemController(megachat::MegaChatListItem *item, ChatItemWidget *widget = nullptr, ChatWindow *chatWindow = nullptr);
         ~ChatListItemController();
         ChatItemWidget *getWidget() const;
         megachat::MegaChatListItem *getItem() const;
         megachat::MegaChatHandle getItemId() const;
         ChatWindow *getChatWindow() const;
-        void setWidget(ChatItemWidget *widget);
-        void setItem(megachat::MegaChatListItem *item);
-        void setChatWindow(ChatWindow *window);
+        void addOrUpdateWidget(ChatItemWidget *widget);
+        void addOrUpdateItem(megachat::MegaChatListItem *item);
+        void addOrUpdateChatWindow(ChatWindow *window);
     protected:
         megachat::MegaChatListItem *mItem = nullptr;
         ChatItemWidget *mWidget = nullptr;
@@ -39,7 +39,7 @@ class ContactListItemController:
         public ListItemController
 {
     public:
-        ContactListItemController(mega::MegaUser *item, ContactItemWidget *widget);
+        ContactListItemController(mega::MegaUser *item, ContactItemWidget *widget = nullptr);
         ~ContactListItemController();
         ContactItemWidget *getWidget() const;
         mega::MegaUser *getItem() const;
