@@ -460,14 +460,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
               }
             else
             {
-                megachat::MegaChatHandle chatHandle = request->getChatHandle();
-                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-                itChats = mMainWin->chatWidgets.find(chatHandle);
-
-                if (itChats != mMainWin->chatWidgets.end())
+                megachat::MegaChatHandle chatId = request->getChatHandle();
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+                if(itemController)
                 {
-                    ChatItemWidget *chatItemWidget = itChats->second;
-                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
+                    ChatWindow *chatWin = itemController->showChatWindow();
                     chatWin->connectCall();
                 }
             }

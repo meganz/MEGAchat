@@ -57,5 +57,6 @@ class ChatItemWidget : public QWidget
     friend class ContactItemWidget;
     friend class ChatGroupDialog;
     friend class CallAnswerGui;
+    friend class ChatListItemController;
 };
 #endif // CHATITEM_H

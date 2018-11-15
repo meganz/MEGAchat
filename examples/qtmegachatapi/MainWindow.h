@@ -79,8 +79,11 @@ class MainWindow :
         /* This function clear the chat widget container list,leaving intact chatController list*/
         void clearQtChatWidgetList();
 
-        /* This function clear the ChatItemWidgets in ChatListItemController list*/
+        /* This function clear the ChatItemWidgets in ChatListItemController map*/
         void clearChatWidgets();
+
+        /* This function clear the ChatListItemControllers map*/
+        void clearChatControllers();
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);

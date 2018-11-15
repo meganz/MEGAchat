@@ -46,16 +46,10 @@ MainWindow::~MainWindow()
     mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
 #endif
 
-    for (auto it = mLocalChatListItems.begin(); it != mLocalChatListItems.end(); it++)
-    {
-        delete it->second;
-    }
-    mLocalChatListItems.clear();
-
     delete megaChatListenerDelegate;
     delete megaChatCallListenerDelegate;
     delete mChatSettings;
-    chatWidgets.clear();
+    clearChatControllers();
     clearContactListControllers(false);
     delete ui;
 }
@@ -249,6 +243,17 @@ void MainWindow::clearChatWidgets()
             itemController->addOrUpdateWidget(nullptr);
         }
     }
+}
+
+void MainWindow::clearChatControllers()
+{
+    std::map<megachat::MegaChatHandle, ChatListItemController *>::iterator it;
+    for (it = chatControllers .begin(); it != chatControllers.end(); it++)
+    {
+        ChatListItemController * itemController = it->second;
+        delete itemController;
+    }
+    chatControllers.clear();
 }
 
 void MainWindow::orderContactList()

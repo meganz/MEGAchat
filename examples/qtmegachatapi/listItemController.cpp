@@ -63,6 +63,24 @@ void ChatListItemController::addOrUpdateItem(megachat::MegaChatListItem *item)
     mItem = item;
 }
 
+ChatWindow* ChatListItemController::showChatWindow()
+{
+    if (!mChatWindow)
+    {
+        megachat::MegaChatRoom *chatRoom = mWidget->mMegaChatApi->getChatRoom(mItemId);
+        mChatWindow = new ChatWindow(mWidget->mMainWin, mWidget->mMegaChatApi, chatRoom->copy(), mItem->getTitle());
+        mChatWindow->show();
+        mChatWindow->openChatRoom();
+        delete chatRoom;
+    }
+    else
+    {
+        mChatWindow->show();
+        mChatWindow->setWindowState(Qt::WindowActive);
+    }
+    return mChatWindow;
+}
+
 ContactListItemController::ContactListItemController(mega::MegaUser *item, ContactItemWidget *widget)
 {
     mItemId = item->getHandle();
