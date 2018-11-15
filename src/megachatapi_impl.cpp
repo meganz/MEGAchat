@@ -2821,39 +2821,44 @@ MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float 
     std::string textMessage("https://www.google.com/maps/search/?api=1&query=");
     textMessage.append(std::to_string(latitude)).append(",").append(std::to_string(longitude));
 
-    rapidjson::Document jSonContainsMeta(rapidjson::kObjectType);
-    rapidjson::Value nodeTextMessage(rapidjson::kStringType);
-    nodeTextMessage.SetString(textMessage.c_str(), textMessage.length(), jSonContainsMeta.GetAllocator());
-    jSonContainsMeta.AddMember(rapidjson::Value("textMessage"), nodeTextMessage, jSonContainsMeta.GetAllocator());
+    // Add generic `textMessage`
+    rapidjson::Document jsonContainsMeta(rapidjson::kObjectType);
+    rapidjson::Value jsonTextMessage(rapidjson::kStringType);
+    jsonTextMessage.SetString(textMessage.c_str(), textMessage.length(), jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("textMessage"), jsonTextMessage, jsonContainsMeta.GetAllocator());
 
-    rapidjson::Value jSonExtra(rapidjson::kArrayType);
-    rapidjson::Value jSonGeolocation(rapidjson::kObjectType);
-    rapidjson::Value jSonLongitude(rapidjson::kStringType);
+    // prepare geolocation object: longitude, latitude, image
+    rapidjson::Value jsonGeolocation(rapidjson::kObjectType);
+    // longitud
+    rapidjson::Value jsonLongitude(rapidjson::kStringType);
     std::string longitudeString = std::to_string(longitude);
-    jSonLongitude.SetString(longitudeString.c_str(), longitudeString.length());
-    jSonGeolocation.AddMember(rapidjson::Value("lng"), jSonLongitude, jSonContainsMeta.GetAllocator());
-
-    rapidjson::Value jSonLatitude(rapidjson::kStringType);
+    jsonLongitude.SetString(longitudeString.c_str(), longitudeString.length());
+    jsonGeolocation.AddMember(rapidjson::Value("lng"), jsonLongitude, jsonContainsMeta.GetAllocator());
+    // latitude
+    rapidjson::Value jsonLatitude(rapidjson::kStringType);
     std::string latitudeString = std::to_string(latitude);
-    jSonLatitude.SetString(latitudeString.c_str(), latitudeString.length());
-    jSonGeolocation.AddMember(rapidjson::Value("la"), jSonLatitude, jSonContainsMeta.GetAllocator());
-
+    jsonLatitude.SetString(latitudeString.c_str(), latitudeString.length());
+    jsonGeolocation.AddMember(rapidjson::Value("la"), jsonLatitude, jsonContainsMeta.GetAllocator());
+    // image/thumbnail
     if (img)
     {
-        rapidjson::Value jSonImage(rapidjson::kStringType);
-        jSonImage.SetString(img, strlen(img), jSonContainsMeta.GetAllocator());
-        jSonGeolocation.AddMember(rapidjson::Value("img"), jSonImage, jSonContainsMeta.GetAllocator());
+        rapidjson::Value jsonImage(rapidjson::kStringType);
+        jsonImage.SetString(img, strlen(img), jsonContainsMeta.GetAllocator());
+        jsonGeolocation.AddMember(rapidjson::Value("img"), jsonImage, jsonContainsMeta.GetAllocator());
     }
 
-    jSonExtra.PushBack(jSonGeolocation, jSonContainsMeta.GetAllocator());
-    jSonContainsMeta.AddMember(rapidjson::Value("extra"), jSonExtra, jSonContainsMeta.GetAllocator());
+    // Add the `extra` with the geolocation data
+    rapidjson::Value jsonExtra(rapidjson::kArrayType);
+    jsonExtra.PushBack(jsonGeolocation, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("extra"), jsonExtra, jsonContainsMeta.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    jSonContainsMeta.Accept(writer);
+    jsonContainsMeta.Accept(writer);
 
+    // assemble final message with the type (contains-meta) and subtype (geolocation)
     std::string message((const char*)buffer.GetString(), buffer.GetSize());
-    message.insert(message.begin(), Message::ContainstMetaSubType::kGeoLocation);
+    message.insert(message.begin(), Message::ContainsMetaSubType::kGeoLocation);
     message.insert(message.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
     message.insert(message.begin(), 0x0);
 
@@ -2864,7 +2869,6 @@ MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float 
     if (chatroom)
     {
         Message *m = chatroom->chat().msgSubmit(message.c_str(), message.size(), Message::kMsgContainsMeta , NULL);
-
         if (!m)
         {
             sdkMutex.unlock();

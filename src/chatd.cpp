@@ -2157,7 +2157,7 @@ void Chat::requestRichLink(Message &message)
                     return;
                 }
 
-                updateText.insert(updateText.begin(), Message::ContainstMetaSubType::kRichLink);
+                updateText.insert(updateText.begin(), Message::ContainsMetaSubType::kRichLink);
                 updateText.insert(updateText.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
                 updateText.insert(updateText.begin(), 0x0);
                 std::string::size_type size = updateText.size();

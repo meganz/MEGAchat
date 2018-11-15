@@ -406,8 +406,9 @@ public:
         kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
     };
 
-    enum ContainstMetaSubType: uint8_t
+    enum ContainsMetaSubType: uint8_t
     {
+        kInvalid              = 0xff,
         kRichLink             = 0x00,
         kGeoLocation          = 0x01
     };
