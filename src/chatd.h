@@ -321,6 +321,7 @@ public:
     virtual void stopCallsTimers(int shard) = 0;
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
     virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
+    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId

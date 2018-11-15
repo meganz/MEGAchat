@@ -715,6 +715,16 @@ std::vector<Id> RtcModule::chatsWithCall() const
     return chats;
 }
 
+void RtcModule::onKickedFromChatRoom(Id chatid)
+{
+    auto callIt = mCalls.find(chatid);
+    if (callIt != mCalls.end())
+    {
+        RTCM_LOG_WARNING("We have been removed from chatroom: %s, and we are in a call. Finishing the call", chatid.toString().c_str());
+        callIt->second->hangup(TermCode::kErrKickedFromChat);
+    }
+}
+
 void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, Id callid, AvFlags avFlagsRemote)
 {
     karere::Id chatid = chat.chatId();

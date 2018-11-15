@@ -3809,6 +3809,9 @@ void Chat::onUserLeave(Id userid)
     if (userid == client().userId())
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
+#ifndef KARERE_DISABLE_WEBRTC
+        mClient.mRtcHandler->onKickedFromChatRoom(mChatId);
+#endif
     }
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
