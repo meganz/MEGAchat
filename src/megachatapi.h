@@ -619,6 +619,9 @@ public:
       * be only valid until the MegaChatRichPreview is deleted.
       *
       * @return Text from rich preview
+      *
+      * @deprecated use MegaChatContainsMeta::getTextMessage instead, it contains the same
+      * value. This function will eventually be removed in future versions of MEGAchat.
       */
     virtual const char *getText() const;
 
