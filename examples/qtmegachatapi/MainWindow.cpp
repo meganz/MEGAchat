@@ -142,58 +142,41 @@ void MainWindow::createFactorMenu(bool factorEnabled)
 #ifndef KARERE_DISABLE_WEBRTC
 void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::MegaChatCall *call)
 {
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
-    if(itWidgets == chatWidgets.end())
+    ChatListItemController *itemController = getChatControllerById(call->getChatid());
+    if(!itemController)
     {
         throw std::runtime_error("Incoming call from unknown contact");
     }
 
-    ChatItemWidget *chatItemWidget = itWidgets->second;
-    const MegaChatListItem *auxItem = getLocalChatListItem(call->getChatid());
-    const char *chatWindowTitle = auxItem->getTitle();
-
-    ChatWindow *auxChatWindow = NULL;
-
-    if (!chatItemWidget->getChatWindow())
-    {
-        megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(call->getChatid());
-        auxChatWindow = new ChatWindow(this, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
-        chatItemWidget->setChatWindow(auxChatWindow);
-        auxChatWindow->show();
-        auxChatWindow->openChatRoom();
-        delete chatRoom;
-    }
-    else
-    {
-        auxChatWindow =chatItemWidget->getChatWindow();
-        auxChatWindow->show();
-        auxChatWindow->setWindowState(Qt::WindowActive);
-    }
+    itemController->showChatWindow();
 
     switch(call->getStatus())
     {
         case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
            {
-               ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
-               chatItemWidget->getChatWindow()->hangCall();
+               ChatWindow * window = getChatWindowIfExists(call->getChatid());
+               if (window)
+               {
+                  window->hangCall();
+               }
                return;
            }
            break;
         case megachat::MegaChatCall::CALL_STATUS_RING_IN:
            {
-              ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
-              if(auxChatWindow->getCallGui()==NULL)
+              ChatWindow * window = getChatWindowIfExists(call->getChatid());
+              if ((window->getCallGui() == NULL) && window)
               {
-                 auxChatWindow->createCallGui(call->hasRemoteVideo());
+                 window->createCallGui(call->hasRemoteVideo());
               }
            }
            break;
         case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
            {
-               ChatWindow *auxChatWindow =chatItemWidget->getChatWindow();
-               if ((auxChatWindow->getCallGui()) && !(auxChatWindow->getCallGui()->getCall()))
+               ChatWindow * window = getChatWindowIfExists(call->getChatid());
+               if ((window->getCallGui() == NULL) && window)
                {
-                   auxChatWindow->connectCall();
+                 window->connectCall();
                }
 
                if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
@@ -214,6 +197,17 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 }
 #endif
+
+ChatWindow *MainWindow::getChatWindowIfExists(MegaChatHandle chatId)
+{
+    ChatWindow * window = nullptr;
+    ChatListItemController *itemController = getChatControllerById(chatId);
+    if (itemController)
+    {
+        window = itemController->getChatWindow();
+    }
+    return window;
+}
 
 void MainWindow::clearContactWidgetList()
 {
@@ -900,18 +894,19 @@ void MainWindow::setNContacts(int nContacts)
 
 void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char *firstname)
 {
-    std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator it;
-    for (it = chatWidgets.begin(); it != chatWidgets.end(); it++)
+    std::map<megachat::MegaChatHandle, ChatListItemController *>::iterator it;
+    for (it = chatControllers.begin(); it != chatControllers.end(); it++)
     {
-        const MegaChatListItem *chatListItem  = getLocalChatListItem(it->first);
-        ChatItemWidget *chatItemWidget = it->second;
+        ChatListItemController *itemController = it->second;
+        const MegaChatListItem *item = itemController->getItem();
+        ChatItemWidget *widget = itemController->getWidget();
 
-        if (chatListItem->getLastMessageSender() == contactHandle)
+        if (item && widget && item->getLastMessageSender() == contactHandle)
         {
-            chatItemWidget->updateToolTip(chatListItem, firstname);
+            widget->updateToolTip(item, firstname);
         }
 
-        ChatWindow *chatWindow = chatItemWidget->getChatWindow();
+        ChatWindow *chatWindow = itemController->getChatWindow();
         if (chatWindow)
         {
             chatWindow->updateMessageFirstname(contactHandle, firstname);

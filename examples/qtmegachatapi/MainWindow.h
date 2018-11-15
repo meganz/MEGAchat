@@ -13,6 +13,7 @@
 #include "QTMegaChatCallListener.h"
 #include "MegaChatApplication.h"
 #include "listItemController.h"
+#include "chatWindow.h"
 
 const int chatActiveStatus   = 0;
 const int chatInactiveStatus = 1;
@@ -47,6 +48,7 @@ class ChatSettingsDialog;
 class ChatItemWidget;
 class ContactItemWidget;
 class QTMegaChatCallListener;
+class ChatWindow;
 
 namespace Ui
 {
@@ -68,6 +70,7 @@ class MainWindow :
         void orderContactList();
         void orderChatList();
         void clearContactWidgetList();
+        ChatWindow *getChatWindowIfExists(megachat::MegaChatHandle chatId);
         void clearChatWidgetList();
         void addContacts();
         void addInactiveChats();

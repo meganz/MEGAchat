@@ -330,7 +330,7 @@ void ChatItemWidget::unshowAsHidden()
 
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
-    QMessageBox::warning(this, tr("TODO: add new show chatwindow call"));
+    QMessageBox::warning(this, tr("TODO: add new show chatwindow call"), tr(""));
 }
 
 QListWidgetItem *ChatItemWidget::getWidgetItem() const

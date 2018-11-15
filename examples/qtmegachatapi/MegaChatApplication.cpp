@@ -477,15 +477,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
               }
             else
             {
-                megachat::MegaChatHandle chatHandle = request->getChatHandle();
-                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-                itChats = mMainWin->chatWidgets.find(chatHandle);
+                megachat::MegaChatHandle chatId = request->getChatHandle();
 
-                if (itChats != mMainWin->chatWidgets.end())
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+
+                if (itemController)
                 {
-                    ChatItemWidget *chatItemWidget = itChats->second;
-                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
-                    chatWin->hangCall();
+                    ChatItemWidget *widget = itemController->getWidget();
+                    if (widget)
+                    {
+                        ChatWindow *chatWin= itemController->showChatWindow();
+                        if(chatWin)
+                        {
+                            chatWin->hangCall();
+                        }
+                    }
                 }
             }
             break;
@@ -503,15 +509,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 MegaChatHandle chatid = request->getChatHandle();
                 MegaChatMessage *msg = request->getMegaChatMessage();
-                ChatItemWidget *widget = mMainWin->getChatItemWidget(chatid, false);
-
-                if (widget)
+                ChatWindow *window = mMainWin->getChatWindowIfExists(chatid);
+                if (window)
                 {
-                    ChatWindow *win = widget->getChatWindow();
-                    if (win)
-                    {
-                        win->onMessageReceived(mMegaChatApi, msg);
-                    }
+                    window->onMessageReceived(mMegaChatApi, msg);
                 }
             }
             break;
