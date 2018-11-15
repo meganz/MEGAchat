@@ -6983,6 +6983,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
     {
         case rtcModule::ISession::kStateWaitSdpOffer:
         case rtcModule::ISession::kStateWaitSdpAnswer:
+        case rtcModule::ISession::kStateWaitLocalSdpAnswer:
         {
             MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
             megaChatSession->setState(newState);
