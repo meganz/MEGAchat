@@ -1225,8 +1225,8 @@ public:
      * by ASCII character '0x01'
      */
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-    static const MegaChatContainsMeta *parseContainsMeta(const char* json, uint8_t type);
-    static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document);
+    static const MegaChatContainsMeta *parseContainsMeta(const char* json, uint8_t type, bool onlyTextMessage = false);
+    static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
     static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
 
 private:

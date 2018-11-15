@@ -6119,18 +6119,10 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
         {
-            std::string textMsg = msg.toText();
-             if (textMsg.length() > 2)
-             {
-                 uint8_t type = textMsg.c_str()[0];
-                 const char *jsonBegin = textMsg.c_str() + 1;
-                 mContainsMeta = JSonUtils::parseContainsMeta(jsonBegin, type);
-             }
-             else
-             {
-                 mContainsMeta = new MegaChatContainsMetaPrivate();
-             }
-             break;
+            uint8_t containsMetaType = msg.containMetaSubtype();
+            string containsMetaJson = msg.containsMetaJson();
+            mContainsMeta = JSonUtils::parseContainsMeta(containsMetaJson.c_str(), containsMetaType);
+            break;
         }
         case MegaChatMessage::TYPE_CALL_ENDED:
         {
@@ -7471,7 +7463,6 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             }
 
             delete userVector;
-
             break;
         }
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
@@ -7494,7 +7485,6 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             }
 
             delete megaNodeList;
-
             break;
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
@@ -7502,13 +7492,12 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             if (content.size() > 4)
             {
                 // Remove the first three characters. [0] = 0x0 | [1] = Message::kMsgContaintsMeta | [2] = subtype
-                uint8_t type = content.c_str()[2];
-                const char *jsonBegin = content.c_str() + 3;
-                const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(jsonBegin, type);
+                uint8_t containsMetaType = content.at(2);
+                const char *containsMetaJson = content.data() + 3;
+                const MegaChatContainsMeta *containsMeta = JSonUtils::parseContainsMeta(containsMetaJson, containsMetaType, true);
                 messageContents = containsMeta->getTextMessage();
                 delete containsMeta;
             }
-
             break;
         }
         default:
@@ -7521,12 +7510,12 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
     return messageContents;
 }
 
-const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8_t type)
+const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8_t type, bool onlyTextMessage)
 {
     MegaChatContainsMetaPrivate *containsMeta = new MegaChatContainsMetaPrivate();
     if (!json || !strlen(json))
     {
-        API_LOG_ERROR("parseContainsMeta: invalid JSon struct - JSon contains no data, only includes type of meta");
+        API_LOG_ERROR("parseContainsMeta: invalid JSON struct - JSON contains no data, only includes type of meta");
         return containsMeta;
     }
 
@@ -7534,61 +7523,54 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
 
     rapidjson::Document document;
     document.ParseStream(stringStream);
-
     if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
-        API_LOG_ERROR("parseContainsMeta: Parser json error");
+        API_LOG_ERROR("parseContainsMeta: Parser JSON error");
         return containsMeta;
     }
 
-    rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
-    if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
+    rapidjson::Value::ConstMemberIterator iteratorTextMessage = document.FindMember("textMessage");
+    if (iteratorTextMessage == document.MemberEnd() || !iteratorTextMessage->value.IsString())
     {
-        API_LOG_ERROR("parseRichPreview: invalid JSon struct - \"textMessage\" field not found");
-        return NULL;
+        API_LOG_ERROR("parseRichPreview: invalid JSON struct - \"textMessage\" field not found");
+        return containsMeta;
     }
-
-    std::string textMessage = iteratorTestMessage->value.GetString();
+    std::string textMessage = iteratorTextMessage->value.GetString();
     containsMeta->setTextMessage(textMessage);
-    switch (type)
+
+    if (!onlyTextMessage)
     {
-        case MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
+        switch (type)
         {
-            MegaChatRichPreview *richPreview = parseRichPreview(document);
-            containsMeta->setRichPreview(richPreview);
-            break;
-        }
-        case MegaChatContainsMeta::CONTAINS_META_GEOLOCATION:
-        {
-            MegaChatGeolocation *geolocation = parseGeolocation(document);
-            containsMeta->setGeolocation(geolocation);
-            break;
-        }
-        default:
-        {
-            API_LOG_ERROR("parseContainsMeta: unknown type of message with meta contained");
-            break;
+            case MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
+            {
+                MegaChatRichPreview *richPreview = parseRichPreview(document, textMessage);
+                containsMeta->setRichPreview(richPreview);
+                break;
+            }
+            case MegaChatContainsMeta::CONTAINS_META_GEOLOCATION:
+            {
+                MegaChatGeolocation *geolocation = parseGeolocation(document);
+                containsMeta->setGeolocation(geolocation);
+                break;
+            }
+            default:
+            {
+                API_LOG_ERROR("parseContainsMeta: unknown type of message with meta contained");
+                break;
+            }
         }
     }
 
     return containsMeta;
 }
 
-MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document)
+MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, std::string &textMessage)
 {
-    rapidjson::Value::ConstMemberIterator iteratorTestMessage = document.FindMember("textMessage");
-    if (iteratorTestMessage == document.MemberEnd() || !iteratorTestMessage->value.IsString())
-    {
-        API_LOG_ERROR("parseRichPreview: invalid JSon struct - \"textMessage\" field not found");
-        return NULL;
-    }
-
-    std::string textMessage = iteratorTestMessage->value.GetString();
-
     rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
     if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
     {
-        API_LOG_ERROR("parseRichPreview: invalid JSon struct - \"extra\" field not found");
+        API_LOG_ERROR("parseRichPreview: invalid JSON struct - \"extra\" field not found");
         return NULL;
     }
 
@@ -7634,7 +7616,6 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document)
             iconPointer = iconPointer + iconFormat.size() + 1; // remove format.size() + ':'
             rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
             icon = std::string(iconPointer, sizeIcon);
-
         }
 
         rapidjson::Value::ConstMemberIterator iteratorURL = richPreview.FindMember("url");
@@ -7644,9 +7625,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document)
         }
     }
 
-    MegaChatRichPreview *richPreview = new MegaChatRichPreviewPrivate(textMessage, title, description, image, imageFormat, icon, iconFormat, url);
-
-    return richPreview;
+    return new MegaChatRichPreviewPrivate(textMessage, title, description, image, imageFormat, icon, iconFormat, url);
 }
 
 MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
@@ -7654,7 +7633,13 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
     if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
     {
-        API_LOG_ERROR("parseGeolocation: invalid JSon struct - \"extra\" field not found");
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \"extra\" field not found");
+        return NULL;
+    }
+
+    if (iteratorExtra->value.Capacity() != 1)
+    {
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - invalid format");
         return NULL;
     }
 
@@ -7662,35 +7647,46 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     float latitude;
     std::string image;
 
-    if (iteratorExtra->value.Capacity() == 1)
+    const rapidjson::Value &geolocationValue = iteratorExtra->value[0];
+
+    rapidjson::Value::ConstMemberIterator iteratorLongitude = geolocationValue.FindMember("lng");
+    if (iteratorLongitude != geolocationValue.MemberEnd() && iteratorLongitude->value.IsString())
     {
-        const rapidjson::Value &geolocationValue = iteratorExtra->value[0];
-
-        rapidjson::Value::ConstMemberIterator iteratorLongitude = geolocationValue.FindMember("lng");
-        if (iteratorLongitude != geolocationValue.MemberEnd() && iteratorLongitude->value.IsString())
-        {
-            std::string longitudeString = iteratorLongitude->value.GetString();
-            longitude = atof(longitudeString.c_str());
-        }
-
-        rapidjson::Value::ConstMemberIterator iteratorLatitude = geolocationValue.FindMember("la");
-        if (iteratorLatitude != geolocationValue.MemberEnd() && iteratorLatitude->value.IsString())
-        {
-            std::string latitudeString = iteratorLatitude->value.GetString();
-            latitude = atof(latitudeString.c_str());
-        }
-
-        rapidjson::Value::ConstMemberIterator iteratorImage = geolocationValue.FindMember("img");
-        if (iteratorImage != geolocationValue.MemberEnd() && iteratorImage->value.IsString())
-        {
-            const char *imagePointer = iteratorImage->value.GetString();
-            image = std::string(imagePointer, iteratorImage->value.GetStringLength());
-        }
+        const char *longitudeString = iteratorLongitude->value.GetString();
+        longitude = atof(longitudeString);
+    }
+    else
+    {
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \"lng\" not found");
+        return NULL;
     }
 
-    MegaChatGeolocation *geolocation = new MegaChatGeolocationPrivate(longitude, latitude, image);
+    rapidjson::Value::ConstMemberIterator iteratorLatitude = geolocationValue.FindMember("la");
+    if (iteratorLatitude != geolocationValue.MemberEnd() && iteratorLatitude->value.IsString())
+    {
+        const char *latitudeString = iteratorLatitude->value.GetString();
+        latitude = atof(latitudeString);
+    }
+    else
+    {
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \"la\" not found");
+        return NULL;
+    }
 
-    return geolocation;
+    rapidjson::Value::ConstMemberIterator iteratorImage = geolocationValue.FindMember("img");
+    if (iteratorImage != geolocationValue.MemberEnd() && iteratorImage->value.IsString())
+    {
+        const char *imagePointer = iteratorImage->value.GetString();
+        size_t imageSize = iteratorImage->value.GetStringLength();
+        image.assign(imagePointer, imageSize);
+    }
+    else
+    {
+        API_LOG_WARNING("parseGeolocation: invalid JSON struct - \"img\" not found");
+        // image is not mandatory
+    }
+
+    return new MegaChatGeolocationPrivate(longitude, latitude, image);
 }
 
 string JSonUtils::getImageFormat(const char *imagen)
