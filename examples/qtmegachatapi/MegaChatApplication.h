@@ -26,7 +26,6 @@ class MegaChatApplication : public QApplication,
         void init();
         void login();
         void logout();
-        void addChats();
         void configureLogs();
 
         const char *readSid();

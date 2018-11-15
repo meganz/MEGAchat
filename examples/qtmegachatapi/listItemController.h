@@ -44,8 +44,14 @@ class ContactListItemController:
         ContactItemWidget *getWidget() const;
         mega::MegaUser *getItem() const;
         megachat::MegaChatHandle getItemId() const;
-        void updateWidget(ContactItemWidget *widget);
-        void updateItem(mega::MegaUser *item);
+
+        /* Update the widget in contactController. The ContactListItemController
+         * retains the ownership of the ContactItemWidget */
+        void addOrUpdateWidget(ContactItemWidget *widget);
+
+        /* Update the item in contactController. The ContactListItemController
+         * retains the ownership of the mega::MegaUser */
+        void addOrUpdateItem(mega::MegaUser *item);
     protected:
         mega::MegaUser *mItem = nullptr;
         ContactItemWidget *mWidget = nullptr;

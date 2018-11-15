@@ -78,7 +78,7 @@ mega::MegaUser *ContactListItemController::getItem() const
     return mItem;
 }
 
-void ContactListItemController::updateWidget(ContactItemWidget *widget)
+void ContactListItemController::addOrUpdateWidget(ContactItemWidget *widget)
 {
     if (mWidget)
     {
@@ -88,7 +88,7 @@ void ContactListItemController::updateWidget(ContactItemWidget *widget)
     mWidget = widget;
 }
 
-void ContactListItemController::updateItem(mega::MegaUser *item)
+void ContactListItemController::addOrUpdateItem(mega::MegaUser *item)
 {
     if (mItem)
     {

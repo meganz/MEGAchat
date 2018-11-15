@@ -66,12 +66,16 @@ class MainWindow :
         void addOrUpdateContactController(mega::MegaUser *contact);
         ContactItemWidget *addContactWidget(mega::MegaUser *user);
         void clearContactChatList();
-        void orderContactChatList();
+        void orderContactList();
+        void orderChatList();
+        void clearContactWidgetList();
+        void clearChatWidgetList();
         void addContacts();
         void addInactiveChats();
         void addArchivedChats();
         void addActiveChats();
         void createSettingsMenu();
+        bool needReorder(megachat::MegaChatListItem *newItem, const megachat::MegaChatListItem *oldItem);
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
@@ -88,7 +92,7 @@ class MainWindow :
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
 
         //This function clears the contactListItems, if onlyWidget is true the function only will clear the widget.
-        void clearContactList(bool onlyWidget);
+        void clearContactListControllers(bool onlyWidget);
         mega::MegaUserList *getUserContactList();
         std::string getAuthCode();
         bool eventFilter(QObject *obj, QEvent *event);
@@ -119,11 +123,14 @@ class MainWindow :
         std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
+        std::map<mega::MegaHandle, ChatListItemController *> chatControllers;
         std::map<mega::MegaHandle, ContactListItemController *> contactControllers;
         int activeChats;
         int archivedChats;
         int inactiveChats;
         int nContacts;
+        bool allowOrder = false;
+        bool mNeedReorder = false;
 
     private slots:
         void on_bSettings_clicked();

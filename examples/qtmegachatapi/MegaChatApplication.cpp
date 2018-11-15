@@ -157,26 +157,13 @@ void MegaChatApplication::configureLogs()
     MegaChatApi::setCatchException(false);
 }
 
-void MegaChatApplication::addChats()
-{
-    mMainWin->updateLocalChatListItems();
-    std::list<Chat> *chatList = mMainWin->getLocalChatListItemsByStatus(chatActiveStatus);
-    for (Chat &chat : (*chatList))
-    {
-        const megachat::MegaChatListItem *item = chat.chatItem;
-        mMainWin->addChat(item);
-    }
-    chatList->clear();
-    delete chatList;
-}
-
 void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
 {
     //TODO: Improve this method because order method will request userlist again
     //create a local user list like chats
     if(userList && mMainWin)
     {
-        mMainWin->orderContactChatList();
+        mMainWin->orderContactList();
     }
 }
 
