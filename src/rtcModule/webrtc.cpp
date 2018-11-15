@@ -1188,7 +1188,11 @@ void Call::msgSession(RtMessage& packet)
         return;
     }
 
-    setState(Call::kStateInProgress);
+    if (mState == Call::kStateJoining)
+    {
+        setState(Call::kStateInProgress);
+        monitorCallSetupTimeout();
+    }
 
     EndpointId peerEndPointId(packet.userid, packet.clientid);
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
@@ -1247,6 +1251,8 @@ void Call::msgJoin(RtMessage& packet)
         if (mState == Call::kStateReqSent)
         {
             setState(Call::kStateInProgress);
+            monitorCallSetupTimeout();
+
             // Send OP_CALLDATA with call inProgress
             if (!chat().isGroup() && !sendCallData(CallDataState::kCallDataNotRinging))
             {
@@ -1824,6 +1830,25 @@ bool Call::cancelSessionRetryTimer(karere::Id userid, uint32_t clientid)
     return false;
 }
 
+void Call::monitorCallSetupTimeout()
+{
+    if (!mCallSetupTimer)
+    {
+        auto wptr = weakHandle();
+        mCallSetupTimer = setTimeout([wptr, this]()
+        {
+            if (wptr.deleted())
+                return;
+
+            if (mState == kStateInProgress)
+            {
+                hangup(TermCode::kErrCallSetupTimeout);
+            }
+
+        }, RtcModule::kCallSetupTimeout, mManager.mClient.appCtx);
+    }
+}
+
 bool Call::answer(AvFlags av)
 {
     if (mState != Call::kStateRingIn)
@@ -1853,7 +1878,6 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout ||
                    reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision
                    || reason == TermCode::kAppTerminating);
@@ -1971,6 +1995,9 @@ void Call::notifySessionConnected(Session& sess)
         return;
 
     sendCallData(isCaller() ? CallDataState::kCallDataSessionKeepRinging : CallDataState::kCallDataSession);
+
+    cancelInterval(mCallSetupTimer, mManager.mClient.appCtx);
+    mCallSetupTimer = 0;
 
     mCallStartedSignalled = true;
     FIRE_EVENT(CALL, onCallStarted);

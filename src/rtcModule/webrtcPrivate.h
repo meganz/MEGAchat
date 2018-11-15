@@ -151,6 +151,7 @@ protected:
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
     megaHandle mStatsTimer = 0;
+    megaHandle mCallSetupTimer = 0;
     bool mNotSupportedAnswer = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
@@ -196,6 +197,7 @@ protected:
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
     bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
+    void monitorCallSetupTimeout();
     friend class RtcModule;
     friend class Session;
 public:
@@ -223,7 +225,8 @@ public:
         kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 30000
+        kSessSetupTimeout = 14000,
+        kCallSetupTimeout = 30000
     };
 
     enum Resolution

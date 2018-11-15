@@ -122,8 +122,9 @@ enum TermCode: uint8_t
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
     kErrAlready = 36,           // < There is already a call in this chatroom
     kErrNotSupported = 37,      // < Clients that don't support calls send CALL_REQ_CANCEL with this code
-    kErrorLast = 37,            // < Last enum indicating call termination due to error
-    kLast = 37,                 // < Last call terminate enum value
+    kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
+    kErrorLast = 38,            // < Last enum indicating call termination due to error
+    kLast = 38,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
