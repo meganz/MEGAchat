@@ -12,7 +12,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mMainWin = (MainWindow *) parent;
     mLastMsgAuthor.clear();
     mListWidgetItem = NULL;
-    mChatWindow = NULL;
     mMegaApi = mMainWin->mMegaApi;
     mLastOverlayCount = 0;
     mChatId = item->getChatId();
@@ -59,11 +58,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
     this->onlineIndicatorUpdate(status);
-}
-
-void ChatItemWidget::invalidChatWindowHandle()
-{
-    mChatWindow = NULL;
 }
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
@@ -334,41 +328,9 @@ void ChatItemWidget::unshowAsHidden()
     ui->mName->setStyleSheet("color: rgba(255,255,255,255)\n");
 }
 
-ChatWindow *ChatItemWidget::showChatWindow()
-{
-    std::string titleStd = ui->mName->text().toStdString();
-    const char *chatWindowTitle = titleStd.c_str();
-    megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
-
-    if (!mChatWindow)
-    {
-        mChatWindow = new ChatWindow(mMainWin, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
-        mChatWindow->show();
-        mChatWindow->openChatRoom();
-    }
-    else
-    {
-        mChatWindow->show();
-        mChatWindow->setWindowState(Qt::WindowActive);
-    }
-    delete chatRoom;
-    return mChatWindow;
-}
-
-
-ChatWindow *ChatItemWidget::getChatWindow()
-{
-    return mChatWindow;
-}
-
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
-    showChatWindow();
-}
-
-void ChatItemWidget::setChatWindow(ChatWindow *chatWindow)
-{
-    mChatWindow = chatWindow;
+    QMessageBox::warning(this, tr("TODO: add new show chatwindow call"));
 }
 
 QListWidgetItem *ChatItemWidget::getWidgetItem() const

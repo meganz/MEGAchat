@@ -1,7 +1,6 @@
 #ifndef CHATITEM_H
 #define CHATITEM_H
 #include <QWidget>
-#include "chatWindow.h"
 #include "megachatapi.h"
 #include "MainWindow.h"
 class MainWindow;
@@ -9,7 +8,6 @@ class MainWindow;
 namespace Ui {
 class ChatItem;
 }
-class ChatWindow;
 
 class ChatItemWidget : public QWidget
 {
@@ -17,9 +15,6 @@ class ChatItemWidget : public QWidget
     public:
         ChatItemWidget(QWidget *parent , megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item);
         virtual ~ChatItemWidget();
-        ChatWindow *showChatWindow();
-        ChatWindow *getChatWindow();
-        void invalidChatWindowHandle();
         void unshowAsHidden();
         void showAsHidden();
         void contextMenuEvent(QContextMenuEvent* event);
@@ -32,7 +27,6 @@ class ChatItemWidget : public QWidget
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
         virtual void mouseDoubleClickEvent(QMouseEvent* event);
-        void setChatWindow(ChatWindow *chatWindow);
         const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
 
     protected:
@@ -41,7 +35,6 @@ class ChatItemWidget : public QWidget
         megachat::MegaChatHandle mChatId;
         megachat::MegaChatApi *mMegaChatApi;
         mega::MegaApi *mMegaApi;
-        ChatWindow *mChatWindow;
         QListWidgetItem *mListWidgetItem;
         MainWindow *mMainWin;
         std::string mLastMsgAuthor;
@@ -52,7 +45,6 @@ class ChatItemWidget : public QWidget
         void truncateChat();
         void archiveChat(bool checked);
 
-    friend class ChatWindow;
     friend class MainWindow;
     friend class ContactItemWidget;
     friend class ChatGroupDialog;
