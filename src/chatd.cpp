@@ -389,39 +389,28 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         mEchoTimer = 0;
     }
 
-    for (auto& chatid: mChatIds)
-    {
-        auto& chat = mChatdClient.chats(chatid);
-        chat.onDisconnect();
-
-#ifndef KARERE_DISABLE_WEBRTC
-        if (mChatdClient.karereClient->rtc)
-        {
-            mChatdClient.karereClient->rtc->removeCall(chatid);
-        }
-#endif
-    }
-
-    if (oldState == kStateDisconnected)
-        return;
+    assert(oldState != kStateDisconnected);
 
     usingipv6 = !usingipv6;
     mTargetIp.clear();
 
-    if (oldState < kStateConnected) //tell retry controller that the connect attempt failed
+    if (oldState == kStateConnected)
+    {
+        CHATDS_LOG_DEBUG("Socket close at state kStateConnected");
+
+        assert(!mRetryCtrl);
+        reconnect(); //start retry controller
+    }
+    else // (mState < kStateConnected) --> tell retry controller that the connect attempt failed
     {
         CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
+        assert(mRetryCtrl);
         assert(!mConnectPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-    }
-    else
-    {
-        CHATDS_LOG_DEBUG("Socket close at state kStateLoggedIn");
-        reconnect(); //start retry controller
     }
 }
 
@@ -434,10 +423,22 @@ bool Connection::sendKeepalive(uint8_t opcode)
 void Connection::sendEcho()
 {
     if (!mUrl.isValid())    // the connection is not ready yet (i.e. initialization in offline-mode)
+    {
+        CHATDS_LOG_DEBUG("sendEcho(): connection not initialized yet");
         return;
+    }
 
     if (mEchoTimer) // one is already sent
+    {
+        CHATDS_LOG_DEBUG("sendEcho(): already sent, waiting for response");
         return;
+    }
+
+    if (!isOnline())
+    {
+        CHATDS_LOG_DEBUG("sendEcho(): connection is down, cannot send");
+        return;
+    }
 
     auto wptr = weakHandle();
     mEchoTimer = setTimeout([this, wptr]()
@@ -450,8 +451,8 @@ void Connection::sendEcho()
         CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
         mChatdClient.karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
 
-        mState = kStateDisconnected;
-        mHeartbeatEnabled = false;
+        setState(kStateDisconnected);
+        abortRetryController();
         reconnect();
 
     }, kEchoTimeout * 1000, mChatdClient.karereClient->appCtx);
@@ -476,12 +477,28 @@ void Connection::setState(State state)
     if (mState == kStateDisconnected)
     {
         mHeartbeatEnabled = false;
+
+        // if a socket is opened, close it immediately
+        if (wsIsConnected())
+        {
+            wsDisconnect(true);
+        }
+
+        // if an ECHO was sent, no need to wait for its response
         if (mEchoTimer)
         {
             cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
             mEchoTimer = 0;
         }
 
+        // if connect-timer is running, it must be reset (kStateResolving --> kStateDisconnected)
+        if (mConnectTimer)
+        {
+            cancelTimeout(mConnectTimer, mChatdClient.karereClient->appCtx);
+            mConnectTimer = 0;
+        }
+
+        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
         auto wptr = weakHandle();
         mConnectTimer = setTimeout([this, wptr]()
         {
@@ -497,6 +514,27 @@ void Connection::setState(State state)
 
         }, kConnectTimeout * 1000, mChatdClient.karereClient->appCtx);
 
+        // notify chatrooms that connection is down
+        for (auto& chatid: mChatIds)
+        {
+            auto& chat = mChatdClient.chats(chatid);
+            chat.onDisconnect();
+
+            // remove calls (if any)
+#ifndef KARERE_DISABLE_WEBRTC
+            if (mChatdClient.karereClient->rtc)
+            {
+                mChatdClient.karereClient->rtc->removeCall(chatid);
+            }
+#endif
+        }
+        // and stop call-timers in this shard
+#ifndef KARERE_DISABLE_WEBRTC
+        if (mChatdClient.mRtcHandler)
+        {
+            mChatdClient.mRtcHandler->stopCallsTimers(mShardNo);
+        }
+#endif
     }
     else if (mState == kStateConnected)
     {
@@ -519,6 +557,7 @@ Promise<void> Connection::reconnect()
 {
     mChatdClient.karereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
+    assert(!mRetryCtrl);
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
@@ -534,7 +573,7 @@ Promise<void> Connection::reconnect()
 
         // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        mRetryCtrl.reset(createRetryController("chatd", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
+        mRetryCtrl.reset(createRetryController("chatd", [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
@@ -542,13 +581,7 @@ Promise<void> Connection::reconnect()
                 return promise::_Void();
             }
 
-#ifndef KARERE_DISABLE_WEBRTC
-            if (mChatdClient.mRtcHandler)
-            {
-                mChatdClient.mRtcHandler->stopCallsTimers(mShardNo);
-            }
-#endif
-            disconnect();
+            setState(kStateDisconnected);
             mConnectPromise = Promise<void>();
 
             string ipv4, ipv6;
@@ -564,12 +597,31 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);
             }
 
+            auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.karereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client was deleted.");
+                    return;
+                }
+                if (!mRetryCtrl)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                    assert(isOnline());
+                    assert(cachedIPs);
+                    return;
+                }
+                if (mRetryCtrl.get() != retryCtrl)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer RetryController has already started");
+                    return;
+                }
+                if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                                     attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
 
@@ -587,17 +639,6 @@ Promise<void> Connection::reconnect()
                         errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
                     }
 
-                    if (isOnline() && cachedIPs)
-                    {
-                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
-                        return;
-                    }
-
-                    // if connection already started, first abort/cancel
-                    if (wsIsConnected())
-                    {
-                        wsDisconnect(true);
-                    }
                     onSocketClose(0, 0, "Async DNS error (chatd)");
                     return;
                 }
@@ -625,11 +666,7 @@ Promise<void> Connection::reconnect()
                                   ipsv6.size() ? ipsv6.at(0) : "");
                     assert(ret);
 
-                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");                    // if connection already started, first abort/cancel
-                    if (wsIsConnected())
-                    {
-                        wsDisconnect(true);
-                    }
+                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
             });
@@ -785,13 +822,9 @@ void Connection::heartbeat()
     if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
-        mState = kStateDisconnected;
-        mHeartbeatEnabled = false;
-        if (mEchoTimer)
-        {
-            cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
-            mEchoTimer = 0;
-        }
+
+        setState(kStateDisconnected);
+        abortRetryController();
         reconnect();
     }
 }
