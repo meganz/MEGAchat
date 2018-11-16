@@ -2536,7 +2536,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     {
         terminateAndDestroy(TermCode::kErrIceDisconn);
     }
-    else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionCompleted)
     {
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
