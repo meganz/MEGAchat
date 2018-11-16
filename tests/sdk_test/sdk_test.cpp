@@ -283,7 +283,7 @@ void MegaChatApiTest::SetUp()
         waitForResponse(flagRequest);
         logout(i);
 
-        for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
+        for (int j = 0; j < ::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
             requestFlags[i][j] = false;
         }
@@ -2538,8 +2538,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->loadAudioVideoDeviceList();
     ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
 
-    mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
-    mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
+    ::mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
+    ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
     TestChatVideoListener localVideoListener("Local");
     TestChatVideoListener remoteVideoListener("Remote");
@@ -2654,7 +2654,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
     *countRichLink = 0;
     megaApi[a1]->shouldShowRichLinkWarning();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
 
     // Enable/disable rich link generation
     bool enableRichLink = !(*flagRichLink);
@@ -2672,7 +2672,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
     *countRichLink = 0;
     megaApi[a1]->shouldShowRichLinkWarning();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
     ASSERT_CHAT_TEST(*flagRichLink == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
 
     // Change value for rich link counter
@@ -2689,7 +2689,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
     *countRichLink = 0;
     megaApi[a1]->shouldShowRichLinkWarning();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
     ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value - value: " + std::to_string(*countRichLink) + " Desired value: " + std::to_string(counter));
     ASSERT_CHAT_TEST(*flagRichLink == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
 

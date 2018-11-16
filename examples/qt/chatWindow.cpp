@@ -160,7 +160,7 @@ void ChatWindow::onMemberRemove()
     uint64_t handle(handleFromAction(QObject::sender()));
     mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
     auto waitMsgKeepalive = mWaitMsg;
-    client.api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
+    client.api.call(&::mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
     .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),

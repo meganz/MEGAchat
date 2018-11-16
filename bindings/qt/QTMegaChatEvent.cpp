@@ -9,7 +9,7 @@ QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(t
     request = NULL;
     error = NULL;
     item = NULL;
-    handle = mega::INVALID_HANDLE;
+    handle = ::mega::INVALID_HANDLE;
     config = NULL;
     chat = NULL;
     msg = NULL;

@@ -258,7 +258,7 @@ if [[ $platform == "macos" ]]; then
     echo "Performing MacOS-specific operations"
 
     echo "Setting GYP_DEFINES..."
-    export GYP_DEFINES="$GYP_DEFINES OS=mac libjingle_objc=1 target_arch=x64 mac_deployment_target=10.7"
+    export GYP_DEFINES="$GYP_DEFINES OS=mac libjingle_objc=1 target_arch=x64 mac_deployment_target=10.7 release_extra_cflags=-Wno-unused-result"
 
     echo "Replacing macos capturer..."
     rm -rf webrtc/modules/video_capture/mac
