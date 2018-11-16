@@ -460,6 +460,61 @@ void Connection::sendEcho()
     sendBuf(Command(OP_ECHO));
 }
 
+void Connection::setState(State state)
+{
+    if (mState == state)
+    {
+        CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
+        return;
+    }
+    else
+    {
+        CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
+        mState = state;
+    }
+
+    if (mState == kStateDisconnected)
+    {
+        mHeartbeatEnabled = false;
+        if (mEchoTimer)
+        {
+            cancelTimeout(mEchoTimer, mChatdClient.karereClient->appCtx);
+            mEchoTimer = 0;
+        }
+
+        auto wptr = weakHandle();
+        mConnectTimer = setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            mConnectTimer = 0;
+
+            CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+            mChatdClient.karereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
+
+            retryPendingConnection(true);
+
+        }, kConnectTimeout * 1000, mChatdClient.karereClient->appCtx);
+
+    }
+    else if (mState == kStateConnected)
+    {
+        CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
+
+        mDNScache.connectDone(mUrl.host, mTargetIp);
+        assert(!mConnectPromise.done());
+        mConnectPromise.resolve();
+        mRetryCtrl.reset();
+
+        if (mConnectTimer)
+        {
+            cancelTimeout(mConnectTimer, mChatdClient.karereClient->appCtx);
+            mConnectTimer = 0;
+        }
+    }
+}
+
 Promise<void> Connection::reconnect()
 {
     mChatdClient.karereClient->setCommitMode(false);
@@ -709,6 +764,10 @@ void Connection::retryPendingConnection(bool disconnect)
             abortRetryController();
             CHATDS_LOG_WARNING("Retrying pending connection...");
             reconnect();
+        }
+        else
+        {
+            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
         }
     }
     else

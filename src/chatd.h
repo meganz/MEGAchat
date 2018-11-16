@@ -355,9 +355,10 @@ class Connection: public karere::DeleteTrackable, public WebsocketsClient
 public:
     enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected};
     enum {
-        kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
-        kEchoTimeout = 1    // echo to check connection is alive when back to foreground
-         };
+        kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
+        kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
+    };
 
 protected:
     Client& mChatdClient;
@@ -376,7 +377,10 @@ protected:
     uint32_t mClientId = 0;
     Connection(Client& client, int shardNo);
     State state() { return mState; }
-    
+
+    /** Handler of the timeout for the connection establishment */
+    megaHandle mConnectTimer = 0;
+
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
@@ -400,6 +404,7 @@ protected:
     friend class Chat;
 public:
     State state() const { return mState; }
+    void setState(State state);
     bool isOnline() const
     {
         return mState == kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
