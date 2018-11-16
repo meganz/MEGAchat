@@ -3190,19 +3190,19 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
         {
             return 5;
         }
-        else if (crtt < 250)
+        else if (crtt < 200)
         {
             return 4;
         }
-        else if (crtt < 1000)
+        else if (crtt < 300)
         {
             return 3;
         }
-        else if (crtt < 2000)
+        else if (crtt < 500)
         {
             return 2;
         }
-        else if (crtt < 5000)
+        else if (crtt < 1000)
         {
             return 1;
         }
