@@ -3813,6 +3813,17 @@ void Chat::onUserLeave(Id userid)
         mClient.mRtcHandler->onKickedFromChatRoom(mChatId);
 #endif
     }
+#ifndef KARERE_DISABLE_WEBRTC
+    else
+    {
+        uint32_t clientid = 0;
+        if (mClient.mRtcHandler->getClientidFromPeer(mChatId, userid, clientid))
+        {
+            onEndCall(userid, clientid);
+        }
+    }
+#endif
+
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
     {
