@@ -762,13 +762,7 @@ void Connection::abortRetryController()
 
 void Connection::disconnect()
 {
-    mState = kStateDisconnected;
-    if (wsIsConnected())
-    {
-        wsDisconnect(true);
-    }
-
-    onSocketClose(0, 0, "terminating");
+    setState(kStateDisconnected);
 }
 
 void Connection::doConnect()
@@ -824,22 +818,23 @@ void Connection::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
-        {
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
-            assert(!mEchoTimer);
-
-            CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
-            mRetryCtrl->restart();
-        }
-        else if (disconnect)
+        if (disconnect)
         {
             CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
 
             setState(kStateDisconnected);
             abortRetryController();
             reconnect();
+        }
+        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+        {
+            CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+
+            assert(!isOnline());
+            assert(!mHeartbeatEnabled);
+            assert(!mEchoTimer);
+
+            mRetryCtrl->restart();
         }
         else
         {
