@@ -2561,10 +2561,6 @@ void ChatRoom::onUnreadChanged()
     {
         room->onUnreadCountChanged(count);
     }
-    if (mAppChatHandler)
-    {
-        mAppChatHandler->onUnreadCountChanged(count);
-    }
 }
 
 void ChatRoom::onArchivedChanged(bool archived)
