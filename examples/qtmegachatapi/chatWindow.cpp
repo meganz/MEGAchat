@@ -105,11 +105,12 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
-    if (chatItemWidget)
+    ChatListItemController *itemController = mMainWin->getChatControllerById(mChatRoom->getChatId());
+    if(itemController)
     {
-        chatItemWidget->invalidChatWindowHandle();
+       itemController->addOrUpdateChatWindow(nullptr);
     }
+
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     mMegaApi->removeTransferListener(megaTransferListenerDelegate);
     delete megaChatRoomListenerDelegate;

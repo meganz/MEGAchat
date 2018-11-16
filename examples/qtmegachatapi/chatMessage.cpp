@@ -270,9 +270,16 @@ std::string ChatMessage::managementInfoToString() const
     }
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
-        ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
-        item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
-        ret.append("Chat history was truncated by user ").append(userHandle_64);
+        ChatListItemController *itemController = mChatWindow->mMainWin->getChatControllerById(mChatId);
+        if(itemController)
+        {
+           ChatItemWidget *widget = itemController->getWidget();
+           if (widget)
+           {
+              widget->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
+              ret.append("Chat history was truncated by user ").append(userHandle_64);
+           }
+        }
         return ret;
     }
     case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:

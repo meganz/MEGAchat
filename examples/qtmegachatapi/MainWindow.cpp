@@ -148,24 +148,19 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         throw std::runtime_error("Incoming call from unknown contact");
     }
 
-    itemController->showChatWindow();
+    ChatWindow *window = itemController->showChatWindow();
 
     switch(call->getStatus())
     {
         case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
            {
-               ChatWindow * window = getChatWindowIfExists(call->getChatid());
-               if (window)
-               {
-                  window->hangCall();
-               }
+               window->hangCall();
                return;
            }
            break;
         case megachat::MegaChatCall::CALL_STATUS_RING_IN:
            {
-              ChatWindow * window = getChatWindowIfExists(call->getChatid());
-              if ((window->getCallGui() == NULL) && window)
+              if (window->getCallGui() == NULL)
               {
                  window->createCallGui(call->hasRemoteVideo());
               }
@@ -173,15 +168,16 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
            break;
         case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
            {
-               ChatWindow * window = getChatWindowIfExists(call->getChatid());
-               if ((window->getCallGui() == NULL) && window)
+               CallGui *callGui = nullptr;
+               if (window->getCallGui() == NULL)
                {
-                 window->connectCall();
+                   window->connectCall();
+                   CallGui *callGui = window->getCallGui();
+                   assert(callGui);
                }
 
                if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
                {
-                    CallGui *callGui = auxChatWindow->getCallGui();
                     if(call->hasRemoteVideo())
                     {
                         callGui->ui->remoteRenderer->disableStaticImage();
@@ -605,7 +601,6 @@ void MainWindow::addChat(const MegaChatListItem* chatListItem)
     ChatItemWidget *auxChatItemWidget = getChatItemWidget(chathandle, true);
     if(auxChatItemWidget)
     {
-        chatItemWidget->mChatWindow = auxChatItemWidget->mChatWindow;
         auxChatItemWidget->deleteLater();
     }
 }
