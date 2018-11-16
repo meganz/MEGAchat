@@ -336,7 +336,7 @@ void Chat::connect()
             mConnection.mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
 
             mConnection.reconnect()
-            .fail([this](const promise::Error& err)
+            .fail([this](const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
             });
@@ -346,7 +346,7 @@ void Chat::connect()
     else if (mConnection.state() == Connection::kStateDisconnected)
     {
         mConnection.reconnect()
-        .fail([this](const promise::Error& err)
+        .fail([this](const ::promise::Error& err)
         {
             CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
         });
@@ -545,7 +545,7 @@ Promise<void> Connection::reconnect()
             if (wptr.deleted())
             {
                 CHATDS_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
-                return promise::_Void();
+                return ::promise::_Void();
             }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -2176,7 +2176,7 @@ void Chat::requestRichLink(Message &message)
                 CHATID_LOG_DEBUG("requestRichLink: Message has been updated during rich link request (%s)", ID_CSTR(msgId));
             }
         })
-        .fail([wptr, this](const promise::Error& err)
+        .fail([wptr, this](const ::promise::Error& err)
         {
             if (wptr.deleted())
                 return;
@@ -2501,7 +2501,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         flushOutputQueue();
     });
 
-    pms.fail([this, msg, msgCmd](const promise::Error& err)
+    pms.fail([this, msg, msgCmd](const ::promise::Error& err)
     {
         CHATID_LOG_ERROR("ICrypto::encrypt error encrypting message %s: %s", ID_CSTR(msg->id()), err.what());
         delete msgCmd;
@@ -3251,7 +3251,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .fail([this, cipherMsg](const promise::Error& err) -> promise::Promise<Message*>
+    .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
         assert(cipherMsg->isPendingToDecrypt());
 
@@ -3259,10 +3259,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         switch (type)
         {
             case SVCRYPTO_EEXPIRED:
-                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
             case SVCRYPTO_ENOMSG:
-                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                return ::promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
@@ -3412,7 +3412,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         delete msg;
     })
-    .fail([this, cipherMsg](const promise::Error& err)
+    .fail([this, cipherMsg](const ::promise::Error& err)
     {
         if (err.type() == SVCRYPTO_ENOMSG)
         {
@@ -3656,14 +3656,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         {
             Message *message = &msg;
             mCrypto->msgDecrypt(message)
-            .fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
+            .fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
             {
                 assert(message->isEncrypted() == Message::kEncryptedNoType);
                 int type = err.type();
                 switch (type)
                 {
                     case SVCRYPTO_EEXPIRED:
-                        return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                        return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
                     case SVCRYPTO_ENOTYPE:
                         CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed (not yet supported): %d (msgid: %s)", message->type, ID_CSTR(message->id()));
@@ -3684,7 +3684,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
                 msgIncomingAfterDecrypt(isNew, true, *message, idx);
             })
-            .fail([this, message](const promise::Error& err)
+            .fail([this, message](const ::promise::Error& err)
             {
                 CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
                                    ID_CSTR(message->id()), err.what(), err.type());
@@ -3748,7 +3748,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
+    pms.fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
         assert(message->isPendingToDecrypt());
 
@@ -3756,10 +3756,10 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         switch (type)
         {
             case SVCRYPTO_EEXPIRED:
-                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
             case SVCRYPTO_ENOMSG:
-                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                return ::promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
@@ -3846,7 +3846,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([this, message](const promise::Error& err)
+    .fail([this, message](const ::promise::Error& err)
     {
         if (err.type() == SVCRYPTO_ENOMSG)
         {
@@ -3995,7 +3995,7 @@ bool Chat::msgNodeHistIncoming(Message *msg)
                     attachmentHistDone();
                 }
             })
-            .fail([this, msg](const promise::Error& /*err*/)
+            .fail([this, msg](const ::promise::Error& /*err*/)
             {
                 assert(msg->isPendingToDecrypt());
                 delete msg;

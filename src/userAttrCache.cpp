@@ -416,7 +416,7 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
         item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
         item->resolve(key);
     })
-    .fail([wptr, this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
@@ -436,7 +436,7 @@ void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheIt
         item->data.reset(new Buffer(email, strlen(email)));
         item->resolve(key);
     })
-    .fail([wptr, this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
@@ -475,7 +475,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         return _Void();
     });
 
-    promise::when(pms1, pms2)
+    ::promise::when(pms1, pms2)
     .then([wptr, this, ctx, key, item]()
     {
         wptr.throwIfDeleted();
@@ -512,13 +512,13 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
 {
     auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
-    .fail([wptr, this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     })
-    .then([wptr, this, key, item](ReqResult result) -> promise::Promise<void>
+    .then([wptr, this, key, item](ReqResult result) -> ::promise::Promise<void>
     {
         wptr.throwIfDeleted();
         auto rsakey = result->getPassword();
@@ -527,13 +527,13 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
         {
             KR_LOG_WARNING("Public RSA key returned by API for user %s is null or empty", key.user.toString().c_str());
             item->error(key, ::mega::API_ENOENT);
-            return promise::Error("No key", ::mega::API_ENOENT, ERRTYPE_MEGASDK);
+            return ::promise::Error("No key", ::mega::API_ENOENT, ERRTYPE_MEGASDK);
         }
         item->data.reset(new Buffer(keylen+1));
         int binlen = base64urldecode(rsakey, keylen, item->data->buf(), keylen);
         item->data->setDataSize(binlen);
         item->resolve(key);
-        return promise::_Void();
+        return ::promise::_Void();
     });
 }
 
@@ -561,7 +561,7 @@ void UserAttrCache::onLogOut()
     mIsLoggedIn = false;
 }
 
-promise::Promise<Buffer*>
+::promise::Promise<Buffer*>
 UserAttrCache::getAttr(uint64_t user, unsigned attrType)
 {
     auto pms = new Promise<Buffer*>;

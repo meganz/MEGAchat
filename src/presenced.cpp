@@ -32,7 +32,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
   mDNScache(karereClient->websocketIO->mDnsCache)
 {}
 
-promise::Promise<void>
+::promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
     const Config& config)
 {
@@ -200,7 +200,7 @@ Client::reconnect(const std::string& url)
     try
     {
         if (mConnState >= kConnecting) //would be good to just log and return, but we have to return a promise
-            return promise::Error("Already connecting/connected");
+            return ::promise::Error("Already connecting/connected");
 
         if (!url.empty())
         {
@@ -209,7 +209,7 @@ Client::reconnect(const std::string& url)
         else
         {
             if (!mUrl.isValid())
-                return promise::Error("No valid URL provided and current URL is not valid");
+                return ::promise::Error("No valid URL provided and current URL is not valid");
         }
 
         setConnState(kResolving);
@@ -224,7 +224,7 @@ Client::reconnect(const std::string& url)
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
-                return promise::_Void();
+                return ::promise::_Void();
             }
 
             disconnect();
