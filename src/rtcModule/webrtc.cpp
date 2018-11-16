@@ -1965,6 +1965,12 @@ Call::~Call()
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
 {
+    if (userid == mManager.mClient.myHandle() && clientid == mChat.connection().clientId())
+    {
+        SUB_LOG_DEBUG("ENDCALL received for ourselves, finishing the call");
+        destroy(TermCode::kErrNetSignalling, false);
+    }
+
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
     {
         destroy(TermCode::kUserHangup, false);
