@@ -476,10 +476,13 @@ void Connection::setState(State state)
     if (mState == state)
     {
         CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
+        return;
     }
-
-    CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
-    mState = state;
+    else
+    {
+        CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
+        mState = state;
+    }
 
     if (mState == kStateDisconnected)
     {
@@ -489,6 +492,22 @@ void Connection::setState(State state)
             cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
             mEchoTimer = 0;
         }
+
+        auto wptr = weakHandle();
+        mConnectTimer = setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            mConnectTimer = 0;
+
+            CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+            mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
+
+            retryPendingConnection(true);
+
+        }, kConnectTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+
     }
     else if (mState == kStateConnected)
     {
@@ -498,6 +517,12 @@ void Connection::setState(State state)
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
+
+        if (mConnectTimer)
+        {
+            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            mConnectTimer = 0;
+        }
     }
 }
 
@@ -792,7 +817,7 @@ void Connection::retryPendingConnection(bool disconnect)
         }
         else
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connected, no forced disconnect was requested)");
+            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
         }
     }
     else
