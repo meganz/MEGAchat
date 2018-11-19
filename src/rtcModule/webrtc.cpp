@@ -2279,11 +2279,18 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
     mSetupTimer = setTimeout([wptr, this] {
-        if (wptr.deleted())
+        if (wptr.deleted() || mState >= kStateInProgress)
+        {
             return;
-        if (mState < kStateInProgress) {
-            terminateAndDestroy(TermCode::kErrSessSetupTimeout);
         }
+
+        TermCode terminationCode = TermCode::kErrSessSetupTimeout;
+        if (mRtcConn && mRtcConn->ice_connection_state() == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionChecking)
+        {
+            terminationCode = TermCode::kErrIceTimeout;
+        }
+
+        terminateAndDestroy(terminationCode);
     }, RtcModule::kSessSetupTimeout, call.mManager.mClient.appCtx);
 }
 
@@ -2378,8 +2385,7 @@ void Session::handleMessage(RtMessage& packet)
 
 void Session::createRtcConn()
 {
-    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers,
-        *this, pcConstraints());
+    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this, pcConstraints());
     if (mCall.mLocalStream)
     {
         if (!mRtcConn->AddStream(*mCall.mLocalStream))
