@@ -153,6 +153,7 @@ protected:
     megaHandle mStatsTimer = 0;
     megaHandle mCallSetupTimer = 0;
     bool mNotSupportedAnswer = false;
+    bool mIsRingingOut = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);

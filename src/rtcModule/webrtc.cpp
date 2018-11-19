@@ -1183,6 +1183,7 @@ void Call::clearCallOutTimer()
     }
     cancelTimeout(mCallOutTimer, mManager.mClient.appCtx);
     mCallOutTimer = 0;
+    mIsRingingOut = false;
 }
 
 void Call::handleBusy(RtMessage& packet)
@@ -1488,12 +1489,14 @@ bool Call::broadcastCallReq()
 
     setState(Call::kStateReqSent);
     startIncallPingTimer();
+    mIsRingingOut = true;
     auto wptr = weakHandle();
     mCallOutTimer = setTimeout([wptr, this]()
     {
         if (wptr.deleted())
             return;
 
+        mIsRingingOut = false;
         if (mState == Call::kStateReqSent)
         {
             if (mNotSupportedAnswer && !mChat.isGroup())
@@ -2016,12 +2019,12 @@ bool Call::changeLocalRenderer(IVideoRenderer* renderer)
     return true;
 }
 
-void Call::notifySessionConnected(Session& sess)
+void Call::notifySessionConnected(Session& /*sess*/)
 {
     if (mCallStartedSignalled)
         return;
 
-    sendCallData(isCaller() ? CallDataState::kCallDataSessionKeepRinging : CallDataState::kCallDataSession);
+    sendCallData(mIsRingingOut ? CallDataState::kCallDataSessionKeepRinging : CallDataState::kCallDataSession);
 
     cancelInterval(mCallSetupTimer, mManager.mClient.appCtx);
     mCallSetupTimer = 0;
