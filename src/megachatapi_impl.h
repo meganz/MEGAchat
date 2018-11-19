@@ -1158,7 +1158,7 @@ class JSonUtils
 public:
     // you take the ownership of the returned value. NULL if error
     static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes, bool isVoiceMessage);
-    // you take the ownership of returned value. NULL if error
+    // you take the ownership of returned value. NULL if error. Output param: isVoiceMessage
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json, bool &isVoiceMessage);
     // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);

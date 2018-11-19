@@ -3140,7 +3140,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns the handle of the node
-     * - MegaChatRequest::getFlag - Returns true to identify the message as a voice message
+     * - MegaChatRequest::getParamType - Returns 1 (to identify the message as a voice message)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:

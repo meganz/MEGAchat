@@ -771,10 +771,11 @@ void MegaChatApiImpl::sendPendingRequests()
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
             handle h = request->getUserHandle();
-            bool isVoiceMessage = request->getFlag();
+            bool isVoiceMessage = (request->getParamType() == 1);
 
-            if (chatid == MEGACHAT_INVALID_HANDLE ||
-                    ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
+            if (chatid == MEGACHAT_INVALID_HANDLE
+                    || ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE))
+                    || (isVoiceMessage && h == MEGACHAT_INVALID_HANDLE))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -2662,7 +2663,7 @@ void MegaChatApiImpl::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle n
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(nodehandle);
-    request->setFlag(true);
+    request->setParamType(1);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5890,6 +5891,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
             megaNodeList = JSonUtils::parseAttachNodeJSon(msg.toText().c_str(), mIsVoiceMessage);
+            assert(!mIsVoiceMessage || megaNodeList->size() == 1);
             break;
         }
         case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:
@@ -6991,7 +6993,7 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, bool isVoiceM
         // vm -> voice message
         if (isVoiceMessage)
         {
-            jsonNode.AddMember(rapidjson::Value("vm"), rapidjson::Value((uint64_t)1), jSonAttachmentNodes.GetAllocator());
+            jsonNode.AddMember(rapidjson::Value("vm"), rapidjson::Value(1), jSonAttachmentNodes.GetAllocator());
         }
 
         jSonAttachmentNodes.PushBack(jsonNode, jSonAttachmentNodes.GetAllocator());
@@ -7133,11 +7135,9 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json, bool &isVoiceMess
 
         // vm -> voice message
         rapidjson::Value::ConstMemberIterator iteratorVm = file.FindMember("vm");
-        if (iteratorVm != file.MemberEnd()
-                && iteratorVm->value.IsInt64()
-                && iteratorVm->value == 1)
+        if (iteratorVm != file.MemberEnd() && iteratorVm->value.IsNumber() && iteratorVm->value == 1)
         {
-            API_LOG_DEBUG("parseAttachNodeJSon: VOICE_MESSAGE");
+            API_LOG_DEBUG("parseAttachNodeJSon: Voice message");
             isVoiceMessage = true;
         }
         else
