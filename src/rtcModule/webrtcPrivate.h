@@ -137,6 +137,7 @@ protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
+    std::map<chatd::EndpointId, int> mIceFails;
     std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::map<chatd::EndpointId, std::pair<karere::Id, SdpKey> > mSentSessions;
     std::string mName;
@@ -242,6 +243,8 @@ public:
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);
+    void addIceServers(const karere::ServerList& servers);
+    webrtc::PeerConnectionInterface::IceServer createIceServer(const karere::TurnServerInfo &serverInfo);
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd

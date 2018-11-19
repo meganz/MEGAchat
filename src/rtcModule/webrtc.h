@@ -123,7 +123,7 @@ enum TermCode: uint8_t
     kErrAlready = 36,           // < There is already a call in this chatroom
     kErrNotSupported = 37,      // < Clients that don't support calls send CALL_REQ_CANCEL with this code
     kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
-    kErrKickedFromChat = 39,    // Call terminated because we were removed from the group chat
+    kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
     kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
     kErrorLast = 40,            // < Last enum indicating call termination due to error
     kLast = 40,                 // < Last call terminate enum value

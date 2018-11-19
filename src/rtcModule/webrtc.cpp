@@ -242,25 +242,57 @@ int RtcModule::setIceServers(const ServerList &servers)
     webrtc::PeerConnectionInterface::IceServers rtcServers;
     for (auto& server: servers)
     {
-        webrtc::PeerConnectionInterface::IceServer rtcServer;
-        rtcServer.uri = server->url;        
-
-        if (!server->user.empty())
-            rtcServer.username = server->user;
-        else
-            rtcServer.username = KARERE_TURN_USERNAME;
-
-        if (!server->pass.empty())
-            rtcServer.password = server->pass;
-        else
-            rtcServer.password = KARERE_TURN_PASSWORD;
-
-        KR_LOG_DEBUG("Adding ICE server: '%s'", rtcServer.uri.c_str());
+        webrtc::PeerConnectionInterface::IceServer rtcServer = createIceServer(*server);
+        KR_LOG_DEBUG("setIceServers::Adding ICE server: '%s'", rtcServer.uri.c_str());
         rtcServers.push_back(rtcServer);
     }
 
     mIceServers.swap(rtcServers);
     return (int)(mIceServers.size());
+}
+
+void RtcModule::addIceServers(const ServerList &servers)
+{
+    if (servers.empty())
+        return;
+
+    for (auto& server: servers)
+    {
+        bool serverFound = false;
+        for (unsigned int i = 0; i < mIceServers.size(); i++)
+        {
+            if (mIceServers[i].uri == server->url)
+            {
+                serverFound = true;
+                break;
+            }
+        }
+
+        if (!serverFound)
+        {
+            webrtc::PeerConnectionInterface::IceServer rtcServer = createIceServer(*server);
+            KR_LOG_DEBUG("addIceServers::Adding ICE server: '%s'", rtcServer.uri.c_str());
+            mIceServers.push_back(rtcServer);
+        }
+    }
+}
+
+webrtc::PeerConnectionInterface::IceServer RtcModule::createIceServer(const TurnServerInfo &serverInfo)
+{
+    webrtc::PeerConnectionInterface::IceServer rtcServer;
+    rtcServer.uri = serverInfo.url;
+
+    if (!serverInfo.user.empty())
+        rtcServer.username = serverInfo.user;
+    else
+        rtcServer.username = KARERE_TURN_USERNAME;
+
+    if (!serverInfo.pass.empty())
+        rtcServer.password = serverInfo.pass;
+    else
+        rtcServer.password = KARERE_TURN_PASSWORD;
+
+    return rtcServer;
 }
 
 void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
@@ -1497,6 +1529,7 @@ bool Call::broadcastCallReq()
             return;
 
         mIsRingingOut = false;
+
         if (mState == Call::kStateReqSent)
         {
             if (mNotSupportedAnswer && !mChat.isGroup())
@@ -1583,6 +1616,20 @@ void Call::removeSession(Session& sess, TermCode reason)
         assert(false);
     }
 
+    EndpointId endpointId(sess.mPeer, sess.mPeerClient);
+    TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
+    if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
+    {
+        if (mIceFails.find(endpointId) == mIceFails.end())
+        {
+            mIceFails[endpointId] = 1;
+        }
+        else
+        {
+            mIceFails[endpointId]++;
+        }
+    }
+
     if (!sess.isCaller())
     {
         SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sess.sessionId().toString().c_str());
@@ -1605,7 +1652,6 @@ void Call::removeSession(Session& sess, TermCode reason)
     }
 
     // set a timeout for the session recovery
-    EndpointId endpointId(sess.mPeer, sess.mPeerClient);
     auto wptr = weakHandle();
     mSessRetries[endpointId] = setTimeout([this, wptr, endpointId]()
     {
@@ -2388,6 +2434,14 @@ void Session::handleMessage(RtMessage& packet)
 
 void Session::createRtcConn()
 {
+    EndpointId endPoint(mPeer, mPeerClient);
+    if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
+    {
+        RTCM_LOG_WARNING("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
+        StaticProvider iceServerStatic(mCall.mManager.mStaticIceSever);
+        mCall.mManager.addIceServers(iceServerStatic);
+    }
+
     mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this, pcConstraints());
     if (mCall.mLocalStream)
     {
