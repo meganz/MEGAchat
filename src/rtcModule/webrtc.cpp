@@ -2026,8 +2026,11 @@ void Call::notifySessionConnected(Session& /*sess*/)
 
     sendCallData(mIsRingingOut ? CallDataState::kCallDataSessionKeepRinging : CallDataState::kCallDataSession);
 
-    cancelInterval(mCallSetupTimer, mManager.mClient.appCtx);
-    mCallSetupTimer = 0;
+    if (mCallSetupTimer)
+    {
+        cancelInterval(mCallSetupTimer, mManager.mClient.appCtx);
+        mCallSetupTimer = 0;
+    }
 
     mCallStartedSignalled = true;
     FIRE_EVENT(CALL, onCallStarted);
@@ -2545,7 +2548,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     {
         terminateAndDestroy(TermCode::kErrIceDisconn);
     }
-    else if (state == webrtc::PeerConnectionInterface::kIceConnectionCompleted)
+    else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
