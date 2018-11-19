@@ -46,6 +46,6 @@ macx {
     QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
     QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
     DEFINES += WEBRTC_MAC
-    CONFIG += DO_NOT_USE_FREEIMAGE # there are symbols duplicated in libwebrtc.a. Discarded for the moment
+    CONFIG += nofreeimage # there are symbols duplicated in libwebrtc.a. Discarded for the moment
 }
 
