@@ -580,26 +580,15 @@ void ChatMessage::on_bSettings_clicked()
             mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
             for(int i = 0; i < nodeList->size(); i++)
             {
-
-                QString text("Download \"");
+                QString text("Download: \"");
                 text.append(nodeList->get(i)->getName()).append("\"");
                 auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
                 connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
-                text.clear();
 
-                text.append("Play voice clip \"");
+                text = "Streaming (voice-clip): \"";
                 text.append(nodeList->get(i)->getName()).append("\"");
                 auto actPlay = menu.addAction(tr(text.toStdString().c_str()));
                 connect(actPlay,  &QAction::triggered, this, [this, nodeList, i]{onNodePlay(nodeList->get(i));});
-
-                if (mMessage->isVoiceMessage())
-                {
-                    actDownload->setEnabled(false);
-                }
-                else
-                {
-                    actPlay->setEnabled(false);
-                }
             }
             break;
         }
@@ -633,14 +622,14 @@ void ChatMessage::onNodePlay(mega::MegaNode *node)
     {
         mChatWindow->mMegaApi->httpServerStart();
     }
-    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
 
+    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
     if (localUrl)
     {
         QClipboard *clipboard = QApplication::clipboard();
         QString clipUrl(localUrl);
         QMessageBox msg;
-        msg.setText("Voice message URL:");
+        msg.setText("URL for streaming the file: \""+QString(node->getName())+"\"");
         msg.setIcon(QMessageBox::Information);
         msg.setDetailedText(clipUrl);
         msg.addButton(tr("Ok"), QMessageBox::ActionRole);

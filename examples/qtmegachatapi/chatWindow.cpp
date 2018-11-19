@@ -765,7 +765,7 @@ void ChatWindow::on_mAttachBtn_clicked()
 void ChatWindow::attachNode(QGroupBox *groupBox, mega::MegaHandle nodeHandle)
 {
     int num = groupBox->children().size();
-    for (int i=0; i< num; i++)
+    for (int i = 0; i < num; i++)
     {
        QRadioButton *btn = (QRadioButton *) groupBox->children().at(i);
        if (btn->isChecked())
@@ -775,7 +775,7 @@ void ChatWindow::attachNode(QGroupBox *groupBox, mega::MegaHandle nodeHandle)
                mMegaChatApi->attachVoiceMessage(mChatRoom->getChatId(), nodeHandle);
                break;
            }
-           else if  (btn->objectName() == "f")
+           else if (btn->objectName() == "f")
            {
                mMegaChatApi->attachNode(mChatRoom->getChatId(), nodeHandle);
                break;
@@ -783,15 +783,7 @@ void ChatWindow::attachNode(QGroupBox *groupBox, mega::MegaHandle nodeHandle)
        }
     }
 
-    groupBox->close();
-    if(groupBox->layout())
-    {
-        while (groupBox->layout()->count()>0)
-        {
-          delete groupBox->layout()->takeAt(0);
-        }
-    }
-    delete layout();
+    delete groupBox;
 }
 
 void ChatWindow::on_mCancelTransfer(QAbstractButton*)
@@ -810,7 +802,7 @@ void ChatWindow::onArchiveClicked(bool checked)
     mMegaApi->archiveChat(mChatRoom->getChatId(), checked);
 }
 
-void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
+void ChatWindow::onTransferFinish(mega::MegaApi* /*api*/, mega::MegaTransfer *transfer, mega::MegaError* e)
 {
     if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
     {
@@ -820,39 +812,31 @@ void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transf
             if (e->getErrorCode() == mega::MegaError::API_OK)
             {
                 mega::MegaHandle nodeHandle = transfer->getNodeHandle();
-                QGroupBox *groupBox = new QGroupBox(tr("Transfer finished"));
-                QRadioButton *radio1 = new QRadioButton(tr("Attach as file"));
-                QRadioButton *radio2 = new QRadioButton(tr("Attach as voice clip"));
+                QGroupBox *groupBox = new QGroupBox(tr("Upload completed:"));
 
+                QRadioButton *radio1 = new QRadioButton(tr("Send as attachment"), groupBox);
                 radio1->setObjectName("f");
+                radio1->setChecked(true);
+
+                QRadioButton *radio2 = new QRadioButton(tr("Send as voice clip"), groupBox);
                 radio2->setObjectName("vc");
 
-                QObject::connect(radio1,SIGNAL(clicked(bool)),this,SLOT(clickkedstate(bool)));
-                radio1->setAutoExclusive(true);
-                QObject::connect(radio2,SIGNAL(clicked(bool)),this,SLOT(clickkedstate(bool)));
-                radio2->setAutoExclusive(true);
+                QPushButton *btn = new QPushButton("Accept");
+                connect(btn, &QPushButton::clicked, this, [this, groupBox, nodeHandle]{attachNode(groupBox, nodeHandle);});
 
-                radio1->setChecked(true);
-                radio2->setChecked(false);
-
-                QVBoxLayout *vbox = new QVBoxLayout;
+                QVBoxLayout *vbox = new QVBoxLayout(groupBox);
                 vbox->addWidget(radio1);
                 vbox->addWidget(radio2);
-                vbox->addStretch(1);
-
-                QPushButton *btn = new QPushButton("Accept");
                 vbox->addWidget(btn);
+
                 groupBox->setLayout(vbox);
                 groupBox->show();
-
-                connect(btn,  &QPushButton::clicked, this, [this, groupBox, nodeHandle]{attachNode(groupBox, nodeHandle);});
             }
             else
             {
                 QMessageBox::critical(nullptr, tr("Upload"), tr("Error in transfer: ").append(e->getErrorString()));
             }
 
-            mUploadDlg->hide();
             delete mUploadDlg;
             mUploadDlg = NULL;
         }
