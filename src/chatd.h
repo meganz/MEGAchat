@@ -1321,7 +1321,9 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    enum :unsigned { kChatdProtocolVersion = 4 };
+    // - Version 5:
+    //  * Add NUMBYHANDLE command
+    enum :unsigned { kChatdProtocolVersion = 5 };
 
     Client(karere::Client *aKarereClient);
     ~Client();
