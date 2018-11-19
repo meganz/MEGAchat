@@ -133,6 +133,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itWidgets = chatWidgets.find(call->getChatid());
     if(itWidgets == chatWidgets.end())
     {
+        if (call->getStatus() > MegaChatCall::CALL_STATUS_IN_PROGRESS)
+        {
+            // It's a valid condition if we have been removed from the chatroom and call is being destroyed
+            return;
+        }
+
         throw std::runtime_error("Incoming call from unknown contact");
     }
 
