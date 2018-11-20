@@ -345,10 +345,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             state == Call::CallDataState::kCallDataSessionKeepRinging)
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
-        auto itCallHandler = mCallHandlers.find(chatid);
-        if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
+        if (state == Call::CallDataState::kCallDataSessionKeepRinging)
         {
-            itCallHandler->second->setInitialTimeStamp(time(NULL));
+            auto itCallHandler = mCallHandlers.find(chatid);
+            if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
+            {
+                itCallHandler->second->setInitialTimeStamp(time(NULL));
+            }
         }
     }
     else if (state == Call::CallDataState::kCallDataNotRinging)
