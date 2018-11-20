@@ -1188,24 +1188,13 @@ void Call::msgRinging(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring unexpected RINGING");
         return;
     }
-    if (!mRingOutUsers)
+
+    if (mHadRingAck)
     {
-        mRingOutUsers.reset(new std::set<Id>());
-        mRingOutUsers->insert(packet.userid);
-        clearCallOutTimer();
-        auto wptr = weakHandle();
-        mCallOutTimer = setTimeout([wptr, this] {
-            if (wptr.deleted() || mState != Call::kStateReqSent)
-            {
-                return;
-            }
-            hangup(TermCode::kAnswerTimeout); // TODO: differentiate whether peer has sent us RINGING or not
-        }, RtcModule::kCallAnswerTimeout, mManager.mClient.appCtx);
+        return;
     }
-    else
-    {
-        mRingOutUsers->insert(packet.userid);
-    }
+
+    mHadRingAck = true;
     FIRE_EVENT(CALL, onRingOut, packet.userid);
 }
 
@@ -1216,6 +1205,7 @@ void Call::clearCallOutTimer()
     }
     cancelTimeout(mCallOutTimer, mManager.mClient.appCtx);
     mCallOutTimer = 0;
+    mIsRingingOut = false;
 }
 
 void Call::handleBusy(RtMessage& packet)
@@ -1538,7 +1528,7 @@ bool Call::broadcastCallReq()
             }
             else
             {
-                destroy(TermCode::kRingOutTimeout, true);
+                destroy(TermCode::kAnswerTimeout, true);
             }
         }
         else if (chat().isGroup() && mState == Call::kStateInProgress)
@@ -1547,7 +1537,7 @@ bool Call::broadcastCallReq()
             // after some time (we use the same kAnswerTimeout duration in order to share the timer)
             sendCallData(CallDataState::kCallDataNotRinging);
         }
-    }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
+    }, RtcModule::kCallAnswerTimeout, mManager.mClient.appCtx);
     return true;
 }
 

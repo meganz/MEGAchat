@@ -138,7 +138,6 @@ protected:
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::map<chatd::EndpointId, int> mIceFails;
-    std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
     std::map<chatd::EndpointId, std::pair<karere::Id, SdpKey> > mSentSessions;
     std::string mName;
     megaHandle mCallOutTimer = 0;
@@ -155,6 +154,7 @@ protected:
     megaHandle mCallSetupTimer = 0;
     bool mNotSupportedAnswer = false;
     bool mIsRingingOut = false;
+    bool mHadRingAck = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -225,7 +225,6 @@ public:
     enum {
         kApiTimeout = 20000,
         kCallAnswerTimeout = 40000,
-        kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 14000,
