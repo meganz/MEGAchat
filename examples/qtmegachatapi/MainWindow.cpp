@@ -154,6 +154,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 
     ChatWindow *window = itemController->showChatWindow();
+    assert(window);
 
     switch(call->getStatus())
     {
@@ -173,13 +174,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
            break;
         case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
            {
-               CallGui *callGui = nullptr;
-               if (window->getCallGui() == NULL)
-               {
-                   window->connectCall();
-                   CallGui *callGui = window->getCallGui();
-                   assert(callGui);
-               }
+               CallGui *callGui = window->getCallGui();
+               assert(callGui);
 
                if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
                {
