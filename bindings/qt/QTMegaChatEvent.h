@@ -29,7 +29,11 @@ public:
         OnHistoryReloaded,
         OnChatNotification,
         OnChatVideoData,
-        OnChatCallUpdate
+        OnChatCallUpdate,
+        OnAttachmentLoaded,
+        OnAttachmentReceived,
+        OnAttachmentDeleted,
+        OnAttachmentTruncated
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);
