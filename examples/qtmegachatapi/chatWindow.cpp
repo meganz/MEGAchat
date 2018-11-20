@@ -63,7 +63,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     QDialog::show();
     megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
-    megaTransferListenerDelegate = new mega::QTMegaTransferListener(mMegaApi, this);
+    megaTransferListenerDelegate = new ::mega::QTMegaTransferListener(mMegaApi, this);
     mMegaApi->addTransferListener(megaTransferListenerDelegate);
 }
 
@@ -599,12 +599,12 @@ void ChatWindow::onAttachmentRequestHistory()
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
     //Add contacts
-    mega::MegaUserList *userList = mMegaApi->getContacts();
+    ::mega::MegaUserList *userList = mMegaApi->getContacts();
 
     auto addEntry = menu.addMenu("Add contact to chat");
     for (int i = 0 ; i < userList->size(); i++)
     {
-         mega::MegaUser *user = userList->get(i);
+         ::mega::MegaUser *user = userList->get(i);
          auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
          actAdd->setProperty("userHandle", QVariant((qulonglong)user->getHandle()));
          connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
@@ -895,7 +895,7 @@ void ChatWindow::on_mAttachBtn_clicked()
 
     QStringList nodeParsed = node.split( "/" );
     QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
-    mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
+    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
 
     mUploadDlg = new QMessageBox;
     mUploadDlg->setWindowTitle((tr("Uploading file...")));
@@ -935,14 +935,14 @@ void ChatWindow::onAttachmentsClosed(QObject *)
     megaChatNodeHistoryListenerDelegate = NULL;
 }
 
-void ChatWindow::onTransferFinish(mega::MegaApi* , mega::MegaTransfer *transfer, mega::MegaError* e)
+void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *transfer, ::mega::MegaError* e)
 {
-    if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
+    if (transfer->getType() == ::mega::MegaTransfer::TYPE_UPLOAD)
     {
         if (mUploadDlg)
         {
             mUploadDlg->hide();
-            if (e->getErrorCode() == mega::MegaError::API_OK)
+            if (e->getErrorCode() == ::mega::MegaError::API_OK)
             {
                 QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
                 mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
@@ -963,7 +963,7 @@ void ChatWindow::onTransferFinish(mega::MegaApi* , mega::MegaTransfer *transfer,
     }
     else    // download
     {
-        if (e->getErrorCode() == mega::MegaError::API_OK)
+        if (e->getErrorCode() == ::mega::MegaError::API_OK)
         {
             QMessageBox::information(nullptr, tr("Download"), tr("Attachment's download successful."));
         }

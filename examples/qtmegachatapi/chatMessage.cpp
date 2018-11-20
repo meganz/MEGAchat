@@ -146,7 +146,7 @@ void ChatMessage::updateContent()
             {
                 QString text;
                 text.append(tr("[Nodes attachment msg]"));
-                mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
+                ::mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
                 for(int i = 0; i < nodeList->size(); i++)
                 {
                     const char *auxNodeHandle_64 =this->mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
@@ -296,7 +296,7 @@ std::string ChatMessage::managementInfoToString() const
         ret.append("User ").append(userHandle_64)
            .append(" start a call with: ");
 
-        mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
+        ::mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
         for (unsigned int i = 0; i < handleList->size(); i++)
         {
             char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
@@ -568,7 +568,7 @@ void ChatMessage::on_bSettings_clicked()
     {
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+            ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
             for(int i = 0; i < nodeList->size(); i++)
             {
                 QString text("Download \"");
@@ -587,7 +587,7 @@ void ChatMessage::on_bSettings_clicked()
     menu.exec(mapToGlobal(pos));
 }
 
-void ChatMessage::onNodeDownload(mega::MegaNode *node)
+void ChatMessage::onNodeDownload(::mega::MegaNode *node)
 {
     std::string target(mChatWindow->mMegaChatApi->getAppDir());
     target.append("/").append(node->getName());

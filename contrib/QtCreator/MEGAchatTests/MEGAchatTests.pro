@@ -25,6 +25,10 @@ CONFIG += USE_MEDIAINFO
 CONFIG += USE_LIBWEBSOCKETS
 CONFIG += USE_WEBRTC
 
+macx {
+    CONFIG += nofreeimage # there are symbols duplicated in libwebrtc.a. Discarded for the moment
+}
+
 include(../../../bindings/qt/megachat.pri)
 
 DEPENDPATH += ../../../tests/sdk_test
@@ -42,11 +46,9 @@ win32 {
 
 macx {
     QMAKE_CXXFLAGS += -DCRYPTOPP_DISABLE_ASM -D_DARWIN_C_SOURCE
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9 #the one used for webrtc
     QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
     QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
+    DEFINES += WEBRTC_MAC
 }
 
