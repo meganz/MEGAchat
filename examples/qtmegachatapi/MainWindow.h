@@ -67,69 +67,77 @@ class MainWindow :
 
         /* Contacts management*/
 
-        /*This function adds or updates a ContactListItemController.
-            This class takes the ownership of the parameter contact.*/
-        void addOrUpdateContactController(mega::MegaUser *contact);
+        /*  This function clears the Qt widget list */
+        void clearQtContactWidgetList();
 
-        /*This function adds a contact Qt widget and increments the contacts counter*/
-        ContactItemWidget *addContactWidget(mega::MegaUser *user);
+        /*  This function clears the ContactItemWidgets in contactControllers map*/
+        void clearContactWidgets();
 
-        /*This function clears the Qt widget list and updates the ContactListItemController from
-            the contactControllers map*/
-        void clearContactWidgetList();
+        /*  This function clears the contactControllers map*/
+        void clearContactControllersMap();
 
-        /* This function clears the contacts Qt widgets and reorder them*/
-        void orderContactList();
+        /*  This function adds Qt widgets for all items in contactControllers map*/
+        void addQtContactWidgets();
 
-        /*This function clears the contactListItemControllers, if onlyWidget is true the function only will clear the widget.*/
-        void clearContactListControllers(bool onlyWidget);
+        /*  This function adds a contact Qt widget and increments the contacts counter*/
+        ContactItemWidget *addQtContactWidget(mega::MegaUser *user);
 
-        /*This function adds or update contacts in contactControllers and adds Qt widgets*/
-        void addContacts();
+        /*  This function updates the items given by parameter in contactControllers map.
+            If not exists add it to map*/
+        void addOrUpdateContactControllersItems(mega::MegaUserList *contactList);
 
-        /* Chats management*/
+        /*  This function adds or updates an user in contactControllers map.*/
+        ContactListItemController *addOrUpdateContactController(mega::MegaUser *contact);
 
-        /*This function adds or updates a chat controller.
-        This class takes the ownership of the parameter chatListItem.*/
-        ChatListItemController *addOrUpdateChatController(megachat::MegaChatListItem *chatListItem);
+        /*  This function finds in chatControllers map an entry with key equals to given parameter and returns
+            a ChatListItemController pointer if exists, otherwise returns nullptr. Mainwindow class retains the
+            ownership of the returned value*/
+        ContactListItemController* getContactControllerById(megachat::MegaChatHandle userId);
 
-        /*This function adds a chat Qt widget and increments the correspondent chats counter*/
-        ChatItemWidget *addChatWidget(const megachat::MegaChatListItem *chatListItem);
+        /*  This function reorders the graphical contact list in QTapp*/
+        void reorderAppContactList();
 
-        /*This function clears the Qt widget list and updates the ChatListItemController from
-            the chatControllers map*/
-        void orderChatList(bool needClean);
+        /*  Chats management*/
 
-        /* Returns a ChatWindow pointer associated to a ChatListItemController instance if exists,
+        /*  This function adds a Qt widget chat and increments the correspondent chats counter*/
+        ChatItemWidget *addQtChatWidget(const megachat::MegaChatListItem *chatListItem);
+
+        /*  This function adds or updates a chat in chatControllers map.*/
+        ChatListItemController *addOrUpdateChatControllerItem(megachat::MegaChatListItem *chatListItem);
+
+        /*  This function reorders the graphical chat list in QTapp*/
+        void reorderAppChatList();
+
+        /*  Returns a ChatWindow pointer associated to a ChatListItemController instance if exists,
             otherwise returns NULL. The ChatListItemController retains the ownership */
         ChatWindow *getChatWindowIfExists(megachat::MegaChatHandle chatId);
 
-        /*This function adds the Qt widget and updates the ChatListItemController*/
+        /*  This function adds the graphical Qt widget and updates the ChatListItemController*/
         void addChatsBystatus(const int status);
 
-        /*This function returns true if the change type received by the function chatListItemUpdate
+        /*  This function returns true if the changes associated to the newItem param
             requires a Qt widget list reorder. Otherwise the function returns false*/
         bool needReorder(megachat::MegaChatListItem *newItem, int oldPriv);
 
-        /* This function clear the chat widget container list, leaving intact chatController list*/
+        /*  This function clears the Qt widget list */
         void clearQtChatWidgetList();
 
-        /* This function clear the ChatItemWidgets in ChatListItemController map*/
+        /*  This function clears the ChatItemWidgets in chatControllers map*/
         void clearChatWidgets();
 
-        /* This function clear the ChatListItemControllers map*/
+        /*  This function clears the ChatListItemControllers map*/
         void clearChatControllers();
 
-        /*This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems*/
-        void updateLocalChatListItems();
+        /*  This function updates the items in chatControllers map*/
+        void updateChatControllersItems();
+
+        /*  This function finds in chatControllers map an entry with key equals to chatId and returns a ChatListItemController pointer if exists,
+            otherwise returns nullptr. Mainwindow class retains the ownership of the returned value*/
         ChatListItemController* getChatControllerById(megachat::MegaChatHandle chatId);
 
-        /*This function returns a list of chats filtered by status (Active | Inactive | Archived).
-         You take the ownership of the returned list*/
+        /*  This function returns a list of chats filtered by status (Active | Inactive | Archived).
+            You take the ownership of the returned list*/
         std::list<Chat> *getLocalChatListItemsByStatus(int status);
-
-        /*This function clears the chatListItemControllers (including chatItemWidget and chatListItem)*/
-        void clearChatListControllers();
 
         std::string getAuthCode();
         void setNContacts(int nContacts);
@@ -139,7 +147,6 @@ class MainWindow :
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         bool eventFilter(QObject *obj, QEvent *event);
 
-        /*Implemented callbacks*/
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
         void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
@@ -171,10 +178,10 @@ class MainWindow :
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
 
         //Maps ChatId to to ChatListItemController
-        std::map<mega::MegaHandle, ChatListItemController *> chatControllers;
+        std::map<mega::MegaHandle, ChatListItemController *> mChatControllers;
 
         //Maps UserId to to ContactListItemController
-        std::map<mega::MegaHandle, ContactListItemController *> contactControllers;
+        std::map<mega::MegaHandle, ContactListItemController *> mContactControllers;
 
     private slots:
         void on_bSettings_clicked();

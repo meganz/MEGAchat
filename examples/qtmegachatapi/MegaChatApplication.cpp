@@ -159,11 +159,10 @@ void MegaChatApplication::configureLogs()
 
 void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
 {
-    //TODO: Improve this method because order method will request userlist again
-    //create a local user list like chats
-    if(mMainWin)
+    if(mMainWin && userList)
     {
-        mMainWin->orderContactList();
+        mMainWin->addOrUpdateContactControllersItems(userList);
+        mMainWin->reorderAppContactList();
     }
 }
 
@@ -356,6 +355,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                 init();
             }
+            else
+            {
+                MegaUserList *contactList = mMegaApi->getContacts();
+                mMainWin->addOrUpdateContactControllersItems(contactList);
+                mMainWin->reorderAppContactList();
+                delete contactList;
+            }
             break;
           case MegaChatRequest::TYPE_LOGOUT:
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
@@ -431,8 +437,8 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         break;
                     }
                 }
-                mMainWin->addOrUpdateChatController(chatListItem->copy());
-                mMainWin->orderChatList(true);
+                mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
+                mMainWin->reorderAppChatList();
                 delete chatListItem;
              }
              break;

@@ -19,12 +19,14 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     QString text = QString::fromUtf8(contactEmail);
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
+
     const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle());
     if (firstname)
     {
-        mMainWin->updateContactFirstname(contact->getHandle(), firstname);
+        updateTitle(firstname);
     }
     delete [] firstname;
+
     int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
 }
