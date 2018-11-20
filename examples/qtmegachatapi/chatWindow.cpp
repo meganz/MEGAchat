@@ -108,7 +108,7 @@ ChatWindow::~ChatWindow()
     ChatListItemController *itemController = mMainWin->getChatControllerById(mChatRoom->getChatId());
     if(itemController)
     {
-       itemController->addOrUpdateChatWindow(nullptr);
+       itemController->invalidChatWindow();
     }
 
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);

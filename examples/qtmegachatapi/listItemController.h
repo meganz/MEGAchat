@@ -30,6 +30,7 @@ class ChatListItemController :
         void addOrUpdateItem(megachat::MegaChatListItem *item);
         ChatWindow* showChatWindow();
         void addOrUpdateChatWindow(ChatWindow *window);
+        void invalidChatWindow();
     protected:
         megachat::MegaChatListItem *mItem = nullptr;
         ChatItemWidget *mWidget = nullptr;

@@ -45,6 +45,11 @@ void ChatListItemController::addOrUpdateChatWindow(ChatWindow *chatWindow)
     mChatWindow = chatWindow;
 }
 
+void ChatListItemController::invalidChatWindow()
+{
+    mChatWindow = nullptr;
+}
+
 void ChatListItemController::addOrUpdateWidget(ChatItemWidget *widget)
 {
     if (mWidget)

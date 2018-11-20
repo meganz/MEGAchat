@@ -276,7 +276,7 @@ std::string ChatMessage::managementInfoToString() const
            ChatItemWidget *widget = itemController->getWidget();
            if (widget)
            {
-              widget->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
+              widget->updateToolTip(itemController->getItem(), NULL);
               ret.append("Chat history was truncated by user ").append(userHandle_64);
            }
         }

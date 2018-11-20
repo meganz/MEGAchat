@@ -17,7 +17,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    int unreadCount = mMainWin->getLocalChatListItem(mChatId)->getUnreadCount();
+    int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
 
     if (item->isArchived())
@@ -330,7 +330,11 @@ void ChatItemWidget::unshowAsHidden()
 
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
-    QMessageBox::warning(this, tr("TODO: add new show chatwindow call"), tr(""));
+   ChatListItemController *itemController = mMainWin->getChatControllerById(mChatId);
+   if (itemController)
+   {
+      itemController->showChatWindow();
+   }
 }
 
 QListWidgetItem *ChatItemWidget::getWidgetItem() const

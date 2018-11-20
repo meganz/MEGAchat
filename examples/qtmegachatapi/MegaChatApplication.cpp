@@ -161,7 +161,7 @@ void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *use
 {
     //TODO: Improve this method because order method will request userlist again
     //create a local user list like chats
-    if(userList && mMainWin)
+    if(mMainWin)
     {
         mMainWin->orderContactList();
     }
@@ -409,6 +409,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaChatHandle chatid = request->getChatHandle();
                 const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
 
+                //Set chat title
                 if (chatListItem->isGroup())
                 {
                     QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
@@ -421,18 +422,18 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         }
                     }
                 }
-
-                if (mMainWin->getLocalChatListItem(chatid) && !chatListItem->isGroup())
+                else
                 {
-                    QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
-                    delete chatListItem;
-                    break;
+                    if (mMainWin->getChatControllerById(chatid))
+                    {
+                        QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
+                        delete chatListItem;
+                        break;
+                    }
                 }
-
-                mMainWin->addOrUpdateLocalChatListItem(chatListItem);
+                mMainWin->addOrUpdateChatController(chatListItem->copy());
+                mMainWin->orderChatList(true);
                 delete chatListItem;
-                chatListItem = mMainWin->getLocalChatListItem(chatid);
-                mMainWin->addChat(chatListItem);
              }
              break;
          case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
