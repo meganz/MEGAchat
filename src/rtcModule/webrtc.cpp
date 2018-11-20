@@ -325,6 +325,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
+    RTCM_LOG_DEBUG("Handle CALLDATA: callid -> %s - state -> %d", callid.toString().c_str(), state);
 
     if (userid == chat.client().karereClient->myHandle()
         && clientid == chat.connection().clientId())
@@ -1215,7 +1216,6 @@ void Call::clearCallOutTimer()
     }
     cancelTimeout(mCallOutTimer, mManager.mClient.appCtx);
     mCallOutTimer = 0;
-    mIsRingingOut = false;
 }
 
 void Call::handleBusy(RtMessage& packet)
