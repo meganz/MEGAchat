@@ -1243,7 +1243,9 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    static const unsigned chatdVersion = 4;
+    // - Version 5:
+    //  * Changes at CALLDATA protocol (new state)
+    static const unsigned chatdVersion = 5;
 };
 
 static inline const char* connStateToStr(Connection::State state)
