@@ -3,12 +3,12 @@
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
 
-const char* messageStatus[] =
+const char *messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
 
-ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
+ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
     : QWidget((QWidget *)parent),
       ui(new Ui::ChatMessageWidget)
 {
@@ -128,7 +128,7 @@ void ChatMessage::setMessage(megachat::MegaChatMessage *message)
     this->mMessage = message;
 }
 
-void ChatMessage::setMessageContent(const char * content)
+void ChatMessage::setMessageContent(const char *content)
 {
     ui->mMsgDisplay->setText(content);
 }
@@ -480,7 +480,7 @@ void ChatMessage::startEditingMsgWidget()
     auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
     layout->insertWidget(2, cancelBtn);
 
-    QPushButton * saveBtn = new QPushButton(this);
+    QPushButton *saveBtn = new QPushButton(this);
     connect(saveBtn, SIGNAL(clicked(bool)), this, SLOT(saveMsgEdit(bool)));
     saveBtn->setText("Save");
     layout->insertWidget(3, saveBtn);
@@ -516,13 +516,13 @@ void ChatMessage::setManualMode(bool manualMode)
     {
         ui->mEditDisplay->hide();
         ui->mStatusDisplay->hide();
-        QPushButton * manualSendBtn = new QPushButton(this);
+        QPushButton *manualSendBtn = new QPushButton(this);
         connect(manualSendBtn, SIGNAL(clicked(bool)), this, SLOT(onManualSending()));
         manualSendBtn->setText("Send (Manual mode)");
         auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
         layout->insertWidget(2, manualSendBtn);
 
-        QPushButton * discardBtn = new QPushButton(this);
+        QPushButton *discardBtn = new QPushButton(this);
         connect(discardBtn, SIGNAL(clicked(bool)), this, SLOT(onDiscardManualSending()));
         discardBtn->setText("Discard");
         layout->insertWidget(3, discardBtn);

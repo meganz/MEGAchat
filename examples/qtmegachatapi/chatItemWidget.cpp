@@ -5,7 +5,7 @@
 #include <iostream>
 #include <QMessageBox>
 
-ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item) :
+ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item) :
     QWidget(parent),
     ui(new Ui::ChatItem)
 {

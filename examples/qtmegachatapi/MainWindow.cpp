@@ -59,7 +59,7 @@ void MainWindow::clearContactControllersMap()
     std::map<mega::MegaHandle, ContactListItemController *>::iterator it;
     for (it = mContactControllers.begin(); it != mContactControllers.end(); it++)
     {
-        ContactListItemController * itemController = it->second;
+        ContactListItemController *itemController = it->second;
         delete itemController;
     }
 
@@ -133,7 +133,7 @@ void MainWindow::createFactorMenu(bool factorEnabled)
 void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::MegaChatCall *call)
 {
     ChatListItemController *itemController = getChatControllerById(call->getChatid());
-    if(!itemController)
+    if (!itemController)
     {
         throw std::runtime_error("Incoming call from unknown contact");
     }
@@ -182,7 +182,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
 ChatWindow *MainWindow::getChatWindowIfExists(MegaChatHandle chatId)
 {
-    ChatWindow * window = nullptr;
+    ChatWindow *window = nullptr;
     ChatListItemController *itemController = getChatControllerById(chatId);
     if (itemController)
     {
@@ -217,9 +217,9 @@ void MainWindow::clearContactWidgets()
 void MainWindow::clearChatWidgets()
 {
     std::map<megachat::MegaChatHandle, ChatListItemController *>::iterator it;
-    for (it = mChatControllers .begin(); it != mChatControllers.end(); it++)
+    for (it = mChatControllers.begin(); it != mChatControllers.end(); it++)
     {
-        ChatListItemController * itemController = it->second;
+        ChatListItemController *itemController = it->second;
         if(itemController)
         {
             itemController->addOrUpdateWidget(nullptr);
@@ -230,9 +230,9 @@ void MainWindow::clearChatWidgets()
 void MainWindow::clearChatControllers()
 {
     std::map<megachat::MegaChatHandle, ChatListItemController *>::iterator it;
-    for (it = mChatControllers .begin(); it != mChatControllers.end(); it++)
+    for (it = mChatControllers.begin(); it != mChatControllers.end(); it++)
     {
-        ChatListItemController * itemController = it->second;
+        ChatListItemController *itemController = it->second;
         delete itemController;
     }
     mChatControllers.clear();
@@ -340,7 +340,7 @@ void MainWindow::addQtContactWidgets()
             }
 
             //Add Qt widget
-            ContactItemWidget * widget = addQtContactWidget(contact);
+            ContactItemWidget *widget = addQtContactWidget(contact);
 
             //Add or update widget in ContactListItemController
             itemController->addOrUpdateWidget(widget);
@@ -634,7 +634,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         return;
 
     // If we don't need to reorder and chatItemwidget is rendered
-    // we need to update the widget because not order actions requires
+    // we need to update the widget because non order actions requires
     // a live update of widget
     if (!needReorder(item, oldPriv) && widget)
     {
@@ -685,10 +685,10 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
          || ((oldPriv == megachat::MegaChatRoom::PRIV_RM)
              &&(newItem->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RM)))
     {
-        mNeedReorder = true;
-        return mNeedReorder;
+        mNeedReorder = true;        
     }
-    return false;
+
+    return mNeedReorder;
 }
 
 void MainWindow::onAddChatGroup()
@@ -754,7 +754,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chati
         return;
     }
 
-    ChatListItemController* itemController = getChatControllerById(chatid);
+    ChatListItemController *itemController = getChatControllerById(chatid);
     if (itemController)
     {
        ChatItemWidget *widget = itemController->getWidget();
@@ -831,7 +831,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
         itContacts = this->mContactControllers.find((mega::MegaHandle) userhandle);
         if (itContacts != mContactControllers.end())
         {
-            ContactListItemController * itemController = itContacts->second;
+            ContactListItemController *itemController = itContacts->second;
             assert(!inProgress);
 
             ContactItemWidget *widget = itemController->getWidget();
@@ -872,7 +872,7 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
     str.append(std::to_string(lastGreen));
     str.append(" minutes ago");
 
-    QMessageBox* msgBox = new QMessageBox(this);
+    QMessageBox *msgBox = new QMessageBox(this);
     msgBox->setIcon( QMessageBox::Information );
     msgBox->setAttribute(Qt::WA_DeleteOnClose);
     msgBox->setStandardButtons(QMessageBox::Ok);
@@ -940,7 +940,7 @@ void MainWindow::updateChatControllersItems()
     delete chatList;
 }
 
-ContactListItemController* MainWindow::getContactControllerById(MegaChatHandle userId)
+ContactListItemController *MainWindow::getContactControllerById(MegaChatHandle userId)
 {
     std::map<mega::MegaHandle, ContactListItemController *> ::iterator it;
     it = this->mContactControllers.find(userId);
@@ -952,7 +952,7 @@ ContactListItemController* MainWindow::getContactControllerById(MegaChatHandle u
     return nullptr;
 }
 
-ChatListItemController* MainWindow::getChatControllerById(MegaChatHandle chatId)
+ChatListItemController *MainWindow::getChatControllerById(MegaChatHandle chatId)
 {
     std::map<mega::MegaHandle, ChatListItemController *> ::iterator it;
     it = this->mChatControllers.find(chatId);
@@ -1003,7 +1003,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 }
 
 
-void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char * firstname)
+void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char *firstname)
 {
     std::map<mega::MegaHandle, ContactListItemController *>::iterator itContacts;
     itContacts = mContactControllers.find(contactHandle);

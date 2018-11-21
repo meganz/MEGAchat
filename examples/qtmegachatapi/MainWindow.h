@@ -92,7 +92,7 @@ class MainWindow :
         /*  This function finds in chatControllers map an entry with key equals to given parameter and returns
             a ChatListItemController pointer if exists, otherwise returns nullptr. Mainwindow class retains the
             ownership of the returned value*/
-        ContactListItemController* getContactControllerById(megachat::MegaChatHandle userId);
+        ContactListItemController *getContactControllerById(megachat::MegaChatHandle userId);
 
         /*  This function reorders the graphical contact list in QTapp*/
         void reorderAppContactList();
@@ -133,7 +133,7 @@ class MainWindow :
 
         /*  This function finds in chatControllers map an entry with key equals to chatId and returns a ChatListItemController pointer if exists,
             otherwise returns nullptr. Mainwindow class retains the ownership of the returned value*/
-        ChatListItemController* getChatControllerById(megachat::MegaChatHandle chatId);
+        ChatListItemController *getChatControllerById(megachat::MegaChatHandle chatId);
 
         /*  This function returns a list of chats filtered by status (Active | Inactive | Archived).
             You take the ownership of the returned list*/
@@ -143,16 +143,16 @@ class MainWindow :
         void setNContacts(int nContacts);
         void createSettingsMenu();
         void createFactorMenu(bool factorEnabled);
-        void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
+        void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         bool eventFilter(QObject *obj, QEvent *event);
 
-        void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
-        void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
+        void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
+        void onChatListItemUpdate(megachat::MegaChatApi *api, megachat::MegaChatListItem *item);
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
-        void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
-        void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
-        void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int lastGreen);
+        void onChatOnlineStatusUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
+        void onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config);
+        void onChatPresenceLastGreen(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int lastGreen);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);

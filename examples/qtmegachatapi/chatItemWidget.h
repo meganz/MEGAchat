@@ -13,11 +13,11 @@ class ChatItemWidget : public QWidget
 {
     Q_OBJECT
     public:
-        ChatItemWidget(QWidget *parent , megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item);
+        ChatItemWidget(QWidget *parent , megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item);
         virtual ~ChatItemWidget();
         void unshowAsHidden();
         void showAsHidden();
-        void contextMenuEvent(QContextMenuEvent* event);
+        void contextMenuEvent(QContextMenuEvent *event);
         void setChatHandle(const megachat::MegaChatHandle &mChatId);
         megachat::MegaChatHandle getChatId() const;
         QListWidgetItem *getWidgetItem() const;
@@ -26,7 +26,7 @@ class ChatItemWidget : public QWidget
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
-        virtual void mouseDoubleClickEvent(QMouseEvent* event);
+        virtual void mouseDoubleClickEvent(QMouseEvent *event);
         const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
 
     protected:

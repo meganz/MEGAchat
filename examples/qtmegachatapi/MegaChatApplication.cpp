@@ -117,7 +117,7 @@ void MegaChatApplication::logout()
     mMegaApi->logout();
 }
 
-const char * MegaChatApplication::readSid()
+const char *MegaChatApplication::readSid()
 {
     char buf[256];
     ifstream sidf(mAppDir + "/sid");
@@ -181,7 +181,7 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     delete msgid;
 }
 
-const char* MegaChatApplication::getFirstname(MegaChatHandle uh)
+const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {

@@ -44,7 +44,7 @@ void ContactItemWidget::setAvatarStyle()
     ui->mAvatar->setStyleSheet(style);
 }
 
-void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
+void ContactItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     auto chatPeerInviteAction = menu.addAction(tr("Invite to 1on1 chat"));
@@ -179,7 +179,7 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup)
 
 void ContactItemWidget::onContactRemove()
 {
-    char * email = mMegaChatApi->getContactEmail(mUserHandle);
+    char *email = mMegaChatApi->getContactEmail(mUserHandle);
     ::mega::MegaUser *contact = mMegaApi->getContact(email);
     QString msg = tr("Are you sure you want to remove ");
     msg.append(ui->mName->text());
@@ -204,7 +204,7 @@ void ContactItemWidget::onRequestLastGreen()
     mMegaChatApi->requestLastGreen(mUserHandle);
 }
 
-void ContactItemWidget::updateTitle(const char * firstname)
+void ContactItemWidget::updateTitle(const char *firstname)
 {
     QString text;
     if (strcmp(firstname, "") == 0)

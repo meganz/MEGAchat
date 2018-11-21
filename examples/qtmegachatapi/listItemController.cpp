@@ -68,7 +68,7 @@ void ChatListItemController::addOrUpdateItem(megachat::MegaChatListItem *item)
     mItem = item;
 }
 
-ChatWindow* ChatListItemController::showChatWindow()
+ChatWindow *ChatListItemController::showChatWindow()
 {
     if (!mChatWindow)
     {
