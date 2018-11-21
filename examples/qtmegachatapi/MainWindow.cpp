@@ -10,7 +10,7 @@
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi) :
     QMainWindow(0),
     ui(new Ui::MainWindow)
 {
@@ -693,7 +693,7 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
 
 void MainWindow::onAddChatGroup()
 {
-    mega::MegaUserList *list = mMegaApi->getContacts();
+    ::mega::MegaUserList *list = mMegaApi->getContacts();
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi);
     chatDialog->createChatList(list);
     chatDialog->show();

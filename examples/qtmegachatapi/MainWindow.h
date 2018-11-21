@@ -62,7 +62,7 @@ class MainWindow :
 {
     Q_OBJECT
     public:
-        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, mega::MegaApi *megaApi = NULL);
+        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, ::mega::MegaApi *megaApi = NULL);
         virtual ~MainWindow();
 
         /* Contacts management*/
@@ -172,7 +172,7 @@ class MainWindow :
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
         MegaChatApplication *mApp;
-        mega::MegaApi *mMegaApi;
+        ::mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;

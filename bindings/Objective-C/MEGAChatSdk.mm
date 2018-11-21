@@ -60,7 +60,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         externalLogger = new DelegateMEGAChatLoggerListener(nil);
     }
     
-    self.megaChatApi = new MegaChatApi((mega::MegaApi *)[megaSDK getCPtr]);
+    self.megaChatApi = new MegaChatApi((::mega::MegaApi *)[megaSDK getCPtr]);
     
     if (pthread_mutex_init(&listenerMutex, NULL)) {
         return nil;

@@ -96,7 +96,7 @@ void RtcModule::init()
             return;
         setIceServers(mIceServerProvider);
     })
-    .fail([](const promise::Error& err)
+    .fail([](const ::promise::Error& err)
     {
         KR_LOG_ERROR("Gelb failed with error '%s', using static server list", err.what());
     });
@@ -980,17 +980,17 @@ void Call::msgJoin(RtMessage& packet)
         return;
     }
 }
-promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
+::promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
     SUB_LOG_DEBUG("gracefully term all sessions");
-    std::vector<promise::Promise<void>> promises;
+    std::vector<::promise::Promise<void>> promises;
     for (auto it = mSessions.begin(); it != mSessions.end();)
     {
         std::shared_ptr<Session> session = it++->second;
         promises.push_back(session->terminateAndDestroy(code));
     }
-    return promise::when(promises)
-    .fail([](const promise::Error& err)
+    return ::promise::when(promises)
+    .fail([](const ::promise::Error& err)
     {
         assert(false); // terminateAndDestroy() should never fail
     });
@@ -1002,7 +1002,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
     // all sessions to go away and remove the call
     if (mSessions.empty())
     {
-        return promise::_Void();
+        return ::promise::_Void();
     }
 
     for (auto& item: mSessions)
@@ -1049,7 +1049,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
 {
     if (mState == Call::kStateDestroyed)
     {
-        return promise::_Void();
+        return ::promise::_Void();
     }
     else if (mState == Call::kStateTerminating)
     {
@@ -1075,7 +1075,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy or call state is ringing");
     }
 
-    Promise<void> pms((promise::Empty())); //non-initialized promise
+    Promise<void> pms((::promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
         switch (mPredestroyState)
@@ -1083,11 +1083,11 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         case kStateReqSent:
             cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, (code == TermCode::kDestroyByCallCollision) ? TermCode::kUserHangup : code);
             code = kCallReqCancel;  // overwrite code for onDestroy() callback
-            pms = promise::_Void();
+            pms = ::promise::_Void();
             break;
         case kStateRingIn:
             cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, code);
-            pms = promise::_Void();
+            pms = ::promise::_Void();
             break;
         default:
             if (!mIsGroup)
@@ -2002,7 +2002,7 @@ Promise<void> Session::sendOffer()
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted())
-            return promise::_Void();
+            return ::promise::_Void();
     /*  if (self.state !== SessState.kWaitSdpAnswer) {
             return;
         }
@@ -2030,7 +2030,7 @@ Promise<void> Session::sendOffer()
         );
         assert(mState == Session::kStateWaitSdpAnswer);
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         if (!wptr.deleted())
             return;
@@ -2077,20 +2077,20 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
     }
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(sdp)
-    .fail([this](const promise::Error& err)
+    .fail([this](const ::promise::Error& err)
     {
-        return promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
+        return ::promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
     })
     .then([this, wptr]() -> Promise<webrtc::SessionDescriptionInterface*>
     {
         if (wptr.deleted() || (mState > Session::kStateInProgress))
-            return promise::Error("Session killed");
+            return ::promise::Error("Session killed");
         return mRtcConn.createAnswer(pcConstraints());
     })
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted() || (mState > Session::kStateInProgress))
-            return promise::Error("Session killed");
+            return ::promise::Error("Session killed");
 
         sdp->ToString(&mOwnSdp);
         return mRtcConn.setLocalDescription(sdp);
@@ -2108,7 +2108,7 @@ void Session::msgSdpOfferSendAnswer(RtMessage& packet)
             mOwnSdp
         );
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         if (wptr.deleted())
             return;
@@ -2155,11 +2155,11 @@ void Session::msgSdpAnswer(RtMessage& packet)
     .then([this, wptr]() -> Promise<void>
     {
         if (mState > Session::kStateInProgress)
-            return promise::Error("Session killed");
+            return ::promise::Error("Session killed");
         setState(Session::kStateInProgress);
-        return promise::_Void();
+        return ::promise::_Void();
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         std::string msg = "Error setting SDP answer: " + err.msg();
         terminateAndDestroy(TermCode::kErrSdp, msg);
@@ -2198,7 +2198,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         return mTerminatePromise;
 
     if (mState == kStateDestroyed)
-        return promise::_Void();
+        return ::promise::_Void();
 
     if (!msg.empty())
     {

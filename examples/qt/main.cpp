@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     {
         setVidencParams();
     })
-    .fail([](const promise::Error& err)
+    .fail([](const ::promise::Error& err)
     {
         if (err.type() != 0 || err.code() != 0)
         {
@@ -242,7 +242,7 @@ void AppDelegate::onEsidLogout()
             QObject::connect(qApp, SIGNAL(lastWindowClosed()), &appDelegate, SLOT(onAppTerminate()));
             gClient->connect(Presence::kInvalid);
         })
-        .fail([](const promise::Error& err)
+        .fail([](const ::promise::Error& err)
         {
             KR_LOG_ERROR("Error re-creating or logging in chat client after ESID: ", err.what());
         });
