@@ -245,8 +245,8 @@ void MainWindow::addOrUpdateContactControllersItems(MegaUserList *contactList)
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
-        mega::MegaHandle userHandle = contact->getHandle();
-        if (userHandle != this->mMegaChatApi->getMyUserHandle())
+        ::mega::MegaHandle userHandle = contact->getHandle();
+        if (userHandle != mMegaChatApi->getMyUserHandle())
         {
             ContactListItemController *itemController = getContactControllerById(contact->getHandle());
             if (!itemController)
@@ -332,13 +332,8 @@ void MainWindow::addQtContactWidgets()
         assert(itemController);
         contact = itemController->getItem();
         mega::MegaHandle userHandle = contact->getHandle();
-        if (userHandle != this->mMegaChatApi->getMyUserHandle())
+        if (userHandle != mMegaChatApi->getMyUserHandle())
         {
-            if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mShowInactive != true)
-            {
-                continue;
-            }
-
             //Add Qt widget
             ContactItemWidget *widget = addQtContactWidget(contact);
 

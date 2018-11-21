@@ -80,7 +80,7 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/megaLoggerApplication.cpp \
     ../../../examples/qtmegachatapi/chatMessage.cpp \
     ../../../examples/qtmegachatapi/chatGroupDialog.cpp \
-    ../../examples/qtmegachatapi/listItemController.cpp
+    ../../../examples/qtmegachatapi/listItemController.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
             ../../../examples/qtmegachatapi/MainWindow.h \
@@ -94,7 +94,7 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/megaLoggerApplication.h \
     ../../../examples/qtmegachatapi/chatMessage.h \
     ../../../examples/qtmegachatapi/chatGroupDialog.h \
-    ../../examples/qtmegachatapi/listItemController.h
+    ../../../examples/qtmegachatapi/listItemController.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
             ../../../examples/qtmegachatapi/MainWindow.ui \
