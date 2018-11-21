@@ -1429,7 +1429,16 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-                mChatdClient.chats(chatid).onInCall(userid, clientid);
+                auto& chat = mChatdClient.chats(chatid);
+                if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                {
+                    chat.onInCall(userid, clientid);
+                }
+                else
+                {
+                    CHATDS_LOG_DEBUG("Skip command");
+                }
+
                 break;
             }
             case OP_ENDCALL:
@@ -1439,7 +1448,16 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-                mChatdClient.chats(chatid).onEndCall(userid, clientid);
+                auto& chat = mChatdClient.chats(chatid);
+                if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                {
+                    chat.onEndCall(userid, clientid);
+                }
+                else
+                {
+                    CHATDS_LOG_DEBUG("Skip command");
+                }
+
                 break;
             }
             case OP_CALLDATA:
@@ -1457,7 +1475,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);
-                    mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
+                    if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                    {
+                        mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
+                    }
+                    else
+                    {
+                        CHATDS_LOG_DEBUG("Skip command");
+                    }
                 }
 
                 pos += payloadLen;
@@ -1556,7 +1581,15 @@ void Connection::execCommand(const StaticBuffer& buf)
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
-                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                    {
+                        mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
+                    }
+                    else
+                    {
+                        CHATDS_LOG_DEBUG("Skip command");
+                    }
                 }
 #endif
                 break;

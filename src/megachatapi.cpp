@@ -764,6 +764,16 @@ bool MegaChatApi::hasCallInChatRoom(MegaChatHandle chatid)
     return pImpl->hasCallInChatRoom(chatid);
 }
 
+void MegaChatApi::enableGroupChatCalls(bool enable)
+{
+    pImpl->enableGroupChatCalls(enable);
+}
+
+bool MegaChatApi::areGroupChatCallEnabled()
+{
+    return pImpl->areGroupChatCallEnabled();
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

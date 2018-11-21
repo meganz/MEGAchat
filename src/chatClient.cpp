@@ -405,6 +405,16 @@ bool Client::isChatRoomOpened(Id chatid)
     return false;
 }
 
+bool Client::areGroupCallsEnabled()
+{
+    return mGroupCallsEnabled;
+}
+
+void Client::enableGroupCalls(bool enable)
+{
+    mGroupCallsEnabled = enable;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);

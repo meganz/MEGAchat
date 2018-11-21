@@ -3718,6 +3718,26 @@ public:
      */
     bool hasCallInChatRoom(MegaChatHandle chatid);
 
+    /**
+     * @brief Enable group chat calls
+     *
+     * If group calls are disabled, none notification of a call in a group chat room will be notify,
+     * but messages in the history about group calls will be visible
+     *
+     * @param enable True for enable group calls
+     */
+    void enableGroupChatCalls(bool enable);
+
+    /**
+     * @brief Returns true if group calls are enabled
+     *
+     * If group calls are disabled, none notification of a call in a group chat room will be notify,
+     * but messages in the history about group calls will be visible
+     *
+     * @return True if group calls are enabled
+     */
+    bool areGroupChatCallEnabled();
+
 #endif
 
     // Listeners
