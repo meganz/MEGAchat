@@ -627,6 +627,8 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         {
            oldPriv = itemController->getItem()->getOwnPrivilege();
         }
+
+        widget = itemController->getWidget();
     }
     itemController = addOrUpdateChatControllerItem(item->copy());
 
@@ -676,7 +678,6 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 
 bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
 {
-    //The chatroom has been left by own user
     if(newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CLOSED)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE)
