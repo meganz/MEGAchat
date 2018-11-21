@@ -1416,6 +1416,8 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
+    mLocalPlayer.reset();
+    mLocalStream.reset();
 
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
@@ -1470,8 +1472,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
 
         assert(mSessions.empty());
         stopIncallPingTimer();
-        mLocalPlayer.reset();
-        mLocalStream.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
