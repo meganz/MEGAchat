@@ -2063,7 +2063,14 @@ void Call::notifySessionConnected(Session& /*sess*/)
     if (mCallStartedSignalled)
         return;
 
-    sendCallData(mIsRingingOut ? CallDataState::kCallDataSessionKeepRinging : CallDataState::kCallDataSession);
+    if (mIsRingingOut && mChat.isGroup())
+    {
+        sendCallData(CallDataState::kCallDataSessionKeepRinging);
+    }
+    else
+    {
+        sendCallData(CallDataState::kCallDataSession);
+    }
 
     if (mCallSetupTimer)
     {
