@@ -1018,7 +1018,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
-            if (handler && handler->getCall())
+            if (handler && !chatroom->isGroup())
             {
                 API_LOG_ERROR("Start call - One call already exists for speficied chat id");
                 errorCode = MegaChatError::ERROR_EXIST;
