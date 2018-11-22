@@ -1430,15 +1430,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 auto& chat = mChatdClient.chats(chatid);
-                if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                // TODO: remove this block once the groucalls are fully supported by clients
+                if ((chat.isGroup() && !mChatdClient.karereClient->areGroupCallsEnabled()))
                 {
-                    chat.onInCall(userid, clientid);
+                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring INCALL command");
+                    break;
                 }
-                else
-                {
-                    CHATDS_LOG_DEBUG("Skip command");
-                }
-
+                chat.onInCall(userid, clientid);
                 break;
             }
             case OP_ENDCALL:
@@ -1449,43 +1447,38 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 auto& chat = mChatdClient.chats(chatid);
-                if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                // TODO: remove this block once the groucalls are fully supported by clients
+                if ((chat.isGroup() && !mChatdClient.karereClient->areGroupCallsEnabled()))
                 {
-                    chat.onEndCall(userid, clientid);
+                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring ENDCALL command");
+                    break;
                 }
-                else
-                {
-                    CHATDS_LOG_DEBUG("Skip command");
-                }
-
+                chat.onEndCall(userid, clientid);
                 break;
             }
             case OP_CALLDATA:
             {
                 READ_CHATID(0);
-                size_t cmdstart = pos - 9; //pos points after opcode
-                (void)cmdstart; //disable unused var warning if webrtc is disabled
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
-#ifndef KARERE_DISABLE_WEBRTC
+#ifndef KARERE_DISABLE_WEBRTC                
+                pos += payloadLen;  // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
+
                 if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
-                    auto& chat = mChatdClient.chats(chatid);
-                    if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                    auto& chat = mChatdClient.chats(chatid);                    
+                    // TODO: remove this block once the groucalls are fully supported by clients
+                    if ((chat.isGroup() && !mChatdClient.karereClient->areGroupCallsEnabled()))
                     {
-                        mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
+                        CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring CALLDATA command");
+                        break;
                     }
-                    else
-                    {
-                        CHATDS_LOG_DEBUG("Skip command");
-                    }
+                    mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
-
-                pos += payloadLen;
 #else
                 READ_ID(callid, 22);
                 READ_8(state, 30);
