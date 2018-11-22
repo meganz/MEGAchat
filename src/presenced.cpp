@@ -592,14 +592,14 @@ void Command::toString(char* buf, size_t bufsize) const
             Id sn = read<uint64_t>(1);
             uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
-            tmpString.append("SNADDPEERS - ");
+            tmpString.append("SNADDPEERS - scsn: ");
             tmpString.append(ID_CSTR(sn));
-            tmpString.append(" - NumPeers: ");
+            tmpString.append(" num_peers: ");
             tmpString.append(to_string(numPeers));
-            tmpString.append(" peer/s: ");
+            tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
             for (unsigned int i = 0; i < numPeers; i++)
             {
-                Id peerId = read<uint64_t>(5+i*8);
+                Id peerId = read<uint64_t>(13+i*8);
                 tmpString.append(ID_CSTR(peerId));
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
@@ -612,14 +612,14 @@ void Command::toString(char* buf, size_t bufsize) const
             Id sn = read<uint64_t>(1);
             uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
-            tmpString.append("SNDELPEERS - ");
+            tmpString.append("SNDELPEERS - scsn: ");
             tmpString.append(ID_CSTR(sn));
-            tmpString.append(" - NumPeers: ");
+            tmpString.append(" num_peers: ");
             tmpString.append(to_string(numPeers));
-            tmpString.append(" peer/s: ");
+            tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
             for (unsigned int i = 0; i < numPeers; i++)
             {
-                Id peerId = read<uint64_t>(5+i*8);
+                Id peerId = read<uint64_t>(13+i*8);
                 tmpString.append(ID_CSTR(peerId));
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
