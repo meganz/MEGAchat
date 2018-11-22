@@ -81,7 +81,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     {
         char *uh = mMainWin->mMegaApi->userHandleToBase64(lastMessageSender);
         senderHandle.assign(uh);
-        delete uh;
+        delete [] uh;
     }
 
     if (author)
@@ -129,7 +129,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             {
                 char *uh = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
                 targetName.assign(uh);
-                delete uh;
+                delete [] uh;
             }
 
             bool removed = item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM;
@@ -152,7 +152,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                 char *uh = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
                 targetName.assign(uh);
                 priv.assign(megachat::MegaChatRoom::privToString(item->getLastMessagePriv()));
-                delete uh;
+                delete [] uh;
             }
             lastMessage.append("User ").append(senderHandle)
                        .append(" set privilege of user ").append(targetName)
@@ -224,7 +224,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             .append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str())
             .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
             .append(tr("\nLast ts: ")).append(lastTs);
-        delete peerHandle_64;
+        delete [] peerHandle_64;
     }
     else
     {
@@ -255,8 +255,8 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                         .arg(QString::fromStdString(peerId_64))
                         .arg(QString(chatRoom->privToString(peerPriv)));
                 text.append(line);
-                delete peerName;
-                delete peerId_64;
+                delete [] peerName;
+                delete [] peerId_64;
             }
             text.resize(text.size()-1);
         }
@@ -268,8 +268,8 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     }
     setToolTip(text);
     delete chatRoom;
-    delete chatId_64;
-    delete auxLastMessageId_64;
+    delete [] chatId_64;
+    delete [] auxLastMessageId_64;
 }
 
 const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle msgUserId)

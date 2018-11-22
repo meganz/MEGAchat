@@ -876,7 +876,7 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
     msgBox->setText(str.c_str());
     msgBox->setModal(false);
     msgBox->show();
-    delete firstname;
+    delete [] firstname;
 }
 
 void MainWindow::setNContacts(int nContacts)

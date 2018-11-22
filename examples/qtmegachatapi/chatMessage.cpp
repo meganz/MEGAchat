@@ -69,8 +69,8 @@ void ChatMessage::updateToolTip()
             .append(tr("\nuserid: "))
             .append(QString::fromStdString(auxUserId_64));
     ui->mHeader->setToolTip(tooltip);
-    delete auxMsgId_64;
-    delete auxUserId_64;
+    delete [] auxMsgId_64;
+    delete [] auxUserId_64;
 }
 
 void ChatMessage::showRichLinkData()
@@ -158,7 +158,7 @@ void ChatMessage::updateContent()
                     .append("\nSize: ")
                     .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
                     .append(" bytes");
-                    delete auxNodeHandle_64;
+                    delete [] auxNodeHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
@@ -183,7 +183,7 @@ void ChatMessage::updateContent()
                   .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
                   .append(mMessage->getUserEmail(i));
-                  delete auxUserHandle_64;
+                  delete [] auxUserHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");
@@ -308,7 +308,7 @@ std::string ChatMessage::managementInfoToString() const
         {
             char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
             ret.append(participant_64).append(" ");
-            delete participant_64;
+            delete [] participant_64;
         }
 
         ret.append("\nDuration: ")
@@ -322,8 +322,8 @@ std::string ChatMessage::managementInfoToString() const
            .append(std::to_string(mMessage->getType()));
         return ret;
     }
-    delete userHandle_64;
-    delete actionHandle_64;
+    delete [] userHandle_64;
+    delete [] actionHandle_64;
 }
 
 void ChatMessage::setTimestamp(int64_t ts)

@@ -177,8 +177,8 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     log.append(msgid);
     mLogger->postLog(log.c_str());
 
-    delete chat;
-    delete msgid;
+    delete [] chat;
+    delete [] msgid;
 }
 
 const char *MegaChatApplication::getFirstname(MegaChatHandle uh)

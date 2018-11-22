@@ -103,8 +103,8 @@ void ContactItemWidget::updateToolTip(::mega::MegaUser *contact)
         .append(tr("\nChat handle: ")).append((chatHandle_64));
 
    setToolTip(text);
-   delete contactHandle_64;
-   delete auxChatHandle_64;
+   delete [] contactHandle_64;
+   delete [] auxChatHandle_64;
 }
 
 void ContactItemWidget::onCreateGroupChat()
