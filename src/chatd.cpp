@@ -3835,20 +3835,19 @@ void Chat::onUserLeave(Id userid)
     if (userid == client().userId())
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
+
 #ifndef KARERE_DISABLE_WEBRTC
         mClient.mRtcHandler->onKickedFromChatRoom(mChatId);
-#endif
     }
-#ifndef KARERE_DISABLE_WEBRTC
     else
     {
-        uint32_t clientid = 0;
-        if (mClient.mRtcHandler->getClientidFromPeer(mChatId, userid, clientid))
+        uint32_t clientid = mClient.mRtcHandler->clientidFromPeer(mChatId, userid);
+        if (clientid)
         {
             onEndCall(userid, clientid);
         }
-    }
 #endif
+    }
 
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)

@@ -761,15 +761,15 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
     }
 }
 
-bool RtcModule::getClientidFromPeer(karere::Id chatid, Id userid, uint32_t &clientid)
+uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
 {
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
     {
-        return callIt->second->getClientidFromSession(userid, clientid);
+        return callIt->second->clientidFromSession(userid);
     }
 
-    return false;
+    return 0;
 }
 
 void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, Id callid, AvFlags avFlagsRemote)
@@ -2137,18 +2137,17 @@ void Call::sendBusy(bool isCallToSameUser)
     cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, isCallToSameUser ? TermCode::kErrAlready : TermCode::kBusy);
 }
 
-bool Call::getClientidFromSession(Id userid, uint32_t &clientid)
+uint32_t Call::clientidFromSession(Id userid)
 {
     for (auto& item: mSessions)
     {
         if (item.second->peer() == userid)
         {
-            clientid = item.second->peerClient();
-            return true;
+            return item.second->peerClient();
         }
     }
 
-    return false;
+    return 0;
 }
 
 AvFlags Call::sentAv() const

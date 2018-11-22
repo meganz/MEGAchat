@@ -216,7 +216,7 @@ public:
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
     void sendBusy(bool isCallToSameUser);
-    bool getClientidFromSession(karere::Id userid, uint32_t &clientid);
+    uint32_t clientidFromSession(karere::Id userid);
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -256,7 +256,7 @@ public:
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void handleCallTime(karere::Id chatid, uint32_t duration);
     virtual void onKickedFromChatRoom(karere::Id chatid);
-    virtual bool getClientidFromPeer(karere::Id chatid, karere::Id userid, uint32_t &clientid);
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
