@@ -25,7 +25,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     mMegaChatApi = megaChatApi;
     mMegaApi = megaApi;
     onlineStatus = NULL;
-    mShowInactive = false;
     mShowArchived = false;
     mLogger = logger;
     mChatSettings = new ChatSettings();
@@ -289,32 +288,18 @@ void MainWindow::reorderAppChatList()
         addChatsBystatus(chatArchivedStatus);
     }
 
-    //Add inactive chats
-    if(mShowInactive)
-    {
-        addChatsBystatus(chatInactiveStatus);
-    }
-
-    //Add active chats
-    addChatsBystatus(chatActiveStatus);
+    //Add active/inactive chats
+    addChatsBystatus(chatNotArchivedStatus);
 
     //Prepare tag to indicate chatrooms shown
     QString text;
-    if (mShowArchived && mShowInactive)
+    if (mShowArchived)
     {
         text.append(" Showing <all> chatrooms");
     }
-    else if (mShowArchived)
-    {
-        text.append(" Showing <active+archived> chatrooms");
-    }
-    else if (mShowInactive)
-    {
-        text.append(" Showing <active+inactive> chatrooms");
-    }
     else
     {
-        text.append(" Showing <active> chatrooms");
+        text.append(" Showing <active+inactive> chatrooms");
     }
     ui->mOnlineStatusDisplay->setText(text);
 }
@@ -382,13 +367,6 @@ void MainWindow::on_bSettings_clicked()
     QMenu menu(this);
 
     menu.setAttribute(Qt::WA_DeleteOnClose);
-
-    auto actInactive = menu.addAction(tr("Show inactive chats"));
-    connect(actInactive, SIGNAL(triggered()), this, SLOT(onShowInactiveChats()));
-    actInactive->setCheckable(true);
-    actInactive->setChecked(mShowInactive);
-    // TODO: adjust with new flags in chat-links branch
-
     auto actArchived = menu.addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
     actArchived->setCheckable(true);
@@ -505,12 +483,6 @@ void MainWindow::on_bOnlineStatus_clicked()
         "}");
     onlineStatus->exec(mapToGlobal(pos));
     onlineStatus->deleteLater();
-}
-
-void MainWindow::onShowInactiveChats()
-{
-    mShowInactive = !mShowInactive;
-    reorderAppChatList();
 }
 
 void MainWindow::onAddGroupChat()
@@ -677,7 +649,7 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT)
-         || (newItem->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM && mShowInactive)
+         || (newItem->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)
          || ((oldPriv == megachat::MegaChatRoom::PRIV_RM)
              &&(newItem->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RM)))
     {
@@ -973,15 +945,8 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
         assert(item);
         switch (status)
         {
-            case chatActiveStatus:
-                if (item->isActive() && !item->isArchived())
-                {
-                    chatList->push_back(Chat(item));
-                }
-                break;
-
-            case chatInactiveStatus:
-                if (!item->isActive() && !item->isArchived())
+            case chatNotArchivedStatus:
+                if (!item->isArchived())
                 {
                     chatList->push_back(Chat(item));
                 }

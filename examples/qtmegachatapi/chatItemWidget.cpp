@@ -20,11 +20,16 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
 
+    QString text = NULL;
     if (item->isArchived())
     {
-        QString text = NULL;
         text.append(item->getTitle())
-        .append(" [A]");
+        .append("[A]");
+
+        if (!item->isActive())
+        {
+            text.append("[H]");
+        }
         ui->mName->setText(text);
         ui->mName->setStyleSheet("color:#DEF0FC;");
         ui->mAvatar->setStyleSheet("color:#DEF0FC;");
@@ -33,7 +38,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
     {
         if (!item->isActive())
         {
-            QString text = NULL;
             text.append(item->getTitle())
             .append(" [H]");
             ui->mName->setText(text);
@@ -44,6 +48,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
         {
             ui->mName->setText(item->getTitle());
             ui->mName->setStyleSheet("color:#FFFFFF; font-weight:bold;");
+            ui->mAvatar->setStyleSheet("color:#FFFFFF; font-weight:bold;");
         }
     }
 

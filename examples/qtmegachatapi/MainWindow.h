@@ -15,9 +15,8 @@
 #include "listItemController.h"
 #include "chatWindow.h"
 
-const int chatActiveStatus   = 0;
-const int chatInactiveStatus = 1;
-const int chatArchivedStatus = 2;
+const int chatNotArchivedStatus = 0;
+const int chatArchivedStatus = 1;
 class MegaChatApplication;
 class ContactListItemController;
 class ChatListItemController;
@@ -161,7 +160,6 @@ class MainWindow :
     protected:
         MegaLoggerApplication *mLogger;
         Ui::MainWindow *ui;
-        bool mShowInactive = false;
         bool mShowArchived = false;
         int activeChats;
         int archivedChats;
@@ -190,7 +188,6 @@ class MainWindow :
         void onAddChatGroup();
         void onWebRTCsetting();
         void setOnlineStatus();
-        void onShowInactiveChats();
         void onShowArchivedChats();
         void onAddGroupChat();
         void onTwoFactorGetCode();
