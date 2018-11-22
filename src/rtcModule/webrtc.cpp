@@ -1903,10 +1903,16 @@ void Call::monitorCallSetupTimeout()
             if (wptr.deleted())
                 return;
 
-            if (mState == kStateInProgress)
+            mCallSetupTimer = 0;
+
+            if (mState != kStateInProgress)
             {
-                hangup(TermCode::kErrCallSetupTimeout);
+                RTCM_LOG_WARNING("Timeout expired to setup a call, but state is %s", stateStr());
+                return;
             }
+
+            RTCM_LOG_ERROR("Timeout expired to setup a call");
+            hangup(TermCode::kErrCallSetupTimeout);
 
         }, RtcModule::kCallSetupTimeout, mManager.mClient.appCtx);
     }
@@ -2326,11 +2332,20 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
 
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
-    mSetupTimer = setTimeout([wptr, this] {
-        if (wptr.deleted() || mState >= kStateInProgress)
+    mSetupTimer = setTimeout([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        mSetupTimer = 0;
+
+        if (mState >= kStateInProgress)
         {
+            SUB_LOG_WARNING("Timeout expired to setup a session, but session is at state %s", stateStr());
             return;
         }
+
+        SUB_LOG_WARNING("Timeout expired to setup a session");
 
         TermCode terminationCode = TermCode::kErrSessSetupTimeout;
         if (mRtcConn && mRtcConn->ice_connection_state() == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionChecking)
@@ -2339,15 +2354,16 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
         }
 
         terminateAndDestroy(terminationCode);
+
     }, RtcModule::kSessSetupTimeout, call.mManager.mClient.appCtx);
 }
 
 void Session::setState(uint8_t newState)
 {
-    auto oldState = mState;
-    if (oldState == newState)
+    if (mState == newState)
         return;
 
+    auto oldState = mState;
     sStateDesc.assertStateChange(oldState, newState);
     mState = newState;
     SUB_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
