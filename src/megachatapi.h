@@ -3719,22 +3719,28 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
 
     /**
-     * @brief Enable group chat calls
+     * @brief Enable/disable groupcalls
      *
-     * If group calls are disabled, none notification of a call in a group chat room will be notify,
-     * but messages in the history about group calls will be visible
+     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
+     * in the history about group calls will be visible since the call takes place anyway.
      *
-     * @param enable True for enable group calls
+     * By default, groupcalls are disabled.
+     *
+     * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
+     *
+     * @param enable True for enable group calls. False to disable them.
      */
     void enableGroupChatCalls(bool enable);
 
     /**
-     * @brief Returns true if group calls are enabled
+     * @brief Returns true if groupcalls are enabled
      *
-     * If group calls are disabled, none notification of a call in a group chat room will be notify,
-     * but messages in the history about group calls will be visible
+     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
+     * in the history about group calls will be visible.
      *
-     * @return True if group calls are enabled
+     * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
+     *
+     * @return True if group calls are enabled. Otherwise, false.
      */
     bool areGroupChatCallEnabled();
 
