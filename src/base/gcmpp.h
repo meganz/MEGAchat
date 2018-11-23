@@ -34,19 +34,11 @@ static inline void marshallCall(F&& func, void *appCtx)
 // Although an exception should not happen here and will propagate to the
 // application's message/event loop. TODO: maybe provide a try/catch block here?
 // Asses the performence impact of this
-// We use a custom-tailored smart ptr here to gain some performance (i.e. destructor
-// always deletes, no null check needed)
-    struct AutoDel
-    {
-        Msg* mMsg;
-        AutoDel(Msg* aMsg): mMsg(aMsg){}
-        ~AutoDel() { delete this->mMsg; }
-        Msg* operator->() { return this->mMsg; }
-    };
-    Msg* msg = new Msg(std::forward<F>(func),
+    // should be std::make_unique<Msg>(std::forward<F>(func) but requires c++14
+    auto msg = std::unique_ptr<Msg>(new Msg{ std::forward<F>(func),
     [](void* ptr)
     {
-        AutoDel pMsg(static_cast<Msg*>(ptr));
+        std::unique_ptr<Msg> pMsg(static_cast<Msg*>(ptr));
         assert(pMsg->magic == 0x3e9a3591);
         if (!gCatchException)
         {
@@ -63,8 +55,9 @@ static inline void marshallCall(F&& func, void *appCtx)
                 KR_LOG_ERROR("ERROR: Exception in a marshalled call: %s\n", e.what());
             }
         }
-    });
-    megaPostMessageToGui(static_cast<void*>(msg), appCtx);
+    }});
+    megaPostMessageToGui(static_cast<void*>(msg.get()), appCtx);
+    msg.release();
 }
 
 }
