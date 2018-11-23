@@ -771,8 +771,10 @@ void MegaChatApiImpl::sendPendingRequests()
             handle chatid = request->getChatHandle();
             MegaNodeList *nodeList = request->getMegaNodeList();
             handle h = request->getUserHandle();
-            if (chatid == MEGACHAT_INVALID_HANDLE ||
-                    ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
+            bool isVoiceMessage = (request->getParamType() == 1);
+            if (chatid == MEGACHAT_INVALID_HANDLE
+                    || ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE))
+                    || (isVoiceMessage && h == MEGACHAT_INVALID_HANDLE))
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -812,58 +814,63 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            ::promise::Promise<void> promise = chatroom->requesGrantAccessToNodes(nodeList);
-
-            ::promise::when(promise)
-            .then([this, request, buffer]()
+            uint8_t msgType = Message::kMsgInvalid;
+            switch (request->getParamType())
             {
-                bool isVoiceMessage = request->getFlag();
-                int errorCode = MegaChatError::ERROR_OK;
+                case 0: // regular attachment
+                    msgType = Message::kMsgAttachment;
+                    break;
+
+                case 1:  // voice-message
+                    msgType = Message::kMsgVoiceClip;
+                    break;
+            }
+            if (msgType == Message::kMsgInvalid)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            chatroom->requesGrantAccessToNodes(nodeList)
+            .then([this, request, buffer, msgType]()
+            {
+                int errorCode = MegaChatError::ERROR_ARGS;
                 std::string stringToSend(buffer);
+                delete [] buffer;
 
-                MegaChatMessage *msg = NULL;
-
-                if (isVoiceMessage)
+                MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle(), msgType);
+                if (msg)
                 {
-                    msg = prepareVoiceClipNodesMessage(stringToSend, request->getChatHandle());
+                    request->setMegaChatMessage(msg);
+                    errorCode = MegaChatError::ERROR_OK;
                 }
-                else
-                {
-                    msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
-                }
-
-                if (!msg)
-                {
-                    errorCode = MegaChatError::ERROR_ARGS;
-                }
-                request->setMegaChatMessage(msg);
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-                delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([this, request, buffer](const ::promise::Error& err)
+            .fail([this, request, buffer, msgType](const ::promise::Error& err)
             {
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
-                    int errorCode = MegaChatError::ERROR_OK;
                     API_LOG_WARNING("Already granted access to this node previously");
+
+                    int errorCode = MegaChatError::ERROR_ARGS;
                     std::string stringToSend(buffer);
 
-                    MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
-                    if (!msg)
+                    MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle(), msgType);
+                    if (msg)
                     {
-                        errorCode = MegaChatError::ERROR_ARGS;
+                        request->setMegaChatMessage(msg);
+                        errorCode = MegaChatError::ERROR_OK;
                     }
-                    request->setMegaChatMessage(msg);
 
                     megaChatError = new MegaChatErrorPrivate(errorCode);
                 }
                 else
                 {
                     megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    API_LOG_ERROR("Failed to grant access to some node");
+                    API_LOG_ERROR("Failed to grant access to some nodes");
                 }
 
                 delete [] buffer;
@@ -2833,7 +2840,7 @@ void MegaChatApiImpl::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle n
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(nodehandle);
-    request->setFlag(true);
+    request->setParamType(1);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -3712,26 +3719,14 @@ int MegaChatApiImpl::convertChatConnectionState(ChatState state)
     return state;
 }
 
-MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid)
+MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid, uint8_t type)
 {
     ChatRoom *chatroom = findChatRoom(chatid);
 
-    buffer.insert(buffer.begin(), Message::kMsgAttachment - Message::kMsgOffset);
+    buffer.insert(buffer.begin(), type - Message::kMsgOffset);
     buffer.insert(buffer.begin(), 0x0);
 
-    Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
-    MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
-    return megaMsg;
-}
-
-MegaChatMessage *MegaChatApiImpl::prepareVoiceClipNodesMessage(std::string buffer, MegaChatHandle chatid)
-{
-    ChatRoom *chatroom = findChatRoom(chatid);
-
-    buffer.insert(buffer.begin(), Message::kMsgVoiceClip - Message::kMsgOffset);
-    buffer.insert(buffer.begin(), 0x0);
-
-    Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgVoiceClip, NULL);
+    Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), type, NULL);
     MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
     return megaMsg;
 }
@@ -7406,9 +7401,10 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
 
             break;
         }
+        case MegaChatMessage::TYPE_VOICE_CLIP:  // fall-through
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            // Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment
+            // Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgAttachment/kMsgVoiceClip
             std::string messageAttach = content;
             messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
 
@@ -7426,7 +7422,6 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             }
 
             delete megaNodeList;
-
             break;
         }
         case MegaChatMessage::TYPE_CONTAINS_META:
@@ -7440,21 +7435,6 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             }
 
             delete containsMeta;
-            break;
-        }
-        case MegaChatMessage::TYPE_VOICE_CLIP:
-        {
-            // Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgVoiceClip
-            std::string messageAttach = content;
-            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
-
-            MegaNodeList *megaNodeList = JSonUtils::parseAttachNodeJSon(messageAttach.c_str());
-            if (megaNodeList && megaNodeList->size() > 0)
-            {
-                messageContents.append("voice-clip");
-            }
-
-            delete megaNodeList;
             break;
         }
         default:

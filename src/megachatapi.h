@@ -909,6 +909,7 @@ public:
      *  - TYPE_ATTACHMENT: User message including info about a shared node
      *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
      *  - TYPE_CONTACT: User message including info about a contact
+     *  - TYPE_VOICE_CLIP: User messages incluiding info about a node that represents a voice-clip
      *  - TYPE_UNKNOWN: Unknown message, should be ignored/hidden. The MegaChatMessage::getCode can take the following values:
      *      * INVALID_TYPE
      *      * INVALID_KEYID
@@ -3079,34 +3080,38 @@ public:
      */
      void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
 
-     /**
-      * @brief Sends a voice clip to the specified chatroom
-      *
-      * The voice clip message includes information about it, so the receiver can reproduce it.
-      *
-      * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
-      * Valid data in the MegaChatRequest object received on callbacks:
-      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-      * - MegaChatRequest::getUserHandle - Returns the handle of the node
-      * - MegaChatRequest::getFlag - Returns true to identify that the attachment is a voice clip.
-      *
-      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-      * is MegaError::ERROR_OK:
-      * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
-      *
-      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-      * At this point, the app should refresh the message identified by the temporal id and move it to
-      * the final position in the history, based on the reported index in the callback.
-      *
-      * If the message is rejected by the server, the message will keep its temporal id and will have its
-      * a message id set to MEGACHAT_INVALID_HANDLE.
-      *
-      * @param chatid MegaChatHandle that identifies the chat room
-      * @param nodehandle Handle of the voice clip node that the user wants to attach
-      * @param listener MegaChatRequestListener to track this request
-      */
-     void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+    /**
+     * @brief Sends a node that contains a voice message to the specified chatroom
+     *
+     * The voice clip message includes information about the node, so the receiver can reproduce it online.
+     *
+     * In contrast to other functions to send messages, such as MegaChatApi::sendMessage or
+     * MegaChatApi::attachContacts, this function is asynchronous and does not return a MegaChatMessage
+     * directly. Instead, the MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     * - MegaChatRequest::getParamType - Returns 1 (to identify the attachment as a voice message)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodehandle Handle of the node that the user wants to attach
+     * @param listener MegaChatRequestListener to track this request
+    */
+    void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Revoke the access to a node granted by an attachment message
@@ -3931,6 +3936,7 @@ public:
      *  - MegaChatMessage::TYPE_ATTACHMENT: filenames of the attached nodes (separated by ASCII character '0x01')
      *  - MegaChatMessage::TYPE_CONTACT: usernames of the attached contacts (separated by ASCII character '0x01')
      *  - MegaChatMessage::TYPE_CONTAINS_META: original content of the messsage
+     *  - MegaChatMessage::TYPE_VOICE_CLIP: filename of the attached node
      *  - MegaChatMessage::TYPE_CHAT_TITLE: new title
      *  - MegaChatMessage::TYPE_TRUNCATE: empty string
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
@@ -3973,6 +3979,8 @@ public:
      *  - MegaChatMessage::TYPE_NORMAL: for regular text messages
      *  - MegaChatMessage::TYPE_ATTACHMENT: for messages sharing a node
      *  - MegaChatMessage::TYPE_CONTACT: for messages sharing a contact
+     *  - MegaChatMessage::TYPE_CONTAINS_META: for messages with meta-data
+     *  - MegaChatMessage::TYPE_VOICE_CLIP: for voice-clips
      *  - 0xFF when it's still fetching from server (for the public API)
      *
      * @return The type of the last message

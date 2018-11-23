@@ -857,8 +857,7 @@ private:
 
     static int convertInitState(int state);
 
-    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid);
-    MegaChatMessage *prepareVoiceClipNodesMessage(std::string buffer, MegaChatHandle chatid);
+    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid, uint8_t type);
 
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
