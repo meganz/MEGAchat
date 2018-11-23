@@ -912,13 +912,8 @@ void ChatWindow::on_mAttachBtn_clicked()
 void ChatWindow::onAttachNode(bool isVoiceClip)
 {
     QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
-
     if (node.isEmpty())
        return;
-
-    QStringList nodeParsed = node.split( "/" );
-    QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
-    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
 
     mUploadDlg = new QMessageBox;
     mUploadDlg->setWindowTitle((tr("Uploading file...")));
@@ -929,13 +924,15 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     mUploadDlg->show();
     connect(mUploadDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelTransfer(QAbstractButton*)));
 
+    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
+
     if (isVoiceClip)
     {
-        mMegaApi->startUploadWithData(node.toStdString().c_str(), parent, "vm", false);
+        mMegaApi->startUploadWithData(node.toStdString().c_str(), parent, "vm");
     }
     else
     {
-        mMegaApi->startUpload(node.toStdString().c_str(), parent, nodeName.toStdString().c_str());
+        mMegaApi->startUpload(node.toStdString().c_str(), parent);
     }
 
     delete parent;

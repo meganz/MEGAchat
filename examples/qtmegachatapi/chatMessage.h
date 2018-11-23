@@ -15,7 +15,10 @@ class ChatMessageWidget;
 class ChatMessage: public QWidget
 {
     Q_OBJECT
-    protected:
+private:
+    QString nodelistText();
+
+protected:
         Ui::ChatMessageWidget *ui;
         megachat::MegaChatHandle mChatId;
         megachat::MegaChatMessage *mMessage = NULL;
