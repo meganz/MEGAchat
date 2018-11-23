@@ -266,6 +266,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAHandleList *)chatCalls;
 - (MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
+- (void)enableGroupChatCalls:(BOOL)enable;
+- (BOOL)areGroupChatCallEnabled;
 
 #endif
 

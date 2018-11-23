@@ -866,6 +866,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
 }
 
+- (void)enableGroupChatCalls:(BOOL)enable {
+    self.megaChatApi->enableGroupChatCalls(enable);
+}
+
+- (BOOL)areGroupChatCallEnabled {
+    return self.megaChatApi->areGroupChatCallEnabled();
+}
+
 #endif
 
 #pragma mark - Debug log messages

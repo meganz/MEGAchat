@@ -1018,9 +1018,10 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
-            if (handler && handler->getCall())
+            if (handler && (handler->getCall() || !chatroom->isGroup()))
             {
-                API_LOG_ERROR("Start call - One call already exists for speficied chat id");
+                // only groupchats allow to join the call in multiple clients, in 1on1 it's not allowed
+                API_LOG_ERROR("A call exists in this chatroom and we already participate or it's not a groupchat");
                 errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
@@ -3281,6 +3282,39 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
     sdkMutex.lock();
     callListeners.insert(listener);
     sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::enableGroupChatCalls(bool enable)
+{
+    sdkMutex.lock();
+    if (mClient)
+    {
+        mClient->enableGroupCalls(enable);
+    }
+    else
+    {
+        API_LOG_ERROR("MegaChatApiImpl::enableGroupChatCalls - Client is not initialized");
+        assert(false);
+    }
+    sdkMutex.unlock();
+}
+
+bool MegaChatApiImpl::areGroupChatCallEnabled()
+{
+    sdkMutex.lock();
+    bool enabledGroupCalls = false;
+    if (mClient)
+    {
+        enabledGroupCalls = mClient->areGroupCallsEnabled();
+    }
+    else
+    {
+        API_LOG_ERROR("MegaChatApiImpl::areGroupChatCallEnabled - Client is not initialized");
+    }
+
+    sdkMutex.unlock();
+
+    return enabledGroupCalls;
 }
 
 #endif
@@ -6874,12 +6908,6 @@ void MegaChatCallHandler::addParticipant(Id userid, uint32_t clientid, AvFlags f
     if (chatCall)
     {
         bool notify = chatCall->addOrUpdateParticipant(userid, clientid, flags);
-
-        if (chatCall->getNumParticipants() == 2 && !chatCall->getInitialTimeStamp())
-        {
-            chatCall->setInitialTimeStamp(time(NULL));
-        }
-
         if (notify)
         {
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -6945,6 +6973,21 @@ void MegaChatCallHandler::setCallId(karere::Id callid)
     {
         megaChatApi->fireOnChatCallUpdate(chatCall);
     }
+}
+
+void MegaChatCallHandler::setInitialTimeStamp(int64_t timeStamp)
+{
+    assert(chatCall);
+    if (!chatCall->getInitialTimeStamp())
+    {
+        chatCall->setInitialTimeStamp(timeStamp);
+    }
+}
+
+int64_t MegaChatCallHandler::getInitialTimeStamp()
+{
+    assert(chatCall);
+    return chatCall->getInitialTimeStamp();
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()

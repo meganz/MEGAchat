@@ -1429,7 +1429,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-                mChatdClient.chats(chatid).onInCall(userid, clientid);
+                auto& chat = mChatdClient.chats(chatid);
+                // TODO: remove this block once the groucalls are fully supported by clients
+                if ((chat.isGroup() && !mChatdClient.karereClient->areGroupCallsEnabled()))
+                {
+                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring INCALL command");
+                    break;
+                }
+                chat.onInCall(userid, clientid);
                 break;
             }
             case OP_ENDCALL:
@@ -1439,28 +1446,39 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-                mChatdClient.chats(chatid).onEndCall(userid, clientid);
+                auto& chat = mChatdClient.chats(chatid);
+                // TODO: remove this block once the groucalls are fully supported by clients
+                if ((chat.isGroup() && !mChatdClient.karereClient->areGroupCallsEnabled()))
+                {
+                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring ENDCALL command");
+                    break;
+                }
+                chat.onEndCall(userid, clientid);
                 break;
             }
             case OP_CALLDATA:
             {
                 READ_CHATID(0);
-                size_t cmdstart = pos - 9; //pos points after opcode
-                (void)cmdstart; //disable unused var warning if webrtc is disabled
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
-#ifndef KARERE_DISABLE_WEBRTC
+#ifndef KARERE_DISABLE_WEBRTC                
+                pos += payloadLen;  // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
+
                 if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
-                    auto& chat = mChatdClient.chats(chatid);
+                    auto& chat = mChatdClient.chats(chatid);                    
+                    // TODO: remove this block once the groucalls are fully supported by clients
+                    if ((chat.isGroup() && !mChatdClient.karereClient->areGroupCallsEnabled()))
+                    {
+                        CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring CALLDATA command");
+                        break;
+                    }
                     mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
-
-                pos += payloadLen;
 #else
                 READ_ID(callid, 22);
                 READ_8(state, 30);
@@ -1556,7 +1574,15 @@ void Connection::execCommand(const StaticBuffer& buf)
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
-                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (!chat.isGroup() || (chat.isGroup() && mChatdClient.karereClient->areGroupCallsEnabled()))
+                    {
+                        mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
+                    }
+                    else
+                    {
+                        CHATDS_LOG_DEBUG("Skip command");
+                    }
                 }
 #endif
                 break;
@@ -3809,7 +3835,28 @@ void Chat::onUserLeave(Id userid)
     if (userid == client().userId())
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
+
+#ifndef KARERE_DISABLE_WEBRTC
+        if (mClient.mRtcHandler)
+        {
+            mClient.mRtcHandler->onKickedFromChatRoom(mChatId);
+        }
     }
+    else
+    {
+        if (mClient.mRtcHandler)
+        {
+            // the call will usually be terminated by the kicked user, but just in case
+            // the client doesn't do it properly, we notify the user left the call
+            uint32_t clientid = mClient.mRtcHandler->clientidFromPeer(mChatId, userid);
+            if (clientid)
+            {
+                onEndCall(userid, clientid);
+            }
+        }
+#endif
+    }
+
 
     if (mOnlineState == kChatStateOnline || !mIsFirstJoin)
     {

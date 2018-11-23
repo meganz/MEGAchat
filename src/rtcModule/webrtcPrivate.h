@@ -116,11 +116,12 @@ class Call: public ICall
 {
     enum CallDataState
     {
-        kCallDataNotRinging     = 0,
-        kCallDataRinging        = 1,
-        kCallDataEnd            = 2,
-        kCallDataSession        = 3,
-        kCallDataMute           = 4
+        kCallDataNotRinging             = 0,
+        kCallDataRinging                = 1,
+        kCallDataEnd                    = 2,
+        kCallDataSession                = 3,
+        kCallDataMute                   = 4,
+        kCallDataSessionKeepRinging     = 5
     };
 
     enum
@@ -136,7 +137,7 @@ protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
-    std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
+    std::map<chatd::EndpointId, int> mIceFails;
     std::map<chatd::EndpointId, std::pair<karere::Id, SdpKey> > mSentSessions;
     std::string mName;
     megaHandle mCallOutTimer = 0;
@@ -150,7 +151,10 @@ protected:
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
     megaHandle mStatsTimer = 0;
+    megaHandle mCallSetupTimer = 0;
     bool mNotSupportedAnswer = false;
+    bool mIsRingingOut = false;
+    bool mHadRingAck = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgCallTerminate(RtMessage& packet);
@@ -195,6 +199,7 @@ protected:
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
     bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
+    void monitorCallSetupTimeout();
     friend class RtcModule;
     friend class Session;
 public:
@@ -211,6 +216,7 @@ public:
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
     void sendBusy(bool isCallToSameUser);
+    uint32_t clientidFromSession(karere::Id userid);
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -219,10 +225,10 @@ public:
     enum {
         kApiTimeout = 20000,
         kCallAnswerTimeout = 40000,
-        kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 30000
+        kSessSetupTimeout = 14000,
+        kCallSetupTimeout = 30000
     };
 
     enum Resolution
@@ -236,6 +242,8 @@ public:
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);
+    void addIceServers(const karere::ServerList& servers);
+    webrtc::PeerConnectionInterface::IceServer createIceServer(const karere::TurnServerInfo &serverInfo);
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd
@@ -247,6 +255,8 @@ public:
     virtual void stopCallsTimers(int shard);
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void handleCallTime(karere::Id chatid, uint32_t duration);
+    virtual void onKickedFromChatRoom(karere::Id chatid);
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;

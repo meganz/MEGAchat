@@ -102,7 +102,7 @@ void RtcModule::init()
         KR_LOG_ERROR("Gelb failed with error '%s', using static server list", err.what());
     });
 
-    mClient.mChatdClient->setRtcHandler(this);
+    mKarereClient.mChatdClient->setRtcHandler(this);
 }
 
 IRtcModule* create(karere::Client &client, IGlobalHandler &handler, IRtcCrypto* crypto, const char* iceServers)
@@ -242,25 +242,57 @@ int RtcModule::setIceServers(const ServerList &servers)
     webrtc::PeerConnectionInterface::IceServers rtcServers;
     for (auto& server: servers)
     {
-        webrtc::PeerConnectionInterface::IceServer rtcServer;
-        rtcServer.uri = server->url;        
-
-        if (!server->user.empty())
-            rtcServer.username = server->user;
-        else
-            rtcServer.username = KARERE_TURN_USERNAME;
-
-        if (!server->pass.empty())
-            rtcServer.password = server->pass;
-        else
-            rtcServer.password = KARERE_TURN_PASSWORD;
-
-        KR_LOG_DEBUG("Adding ICE server: '%s'", rtcServer.uri.c_str());
+        webrtc::PeerConnectionInterface::IceServer rtcServer = createIceServer(*server);
+        KR_LOG_DEBUG("setIceServers::Adding ICE server: '%s'", rtcServer.uri.c_str());
         rtcServers.push_back(rtcServer);
     }
 
     mIceServers.swap(rtcServers);
     return (int)(mIceServers.size());
+}
+
+void RtcModule::addIceServers(const ServerList &servers)
+{
+    if (servers.empty())
+        return;
+
+    for (auto& server: servers)
+    {
+        bool serverFound = false;
+        for (unsigned int i = 0; i < mIceServers.size(); i++)
+        {
+            if (mIceServers[i].uri == server->url)
+            {
+                serverFound = true;
+                break;
+            }
+        }
+
+        if (!serverFound)
+        {
+            webrtc::PeerConnectionInterface::IceServer rtcServer = createIceServer(*server);
+            KR_LOG_DEBUG("addIceServers::Adding ICE server: '%s'", rtcServer.uri.c_str());
+            mIceServers.push_back(rtcServer);
+        }
+    }
+}
+
+webrtc::PeerConnectionInterface::IceServer RtcModule::createIceServer(const TurnServerInfo &serverInfo)
+{
+    webrtc::PeerConnectionInterface::IceServer rtcServer;
+    rtcServer.uri = serverInfo.url;
+
+    if (!serverInfo.user.empty())
+        rtcServer.username = serverInfo.user;
+    else
+        rtcServer.username = KARERE_TURN_USERNAME;
+
+    if (!serverInfo.pass.empty())
+        rtcServer.password = serverInfo.pass;
+    else
+        rtcServer.password = KARERE_TURN_PASSWORD;
+
+    return rtcServer;
 }
 
 void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
@@ -293,6 +325,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
+    RTCM_LOG_DEBUG("Handle CALLDATA: callid -> %s - state -> %d", callid.toString().c_str(), state);
 
     if (userid == chat.client().karereClient->myHandle()
         && clientid == chat.connection().clientId())
@@ -308,9 +341,18 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 
     updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-    if (state == Call::CallDataState::kCallDataRinging)
+    if (state == Call::CallDataState::kCallDataRinging ||
+            state == Call::CallDataState::kCallDataSessionKeepRinging)
     {
         handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        if (state == Call::CallDataState::kCallDataSessionKeepRinging)
+        {
+            auto itCallHandler = mCallHandlers.find(chatid);
+            if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
+            {
+                itCallHandler->second->setInitialTimeStamp(time(NULL));
+            }
+        }
     }
     else if (state == Call::CallDataState::kCallDataNotRinging)
     {
@@ -324,6 +366,14 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         if (chat.isGroup() && itCall->second->state() == Call::kStateRingIn)
         {
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
+        }
+    }
+    else if (state == Call::CallDataState::kCallDataSession)
+    {
+        auto itCallHandler = mCallHandlers.find(chatid);
+        if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
+        {
+            itCallHandler->second->setInitialTimeStamp(time(NULL));
         }
     }
 }
@@ -442,7 +492,7 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     ICallHandler& handler, Id callid)
 {
     karere::Id id = callid.isValid() ? callid : (karere::Id)random<uint64_t>();
-    auto& chat = mClient.mChatdClient->chats(chatid);
+    auto& chat = mKarereClient.mChatdClient->chats(chatid);
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
     {
@@ -635,7 +685,7 @@ void RtcModule::removeCall(Id chatid, bool keepCallHandler)
         auto itHandler = mCallHandlers.find(chatid);
         if (itHandler != mCallHandlers.end())
         {
-            Chat &chat = mClient.mChatdClient->chats(chatid);
+            Chat &chat = mKarereClient.mChatdClient->chats(chatid);
             if (keepCallHandler && itHandler->second->callParticipants() && chat.isGroup())
             {
                 itHandler->second->removeAllParticipants();
@@ -701,10 +751,31 @@ std::vector<Id> RtcModule::chatsWithCall() const
     return chats;
 }
 
+void RtcModule::onKickedFromChatRoom(Id chatid)
+{
+    auto callIt = mCalls.find(chatid);
+    if (callIt != mCalls.end())
+    {
+        RTCM_LOG_WARNING("We have been removed from chatroom: %s, and we are in a call. Finishing the call", chatid.toString().c_str());
+        callIt->second->hangup(TermCode::kErrKickedFromChat);
+    }
+}
+
+uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
+{
+    auto callIt = mCalls.find(chatid);
+    if (callIt != mCalls.end())
+    {
+        return callIt->second->clientidFromSession(userid);
+    }
+
+    return 0;
+}
+
 void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, Id callid, AvFlags avFlagsRemote)
 {
     karere::Id chatid = chat.chatId();
-    karere::Id myHandle = mClient.myHandle();
+    karere::Id myHandle = mKarereClient.myHandle();
     AvFlags avFlags(false, false);
     bool answerAutomatic = false;
 
@@ -773,7 +844,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
             if (!wcall.isValid() || (wcall->state() != Call::kStateRingIn))
                 return;
             static_cast<Call*>(wcall.weakPtr())->destroy(TermCode::kAnswerTimeout, false);
-        }, kCallAnswerTimeout+4000, mClient.appCtx); // local timeout a bit longer that the caller
+        }, kCallAnswerTimeout+4000, mKarereClient.appCtx); // local timeout a bit longer that the caller
     }
     else
     {
@@ -840,7 +911,7 @@ Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGr
                 it->second->pollStats();
             }
         }
-    }, kStatsPeriod * 1000, mManager.mClient.appCtx);
+    }, kStatsPeriod * 1000, mManager.mKarereClient.appCtx);
 }
 
 void Call::handleMessage(RtMessage& packet)
@@ -921,7 +992,7 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     setState(Call::kStateHasLocalStream);
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
-    mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mClient.appCtx));
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     if (mLocalStream && mLocalStream->video())
     {
         mLocalPlayer->attachVideo(mLocalStream->video());
@@ -1120,24 +1191,13 @@ void Call::msgRinging(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring unexpected RINGING");
         return;
     }
-    if (!mRingOutUsers)
+
+    if (mHadRingAck)
     {
-        mRingOutUsers.reset(new std::set<Id>());
-        mRingOutUsers->insert(packet.userid);
-        clearCallOutTimer();
-        auto wptr = weakHandle();
-        mCallOutTimer = setTimeout([wptr, this] {
-            if (wptr.deleted() || mState != Call::kStateReqSent)
-            {
-                return;
-            }
-            hangup(TermCode::kAnswerTimeout); // TODO: differentiate whether peer has sent us RINGING or not
-        }, RtcModule::kCallAnswerTimeout, mManager.mClient.appCtx);
+        return;
     }
-    else
-    {
-        mRingOutUsers->insert(packet.userid);
-    }
+
+    mHadRingAck = true;
     FIRE_EVENT(CALL, onRingOut, packet.userid);
 }
 
@@ -1146,8 +1206,9 @@ void Call::clearCallOutTimer()
     if (!mCallOutTimer) {
         return;
     }
-    cancelTimeout(mCallOutTimer, mManager.mClient.appCtx);
+    cancelTimeout(mCallOutTimer, mManager.mKarereClient.appCtx);
     mCallOutTimer = 0;
+    mIsRingingOut = false;
 }
 
 void Call::handleBusy(RtMessage& packet)
@@ -1174,13 +1235,17 @@ void Call::msgSession(RtMessage& packet)
         return;
     }
 
-    setState(Call::kStateInProgress);
+    if (mState == Call::kStateJoining)
+    {
+        setState(Call::kStateInProgress);
+        monitorCallSetupTimeout();
+    }
 
     EndpointId peerEndPointId(packet.userid, packet.clientid);
     if (mSentSessions.find(peerEndPointId) != mSentSessions.end())
     {
         SUB_LOG_WARNING("Detected simultaneous join with Peer %s (0x%x)", peerEndPointId.userid.toString().c_str(), peerEndPointId.clientid);
-        EndpointId ourEndPointId(mManager.mClient.myHandle(), mChat.connection().clientId());
+        EndpointId ourEndPointId(mManager.mKarereClient.myHandle(), mChat.connection().clientId());
         if (EndpointId::greaterThanForJs(ourEndPointId, peerEndPointId))
         {
             SUB_LOG_WARNING("Detected simultaneous join - received RTCMD_SESSION after having already sent one. "
@@ -1211,7 +1276,7 @@ void Call::notifyCallStarting(Session &/*sess*/)
 
 void Call::msgJoin(RtMessage& packet)
 {
-    if (mState == kStateRingIn && packet.userid == mManager.mClient.myHandle())
+    if (mState == kStateRingIn && packet.userid == mManager.mKarereClient.myHandle())
     {
         destroy(TermCode::kAnsElsewhere, false);
     }
@@ -1233,6 +1298,8 @@ void Call::msgJoin(RtMessage& packet)
         if (mState == Call::kStateReqSent)
         {
             setState(Call::kStateInProgress);
+            monitorCallSetupTimeout();
+
             // Send OP_CALLDATA with call inProgress
             if (!chat().isGroup() && !sendCallData(CallDataState::kCallDataNotRinging))
             {
@@ -1307,7 +1374,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
             return;
         if (++ctx->count > 7)
         {
-            cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+            cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
             mDestroySessionTimer = 0;
             SUB_LOG_WARNING("Timed out waiting for all sessions to terminate, force closing them");
             for (auto itSessions = mSessions.begin(); itSessions != mSessions.end();)
@@ -1322,10 +1389,10 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
         }
         if (!mSessions.empty())
             return;
-        cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+        cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
         mDestroySessionTimer = 0;
         ctx->pms.resolve();
-    }, 200, mManager.mClient.appCtx);
+    }, 200, mManager.mKarereClient.appCtx);
     return ctx->pms;
 }
 
@@ -1349,6 +1416,8 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mPredestroyState = mState;
     setState(Call::kStateTerminating);
     clearCallOutTimer();
+    mLocalPlayer.reset();
+    mLocalStream.reset();
 
     Promise<void> pms((promise::Empty())); //non-initialized promise
     if (weTerminate)
@@ -1403,8 +1472,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
 
         assert(mSessions.empty());
         stopIncallPingTimer();
-        mLocalPlayer.reset();
-        mLocalStream.reset();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -1427,7 +1494,7 @@ bool Call::cmdBroadcast(uint8_t type, Args... args)
         if (wptr.deleted())
             return;
         destroy(TermCode::kErrNetSignalling, false);
-    }, mManager.mClient.appCtx);
+    }, mManager.mKarereClient.appCtx);
     return false;
 }
 
@@ -1447,11 +1514,14 @@ bool Call::broadcastCallReq()
 
     setState(Call::kStateReqSent);
     startIncallPingTimer();
+    mIsRingingOut = true;
     auto wptr = weakHandle();
     mCallOutTimer = setTimeout([wptr, this]()
     {
         if (wptr.deleted())
             return;
+
+        mIsRingingOut = false;
 
         if (mState == Call::kStateReqSent)
         {
@@ -1461,7 +1531,7 @@ bool Call::broadcastCallReq()
             }
             else
             {
-                destroy(TermCode::kRingOutTimeout, true);
+                destroy(TermCode::kAnswerTimeout, true);
             }
         }
         else if (chat().isGroup() && mState == Call::kStateInProgress)
@@ -1470,7 +1540,7 @@ bool Call::broadcastCallReq()
             // after some time (we use the same kAnswerTimeout duration in order to share the timer)
             sendCallData(CallDataState::kCallDataNotRinging);
         }
-    }, RtcModule::kRingOutTimeout, mManager.mClient.appCtx);
+    }, RtcModule::kCallAnswerTimeout, mManager.mKarereClient.appCtx);
     return true;
 }
 
@@ -1486,7 +1556,7 @@ void Call::startIncallPingTimer()
             return;
 
         sendInCallCommand();
-    }, RtcModule::kIncallPingInterval, mManager.mClient.appCtx);
+    }, RtcModule::kIncallPingInterval, mManager.mKarereClient.appCtx);
 }
 
 void Call::asyncDestroy(TermCode code, bool weTerminate)
@@ -1497,14 +1567,14 @@ void Call::asyncDestroy(TermCode code, bool weTerminate)
         if (wptr.deleted())
             return;
         destroy(code, weTerminate);
-    }, mManager.mClient.appCtx);
+    }, mManager.mKarereClient.appCtx);
 }
 
 void Call::stopIncallPingTimer(bool endCall)
 {
     if (mInCallPingTimer)
     {
-        cancelInterval(mInCallPingTimer, mManager.mClient.appCtx);
+        cancelInterval(mInCallPingTimer, mManager.mKarereClient.appCtx);
         mInCallPingTimer = 0;
     }
 
@@ -1539,6 +1609,20 @@ void Call::removeSession(Session& sess, TermCode reason)
         assert(false);
     }
 
+    EndpointId endpointId(sess.mPeer, sess.mPeerClient);
+    TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
+    if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
+    {
+        if (mIceFails.find(endpointId) == mIceFails.end())
+        {
+            mIceFails[endpointId] = 1;
+        }
+        else
+        {
+            mIceFails[endpointId]++;
+        }
+    }
+
     if (!sess.isCaller())
     {
         SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sess.sessionId().toString().c_str());
@@ -1552,7 +1636,7 @@ void Call::removeSession(Session& sess, TermCode reason)
 
             rejoin(peerid, clientid);
 
-        }, mManager.mClient.appCtx);
+        }, mManager.mKarereClient.appCtx);
     }
     else
     {
@@ -1561,7 +1645,6 @@ void Call::removeSession(Session& sess, TermCode reason)
     }
 
     // set a timeout for the session recovery
-    EndpointId endpointId(sess.mPeer, sess.mPeerClient);
     auto wptr = weakHandle();
     mSessRetries[endpointId] = setTimeout([this, wptr, endpointId]()
     {
@@ -1579,7 +1662,7 @@ void Call::removeSession(Session& sess, TermCode reason)
             SUB_LOG_DEBUG("Timed out waiting for peer to rejoin, terminating call");
             hangup(kErrSessRetryTimeout);
         }
-    }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
+    }, RtcModule::kSessSetupTimeout, mManager.mKarereClient.appCtx);
 
     mSessions.erase(sess.mSid);
 }
@@ -1627,7 +1710,6 @@ bool Call::join(Id userid)
         return false;
     }
 
-    sendCallData(CallDataState::kCallDataSession);
     startIncallPingTimer();
     // we have session setup timeout timer, but in case we don't even reach a session creation,
     // we need another timer as well
@@ -1640,7 +1722,7 @@ bool Call::join(Id userid)
         {
             destroy(TermCode::kErrSessSetupTimeout, true);
         }
-    }, RtcModule::kSessSetupTimeout, mManager.mClient.appCtx);
+    }, RtcModule::kSessSetupTimeout, mManager.mKarereClient.appCtx);
     return true;
 }
 
@@ -1699,7 +1781,7 @@ bool Call::sendCallData(CallDataState state)
             if (wptr.deleted())
                 return;
             destroy(TermCode::kErrNetSignalling, true);
-        }, mManager.mClient.appCtx);
+        }, mManager.mKarereClient.appCtx);
 
         return false;
     }
@@ -1803,12 +1885,34 @@ bool Call::cancelSessionRetryTimer(karere::Id userid, uint32_t clientid)
     if (itSessionRetry != mSessRetries.end())
     {
         megaHandle timerHandle = itSessionRetry->second;
-        cancelTimeout(timerHandle, mManager.mClient.appCtx);
+        cancelTimeout(timerHandle, mManager.mKarereClient.appCtx);
         mSessRetries.erase(itSessionRetry);
         return true;
     }
 
     return false;
+}
+
+void Call::monitorCallSetupTimeout()
+{
+    auto wptr = weakHandle();
+    mCallSetupTimer = setTimeout([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        mCallSetupTimer = 0;
+
+        if (mState != kStateInProgress)
+        {
+            RTCM_LOG_WARNING("Timeout expired to setup a call, but state is %s", stateStr());
+            return;
+        }
+
+        RTCM_LOG_ERROR("Timeout expired to setup a call");
+        hangup(TermCode::kErrCallSetupTimeout);
+
+    }, RtcModule::kCallSetupTimeout, mManager.mKarereClient.appCtx);
 }
 
 bool Call::answer(AvFlags av)
@@ -1840,7 +1944,6 @@ void Call::hangup(TermCode reason)
         }
         else
         {
-
             assert(reason == TermCode::kUserHangup || reason == TermCode::kAnswerTimeout ||
                    reason == TermCode::kRingOutTimeout || reason == TermCode::kDestroyByCallCollision
                    || reason == TermCode::kAppTerminating);
@@ -1898,7 +2001,7 @@ Call::~Call()
         stopIncallPingTimer();
         if (mDestroySessionTimer)
         {
-            cancelInterval(mDestroySessionTimer, mManager.mClient.appCtx);
+            cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
             mDestroySessionTimer = 0;
         }
 
@@ -1911,13 +2014,19 @@ Call::~Call()
 
     if (mStatsTimer)
     {
-        cancelInterval(mStatsTimer, mManager.mClient.appCtx);
+        cancelInterval(mStatsTimer, mManager.mKarereClient.appCtx);
     }
 
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
 {
+    if (userid == mManager.mKarereClient.myHandle() && clientid == mChat.connection().clientId())
+    {
+        SUB_LOG_DEBUG("ENDCALL received for ourselves, finishing the call");
+        destroy(TermCode::kErrNetSignalling, false);
+    }
+
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
     {
         destroy(TermCode::kUserHangup, false);
@@ -1934,7 +2043,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
                 marshallCall([sess]()
                 {
                     sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
-                }, mManager.mClient.appCtx);
+                }, mManager.mKarereClient.appCtx);
                 return;
             }
         }
@@ -1952,10 +2061,26 @@ bool Call::changeLocalRenderer(IVideoRenderer* renderer)
     return true;
 }
 
-void Call::notifySessionConnected(Session& sess)
+void Call::notifySessionConnected(Session& /*sess*/)
 {
     if (mCallStartedSignalled)
         return;
+
+    if (mIsRingingOut && mChat.isGroup())
+    {
+        sendCallData(CallDataState::kCallDataSessionKeepRinging);
+    }
+    else
+    {
+        sendCallData(CallDataState::kCallDataSession);
+    }
+
+    if (mCallSetupTimer)
+    {
+        cancelInterval(mCallSetupTimer, mManager.mKarereClient.appCtx);
+        mCallSetupTimer = 0;
+    }
+
     mCallStartedSignalled = true;
     FIRE_EVENT(CALL, onCallStarted);
 }
@@ -2013,6 +2138,19 @@ void Call::sendBusy(bool isCallToSameUser)
 {
     // Broadcast instead of send only to requestor, so that all other our clients know we rejected the call
     cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, isCallToSameUser ? TermCode::kErrAlready : TermCode::kBusy);
+}
+
+uint32_t Call::clientidFromSession(Id userid)
+{
+    for (auto& item: mSessions)
+    {
+        if (item.second->peer() == userid)
+        {
+            return item.second->peerClient();
+        }
+    }
+
+    return 0;
 }
 
 AvFlags Call::sentAv() const
@@ -2191,24 +2329,42 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
 
     mName = "sess[" + mSid.toString() + "]";
     auto wptr = weakHandle();
-    mSetupTimer = setTimeout([wptr, this] {
+    mSetupTimer = setTimeout([wptr, this]()
+    {
         if (wptr.deleted())
             return;
-        if (mState < kStateInProgress) {
-            terminateAndDestroy(TermCode::kErrSessSetupTimeout);
+
+        SUB_LOG_WARNING("Timeout expired to setup a session");
+
+        mSetupTimer = 0;
+
+        TermCode terminationCode = TermCode::kErrSessSetupTimeout;
+        if (mRtcConn && mRtcConn->ice_connection_state() == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionChecking)
+        {
+            terminationCode = TermCode::kErrIceTimeout;
         }
-    }, RtcModule::kSessSetupTimeout, call.mManager.mClient.appCtx);
+
+        terminateAndDestroy(terminationCode);
+
+    }, RtcModule::kSessSetupTimeout, call.mManager.mKarereClient.appCtx);
 }
 
 void Session::setState(uint8_t newState)
 {
-    auto oldState = mState;
-    if (oldState == newState)
+    if (mState == newState)
         return;
 
+    auto oldState = mState;
     sStateDesc.assertStateChange(oldState, newState);
     mState = newState;
     SUB_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
+
+    if (mSetupTimer && mState >= kStateInProgress)
+    {
+        cancelTimeout(mSetupTimer, mCall.mManager.mKarereClient.appCtx);
+        mSetupTimer = 0;
+    }
+
     FIRE_EVENT(SESSION, onSessStateChange, mState);
 }
 
@@ -2291,8 +2447,15 @@ void Session::handleMessage(RtMessage& packet)
 
 void Session::createRtcConn()
 {
-    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers,
-        *this, pcConstraints());
+    EndpointId endPoint(mPeer, mPeerClient);
+    if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
+    {
+        RTCM_LOG_WARNING("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
+        StaticProvider iceServerStatic(mCall.mManager.mStaticIceSever);
+        mCall.mManager.addIceServers(iceServerStatic);
+    }
+
+    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this, pcConstraints());
     if (mCall.mLocalStream)
     {
         if (!mRtcConn->AddStream(*mCall.mLocalStream))
@@ -2381,7 +2544,7 @@ void Session::onAddStream(artc::tspMediaStream stream)
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onRemoteStreamAdded, renderer);
     assert(renderer);
-    mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mClient.appCtx));
+    mRemotePlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
     mRemotePlayer->setOnMediaStart([this]()
     {
         FIRE_EVENT(SESS, onVideoRecv);
@@ -2590,7 +2753,7 @@ void Session::asyncDestroy(TermCode code, const std::string& msg)
         if (wptr.deleted())
             return;
         destroy(code, msg);
-    }, mManager.mClient.appCtx);
+    }, mManager.mKarereClient.appCtx);
 }
 
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
@@ -2628,7 +2791,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
             auto pms = mTerminatePromise;
             pms.resolve();
         }
-    }, 1000, mManager.mClient.appCtx);
+    }, 1000, mManager.mKarereClient.appCtx);
     auto pms = mTerminatePromise;
     return pms
     .then([wptr, this, code, msg]()
@@ -2736,7 +2899,7 @@ void Session::submitStats(TermCode termCode, const std::string& errInfo)
     }
 
     std::string stats = mStatRecorder->terminate(info);
-    mCall.mManager.mClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
+    mCall.mManager.mKarereClient.api.sdk.sendChatStats(stats.c_str(), CHATSTATS_PORT);
     return;
 }
 
@@ -3131,19 +3294,19 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
         {
             return 5;
         }
-        else if (crtt < 250)
+        else if (crtt < 200)
         {
             return 4;
         }
-        else if (crtt < 1000)
+        else if (crtt < 300)
         {
             return 3;
         }
-        else if (crtt < 2000)
+        else if (crtt < 500)
         {
             return 2;
         }
-        else if (crtt < 5000)
+        else if (crtt < 1000)
         {
             return 1;
         }

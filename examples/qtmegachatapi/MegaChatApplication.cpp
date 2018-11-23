@@ -95,6 +95,8 @@ void MegaChatApplication::init()
 
         mMegaApi->fastLogin(mSid);
     }
+
+    mMegaChatApi->enableGroupChatCalls(true);
 }
 
 void MegaChatApplication::login()

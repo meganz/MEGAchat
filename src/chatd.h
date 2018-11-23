@@ -321,6 +321,8 @@ public:
     virtual void stopCallsTimers(int shard) = 0;
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
     virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
+    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
@@ -1241,7 +1243,9 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    static const unsigned chatdVersion = 4;
+    // - Version 5:
+    //  * Changes at CALLDATA protocol (new state)
+    static const unsigned chatdVersion = 5;
 };
 
 static inline const char* connStateToStr(Connection::State state)

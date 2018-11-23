@@ -2104,6 +2104,36 @@ public class MegaChatApiJava {
         return megaChatApi.hasCallInChatRoom(chatid);
     }
 
+    /**
+     * Enable/disable groupcalls
+     *
+     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
+     * in the history about group calls will be visible since the call takes place anyway.
+     *
+     * By default, groupcalls are disabled.
+     *
+     * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
+     *
+     * @param enable True for enable group calls. False to disable them.
+     */
+    public void enableGroupChatCalls(boolean enable){
+        megaChatApi.enableGroupChatCalls(enable);
+    }
+
+    /**
+     * Returns true if groupcalls are enabled
+     *
+     * If groupcalls are disabled, notifications about groupcalls will be skiped, but messages
+     * in the history about group calls will be visible.
+     *
+     * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
+     *
+     * @return True if group calls are enabled. Otherwise, false.
+     */
+    public boolean areGroupChatCallEnabled(){
+        return megaChatApi.areGroupChatCallEnabled();
+    }
+
     public static void setCatchException(boolean enable) {
         MegaChatApi.setCatchException(enable);
     }
