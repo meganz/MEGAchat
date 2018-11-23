@@ -1018,9 +1018,10 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatCallHandler *handler = findChatCallHandler(chatid);
-            if (handler && !chatroom->isGroup())
+            if (handler && (handler->getCall() || !chatroom->isGroup()))
             {
-                API_LOG_ERROR("Start call - One call already exists for speficied chat id");
+                // only groupchats allow to join the call in multiple clients, in 1on1 it's not allowed
+                API_LOG_ERROR("A call exists in this chatroom and we already participate or it's not a groupchat");
                 errorCode = MegaChatError::ERROR_EXIST;
                 break;
             }
