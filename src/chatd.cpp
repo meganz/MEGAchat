@@ -3837,16 +3837,22 @@ void Chat::onUserLeave(Id userid)
         mOwnPrivilege = PRIV_NOTPRESENT;
 
 #ifndef KARERE_DISABLE_WEBRTC
-        mClient.mRtcHandler->onKickedFromChatRoom(mChatId);
+        if (mClient.mRtcHandler)
+        {
+            mClient.mRtcHandler->onKickedFromChatRoom(mChatId);
+        }
     }
     else
     {
-        uint32_t clientid = mClient.mRtcHandler->clientidFromPeer(mChatId, userid);
-        if (clientid)
+        if (mClient.mRtcHandler)
         {
             // the call will usually be terminated by the kicked user, but just in case
             // the client doesn't do it properly, we notify the user left the call
-            onEndCall(userid, clientid);
+            uint32_t clientid = mClient.mRtcHandler->clientidFromPeer(mChatId, userid);
+            if (clientid)
+            {
+                onEndCall(userid, clientid);
+            }
         }
 #endif
     }
