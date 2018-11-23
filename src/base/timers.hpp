@@ -25,34 +25,14 @@
 #include "gcmpp.h"
 #include <memory>
 #include <assert.h>
-extern std::recursive_mutex timerMutex;
+extern std::mutex timerMutex;
 
 namespace karere
 {
 struct TimerMsg: public megaMessage
 {
-    timerevent* timerEvent = nullptr;
     bool canceled = false;
-    megaHandle handle;
-    TimerMsg(megaMessageFunc aFunc)
-        :megaMessage(aFunc),
-          handle(services_hstore_add_handle(MEGA_HTYPE_TIMER, this))
-    {}
-   ~TimerMsg()
-    {
-        services_hstore_remove_handle(MEGA_HTYPE_TIMER, handle);
-        if (timerEvent)
-        {
-            #ifndef USE_LIBWEBSOCKETS
-                event_free(timerEvent);
-            #else
-                uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* handle)
-                {
-                    delete handle;
-                });
-            #endif
-        }
-    }
+    using megaMessage::megaMessage;
 };
 
 #ifdef USE_LIBWEBSOCKETS
@@ -62,123 +42,122 @@ struct TimerMsg: public megaMessage
 #endif
     
 template <int persist, class CB>
-inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
+megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 {
-    struct Msg: public TimerMsg
+    struct Timer : TimerMsg
     {
+        timerevent* timerEvent = nullptr;
+        megaHandle handle = {};
         CB cb;
         void *appCtx;
-        Msg(CB&& aCb, megaMessageFunc cFunc)
-        :TimerMsg(cFunc), cb(aCb)
-        {}
-        unsigned time;
-        int loop;
-    };
-    megaMessageFunc cfunc = persist
-        ? (megaMessageFunc) [](void* arg)
-          {
-              Msg* msg = static_cast<Msg*>(arg);
-              if (msg->canceled)
-                  return;
-              msg->cb();
-          }
-        : (megaMessageFunc) [](void* arg)
-          {
-              timerMutex.lock();
-              Msg* msg = static_cast<Msg*>(arg);
-              if (msg->canceled)
-              {
-                  timerMutex.unlock();
-                  return;
-              }
-              msg->cb();
-              if (msg->canceled)
-              {
-                  timerMutex.unlock();
-                  return;
-              }
-              delete msg;
-              timerMutex.unlock();
-          };
 
-    timerMutex.lock();
-    Msg* pMsg = new Msg(std::forward<CB>(callback), cfunc);
-    timerMutex.unlock();
+        static void singleShot(void* arg)
+        {
+            std::unique_ptr<Timer> timer(static_cast<Timer*>(arg));
+            if (!timer->isCanceled())
+                timer->cb();
+        }
 
-    pMsg->appCtx = ctx;
-    pMsg->time = time;
-    pMsg->loop = persist;
-    
-#ifndef USE_LIBWEBSOCKETS
-    pMsg->timerEvent = event_new(get_ev_loop(ctx), -1, persist,
-      [](evutil_socket_t fd, short what, void* evarg)
-      {
-            megaPostMessageToGui(evarg, ((Msg* )evarg)->appCtx);
-      }, pMsg);
-
-    struct timeval tv;
-    tv.tv_sec = time / 1000;
-    tv.tv_usec = (time % 1000)*1000;
-    evtimer_add(pMsg->timerEvent, &tv);
+        static void multiShot(void* arg)
+        {
+            const auto timer = static_cast<Timer*>(arg);
+            if (!timer->isCanceled())
+            {
+                timer->cb();
+                return;
+            }
+            //we have to make sure that we delete the timer only after all possibly queued
+            //timer messages in the app's message queue are processed. For this purpose,
+            //we first stop the timer, and only then post a call to delete the timer.
+            //That call should be processed after all timer messages
+#ifdef USE_LIBWEBSOCKETS
+            uv_timer_stop(timer->timerEvent);
 #else
-    marshallCall([pMsg, ctx]()
-    {
-        pMsg->timerEvent = new uv_timer_t();
-        pMsg->timerEvent->data = pMsg;
-        init_uv_timer(ctx, pMsg->timerEvent);
-        uv_timer_start(pMsg->timerEvent,
-                       [](uv_timer_t* handle)
-                       {
-                           megaPostMessageToGui(handle->data, ((Msg*)handle->data)->appCtx);
-                       }, pMsg->time, pMsg->loop ? pMsg->time : 0);
-    }, ctx);
+            event_del(timer->timerEvent);
 #endif
-    
-    return pMsg->handle;
+            marshallCall([timer] { delete timer; }, timer->appCtx);
+        }
+
+        Timer(CB&& aCb, unsigned time, void *ctx)
+            : TimerMsg(persist ? multiShot : singleShot)
+            , cb(std::forward<CB>(aCb))
+            , appCtx(ctx)
+        {
+            // Not sure about following point but looks like
+            // timer machinery itself is not thread safe
+            // any way marshaling timer creation to the main thread
+            // is correct regardless of my assumption. In worst case
+            // it will add runtime overhead.
+            marshallCall([this, time]()
+            {
+#ifndef USE_LIBWEBSOCKETS
+                timerEvent = event_new(get_ev_loop(appCtx), -1, persist,
+                    [](evutil_socket_t fd, short what, void* evarg)
+                {
+                    megaPostMessageToGui(evarg, ((Timer*)evarg)->appCtx);
+                }, this);
+
+                struct timeval tv;
+                tv.tv_sec = time / 1000;
+                tv.tv_usec = (time % 1000) * 1000;
+                evtimer_add(pMsg->timerEvent, &tv);
+#else
+                timerEvent = new uv_timer_t();
+                timerEvent->data = this;
+                init_uv_timer(appCtx, timerEvent);
+                uv_timer_start(timerEvent, [](uv_timer_t* handle)
+                {
+                    megaPostMessageToGui(handle->data, ((Timer*)handle->data)->appCtx);
+                }, time, persist ? time : 0);
+#endif
+            }, appCtx);
+
+            std::lock_guard<std::mutex> guard(timerMutex);
+            handle = services_hstore_add_handle(MEGA_HTYPE_TIMER, this);
+        }
+        ~Timer()
+        {
+            {
+                std::lock_guard<std::mutex> guard(timerMutex);
+                services_hstore_remove_handle(MEGA_HTYPE_TIMER, handle);
+            }
+            if (timerEvent)
+            {
+#ifndef USE_LIBWEBSOCKETS
+                event_free(timerEvent);
+#else
+                uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* handle)
+                {
+                    delete handle;
+                });
+#endif
+            }
+        }
+
+        bool isCanceled() const noexcept
+        {
+            std::lock_guard<std::mutex> guard(timerMutex);
+            return canceled;
+        }
+    };
+
+    return (new Timer(std::forward<CB>(callback), time, ctx))->handle;
 }
 /** Cancels a previously set timeout with setTimeout()
  * @return \c false if the handle is not valid. This can happen if the timeout
  * already triggered, then the handle is invalidated. This situation is safe and
  * considered normal
  */
-static inline bool cancelTimeout(megaHandle handle, void *ctx)
+static inline bool cancelTimeout(megaHandle handle, void*)
 {
-    timerMutex.lock();
-
     assert(handle);
+    std::lock_guard<std::mutex> guard(timerMutex);
+
     TimerMsg* timer = static_cast<TimerMsg*>(services_hstore_get_handle(MEGA_HTYPE_TIMER, handle));
-    if (!timer)
-    {
-        timerMutex.unlock();
-        return false; //not valid anymore
-    }
+    if (timer)
+        timer->canceled = true;
 
-//we have to make sure that we delete the timer only after all possibly queued
-//timer messages in the app's message queue are processed. For this purpose,
-//we first stop the timer, and only then post a call to delete the timer.
-//That call should be processed after all timer messages
-    timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
-
-    timerMutex.unlock();
-
-#ifndef USE_LIBWEBSOCKETS
-    event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
-#endif
-    
-    marshallCall([timer, ctx]()
-    {
-#ifdef USE_LIBWEBSOCKETS
-        uv_timer_stop(timer->timerEvent);
-
-        marshallCall([timer, ctx]()
-        {
-            delete timer;
-        }, ctx);
-#else
-        delete timer;   //also deletes the timerEvent
-#endif
-    }, ctx);
-    return true;
+    return timer != nullptr;
 }
 /** @brief Cancels a previously set timer with setInterval.
  * @return \c false if the handle is not valid.
