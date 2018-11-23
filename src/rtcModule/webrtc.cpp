@@ -1895,27 +1895,24 @@ bool Call::cancelSessionRetryTimer(karere::Id userid, uint32_t clientid)
 
 void Call::monitorCallSetupTimeout()
 {
-    if (!mCallSetupTimer)
+    auto wptr = weakHandle();
+    mCallSetupTimer = setTimeout([wptr, this]()
     {
-        auto wptr = weakHandle();
-        mCallSetupTimer = setTimeout([wptr, this]()
+        if (wptr.deleted())
+            return;
+
+        mCallSetupTimer = 0;
+
+        if (mState != kStateInProgress)
         {
-            if (wptr.deleted())
-                return;
+            RTCM_LOG_WARNING("Timeout expired to setup a call, but state is %s", stateStr());
+            return;
+        }
 
-            mCallSetupTimer = 0;
+        RTCM_LOG_ERROR("Timeout expired to setup a call");
+        hangup(TermCode::kErrCallSetupTimeout);
 
-            if (mState != kStateInProgress)
-            {
-                RTCM_LOG_WARNING("Timeout expired to setup a call, but state is %s", stateStr());
-                return;
-            }
-
-            RTCM_LOG_ERROR("Timeout expired to setup a call");
-            hangup(TermCode::kErrCallSetupTimeout);
-
-        }, RtcModule::kCallSetupTimeout, mManager.mClient.appCtx);
-    }
+    }, RtcModule::kCallSetupTimeout, mManager.mClient.appCtx);
 }
 
 bool Call::answer(AvFlags av)
@@ -2337,15 +2334,9 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
         if (wptr.deleted())
             return;
 
-        mSetupTimer = 0;
-
-        if (mState >= kStateInProgress)
-        {
-            SUB_LOG_WARNING("Timeout expired to setup a session, but session is at state %s", stateStr());
-            return;
-        }
-
         SUB_LOG_WARNING("Timeout expired to setup a session");
+
+        mSetupTimer = 0;
 
         TermCode terminationCode = TermCode::kErrSessSetupTimeout;
         if (mRtcConn && mRtcConn->ice_connection_state() == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionChecking)
@@ -2367,6 +2358,13 @@ void Session::setState(uint8_t newState)
     sStateDesc.assertStateChange(oldState, newState);
     mState = newState;
     SUB_LOG_DEBUG("State changed: %s -> %s", stateToStr(oldState), stateToStr(mState));
+
+    if (mSetupTimer && mState >= kStateInProgress)
+    {
+        cancelTimeout(mSetupTimer, mCall.mManager.mClient.appCtx);
+        mSetupTimer = 0;
+    }
+
     FIRE_EVENT(SESSION, onSessStateChange, mState);
 }
 

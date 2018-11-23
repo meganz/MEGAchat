@@ -3844,6 +3844,8 @@ void Chat::onUserLeave(Id userid)
         uint32_t clientid = mClient.mRtcHandler->clientidFromPeer(mChatId, userid);
         if (clientid)
         {
+            // the call will usually be terminated by the kicked user, but just in case
+            // the client doesn't do it properly, we notify the user left the call
             onEndCall(userid, clientid);
         }
 #endif
