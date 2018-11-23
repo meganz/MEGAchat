@@ -817,10 +817,21 @@ void MegaChatApiImpl::sendPendingRequests()
             ::promise::when(promise)
             .then([this, request, buffer]()
             {
+                bool isVoiceMessage = request->getFlag();
                 int errorCode = MegaChatError::ERROR_OK;
                 std::string stringToSend(buffer);
 
-                MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
+                MegaChatMessage *msg = NULL;
+
+                if (isVoiceMessage)
+                {
+                    msg = prepareVoiceClipNodesMessage(stringToSend, request->getChatHandle());
+                }
+                else
+                {
+                    msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle());
+                }
+
                 if (!msg)
                 {
                     errorCode = MegaChatError::ERROR_ARGS;
@@ -2817,6 +2828,16 @@ void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandl
     waiter->notify();
 }
 
+void MegaChatApiImpl::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(nodehandle);
+    request->setFlag(true);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
@@ -3699,6 +3720,18 @@ MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, 
     buffer.insert(buffer.begin(), 0x0);
 
     Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgAttachment, NULL);
+    MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
+    return megaMsg;
+}
+
+MegaChatMessage *MegaChatApiImpl::prepareVoiceClipNodesMessage(std::string buffer, MegaChatHandle chatid)
+{
+    ChatRoom *chatroom = findChatRoom(chatid);
+
+    buffer.insert(buffer.begin(), Message::kMsgVoiceClip - Message::kMsgOffset);
+    buffer.insert(buffer.begin(), 0x0);
+
+    Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), Message::kMsgVoiceClip, NULL);
     MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
     return megaMsg;
 }
@@ -5660,6 +5693,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
             case MegaChatMessage::TYPE_NODE_ATTACHMENT:
             case MegaChatMessage::TYPE_CONTAINS_META:
+            case MegaChatMessage::TYPE_VOICE_CLIP:
                 this->lastMsg = JSonUtils::getLastMessageContent(msg->contents(), msg->type());
                 break;
 
@@ -6038,6 +6072,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             break;
         }
         case MegaChatMessage::TYPE_NODE_ATTACHMENT:
+        case MegaChatMessage::TYPE_VOICE_CLIP:
         {
             megaNodeList = JSonUtils::parseAttachNodeJSon(msg.toText().c_str());
             break;
@@ -6189,7 +6224,7 @@ bool MegaChatMessagePrivate::isEditable() const
 
 bool MegaChatMessagePrivate::isDeletable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT || type == TYPE_NODE_ATTACHMENT || type == TYPE_CONTAINS_META)
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT || type == TYPE_NODE_ATTACHMENT || type == TYPE_CONTAINS_META || type == TYPE_VOICE_CLIP)
             && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
 }
 
@@ -7405,6 +7440,21 @@ string JSonUtils::getLastMessageContent(const string& content, uint8_t type)
             }
 
             delete containsMeta;
+            break;
+        }
+        case MegaChatMessage::TYPE_VOICE_CLIP:
+        {
+            // Remove the first two characters. [0] = 0x0 | [1] = Message::kMsgVoiceClip
+            std::string messageAttach = content;
+            messageAttach.erase(messageAttach.begin(), messageAttach.begin() + 2);
+
+            MegaNodeList *megaNodeList = JSonUtils::parseAttachNodeJSon(messageAttach.c_str());
+            if (megaNodeList && megaNodeList->size() > 0)
+            {
+                messageContents.append("voice-clip");
+            }
+
+            delete megaNodeList;
             break;
         }
         default:

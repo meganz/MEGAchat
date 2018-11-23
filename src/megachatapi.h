@@ -784,6 +784,7 @@ public:
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
+        TYPE_VOICE_CLIP             = 105,   /// User message including info about shared voice clip
     };
 
     enum
@@ -3077,6 +3078,35 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
      void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+
+     /**
+      * @brief Sends a voice clip to the specified chatroom
+      *
+      * The voice clip message includes information about it, so the receiver can reproduce it.
+      *
+      * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+      * Valid data in the MegaChatRequest object received on callbacks:
+      * - MegaChatRequest::getChatHandle - Returns the chat identifier
+      * - MegaChatRequest::getUserHandle - Returns the handle of the node
+      * - MegaChatRequest::getFlag - Returns true to identify that the attachment is a voice clip.
+      *
+      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+      * is MegaError::ERROR_OK:
+      * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+      *
+      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+      * At this point, the app should refresh the message identified by the temporal id and move it to
+      * the final position in the history, based on the reported index in the callback.
+      *
+      * If the message is rejected by the server, the message will keep its temporal id and will have its
+      * a message id set to MEGACHAT_INVALID_HANDLE.
+      *
+      * @param chatid MegaChatHandle that identifies the chat room
+      * @param nodehandle Handle of the voice clip node that the user wants to attach
+      * @param listener MegaChatRequestListener to track this request
+      */
+     void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Revoke the access to a node granted by an attachment message

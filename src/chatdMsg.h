@@ -400,10 +400,11 @@ public:
         kMsgManagementHighest = 0x06,
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
-        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
-        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
-        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
-        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
+        kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10
+        kMsgRevokeAttachment  = 0x66,   // kMsgNormal's subtype = 0x11
+        kMsgContact           = 0x67,   // kMsgNormal's subtype = 0x12
+        kMsgContainsMeta      = 0x68,   // kMsgNormal's subtype = 0x13
+        kMsgVoiceClip         = 0x69    // kMsgNormal's subtype = 0x14
     };
     enum Status
     {
@@ -644,7 +645,8 @@ public:
                 && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
                     || type == kMsgAttachment
                     || type == kMsgContact
-                    || type == kMsgContainsMeta)
+                    || type == kMsgContainsMeta
+                    || type == kMsgVoiceClip)
                 );
     }
 

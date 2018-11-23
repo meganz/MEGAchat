@@ -2,6 +2,7 @@
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
+#include <QClipboard>
 
 const char* messageStatus[] =
 {
@@ -162,6 +163,33 @@ void ChatMessage::updateContent()
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                ui->bSettings->show();
+                text.clear();
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+            {
+                QString text;
+                text.append(tr("[Voice clip msg]"));
+                ::mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
+                for(int i = 0; i < nodeList->size(); i++)
+                {
+                    const char *auxNodeHandle_64 =this->mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
+                    text.append(tr("\n[Node]"))
+                    .append("\nHandle: ")
+                    .append(QString::fromStdString(auxNodeHandle_64))
+                    .append("\nName: ")
+                    .append(nodeList->get(i)->getName())
+                    .append("\nSize: ")
+                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
+                    .append(" bytes");
+                    delete auxNodeHandle_64;
+                }
+                ui->mMsgDisplay->setText(text);
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(229,66,244,128)\n");
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
@@ -557,7 +585,8 @@ void ChatMessage::onDiscardManualSending()
 
 void ChatMessage::on_bSettings_clicked()
 {
-    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    if ((mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+       && (mMessage->getType() != megachat::MegaChatMessage::TYPE_VOICE_CLIP))
     {
         return;
     }
@@ -578,6 +607,21 @@ void ChatMessage::on_bSettings_clicked()
             }
             break;
         }
+
+        case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+        {
+            ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+            for(int i = 0; i < nodeList->size(); i++)
+            {
+                QString text("Play \"");
+                text.append(nodeList->get(i)->getName()).append("\"");
+                auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodePlay(nodeList->get(i));});
+            }
+            break;
+        }
+
+
         default:
             break;
     }
@@ -599,5 +643,41 @@ void ChatMessage::onNodeDownload(::mega::MegaNode *node)
     if (msgBoxAns.exec() == QMessageBox::Ok)
     {
         mChatWindow->mMegaApi->startDownload(node, target.c_str());
+    }
+}
+
+void ChatMessage::onNodePlay(mega::MegaNode *node)
+{
+    if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
+    {
+        mChatWindow->mMegaApi->httpServerStart();
+    }
+    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
+
+    if (localUrl)
+    {
+        QClipboard *clipboard = QApplication::clipboard();
+        QString clipUrl(localUrl);
+        QMessageBox msg;
+        msg.setText("Voice clip URL:");
+        msg.setIcon(QMessageBox::Information);
+        msg.setDetailedText(clipUrl);
+        msg.addButton(tr("Ok"), QMessageBox::ActionRole);
+
+        QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
+        copyButton->disconnect();
+        connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(clipUrl);});
+
+        foreach (QAbstractButton *button, msg.buttons())
+        {
+            if (msg.buttonRole(button) == QMessageBox::ActionRole)
+            {
+                button->click();
+                break;
+            }
+        }
+        msg.setStyleSheet("width: 150px;");
+        msg.exec();
+        delete localUrl;
     }
 }
