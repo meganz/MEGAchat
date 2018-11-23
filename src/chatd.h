@@ -371,8 +371,9 @@ public:
         kStateConnected};
 
     enum {
-        kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
-        kEchoTimeout = 1    // echo to check connection is alive when back to foreground
+        kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
+        kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
     };
 
 protected:
@@ -420,6 +421,9 @@ protected:
 
     /** Handler of the timeout for the ECHO command */
     megaHandle mEchoTimer = 0;
+
+    /** Handler of the timeout for the connection establishment */
+    megaHandle mConnectTimer = 0;
     
     // ---- callbacks called from libwebsocketsIO ----
     virtual void wsConnectCb();

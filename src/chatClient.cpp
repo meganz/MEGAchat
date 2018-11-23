@@ -3054,10 +3054,6 @@ void ChatRoom::onUnreadChanged()
     {
         room->onUnreadCountChanged(count);
     }
-    if (mAppChatHandler)
-    {
-        mAppChatHandler->onUnreadCountChanged(count);
-    }
 }
 
 void ChatRoom::onPreviewersUpdate()
@@ -3300,7 +3296,15 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                 if (parent.mKarereClient.connected())
                 {
                     KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
-                    mChat->connect();
+                    if (mChat->onlineState() != ::chatd::ChatState::kChatStateJoining)
+                    {
+                        mChat->connect();
+                    }
+                    else
+                    {
+                        KR_LOG_DEBUG("Skip re-join chatd, since it's already joining right now");
+                        parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd");
+                    }
                 }
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited",  ID_CSTR(mChatid));
                 notifyRejoinedChat();

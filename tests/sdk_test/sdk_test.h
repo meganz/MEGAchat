@@ -101,7 +101,7 @@ private:
     } \
     while(false) \
 
-class MegaLoggerTest : public mega::MegaLogger,
+class MegaLoggerTest : public ::mega::MegaLogger,
         public megachat::MegaChatLogger {
 
 public:
@@ -149,10 +149,10 @@ private:
 #endif
 
 class MegaChatApiTest :
-        public mega::MegaListener,
-        public mega::MegaRequestListener,
-        public mega::MegaTransferListener,
-        public mega::MegaLogger,
+        public ::mega::MegaListener,
+        public ::mega::MegaRequestListener,
+        public ::mega::MegaTransferListener,
+        public ::mega::MegaLogger,
         public megachat::MegaChatRequestListener,
         public megachat::MegaChatListener,
         public megachat::MegaChatCallListener
@@ -225,37 +225,37 @@ private:
     void checkEmail(unsigned int indexAccount);
     std::string dateToString();
     megachat::MegaChatMessage *attachNode(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid,
-                                    mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
+                                    ::mega::MegaNode *nodeToSend, TestChatRoomListener* chatroomListener);
 
     void clearHistory(unsigned int a1, unsigned int a2, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void leaveChat(unsigned int accountIndex, megachat::MegaChatHandle chatid);
 
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
-    unsigned int getMegaApiIndex(mega::MegaApi *api);
+    unsigned int getMegaApiIndex(::mega::MegaApi *api);
 
     void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
-    mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
+    ::mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
     void addTransfer(int accountIndex);
     bool &isNotTransferRunning(int accountIndex);
 
-    bool downloadNode(int accountIndex, mega::MegaNode *nodeToDownload);
-    bool importNode(int accountIndex, mega::MegaNode* node, const std::string& destinationName);
+    bool downloadNode(int accountIndex, ::mega::MegaNode *nodeToDownload);
+    bool importNode(int accountIndex, ::mega::MegaNode* node, const std::string& destinationName);
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
     int purgeLocalTree(const std::string& path);
-    void purgeCloudTree(unsigned int accountIndex, mega::MegaNode* node);
+    void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
     void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
     void removePendingContactRequest(unsigned int accountIndex);
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
     Account mAccounts[NUM_ACCOUNTS];
 
-    mega::MegaApi* megaApi[NUM_ACCOUNTS];
+    ::mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
     // flags
-    bool requestFlags[NUM_ACCOUNTS][mega::MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TYPE_CHAT_SET_TITLE];
     bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
@@ -285,8 +285,8 @@ private:
     std::string mChatLastname;
     std::string mChatEmail;
 
-    mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
-    mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
+    ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
+    ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
 
     MegaLoggerTest *logger;
 
@@ -295,7 +295,7 @@ private:
     bool mOnlineStatusUpdated[NUM_ACCOUNTS];
     int mOnlineStatus[NUM_ACCOUNTS];
 
-    mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
+    ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
     bool mRichLinkFlag[NUM_ACCOUNTS];
     int mCountRichLink[NUM_ACCOUNTS];
@@ -328,13 +328,13 @@ private:
 
 public:
     // implementation for MegaRequestListener
-    virtual void onRequestStart(mega::MegaApi *api, mega::MegaRequest *request) {}
-    virtual void onRequestUpdate(mega::MegaApi*api, mega::MegaRequest *request) {}
-    virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
-    virtual void onRequestTemporaryError(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError* error) {}
+    virtual void onRequestStart(::mega::MegaApi *api, ::mega::MegaRequest *request) {}
+    virtual void onRequestUpdate(::mega::MegaApi*api, ::mega::MegaRequest *request) {}
+    virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
+    virtual void onRequestTemporaryError(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError* error) {}
 
     // implementation for MegaListener
-    virtual void onContactRequestsUpdate(mega::MegaApi* api, mega::MegaContactRequestList* requests);
+    virtual void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests);
 
     // implementation for MegaChatRequestListener
     virtual void onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request) {}
@@ -349,11 +349,11 @@ public:
     virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
     virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
 
-    virtual void onTransferStart(mega::MegaApi *api, mega::MegaTransfer *transfer);
-    virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
-    virtual void onTransferUpdate(mega::MegaApi *api, mega::MegaTransfer *transfer);
-    virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* error);
-    virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+    virtual void onTransferStart(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
+    virtual void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error);
+    virtual void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
+    virtual void onTransferTemporaryError(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error);
+    virtual bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
 
 #ifndef KARERE_DISABLE_WEBRTC
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);

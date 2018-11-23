@@ -10,7 +10,7 @@
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi) :
     QMainWindow(0),
     ui(new Ui::MainWindow)
 {
@@ -288,7 +288,7 @@ void MainWindow::addContacts()
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
-        mega::MegaHandle userHandle = contact->getHandle();
+        ::mega::MegaHandle userHandle = contact->getHandle();
         if (userHandle != mMegaChatApi->getMyUserHandle())
         {
             if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mShowInactive != true)
@@ -512,7 +512,7 @@ void MainWindow::addContact(MegaUser *contact)
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
     ui->contactList->insertItem(index, item);
     ui->contactList->setItemWidget(item, contactItemWidget);
-    contactWidgets.insert(std::pair<mega::MegaHandle, ContactItemWidget *>(contact->getHandle(),contactItemWidget));
+    contactWidgets.insert(std::pair<::mega::MegaHandle, ContactItemWidget *>(contact->getHandle(),contactItemWidget));
 }
 
 
@@ -742,7 +742,7 @@ void MainWindow::onAddGroupChat()
 
 void MainWindow::onAddPubChatGroup()
 {
-    mega::MegaUserList *list = mMegaApi->getContacts();
+    ::mega::MegaUserList *list = mMegaApi->getContacts();
     CreateChatDialog *chatDialog = new CreateChatDialog(this, mMegaChatApi, true, true);
     chatDialog->createChatList(list);
     chatDialog->show();
@@ -885,8 +885,8 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
     }
     else
     {
-        std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
-        itContacts = this->contactWidgets.find((mega::MegaHandle) userhandle);
+        std::map<::mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
+        itContacts = this->contactWidgets.find((::mega::MegaHandle) userhandle);
         if (itContacts != contactWidgets.end())
         {
             ContactItemWidget * contactItemWidget = itContacts->second;
@@ -1147,7 +1147,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 
 void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char * firstname)
 {
-    std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
+    std::map<::mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
     itContacts = contactWidgets.find(contactHandle);
 
     if (itContacts != contactWidgets.end())

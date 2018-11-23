@@ -47,7 +47,7 @@ const char* attrName(uint8_t type);
 class Client;
 struct UserAttrDesc
 {
-    typedef Buffer*(*GetDataFunc)(const mega::MegaRequest&);
+    typedef Buffer*(*GetDataFunc)(const ::mega::MegaRequest&);
     int type;
     GetDataFunc getData;
     int changeMask;
@@ -122,7 +122,7 @@ struct UserAttrCacheItem
  * User attribute cache, prividing notifications when an attribute is changed
  */
 class UserAttrCache: public std::map<UserAttrPair, std::shared_ptr<UserAttrCacheItem>>,
-                     public mega::MegaGlobalListener, public karere::DeleteTrackable
+                     public ::mega::MegaGlobalListener, public karere::DeleteTrackable
 {
 protected:
     Client& mClient;
@@ -138,7 +138,7 @@ protected:
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
     void onUserAttrChange(uint64_t userid, int changed);
-    void onUserAttrChange(mega::MegaUser& user);
+    void onUserAttrChange(::mega::MegaUser& user);
     void onLogin();
     /** @brief Invalidates the whole cache, and re-fetches all registered queries.
      * Used when we discover that karere state is out of sync with SDK state

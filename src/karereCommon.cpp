@@ -81,7 +81,7 @@ void RemoteLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsign
 
 void init_uv_timer(void *ctx, uv_timer_t *timer)
 {
-    uv_timer_init(((mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
+    uv_timer_init(((::mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
 }
 
 #else
@@ -90,7 +90,7 @@ eventloop *get_ev_loop(void *ctx)
 {
     if (ctx)
     {
-        return ((mega::LibeventWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop;
+        return ((::mega::LibeventWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop;
     }
     else
     {

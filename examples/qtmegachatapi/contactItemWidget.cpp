@@ -4,7 +4,7 @@
 #include <QMessageBox>
 #include <QMenu>
 
-ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi, mega::MegaUser *contact) :
+ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi, ::mega::MegaUser *contact) :
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
@@ -79,7 +79,7 @@ void ContactItemWidget::setWidgetItem(QListWidgetItem *item)
 }
 
 
-void ContactItemWidget::updateToolTip(mega::MegaUser *contact)
+void ContactItemWidget::updateToolTip(::mega::MegaUser *contact)
 {
    QString text = NULL;
    std::string contactHandleBin = std::to_string(contact->getHandle());
@@ -161,7 +161,7 @@ void ContactItemWidget::onPrintContactInfo()
 void ContactItemWidget::onContactRemove()
 {
     char * email = mMegaChatApi->getContactEmail(mUserHandle);
-    mega::MegaUser *contact = mMegaApi->getContact(email);
+    ::mega::MegaUser *contact = mMegaApi->getContact(email);
     QString msg = tr("Are you sure you want to remove ");
     msg.append(ui->mName->text());
 

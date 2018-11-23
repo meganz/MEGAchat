@@ -60,6 +60,7 @@ Clone the SDK repository inside `<MEGAchat>/third-party/mega`:
 
  - `cd <MEGAchat>/third-party/`  
  - `git clone https://github.com/meganz/sdk.git mega`
+ - `cd mega`
  - `./autogen.sh`    
  - `./configure`    
 
@@ -82,6 +83,13 @@ Now that you're ready, you can open `<MEGAchat>/contrib/qt/MEGAchat.pro` in QtCr
 
 You may need to change the "Build directory" in the project setting to `<MEGAchat>/build` if building complains about files not found.
 
+MacOS disclaimer:
+
+Note: You may need to (re)configure the SDK to use openssl linked by ./build_with_webrtc.sh at 3rdparty/lib/ (webrtc's boringssl) and disabling certain features in MAC:
+
+- `./configure --disable-examples --without-freeimage --with-openssl=<MEGAchat>/third-party/mega/bindings/qt/3rdparty` 
+
+And also have all the other requirements at <MEGAchat>/third-party/mega/bindings/qt/3rdparty/libs.
 
 ### QtApp example ###
 

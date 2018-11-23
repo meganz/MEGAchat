@@ -249,15 +249,15 @@ void MegaChatApplication::addContacts()
     delete contactList;
 }
 
-void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
+void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
     if(userList && mMainWin)
     {
         for(int i = 0; i < userList->size(); i++)
         {
-            mega::MegaUser *user = userList->get(i);
-            mega::MegaHandle userHandle = user->getHandle();
-            std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
+            ::mega::MegaUser *user = userList->get(i);
+            ::mega::MegaHandle userHandle = user->getHandle();
+            std::map<::mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
             itContacts = this->mMainWin->contactWidgets.find(userHandle);
             if (itContacts == this->mMainWin->contactWidgets.end())
             {

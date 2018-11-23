@@ -33,7 +33,7 @@ class ChatItemWidget;
 
 class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
-        public mega::MegaTransferListener,
+        public ::mega::MegaTransferListener,
         public megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
@@ -65,7 +65,7 @@ class ChatWindow : public QDialog,
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
-        void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
+        void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* e);
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
@@ -77,12 +77,12 @@ class ChatWindow : public QDialog,
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;
-        mega::MegaApi *mMegaApi;
+        ::mega::MegaApi *mMegaApi;
         megachat::MegaChatRoom *mChatRoom;
         ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
-        mega::QTMegaTransferListener *megaTransferListenerDelegate;
+        ::mega::QTMegaTransferListener *megaTransferListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
         bool mPreview;

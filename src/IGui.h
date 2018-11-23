@@ -158,7 +158,7 @@ public:
          * even if the contact is removed (for viewing the history in read-only
          * mode)
          * @param newVisibility The new visibility code, as defined in the Mega SDK
-         * class mega::MegaUser
+         * class ::mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
 

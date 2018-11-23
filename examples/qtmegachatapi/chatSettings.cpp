@@ -11,7 +11,7 @@ WebRTCSettingsDialog::WebRTCSettingsDialog(QMainWindow *parent, WebRTCSettings *
     ui->setupUi(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
-    mega::MegaStringList *audioInDevices = mMainWin->mMegaChatApi->getChatAudioInDevices();
+    ::mega::MegaStringList *audioInDevices = mMainWin->mMegaChatApi->getChatAudioInDevices();
     for (int i = 0; i < audioInDevices->size(); i++)
     {
         ui->audioInCombo->addItem(audioInDevices->get(i));
@@ -27,7 +27,7 @@ WebRTCSettingsDialog::WebRTCSettingsDialog(QMainWindow *parent, WebRTCSettings *
     }
     delete audioInDevices;
 
-    mega::MegaStringList *videoInDevices = mMainWin->mMegaChatApi->getChatVideoInDevices();
+    ::mega::MegaStringList *videoInDevices = mMainWin->mMegaChatApi->getChatVideoInDevices();
     for (int i=0; i<videoInDevices->size(); i++)
     {
         ui->videoInCombo->addItem(videoInDevices->get(i));

@@ -36,7 +36,7 @@ public:
 
 };
 
-class MyListener: public mega::MegaRequestListener
+class MyListener: public ::mega::MegaRequestListener
 {
     void *appCtx;
     karere::DeleteTrackable::Handle wptr;
@@ -44,7 +44,7 @@ class MyListener: public mega::MegaRequestListener
 public:
     MyListener(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
     ApiPromise mPromise;
-    virtual void onRequestFinish(mega::MegaApi* /*api*/, mega::MegaRequest *request, mega::MegaError* e)
+    virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
     {
         if (wptr.deleted())
             return;
@@ -59,7 +59,7 @@ public:
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
 
-            if(errCode != mega::MegaError::API_OK)
+            if(errCode != ::mega::MegaError::API_OK)
             {
                 std::string errmsg = "Mega API error ";
                 errmsg.append(std::to_string(errCode)).append(" (")
@@ -84,7 +84,7 @@ public:
     MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
 
     promise::Promise<void> mPromise;
-    virtual void onRequestFinish(mega::MegaApi* /*api*/, mega::MegaRequest */*request*/, mega::MegaError* e)
+    virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest */*request*/, ::mega::MegaError* e)
     {
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
@@ -95,7 +95,7 @@ public:
             if (mPromise.done())
                 return; //a timeout timer may resolve it before the actual callback
 
-            if(errCode != mega::MegaError::API_OK)
+            if(errCode != ::mega::MegaError::API_OK)
             {
                 std::string errmsg = "Mega API error ";
                 errmsg.append(std::to_string(errCode)).append(" (")
@@ -115,7 +115,7 @@ class MyMegaLogger: public ::mega::MegaLogger
 {
     virtual void log(const char */*time*/, int loglevel, const char *source, const char *message)
     {
-        static krLogLevel sdkToKarereLogLevels[mega::MegaApi::LOG_LEVEL_MAX+1] =
+        static krLogLevel sdkToKarereLogLevels[::mega::MegaApi::LOG_LEVEL_MAX+1] =
         {
             krLogLevelError, krLogLevelError, krLogLevelWarn,
             krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose

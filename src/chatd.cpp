@@ -362,7 +362,7 @@ void Chat::connect(const char *url)
             mConnection.mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
 
             mConnection.reconnect()
-            .fail([this](const promise::Error& err)
+            .fail([this](const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
             });
@@ -372,7 +372,7 @@ void Chat::connect(const char *url)
     else if (mConnection.state() == Connection::kStateDisconnected)
     {
         mConnection.reconnect()
-        .fail([this](const promise::Error& err)
+        .fail([this](const ::promise::Error& err)
         {
             CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
         });
@@ -437,39 +437,28 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     auto oldState = mState;
     setState(kStateDisconnected);
 
-    for (auto& chatid: mChatIds)
-    {
-        auto& chat = mChatdClient.chats(chatid);
-        chat.onDisconnect();
-
-#ifndef KARERE_DISABLE_WEBRTC
-        if (mChatdClient.mKarereClient->rtc)
-        {
-            mChatdClient.mKarereClient->rtc->removeCall(chatid);
-        }
-#endif
-    }
-
-    if (oldState == kStateDisconnected)
-        return;
+    assert(oldState != kStateDisconnected);
 
     usingipv6 = !usingipv6;
     mTargetIp.clear();
 
-    if (oldState < kStateConnected) //tell retry controller that the connect attempt failed
+    if (oldState == kStateConnected)
+    {
+        CHATDS_LOG_DEBUG("Socket close at state kStateConnected");
+
+        assert(!mRetryCtrl);
+        reconnect(); //start retry controller
+    }
+    else // (mState < kStateConnected) --> tell retry controller that the connect attempt failed
     {
         CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
+        assert(mRetryCtrl);
         assert(!mConnectPromise.succeeded());
         if (!mConnectPromise.done())
         {
             mConnectPromise.reject(reason, errcode, errtype);
         }
-    }
-    else
-    {
-        CHATDS_LOG_DEBUG("Socket close at state kStateLoggedIn");
-        reconnect(); //start retry controller
     }
 }
 
@@ -482,10 +471,22 @@ bool Connection::sendKeepalive(uint8_t opcode)
 void Connection::sendEcho()
 {
     if (!mUrl.isValid())    // the connection is not ready yet (i.e. initialization in offline-mode)
+    {
+        CHATDS_LOG_DEBUG("sendEcho(): connection not initialized yet");
         return;
+    }
 
     if (mEchoTimer) // one is already sent
+    {
+        CHATDS_LOG_DEBUG("sendEcho(): already sent, waiting for response");
         return;
+    }
+
+    if (!isOnline())
+    {
+        CHATDS_LOG_DEBUG("sendEcho(): connection is down, cannot send");
+        return;
+    }
 
     auto wptr = weakHandle();
     mEchoTimer = setTimeout([this, wptr]()
@@ -499,6 +500,7 @@ void Connection::sendEcho()
         mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
 
         setState(kStateDisconnected);
+        abortRetryController();
         reconnect();
 
     }, kEchoTimeout * 1000, mChatdClient.mKarereClient->appCtx);
@@ -512,19 +514,75 @@ void Connection::setState(State state)
     if (mState == state)
     {
         CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
+        return;
     }
-
-    CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
-    mState = state;
+    else
+    {
+        CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
+        mState = state;
+    }
 
     if (mState == kStateDisconnected)
     {
         mHeartbeatEnabled = false;
+
+        // if a socket is opened, close it immediately
+        if (wsIsConnected())
+        {
+            wsDisconnect(true);
+        }
+
+        // if an ECHO was sent, no need to wait for its response
         if (mEchoTimer)
         {
             cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
             mEchoTimer = 0;
         }
+
+        // if connect-timer is running, it must be reset (kStateResolving --> kStateDisconnected)
+        if (mConnectTimer)
+        {
+            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            mConnectTimer = 0;
+        }
+
+        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+        auto wptr = weakHandle();
+        mConnectTimer = setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            mConnectTimer = 0;
+
+            CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+            mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
+
+            retryPendingConnection(true);
+
+        }, kConnectTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+
+        // notify chatrooms that connection is down
+        for (auto& chatid: mChatIds)
+        {
+            auto& chat = mChatdClient.chats(chatid);
+            chat.onDisconnect();
+
+            // remove calls (if any)
+#ifndef KARERE_DISABLE_WEBRTC
+            if (mChatdClient.mKarereClient->rtc)
+            {
+                mChatdClient.mKarereClient->rtc->removeCall(chatid);
+            }
+#endif
+        }
+        // and stop call-timers in this shard
+#ifndef KARERE_DISABLE_WEBRTC
+        if (mChatdClient.mRtcHandler)
+        {
+            mChatdClient.mRtcHandler->stopCallsTimers(mShardNo);
+        }
+#endif
     }
     else if (mState == kStateConnected)
     {
@@ -534,6 +592,12 @@ void Connection::setState(State state)
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
+
+        if (mConnectTimer)
+        {
+            cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+            mConnectTimer = 0;
+        }
     }
 }
 
@@ -561,6 +625,7 @@ Promise<void> Connection::reconnect()
 {
     mChatdClient.mKarereClient->setCommitEach(false); // use transactions
     assert(!mHeartbeatEnabled);
+    assert(!mRetryCtrl);
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
@@ -581,16 +646,10 @@ Promise<void> Connection::reconnect()
             if (wptr.deleted())
             {
                 CHATDS_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
-                return promise::_Void();
+                return ::promise::_Void();
             }
 
-#ifndef KARERE_DISABLE_WEBRTC
-            if (mChatdClient.mRtcHandler)
-            {
-                mChatdClient.mRtcHandler->stopCallsTimers(mShardNo);
-            }
-#endif
-            disconnect();
+            setState(kStateDisconnected);
             mConnectPromise = Promise<void>();
 
             string ipv4, ipv6;
@@ -606,17 +665,43 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);
             }
 
+            auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed, but chatd client was deleted.");
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client was deleted.");
+                    return;
+                }
+                if (!mRetryCtrl)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                    assert(isOnline());
+                    assert(cachedIPs);
+                    return;
+                }
+                if (mRetryCtrl.get() != retryCtrl)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer RetryController has already started");
+                    return;
+                }
+                if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                                     attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
 
                 if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
                 {
+                    if (isOnline() && cachedIPs)
+                    {
+                        assert(false);  // this case should be handled already at: if (!mRetryCtrl)
+                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        return;
+                    }
+
                     string errStr;
                     if (statusDNS < 0)
                     {
@@ -629,17 +714,7 @@ Promise<void> Connection::reconnect()
                         errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
                     }
 
-                    if (isOnline() && cachedIPs)
-                    {
-                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
-                        return;
-                    }
-
-                    // if connection already started, first abort/cancel
-                    if (wsIsConnected())
-                    {
-                        wsDisconnect(true);
-                    }
+                    assert(!isOnline());
                     onSocketClose(0, 0, "Async DNS error (chatd)");
                     return;
                 }
@@ -667,11 +742,7 @@ Promise<void> Connection::reconnect()
                                   ipsv6.size() ? ipsv6.at(0) : "");
                     assert(ret);
 
-                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");                    // if connection already started, first abort/cancel
-                    if (wsIsConnected())
-                    {
-                        wsDisconnect(true);
-                    }
+                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
                     onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
             });
@@ -727,13 +798,7 @@ void Connection::abortRetryController()
 
 void Connection::disconnect()
 {
-    mState = kStateDisconnected;
-    if (wsIsConnected())
-    {
-        wsDisconnect(true);
-    }
-
-    onSocketClose(0, 0, "terminating");
+    setState(kStateDisconnected);
 }
 
 void Connection::doConnect()
@@ -789,16 +854,7 @@ void Connection::retryPendingConnection(bool disconnect)
 {
     if (mUrl.isValid())
     {
-        if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
-        {
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
-            assert(!mEchoTimer);
-
-            CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
-            mRetryCtrl->restart();
-        }
-        else if (disconnect)
+        if (disconnect)
         {
             CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
 
@@ -806,9 +862,19 @@ void Connection::retryPendingConnection(bool disconnect)
             abortRetryController();
             reconnect();
         }
+        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+        {
+            CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+
+            assert(!isOnline());
+            assert(!mHeartbeatEnabled);
+            assert(!mEchoTimer);
+
+            mRetryCtrl->restart();
+        }
         else
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connected, no forced disconnect was requested)");
+            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
         }
     }
     else
@@ -833,6 +899,7 @@ void Connection::heartbeat()
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
 
         setState(kStateDisconnected);
+        abortRetryController();
         reconnect();
     }
 }
@@ -2379,7 +2446,7 @@ void Chat::requestRichLink(Message &message)
                 CHATID_LOG_DEBUG("requestRichLink: Message has been updated during rich link request (%s)", ID_CSTR(msgId));
             }
         })
-        .fail([wptr, this](const promise::Error& err)
+        .fail([wptr, this](const ::promise::Error& err)
         {
             if (wptr.deleted())
                 return;
@@ -2714,7 +2781,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         flushOutputQueue();
     });
 
-    pms.fail([this, msg, msgCmd](const promise::Error& err)
+    pms.fail([this, msg, msgCmd](const ::promise::Error& err)
     {
         CHATID_LOG_ERROR("ICrypto::encrypt error encrypting message %s: %s", ID_CSTR(msg->id()), err.what());
         delete msgCmd;
@@ -3526,7 +3593,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
-    .fail([this, cipherMsg](const promise::Error& err) -> promise::Promise<Message*>
+    .fail([this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
         assert(cipherMsg->isPendingToDecrypt());
 
@@ -3534,10 +3601,10 @@ void Chat::onMsgUpdated(Message* cipherMsg)
         switch (type)
         {
             case SVCRYPTO_EEXPIRED:
-                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
             case SVCRYPTO_ENOMSG:
-                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                return ::promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
@@ -3687,7 +3754,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
         delete msg;
     })
-    .fail([this, cipherMsg](const promise::Error& err)
+    .fail([this, cipherMsg](const ::promise::Error& err)
     {
         if (err.type() == SVCRYPTO_ENOMSG)
         {
@@ -3931,14 +3998,14 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         {
             Message *message = &msg;
             mCrypto->msgDecrypt(message)
-            .fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
+            .fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
             {
                 assert(message->isEncrypted() == Message::kEncryptedNoType);
                 int type = err.type();
                 switch (type)
                 {
                     case SVCRYPTO_EEXPIRED:
-                        return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                        return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
                     case SVCRYPTO_ENOTYPE:
                         CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed (not yet supported): %d (msgid: %s)", message->type, ID_CSTR(message->id()));
@@ -3959,7 +4026,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 }
                 msgIncomingAfterDecrypt(isNew, true, *message, idx);
             })
-            .fail([this, message](const promise::Error& err)
+            .fail([this, message](const ::promise::Error& err)
             {
                 CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed. (msgid: %s, failure type %s (%d))",
                                    ID_CSTR(message->id()), err.what(), err.type());
@@ -4023,7 +4090,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([this, message](const promise::Error& err) -> promise::Promise<Message*>
+    pms.fail([this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
     {
         assert(message->isPendingToDecrypt());
 
@@ -4031,10 +4098,10 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         switch (type)
         {
             case SVCRYPTO_EEXPIRED:
-                return promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
             case SVCRYPTO_ENOMSG:
-                return promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                return ::promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
 
             case SVCRYPTO_ENOKEY:
                 //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
@@ -4121,7 +4188,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([this, message](const promise::Error& err)
+    .fail([this, message](const ::promise::Error& err)
     {
         if (err.type() == SVCRYPTO_ENOMSG)
         {
@@ -4270,7 +4337,7 @@ bool Chat::msgNodeHistIncoming(Message *msg)
                     attachmentHistDone();
                 }
             })
-            .fail([this, msg](const promise::Error& /*err*/)
+            .fail([this, msg](const ::promise::Error& /*err*/)
             {
                 assert(msg->isPendingToDecrypt());
                 delete msg;

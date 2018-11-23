@@ -212,7 +212,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& e)
+            .fail([request, this](const ::promise::Error& e)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(e.msg(), e.code(), e.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -370,7 +370,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error setting online status: %s", err.what());
 
@@ -422,7 +422,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
                 })
-                .fail([request,this](const promise::Error& err)
+                .fail([request,this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error creating group chat: %s", err.what());
 
@@ -448,7 +448,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
                 })
-                .fail([request,this](const promise::Error& err)
+                .fail([request,this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error creating 1on1 chat: %s", err.what());
 
@@ -493,7 +493,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error adding user to group chat: %s", err.what());
 
@@ -585,7 +585,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error updating peer privileges: %s", err.what());
 
@@ -632,7 +632,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
                 })
-                .fail([request, this](const promise::Error& err)
+                .fail([request, this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error leaving chat: %s", err.what());
 
@@ -648,7 +648,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
                 })
-                .fail([request, this](const promise::Error& err)
+                .fail([request, this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error removing peer from chat: %s", err.what());
 
@@ -699,7 +699,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error truncating chat history: %s", err.what());
 
@@ -746,7 +746,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error editing chat title: %s", err.what());
 
@@ -1028,7 +1028,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 request->setText(firstname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error getting user firstname: %s", err.what());
 
@@ -1049,7 +1049,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 request->setText(lastname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error getting user lastname: %s", err.what());
 
@@ -1070,7 +1070,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 request->setText(email.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error getting user email: %s", err.what());
 
@@ -1125,9 +1125,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            promise::Promise<void> promise = chatroom->requesGrantAccessToNodes(nodeList);
+            ::promise::Promise<void> promise = chatroom->requesGrantAccessToNodes(nodeList);
 
-            promise::when(promise)
+            ::promise::when(promise)
             .then([this, request, buffer]()
             {
                 int errorCode = MegaChatError::ERROR_OK;
@@ -1144,7 +1144,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([this, request, buffer](const promise::Error& err)
+            .fail([this, request, buffer](const ::promise::Error& err)
             {
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
@@ -1190,10 +1190,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            promise::Promise<void> promise = chatroom->requestRevokeAccessToNode(node);
+            ::promise::Promise<void> promise = chatroom->requestRevokeAccessToNode(node);
             delete node;
 
-            promise::when(promise)
+            ::promise::when(promise)
             .then([this, request]()
             {
                 ChatRoom *chatroom = findChatRoom(request->getChatHandle());
@@ -1218,7 +1218,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([this, request](const promise::Error& err)
+            .fail([this, request](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Failed to revoke access to attached node (%d)", request->getUserHandle());
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
@@ -1323,7 +1323,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([this, request](const promise::Error& err)
+            .fail([this, request](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Failed to retrieve current state");
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
@@ -1530,7 +1530,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error archiving chat: %s", err.what());
 
@@ -5508,13 +5508,13 @@ void MegaChatRoomHandler::onManualSendRequired(chatd::Message *msg, uint64_t id,
 
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(const string &msg, int code, int type)
-    : promise::Error(msg, code, type)
+    : ::promise::Error(msg, code, type)
 {
     this->setHandled();
 }
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(int code, int type)
-    : promise::Error(MegaChatErrorPrivate::getGenericErrorString(code), code, type)
+    : ::promise::Error(MegaChatErrorPrivate::getGenericErrorString(code), code, type)
 {
     this->setHandled();
 }
@@ -5541,7 +5541,7 @@ const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
 
 
 MegaChatErrorPrivate::MegaChatErrorPrivate(const MegaChatErrorPrivate *error)
-    : promise::Error(error->getErrorString(), error->getErrorCode(), error->getErrorType())
+    : ::promise::Error(error->getErrorString(), error->getErrorCode(), error->getErrorType())
 {
     this->setHandled();
 }
