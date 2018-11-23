@@ -360,7 +360,7 @@ protected:
     std::string mAudioInDeviceName;
     IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         karere::Id ownAnonId)
-        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
+        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mKarereClient(client) {}
 public:
     enum {
        kMaxCallReceivers = 20,
@@ -369,7 +369,7 @@ public:
     };
 
     virtual ~IRtcModule() {}
-    karere::Client& mClient;
+    karere::Client& mKarereClient;
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
