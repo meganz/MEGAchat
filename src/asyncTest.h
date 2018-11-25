@@ -177,6 +177,7 @@ public:
     EventLoop(int timeout=TESTLOOP_DEFAULT_DONE_TIMEOUT)
     :defaultDoneTimeout(timeout)
     {
+        mMutex.lock();
         DoneItem item("_default");
         addDoneToMap(std::move(item));
     }

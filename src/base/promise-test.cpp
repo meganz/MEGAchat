@@ -9,15 +9,15 @@
 TESTS_INIT();
 using namespace promise;
 
-std::function<void(const std::string&, int, int)> gUnhandledHandler =
-[](const std::string& msg, int type, int code)
+std::function<void(const std::string&, int, int) noexcept> gUnhandledHandler =
+[](const std::string& msg, int type, int code) noexcept
 {
     printf("WARNING: Unhandled promise fail. Error: %s, type: %d, code: %d\n", msg.c_str(), type, code);
 };
 
-void testUnhandledError(const std::string& msg, int type, int code)
+void testUnhandledError(const Error& error) noexcept
 {
-    gUnhandledHandler(msg, type, code);
+    gUnhandledHandler(error.msg(), error.type(), error.code());
 }
 
 int main()
