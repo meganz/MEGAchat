@@ -1,4 +1,7 @@
 /** @author Alexander Vassilev */
+// This is the js spec https://promisesaplus.com which is followed as reasonable in c++
+// if you see numbers as a comment they refer to the same numbers in the spec
+
 
 #ifndef _PROMISE_H
 #define _PROMISE_H
@@ -7,8 +10,13 @@
 #include <string>
 #include <utility>
 #include <memory>
+#include <algorithm>
 #include <assert.h>
 
+namespace promise
+{
+    class Error;
+}
 /** @brief The name of the unhandled promise error handler. This handler is
  * called when a promise fails, but the user has not provided a fail() callback
  * to handle that error. Often this is unintentional and results in the program
@@ -17,19 +25,10 @@
  * The default just prints a warning to stderr
  */
 #ifndef PROMISE_ON_UNHANDLED_ERROR
-    #define PROMISE_ON_UNHANDLED_ERROR ErrorShared::defaultOnUnhandledError
+    #define PROMISE_ON_UNHANDLED_ERROR promise::Error::defaultOnUnhandledError
 #else // define the prototype, as it may come after the inclusion of promise.h
-    void PROMISE_ON_UNHANDLED_ERROR(const std::string& msg, int type, int code);
+    void PROMISE_ON_UNHANDLED_ERROR(const promise::Error& error) noexcept;
 #endif
-
-namespace promise
-{
-enum ResolvedState
-{
-    kNotResolved = 0,
-    kSucceeded = 1,
-    kFailed = 2
-};
 
 #define PROMISE_LOG(fmtString,...) printf("promise: " fmtString"\n", ##__VA_ARGS__)
 #ifdef PROMISE_DEBUG_REFS
@@ -38,60 +37,22 @@ enum ResolvedState
     #define PROMISE_LOG_REF(fmtString,...)
 #endif
 
-//===
-struct _Void{};
-typedef _Void Void;
-
-template<typename V>
-struct MaskVoid { typedef V type;};
-template<>
-struct MaskVoid<void> {typedef _Void type;};
-
-//get function/lambda return type, regardless of argument count and types
-template <class F>
-struct FuncTraits: public FuncTraits<decltype(&F::operator())>{};
-
-template <class R, class... Args>
-struct FuncTraits <R(*)(Args...)>{ typedef R RetType; enum {nargs = sizeof...(Args)};};
-
-template <class C, class R, class...Args>
-struct FuncTraits <R(C::*)(Args...)> { typedef R RetType; enum {nargs = sizeof...(Args)};};
-
-template <class C, class R, class...Args>
-struct FuncTraits <R(C::*)(Args...) const> { typedef R RetType; enum {nargs = sizeof...(Args)};};
-//===
-struct IVirtDtor
-{  virtual ~IVirtDtor() {}  };
-
-template <class T>
-class Promise;
-
-//Promise error class. We need it to be a refcounted object, because
-//often the user would return somehting like return PromiseError(...)
-//That would be converted to a failed promise object, and the Error would
-//need to be copied into the Promise. By having a refcounted dynamic object,
-//only the pointer will be transferred and the refcount changed.
-struct ErrorShared
+namespace promise
 {
-    std::string mMsg;
-    int mCode;
-    int mType;
-    mutable bool mHandled = false;
-    ErrorShared(const std::string& aMsg, int aCode=-1, int aType=0)
-        :mMsg(aMsg),mCode(aCode),mType(aType){}
-    ~ErrorShared()
-    {
-        if (!mHandled)
-            PROMISE_ON_UNHANDLED_ERROR(mMsg, mType, mCode);
-    }
-    static void defaultOnUnhandledError(const std::string& msg, int type, int code)
-    {
-        fprintf(stderr, "WARNING: Unhandled promise fail. Error: '%s', type: %d, code: %d\n", msg.c_str(), type, code);
-    }
-};
+template <class T>
+using remove_cvref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+template <class T, class V>
+using EnableIfSameT = typename std::enable_if<std::is_same<remove_cvref_t<T>, V>::value>::type;
+template <class T, class V>
+using DisableIfSameT = typename std::enable_if<!std::is_same<remove_cvref_t<T>, V>::value>::type;
+template <class T, class V>
+using EnableIfConvertibleT = typename std::enable_if<std::is_convertible<T, V>::value>::type;
+template <class T, class V>
+using DisableIfConvertibleT = typename std::enable_if<!std::is_convertible<T, V>::value>::type;
 
 enum
 {
+    kErrorTypePromiseSpecViolation = 2,
     kErrorTypeGeneric       =   1,
     kErrorUnknown           =  -1,
     kErrorArgs              =  -2,
@@ -106,633 +67,620 @@ enum
     kErrTimeout = 3
 };
 
-class Error: protected std::shared_ptr<ErrorShared>
+// 1.5
+class Error
 {
-protected:
-    Error(): Base(nullptr){}
+    std::string mMsg;
+    int mCode;
+    int mType;
+
+
 public:
-    typedef std::shared_ptr<ErrorShared> Base;
-    Error(const std::string& msg, int code=-1, int type=kErrorTypeGeneric)
-        :Base(std::make_shared<ErrorShared>(msg, code, type))
-    {}
-    Error(const char* msg, int code=-1, int type=kErrorTypeGeneric)
-        :Base(std::make_shared<ErrorShared>(msg?msg:"", code, type))
-    {}
-    using Base::operator=;
-    const std::string& msg() const {return get()->mMsg;}
-    const char* what() const {return get()->mMsg.c_str();}
-    int type() const {return get()->mType;}
-    int code() const {return get()->mCode;}
-    void setHandled() const { get()->mHandled = true; }
-    bool handled() const { return get()->mHandled; }
+
+    template <class T, class = EnableIfSameT<T, std::string>>
+    Error(T&& msg, int code = -1, int type = kErrorTypeGeneric)
+        :mMsg(std::forward<T>(msg)),mCode(code),mType(type) {}
+    template <class ... Args>
+    Error(const char* msg, Args&&... args)
+        : Error(std::string{ msg ? msg : "" }, std::forward<Args>(args)...) {}
+    Error() = default;
+    Error(const Error&) = default;
+    Error& operator =(const Error&) = default;
+    Error(Error&&) = default;
+    Error& operator =(Error&&) = default;
+    ~Error() = default;
+
+    const std::string& msg() const noexcept { return mMsg; }
+    const char* what() const { return msg().c_str(); }
+    int type() const noexcept { return mType; }
+    int code() const noexcept { return mCode; }
     std::string toString() const
     {
-        return "Error: '"+get()->mMsg+"'\nType: "+
-        std::to_string(get()->mType)+" Code: "+std::to_string(get()->mCode);
+        return "Error: '" + msg() + "'\nType: " +
+        std::to_string(type()) + " Code: " + std::to_string(code());
     }
-    template <class T>
-    friend class Promise;
+    static void defaultOnUnhandledError(const Error& error) noexcept
+    {
+        fprintf(stderr, "WARNING: Unhandled promise fail. Error: '%s', type: %d, code: %d\n",
+            error.what(), error.type(), error.code());
+    }
+};
+
+//===
+struct _Void {};
+typedef _Void Void;
+
+template<typename V>
+struct MaskVoid { typedef V type; };
+template<>
+struct MaskVoid<void> { typedef _Void type; };
+template <class T>
+using MaskVoidT = typename MaskVoid<T>::type;
+
+//get function/lambda return type, regardless of argument count and types
+template <class F>
+struct FuncTraits : public FuncTraits<decltype(&F::operator())> {};
+
+template <class R, class... Args>
+struct FuncTraits <R(*)(Args...)> { typedef R RetType; enum { nargs = sizeof...(Args) }; };
+
+template <class C, class R, class...Args>
+struct FuncTraits <R(C::*)(Args...)> { typedef R RetType; enum { nargs = sizeof...(Args) }; };
+
+template <class C, class R, class...Args>
+struct FuncTraits <R(C::*)(Args...) const> { typedef R RetType; enum { nargs = sizeof...(Args) }; };
+
+template <class T>
+class Promise;
+
+enum ResolvedState
+{
+    kNotResolved = 0,
+    kSucceeded = 1,
+    kFailed = 2
 };
 
 class PromiseBase
 {
-protected:
 public:
-    virtual PromiseBase* clone() const = 0;
-    virtual ~PromiseBase(){}
-};
 
-template <class C>
-class CallbackList
-{
+    virtual ~PromiseBase() {}
+
+
 protected:
-    std::vector<C*> items;
-public:
-    CallbackList(){}
-/**
- * Takes ownership of callback, copies the promise.
- * Accepts the callback as a smart pointer of type SP.
- * This is because the method can throw if the list is full,
- * and in this case the smartpointer will prevent the pointer leak.
-*/
-    template<class SP>
-    inline void push(SP& cb)
-    {
-        items.push_back(cb.release());
-    }
 
-    inline C*& operator[](int idx)
+    struct CallCbHandleVoids
     {
-        assert((idx >= 0) && (idx < (int)items.size()));
-        return items[idx];
-    }
-    inline const C*& operator[](int idx) const
-    {
-        assert((idx >= 0) && (idx < items.size()));
-        return items[idx];
-    }
-    inline C*& first()
-    {
-        assert(!items.empty());
-        return items[0];
-    }
-    inline int count() const
-    {
-        return items.size();
-    }
-    inline void addListMoveItems(CallbackList& other)
-    {
-        items.insert(items.end(), other.items.begin(), other.items.end());
-        other.clear();
-    }
-    void clear()
-    {
-        static_assert(std::is_base_of<IVirtDtor, C>::value, "Callback type must be inherited from IVirtDtor");
-        for (auto it = items.begin(); it != items.end(); it++)
-        {
-            delete ((IVirtDtor*)*it); //static_cast wont work here because there is no info that ICallback inherits from IVirtDtor
-        }
-        items.clear();
-    }
-    ~CallbackList()
-    {
-        assert(items.empty());
-    }
-};
+        template<class CbOut, class In, class CB, class = typename std::enable_if<!std::is_same<In, _Void>::value && !std::is_same<CbOut, void>::value, int>::type>
+        static CbOut call(CB& cb, const In& val) { return cb(val); }
 
-struct _Empty{};
-typedef _Empty Empty;
+        template<class CbOut, class In, class CB, class = typename std::enable_if<std::is_same<In, _Void>::value && !std::is_same<CbOut, void>::value, int>::type>
+        static CbOut call(CB& cb, const _Void& /*val*/) { return cb(); }
 
-template<typename T>
-class Promise: public PromiseBase
-{
-public:
-protected:
-    template<class P>
-    struct ICallback: public IVirtDtor
-    {
-        virtual void operator()(const P&) = 0;
-        virtual void rejectNextPromise(const Error&) = 0;
-    };
+        template<class CbOut, class In, class CB, class = typename std::enable_if<!std::is_same<In, _Void>::value && std::is_same<CbOut, void>::value, int>::type>
+        static Void call(CB& cb, const In& val) { cb(val); return _Void(); }
 
-    template <class P, class TP>
-    struct ICallbackWithPromise: public ICallback<P>
-    {
-    public:
-        Promise<TP> nextPromise;
-        virtual void rejectNextPromise(const Error& err) { nextPromise.reject(err); }
-        ICallbackWithPromise(const Promise<TP>& next): nextPromise(next){}
-    };
-
-    template <class P, class CB, class TP=int>
-    struct Callback: public ICallbackWithPromise<P, TP>
-    {
-    protected:
-        CB mCb;
-    public:
-        virtual void operator()(const P& arg) { mCb(arg, *this); }
-        Callback(CB&& cb, const Promise<TP>& next)
-            :ICallbackWithPromise<P, TP>(next), mCb(std::forward<CB>(cb)){}
-        CB& callback() { return mCb; }
-    };
-    typedef ICallback<typename MaskVoid<T>::type> ISuccessCb;
-    typedef ICallback<Error> IFailCb;
-    typedef ICallbackWithPromise<Error, T> IFailCbWithPromise;
-
-    template <class CB, class TP>
-    struct SuccessCb: public Callback<typename MaskVoid<T>::type, CB, TP>
-    {
-        SuccessCb(CB&& cb, const Promise<TP>& next) //can't use ctotr inharitance because MSVC 2013 does not support it
-            :Callback<typename MaskVoid<T>::type, CB, TP>(std::forward<CB>(cb), next){}
-    };
-
-    template <class CB>
-    struct FailCb: public Callback<Error, CB, T>
-    {
-        FailCb(CB&& cb, const Promise<T>& next)
-        :Callback<Error, CB, T>(std::forward<CB>(cb), next){}
-    };
-/** Helper funtion to be able to deduce the callback type of the passed lambda and create and
-  * Callback object with that type. We cannot do that by directly calling the Callback constructor
-  */
-    template <class P, class CB, class TP>
-    ICallback<typename MaskVoid<P>::type>* createCb(CB&& cb, Promise<TP>& next)
-    {
-        return new Callback<typename MaskVoid<P>::type, CB, TP>(std::forward<CB>(cb), next);
-    }
-//===
-    struct SharedObj
-    {
-        struct CbLists
-        {
-            CallbackList<ISuccessCb> mSuccessCbs;
-            CallbackList<IFailCb> mFailCbs;
-        };
-        int mRefCount;
-        CbLists* mCbs;
-        ResolvedState mResolved;
-        bool mPending;
-        Promise<T> mMaster;
-        typename MaskVoid<typename std::remove_const<T>::type>::type mResult;
-        Error mError;
-        SharedObj()
-        :mRefCount(1), mCbs(NULL), mResolved(kNotResolved),
-         mPending(false), mMaster(_Empty())
-        {
-            PROMISE_LOG_REF("%p: addRef -> 1 (SharedObj ctor)", this);
-        }
-        void ref()
-        {
-            mRefCount++;
-            PROMISE_LOG_REF("%p: ref -> %d", this, mRefCount);
-        }
-        void unref()
-        {
-            if (--mRefCount > 0)
-            {
-                PROMISE_LOG_REF("%p: unref -> %d", this, mRefCount);
-                return;
-            }
-            assert(mRefCount == 0);
-            PROMISE_LOG_REF("%p: unref -> 0 (deleting SharedObj)", this);
-            delete this;
-        }
-        ~SharedObj()
-        {
-            if (mCbs)
-            {
-                mCbs->mSuccessCbs.clear();
-                mCbs->mFailCbs.clear();
-                delete mCbs;
-            }
-        }
-        inline CbLists& cbs()
-        {
-            if (!mCbs)
-                mCbs = new CbLists;
-            return *mCbs;
-        }
+        template<class CbOut, class In, class CB, class = typename std::enable_if<std::is_same<In, _Void>::value && std::is_same<CbOut, void>::value, int>::type>
+        static Void call(CB& cb, const _Void& /*val*/) { cb(); return _Void(); }
     };
 
     template <typename Ret>
     struct RemovePromise
-    {  typedef typename std::remove_const<Ret>::type Type; };
+    {
+        typedef typename std::remove_const<Ret>::type Type;
+    };
     template<typename Ret>
     struct RemovePromise<Promise<Ret> >
-    {  typedef typename std::remove_const<Ret>::type Type;  };
-
-//===
-    struct CallCbHandleVoids
     {
-        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && !std::is_same<CbOut, void>::value, int>::type>
-        static Promise<Out> call(CB& cb, const In& val) {  return cb(val);  }
-
-        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && !std::is_same<CbOut, void>::value, int>::type>
-        static Promise<Out> call(CB& cb, const _Void& /*val*/) {  return cb();   }
-
-        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
-        static Promise<void> call(CB& cb, const In& val){ cb(val); return _Void(); }
-
-        template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
-        static Promise<void> call(CB& cb, const _Void& /*val*/) { cb(); return _Void(); }
+        typedef typename std::remove_const<Ret>::type Type;
     };
-//===
-    void reset(SharedObj* other=NULL)
+    template <class T>
+    using RemovePromiseT = typename RemovePromise<T>::Type;
+
+    template<class T>
+    using RetTypeT = RemovePromiseT<typename FuncTraits<T>::RetType>;
+
+    class SharedError : public Error
     {
-        if (mSharedObj)
+        bool mHandled = false;
+
+
+    public:
+
+        template <class ... Args>
+        SharedError(Args&&... args)
+            : Error{ std::forward<Args>(args)... } {}
+
+        ~SharedError()
         {
-            mSharedObj->unref();
-        }
-        mSharedObj = other;
-        if (mSharedObj)
-        {
-            mSharedObj->ref();
-        }
-    }
-    inline CallbackList<ISuccessCb>& thenCbs() {return mSharedObj->cbs().mSuccessCbs;}
-    inline CallbackList<IFailCb>& failCbs() {return mSharedObj->cbs().mFailCbs;}
-    SharedObj* mSharedObj;
-    template <class FT> friend class Promise;
-public:
-    typedef T Type;
-    /** @brief Creates an uninitialized promise.
-     *  @attention Use with care - only when subsequent re-assigning
-     *  is guaranteed.
-     */
-    Promise(_Empty): mSharedObj(NULL){}
-    Promise(): mSharedObj(new SharedObj){}
-    Promise(const Promise& other): mSharedObj(other.mSharedObj)
-    {
-        if (mSharedObj)
-            mSharedObj->ref();
-    }
-    template <class=typename std::enable_if<!std::is_same<T, Error>::value, int>::type>
-    Promise(const typename MaskVoid<T>::type& val): mSharedObj(new SharedObj)
-    {
-        resolve(val);
-    }
-    Promise(typename MaskVoid<T>::type&& val): mSharedObj(new SharedObj)
-    {
-        resolve(std::forward<typename MaskVoid<T>::type>(val));
-    }
-
-    Promise(const Error& err): mSharedObj(new SharedObj)
-    {
-        assert(err);
-        reject(err);
-    }
-    Promise<T>& operator=(const Promise<T>& other)
-    {
-        reset(other.mSharedObj);
-        return *this;
-    }
-
-    virtual ~Promise()
-    {
-        if (mSharedObj)
-        {
-            mSharedObj->unref();
-        }
-    }
-    int done() const
-    {
-        if (!mSharedObj)
-            return kNotResolved;
-        return getMaster().mSharedObj->mResolved;
-    }
-    bool succeeded() const { return done() == kSucceeded; }
-    bool failed() const { return done() == kFailed; }
-    const Error& error() const
-    {
-        assert(mSharedObj);
-        assert(done() == kFailed);
-        auto& master = mSharedObj->mMaster;
-        return master.mSharedObj
-                ? master.mSharedObj->mError
-                : mSharedObj->mError;
-    }
-    template <class Ret=T>
-    const typename std::enable_if<!std::is_same<Ret, void>::value, Ret>::type& value() const
-    {
-        assert(mSharedObj);
-        auto master = mSharedObj->mMaster;
-        if (master.mSharedObj)
-        {
-            assert(master.done());
-            return master.mSharedObj->mResult;
-        }
-        else
-        {
-            assert(done() == kSucceeded);
-            return mSharedObj->mResult;
-        }
-    }
-protected:
-    virtual PromiseBase* clone() const
-    {    return new Promise<T>(*this);    }
-    bool hasMaster() const { return (mSharedObj->mMaster.mSharedObj != nullptr) ; }
-    //The master of a promise is the actual promise that gets resolved,
-    //similar to the 'deferred' object in some promise libraries.
-    //It contains the callbacks and the state. Promises that have a
-    //master just forward the attached callbacks to the master. These promises
-    //are generated during the chaining process - all of them attach to the
-    //initial, master promise.
-    const Promise<T>& getMaster() const
-    {
-        assert(mSharedObj);
-        auto& master = mSharedObj->mMaster;
-        auto& ret = master.mSharedObj ? master : *this;
-        assert(!ret.hasMaster());
-        return ret;
-    }
-    //non-const version of the method
-    Promise<T>& getMaster()
-    {
-        assert(mSharedObj);
-        auto& master = mSharedObj->mMaster;
-        auto& ret = master.mSharedObj ? master : *this;
-        assert(!ret.hasMaster());
-        return ret;
-    }
-
-/** Creates a wrapper function around a then() or fail() handler that handles exceptions and propagates
- * the result to resolve/reject chained promises. \c In is the type of the callback's parameter,
- * \c Out is its return type, \c CB is the type of the callback itself.
- */
-    template <typename In, typename Out, typename RealOut, class CB>
-    ICallback<In>* createChainedCb(CB&& cb, Promise<Out>& next)
-    {
-        //cb must have the singature Promise<Out>(const In&)
-        return createCb<In>(
-            [cb](const In& result, ICallbackWithPromise<typename MaskVoid<In>::type, Out >& handler)
-            mutable->void
-        {
-            Promise<Out>& next = handler.nextPromise; //the 'chaining' promise
-            Promise<Out> promise((_Empty())); //the promise returned by the user callback
-            try
-            {
-                promise = CallCbHandleVoids::template call<Out, RealOut, In>(cb, result);
-            }
-            catch(std::exception& e)
-            {
-                next.reject(Error(e.what(), kErrException));
-                return;
-            }
-            catch(Error& e)
-            {
-                next.reject(e);
-                return;
-            }
-            catch(const char* e)
-            {
-                next.reject(Error(e, kErrException));
-                return;
-            }
-            catch(...)
-            {
-                next.reject(Error("(unknown exception type)", kErrException));
-                return;
-            }
-
-// connect the promise returned by the user's callback (actually its master)
-// to the chaining promise, returned earlier by then() or fail()
-            Promise<Out>& master = promise.getMaster(); //master is the promise that actually gets resolved, equivalent to the 'deferred' object
-            assert(!next.hasMaster());
-            next.mSharedObj->mMaster = master; //makes 'next' attach subsequently added callbacks to 'master'
-            assert(next.hasMaster());
-            // Move the callbacks and errbacks of 'next' to 'master'
-            if (!master.hasCallbacks())
-            {
-                master.mSharedObj->mCbs = next.mSharedObj->mCbs;
-                next.mSharedObj->mCbs = nullptr;
-            }
-            else
-            {
-                auto& nextCbs = next.thenCbs();
-                if (nextCbs.count())
-                    master.thenCbs().addListMoveItems(nextCbs);
-
-                auto& nextEbs = next.failCbs();
-                if (nextEbs.count())
-                    master.failCbs().addListMoveItems(nextEbs);
-            }
-            //====
-            if (master.mSharedObj->mPending)
-                master.doPendingResolveOrFail();
-        }, next);
-    }
-
-public:
-/**
-* The Out template argument is the return type of the provided callback \c cb
-* It is the same as the argument type of the next chained then()
-* callback(if any). The \c cb callback can return a value of type \c Out or a
-* \c Promise<Out> instance
-*/
-    template <typename F>
-    auto then(F&& cb)->Promise<typename RemovePromise<typename FuncTraits<F>::RetType>::Type >
-    {
-        if (mSharedObj->mMaster.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
-            return mSharedObj->mMaster.then(std::forward<F>(cb));
-
-        if (mSharedObj->mResolved == kFailed)
-            return mSharedObj->mError;
-
-        typedef typename RemovePromise<typename FuncTraits<F>::RetType>::Type Out;
-        Promise<Out> next;
-
-        std::unique_ptr<ISuccessCb> resolveCb(createChainedCb<typename MaskVoid<T>::type, Out,
-            typename FuncTraits<F>::RetType>(std::forward<F>(cb), next));
-
-        if (mSharedObj->mResolved == kSucceeded)
-        {
-            (*resolveCb)(mSharedObj->mResult);
-        }
-        else
-        {
-            assert((mSharedObj->mResolved == kNotResolved));
-            thenCbs().push(resolveCb);
+            if (!mHandled)
+                PROMISE_ON_UNHANDLED_ERROR(*this);
         }
 
-        return next;
-    }
-/** Adds a handler to be executed in case the promise is rejected
-* \note
-* fail() must always return a promise of the same type as the one of the
-* promise on which it is called (i.e. type T)
-* This is because the next promise in the chain can have a then() handler,
-* which in case of no success, will get its value from the promise before
-* the fail(). In other words
-* fail()-s in the chain must always preserve the result type from the last
-* then()
-*/
-    template <typename F>
-    auto fail(F&& eb)->Promise<T>
-    {
-        auto& master = mSharedObj->mMaster;
-        if (master.mSharedObj) //if we are a slave promise (returned by then() or fail()), forward callbacks to our master promise
-            return master.fail(std::forward<F>(eb));
-
-        if (mSharedObj->mResolved == kSucceeded)
-            return mSharedObj->mResult; //don't call the errorback, just return the successful resolve value
-
-        Promise<T> next;
-        std::unique_ptr<IFailCb> failCb(createChainedCb<Error, T,
-            typename FuncTraits<F>::RetType>(std::forward<F>(eb), next));
-
-        if (mSharedObj->mResolved == kFailed)
+        void setHandled() noexcept
         {
-            (*failCb)(mSharedObj->mError);
-            mSharedObj->mError.setHandled();
+            mHandled = true;
         }
-        else
-        {
-            assert((mSharedObj->mResolved == kNotResolved));
-            failCbs().push(failCb);
-        }
+    };
+    using SharedErrorPtr = std::shared_ptr<SharedError>;
 
-        return next;
-    }
-    //val can be a by-value param, const& or &&
-    template <typename V>
-    void resolve(V&& val)
+    template <class TResultType>
+    class SharedData
     {
-        if (mSharedObj->mResolved)
-            throw std::runtime_error("Already resolved/rejected");
-
-        mSharedObj->mResult = std::forward<V>(val);
-        mSharedObj->mResolved = kSucceeded;
-
-        if (hasCallbacks())
-            doResolve(mSharedObj->mResult);
-        else
-            mSharedObj->mPending = true;
-    }
-    template <typename V=T, class=typename std::enable_if<std::is_same<V,void>::value, int>::type>
-    void resolve()
-    {
-        resolve(_Void());
-    }
-
-protected:
-    inline bool hasCallbacks() const { return (mSharedObj->mCbs!=NULL); }
-    void doResolve(const typename MaskVoid<T>::type& val)
-    {
-        auto& cbs = thenCbs();
-        int cnt = cbs.count();
-        if (cnt)
+        using Type = TResultType;
+        using Result = MaskVoidT<typename std::remove_const<Type>::type>;
+        class Data
         {
-            if (cnt == 1) //optimize for single callback
+            class FutureList
             {
-                (*cbs.first())(val);
-            }
-            else
-            {
-                for (int i=0; i<cnt; i++)
-                    (*cbs[i])(val);
-            }
-        }
-//now propagate the successful resolve skipping the fail() handlers to
-//the handlers following them. The promises that follow the fail()
-//are guaranteed to be of our type, because fail() callbacks
-//preserve the type - return the same type as the promise they were
-//called on (i.e. all fail promises, 1 or more in a row,
-//have the type of the last then() callback)
-        auto& ebs = failCbs();
-        cnt = ebs.count();
-        if(cnt)
-        {
-            if (cnt == 1)
-            {
-                static_cast<IFailCbWithPromise*>(ebs.first())->nextPromise.resolve(val);
-            }
-            else
-            {
-                for (int i=0; i<cnt; i++)
+                struct IFuture
                 {
-                    auto& item = ebs[i];
-                    static_cast<IFailCbWithPromise*>(item)->nextPromise.resolve(val);
+                    virtual ~IFuture() = default;
+                    virtual void resolve(const Result& val) noexcept = 0;
+                    virtual void reject(const SharedErrorPtr& errPtr) noexcept = 0;
+                };
+
+                using FuturePtr = std::unique_ptr<IFuture>;
+                using Container = std::vector<FuturePtr>;
+                Container mList;
+
+
+            public:
+
+                void push(FutureList&& other)
+                {
+                    std::move(other.mList.begin(), other.mList.end(), std::back_inserter(mList));
+                }
+
+                template <class TFuture, class ... Args>
+                const typename TFuture::Promise& emplace(Args&&... args)
+                {
+                    struct TypeErasedFuture : IFuture
+                    {
+                        TFuture future;
+                        void resolve(const Result& val) noexcept override
+                        {
+                            future.resolve(val);
+                        }
+                        void reject(const SharedErrorPtr& err) noexcept override
+                        {
+                            future.reject(err);
+                        }
+                        TypeErasedFuture(Args&&... args)
+                            : future{ std::forward<Args>(args)... } {}
+                    };
+                    // should be std::make_unique<TypeErasedFuture>(std::forward<Args>(args)...);
+                    // but it doesn't available in c++11
+                    auto ptr = std::unique_ptr<TypeErasedFuture>(new TypeErasedFuture{ std::forward<Args>(args)... });
+                    const auto& promise = ptr->future.promise();
+                    mList.emplace_back(std::move(ptr));
+                    return promise;
+                }
+
+                void reject(const SharedErrorPtr& err) noexcept
+                {
+                    Container list;
+                    // 2.2.3.3 even if by mistake this method will be called recursively
+                    // for the same promise while executing one of the future callback
+                    // following line guaranteed to call each future once only
+                    std::swap(list, mList);
+                    // 2.2.6.2
+                    std::for_each(list.begin(), list.end(), [&err](FuturePtr& futurePtr) noexcept
+                    {
+                        futurePtr->reject(err);
+                    });
+                }
+
+                void resolve(const Result& val) noexcept
+                {
+                    Container list;
+                    // 2.2.2.3
+                    std::swap(list, mList);
+                    // 2.2.6.1
+                    std::for_each(list.begin(), list.end(), [&val](FuturePtr& futurePtr) noexcept
+                    {
+                        futurePtr->resolve(val);
+                    });
+                }
+            };
+
+            ResolvedState mState = kNotResolved;
+            FutureList mFutures;
+            // 2.1.2.2
+            Result mResult;
+            // 2.1.3.2
+            SharedErrorPtr mError;
+
+            void doResolvePendingFutures() noexcept { mFutures.resolve(mResult); }
+            void doRejectPendingFutures() noexcept { mFutures.reject(mError); }
+
+
+        public:
+
+            template <class T>
+            Data(T&& arg) { resolve(std::forward<T>(arg)); }
+            template <class ... Args>
+            Data(Args&&... args) { reject(std::forward<Args>(args)...); }
+
+            Data() = default;
+            ~Data() = default;
+            Data(const Data&) = delete;
+            Data(Data&&) = delete;
+            Data& operator =(const Data&) = delete;
+            Data& operator =(Data&&) = delete;
+
+            ResolvedState state() const noexcept { return mState; }
+            const SharedErrorPtr& error() const noexcept { return mError; }
+            const Result& result() const noexcept { return mResult; }
+
+            template <class TFuture, class ... Args>
+            const typename TFuture::Promise& emplacePending(Args&&... args)
+            {
+                return mFutures.template emplace<TFuture>(std::forward<Args>(args)...);
+            }
+
+            void pushPendingFutures(Data&& promise)
+            {
+                // 2.2.6
+                mFutures.push(std::move(promise.mFutures));
+            }
+
+            // 2.3.2
+            void resolvePendingFutures() noexcept
+            {
+                switch (mState)
+                {
+                case kNotResolved: return; // nothing to do 2.3.2.1
+                case kFailed: return doRejectPendingFutures(); // 2.3.2.2
+                case kSucceeded: return doResolvePendingFutures(); // 2.3.2.3
                 }
             }
-        }
-    }
-public:
-    void reject(const Error& err)
-    {
-        assert(err);
-        if (mSharedObj->mResolved)
-            throw std::runtime_error("Already resolved/rejected");
-
-        mSharedObj->mError = err;
-        mSharedObj->mResolved = kFailed;
-
-        if (hasCallbacks())
-            doReject(err);
-        else
-            mSharedObj->mPending = true;
-    }
-    inline void reject(const std::string& msg)
-    {
-        reject(Error(msg));
-    }
-    inline void reject(const char* msg)
-    {
-        if (!msg)
-            msg = "";
-        reject(Error(msg));
-    }
-    inline void reject(int code, int type)
-    {
-        reject(Error("", code, type));
-    }
-    inline void reject(const std::string& msg, int code, int type)
-    {
-        reject(Error(msg, code, type));
-    }
-
-protected:
-    void doReject(const Error& err)
-    {
-        assert(mSharedObj->mError);
-        assert(mSharedObj->mResolved == kFailed);
-        auto& ebs = failCbs();
-        int cnt = ebs.count();
-        if (cnt)
-        {
-            (*static_cast<IFailCb*>(ebs.first()))(err);
-            err.setHandled();
-            for (int i=1; i<cnt; i++)
-                (*static_cast<IFailCb*>(ebs[i]))(err);
-        }
-//propagate past success handlers till a fail handler is found
-        auto& cbs = thenCbs();
-        cnt = cbs.count();
-        if (cnt)
-        {
-            cbs.first()->rejectNextPromise(err);
-            for (int i=1; i<cnt; i++)
+            template <class T> EnableIfConvertibleT<T, Result>
+            /*void*/ resolve(T&& val) noexcept
             {
-//we dont know the type of the promise, but the interface to reject()
-//has a fixed type, hence the reject() is a vitual function of the base class
-//and we can reject any promise without knowing its type
-                cbs[i]->rejectNextPromise(err);
+                mState = kSucceeded;
+                mResult = std::forward<T>(val);
+                doResolvePendingFutures();
+            }
+            template <class T> DisableIfConvertibleT<T, Result>
+            /*void*/ resolve(T&& err) noexcept
+            {
+                reject(std::forward<T>(err));
+            }
+            template <class T> EnableIfSameT<T, SharedErrorPtr>
+            /*void*/ reject(T&& errPtr) noexcept
+            {
+                mState = kFailed;
+                mError = std::forward<T>(errPtr);
+                doRejectPendingFutures();
+            }
+            template <class T> EnableIfSameT<T, Error>
+            /*void*/ reject(T&& err) noexcept
+            {
+                reject(std::make_shared<SharedError>(std::forward<T>(err)));
+            }
+            template <class ... Args>
+            void reject(Args&&... args) noexcept
+            {
+                reject(std::make_shared<SharedError>(std::forward<Args>(args)...));
+            }
+        };
+        using DataPtr = std::shared_ptr<Data>;
+
+        DataPtr mData;
+
+        // 2.3.2
+        template <class T> EnableIfSameT<T, Promise<Type>>
+        /*void*/ doResolve(T&& promise) noexcept
+        {
+            // 2.3.1
+            if (promise.mSharedObj->mData == mData)
+                reject("Promise must not be resolved by its self", kErrException, kErrorTypePromiseSpecViolation);
+
+            // move our pending futures to the promise
+            promise.mSharedObj->mData->pushPendingFutures(std::move(*mData));
+            // adopting promise state, now there is no difference between this and promise
+            mData = promise.mSharedObj->mData;
+            mData->resolvePendingFutures();
+        }
+        // 2.3.4
+        template <class T> DisableIfSameT<T, Promise<Type>>
+        /*void*/ doResolve(T&& arg)
+        {
+            mData->resolve(std::forward<T>(arg));
+        }
+
+
+    public:
+
+        SharedData() : mData{ std::make_shared<Data>() } {}
+        SharedData(SharedData&&) = default;
+        SharedData(const SharedData&) = default;
+        SharedData& operator =(SharedData&&) = default;
+        SharedData& operator =(const SharedData&) = default;
+        ~SharedData() = default;
+
+        template <class T, class = EnableIfSameT<T, Promise<Type>>>
+        SharedData(T&& promise) : SharedData{ *promise.mSharedObj } {}
+        template <class T, class ... Args, class = DisableIfSameT<T, SharedData>>
+        SharedData(T&& arg, Args&&... args)
+            : mData{ std::make_shared<Data>(std::forward<T>(arg), std::forward<Args>(args)...) } {}
+
+        ResolvedState state() const noexcept { return mData->state(); }
+        bool succeeded() const noexcept { return state() == kSucceeded; }
+        bool failed() const noexcept { return state() == kFailed; }
+        bool resolved() const noexcept { return state() != kNotResolved; }
+        bool pending() const noexcept { return state() == kNotResolved; }
+        const SharedErrorPtr& error() const noexcept
+        {
+            assert(failed());
+            return mData->error();
+        }
+        const Result& result() const noexcept
+        {
+            assert(succeeded());
+            return mData->result();
+        }
+
+        // 2.3
+        template <class T>
+        void resolve(T&& val)
+        {
+            // 2.3.3.3.3
+            if (resolved())
+                return;
+            // 2.2.7.1
+            doResolve(std::forward<T>(val));
+        }
+        template <class ... Args>
+        void reject(Args&&... args)
+        {
+            // 2.3.3.3.3
+            if (resolved())
+                return;
+            // 2.2.7.2
+            mData->reject(std::forward<Args>(args)...);
+        }
+
+        // 2.2.2
+        template <typename F>
+        SharedData<RetTypeT<F>> then(F&& cb)
+        {
+            using Out = RetTypeT<F>;
+            struct ThenFuture : CallbackFuture<Result, Out, F>
+            {
+                using Base = CallbackFuture<Result, Out, F>;
+
+                const SharedData<Out>& resolve(const Result& val) noexcept
+                {
+                    // 2.2.7.1
+                    Base::resolve(val);
+                    return Base::promise();
+                }
+                void reject(const SharedErrorPtr& errPtr) noexcept
+                {
+                    // 2.2.7.4
+                    Base::reject(errPtr);
+                }
+                ThenFuture(F&& cb)
+                    : Base(std::forward<F>(cb)) {}
+            };
+
+            switch (mData->state())
+            {
+                // 2.2.7.4 sharing error state with resulting promise
+            case kFailed: return mData->error();
+                // 2.2.6.1
+            case kSucceeded: return ThenFuture(std::forward<F>(cb)).resolve(mData->result());
+                // 2.2.2.2
+            case kNotResolved: return mData->template emplacePending<ThenFuture>(std::forward<F>(cb));
+            default: throw std::logic_error("unknown promise state");
             }
         }
-    }
-    void doPendingResolveOrFail()
-    {
-        if (!hasCallbacks())
-            return;
-        assert(mSharedObj->mPending);
-        auto state = mSharedObj->mResolved;
-        assert(state != kNotResolved);
-        if (state == kSucceeded)
-            doResolve(mSharedObj->mResult);
-        else
+
+        // 2.2.3
+        template <typename F>
+        SharedData fail(F&& eb)
         {
-            assert(state == kFailed);
-            doReject(mSharedObj->mError);
+            struct FailFuture : CallbackFuture<Error, Type, F>
+            {
+                using Base = CallbackFuture<Error, Type, F>;
+
+                void resolve(const Result& val) noexcept
+                {
+                    // 2.2.7.3
+                    Base::fullfill(val);
+                }
+                const SharedData& reject(const SharedErrorPtr& errPtr) noexcept
+                {
+                    // 2.2.7.1
+                    Base::resolve(*errPtr);
+                    errPtr->setHandled();
+                    return Base::promise();
+                }
+                FailFuture(F&& cb)
+                    : Base{ std::forward<F>(cb) } {}
+            };
+
+            switch (mData->state())
+            {
+                // 2.2.7.3 don't call the error callback, just return the successful resolve value
+            case kSucceeded: return *this;
+                // 2.2.6.2
+            case kFailed: return FailFuture(std::forward<F>(eb)).reject(mData->error());
+                // 2.2.3.2
+            case kNotResolved: return mData->template emplacePending<FailFuture>(std::forward<F>(eb));
+            default: throw std::logic_error("unknown promise state");
+            }
         }
+    };
+
+    template <class In, class Out>
+    class Future
+    {
+        SharedData<Out> mPromise;
+
+
+    public:
+
+        using Promise = SharedData<Out>;
+
+        const Promise& promise() const noexcept { return mPromise; }
+        template <class T>
+        void fullfill(T&& val) noexcept
+        {
+            mPromise.resolve(std::forward<T>(val));
+        }
+        template <class ... Args>
+        void reject(Args&&... args) noexcept
+        {
+            mPromise.reject(std::forward<Args>(args)...);
+        }
+    };
+
+    template <class In, class Out, class CB>
+    class CallbackFuture : public Future<In, Out>
+    {
+        remove_cvref_t<CB> mCb;
+
+
+    public:
+
+        using Future<In, Out>::fullfill;
+        using Future<In, Out>::reject;
+
+        template <class F>
+        CallbackFuture(F&& cb) 
+            : mCb{ std::forward<F>(cb) } {}
+
+        // 2.3.3
+        void resolve(const In& arg) noexcept
+        {
+            try
+            {
+                using RealOut = typename FuncTraits<CB>::RetType;
+                // NOTE that at the time of calling callback the promise could already
+                // being resolved in this case the resulting value or exception
+                // got by calling callback is ignored. That is what Promise/A+ specify
+                // see 2.3.3.3.3
+                fullfill(CallCbHandleVoids::template call<RealOut, In>(mCb, arg));
+            }
+            // 2.3.3.3.4
+            catch (std::exception& e)
+            {
+                reject(e.what(), kErrException);
+            }
+            catch (Error& e)
+            {
+                reject(e);
+            }
+            catch (const char* e)
+            {
+                reject(e, kErrException);
+            }
+            catch (...)
+            {
+                reject("(unknown exception type)", kErrException);
+            }
+        }
+    };
+};
+
+template<typename TResultType>
+class Promise : public PromiseBase
+{
+    static_assert(!std::is_reference<TResultType>::value, "Promise can't hold a reference");
+    static_assert(!std::is_same<typename std::remove_const<TResultType>::type, Error>::value,
+        "promise can't hold an Error");
+    using SharedObj = SharedData<TResultType>;
+    friend class SharedData<TResultType>;
+
+    // Effectively this is double shared_ptr. Original implementation used an idea of
+    // master promise. This is basically the same idea but if the master promise is always
+    // presented. This eliminates a need to constantly check do we have master promise.
+    std::shared_ptr<SharedObj> mSharedObj;
+
+
+public:
+
+    typedef TResultType Type;
+
+    Promise(Promise&& other) = default;
+    Promise(const Promise& other) = default;
+    Promise& operator=(const Promise& other) = default;
+    Promise& operator=(Promise&& other) = default;
+    ~Promise() = default;
+
+    Promise() 
+        : mSharedObj{ std::make_shared<SharedObj>() } {};
+    template <class T, class = DisableIfSameT<T, Promise>>
+    Promise(T&& arg)
+        : mSharedObj{ std::make_shared<SharedObj>(std::forward<T>(arg)) } {}
+    template <class ... Args>
+    explicit Promise(Args&&... args)
+        : mSharedObj{ std::make_shared<SharedObj>(std::forward<Args>(args)...) } {}
+
+    ResolvedState done() const noexcept { return mSharedObj->state(); }
+    bool succeeded() const noexcept { return  mSharedObj->succeeded(); }
+    bool failed() const noexcept { return mSharedObj->failed(); }
+    bool resolved() const noexcept { return mSharedObj->resolved(); }
+    bool pending() const noexcept { return mSharedObj->pending(); }
+    const Error& error() const
+    {
+        if (pending())
+            throw std::runtime_error("Promise is pending");
+        return *mSharedObj->error();
+    }
+    template <class RetType = Type>
+    const typename std::enable_if<!std::is_same<RetType, void>::value, RetType>::type& value() const
+    {
+        if (pending())
+            throw std::runtime_error("Promise is pending");
+        return mSharedObj->result();
+    }
+
+    // 2.2.1.2 2.2.7
+    template <typename F>
+    Promise<RetTypeT<F>> then(F&& cb)
+    {
+        using RetType = RetTypeT<F>;
+        static_assert(!std::is_same<RetType, Error>::value,
+            "then continuation must not return an Error, instead it should return rejected promise or throw an exception");
+
+        return mSharedObj->then(std::forward<F>(cb));
+    }
+    // 2.2.1.1 2.2.7
+    template <typename F>
+    Promise fail(F&& eb)
+    {
+        using RetType = RetTypeT<F>;
+        // on fail callback must provide RECOVERY semantics it means that
+        // the return type of eb MUST be convertible to current promise type or be Error.
+        // In the later case it means that eb "rethrowing" an error (most possibly the current).
+        static_assert(std::is_convertible<RetType, Type>::value
+            || std::is_same<RetType, Error>::value, "read comment above");
+
+        return mSharedObj->fail(std::forward<F>(eb));
+    }
+
+    template <class T>
+    void resolve(T&& val)
+    {
+        if (resolved())
+            throw std::runtime_error("Already resolved/rejected");
+        mSharedObj->resolve(std::forward<T>(val));
+    }
+    template <class T = Type, class = EnableIfSameT<T, void>>
+    void resolve()
+    {
+        resolve(Void{});
+    }
+    template <class ... Args>
+    void reject(Args&&... args)
+    {
+        if (resolved())
+            throw std::runtime_error("Already resolved/rejected");
+        mSharedObj->reject(std::forward<Args>(args)...);
     }
 };
 

@@ -1075,7 +1075,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         SUB_LOG_WARNING("Not posting termination CALLDATA because term code is Busy or call state is ringing");
     }
 
-    Promise<void> pms((::promise::Empty())); //non-initialized promise
+    Promise<void> pms; //non-initialized promise
     if (weTerminate)
     {
         switch (mPredestroyState)

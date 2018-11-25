@@ -461,7 +461,6 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     })
     .fail([](const Error& /*err*/)
     {
-        return _Void();
     });
 
     auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME)
@@ -472,7 +471,6 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     })
     .fail([](const Error& /*err*/)
     {
-        return _Void();
     });
 
     ::promise::when(pms1, pms2)
