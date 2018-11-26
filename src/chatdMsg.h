@@ -362,7 +362,15 @@ enum Opcode
       */
     OP_NEWNODEMSG = 44,
 
-    OP_LAST = OP_CALLTIME
+    /**
+      * @brief
+      * C->S: Requests the count older attach messages from msgid, which will be sent as a sequence
+      *    of OLDMSGs, followed by a HISTDONE.
+      * Send: <chatid> <msgid> <count>
+      */
+    OP_NODEHIST = 45,
+
+    OP_LAST = OP_NODEHIST
 };
 
 // privilege levels

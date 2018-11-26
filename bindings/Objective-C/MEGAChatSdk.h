@@ -15,6 +15,8 @@
 #import "MEGAChatCallDelegate.h"
 #import "MEGAChatVideoDelegate.h"
 #import "MEGAChatNotificationDelegate.h"
+#import "MEGAChatNodeHistoryDelegate.h"
+
 
 #import "MEGASdk.h"
 
@@ -73,6 +75,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) MEGAChatListItemList *inactiveChatListItems;
 @property (nonatomic, readonly) MEGAChatListItemList *archivedChatListItems;
 @property (nonatomic, readonly, getter=areAllChatsLoggedIn) BOOL allChatsLoggedIn;
+@property (nonatomic, readonly, getter=isOnlineStatusPending) BOOL onlineStatusPending;
 
 #pragma mark - Init
 
@@ -109,6 +112,10 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout;
 - (void)setPresencePersist:(BOOL)enable;
+- (void)setLastGreenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setLastGreenVisible:(BOOL)enable;
+- (void)requestLastGreen:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)requestLastGreen:(uint64_t)userHandle;
 - (BOOL)isSignalActivityRequired;
 - (void)signalPresenceActivity;
 - (MEGAChatPresenceConfig *)presenceConfig;
@@ -228,6 +235,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)saveCurrentState;
 - (void)pushReceivedWithBeep:(BOOL)beep delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)pushReceivedWithBeep:(BOOL)beep;
+- (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId;
 
 #pragma mark - Audio and video calls
 
@@ -277,5 +286,14 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 #pragma mark - Rich links
 
 + (BOOL)hasUrl:(NSString *)text;
+
+#pragma mark - Node history
+
+- (BOOL)openNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (BOOL)closeNodeHistoryForChat:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (void)addNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (void)removeNodeHistoryDelegate:(uint64_t)chatId delegate:(id<MEGAChatNodeHistoryDelegate>)delegate;
+- (NSInteger)loadAttachmentsForChat:(uint64_t)chatId count:(NSInteger)count;
+
 
 @end

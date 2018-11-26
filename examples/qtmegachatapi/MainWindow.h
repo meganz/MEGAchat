@@ -62,7 +62,7 @@ class MainWindow :
         void addChat(const megachat::MegaChatListItem *chatListItem);
         void addContact(mega::MegaUser *contact);
         void clearContactChatList();
-        void orderContactChatList(bool showInactive, bool showArchived);
+        void orderContactChatList();
         void addContacts();
         void addInactiveChats();
         void addArchivedChats();
@@ -76,10 +76,9 @@ class MainWindow :
         //You take the ownership of the returned value
         std::list<Chat> *getLocalChatListItemsByStatus(int status);
         //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
-        void addLocalChatListItem(const megachat::MegaChatListItem *item);
+        void addOrUpdateLocalChatListItem(const megachat::MegaChatListItem *item);
         void updateLocalChatListItems();
         void createFactorMenu(bool factorEnabled);
-        void updateLocalChatListItem(megachat::MegaChatListItem *item);
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
@@ -91,6 +90,7 @@ class MainWindow :
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
         void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
+        void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int lastGreen);
         ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
 
     public:
@@ -100,8 +100,8 @@ class MainWindow :
 
     protected:
         Ui::MainWindow *ui;
-        bool allItemsVisibility;
-        bool archivedItemsVisibility = false;
+        bool mShowInactive = false;
+        bool mShowArchived = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
         MegaChatApplication *mApp;
@@ -125,7 +125,6 @@ class MainWindow :
         void onAddChatGroup();
         void onWebRTCsetting();
         void setOnlineStatus();
-        void onChangeItemsVisibility();
         void onShowInactiveChats();
         void onShowArchivedChats();
         void onAddGroupChat();
@@ -133,6 +132,7 @@ class MainWindow :
         void onTwoFactorDisable();
         void onTwoFactorCheck(bool);
         void on_mLogout_clicked();
+        void onlastGreenVisibleClicked();
 
     signals:
         void esidLogout();
