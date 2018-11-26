@@ -97,7 +97,7 @@ void RtcModule::init()
             return;
         setIceServers(mIceServerProvider);
     })
-    .fail([](const promise::Error& err)
+    .fail([](const ::promise::Error& err)
     {
         KR_LOG_ERROR("Gelb failed with error '%s', using static server list", err.what());
     });
@@ -327,7 +327,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
     RTCM_LOG_DEBUG("Handle CALLDATA: callid -> %s - state -> %d", callid.toString().c_str(), state);
 
-    if (userid == chat.client().karereClient->myHandle()
+    if (userid == chat.client().mKarereClient->myHandle()
         && clientid == chat.connection().clientId())
     {
         RTCM_LOG_WARNING("Ignoring CALLDATA sent back to sender");
@@ -1063,7 +1063,7 @@ void Call::msgCallReqDecline(RtMessage& packet)
     }
     else if (code == TermCode::kErrNotSupported)
     {
-        if (packet.userid != mChat.client().userId() && !mChat.isGroup())
+        if (packet.userid != mChat.client().myHandle() && !mChat.isGroup())
         {
             mNotSupportedAnswer = true;
         }
@@ -1147,7 +1147,7 @@ void Call::handleReject(RtMessage& packet)
         return;
     }
 
-    if (packet.userid != mChat.client().userId())
+    if (packet.userid != mChat.client().myHandle())
     {
         if (mState != Call::kStateReqSent && mState != Call::kStateInProgress)
         {
@@ -1331,17 +1331,17 @@ void Call::msgJoin(RtMessage& packet)
         return;
     }
 }
-promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
+::promise::Promise<void> Call::gracefullyTerminateAllSessions(TermCode code)
 {
     SUB_LOG_DEBUG("gracefully term all sessions");
-    std::vector<promise::Promise<void>> promises;
+    std::vector<::promise::Promise<void>> promises;
     for (auto it = mSessions.begin(); it != mSessions.end();)
     {
         std::shared_ptr<Session> session = it++->second;
         promises.push_back(session->terminateAndDestroy(code));
     }
-    return promise::when(promises)
-    .fail([](const promise::Error& err)
+    return ::promise::when(promises)
+    .fail([](const ::promise::Error& err)
     {
         assert(false); // terminateAndDestroy() should never fail
     });
@@ -1353,7 +1353,7 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
     // all sessions to go away and remove the call
     if (mSessions.empty())
     {
-        return promise::_Void();
+        return ::promise::_Void();
     }
 
     for (auto& item: mSessions)
@@ -1400,7 +1400,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
 {
     if (mState == Call::kStateDestroyed)
     {
-        return promise::_Void();
+        return ::promise::_Void();
     }
     else if (mState == Call::kStateTerminating)
     {
@@ -1419,7 +1419,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mLocalPlayer.reset();
     mLocalStream.reset();
 
-    Promise<void> pms((promise::Empty())); //non-initialized promise
+    Promise<void> pms((::promise::Empty())); //non-initialized promise
     if (weTerminate)
     {
         switch (mPredestroyState)
@@ -1427,11 +1427,11 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         case kStateReqSent:
             cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, (code == TermCode::kDestroyByCallCollision) ? TermCode::kUserHangup : code);
             code = kCallReqCancel;  // overwrite code for onDestroy() callback
-            pms = promise::_Void();
+            pms = ::promise::_Void();
             break;
         case kStateRingIn:
             cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, code);
-            pms = promise::_Void();
+            pms = ::promise::_Void();
             break;
         default:
             if (!mIsGroup)
@@ -1670,7 +1670,7 @@ bool Call::startOrJoin(AvFlags av)
 {
     std::string errors;
 
-    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
     if (mIsJoiner)
     {
         getLocalStream(av, errors);
@@ -2050,7 +2050,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
     }
     else if (mState >= kStateInProgress)
     {
-        destroy(TermCode::kErrPeerOffline, userid == mChat.client().karereClient->myHandle());
+        destroy(TermCode::kErrPeerOffline, userid == mChat.client().mKarereClient->myHandle());
     }
 }
 bool Call::changeLocalRenderer(IVideoRenderer* renderer)
@@ -2104,7 +2104,7 @@ AvFlags Call::muteUnmute(AvFlags av)
         item.second->sendAv(av);
     }
 
-    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().karereClient->myHandle(), mChat.connection().clientId(), av);
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
     sendCallData(CallDataState::kCallDataMute);
 
     return av;
@@ -2377,7 +2377,7 @@ string Session::getDeviceInfo() const
 {
     // UserAgent Format
     // MEGA<app>/<version> (platform) Megaclient/<version>
-    std::string userAgent = mCall.mChat.mClient.karereClient->api.sdk.getUserAgent();
+    std::string userAgent = mCall.mChat.mChatdClient.mKarereClient->api.sdk.getUserAgent();
 
     std::string androidId = "MEGAAndroid";
     std::string iosId = "MEGAiOS";
@@ -2652,7 +2652,7 @@ Promise<void> Session::sendOffer()
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted())
-            return promise::_Void();
+            return ::promise::_Void();
     /*  if (self.state !== SessState.kWaitSdpAnswer) {
             return;
         }
@@ -2680,7 +2680,7 @@ Promise<void> Session::sendOffer()
         );
         assert(mState == Session::kStateWaitSdpAnswer);
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         if (!wptr.deleted())
             return;
@@ -2719,11 +2719,11 @@ void Session::msgSdpAnswer(RtMessage& packet)
     .then([this, wptr]() -> Promise<void>
     {
         if (mState > Session::kStateInProgress)
-            return promise::Error("Session killed");
+            return ::promise::Error("Session killed");
         setState(Session::kStateInProgress);
-        return promise::_Void();
+        return ::promise::_Void();
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         std::string msg = "Error setting SDP answer: " + err.msg();
         terminateAndDestroy(TermCode::kErrSdp, msg);
@@ -2762,7 +2762,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         return mTerminatePromise;
 
     if (mState == kStateDestroyed)
-        return promise::_Void();
+        return ::promise::_Void();
 
     if (!msg.empty())
     {

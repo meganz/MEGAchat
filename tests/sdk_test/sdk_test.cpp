@@ -283,7 +283,7 @@ void MegaChatApiTest::SetUp()
         waitForResponse(flagRequest);
         logout(i);
 
-        for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
+        for (int j = 0; j < ::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
             requestFlags[i][j] = false;
         }
@@ -2546,8 +2546,8 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->loadAudioVideoDeviceList();
     ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
 
-    mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
-    mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
+    ::mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
+    ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
     TestChatVideoListener localVideoListener;
     TestChatVideoListener remoteVideoListener;
@@ -2645,74 +2645,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 }
 
 /**
- * @brief TEST_RichLinkUserAttribute
- *
- * This test does the following:
- *
- * - Get state for rich link user attribute
- * - Enable/disable rich link generation
- * - Check if value has been established correctly
- * - Change value for rich link counter
- * - Check if value has been established correctly
- *
- */
-void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
-{
-   char *primarySession = login(a1);
-
-   // Get rich link state
-   bool *flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
-   *flagRequestRichLink = false;
-   bool *flagRichLink = &mRichLinkFlag[a1];
-   *flagRichLink = false;
-   int *countRichLink = &mCountRichLink[a1];
-   *countRichLink = 0;
-   megaApi[a1]->shouldShowRichLinkWarning();
-   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
-
-   // Enable/disable rich link generation
-   bool enableRichLink = !(*flagRichLink);
-   bool *flagRichLinkRequest = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagRichLinkRequest = false;
-   megaApi[a1]->enableRichPreviews(enableRichLink);
-   ASSERT_CHAT_TEST(waitForResponse(flagRichLinkRequest), "User attribute retrieval not finished after timeout");
-   ASSERT_CHAT_TEST(!lastError[a1], "Failed to enable rich preview. Error: " + std::to_string(lastError[a1]));
-
-   // Get rich link state
-   flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
-   *flagRequestRichLink = false;
-   flagRichLink = &mRichLinkFlag[a1];
-   *flagRichLink = true;
-   countRichLink = &mCountRichLink[a1];
-   *countRichLink = 0;
-   megaApi[a1]->shouldShowRichLinkWarning();
-   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
-   ASSERT_CHAT_TEST(*flagRichLink == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
-
-   // Change value for rich link counter
-   int counter = *countRichLink + 1;
-   bool *flagCounterRichLink = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagCounterRichLink = false;
-   megaApi[a1]->setRichLinkWarningCounterValue(counter);
-   ASSERT_CHAT_TEST(waitForResponse(flagCounterRichLink), "User attribute retrieval not finished after timeout");
-   ASSERT_CHAT_TEST(!lastError[a1], "Failed to set rich preview count. Error: " + std::to_string(lastError[a1]));
-   flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
-   *flagRequestRichLink = false;
-   flagRichLink = &mRichLinkFlag[a1];
-   *flagRichLink = false;
-   countRichLink = &mCountRichLink[a1];
-   *countRichLink = 0;
-   megaApi[a1]->shouldShowRichLinkWarning();
-   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
-   ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value");
-   ASSERT_CHAT_TEST(*flagRichLink == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
-
-   delete [] primarySession;
-   primarySession = NULL;
-}
-
-/**
  * @brief TEST_Calls
  *
  * Requirements:
@@ -2720,12 +2652,13 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
  * (if not accomplished, the test automatically solves them)
  *
  * This test does the following:
- * - A starts a calls with B
- * + B answers the call in another client
- * - A hangs the call
+ * - A looks for the group chat
+ * - A starts a call in that group chat
+ * - A waits for call was established correctly
+ * - A hangs up the call
  *
- * + B starts a call with A in another client
- * - A receive the call and answers it
+ * + A waits to receive a incoming call
+ * - A answers it
  * - A hangs the call
  */
 void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName)
@@ -2852,6 +2785,76 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     primarySession = NULL;
 }
 
+#endif
+
+/**
+ * @brief TEST_RichLinkUserAttribute
+ *
+ * This test does the following:
+ *
+ * - Get state for rich link user attribute
+ * - Enable/disable rich link generation
+ * - Check if value has been established correctly
+ * - Change value for rich link counter
+ * - Check if value has been established correctly
+ *
+ */
+void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
+{
+   char *primarySession = login(a1);
+
+   // Get rich link state
+   bool *flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
+   *flagRequestRichLink = false;
+   bool *flagRichLink = &mRichLinkFlag[a1];
+   *flagRichLink = false;
+   int *countRichLink = &mCountRichLink[a1];
+   *countRichLink = 0;
+   megaApi[a1]->shouldShowRichLinkWarning();
+   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+
+   // Enable/disable rich link generation
+   bool enableRichLink = !(*flagRichLink);
+   bool *flagRichLinkRequest = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagRichLinkRequest = false;
+   megaApi[a1]->enableRichPreviews(enableRichLink);
+   ASSERT_CHAT_TEST(waitForResponse(flagRichLinkRequest), "User attribute retrieval not finished after timeout");
+   ASSERT_CHAT_TEST(!lastError[a1], "Failed to enable rich preview. Error: " + std::to_string(lastError[a1]));
+
+   // Get rich link state
+   flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
+   *flagRequestRichLink = false;
+   flagRichLink = &mRichLinkFlag[a1];
+   *flagRichLink = true;
+   countRichLink = &mCountRichLink[a1];
+   *countRichLink = 0;
+   megaApi[a1]->shouldShowRichLinkWarning();
+   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+   ASSERT_CHAT_TEST(*flagRichLink == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
+
+   // Change value for rich link counter
+   int counter = *countRichLink + 1;
+   bool *flagCounterRichLink = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagCounterRichLink = false;
+   megaApi[a1]->setRichLinkWarningCounterValue(counter);
+   ASSERT_CHAT_TEST(waitForResponse(flagCounterRichLink), "User attribute retrieval not finished after timeout");
+   ASSERT_CHAT_TEST(!lastError[a1], "Failed to set rich preview count. Error: " + std::to_string(lastError[a1]));
+   flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
+   *flagRequestRichLink = false;
+   flagRichLink = &mRichLinkFlag[a1];
+   *flagRichLink = false;
+   countRichLink = &mCountRichLink[a1];
+   *countRichLink = 0;
+   megaApi[a1]->shouldShowRichLinkWarning();
+   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+   ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value");
+   ASSERT_CHAT_TEST(*flagRichLink == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
+
+   delete [] primarySession;
+   primarySession = NULL;
+}
+
 /**
  * @brief TEST_SendRichLink
  *
@@ -2933,8 +2936,6 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     delete [] secondarySession;
     secondarySession = NULL;
 }
-
-#endif
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
