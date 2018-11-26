@@ -1706,9 +1706,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(payloadLen, 20);
                 CHATDS_LOG_DEBUG("%s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
 
-                pos += payloadLen;  // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
 #ifndef KARERE_DISABLE_WEBRTC                
-
+                pos += payloadLen;  // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
                 if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
