@@ -7028,7 +7028,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         case rtcModule::ISession::kStateWaitSdpAnswer:
         case rtcModule::ISession::kStateWaitLocalSdpAnswer:
         {
-            MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+            MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
             megaChatSession->setState(newState);
             chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_STATUS);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7036,7 +7036,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         }
         case rtcModule::ISession::kStateInProgress:
         {
-            MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+            MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
             megaChatSession->setAvFlags(session->receivedAv());
             chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS);
             API_LOG_INFO("Initial remote audio/video flags. ChatId: %s, callid: %s, AV: %s",
@@ -7053,7 +7053,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
         {
             if (callHandler->getCall()->state() < rtcModule::ICall::kStateTerminating)
             {
-                MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+                MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
                 megaChatSession->setState(newState);
                 chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_STATUS);
                 megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7068,7 +7068,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 
 void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const std::string& /*msg*/)
 {
-    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
     chatCall->removeSession(session->peer());
     delete this;
 }
@@ -7095,7 +7095,7 @@ void MegaChatSessionHandler::onRemoteStreamRemoved()
 
 void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldAv)
 {
-    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
     megaChatSession->setAvFlags(av);
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS);
     API_LOG_INFO("Remote audio/video flags changed. ChatId: %s, callid: %s, AV: %s --> %s",
@@ -7114,7 +7114,7 @@ void MegaChatSessionHandler::onVideoRecv()
 
 void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
 {
-    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
     megaChatSession->setNetworkQuality(currentQuality);
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_NETWORK_QUALITY);
     API_LOG_INFO("Network quality change. ChatId: %s, peer: %s, value: %d",
@@ -7127,7 +7127,7 @@ void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
 
 void MegaChatSessionHandler::onSessionAudioDetected(bool audioDetected)
 {
-    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
     megaChatSession->setAudioDetected(audioDetected);
     chatCall->sessionUpdated(session->peer(), MegaChatCall::CHANGE_TYPE_SESSION_AUDIO_LEVEL);
     API_LOG_INFO("Change Audio level. ChatId: %s, peer: %s, value: %s",

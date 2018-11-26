@@ -2708,7 +2708,7 @@ void Session::msgSdpAnswer(RtMessage& packet)
     }
 
     webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface* sdp = webrtc::CreateSessionDescription("answer", mPeerSdpAnswer, &error);
+    webrtc::SessionDescriptionInterface *sdp = webrtc::CreateSessionDescription("answer", mPeerSdpAnswer, &error);
     if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);

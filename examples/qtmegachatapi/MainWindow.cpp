@@ -164,11 +164,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
-        switch(call->getStatus())
+        switch (call->getStatus())
         {
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
-                ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(),false);
+                ChatItemWidget *chatItemWidget = this->getChatItemWidget(call->getChatid(), false);
                 chatItemWidget->getChatWindow()->hangCall();
                 return;
                 break;
@@ -209,7 +209,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             if (callGui->getPeer() == peerid)
             {
                 MegaChatSession *session = call->getMegaChatSession(peerid);
-                if(session->hasVideo())
+                if (session->hasVideo())
                 {
                     callGui->ui->videoRenderer->disableStaticImage();
                 }

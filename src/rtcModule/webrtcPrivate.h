@@ -25,7 +25,7 @@ class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
 {
     public:
     AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler);
-    virtual void OnData(const void* audio_data,
+    virtual void OnData(const void *audio_data,
                         int bits_per_sample,
                         int sample_rate,
                         size_t number_of_channels,
@@ -84,7 +84,7 @@ protected:
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
     void sdpSetVideoBw(std::string& sdp, int maxbr);
-    int calculateNetworkQuality(const stats::Sample* sample);
+    int calculateNetworkQuality(const stats::Sample *sample);
 
 public:
     RtcModule& mManager;
@@ -269,8 +269,8 @@ public:
     virtual bool isCallInProgress(karere::Id chatid) const;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
     virtual void removeCallWithoutParticipants(karere::Id chatid);
-    virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
-    virtual ICallHandler* findCallHandler(karere::Id chatid);
+    virtual void addCallHandler(karere::Id chatid, ICallHandler *callHandler);
+    virtual ICallHandler *findCallHandler(karere::Id chatid);
     virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
 //==
@@ -304,7 +304,7 @@ protected:
     template <class T> void random(T& result) const;
     //=== Implementation methods
     void initInputDevices();
-    const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);
+    const cricket::Device *getDevice(const std::string& name, const artc::DeviceList& devices);
     bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
                       std::string& selected);
 

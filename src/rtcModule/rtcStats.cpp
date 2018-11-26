@@ -101,7 +101,7 @@ bool Recorder::checkShouldAddSample()
         return true;
     }
 
-    Sample* last = mStats->mSamples.back();
+    Sample *last = mStats->mSamples.back();
 
     mCurrSample->astats.plDifference = mCurrSample->astats.r.pl - last->astats.r.pl;
     if (mCurrSample->astats.plDifference)

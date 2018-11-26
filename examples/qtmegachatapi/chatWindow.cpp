@@ -832,7 +832,7 @@ void ChatWindow::onCallBtn(bool video)
 {
    createCallGui(video, mMegaChatApi->getMyUserHandle());
    MegaChatCall *auxCall = mMegaChatApi->getChatCall(mChatRoom->getChatId());
-   if(auxCall == NULL || (auxCall && auxCall->getStatus() == megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT))
+   if (auxCall == NULL || (auxCall && auxCall->getStatus() == megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT))
    {
        mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
        delete auxCall;
