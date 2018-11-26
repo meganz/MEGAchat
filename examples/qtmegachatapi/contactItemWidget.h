@@ -26,8 +26,9 @@ public:
 
 private:
     Ui::ChatItem *ui;
-    megachat::MegaChatHandle mUserHandle;
-    megachat::MegaChatApi *mMegaChatApi;
+    ::megachat::MegaChatHandle mUserHandle;
+    int mUserVisibility;
+    ::megachat::MegaChatApi *mMegaChatApi;
     ::mega::MegaApi *mMegaApi;
     QListWidgetItem *mListWidgetItem;
     MainWindow *mMainWin;
@@ -38,6 +39,7 @@ private slots:
     void onCreateGroupChat();
     void onCreatePeerChat();
     void onContactRemove();
+    void onExContactInvite();
     void onRequestLastGreen();
 };
 #endif // CONTACITEMWIDGET_H

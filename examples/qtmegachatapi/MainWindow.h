@@ -12,11 +12,14 @@
 #include "chatGroupDialog.h"
 #include "QTMegaChatCallListener.h"
 #include "MegaChatApplication.h"
+#include "listItemController.h"
+#include "chatWindow.h"
 
-const int chatActiveStatus   = 0;
-const int chatInactiveStatus = 1;
-const int chatArchivedStatus = 2;
+const int chatNotArchivedStatus = 0;
+const int chatArchivedStatus = 1;
 class MegaChatApplication;
+class ContactListItemController;
+class ChatListItemController;
 
 struct Chat
 {
@@ -44,6 +47,7 @@ class ChatSettingsDialog;
 class ChatItemWidget;
 class ContactItemWidget;
 class QTMegaChatCallListener;
+class ChatWindow;
 
 namespace Ui
 {
@@ -59,49 +63,110 @@ class MainWindow :
     public:
         explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, ::mega::MegaApi *megaApi = NULL);
         virtual ~MainWindow();
-        void addChat(const megachat::MegaChatListItem *chatListItem);
-        void addContact(::mega::MegaUser *contact);
-        void clearContactChatList();
-        void orderContactChatList();
-        void addContacts();
-        void addInactiveChats();
-        void addArchivedChats();
-        void addActiveChats();
+
+        /* Contacts management*/
+
+        /*  This function clears the Qt widget list */
+        void clearQtContactWidgetList();
+
+        /*  This function clears the ContactItemWidgets in contactControllers map*/
+        void clearContactWidgets();
+
+        /*  This function clears the contactControllers map*/
+        void clearContactControllersMap();
+
+        /*  This function adds Qt widgets for all items in contactControllers map*/
+        void addQtContactWidgets();
+
+        /*  This function adds a contact Qt widget and increments the contacts counter*/
+        ContactItemWidget *addQtContactWidget(mega::MegaUser *user);
+
+        /*  This function updates the items given by parameter in contactControllers map.
+            If not exists add it to map*/
+        void addOrUpdateContactControllersItems(mega::MegaUserList *contactList);
+
+        /*  This function adds or updates an user in contactControllers map.*/
+        ContactListItemController *addOrUpdateContactController(mega::MegaUser *contact);
+
+        /*  This function finds in chatControllers map an entry with key equals to given parameter and returns
+            a ChatListItemController pointer if exists, otherwise returns nullptr. Mainwindow class retains the
+            ownership of the returned value*/
+        ContactListItemController *getContactControllerById(megachat::MegaChatHandle userId);
+
+        /*  This function reorders the graphical contact list in QTapp*/
+        void reorderAppContactList();
+
+        /*  Chats management*/
+
+        /*  This function adds a Qt widget chat and increments the correspondent chats counter*/
+        ChatItemWidget *addQtChatWidget(const megachat::MegaChatListItem *chatListItem);
+
+        /*  This function adds or updates a chat in chatControllers map.*/
+        ChatListItemController *addOrUpdateChatControllerItem(megachat::MegaChatListItem *chatListItem);
+
+        /*  This function reorders the graphical chat list in QTapp*/
+        void reorderAppChatList();
+
+        /*  Returns a ChatWindow pointer associated to a ChatListItemController instance if exists,
+            otherwise returns NULL. The ChatListItemController retains the ownership */
+        ChatWindow *getChatWindowIfExists(megachat::MegaChatHandle chatId);
+
+        /*  This function adds the graphical Qt widget and updates the ChatListItemController*/
+        void addChatsBystatus(const int status);
+
+        /*  This function returns true if the changes associated to the newItem param
+            requires a Qt widget list reorder. Otherwise the function returns false*/
+        bool needReorder(megachat::MegaChatListItem *newItem, int oldPriv);
+
+        /*  This function clears the Qt widget list */
+        void clearQtChatWidgetList();
+
+        /*  This function clears the ChatItemWidgets in chatControllers map*/
+        void clearChatWidgets();
+
+        /*  This function clears the ChatListItemControllers map*/
+        void clearChatControllers();
+
+        /*  This function updates the items in chatControllers map*/
+        void updateChatControllersItems();
+
+        /*  This function finds in chatControllers map an entry with key equals to chatId and returns a ChatListItemController pointer if exists,
+            otherwise returns nullptr. Mainwindow class retains the ownership of the returned value*/
+        ChatListItemController *getChatControllerById(megachat::MegaChatHandle chatId);
+
+        /*  This function returns a list of chats filtered by status (Active | Inactive | Archived).
+            You take the ownership of the returned list*/
+        std::list<Chat> *getLocalChatListItemsByStatus(int status);
+
+        std::string getAuthCode();
+        void setNContacts(int nContacts);
         void createSettingsMenu();
+        void createFactorMenu(bool factorEnabled);
+        void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
+        void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
+        bool eventFilter(QObject *obj, QEvent *event);
+
+        void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
+        void onChatListItemUpdate(megachat::MegaChatApi *api, megachat::MegaChatListItem *item);
+        void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
+        void onChatOnlineStatusUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
+        void onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config);
+        void onChatPresenceLastGreen(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int lastGreen);
+
 #ifndef KARERE_DISABLE_WEBRTC
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
 #endif
-        //This class retains the ownership of the returned value
-        const megachat::MegaChatListItem *getLocalChatListItem(megachat::MegaChatHandle chatId);
-        //You take the ownership of the returned value
-        std::list<Chat> *getLocalChatListItemsByStatus(int status);
-        //This function makes a copy of the MegaChatListItem object and stores it in mLocalChatListItems
-        void addOrUpdateLocalChatListItem(const megachat::MegaChatListItem *item);
-        void updateLocalChatListItems();
-        void createFactorMenu(bool factorEnabled);
-        void removeLocalChatListItem(megachat::MegaChatListItem *item);
-        void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
-        void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
-        ::mega::MegaUserList *getUserContactList();
-        std::string getAuthCode();
-        bool eventFilter(QObject *obj, QEvent *event);
-        void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
-        void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
-        void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
-        void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
-        void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
-        void onChatPresenceLastGreen(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int lastGreen);
-        ChatItemWidget *getChatItemWidget(megachat::MegaChatHandle chatHandle, bool reorder);
-
-    public:
-        MegaLoggerApplication *mLogger;
-        int getNContacts() const;
-        void setNContacts(int nContacts);
 
     protected:
+        MegaLoggerApplication *mLogger;
         Ui::MainWindow *ui;
-        bool mShowInactive = false;
         bool mShowArchived = false;
+        int activeChats;
+        int archivedChats;
+        int inactiveChats;
+        int nContacts;
+        bool allowOrder = false;
+        bool mNeedReorder = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
         MegaChatApplication *mApp;
@@ -109,14 +174,12 @@ class MainWindow :
         megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
-        std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
-        std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
-        std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
-        std::map<::mega::MegaHandle, ContactItemWidget *> contactWidgets;
-        int activeChats;
-        int archivedChats;
-        int inactiveChats;
-        int nContacts;
+
+        //Maps ChatId to to ChatListItemController
+        std::map<mega::MegaHandle, ChatListItemController *> mChatControllers;
+
+        //Maps UserId to to ContactListItemController
+        std::map<mega::MegaHandle, ContactListItemController *> mContactControllers;
 
     private slots:
         void on_bSettings_clicked();
@@ -125,7 +188,6 @@ class MainWindow :
         void onAddChatGroup();
         void onWebRTCsetting();
         void setOnlineStatus();
-        void onShowInactiveChats();
         void onShowArchivedChats();
         void onAddGroupChat();
         void onTwoFactorGetCode();
