@@ -2822,6 +2822,7 @@ void MegaChatApiImpl::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, Me
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
     request->setMegaNodeList(nodes);
+    request->setParamType(0);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -2831,6 +2832,7 @@ void MegaChatApiImpl::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandl
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(nodehandle);
+    request->setParamType(0);
     requestQueue.push(request);
     waiter->notify();
 }
