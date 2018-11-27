@@ -150,15 +150,9 @@ bool check_err(const char* opName, m::MegaError* e)
 
 bool check_err(const char* opName, c::MegaChatError* e)
 {
-    if (e)
-    {
-        conlock(cout) << opName << (e->getErrorCode() == c::MegaChatError::ERROR_OK ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
-    }
-    else
-    {
-        conlock(cout) << opName << " finished with unknown status" << endl;
-    }
-    return e && e->getErrorCode() == c::MegaChatError::ERROR_OK;
+    bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
+    conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
+    return success;
 }
 
 
@@ -1589,13 +1583,23 @@ char** my_rl_completion(const char *text, int start, int end)
         return NULL;
     }
 
+    if (acs.completions.size() == 1 && !acs.completions[0].couldExtend)
+    {
+        acs.completions[0].s += " ";
+    }
+
     char** result = (char**)malloc((sizeof(char*)*(2+acs.completions.size())));
     for (int i = acs.completions.size(); i--; )
     {
         result[i+1] = strdup(acs.completions[i].s.c_str());
     }
-    result[acs.completions.size()] = NULL;
+    result[acs.completions.size()+1] = NULL;
     result[0] = longestCommonPrefix(acs);
+    //for (int i = 0; i <= acs.completions.size(); ++i)
+    //{
+    //    cout << "i " << i << ": " << result[i] << endl;
+    //}
+    rl_completion_suppress_append = true;
     return result;
 }
 #endif

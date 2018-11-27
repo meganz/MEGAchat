@@ -28,6 +28,7 @@
 
 namespace karere
 {
+
 struct TimerMsg: public megaMessage
 {
     timerevent* timerEvent = nullptr;
@@ -59,7 +60,9 @@ struct TimerMsg: public megaMessage
 #else
     eventloop *get_ev_loop(void *ctx);
 #endif
-    
+
+extern std::recursive_mutex timerMutex;
+
 template <int persist, class CB>
 inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 {

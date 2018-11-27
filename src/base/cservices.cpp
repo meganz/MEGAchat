@@ -12,6 +12,11 @@
 #include <sys/time.h>
 #endif
 
+namespace karere
+{
+    std::recursive_mutex timerMutex;
+}
+
 extern "C"
 {
 MEGAIO_EXPORT eventloop* services_eventloop = NULL;
@@ -111,7 +116,6 @@ struct HandleItem
 
 std::unordered_map<megaHandle, HandleItem> gHandleStore;
 megaHandle gHandleCtr = 0;
-std::recursive_mutex timerMutex;
 
 MEGAIO_EXPORT void* services_hstore_get_handle(unsigned short type, megaHandle handle)
 {

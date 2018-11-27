@@ -202,7 +202,7 @@ void LibwsClient::websockMsgCb(ws_t ws, char *msg, uint64_t len, int binary, voi
                          
 bool LibwsClient::wsSendMessage(char *msg, size_t len)
 {
-//    assert (mWebSocket);
+    assert (mWebSocket);
     
     if (!mWebSocket)
     {
