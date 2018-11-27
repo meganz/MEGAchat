@@ -10,7 +10,7 @@
 using namespace mega;
 using namespace megachat;
 
-MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, mega::MegaApi *megaApi) :
+MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi) :
     QMainWindow(0),
     ui(new Ui::MainWindow)
 {
@@ -59,7 +59,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-mega::MegaUserList * MainWindow::getUserContactList()
+::mega::MegaUserList * MainWindow::getUserContactList()
 {
     return mMegaApi->getContacts();
 }
@@ -303,7 +303,7 @@ void MainWindow::addContacts()
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
-        mega::MegaHandle userHandle = contact->getHandle();
+        ::mega::MegaHandle userHandle = contact->getHandle();
         if (userHandle != this->mMegaChatApi->getMyUserHandle())
         {
             if (contact->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mShowInactive != true)
@@ -416,8 +416,15 @@ void MainWindow::on_bSettings_clicked()
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     auto actlastGreenVisible = menu.addAction("Enable/Disable Last-Green");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
-    actlastGreenVisible->setCheckable(true);
-    actlastGreenVisible->setChecked(presenceConfig->isLastGreenVisible());
+    if (presenceConfig)
+    {
+        actlastGreenVisible->setCheckable(true);
+        actlastGreenVisible->setChecked(presenceConfig->isLastGreenVisible());
+    }
+    else
+    {
+        actlastGreenVisible->setEnabled(false);
+    }
     delete presenceConfig;
 
     QPoint pos = ui->bSettings->pos();
@@ -532,7 +539,7 @@ void MainWindow::addContact(MegaUser *contact)
     item->setSizeHint(QSize(item->sizeHint().height(), 28));
     ui->contactList->insertItem(index, item);
     ui->contactList->setItemWidget(item, contactItemWidget);
-    contactWidgets.insert(std::pair<mega::MegaHandle, ContactItemWidget *>(contact->getHandle(),contactItemWidget));
+    contactWidgets.insert(std::pair<::mega::MegaHandle, ContactItemWidget *>(contact->getHandle(),contactItemWidget));
 }
 
 
@@ -663,7 +670,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
 
 void MainWindow::onAddChatGroup()
 {
-    mega::MegaUserList *list = mMegaApi->getContacts();
+    ::mega::MegaUserList *list = mMegaApi->getContacts();
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, mMegaChatApi);
     chatDialog->createChatList(list);
     chatDialog->show();
@@ -778,8 +785,8 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
     }
     else
     {
-        std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
-        itContacts = this->contactWidgets.find((mega::MegaHandle) userhandle);
+        std::map<::mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
+        itContacts = this->contactWidgets.find((::mega::MegaHandle) userhandle);
         if (itContacts != contactWidgets.end())
         {
             ContactItemWidget * contactItemWidget = itContacts->second;
@@ -968,7 +975,7 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
 
 void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char * firstname)
 {
-    std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
+    std::map<::mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
     itContacts = contactWidgets.find(contactHandle);
 
     if (itContacts != contactWidgets.end())

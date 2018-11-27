@@ -18,7 +18,7 @@ class ChatGroupDialog : public QDialog
     public:
         ChatGroupDialog(QWidget *parent, megachat::MegaChatApi *megachatApi);
         ~ChatGroupDialog();
-        void createChatList(mega::MegaUserList* contactList);
+        void createChatList(::mega::MegaUserList* contactList);
     private slots:
         void on_buttonBox_accepted();
         void on_buttonBox_rejected();

@@ -57,10 +57,10 @@ class MainWindow :
 {
     Q_OBJECT
     public:
-        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, mega::MegaApi *megaApi = NULL);
+        explicit MainWindow(QWidget *parent = 0, MegaLoggerApplication *logger=NULL, megachat::MegaChatApi *megaChatApi = NULL, ::mega::MegaApi *megaApi = NULL);
         virtual ~MainWindow();
         void addChat(const megachat::MegaChatListItem *chatListItem);
-        void addContact(mega::MegaUser *contact);
+        void addContact(::mega::MegaUser *contact);
         void clearContactChatList();
         void orderContactChatList();
         void addContacts();
@@ -82,7 +82,7 @@ class MainWindow :
         void removeLocalChatListItem(megachat::MegaChatListItem *item);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char * firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
-        mega::MegaUserList *getUserContactList();
+        ::mega::MegaUserList *getUserContactList();
         std::string getAuthCode();
         bool eventFilter(QObject *obj, QEvent *event);
         void onChatInitStateUpdate(megachat::MegaChatApi* api, int newState);
@@ -105,14 +105,14 @@ class MainWindow :
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
         MegaChatApplication *mApp;
-        mega::MegaApi *mMegaApi;
+        ::mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
         std::map<megachat::MegaChatHandle, const megachat::MegaChatListItem *> mLocalChatListItems;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> chatWidgets;
         std::map<megachat::MegaChatHandle, ChatItemWidget *> auxChatWidgets;
-        std::map<mega::MegaHandle, ContactItemWidget *> contactWidgets;
+        std::map<::mega::MegaHandle, ContactItemWidget *> contactWidgets;
         int activeChats;
         int archivedChats;
         int inactiveChats;

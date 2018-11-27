@@ -360,17 +360,6 @@ public:
     /** @brief The title of the chatroom */
     virtual const char *titleString() const { return mTitleString.c_str(); }
 
-    /** @brief The 'presence' of the chatroom - it's actually the online state,
-     * and can be only online or offline, depending on whether we are connected
-     * to the chatd chatroom
-     */
-    virtual Presence presence() const
-    {
-        return (mChat->onlineState() == chatd::kChatStateOnline)
-                ? Presence::kOnline
-                : Presence::kOffline;
-    }
-
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.
      * @note Do not use this method to exclude yourself. Instead, call leave()
@@ -667,9 +656,14 @@ public:
     /** @brief The list of chats that we are member of */
     std::unique_ptr<ChatRoomList> chats;
 
-    megaHandle mSyncTimer = 0;              // to wait for reception of SYNCs
-    int mSyncCount = -1;                     // to track if all chats returned SYNC
-    promise::Promise<void> mSyncPromise;    // resolved only when up to date
+    // timer for receiving acknowledge of SYNCs
+    megaHandle mSyncTimer = 0;
+
+    // to track if all chats returned SYNC
+    int mSyncCount = -1;
+
+    // resolved only when up to date
+    promise::Promise<void> mSyncPromise;
 
     IApp::ILoginDialog::Handle mLoginDlg;
 
@@ -702,6 +696,7 @@ protected:
     bool mGroupCallsEnabled = false;
 
 public:
+
     /**
      * @brief Creates a karere Client.
      *
@@ -855,7 +850,7 @@ public:
 
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
-    promise::Promise<void> pushReceived();
+    promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);

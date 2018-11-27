@@ -17,9 +17,9 @@ ChatGroupDialog::~ChatGroupDialog()
     delete ui;
 }
 
-void ChatGroupDialog::createChatList(mega::MegaUserList *contactList)
+void ChatGroupDialog::createChatList(::mega::MegaUserList *contactList)
 {
-    mega::MegaUser *contact = NULL;
+    ::mega::MegaUser *contact = NULL;
     for (int i = 0; i < contactList->size(); i++)
     {
         contact = contactList->get(i);
