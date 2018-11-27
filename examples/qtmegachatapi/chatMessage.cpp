@@ -4,12 +4,12 @@
 #include <QMessageBox>
 #include <QClipboard>
 
-const char* messageStatus[] =
+const char *messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
 
-ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
+ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
     : QWidget((QWidget *)parent),
       ui(new Ui::ChatMessageWidget)
 {
@@ -70,8 +70,8 @@ void ChatMessage::updateToolTip()
             .append(tr("\nuserid: "))
             .append(QString::fromStdString(auxUserId_64));
     ui->mHeader->setToolTip(tooltip);
-    delete auxMsgId_64;
-    delete auxUserId_64;
+    delete [] auxMsgId_64;
+    delete [] auxUserId_64;
 }
 
 void ChatMessage::showRichLinkData()
@@ -129,7 +129,7 @@ void ChatMessage::setMessage(megachat::MegaChatMessage *message)
     this->mMessage = message;
 }
 
-void ChatMessage::setMessageContent(const char * content)
+void ChatMessage::setMessageContent(const char *content)
 {
     ui->mMsgDisplay->setText(content);
 }
@@ -203,7 +203,7 @@ void ChatMessage::updateContent()
                   .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
                   .append(mMessage->getUserEmail(i));
-                  delete auxUserHandle_64;
+                  delete [] auxUserHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");
@@ -290,9 +290,16 @@ std::string ChatMessage::managementInfoToString() const
     }
     case megachat::MegaChatMessage::TYPE_TRUNCATE:
     {
-        ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
-        item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
-        ret.append("Chat history was truncated by user ").append(userHandle_64);
+        ChatListItemController *itemController = mChatWindow->mMainWin->getChatControllerById(mChatId);
+        if(itemController)
+        {
+           ChatItemWidget *widget = itemController->getWidget();
+           if (widget)
+           {
+              widget->updateToolTip(itemController->getItem(), NULL);
+              ret.append("Chat history was truncated by user ").append(userHandle_64);
+           }
+        }
         return ret;
     }
     case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
@@ -321,7 +328,7 @@ std::string ChatMessage::managementInfoToString() const
         {
             char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
             ret.append(participant_64).append(" ");
-            delete participant_64;
+            delete [] participant_64;
         }
 
         ret.append("\nDuration: ")
@@ -335,8 +342,8 @@ std::string ChatMessage::managementInfoToString() const
            .append(std::to_string(mMessage->getType()));
         return ret;
     }
-    delete userHandle_64;
-    delete actionHandle_64;
+    delete [] userHandle_64;
+    delete [] actionHandle_64;
 }
 
 void ChatMessage::setTimestamp(int64_t ts)
@@ -493,7 +500,7 @@ void ChatMessage::startEditingMsgWidget()
     auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
     layout->insertWidget(2, cancelBtn);
 
-    QPushButton * saveBtn = new QPushButton(this);
+    QPushButton *saveBtn = new QPushButton(this);
     connect(saveBtn, SIGNAL(clicked(bool)), this, SLOT(saveMsgEdit(bool)));
     saveBtn->setText("Save");
     layout->insertWidget(3, saveBtn);
@@ -529,13 +536,13 @@ void ChatMessage::setManualMode(bool manualMode)
     {
         ui->mEditDisplay->hide();
         ui->mStatusDisplay->hide();
-        QPushButton * manualSendBtn = new QPushButton(this);
+        QPushButton *manualSendBtn = new QPushButton(this);
         connect(manualSendBtn, SIGNAL(clicked(bool)), this, SLOT(onManualSending()));
         manualSendBtn->setText("Send (Manual mode)");
         auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
         layout->insertWidget(2, manualSendBtn);
 
-        QPushButton * discardBtn = new QPushButton(this);
+        QPushButton *discardBtn = new QPushButton(this);
         connect(discardBtn, SIGNAL(clicked(bool)), this, SLOT(onDiscardManualSending()));
         discardBtn->setText("Discard");
         layout->insertWidget(3, discardBtn);

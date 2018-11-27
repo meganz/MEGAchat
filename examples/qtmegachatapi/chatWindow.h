@@ -42,10 +42,10 @@ class ChatWindow : public QDialog,
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
-        void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
+        void onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
         void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
@@ -65,7 +65,7 @@ class ChatWindow : public QDialog,
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
-        void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* e);
+        void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
