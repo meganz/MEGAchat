@@ -95,11 +95,11 @@ string DummyCrypto::encryptMessageForJid(const string& msg, const string& bareJi
     return xorEnc(msg.c_str(), msg.size(), bareJid.c_str(), bareJid.size());
 }
 
-promise::Promise<void> DummyCrypto::preloadCryptoForJid(const string& jid)
+::promise::Promise<void> DummyCrypto::preloadCryptoForJid(const string& jid)
 {
     assert(!jid.empty());
     mKeysLoaded.insert(jid);
-    return promise::_Void();
+    return ::promise::_Void();
 }
 
 string DummyCrypto::scrambleJid(const string& jid)

@@ -33,7 +33,7 @@ class ChatItemWidget;
 
 class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
-        public mega::MegaTransferListener,
+        public ::mega::MegaTransferListener,
         public megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
@@ -42,10 +42,10 @@ class ChatWindow : public QDialog,
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
-        void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
+        void onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
         void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
         void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
@@ -64,7 +64,10 @@ class ChatWindow : public QDialog,
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
-        void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
+        void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
+        void createAttachMenu(QMenu& menu);
+        void onAttachLocation();
+
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
@@ -76,12 +79,12 @@ class ChatWindow : public QDialog,
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;
-        mega::MegaApi *mMegaApi;
+        ::mega::MegaApi *mMegaApi;
         megachat::MegaChatRoom *mChatRoom;
         ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
-        mega::QTMegaTransferListener *megaTransferListenerDelegate;
+        ::mega::QTMegaTransferListener *megaTransferListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
         int nSending;
@@ -106,7 +109,6 @@ class ChatWindow : public QDialog,
         void onShowAttachments(bool active);
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
-        void on_mGeoLocationBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
