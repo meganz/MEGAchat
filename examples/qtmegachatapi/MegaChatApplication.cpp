@@ -157,7 +157,7 @@ void MegaChatApplication::configureLogs()
     MegaChatApi::setCatchException(false);
 }
 
-void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
+void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
     if(mMainWin && userList)
     {
