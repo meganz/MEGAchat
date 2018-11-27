@@ -827,7 +827,7 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
+void ChatWindow::createCallGui(bool video, MegaChatHandle peerid, MegaChatHandle clientid)
 {
     int row = 0;
     int col = 0;
@@ -836,10 +836,10 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
     auto layout = qobject_cast <QGridLayout*> (ui->mCentralWidget->layout());
 
     //Local callGui
-    callGui = new CallGui(this, video, peerid, true);
+    callGui = new CallGui(this, video, peerid, clientid, true);
     callParticipantsGui.insert(callGui);
 
-    if (peerid == mMegaChatApi->getMyUserHandle())
+    if (peerid == mMegaChatApi->getMyUserHandle() && clientid == mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()))
     {
         ui->mCentralWidget->setStyleSheet("background-color:#000000");
         auxIndex = -1;
@@ -863,7 +863,7 @@ void ChatWindow::createCallGui(bool video, MegaChatHandle peerid)
     ui->mTextChatWidget->hide();
 }
 
-void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
+void ChatWindow::destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
 {
     int row = 0;
     int col = 0;
@@ -873,7 +873,7 @@ void ChatWindow::destroyCallGui(MegaChatHandle mPeerid)
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
         CallGui *call = *it;
-        if (call->getPeer() == mPeerid)
+        if (call->getPeerid() == peerid && call->getClientid() == clientid)
         {
             auxIndex = call->getIndex();
             getCallPos(auxIndex, row, col);
@@ -978,7 +978,7 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-   createCallGui(video, mMegaChatApi->getMyUserHandle());
+   createCallGui(video, mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(mChatRoom->getChatId()));
    MegaChatCall *auxCall = mMegaChatApi->getChatCall(mChatRoom->getChatId());
    if (auxCall == NULL || (auxCall && auxCall->getStatus() == megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT))
    {
@@ -987,13 +987,13 @@ void ChatWindow::onCallBtn(bool video)
    }
 }
 
-void ChatWindow::connectPeerCallGui(MegaChatHandle peerid)
+void ChatWindow::connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid)
 {
     std::set<CallGui *>::iterator it;
     for (it = callParticipantsGui.begin(); it != callParticipantsGui.end(); ++it)
     {
         CallGui *call = *it;
-        if (call->getPeer() == peerid)
+        if (call->getPeerid() == peerid && call->getClientid() == clientid)
         {
             if (!call->getCall())
             {
@@ -1107,4 +1107,9 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
             QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
         }
     }
+}
+
+MegaChatApi *ChatWindow::getMegaChatApi()
+{
+    return mMegaChatApi;
 }

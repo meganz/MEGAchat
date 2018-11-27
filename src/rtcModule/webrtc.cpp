@@ -344,10 +344,16 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     if (state == Call::CallDataState::kCallDataRinging ||
             state == Call::CallDataState::kCallDataSessionKeepRinging)
     {
-        handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        auto itCallHandler = mCallHandlers.find(chatid);
+        // itCallHandler is created at updatePeerAvState
+        assert(itCallHandler != mCallHandlers.end());
+        if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()))
+        {
+            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        }
+
         if (state == Call::CallDataState::kCallDataSessionKeepRinging)
         {
-            auto itCallHandler = mCallHandlers.find(chatid);
             if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
             {
                 itCallHandler->second->setInitialTimeStamp(time(NULL));
@@ -1292,7 +1298,6 @@ void Call::msgJoin(RtMessage& packet)
                                 itSession->second->peer().toString().c_str(), itSession->second->peerClient());
                 return;
             }
-
         }
 
         if (mState == Call::kStateReqSent)

@@ -1,12 +1,13 @@
 #include "callListener.h"
 
-CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatHandle peerid)
+CallListener::CallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatHandle peerid, MegaChatHandle clientid)
  : MegaChatVideoListener()
 {    
     mMegaChatApi = megaChatApi;
     mCallGui = callGui;
     megaChatVideoListenerDelegate = new QTMegaChatVideoListener(mMegaChatApi, this);
     mPeerid = peerid;
+    mClientid = clientid;
 }
  CallListener::~ CallListener()
  {

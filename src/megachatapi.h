@@ -111,11 +111,18 @@ public:
     virtual int getStatus() const;
 
     /**
-     * @brief Returns the MegaChatHandle of the peer.
+     * @brief Returns the MegaChatHandle with the peer id.
      *
      * @return MegaChatHandle of the peer.
      */
     virtual MegaChatHandle getPeerid() const;
+
+    /**
+     * @brief Returns the MegaChatHandle with the id of the client.
+     *
+     * @return MegaChatHandle of the client.
+     */
+    virtual MegaChatHandle getClientid() const;
 
     /**
      * @brief Returns audio state for the session
@@ -440,26 +447,45 @@ public:
     /**
      * @brief Get a list with the ids of peers that have a session with me
      *
+     * It's necessary to call MegaChatCall::getSessionsClientid to know the clientid. With clientid and
+     * sessionid, you can identify a Session. We can have a session with the same peerid but with different clientids
+     *
      * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
      *
      * You take the ownership of the returned value.
      *
      * @return A list of handles with the ids of peers
      */
-    virtual mega::MegaHandleList *getSessions() const;
+    virtual mega::MegaHandleList *getSessionsPeerid() const;
+
+    /**
+     * @brief Get a list with the ids of client that have a session with me
+     *
+     * It's necessary to call MegaChatCall::getSessionsPeerid to know the peerid. With clientid and
+     * sessionid, you can identify a Session. We can have a session with the same peerid but with different clientids
+     *
+     * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of clients
+     */
+    virtual mega::MegaHandleList *getSessionsClientid() const;
 
     /**
      * @brief Returns the session for a peer
      *
-     * If \c peerId has not any session in the call NULL will be returned
+     * If pair \c peerid and \c clientid has not any session in the call NULL will be returned
      *
      * The MegaChatCall retains the ownership of the returned MegaChatSession. It will be only
      * valid until the MegaChatCall is deleted. If you want to save the MegaChatSession,
      * use MegaChatSession::copy
      *
-     * @return Session for \c peerId
+     * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the clientid
+     * @return Session for \c peerid and \c clientid
      */
-    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerId);
+    virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
 
     /**
      * @brief Returns peer id which session status has changed
@@ -472,17 +498,46 @@ public:
     virtual MegaChatHandle getPeerSessionStatusChange() const;
 
     /**
+     * @brief Returns client id of the peer which session status has changed
+     *
+     * This function only returns a valid value when session status change is notified
+     * via MegaChatCallListener::onChatCallUpdate
+     *
+     * @return Handle of the client which session has changed its status
+     */
+    virtual MegaChatHandle getClientidSessionStatusChange() const;
+
+    /**
      * @brief Get a list with the ids of peers that are participating in the call
      *
      * In a group call, this function returns the list of active participants,
      * regardless your own user participates or not. In consequence,
-     * the list can differ from the one returned by MegaChatCall::getSessions
+     * the list can differ from the one returned by MegaChatCall::getSessionsPeerid
+     *
+     * To idendentify completely a call participant it's necessary the peerid plus the clientid
+     * (megaChatCall::getClientidParticipants)
      *
      * You take the ownership of the returned value.
      *
      * @return A list of handles with the ids of peers
      */
-    virtual mega::MegaHandleList *getParticipants() const;
+    virtual mega::MegaHandleList *getPeeridParticipants() const;
+
+    /**
+     * @brief Get a list with the ids of clients that are participating in the call
+     *
+     * In a group call, this function returns the list of active participants,
+     * regardless your own user participates or not. In consequence,
+     * the list can differ from the one returned by MegaChatCall::getSessionsclientid
+     *
+     * To idendentify completely a call participant it's neccesary the clientid plus the peerid
+     * (megaChatCall::getPeeridParticipants)
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the clientids
+     */
+    virtual mega::MegaHandleList *getClientidParticipants() const;
 
     /**
      * @brief Get the number of peers participating in the call
@@ -2512,6 +2567,18 @@ public:
     MegaChatHandle getMyUserHandle();
 
     /**
+     * @brief Returns the client id handle of the logged in user for a chatroom
+     *
+     * The clientid is not the same for all chatrooms. If \c chatid is invalid, this function
+     * returns 0
+     *
+     * In offline mode (MegaChatApi::INIT_OFFLINE_SESSION), this function returns 0
+     *
+     * @return Own client id handle
+     */
+    MegaChatHandle getMyClientidHandle(MegaChatHandle chatid);
+
+    /**
      * @brief Returns the firstname of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
@@ -3892,9 +3959,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the client
      * @param listener MegaChatVideoListener that will receive remote video
      */
-    void addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
+    void addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatHandle clientid, MegaChatVideoListener *listener);
 
     /**
      * @brief Unregister a MegaChatVideoListener
@@ -3903,9 +3971,10 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the client
      * @param listener Object that is unregistered
      */
-    void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatVideoListener *listener);
+    void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle peerid, MegaChatHandle clientid, MegaChatVideoListener *listener);
 #endif
 
     static void setCatchException(bool enable);

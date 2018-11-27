@@ -474,7 +474,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 if(itemController)
                 {
                     ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
+                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(chatId));
                 }
             }
             break;

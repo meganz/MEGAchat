@@ -3,7 +3,7 @@
 #include <QImage>
 
 LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui):
-CallListener(megaChatApi,callGui, MEGACHAT_INVALID_HANDLE)
+CallListener(megaChatApi,callGui, MEGACHAT_INVALID_HANDLE, 0)
 {
     mMegaChatApi->addChatLocalVideoListener(mCallGui->getCall()->getChatid(), megaChatVideoListenerDelegate);
 }
