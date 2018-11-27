@@ -850,8 +850,9 @@ public:
 
     /** @brief There is a call active in the chatroom*/
     bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
+
     /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
-    bool isCallInProgress() const;
+    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception

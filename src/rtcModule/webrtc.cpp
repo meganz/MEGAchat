@@ -649,18 +649,12 @@ bool RtcModule::isCallActive(Id chatid) const
 {
     if (chatid.isValid())
     {
-        auto it = mCallHandlers.find(chatid);
-        if (it != mCallHandlers.end())
-        {
-            return true;
-        }
+        return (mCallHandlers.find(chatid) != mCallHandlers.end());
     }
-    else    // find a call in progress in any chatroom
+    else
     {
         return !mCallHandlers.empty();
     }
-
-    return false;
 }
 
 void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clientid, AvFlags av)

@@ -3192,14 +3192,14 @@ bool Client::isCallActive(Id chatid) const
     return callActive;
 }
 
-bool Client::isCallInProgress() const
+bool Client::isCallInProgress(karere::Id chatid) const
 {
     bool participantingInCall = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        participantingInCall = rtc->isCallInProgress();
+        participantingInCall = rtc->isCallInProgress(chatid);
     }
 #endif
 
