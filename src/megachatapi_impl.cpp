@@ -1068,7 +1068,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
                 assert(chatCall);
-                if (chatCall->adjustAvFlagsToRestriction(avFlags))
+                EndpointId endPoint(chatroom->chat().client().myHandle(), chatroom->chat().connection().clientId());
+                if (chatCall->adjustAvFlagsToRestriction(avFlags, endPoint))
                 {
                     request->setFlag(avFlags.video());
                 }
@@ -1133,7 +1134,8 @@ void MegaChatApiImpl::sendPendingRequests()
             karere::AvFlags avFlags(true, enableVideo); // audio is always enabled by default
             MegaChatCallPrivate *chatCall = handler->getMegaChatCall();
             assert(chatCall);
-            if (chatCall->adjustAvFlagsToRestriction(avFlags))
+            EndpointId endPoint(chatroom->chat().client().myHandle(), chatroom->chat().connection().clientId());
+            if (chatCall->adjustAvFlagsToRestriction(avFlags, endPoint))
             {
                 request->setFlag(avFlags.video());
             }
@@ -1232,7 +1234,16 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (chatCall->adjustAvFlagsToRestriction(newFlags))
+            ChatRoom *chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                API_LOG_ERROR("Mute call - Chatroom has not been found");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            EndpointId endPoint(chatroom->chat().client().myHandle(), chatroom->chat().connection().clientId());
+            if (chatCall->adjustAvFlagsToRestriction(newFlags, endPoint))
             {
                 API_LOG_ERROR("Cannot enable the A/V because the call doesn't have available A/V slots");
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -4890,21 +4901,24 @@ bool MegaChatCallPrivate::removeParticipant(Id userid, uint32_t clientid)
     return notify;
 }
 
-bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
+bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av, EndpointId endPoint)
 {
     bool changed = false;
 
+    std::map<chatd::EndpointId, karere::AvFlags> flagParticipants = participants;
+
+    flagParticipants[endPoint] = av;
+
     int audioSenders = 0;
     int videoSenders = 0;
-
-    for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = participants.begin(); it != participants.end(); it++)
+    for (std::map<chatd::EndpointId, karere::AvFlags>::iterator it = flagParticipants.begin(); it != flagParticipants.end(); it++)
     {
         AvFlags flags = it->second;
         audioSenders += static_cast<int>(flags.audio());
         videoSenders += static_cast<int>(flags.video());
     }
 
-    if (av.audio() && audioSenders >= rtcModule::IRtcModule::kMaxCallAudioSenders)
+    if (audioSenders > rtcModule::IRtcModule::kMaxCallAudioSenders)
     {
         uint8_t avValue = av.value();
         av.set(avValue & !(bool)AvFlags::kAudio);
@@ -4912,7 +4926,7 @@ bool MegaChatCallPrivate::adjustAvFlagsToRestriction(AvFlags &av)
         changed = true;
     }
 
-    if (av.video() && videoSenders >= rtcModule::IRtcModule::kMaxCallVideoSenders)
+    if (videoSenders > rtcModule::IRtcModule::kMaxCallVideoSenders)
     {
         uint8_t avValue = av.value();
         av.set(avValue & !(bool)AvFlags::kVideo);
