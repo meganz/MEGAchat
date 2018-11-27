@@ -37,7 +37,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
   mDNScache(karereClient->websocketIO->mDnsCache)
 {}
 
-promise::Promise<void>
+::promise::Promise<void>
 Client::connect(const std::string& url, Id myHandle, IdRefMap&& currentPeers,
     const Config& config)
 {
@@ -205,7 +205,7 @@ Client::reconnect(const std::string& url)
     try
     {
         if (mConnState >= kConnecting) //would be good to just log and return, but we have to return a promise
-            return promise::Error("Already connecting/connected");
+            return ::promise::Error("Already connecting/connected");
 
         if (!url.empty())
         {
@@ -214,7 +214,7 @@ Client::reconnect(const std::string& url)
         else
         {
             if (!mUrl.isValid())
-                return promise::Error("No valid URL provided and current URL is not valid");
+                return ::promise::Error("No valid URL provided and current URL is not valid");
         }
 
         setConnState(kResolving);
@@ -224,12 +224,12 @@ Client::reconnect(const std::string& url)
 
         // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        mRetryCtrl.reset(createRetryController("presenced", [this](int /*no*/, DeleteTrackable::Handle wptr) -> Promise<void>
+        mRetryCtrl.reset(createRetryController("presenced", [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> Promise<void>
         {
             if (wptr.deleted())
             {
                 PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
-                return promise::_Void();
+                return ::promise::_Void();
             }
 
             disconnect();
@@ -241,12 +241,31 @@ Client::reconnect(const std::string& url)
             setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
+            auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(karereClient->websocketIO, mUrl.host.c_str(),
-                         [wptr, cachedIPs, this](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                    return;
+                }
+                if (!mRetryCtrl)
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                    assert(isOnline());
+                    assert(cachedIPs);
+                    return;
+                }
+                if (mRetryCtrl.get() != retryCtrl)
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
+                    return;
+                }
+                if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                                     attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
 
@@ -351,6 +370,12 @@ bool Client::sendKeepalive(time_t now)
 
 void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
 {
+    if (addOrRemove && peers.empty())
+    {
+        PRESENCED_LOG_DEBUG("updatePeers: no peers to allow to see the presence status");
+        return;
+    }
+
     assert(peers.size());
     const char *buf = mApi->sdk.getSequenceNumber();
     Id scsn(buf, strlen(buf));
@@ -572,14 +597,14 @@ void Command::toString(char* buf, size_t bufsize) const
             Id sn = read<uint64_t>(1);
             uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
-            tmpString.append("SNADDPEERS - ");
+            tmpString.append("SNADDPEERS - scsn: ");
             tmpString.append(ID_CSTR(sn));
-            tmpString.append(" - NumPeers: ");
+            tmpString.append(" num_peers: ");
             tmpString.append(to_string(numPeers));
-            tmpString.append(" peer/s: ");
+            tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
             for (unsigned int i = 0; i < numPeers; i++)
             {
-                Id peerId = read<uint64_t>(5+i*8);
+                Id peerId = read<uint64_t>(13+i*8);
                 tmpString.append(ID_CSTR(peerId));
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
@@ -592,14 +617,14 @@ void Command::toString(char* buf, size_t bufsize) const
             Id sn = read<uint64_t>(1);
             uint32_t numPeers = read<uint32_t>(9);
             string tmpString;
-            tmpString.append("SNDELPEERS - ");
+            tmpString.append("SNDELPEERS - scsn: ");
             tmpString.append(ID_CSTR(sn));
-            tmpString.append(" - NumPeers: ");
+            tmpString.append(" num_peers: ");
             tmpString.append(to_string(numPeers));
-            tmpString.append(" peer/s: ");
+            tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
             for (unsigned int i = 0; i < numPeers; i++)
             {
-                Id peerId = read<uint64_t>(5+i*8);
+                Id peerId = read<uint64_t>(13+i*8);
                 tmpString.append(ID_CSTR(peerId));
                 if (i + 1 < numPeers)
                     tmpString.append(", ");
@@ -676,7 +701,7 @@ void Config::fromCode(uint16_t code)
     {
         mAutoawayTimeout = 600 + (mAutoawayTimeout - 600) * 60;
     }
-    mLastGreenVisible = (code & ~Config::kLastGreenVisibleMask);
+    mLastGreenVisible = !(code & Config::kLastGreenVisibleMask);
 }
 
 uint16_t Config::toCode() const

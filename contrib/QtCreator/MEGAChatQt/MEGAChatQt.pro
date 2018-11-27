@@ -55,7 +55,6 @@ TEMPLATE = app
 
 DEFINES += LOG_TO_LOGGER
 
-
 CONFIG += USE_LIBUV
 CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
@@ -80,7 +79,8 @@ SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
     ../../../examples/qtmegachatapi/chatSettings.cpp \
     ../../../examples/qtmegachatapi/megaLoggerApplication.cpp \
     ../../../examples/qtmegachatapi/chatMessage.cpp \
-    ../../../examples/qtmegachatapi/chatGroupDialog.cpp
+    ../../../examples/qtmegachatapi/chatGroupDialog.cpp \
+    ../../../examples/qtmegachatapi/listItemController.cpp
 
 HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
             ../../../examples/qtmegachatapi/MainWindow.h \
@@ -93,7 +93,8 @@ HEADERS +=  ../../../examples/qtmegachatapi/MegaChatApplication.h \
     ../../../examples/qtmegachatapi/chatSettings.h \
     ../../../examples/qtmegachatapi/megaLoggerApplication.h \
     ../../../examples/qtmegachatapi/chatMessage.h \
-    ../../../examples/qtmegachatapi/chatGroupDialog.h
+    ../../../examples/qtmegachatapi/chatGroupDialog.h \
+    ../../../examples/qtmegachatapi/listItemController.h
 
 FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
             ../../../examples/qtmegachatapi/MainWindow.ui \
@@ -130,12 +131,10 @@ win32 {
 
 macx {
     QMAKE_CXXFLAGS += -DCRYPTOPP_DISABLE_ASM -D_DARWIN_C_SOURCE
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
     QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
     QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
+    DEFINES += WEBRTC_MAC
 }
 
 RESOURCES += \

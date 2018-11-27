@@ -395,6 +395,16 @@ void Client::onSyncReceived(Id chatid)
     }
 }
 
+bool Client::isChatRoomOpened(Id chatid)
+{
+    auto it = chats->find(chatid);
+    if (it != chats->end())
+    {
+        return it->second->hasChatHandler();
+    }
+    return false;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -424,7 +434,7 @@ void Client::saveDb()
     }
 }
 
-promise::Promise<void> Client::pushReceived()
+promise::Promise<void> Client::pushReceived(Id chatid)
 {
     // if already sent SYNCs or we are not logged in right now...
     if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
@@ -449,13 +459,22 @@ promise::Promise<void> Client::pushReceived()
 
     }, chatd::kSyncTimeout, appCtx);
 
-    for (auto& item: *chats)
+    if (chatid.isValid())
     {
-        ChatRoom *chat = item.second;
-        if (!chat->chat().isDisabled())
+        ChatRoom *chat = chats->at(chatid);
+        mSyncCount++;
+        chat->sendSync();
+    }
+    else
+    {
+        for (auto& item: *chats)
         {
-            mSyncCount++;
-            chat->sendSync();
+            ChatRoom *chat = item.second;
+            if (!chat->chat().isDisabled())
+            {
+                mSyncCount++;
+                chat->sendSync();
+            }
         }
     }
 
@@ -507,7 +526,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
         if (wptr.deleted())
             return;
         loadContactListFromApi(*contactList);
-        mChatdClient.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this));
         assert(chats->empty());
         chats->onChatsUpdate(*chatList);
         commit(scsn);
@@ -614,7 +633,7 @@ void Client::initWithDbSession(const char* sid)
         loadOwnKeysFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
-        mChatdClient.reset(new chatd::Client(this, mMyHandle));
+        mChatdClient.reset(new chatd::Client(this));
         chats->loadFromDb();
     }
     catch(std::runtime_error& e)
@@ -1330,13 +1349,21 @@ void Client::terminate(bool deleteDb)
 
 promise::Promise<void> Client::setPresence(Presence pres)
 {
-    if (!mPresencedClient.setPresence(pres))
-        return promise::Error("Not connected");
-    else
+    if (pres == mPresencedClient.config().presence())
     {
-        app.onPresenceChanged(mMyHandle, pres, true);
-        return promise::_Void();
+        std::string err = "setPresence: tried to change online state to the current configured state (";
+        err.append(mOwnPresence.toString(mOwnPresence)).append(")");
+        return promise::Error(err, kErrorArgs);
     }
+
+    bool ret = mPresencedClient.setPresence(pres);
+    if (!ret)
+    {
+        return promise::Error("setPresence: not connected", kErrorAccess);
+    }
+
+    app.onPresenceChanged(mMyHandle, pres, true);
+    return promise::_Void();
 }
 
 void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
@@ -2445,7 +2472,7 @@ void GroupChatRoom::onUserLeave(Id userid)
 
 void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    if (userid == parent.mKarereClient.mChatdClient->userId())
+    if (userid == parent.mKarereClient.myHandle())
         syncOwnPriv(privilege);
     else if (userid.val == mPeer)
         syncPeerPriv(privilege);
@@ -2534,10 +2561,6 @@ void ChatRoom::onUnreadChanged()
     if (room)
     {
         room->onUnreadCountChanged(count);
-    }
-    if (mAppChatHandler)
-    {
-        mAppChatHandler->onUnreadCountChanged(count);
     }
 }
 
@@ -2666,7 +2689,15 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                 if (parent.mKarereClient.connected())
                 {
                     KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
-                    mChat->connect();
+                    if (mChat->onlineState() != ::chatd::ChatState::kChatStateJoining)
+                    {
+                        mChat->connect();
+                    }
+                    else
+                    {
+                        KR_LOG_DEBUG("Skip re-join chatd, since it's already joining right now");
+                        parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd");
+                    }
                 }
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were reinvited",  Id(mChatid).toString().c_str());
                 notifyRejoinedChat();

@@ -4,7 +4,7 @@
 #include <QMenu>
 #include <QFileDialog>
 
-ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
+ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, megachat::MegaChatRoom *cRoom, const char *title)
     : QDialog(parent),
       ui(new Ui::ChatWindowUi)
 {
@@ -13,6 +13,8 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     mCallGui = NULL;
 #endif
     loadedMessages = 0;
+    loadedAttachments = 0;
+    mScrollToBottomAttachments = true;
     nManualSending = 0;
     mPendingLoad = 0;
     mChatRoom = cRoom;
@@ -27,6 +29,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
     ui->mChatdStatusDisplay->hide();
     mUploadDlg = NULL;
     setChatTittle(title);
+    setWindowTitle(title);
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
@@ -60,7 +63,7 @@ ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, mega
 
     QDialog::show();
     megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
-    megaTransferListenerDelegate = new mega::QTMegaTransferListener(mMegaApi, this);
+    megaTransferListenerDelegate = new ::mega::QTMegaTransferListener(mMegaApi, this);
     mMegaApi->addTransferListener(megaTransferListenerDelegate);
 }
 
@@ -76,8 +79,6 @@ void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, 
         }
     }
 }
-
-
 
 void ChatWindow::setChatTittle(const char *title)
 {
@@ -105,11 +106,12 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
-    ChatItemWidget *chatItemWidget = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
-    if (chatItemWidget)
+    ChatListItemController *itemController = mMainWin->getChatControllerById(mChatRoom->getChatId());
+    if(itemController)
     {
-        chatItemWidget->invalidChatWindowHandle();
+       itemController->invalidChatWindow();
     }
+
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     mMegaApi->removeTransferListener(megaTransferListenerDelegate);
     delete megaChatRoomListenerDelegate;
@@ -140,7 +142,7 @@ void ChatWindow::onMsgSendBtn()
     }
 }
 
-void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
+void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage *msg)
 {
     nSending++;
     nManualSending--;
@@ -279,9 +281,9 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
     itMessages = mMsgsWidgetsMap.find(msgId);
     if (itMessages != mMsgsWidgetsMap.end())
     {
-        ChatMessage * auxMessage = itMessages->second;
+        ChatMessage *auxMessage = itMessages->second;
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-        QListWidgetItem * auxItem = ui->mMessageList->takeItem(row);
+        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
         mMsgsWidgetsMap.erase(itMessages);
         delete auxItem;
         return true;
@@ -289,7 +291,7 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
     return false;
 }
 
-ChatMessage * ChatWindow::findChatMessage(megachat::MegaChatHandle msgId)
+ChatMessage *ChatWindow::findChatMessage(megachat::MegaChatHandle msgId)
 {
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
     itMessages = mMsgsWidgetsMap.find(msgId);
@@ -399,6 +401,107 @@ void ChatWindow::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRo
     truncateChatUI();
 }
 
+void ChatWindow::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage *msg)
+{
+    if (msg)
+    {
+        QListWidgetItem *item = new QListWidgetItem;
+        megachat::MegaChatHandle chatId = mChatRoom->getChatId();
+        ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
+        widget->setWidgetItem(item);
+        item->setSizeHint(widget->size());
+        setMessageHeight(msg,item);
+
+        mAttachmentList->insertItem(loadedAttachments, item);
+        mAttachmentList->setItemWidget(item, widget);
+
+        loadedAttachments--;
+
+        if (msg->getType() != MegaChatMessage::TYPE_NODE_ATTACHMENT)
+        {
+            widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
+        }
+    }
+    else if (mScrollToBottomAttachments)
+    {
+        mAttachmentList->scrollToBottom();
+        mScrollToBottomAttachments = false;
+    }
+}
+
+void ChatWindow::onAttachmentReceived(MegaChatApi */*api*/, MegaChatMessage *msg)
+{
+    if (msg)
+    {
+        QListWidgetItem *item = new QListWidgetItem;
+        megachat::MegaChatHandle chatId = mChatRoom->getChatId();
+        ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
+        widget->setWidgetItem(item);
+        item->setSizeHint(widget->size());
+        setMessageHeight(msg,item);
+
+        mAttachmentList->addItem(item);
+        mAttachmentList->setItemWidget(item, widget);
+        mAttachmentList->scrollToBottom();
+
+        if (msg->getType() != MegaChatMessage::TYPE_NODE_ATTACHMENT)
+        {
+            widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
+        }
+    }
+}
+
+void ChatWindow::onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid)
+{
+    for (int i = 0; i < mAttachmentList->count(); i++)
+    {
+        QListWidgetItem *item = mAttachmentList->item(i);
+        ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
+        if (widget && widget->getMessage()->getMsgId() == msgid)
+        {
+            MegaChatMessage *msg = api->getMessage(mChatRoom->getChatId(), msgid);
+            if (msg)
+            {
+                widget->setMessage(msg);
+            }
+
+            widget->updateContent();
+            widget->ui->mMsgDisplay->setStyleSheet("background-color: rgba(255,80,80,128)\n");
+            break;
+        }
+    }
+}
+
+void ChatWindow::onTruncate(MegaChatApi */*api*/, MegaChatHandle msgid)
+{
+    std::vector <MegaChatHandle> ids;
+    for (int j = 0; j < mAttachmentList->count(); j++)
+    {
+        QListWidgetItem *item = mAttachmentList->item(j);
+        ChatMessage *widget = static_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
+        ids.push_back(widget->getMessage()->getMsgId());
+        if (widget->getMessage()->getMsgId() == msgid)
+        {
+            break;
+        }
+    }
+
+    for (unsigned int j = 0; j < ids.size(); j++)
+    {
+        MegaChatHandle id = ids[j];
+        for (int i = 0; i < mAttachmentList->count(); i++)
+        {
+            QListWidgetItem *item = mAttachmentList->item(i);
+            ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
+            if (widget && widget->getMessage()->getMsgId() == id)
+            {
+                delete mAttachmentList->takeItem(i);
+                break;
+            }
+        }
+    }
+}
+
 void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetItem *item)
 {
     switch (msg->getType())
@@ -419,9 +522,9 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetIte
 
 QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int index)
 {
-    QListWidgetItem* item = new QListWidgetItem;
+    QListWidgetItem *item = new QListWidgetItem;
     megachat::MegaChatHandle chatId = mChatRoom->getChatId();
-    ChatMessage * widget = new ChatMessage(this, mMegaChatApi, chatId, msg);
+    ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg);
     widget->setWidgetItem(item);
     item->setSizeHint(widget->size());
     setMessageHeight(msg,item);
@@ -453,15 +556,54 @@ void ChatWindow::onMembersBtn(bool)
     }
 }
 
+void ChatWindow::onShowAttachments(bool active)
+{
+    if (active)
+    {
+        assert(!mAttachmentList);
+        mFrameAttachments = new QWidget();
+        mFrameAttachments->setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
+        mFrameAttachments->setAttribute(Qt::WA_DeleteOnClose);
+        mFrameAttachments->setWindowTitle("Attachments of room: " + windowTitle());
+        mFrameAttachments->setGeometry(x()+350, y(), width(), height());
+
+        mAttachmentList = new MyMessageList(mFrameAttachments);
+        mFrameAttachments->setLayout(new QBoxLayout(QBoxLayout::Direction::LeftToRight));
+        mFrameAttachments->layout()->addWidget(mAttachmentList);
+        mFrameAttachments->show();
+        mFrameAttachments->resize(450, 350);
+        connect(mAttachmentList, SIGNAL(requestHistory()), this, SLOT(onAttachmentRequestHistory()));
+        connect(mAttachmentList->verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
+        connect(mFrameAttachments, SIGNAL(destroyed(QObject*)), this, SLOT(onAttachmentsClosed(QObject*)));
+
+        loadedAttachments = 0;
+        mScrollToBottomAttachments = true;
+
+        megaChatNodeHistoryListenerDelegate = new megachat::QTMegaChatNodeHistoryListener(mMegaChatApi, this);
+        mMegaChatApi->openNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
+        mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
+    }
+    else
+    {
+        assert(mAttachmentList);
+        delete mFrameAttachments;
+    }
+}
+
+void ChatWindow::onAttachmentRequestHistory()
+{
+    mMegaChatApi->loadAttachments(mChatRoom->getChatId(), NMESSAGES_LOAD);
+}
+
 void ChatWindow::createMembersMenu(QMenu& menu)
 {
     //Add contacts
-    mega::MegaUserList *userList = mMegaApi->getContacts();
+    ::mega::MegaUserList *userList = mMegaApi->getContacts();
 
     auto addEntry = menu.addMenu("Add contact to chat");
     for (int i = 0 ; i < userList->size(); i++)
     {
-         mega::MegaUser *user = userList->get(i);
+         ::mega::MegaUser *user = userList->get(i);
          auto actAdd = addEntry->addAction(tr(userList->get(i)->getEmail()));
          actAdd->setProperty("userHandle", QVariant((qulonglong)user->getHandle()));
          connect(actAdd, SIGNAL(triggered()), this, SLOT(onMemberAdd()));
@@ -570,6 +712,12 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(mChatRoom->isArchived());
+
+    // Attachments
+    auto actAttachments = menu.addAction("List attachments");
+    connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));
+    actAttachments->setCheckable(true);
+    actAttachments->setChecked(mAttachmentList != NULL);
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
@@ -746,7 +894,7 @@ void ChatWindow::on_mAttachBtn_clicked()
 
     QStringList nodeParsed = node.split( "/" );
     QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
-    mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
+    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
 
     mUploadDlg = new QMessageBox;
     mUploadDlg->setWindowTitle((tr("Uploading file...")));
@@ -777,14 +925,23 @@ void ChatWindow::onArchiveClicked(bool checked)
     mMegaApi->archiveChat(mChatRoom->getChatId(), checked);
 }
 
-void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e)
+void ChatWindow::onAttachmentsClosed(QObject *)
 {
-    if (transfer->getType() == mega::MegaTransfer::TYPE_UPLOAD)
+    mMegaChatApi->closeNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
+    mFrameAttachments = NULL;
+    mAttachmentList = NULL;
+    delete megaChatNodeHistoryListenerDelegate;
+    megaChatNodeHistoryListenerDelegate = NULL;
+}
+
+void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *transfer, ::mega::MegaError* e)
+{
+    if (transfer->getType() == ::mega::MegaTransfer::TYPE_UPLOAD)
     {
         if (mUploadDlg)
         {
             mUploadDlg->hide();
-            if (e->getErrorCode() == mega::MegaError::API_OK)
+            if (e->getErrorCode() == ::mega::MegaError::API_OK)
             {
                 QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
                 mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
@@ -805,7 +962,7 @@ void ChatWindow::onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transf
     }
     else    // download
     {
-        if (e->getErrorCode() == mega::MegaError::API_OK)
+        if (e->getErrorCode() == ::mega::MegaError::API_OK)
         {
             QMessageBox::information(nullptr, tr("Download"), tr("Attachment's download successful."));
         }

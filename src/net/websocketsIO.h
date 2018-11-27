@@ -44,7 +44,7 @@ private:
 };
 
 // Generic websockets network layer
-class WebsocketsIO : public mega::EventTrigger
+class WebsocketsIO : public ::mega::EventTrigger
 {
 public:
     WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);

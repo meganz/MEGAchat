@@ -44,7 +44,7 @@ class LoginDialog: public QDialog, public karere::IApp::ILoginDialog
 {
     Q_OBJECT
     Ui::LoginDialog ui;
-    promise::Promise<std::pair<std::string, std::string>> mPromise;
+    ::promise::Promise<std::pair<std::string, std::string>> mPromise;
     static QString sLoginStageStrings[kLast+1];
     ~LoginDialog(){}
 public:
@@ -73,14 +73,14 @@ public:
         ui.mEmailInput->setEnabled(enable);
         ui.mPasswordInput->setEnabled(enable);
     }
-    virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials()
+    virtual ::promise::Promise<std::pair<std::string, std::string>> requestCredentials()
     {
         if (!isVisible())
             show();
         else //reusing, recreate promise
         {
             enableControls(true);
-            mPromise = promise::Promise<std::pair<std::string, std::string>>();
+            mPromise = ::promise::Promise<std::pair<std::string, std::string>>();
         }
         return mPromise;
     }
@@ -204,6 +204,10 @@ void MainWindow::onPresenceConfigChanged(const presenced::Config &state, bool pe
         :kOnlineSymbol_Set);
     ui.mOnlineStatusBtn->setStyleSheet(
         kOnlineStatusBtnStyle.arg(gOnlineIndColors[state.presence().status()]));
+}
+
+void MainWindow::onPresenceLastGreenUpdated(karere::Id /*userid*/, uint16_t /*lastGreen*/)
+{
 }
 
 void MainWindow::setOnlineStatus()
@@ -396,7 +400,7 @@ void MainWindow::onAddContact()
     client().api.call(&MegaApi::inviteContact, (const char*) email.toUtf8().data(),
                       (const char*) tr("I'd like to add you to my contact list").toUtf8().data(),
                       (int) MegaContactRequest::INVITE_ACTION_ADD)
-    .fail([this, email](const promise::Error& err)
+    .fail([this, email](const ::promise::Error& err)
     {
         QString msg;
         if (err.code() == API_ENOENT)
@@ -497,7 +501,7 @@ void CListGroupChatItem::setTitle()
 {
     auto title = QInputDialog::getText(this, tr("Change chat title"), tr("Please enter chat title"));
     mRoom.setTitle(title.isNull() ? std::string() : title.toStdString())
-    .fail([](const promise::Error& err)
+    .fail([](const ::promise::Error& err)
     {
         GUI_LOG_ERROR("Error setting chat title: %s", err.what());
     });

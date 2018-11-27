@@ -117,7 +117,7 @@ void MegaChatApplication::logout()
     mMegaApi->logout();
 }
 
-const char * MegaChatApplication::readSid()
+const char *MegaChatApplication::readSid()
 {
     char buf[256];
     ifstream sidf(mAppDir + "/sid");
@@ -157,63 +157,12 @@ void MegaChatApplication::configureLogs()
     MegaChatApi::setCatchException(false);
 }
 
-void MegaChatApplication::addChats()
-{
-    mMainWin->updateLocalChatListItems();
-    std::list<Chat> *chatList = mMainWin->getLocalChatListItemsByStatus(chatActiveStatus);
-    for (Chat &chat : (*chatList))
-    {
-        const megachat::MegaChatListItem *item = chat.chatItem;
-        mMainWin->addChat(item);
-    }
-    chatList->clear();
-    delete chatList;
-}
-
-
-void MegaChatApplication::addContacts()
-{
-    MegaUser * contact = NULL;
-    MegaUserList *contactList = mMegaApi->getContacts();
-
-    for (int i=0; i<contactList->size(); i++)
-    {
-        contact = contactList->get(i);
-        const char *contactEmail = contact->getEmail();
-        megachat::MegaChatHandle userHandle = mMegaChatApi->getUserHandleByEmail(contactEmail);
-        if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
-            mMainWin->addContact(contact);
-    }
-    delete contactList;
-}
-
 void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
 {
-    if(userList && mMainWin)
+    if(mMainWin && userList)
     {
-        for(int i = 0; i < userList->size(); i++)
-        {
-            mega::MegaUser *user = userList->get(i);
-            mega::MegaHandle userHandle = user->getHandle();
-            std::map<mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
-            itContacts = this->mMainWin->contactWidgets.find(userHandle);
-            if (itContacts == this->mMainWin->contactWidgets.end())
-            {
-                mMainWin->addContact(user);
-            }
-            else
-            {
-                if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
-                {
-                    mFirstnamesMap.erase(userHandle);
-                    getFirstname(userHandle);
-                }
-                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->allItemsVisibility != true)
-                {
-                    mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
-                }
-            }
-        }
+        mMainWin->addOrUpdateContactControllersItems(userList);
+        mMainWin->reorderAppContactList();
     }
 }
 
@@ -228,11 +177,11 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     log.append(msgid);
     mLogger->postLog(log.c_str());
 
-    delete chat;
-    delete msgid;
+    delete [] chat;
+    delete [] msgid;
 }
 
-const char* MegaChatApplication::getFirstname(MegaChatHandle uh)
+const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {
@@ -406,6 +355,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                 init();
             }
+            else
+            {
+                MegaUserList *contactList = mMegaApi->getContacts();
+                mMainWin->addOrUpdateContactControllersItems(contactList);
+                mMainWin->reorderAppContactList();
+                delete contactList;
+            }
             break;
           case MegaChatRequest::TYPE_LOGOUT:
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
@@ -459,6 +415,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaChatHandle chatid = request->getChatHandle();
                 const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
 
+                //Set chat title
                 if (chatListItem->isGroup())
                 {
                     QString qTitle = QInputDialog::getText(this->mMainWin, tr("Change chat title"), tr("Leave blank for default title"));
@@ -471,18 +428,18 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         }
                     }
                 }
-
-                if (mMainWin->getLocalChatListItem(chatid) && !chatListItem->isGroup())
+                else
                 {
-                    QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
-                    delete chatListItem;
-                    break;
+                    if (mMainWin->getChatControllerById(chatid))
+                    {
+                        QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
+                        delete chatListItem;
+                        break;
+                    }
                 }
-
-                mMainWin->addLocalChatListItem(chatListItem);
+                mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
+                mMainWin->reorderAppChatList();
                 delete chatListItem;
-                chatListItem = mMainWin->getLocalChatListItem(chatid);
-                mMainWin->addChat(chatListItem);
              }
              break;
          case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
@@ -499,10 +456,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 QMessageBox::critical(nullptr, tr("Archive chat"), tr("Error archiving chat: ").append(e->getErrorString()));
             }
-            else
-            {
-                 mMainWin->orderContactChatList(mMainWin->allItemsVisibility, mMainWin->archivedItemsVisibility);
-            }
             break;
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -514,14 +467,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
               }
             else
             {
-                megachat::MegaChatHandle chatHandle = request->getChatHandle();
-                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-                itChats = mMainWin->chatWidgets.find(chatHandle);
-
-                if (itChats != mMainWin->chatWidgets.end())
+                megachat::MegaChatHandle chatId = request->getChatHandle();
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+                if(itemController)
                 {
-                    ChatItemWidget *chatItemWidget = itChats->second;
-                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
+                    ChatWindow *chatWin = itemController->showChatWindow();
                     chatWin->connectCall();
                 }
             }
@@ -534,15 +484,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
               }
             else
             {
-                megachat::MegaChatHandle chatHandle = request->getChatHandle();
-                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-                itChats = mMainWin->chatWidgets.find(chatHandle);
+                megachat::MegaChatHandle chatId = request->getChatHandle();
 
-                if (itChats != mMainWin->chatWidgets.end())
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+
+                if (itemController)
                 {
-                    ChatItemWidget *chatItemWidget = itChats->second;
-                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
-                    chatWin->hangCall();
+                    ChatItemWidget *widget = itemController->getWidget();
+                    if (widget)
+                    {
+                        ChatWindow *chatWin= itemController->showChatWindow();
+                        if(chatWin)
+                        {
+                            chatWin->hangCall();
+                        }
+                    }
                 }
             }
             break;
@@ -560,15 +516,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 MegaChatHandle chatid = request->getChatHandle();
                 MegaChatMessage *msg = request->getMegaChatMessage();
-                ChatItemWidget *widget = mMainWin->getChatItemWidget(chatid, false);
-
-                if (widget)
+                ChatWindow *window = mMainWin->getChatWindowIfExists(chatid);
+                if (window)
                 {
-                    ChatWindow *win = widget->getChatWindow();
-                    if (win)
-                    {
-                        win->onMessageReceived(mMegaChatApi, msg);
-                    }
+                    window->onMessageReceived(mMegaChatApi, msg);
                 }
             }
             break;

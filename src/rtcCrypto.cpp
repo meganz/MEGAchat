@@ -66,11 +66,11 @@ void RtcCrypto::decryptKeyFrom(karere::Id peer, const SdpKey& data, SdpKey& outp
 }
 //strongvelope should already have initiated preloading of keys, but we may need
 //to wait
-promise::Promise<void> RtcCrypto::waitForPeerKeys(karere::Id peer)
+::promise::Promise<void> RtcCrypto::waitForPeerKeys(karere::Id peer)
 {
     return mClient.userAttrCache().getAttr(peer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
     .then([](Buffer*) {})
-    .fail([this, peer](const promise::Error& err)
+    .fail([this, peer](const ::promise::Error& err)
     {
         KR_LOG_ERROR("Error fetching CU25519 pubkey for user %s: %s", peer.toString().c_str(), err.what());
         return err;

@@ -57,6 +57,7 @@ class MegaChatVideoListener;
 class MegaChatListener;
 class MegaChatNotificationListener;
 class MegaChatListItem;
+class MegaChatNodeHistoryListener;
 
 /**
  * @brief Provide information about a call
@@ -2029,11 +2030,18 @@ public:
     void localLogout(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Set your online status.
+     * @brief Set your configuration for online status.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHAT_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getNumber - Returns the new status of the user in chat.
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS when this function is
+     * called with the same value \c status than the currently cofigured status.
+     * @see MegaChatPresenceConfig::getOnlineStatus to check the current status.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS when this function is
+     * called and the connection to presenced is down.
      *
      * @param status Online status in the chat.
      *
@@ -2152,7 +2160,11 @@ public:
     void signalPresenceActivity(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Get your online status.
+     * @brief Get your currently online status.
+     *
+     * @note This function may return a different online status than the online status from
+     * MegaChatPresenceConfig::getOnlineStatus. In example, when the user has configured the
+     * autoaway option, after the timeout has expired, the status will be Away instead of Online.
      *
      * It can be one of the following values:
      * - MegaChatApi::STATUS_OFFLINE = 1
@@ -3286,7 +3298,7 @@ public:
     void saveCurrentState();
 
     /**
-     * @brief Notify MEGAchat a push has been received
+     * @brief Notify MEGAchat a push has been received (in Android)
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
@@ -3296,6 +3308,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getChatHandle - Return MEGACHAT_INVALID_HANDLE
+     * - MegaChatRequest::getParamType - Return 0
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3312,6 +3326,25 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void pushReceived(bool beep, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Notify MEGAchat a push has been received (in iOS)
+     *
+     * This method should be called when the iOS app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * for one specific chatroom or for every chatroom.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getChatHandle - Return the chatid to check for updates
+     * - MegaChatRequest::getParamType - Return 1
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
@@ -3686,6 +3719,87 @@ public:
      * @return True if \c text contains a URL
      */
     static bool hasUrl(const char* text);
+
+    /**
+     * @brief This method should be called when a node history is opened
+     *
+     * One node history only can be opened once before it will be closed
+     * The same listener should be provided at MegaChatApi::closeChatRoom to unregister it
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatNodeHistoryListener to receive node history events. NULL is not allowed.
+     *
+     * @return True if success, false if listener is NULL or the chatroom is not found
+     */
+    bool openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief This method should be called when a node history is closed
+     *
+     * Note that this listener should be the one registered by MegaChatApi::openNodeHistory
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatNodeHistoryListener to receive node history events. NULL is not allowed.
+     *
+     * @return True if success, false if listener is NULL or the chatroom is not found
+     */
+    bool closeNodeHistory(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief Register a listener to receive all events about a specific node history
+     *
+     * You can use MegaChatApi::removeNodeHistoryListener to stop receiving events.
+     *
+     * Note this listener is feeded with data from a node history that is opened. It
+     * is required to call \c MegaChatApi::openNodeHistory. Otherwise, the listener
+     * will NOT receive any callback.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener Listener that will receive node history events
+     */
+    void addNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief Unregister a MegaChatNodeHistoryListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+    void removeNodeHistoryListener(MegaChatHandle chatid, MegaChatNodeHistoryListener *listener);
+
+    /**
+     * @brief Initiates fetching more node history of the specified chatroom.
+     *
+     * The loaded messages will be notified one by one through the MegaChatNodeHistoryListener
+     * specified at MegaChatApi::openNodeHistory (and through any other listener you may have
+     * registered by calling MegaChatApi::addNodeHistoryListener).
+     *
+     * The corresponding callback is MegaChatNodeHistoryListener::onAttachmentLoaded.
+     *
+     * Messages are always loaded and notified in strict order, from newest to oldest.
+     *
+     * @note The actual number of messages loaded can be less than \c count. Because
+     * the history being shorter than requested. Additionally, if the fetch is local
+     * and there's no more history locally available, the number of messages could be
+     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
+     *
+     * When there are no more history available from the reported source of messages
+     * (local / remote), or when the requested \c count has been already loaded,
+     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL message.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param count The number of requested messages to load.
+     *
+     * @return Return the source of the messages that is going to be fetched. The possible values are:
+     *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
+     *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
+     *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
+     *
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+     */
+    int loadAttachments(MegaChatHandle chatid, int count);
 
 private:
     MegaChatApiImpl *pImpl;
@@ -4414,6 +4528,69 @@ public:
      * @param msg MegaChatMessage representing a 1on1 or groupchat in the list.
      */
     virtual void onChatNotification(MegaChatApi* api, MegaChatHandle chatid, MegaChatMessage *msg);
+};
+
+/**
+ * @brief Interface to receive information about node history of a chatroom.
+ *
+ * A pointer to an implementation of this interface is required when calling MegaChatApi::openNodeHistory.
+ * When node history of a chatroom is closed (MegaChatApi::closeNodeHistory), the listener is automatically removed.
+ * You can also register additional listeners by calling MegaChatApi::addNodeHistoryListener and remove them
+ * by using MegaChatApi::removeNodeHistoryListener
+ *
+ * The implementation will receive callbacks from an internal worker thread.
+ */
+class MegaChatNodeHistoryListener
+{
+public:
+    virtual ~MegaChatNodeHistoryListener() {}
+
+    /**
+     * @brief This function is called when new attachment messages are loaded
+     *
+     * You can use MegaChatApi::loadAttachments to request loading messages.
+     *
+     * When there are no more message to load from the source reported by MegaChatApi::loadAttachments or
+     * there are no more history at all, this function is also called, but the second parameter will be NULL.
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
+     * object will be valid until this function returns. If you want to save the MegaChatMessage object,
+     * use MegaChatMessage::copy for the message.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg The MegaChatMessage object, or NULL if no more history available.
+     */
+    virtual void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
+
+    /**
+     * @brief This function is called when a new attachment message is received
+     *
+     * The SDK retains the ownership of the MegaChatMessage in the second parameter. The MegaChatMessage
+     * object will be valid until this function returns. If you want to save the MegaChatMessage object,
+     * use MegaChatMessage::copy for the message.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msg MegaChatMessage representing the received message
+     */
+    virtual void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
+
+    /**
+     * @brief This function is called when an attachment message is deleted
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msgid id of the message that has been deleted
+     */
+    virtual void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
+
+    /**
+     * @brief This function is called when history is trucated
+     *
+     * If no messages are left in the node-history, the msgid will be MEGACHAT_INVALID_HANDLE.
+     *
+     * @param api MegaChatApi connected to the account
+     * @param msgid id of the message from which history has been trucated
+     */
+    virtual void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
 };
 
 }
