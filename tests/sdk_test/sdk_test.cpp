@@ -2720,12 +2720,13 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
  * (if not accomplished, the test automatically solves them)
  *
  * This test does the following:
- * - A starts a calls with B
- * + B answers the call in another client
- * - A hangs the call
+ * - A looks for the group chat
+ * - A starts a call in that group chat
+ * - A waits for call was established correctly
+ * - A hangs up the call
  *
- * + B starts a call with A in another client
- * - A receive the call and answers it
+ * + A waits to receive a incoming call
+ * - A answers it
  * - A hangs the call
  */
 void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName)
@@ -2852,6 +2853,8 @@ void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& 
     primarySession = NULL;
 }
 
+#endif
+
 /**
  * @brief TEST_SendRichLink
  *
@@ -2933,8 +2936,6 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     delete [] secondarySession;
     secondarySession = NULL;
 }
-
-#endif
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {

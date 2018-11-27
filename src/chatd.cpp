@@ -2130,7 +2130,7 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 void Chat::onInCall(karere::Id userid, uint32_t clientid)
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    assert(mClient.mRtcHandler);
+    assert(mChatdClient.mRtcHandler);
     if (mChatdClient.mRtcHandler)
     {
         mChatdClient.mRtcHandler->handleInCall(mChatId, userid, clientid);
@@ -2141,7 +2141,7 @@ void Chat::onInCall(karere::Id userid, uint32_t clientid)
 void Chat::onEndCall(karere::Id userid, uint32_t clientid)
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    assert(mClient.mRtcHandler);
+    assert(mChatdClient.mRtcHandler);
     if (mChatdClient.mRtcHandler)
     {
         mChatdClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
