@@ -137,15 +137,9 @@ string ch_s(c::MegaChatHandle h)
 
 bool check_err(const char* opName, m::MegaError* e)
 {
-    if (e)
-    {
-        conlock(cout) << opName << (e->getErrorCode() == m::API_OK ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
-    }
-    else
-    {
-        conlock(cout) << opName << " finished with unknown status" << endl;
-    }
-    return e && e->getErrorCode() == m::API_OK;
+    bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
+    conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
+    return success;
 }
 
 bool check_err(const char* opName, c::MegaChatError* e)
