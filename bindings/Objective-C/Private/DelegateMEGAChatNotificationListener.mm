@@ -19,9 +19,9 @@ void DelegateMEGAChatNotificationListener::onChatNotification(MegaChatApi* api, 
     if (listener != nil && [listener respondsToSelector:@selector(onChatNotification:chatId:message:)]) {
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatNotificationDelegate>tempListener = this->listener;
-        MegaChatMessage *tempMessage = msg ? msg->copy() : NULL;
+        MegaChatMessage *tempMessage = msg->copy();
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onChatNotification:tempMEGAChatSdk chatId:chatid message:tempMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES] : nil];
+            [tempListener onChatNotification:tempMEGAChatSdk chatId:chatid message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
         });
     }
 }

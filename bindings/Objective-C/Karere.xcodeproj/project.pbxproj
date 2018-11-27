@@ -48,6 +48,7 @@
 		A879F3C81F96683A007C5394 /* megachatapi_impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */; };
 		A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3C91F96685D007C5394 /* libuvWaiter.cpp */; };
 		A879F3D91F966D8E007C5394 /* rtcCrypto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */; };
+		A8AA1BF92195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A8AA1BF82195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -206,6 +207,9 @@
 		A879F3BF1F96683A007C5394 /* megachatapi_impl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = megachatapi_impl.cpp; sourceTree = "<group>"; };
 		A879F3C91F96685D007C5394 /* libuvWaiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libuvWaiter.cpp; sourceTree = "<group>"; };
 		A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rtcCrypto.cpp; sourceTree = "<group>"; };
+		A8AA1BF62195B11B00E15B60 /* MEGAChatNodeHistoryDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatNodeHistoryDelegate.h; sourceTree = "<group>"; };
+		A8AA1BF72195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DelegateMEGAChatNodeHistoryListener.h; path = Private/DelegateMEGAChatNodeHistoryListener.h; sourceTree = "<group>"; };
+		A8AA1BF82195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = DelegateMEGAChatNodeHistoryListener.mm; path = Private/DelegateMEGAChatNodeHistoryListener.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -372,6 +376,8 @@
 				77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */,
 				A837387F213019CA0014328D /* DelegateMEGAChatNotificationListener.h */,
 				A837387E213019CA0014328D /* DelegateMEGAChatNotificationListener.mm */,
+				A8AA1BF72195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.h */,
+				A8AA1BF82195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm */,
 			);
 			name = private;
 			sourceTree = "<group>";
@@ -415,6 +421,7 @@
 				A837387A213018CB0014328D /* MEGAChatNotificationDelegate.h */,
                 8394CF9C211992A200A1634A /* MEGAChatSession.h */,
                 8394CF9D211992A200A1634A /* MEGAChatSession.mm */,
+				A8AA1BF62195B11B00E15B60 /* MEGAChatNodeHistoryDelegate.h */,
 			);
 			name = binding;
 			sourceTree = "<group>";
@@ -574,6 +581,7 @@
 				A879F3C01F96683A007C5394 /* base64url.cpp in Sources */,
 				77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */,
 				A82750F01E9788D8007CD9E2 /* DelegateMEGAChatRequestListener.mm in Sources */,
+				A8AA1BF92195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm in Sources */,
 				A8373880213019CA0014328D /* DelegateMEGAChatNotificationListener.mm in Sources */,
 				77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */,
 				A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */,

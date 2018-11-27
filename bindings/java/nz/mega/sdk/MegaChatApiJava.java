@@ -27,6 +27,7 @@ public class MegaChatApiJava {
     static Set<DelegateMegaChatCallListener> activeChatCallListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatCallListener>());
     static Set<DelegateMegaChatVideoListener> activeChatVideoListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatVideoListener>());
     static Set<DelegateMegaChatNotificationListener> activeChatNotificationListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatNotificationListener>());
+    static Set<DelegateMegaChatNodeHistoryListener> activeChatNodeHistoryListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatNodeHistoryListener>());
 
     void runCallback(Runnable runnable) {
         runnable.run();
@@ -1827,7 +1828,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Notify MEGAchat a push has been received
+     * Notify MEGAchat a push has been received (in Android)
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
@@ -1836,7 +1837,9 @@ public class MegaChatApiJava {
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)     *
+     * - MegaChatRequest::getChatHandle - Return MEGACHAT_INVALID_HANDLE
+     * - MegaChatRequest::getParamType - Return 0
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param listener MegaChatRequestListener to track this request
@@ -1846,7 +1849,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Notify MEGAchat a push has been received
+     * Notify MEGAchat a push has been received (in Android)
      *
      * This method should be called when the Android app receives a push notification.
      * As result, MEGAchat will retrieve from server the latest changes in the history
@@ -1855,12 +1858,35 @@ public class MegaChatApiJava {
      *
      * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)     *
+     * - MegaChatRequest::getChatHandle - Return MEGACHAT_INVALID_HANDLE
+     * - MegaChatRequest::getParamType - Return 0
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      */
     public void pushReceived(boolean beep){
         megaChatApi.pushReceived(beep);
+    }
+
+    /**
+     * Notify MEGAchat a push has been received (in iOS)
+     *
+     * This method should be called when the iOS app receives a push notification.
+     * As result, MEGAchat will retrieve from server the latest changes in the history
+     * for one specific chatroom or for every chatroom.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_PUSH_RECEIVED
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Return if the push should beep (loud) or not (silent)
+     * - MegaChatRequest::getChatHandle - Return the chatid to check for updates
+     * - MegaChatRequest::getParamType - Return 1
+     *
+     * @param beep True if push should generate a beep, false if it shouldn't.
+     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void pushReceived(boolean beep, long chatid, MegaChatRequestListenerInterface listener){
+        megaChatApi.pushReceived(beep, chatid, createDelegateRequestListener(listener));
     }
 
     // Call management
@@ -2139,6 +2165,112 @@ public class MegaChatApiJava {
     }
 
     /**
+     * This method should be called when a node history is opened
+     *
+     * One node history only can be opened once before it will be closed
+     * The same listener should be provided at MegaChatApi::closeChatRoom to unregister it
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatNodeHistoryListener to receive node history events. NULL is not allowed.
+     *
+     * @return True if success, false if listener is NULL or the chatroom is not found
+     */
+    public boolean openNodeHistory(long chatid, MegaChatNodeHistoryListenerInterface listener){
+        return megaChatApi.openNodeHistory(chatid, createDelegateNodeHistoryListener(listener));
+    }
+
+    /**
+     * @brief This method should be called when a node history is closed
+     *
+     * Note that this listener should be the one registered by MegaChatApi::openNodeHistory
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatNodeHistoryListener to receive node history events. NULL is not allowed.
+     *
+     * @return True if success, false if listener is NULL or the chatroom is not found
+     */
+    public boolean closeNodeHistory(long chatid, MegaChatNodeHistoryListenerInterface listener){
+        return megaChatApi.closeNodeHistory(chatid, createDelegateNodeHistoryListener(listener));
+    }
+
+    /**
+     * Register a listener to receive all events about a specific node history
+     *
+     * You can use MegaChatApi::removeNodeHistoryListener to stop receiving events.
+     *
+     * Note this listener is feeded with data from a node history that is opened. It
+     * is required to call \c MegaChatApi::openNodeHistory. Otherwise, the listener
+     * will NOT receive any callback.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener Listener that will receive node history events
+     */
+    public void addNodeHistoryListener(long chatid, MegaChatNodeHistoryListenerInterface listener){
+        megaChatApi.addNodeHistoryListener(chatid, createDelegateNodeHistoryListener(listener));
+    }
+
+    /**
+     * Unregister a MegaChatNodeHistoryListener
+     *
+     * This listener won't receive more events.
+     *
+     * @param listener Object that is unregistered
+     */
+
+    public void removeNodeHistoryListener(long chatid, MegaChatNodeHistoryListenerInterface listener){
+        ArrayList<DelegateMegaChatNodeHistoryListener> listenersToRemove = new ArrayList<DelegateMegaChatNodeHistoryListener>();
+        synchronized (activeChatNodeHistoryListeners) {
+            Iterator<DelegateMegaChatNodeHistoryListener> it = activeChatNodeHistoryListeners.iterator();
+            while (it.hasNext()) {
+                DelegateMegaChatNodeHistoryListener delegate = it.next();
+                if (delegate.getUserListener() == listener) {
+                    listenersToRemove.add(delegate);
+                    it.remove();
+                }
+            }
+        }
+
+        for (int i=0;i<listenersToRemove.size();i++){
+            megaChatApi.removeNodeHistoryListener(chatid, listenersToRemove.get(i));
+        }
+    }
+
+    /**
+     * Initiates fetching more node history of the specified chatroom.
+     *
+     * The loaded messages will be notified one by one through the MegaChatNodeHistoryListener
+     * specified at MegaChatApi::openNodeHistory (and through any other listener you may have
+     * registered by calling MegaChatApi::addNodeHistoryListener).
+     *
+     * The corresponding callback is MegaChatNodeHistoryListener::onAttachmentLoaded.
+     *
+     * Messages are always loaded and notified in strict order, from newest to oldest.
+     *
+     * @note The actual number of messages loaded can be less than \c count. Because
+     * the history being shorter than requested. Additionally, if the fetch is local
+     * and there's no more history locally available, the number of messages could be
+     * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
+     *
+     * When there are no more history available from the reported source of messages
+     * (local / remote), or when the requested \c count has been already loaded,
+     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL message.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param count The number of requested messages to load.
+     *
+     * @return Return the source of the messages that is going to be fetched. The possible values are:
+     *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
+     *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
+     *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
+     *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
+     *
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+     */
+    public int loadAttachments(long chatid, int count){
+        return megaChatApi. loadAttachments(chatid, count);
+    }
+
+    /**
      * Set the active log level.
      * <p>
      * This function sets the log level of the logging system. If you set a log listener using
@@ -2220,6 +2352,12 @@ public class MegaChatApiJava {
     private MegaChatNotificationListener createDelegateChatNotificationListener(MegaChatNotificationListenerInterface listener) {
         DelegateMegaChatNotificationListener delegateListener = new DelegateMegaChatNotificationListener(this, listener);
         activeChatNotificationListeners.add(delegateListener);
+        return delegateListener;
+    }
+
+    private MegaChatNodeHistoryListener createDelegateNodeHistoryListener(MegaChatNodeHistoryListenerInterface listener) {
+        DelegateMegaChatNodeHistoryListener delegateListener = new DelegateMegaChatNodeHistoryListener(this, listener);
+        activeChatNodeHistoryListeners.add(delegateListener);
         return delegateListener;
     }
 
