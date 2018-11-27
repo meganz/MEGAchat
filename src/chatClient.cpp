@@ -1900,9 +1900,9 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
-bool ChatRoom::isCallInProgress() const
+bool ChatRoom::isCallActive() const
 {
-    return parent.mKarereClient.isCallInProgress(mChatid);
+    return parent.mKarereClient.isCallActive(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -3178,18 +3178,32 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress(Id chatid) const
+bool Client::isCallActive(Id chatid) const
 {
-    bool callInProgress = false;
+    bool callActive = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress(chatid);
+        callActive = rtc->isCallActive(chatid);
     }
 #endif
 
-    return callInProgress;
+    return callActive;
+}
+
+bool Client::isCallInProgress() const
+{
+    bool participantingInCall = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        participantingInCall = rtc->isCallInProgress();
+    }
+#endif
+
+    return participantingInCall;
 }
 
 std::string encodeFirstName(const std::string& first)

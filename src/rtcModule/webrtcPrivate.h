@@ -267,6 +267,7 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress(karere::Id chatid) const;
+    virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
     virtual void removeCallWithoutParticipants(karere::Id chatid);
     virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
