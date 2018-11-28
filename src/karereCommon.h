@@ -137,6 +137,14 @@ public:
             result='-';
         return result;
     }
+    void setAudio(bool enable)
+    {
+        mFlags = ((enable ? kAudio : 0) | video());
+    }
+    void setVideo(bool enable)
+    {
+        mFlags = (audio() | (enable ? kVideo : 0));
+    }
 };
 
 /** @brief Client capability flags. There are defined by the presenced protocol */

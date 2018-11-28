@@ -3545,18 +3545,20 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if audio and video configuration has been established as
-     * the user desires, false in other case
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it
+     * in the call and we can't join to it.
      *
-     * @note In case of group calls, if there is already too many peers sending video or audio, flags
-     * will be modified automatically with a valid value and MegaChatRequest::getFlag will be false.
-     * The correct AV flags can be obtained with MegaChatCall::hasVideo and MegaChatCall::hasAudio
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3572,18 +3574,20 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if audio and video configuration has been established as
-     * the user desires, false in other case
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
-     * in the call and we can't join to it
+     * in the call and we can't join to it.
      *
-     * @note In case of group calls, if there is already too many peers sending video or audio, flags
-     * will be modified automatically with a valid value and MegaChatRequest::getFlag will be false.
-     * The correct AV flags can be obtained with MegaChatCall::hasVideo and MegaChatCall::hasAudio
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
