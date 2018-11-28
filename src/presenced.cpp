@@ -160,11 +160,9 @@ bool Client::autoAwayInEffect()
 {
     return mConfig.mPresence.isValid()    // don't want to change to away from default status
             && !mConfig.mPersist
-            && mConfig.mPresence != Presence::kOffline
-            && mConfig.mPresence != Presence::kAway
+            && mConfig.mPresence == Presence::kOnline
             && mConfig.mAutoawayTimeout
-            && mConfig.mAutoawayActive
-            && !karereClient->isCallInProgress();
+            && mConfig.mAutoawayActive;
 }
 
 void Client::signalActivity(bool force)
@@ -396,7 +394,7 @@ void Client::heartbeat()
         return;
 
     auto now = time(NULL);
-    if (autoAwayInEffect())
+    if (autoAwayInEffect() && !karereClient->isCallInProgress())
     {
         if (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
         {
