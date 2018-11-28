@@ -4,11 +4,15 @@
 cmake_minimum_required(VERSION 2.8)
 project(karere)
 
+# create these cache variables first, these must be on for MEGAchat.  The default in the SDK is off, but it will see they are already on in the CMakeCache.txt
+set (USE_SODIUM 1 CACHE TYPE BOOL)
+set (ENABLE_CHAT 1 CACHE TYPE BOOL)
+
 #specify where 3rd party libraries are available
 set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdParty")
 
 # this line points to the MEGA SDK repo that you want to build MEGAChat against
-include(${CMAKE_CURRENT_LIST_DIR}/../../../sdk2/contrib/cmake/CMakeLists.txt)
+include(${CMAKE_CURRENT_LIST_DIR}/../../third-party/mega/contrib/cmake/CMakeLists.txt)
 
 if (NOT ENABLE_CHAT OR NOT USE_OPENSSL)
     message(FATAL_ERROR "ENABLE_CHAT must be enabled in the SDK build, also USE_OPENSSL as libwebsockets requires it")
