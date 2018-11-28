@@ -769,8 +769,35 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
     if (callIt != mCalls.end())
     {
         RTCM_LOG_WARNING("We have been removed from chatroom: %s, and we are in a call. Finishing the call", chatid.toString().c_str());
-        callIt->second->hangup(TermCode::kErrKickedFromChat);
+        auto wptr = weakHandle();
+        callIt->second->destroy(TermCode::kErrKickedFromChat, true)
+        .then([this, chatid, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            auto callHandlerIt = mCallHandlers.find(chatid);
+            if (callHandlerIt != mCallHandlers.end())
+            {
+                RTCM_LOG_WARNING("We have been removed from chatroom: %s, there are a call in the chat. Finishing the call", chatid.toString().c_str());
+                callHandlerIt->second->removeAllParticipants();
+            }
+
+            removeCallWithoutParticipants(chatid);
+        });
     }
+    else
+    {
+        auto callHandlerIt = mCallHandlers.find(chatid);
+        if (callHandlerIt != mCallHandlers.end())
+        {
+            RTCM_LOG_WARNING("We have been removed from chatroom: %s, there are a call in the chat. Finishing the call", chatid.toString().c_str());
+            callHandlerIt->second->removeAllParticipants();
+        }
+
+        removeCallWithoutParticipants(chatid);
+    }
+
 }
 
 uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
