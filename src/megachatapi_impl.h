@@ -247,7 +247,7 @@ public:
 
     bool addOrUpdateParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool removeParticipant(karere::Id userid, uint32_t clientid);
-    bool adjustAvFlagsToRestriction(karere::AvFlags &av, chatd::EndpointId endPoint);
+    bool checkAvFlags(const karere::AvFlags &av, uint8_t videoAudio, chatd::EndpointId endPoint);
     bool isParticipating(karere::Id userid);
     void removeAllParticipants();
     void setId(karere::Id callid);
