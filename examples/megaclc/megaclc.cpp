@@ -664,6 +664,7 @@ void exec_login(ac::ACState& s)
             {
                 conlock(cout) << "Initiating login attempt..." << endl;
             }
+            g_chatApi->init(NULL);
             g_megaApi->login(s.words[1].s.c_str(), s.words[2].s.c_str());
         }
         else if (s.words.size() == 2 && hasemail)
@@ -679,6 +680,7 @@ void exec_login(ac::ACState& s)
             if (file.is_open() && session.size())
             {
                 conlock(cout) << "Resuming session..." << endl;
+                g_chatApi->init(session.c_str());
                 return g_megaApi->fastLogin(session.c_str());
             }
             conlock(cout) << "Failed to get a valid session id from file " << filename << endl;
@@ -688,6 +690,7 @@ void exec_login(ac::ACState& s)
             {
                 conlock(cout) << "Resuming session..." << endl;
             }
+            g_chatApi->init(s.words[1].s.c_str());
             g_megaApi->fastLogin(s.words[1].s.c_str());
         }
         else
@@ -1522,6 +1525,7 @@ static void process_line(const char* l)
     switch (prompt)
     {
     case LOGINPASSWORD:
+        g_chatApi->init(NULL);
         g_megaApi->login(login.c_str(), l);
         {
             conlock(cout) << "\nLogging in..." << endl;
@@ -1774,7 +1778,6 @@ int main()
     g_chatApi->setLogWithColors(false);
     g_chatApi->setLogToConsole(false);
     g_chatApi->addChatListener(&g_clcListener);
-    g_chatApi->init(NULL);
 
     console.reset(new m::CONSOLE_CLASS);
 
