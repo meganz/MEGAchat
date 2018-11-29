@@ -139,11 +139,11 @@ public:
     }
     void setAudio(bool enable)
     {
-        mFlags = ((enable ? kAudio : 0) | video());
+        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0));
     }
     void setVideo(bool enable)
     {
-        mFlags = (audio() | (enable ? kVideo : 0));
+        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0));
     }
 };
 
