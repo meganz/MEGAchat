@@ -11,7 +11,7 @@ using namespace karere;
 
 CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local)
     : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
-{    
+{
     ui->setupUi(this);
     mPeerid = peerid;
     connect(ui->mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHangCall(bool)));
