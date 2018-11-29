@@ -1236,7 +1236,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+    return mPresencedClient.connect(url, std::move(peers), presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
