@@ -645,6 +645,18 @@ bool RtcModule::isCallInProgress(Id chatid) const
     return callInProgress;
 }
 
+bool RtcModule::isCallActive(Id chatid) const
+{
+    if (chatid.isValid())
+    {
+        return (mCallHandlers.find(chatid) != mCallHandlers.end());
+    }
+    else
+    {
+        return !mCallHandlers.empty();
+    }
+}
+
 void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clientid, AvFlags av)
 {
     ICallHandler *callHandler = NULL;
@@ -757,8 +769,37 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
     if (callIt != mCalls.end())
     {
         RTCM_LOG_WARNING("We have been removed from chatroom: %s, and we are in a call. Finishing the call", chatid.toString().c_str());
-        callIt->second->hangup(TermCode::kErrKickedFromChat);
+        auto wptr = weakHandle();
+        callIt->second->destroy(TermCode::kErrKickedFromChat, true)
+        .then([this, chatid, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            auto callHandlerIt = mCallHandlers.find(chatid);
+            if (callHandlerIt != mCallHandlers.end())
+            {
+                RTCM_LOG_WARNING("We have been removed from chatroom %s -> finishing existing call %s",
+                                 chatid.toString().c_str(), callHandlerIt->second->getCallId().toString().c_str());
+                callHandlerIt->second->removeAllParticipants();
+            }
+
+            removeCallWithoutParticipants(chatid);
+        });
     }
+    else
+    {
+        auto callHandlerIt = mCallHandlers.find(chatid);
+        if (callHandlerIt != mCallHandlers.end())
+        {
+            RTCM_LOG_WARNING("We have been removed from chatroom %s -> finishing existing call %s",
+                             chatid.toString().c_str(), callHandlerIt->second->getCallId().toString().c_str());
+            callHandlerIt->second->removeAllParticipants();
+        }
+
+        removeCallWithoutParticipants(chatid);
+    }
+
 }
 
 uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
