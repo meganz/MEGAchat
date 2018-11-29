@@ -179,6 +179,21 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     wsCloseCb(errcode, errtype, preason, reason_len);
 }
 
+const DNScache::DNSrecord* DNScache::set(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    if (!isMatch(url, ipsv4, ipsv6))
+    {
+        DNSrecord record;
+        record.ipv4 = ipsv4.empty() ? "" : ipsv4.front();
+        record.ipv6 = ipsv6.empty() ? "" : ipsv6.front();
+        record.resolveTs = time(NULL);
+
+        return &(mRecords[url] = record);
+    }
+
+    return nullptr;
+}
+
 bool DNScache::set(const std::string &url, const std::string &ipv4, const std::string &ipv6)
 {
     if (!isMatch(url, ipv4, ipv6))

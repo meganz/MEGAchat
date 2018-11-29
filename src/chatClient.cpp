@@ -487,6 +487,19 @@ void Client::loadContactListFromApi()
     loadContactListFromApi(*contacts);
 }
 
+void Client::loadDnsCacheFromDb()
+{
+    SqliteStmt stmt(db, "select * from dns_cache");
+
+    while (stmt.step())
+        websocketIO->mDnsCache.set(stmt.stringCol(0), stmt.stringCol(1), stmt.stringCol(2));
+}
+
+void Client::saveDnsCacheToDb(const std::string& host, const std::string& ipv4, const std::string& ipv6)
+{
+    db.query("insert or replace into dns_cache(host, ipv4, ipv6) values(?,?,?)", host, ipv4, ipv6);
+}
+
 void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
 {
 #ifndef NDEBUG
@@ -631,6 +644,7 @@ void Client::initWithDbSession(const char* sid)
         });
 
         loadOwnKeysFromDb();
+        loadDnsCacheFromDb();
         contactList->loadFromDb();
         mContactsLoaded = true;
         mChatdClient.reset(new chatd::Client(this));

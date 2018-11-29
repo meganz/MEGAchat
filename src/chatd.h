@@ -454,6 +454,8 @@ public:
 
     int shardNo() const;
     promise::Promise<void> sendSync();
+
+    bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 };
 
 enum ServerHistFetchState

@@ -854,6 +854,7 @@ public:
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
+    void saveDnsCacheToDb(const std::string& host, const std::string& ipv4, const std::string& ipv6);
 
     bool isChatRoomOpened(Id chatid);
 
@@ -878,6 +879,7 @@ protected:
     void loadOwnKeysFromDb();
     void loadContactListFromApi();
     void loadContactListFromApi(::mega::MegaUserList& contactList);
+    void loadDnsCacheFromDb();
 
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
 

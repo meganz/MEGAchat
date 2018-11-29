@@ -683,28 +683,19 @@ Promise<void> Connection::reconnect()
                 if (!cachedIPs) // connect() required initial DNS lookup
                 {
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
-
-                    mDNScache.set(mUrl.host,
-                                  ipsv4.size() ? ipsv4.at(0) : "",
-                                  ipsv6.size() ? ipsv6.at(0) : "");
+                    updateDnsCache(ipsv4, ipsv6);
                     doConnect();
                     return;
                 }
 
-                if (mDNScache.isMatch(mUrl.host, ipsv4, ipsv6))
+                if (updateDnsCache(ipsv4, ipsv6))
                 {
-                    CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
+                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
                 }
                 else
                 {
-                    // update DNS cache
-                    bool ret = mDNScache.set(mUrl.host,
-                                  ipsv4.size() ? ipsv4.at(0) : "",
-                                  ipsv6.size() ? ipsv6.at(0) : "");
-                    assert(ret);
-
-                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (chatd)");
+                    CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
                 }
             });
 
@@ -868,6 +859,14 @@ void Connection::heartbeat()
 int Connection::shardNo() const
 {
     return mShardNo;
+}
+
+bool Connection::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)
+{
+    const auto* newRecord = mDNScache.set(mUrl.host, ipsv4, ipsv6);
+    if (newRecord)
+        mChatdClient.mKarereClient->saveDnsCacheToDb(mUrl.host, newRecord->ipv4, newRecord->ipv6);
+    return newRecord != nullptr;
 }
 
 void Client::disconnect()
