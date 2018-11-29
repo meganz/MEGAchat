@@ -76,7 +76,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     usingipv6 = !usingipv6;
     mTargetIp.clear();
 
-    if (oldState == kConnected)
+    if (oldState >= kConnected)
     {
         PRESENCED_LOG_DEBUG("Socket close at state kLoggedIn");
 
