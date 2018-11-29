@@ -661,7 +661,7 @@ void Client::login()
     {
         sendPrefs();
     }
-    sendUserActive((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout, true);
+
     pushPeers();
 }
 
@@ -798,6 +798,12 @@ void Client::handleMessage(const StaticBuffer& buf)
                     else if (loginCompleted)
                     {
                         PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
+                        if (autoAwayInEffect())
+                        {
+                            // signal whether the user is active or inactive
+                            bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            sendUserActive(isActive, true);
+                        }
                     }
                     else
                     {
