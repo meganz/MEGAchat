@@ -3627,6 +3627,9 @@ public:
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending audio already (no more audio slots are available).
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
@@ -3654,6 +3657,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending video already (no more video slots are available).
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request

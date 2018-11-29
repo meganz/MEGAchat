@@ -779,7 +779,8 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
             auto callHandlerIt = mCallHandlers.find(chatid);
             if (callHandlerIt != mCallHandlers.end())
             {
-                RTCM_LOG_WARNING("We have been removed from chatroom: %s, there are a call in the chat. Finishing the call", chatid.toString().c_str());
+                RTCM_LOG_WARNING("We have been removed from chatroom %s -> finishing existing call %s",
+                                 chatid.toString().c_str(), callHandlerIt->second->getCallId().toString().c_str());
                 callHandlerIt->second->removeAllParticipants();
             }
 
@@ -791,7 +792,8 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
         auto callHandlerIt = mCallHandlers.find(chatid);
         if (callHandlerIt != mCallHandlers.end())
         {
-            RTCM_LOG_WARNING("We have been removed from chatroom: %s, there are a call in the chat. Finishing the call", chatid.toString().c_str());
+            RTCM_LOG_WARNING("We have been removed from chatroom %s -> finishing existing call %s",
+                             chatid.toString().c_str(), callHandlerIt->second->getCallId().toString().c_str());
             callHandlerIt->second->removeAllParticipants();
         }
 
