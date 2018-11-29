@@ -145,9 +145,13 @@ bool Client::requestLastGreen(Id userid)
 
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
+    if (enable == mConfig.mAutoawayActive && timeout == mConfig.mAutoawayTimeout)
+        return true;
+
     if (enable)
     {
         mConfig.mPersist = false;
+        mConfig.mPresence = Presence::kOnline;
     }
 
     mConfig.mAutoawayTimeout = timeout;
