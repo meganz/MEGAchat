@@ -64,6 +64,7 @@ void Url::parse(const std::string& url)
     }
     if (host.empty())
         throw std::runtime_error("Url::parse: Invalid URL '"+url+"', host is empty");
+    originUrl = url;
 }
 
 uint16_t Url::getPortFromProtocol() const

@@ -221,7 +221,8 @@ protected:
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
-            chatd::Priv peerPriv, uint32_t ts, bool aIsArchived);
+            chatd::Priv peerPriv, uint32_t ts, bool aIsArchived,
+            const std::string& url);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 
@@ -335,7 +336,7 @@ public:
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                   unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  bool aIsArchived, const std::string& title);
+                  bool aIsArchived, const std::string& title, const std::string& url);
     ~GroupChatRoom();
 public:
 //chatd::Listener

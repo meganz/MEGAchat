@@ -178,7 +178,7 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     auto it = mConnections.find(shardNo);
     if (it == mConnections.end())
     {
-        conn = new Connection(*this, shardNo);
+        conn = new Connection(*this, shardNo, url);
         mConnections.emplace(std::piecewise_construct,
             std::forward_as_tuple(shardNo), std::forward_as_tuple(conn));
     }
@@ -187,11 +187,6 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
         conn = it->second.get();
     }
 
-    if (!url.empty())
-    {
-        conn->mUrl.parse(url);
-        conn->mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
-    }
     // map chatid to this shard
     mConnectionForChatId[chatid] = conn;
 
@@ -281,6 +276,12 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
+std::string Client::getUrlByShard(int shardNo) const
+{
+    auto it = mConnections.find(shardNo);
+    return it == mConnections.end() ? std::string{} : it->second->mUrl.originUrl;
+}
+
 uint8_t Client::richLinkState() const
 {
     return mRichLinkState;
@@ -310,51 +311,17 @@ bool Client::areAllChatsLoggedIn()
 
 void Chat::connect()
 {
-    // attempt a connection ONLY if this is a new shard.
-    if (mConnection.state() == Connection::kStateNew)
+    if (mConnection.isOnline())
     {
-        mConnection.setState(Connection::kStateFetchingUrl);
-        auto wptr = getDelTracker();
-        mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, mChatId)
-        .then([wptr, this](ReqResult result)
-        {
-            if (wptr.deleted())
-            {
-                CHATD_LOG_DEBUG("Chatd URL request completed, but chatd client was deleted");
-                return;
-            }
-
-            const char* url = result->getLink();
-            if (!url || !url[0])
-            {
-                CHATID_LOG_ERROR("No chatd URL received from API");
-                return;
-            }
-
-            std::string sUrl = url;
-            mConnection.mUrl.parse(sUrl);
-            mConnection.mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
-
-            mConnection.reconnect()
-            .fail([this](const ::promise::Error& err)
-            {
-                CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
-            });
-        });
-
+        login();
     }
-    else if (mConnection.state() == Connection::kStateDisconnected)
+    else
     {
-        mConnection.reconnect()
+        mConnection.connect()
         .fail([this](const ::promise::Error& err)
         {
             CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
         });
-
-    }
-    else if (mConnection.isOnline())
-    {
-        login();
     }
 }
 
@@ -375,10 +342,14 @@ void Chat::login()
         join();
 }
 
-Connection::Connection(Client& chatdClient, int shardNo)
+Connection::Connection(Client& chatdClient, int shardNo, const std::string& url)
 : mChatdClient(chatdClient), mShardNo(shardNo),
   mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache)
-{}
+{
+    setUrl(url);
+    if (mUrl.isValid())
+        setState(State::kStateFetchingUrl);
+}
 
 void Connection::wsConnectCb()
 {
@@ -589,7 +560,6 @@ Promise<void> Connection::reconnect()
 {
     mChatdClient.mKarereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
-    assert(!mRetryCtrl);
     try
     {
         if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
@@ -859,6 +829,61 @@ void Connection::heartbeat()
 int Connection::shardNo() const
 {
     return mShardNo;
+}
+
+promise::Promise<void> Connection::connect()
+{
+    return fetchUrl()
+    .then([this]
+    {
+        return reconnect();
+    });
+}
+
+promise::Promise<void> Connection::fetchUrl()
+{
+    assert(!mChatIds.empty());
+    if (state() >= Connection::kStateFetchingUrl)
+        return Void{};
+    setState(kStateFetchingUrl);
+
+    auto wptr = getDelTracker();
+    return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+    .then([wptr, this](ReqResult result)
+    {
+        if (wptr.deleted())
+        {
+            CHATD_LOG_DEBUG("Chatd URL request completed, but chatd connection was deleted");
+            return;
+        }
+
+        const char* url = result->getLink();
+        if (!url || !url[0])
+        {
+            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, *mChatIds.begin());
+            return;
+        }
+
+        setUrl(url);
+
+        auto& db = mChatdClient.mKarereClient->db;
+        for (const auto chatid : mChatIds)
+            db.query("update chats set url = ? where chatid = ?", url, chatid);
+    });
+}
+
+void Connection::setUrl(const std::string& url)
+{
+    if (mUrl.isValid())
+    {
+        CHATDS_LOG_WARNING("Url for connection has already assigned");
+        return;
+    }
+    if (!url.empty())
+    {
+        mUrl.parse(url);
+        mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
+    }
 }
 
 bool Connection::updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6)

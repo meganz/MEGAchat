@@ -1603,10 +1603,12 @@ IApp::IGroupChatListItem* GroupChatRoom::addAppItem()
 }
 
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived, const std::string& title)
+    unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts, bool aIsArchived,
+    const std::string& title, const std::string& url)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
 mHasTitle(!title.empty()), mRoomGui(nullptr)
 {
+    mUrl = url;
     SqliteStmt stmt(parent.mKarereClient.db, "select userid, priv from chat_peers where chatid=?");
     stmt << mChatid;
     std::vector<promise::Promise<void> > promises;
@@ -1671,11 +1673,14 @@ IApp::IPeerChatListItem* PeerChatRoom::addAppItem()
 }
 
 PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer, chatd::Priv peerPriv, uint32_t ts, bool aIsArchived)
-:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived), mPeer(peer),
+    unsigned char aShard, chatd::Priv aOwnPriv, const uint64_t& peer,
+    chatd::Priv peerPriv, uint32_t ts, bool aIsArchived, const std::string& url)
+:ChatRoom(parent, chatid, false, aShard, aOwnPriv, ts, aIsArchived),
+  mPeer(peer),
   mPeerPriv(peerPriv),
   mRoomGui(nullptr)
 {
+    mUrl = url;
     initContact(peer);
     initWithChatd();
     mRoomGui = addAppItem();
@@ -1687,8 +1692,9 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
      (chatd::Priv)chat.getOwnPrivilege(), chat.getCreationTime(), chat.isArchived()),
       mPeer(getSdkRoomPeer(chat)), mPeerPriv(getSdkRoomPeerPriv(chat)), mRoomGui(nullptr)
 {
-    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived) values (?,?,?,?,?,?,?)",
-        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived());
+    mUrl = parent.mKarereClient.mChatdClient->getUrlByShard(mShardNo);
+    parent.mKarereClient.db.query("insert into chats(chatid, shard, peer, peer_priv, own_priv, ts_created, archived, url) values (?,?,?,?,?,?,?,?)",
+        mChatid, mShardNo, mPeer, mPeerPriv, mOwnPriv, chat.getCreationTime(), chat.isArchived(), mUrl);
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
@@ -1945,7 +1951,7 @@ ChatRoomList::ChatRoomList(Client& aClient)
 
 void ChatRoomList::loadFromDb()
 {
-    SqliteStmt stmt(mKarereClient.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived from chats");
+    SqliteStmt stmt(mKarereClient.db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, url from chats");
     while(stmt.step())
     {
         auto chatid = stmt.uint64Col(0);
@@ -1957,9 +1963,13 @@ void ChatRoomList::loadFromDb()
         auto peer = stmt.uint64Col(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
-            room = new PeerChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5), stmt.intCol(1), stmt.intCol(7));
+            room = new PeerChatRoom(*this, chatid, stmt.intCol(2),
+                (chatd::Priv)stmt.intCol(3), peer, (chatd::Priv)stmt.intCol(5),
+                stmt.intCol(1), stmt.intCol(7), stmt.stringCol(8));
         else
-            room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), stmt.stringCol(6));
+            room = new GroupChatRoom(*this, chatid, stmt.intCol(2),
+                (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7),
+                stmt.stringCol(6), stmt.stringCol(8));
         emplace(chatid, room);
     }
 }
@@ -2174,8 +2184,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     db.query("delete from chat_peers where chatid=?", mChatid);
     db.query(
         "insert or replace into chats(chatid, shard, peer, peer_priv, "
-        "own_priv, ts_created, archived) values(?,?,-1,0,?,?,?)",
-        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived());
+        "own_priv, ts_created, archived, url) values(?,?,-1,0,?,?,?,?)",
+        mChatid, mShardNo, mOwnPriv, aChat.getCreationTime(), aChat.isArchived(), mUrl);
 
     SqliteStmt stmt(db, "insert into chat_peers(chatid, userid, priv) values(?,?,?)");
     for (auto& m: mPeers)

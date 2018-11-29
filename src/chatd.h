@@ -370,7 +370,7 @@ public:
     };
 
 protected:
-    Connection(Client& chatdClient, int shardNo);
+    Connection(Client& chatdClient, int shardNo, const std::string& url);
 
     Client& mChatdClient;
 
@@ -455,6 +455,9 @@ public:
     int shardNo() const;
     promise::Promise<void> sendSync();
 
+    promise::Promise<void> connect();
+    promise::Promise<void> fetchUrl();
+    void setUrl(const std::string& url);
     bool updateDnsCache(const std::vector<std::string>& ipsv4, const std::vector<std::string>& ipsv6);
 };
 
@@ -1353,6 +1356,8 @@ public:
 
     // True if clients send confirmation to chatd when they receive a new message
     bool isMessageReceivedConfirmationActive() const;
+
+    std::string getUrlByShard(int shardNo) const;
 
     friend class Connection;
     friend class Chat;

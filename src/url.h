@@ -10,6 +10,7 @@ class Url
 protected:
     uint16_t getPortFromProtocol() const;
 public:
+    std::string originUrl;
     std::string protocol;
     std::string host;
     uint16_t port;
