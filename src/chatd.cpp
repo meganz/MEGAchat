@@ -679,16 +679,13 @@ Promise<void> Connection::reconnect()
                         return;
                     }
 
-                    string errStr;
                     if (statusDNS < 0)
                     {
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
-                        errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
                     }
                     else
                     {
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
-                        errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
                     }
 
                     assert(!isOnline());

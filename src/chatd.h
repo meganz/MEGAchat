@@ -381,7 +381,8 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State {
+    enum State
+    {
         kStateNew,
         kStateFetchingUrl,
         kStateDisconnected,
@@ -389,7 +390,8 @@ public:
         kStateConnecting,
         kStateConnected};
 
-    enum {
+    enum
+    {
         kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
         kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
         kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
