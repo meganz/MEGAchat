@@ -26,8 +26,7 @@ class MegaChatApplication : public QApplication,
         virtual ~MegaChatApplication();
         void init();
         void login();
-        void addChats();
-        void addContacts();
+        void logout();
         void configureLogs();
         bool initAnonymous(std::string chatlink);
         std::string getChatLink();
@@ -40,13 +39,13 @@ class MegaChatApplication : public QApplication,
 
         virtual void onRequestFinish(megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
         virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
-        virtual void onUsersUpdate(::mega::MegaApi * api, ::mega::MegaUserList * userList);
+        virtual void onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
         const char *getFirstname(megachat::MegaChatHandle uh);
 
     protected:
-        const char* mSid;
+        const char *mSid;
         std::string mAppDir;
         MainWindow *mMainWin;
         LoginDialog *mLoginDialog;

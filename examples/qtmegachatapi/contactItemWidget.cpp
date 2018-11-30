@@ -12,6 +12,7 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     mMegaApi = megaApi;
     mMegaChatApi = megaChatApi;
     mUserHandle = contact->getHandle();
+    mUserVisibility = contact->getVisibility();
     const char *contactEmail = contact->getEmail();
     ui->setupUi(this);
     setAvatarStyle();
@@ -20,12 +21,14 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     QString text = QString::fromUtf8(contactEmail);
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
+
     const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle());
     if (firstname)
     {
-        mMainWin->updateContactFirstname(contact->getHandle(), firstname);
+        updateTitle(firstname);
     }
     delete [] firstname;
+
     int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
 }
@@ -43,7 +46,7 @@ void ContactItemWidget::setAvatarStyle()
     ui->mAvatar->setStyleSheet(style);
 }
 
-void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
+void ContactItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     auto chatPeerInviteAction = menu.addAction(tr("Invite to 1on1 chat"));
@@ -55,11 +58,19 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent* event)
     auto publicChatInviteAction = menu.addAction(tr("Invite to PUBLIC group chat"));
     connect(publicChatInviteAction, SIGNAL(triggered()), this, SLOT(onCreatePublicGroupChat()));
 
-    auto removeAction = menu.addAction(tr("Remove contact"));
-    connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
-
     auto printAction = menu.addAction(tr("Print contact info"));
     connect(printAction, SIGNAL(triggered()), this, SLOT(onPrintContactInfo()));
+
+    if (mUserVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+    {
+        auto removeAction = menu.addAction(tr("Remove contact"));
+        connect(removeAction, SIGNAL(triggered()), this, SLOT(onContactRemove()));
+    }
+    else if (mUserVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+    {
+        auto addAction = menu.addAction(tr("Invite ex-contact"));
+        connect(addAction, SIGNAL(triggered()), this, SLOT(onExContactInvite()));
+    }
 
     auto lastGreenAction = menu.addAction(tr("Last time user was online"));
     connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
@@ -105,8 +116,8 @@ void ContactItemWidget::updateToolTip(::mega::MegaUser *contact)
         .append(tr("\nChat handle: ")).append((chatHandle_64));
 
    setToolTip(text);
-   delete contactHandle_64;
-   delete auxChatHandle_64;
+   delete [] contactHandle_64;
+   delete [] auxChatHandle_64;
 }
 
 void ContactItemWidget::onCreatePublicGroupChat()
@@ -146,7 +157,25 @@ void ContactItemWidget::createChatRoom(MegaChatHandle uh, bool isGroup, bool isP
     MegaChatPeerList *peerList = MegaChatPeerList::createInstance();
     peerList->addPeer(uh, MegaChatRoom::PRIV_STANDARD);
 
-    mMainWin->createChatRoom(peerList, isGroup, isPublic);
+
+    if(isGroup)
+    {
+        char *title = mMainWin->askChatTitle();
+        if (isPublic)
+        {
+            mMegaChatApi->createPublicChat(peerList, title);
+        }
+        else
+        {
+            mMegaChatApi->createChat(true, peerList, title);
+        }
+        delete [] title;
+    }
+    else
+    {
+        mMegaChatApi->createChat(false, peerList);
+    }
+
     delete peerList;
 }
 
@@ -160,24 +189,44 @@ void ContactItemWidget::onPrintContactInfo()
 
 void ContactItemWidget::onContactRemove()
 {
-    char * email = mMegaChatApi->getContactEmail(mUserHandle);
-    ::mega::MegaUser *contact = mMegaApi->getContact(email);
+    char *email = mMegaChatApi->getContactEmail(mUserHandle);
     QString msg = tr("Are you sure you want to remove ");
     msg.append(ui->mName->text());
 
-    if (ui->mName->text()!= email)
+    if (ui->mName->text() != email)
     {
         msg.append(" (").append(email).append(")");
     }
     msg.append(tr(" from your contacts?"));
 
     auto ret = QMessageBox::question(this, tr("Remove contact"), msg);
-    if (ret != QMessageBox::Yes)
-        return;
+    if (ret == QMessageBox::Yes)
+    {
+        ::mega::MegaUser *contact = mMegaApi->getContact(email);
+        mMegaApi->removeContact(contact);
+        delete contact;
+    }
+    delete [] email;
+}
 
-    mMegaApi->removeContact(contact);
-    delete email;
-    delete contact;
+void ContactItemWidget::onExContactInvite()
+{
+    char *email = mMegaChatApi->getContactEmail(mUserHandle);
+    QString msg = tr("Are you sure you want to re-invite ");
+    msg.append(ui->mName->text());
+    if (ui->mName->text() != email)
+    {
+        msg.append(" (").append(email).append(")");
+    }
+    msg.append(tr(" to your contacts?"));
+
+    auto ret = QMessageBox::question(this, tr("Invite ex-contact"), msg);
+    if (ret == QMessageBox::Yes)
+    {
+        mMegaApi->inviteContact(email, "Please, accept my invitation", ::mega::MegaContactRequest::INVITE_ACTION_ADD);
+    }
+
+    delete [] email;
 }
 
 void ContactItemWidget::onRequestLastGreen()
@@ -185,18 +234,33 @@ void ContactItemWidget::onRequestLastGreen()
     mMegaChatApi->requestLastGreen(mUserHandle);
 }
 
-void ContactItemWidget::updateTitle(const char * firstname)
+void ContactItemWidget::updateTitle(const char *firstname)
 {
     QString text;
     if (strcmp(firstname, "") == 0)
     {
         const char *auxEmail = mMegaChatApi->getContactEmail(mUserHandle);
         text = QString::fromUtf8(auxEmail);
-        delete auxEmail;
+        delete [] auxEmail;
     }
     else
     {
         text = QString::fromUtf8(firstname);
+    }
+
+    switch (mUserVisibility)
+    {
+        case ::mega::MegaUser::VISIBILITY_HIDDEN:
+            text.append(" [H]");
+            break;
+        case ::mega::MegaUser::VISIBILITY_INACTIVE:
+            text.append(" [I]");
+            break;
+        case ::mega::MegaUser::VISIBILITY_BLOCKED:
+            text.append(" [B]");
+            break;
+        default:    // VISIBLE (+ UNKNOWN)
+            break;
     }
 
     ui->mName->setText(text);

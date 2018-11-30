@@ -20,6 +20,32 @@ int main(int argc, char **argv)
     return app.exec();
 }
 
+std::string MegaChatApplication::getChatLink()
+{
+    bool ok;
+    std::string link;
+    QString qLink;
+
+    while (1)
+    {
+        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
+                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
+
+        if (ok)
+        {
+            link = qLink.toStdString();
+            if (link.size() > 1)
+            {
+                return link;
+            }
+        }
+        else
+        {
+            return std::string();
+        }
+    }
+}
+
 MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(argc, argv)
 {
     mAppDir = MegaChatApi::getAppDir();
@@ -55,8 +81,7 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
-
-    mMainWin->deleteLater();
+    delete mMainWin;
     delete mMegaChatApi;
     delete mMegaApi;
     delete mLogger;
@@ -83,39 +108,13 @@ void MegaChatApplication::init()
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
     login();
 }
-void MegaChatApplication::onAnonymousLogout()
+
+void MegaChatApplication::onPreviewClicked()
 {
-    if (mMainWin)
+    std::string chatLink = getChatLink();
+    if (!initAnonymous(chatLink))
     {
-       mMainWin->deleteLater();
-       mMainWin = NULL;
-    }
-    mMegaChatApi->logout();
-}
-
-std::string MegaChatApplication::getChatLink()
-{
-    bool ok;
-    std::string link;
-    QString qLink;
-
-    while (1)
-    {
-        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
-                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
-
-        if (ok)
-        {
-            link = qLink.toStdString();
-            if (link.size() > 1)
-            {
-                return link;
-            }
-        }
-        else
-        {
-            return std::string();
-        }
+        mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
     }
 }
 
@@ -147,6 +146,17 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     return true;
 }
 
+void MegaChatApplication::onAnonymousLogout()
+{
+    if (mMainWin)
+    {
+       mMainWin->deleteLater();
+       mMainWin = NULL;
+    }
+    mMegaChatApi->logout();
+}
+
+
 void MegaChatApplication::login()
 {
     mSid = readSid();
@@ -169,24 +179,18 @@ void MegaChatApplication::login()
 
 void MegaChatApplication::onLoginClicked()
 {
-    int initState = mMegaChatApi->init(mSid);
-    assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
-void MegaChatApplication::onPreviewClicked()
+void MegaChatApplication::logout()
 {
-    std::string chatLink = mLoginDialog->getChatLink();
-    if (!initAnonymous(chatLink))
-    {
-        mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
-    }
+    mMegaApi->logout();
 }
 
-const char * MegaChatApplication::readSid()
+const char *MegaChatApplication::readSid()
 {
     char buf[256];
     ifstream sidf(mAppDir + "/sid");
@@ -226,56 +230,12 @@ void MegaChatApplication::configureLogs()
     MegaChatApi::setCatchException(false);
 }
 
-void MegaChatApplication::addChats()
-{
-    mMainWin->updateLocalChatListItems();
-    mMainWin->orderContactChatList();
-}
-
-
-void MegaChatApplication::addContacts()
-{
-    MegaUser * contact = NULL;
-    MegaUserList *contactList = mMegaApi->getContacts();
-
-    for (int i=0; i<contactList->size(); i++)
-    {
-        contact = contactList->get(i);
-        const char *contactEmail = contact->getEmail();
-        megachat::MegaChatHandle userHandle = mMegaChatApi->getUserHandleByEmail(contactEmail);
-        if (megachat::MEGACHAT_INVALID_HANDLE != userHandle)
-            mMainWin->addContact(contact);
-    }
-    delete contactList;
-}
-
 void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
-    if(userList && mMainWin)
+    if(mMainWin && userList)
     {
-        for(int i = 0; i < userList->size(); i++)
-        {
-            ::mega::MegaUser *user = userList->get(i);
-            ::mega::MegaHandle userHandle = user->getHandle();
-            std::map<::mega::MegaHandle, ContactItemWidget *>::iterator itContacts;
-            itContacts = this->mMainWin->contactWidgets.find(userHandle);
-            if (itContacts == this->mMainWin->contactWidgets.end())
-            {
-                mMainWin->addContact(user);
-            }
-            else
-            {
-                if (userList->get(i)->hasChanged(MegaUser::CHANGE_TYPE_FIRSTNAME))
-                {
-                    mFirstnamesMap.erase(userHandle);
-                    getFirstname(userHandle);
-                }
-                else if (user->getVisibility() == MegaUser::VISIBILITY_HIDDEN && mMainWin->mShowInactive != true)
-                {
-                     mMainWin->orderContactChatList();
-                }
-            }
-        }
+        mMainWin->addOrUpdateContactControllersItems(userList);
+        mMainWin->reorderAppContactList();
     }
 }
 
@@ -290,11 +250,11 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     log.append(msgid);
     mLogger->postLog(log.c_str());
 
-    delete chat;
-    delete msgid;
+    delete [] chat;
+    delete [] msgid;
 }
 
-const char* MegaChatApplication::getFirstname(MegaChatHandle uh)
+const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {
@@ -407,23 +367,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_CHECK:
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                bool enabled = request->getFlag();
-                QMessageBox msgBox;
-                msgBox.setText(tr("2FA is ").append(enabled?" Enabled": "Disabled").append("\nDo you want to ").append(enabled ?" disable": "enable").append(" it?"));
-                msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-                msgBox.setDefaultButton(QMessageBox::Cancel);
-                int ret = msgBox.exec();
-                if (ret == QMessageBox::Ok)
-                {
-                    if (enabled)
-                    {
-                        this->mMainWin->onTwoFactorDisable();
-                    }
-                    else
-                    {
-                        this->mMainWin->onTwoFactorGetCode();
-                    }
-                }
+                this->mMainWin->createFactorMenu(request->getFlag());
             }
             break;
 
@@ -439,7 +383,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
                 copyButton->disconnect();
                 connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(request->getText());});
-                msg.addButton(tr("Continue"), QMessageBox::ActionRole);
+                QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
                 msg.exec();
 
                 std::string auxcode = this->mMainWin->getAuthCode();
@@ -452,7 +396,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
 
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
-        {
             QString text;
             if (request->getFlag())
             {
@@ -472,19 +415,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QMessageBox::warning(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
             break;
-        }
-        case MegaRequest::TYPE_COPY:
-        {
-            if (e->getErrorCode() == MegaError::API_OK)
-            {
-                QMessageBox::information(nullptr, tr("Node import"),tr("The node has been imported successfully"));
-            }
-            else
-            {
-                 QMessageBox::warning(nullptr, tr("Node import"), tr(" ").append(e->getErrorString()));
-            }
-            break;
-        }
     }
 }
 
@@ -492,28 +422,33 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 {
     switch (request->getType())
     {
-        case MegaChatRequest::TYPE_CONNECT:
+         case MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
             {
                 QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
                 init();
             }
+            else
+            {
+                MegaUserList *contactList = mMegaApi->getContacts();
+                mMainWin->addOrUpdateContactControllersItems(contactList);
+                mMainWin->reorderAppContactList();
+                delete contactList;
+            }
             break;
-
-        case MegaChatRequest::TYPE_LOGOUT:
+          case MegaChatRequest::TYPE_LOGOUT:
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
                 removeSid();
                 init();
             }
             break;
-
-        case MegaChatRequest::TYPE_GET_FIRSTNAME:
-        {
-            MegaChatHandle userHandle = request->getUserHandle();
-            int errorCode = e->getErrorCode();
-            if (errorCode == MegaChatError::ERROR_OK)
-            {
+         case MegaChatRequest::TYPE_GET_FIRSTNAME:
+             {
+             MegaChatHandle userHandle = request->getUserHandle();
+             int errorCode = e->getErrorCode();
+             if (errorCode == MegaChatError::ERROR_OK)
+             {
                 const char *firstname = request->getText();
                 if ((strlen(firstname)) == 0)
                 {
@@ -524,265 +459,57 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 mFirstnameFetching[userHandle] = false;
                 mMainWin->updateContactFirstname(userHandle,firstname);
                 mMainWin->updateMessageFirstname(userHandle,firstname);
-            }
-            else if (errorCode == MegaChatError::ERROR_NOENT)
-            {
+             }
+             else if (errorCode == MegaChatError::ERROR_NOENT)
+             {
                 this->mMegaChatApi->getUserEmail(userHandle);
-            }
-            break;
-        }
-
-        case MegaChatRequest::TYPE_GET_EMAIL:
-        {
+             }
+             break;
+             }
+         case MegaChatRequest::TYPE_GET_EMAIL:
+            {
             MegaChatHandle userHandle = request->getUserHandle();
             if (e->getErrorCode() == MegaChatError::ERROR_OK)
             {
-                const char *email = request->getText();
-                mMainWin->updateContactFirstname(userHandle,email);
-                mMainWin->updateMessageFirstname(userHandle,email);
+               const char *email = request->getText();
+               mMainWin->updateContactFirstname(userHandle,email);
+               mMainWin->updateMessageFirstname(userHandle,email);
             }
             else
             {
-                mMainWin->updateMessageFirstname(userHandle,"Unknown contact");
+               mMainWin->updateMessageFirstname(userHandle,"Unknown contact");
             }
             break;
-        }
-
-        case MegaChatRequest::TYPE_CREATE_CHATROOM:
-            if (e->getErrorCode() == MegaChatError::ERROR_OK)
-            {
+            }
+         case MegaChatRequest::TYPE_CREATE_CHATROOM:
+             if (e->getErrorCode() == MegaChatError::ERROR_OK)
+             {
+                std::string title;
                 MegaChatHandle chatid = request->getChatHandle();
                 const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-                if (chatListItem->isGroup() && !chatListItem->isPublic())   // public chats allow to set title upon creation
+
+                if (!chatListItem->isGroup())
                 {
-                    QString qTitle = QInputDialog::getText(mMainWin, tr("Set chat title"), tr("Leave blank for default title"));
-                    if (!qTitle.isNull())
-                    {
-                        std::string title = qTitle.toStdString();
-                        if (!title.empty())
-                        {
-                            mMegaChatApi->setChatTitle(chatid, title.c_str());
-                        }
-                    }
-                }
-                else if (mMainWin->getLocalChatListItem(chatid))
-                {
-                    if (!chatListItem->isGroup())
+                    if (mMainWin->getChatControllerById(chatid))
                     {
                         QMessageBox::warning(nullptr, tr("Chat creation"), tr("1on1 chat already existed"));
+                        delete chatListItem;
+                        break;
                     }
-                    delete chatListItem;
-                    break;
                 }
-
-                mMainWin->addOrUpdateLocalChatListItem(chatListItem);
-                mMainWin->orderContactChatList();
+                mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
+                mMainWin->reorderAppChatList();
                 delete chatListItem;
-            }
-            break;
-
-        case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
+             }
+             break;
+         case MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Leave chat"), tr("Error leaving chat: ").append(e->getErrorString()));
             break;
-
-        case MegaChatRequest::TYPE_EDIT_CHATROOM_NAME:
+         case MegaChatRequest::TYPE_EDIT_CHATROOM_NAME:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
                 QMessageBox::critical(nullptr, tr("Edit chat topic"), tr("Error modifiying chat topic: ").append(e->getErrorString()));
             break;
-
-        case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
-            {
-                bool del = request->getFlag();
-                if (del)
-                {
-                    if(e->getErrorCode() != MegaChatError::ERROR_OK)
-                    {
-                        QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
-                    }
-                    else
-                    {
-                        QMessageBox::information(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
-                    }
-                }
-                else
-                {
-                    QMessageBox msg;
-                    msg.setIcon(QMessageBox::Information);
-
-                    bool createifmissing = request->getNumRetry();
-                    if (createifmissing)
-                    {
-                        if(e->getErrorCode() == MegaChatError::ERROR_OK)
-                        {
-                            msg.setText("The chat link has been generated successfully");
-                        }
-                        else if (e->getErrorCode() == MegaChatError::ERROR_ARGS)
-                        {
-                            QMessageBox::warning(nullptr, tr("Create chat link"), tr("You need to set a chat title before"));
-                        }
-                        else
-                        {
-                            QMessageBox::critical(nullptr, tr("Create chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
-                        }
-                    }
-                    else
-                    {
-                        if(e->getErrorCode() == MegaChatError::ERROR_OK)
-                        {
-                            msg.setText("The chat link already exists");
-                        }
-                        else if (e->getErrorCode() == MegaChatError::ERROR_NOENT)
-                        {
-                            QMessageBox::warning(nullptr, tr("Query chat link"), tr("No chat-link exists in this chatroom"));
-                        }
-                        else
-                        {
-                            QMessageBox::critical(nullptr, tr("Query chat link"), tr("Error querying chat link ").append(e->getErrorString()));
-                        }
-                    }
-
-                    if(e->getErrorCode() == MegaChatError::ERROR_OK)
-                    {
-                        QString chatlink (request->getText());
-                        msg.setDetailedText(chatlink);
-                        foreach (QAbstractButton *button, msg.buttons())
-                        {
-                            if (msg.buttonRole(button) == QMessageBox::ActionRole)
-                            {
-                                button->click();
-                                break;
-                            }
-                        }
-                        msg.exec();
-                    }
-                }
-            }
-            break;
-
-        case MegaChatRequest::TYPE_LOAD_PREVIEW:
-        {
-            MegaChatHandle chatid = request->getChatHandle();
-            bool checkChatLink = !request->getFlag();
-
-            //Check chat link
-            if (checkChatLink)
-            {
-                int numPeers = request->getNumber();
-                const char *title = request->getText();
-                const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
-
-                QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
-                        .arg(QString::fromStdString(request->getLink()))
-                        .arg(QString::fromStdString(chatHandle_64))
-                        .arg(QString(title))
-                        .arg(QString::fromStdString(std::to_string(numPeers)));
-
-                QMessageBox msgBox;
-                msgBox.setWindowTitle("Check chat link");
-                msgBox.setText(line);
-                msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-                msgBox.setDefaultButton(QMessageBox::Cancel);
-                int ret = msgBox.exec();
-                if (ret == QMessageBox::Ok)
-                {
-                    this->mMegaChatApi->openChatPreview(request->getLink());
-                }
-
-                delete chatHandle_64;
-            }
-            else //Load chat link
-            {
-                if (e->getErrorCode() == MegaChatError::ERROR_OK)
-                {
-                    MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-                    mMainWin->activeControls(mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS);
-                    mMainWin->addOrUpdateLocalChatListItem(chatListItem);
-                    mMainWin->orderContactChatList();
-                    delete chatListItem;
-                }
-                else
-                {
-                    MegaChatRoom *room = mMegaChatApi->getChatRoom(chatid);
-                    if (room)
-                    {
-                        if (room->isPreview() && room->isActive())
-                        {
-                            QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to open a chat in preview mode twice"));
-                        }
-                        else if(room->isActive())
-                        {
-                            QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to preview a chat wich you are currently part of"));
-                        }
-                        else //Rejoin
-                        {
-                            QMessageBox msgBox;
-                            msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
-                            msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-                            msgBox.setDefaultButton(QMessageBox::Cancel);
-                            int ret = msgBox.exec();
-                            if (ret == QMessageBox::Ok)
-                            {
-                                MegaChatHandle ph = request->getUserHandle();
-                                this->mMegaChatApi->autorejoinPublicChat(chatid, ph);
-                            }
-                        }
-                        delete room;
-                    }
-                    else
-                    {
-                        QMessageBox::critical(nullptr, tr("Load chat link"), tr("Error loading chat link"));
-                    }
-                }
-            }
-            break;
-        }
-
-        case MegaChatRequest::TYPE_SET_PRIVATE_MODE:
-        {
-            if(e->getErrorCode() != MegaChatError::ERROR_OK)
-            {
-                QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat to private mode ").append(e->getErrorString()));
-            }
-            else
-            {
-                QMessageBox::information(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
-            }
-            break;
-        }
-
-        case MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT:
-        {
-            if(e->getErrorCode() == MegaChatError::ERROR_OK)
-            {
-                MegaChatHandle chatHandle = request->getChatHandle();
-                ChatItemWidget *item =  mMainWin->getChatItemWidget(chatHandle, false);
-                if (item)
-                {
-                    ChatWindow *chatWin = item->getChatWindow();
-                    if(chatWin)
-                    {
-                        chatWin->close();
-                    }
-
-                    mMainWin->updateLocalChatListItems();
-                    mMainWin->orderContactChatList();
-                }
-                if (request->getUserHandle() == megachat::MEGACHAT_INVALID_HANDLE)
-                {
-                    QMessageBox::information(nullptr, tr("Join chat link"), tr("You have joined successfully"));
-                }
-                else
-                {
-                    QMessageBox::information(nullptr, tr("Rejoin chat link"), tr("You have rejoined successfully"));
-                }
-            }
-            else
-            {
-                QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link ").append(e->getErrorString()));
-            }
-            break;
-        }
 
         case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
@@ -792,49 +519,52 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             break;
 
 #ifndef KARERE_DISABLE_WEBRTC
-        case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:    // fall-through
-        case MegaChatRequest::TYPE_START_CHAT_CALL:
+         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
+         case MegaChatRequest::TYPE_START_CHAT_CALL:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
-            {
+              {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
-            }
+              }
             else
             {
-                megachat::MegaChatHandle chatHandle = request->getChatHandle();
-                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-                itChats = mMainWin->chatWidgets.find(chatHandle);
-
-                if (itChats != mMainWin->chatWidgets.end())
+                megachat::MegaChatHandle chatId = request->getChatHandle();
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+                if(itemController)
                 {
-                    ChatItemWidget *chatItemWidget = itChats->second;
-                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
+                    ChatWindow *chatWin = itemController->showChatWindow();
                     chatWin->connectCall();
                 }
             }
             break;
 
-        case MegaChatRequest::TYPE_HANG_CHAT_CALL:
+          case MegaChatRequest::TYPE_HANG_CHAT_CALL:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
-            {
+              {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
-            }
+              }
             else
             {
-                megachat::MegaChatHandle chatHandle = request->getChatHandle();
-                std::map<megachat::MegaChatHandle, ChatItemWidget *>::iterator itChats;
-                itChats = mMainWin->chatWidgets.find(chatHandle);
+                megachat::MegaChatHandle chatId = request->getChatHandle();
 
-                if (itChats != mMainWin->chatWidgets.end())
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+
+                if (itemController)
                 {
-                    ChatItemWidget *chatItemWidget = itChats->second;
-                    ChatWindow *chatWin = chatItemWidget->showChatWindow();
-                    chatWin->hangCall();
+                    ChatItemWidget *widget = itemController->getWidget();
+                    if (widget)
+                    {
+                        ChatWindow *chatWin= itemController->showChatWindow();
+                        if(chatWin)
+                        {
+                            chatWin->hangCall();
+                        }
+                    }
                 }
             }
             break;
 
-        case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
-            mMainWin->createWebRTCSettingsDialog();
+         case MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES:
+                mMainWin->createSettingsMenu();
             break;
 #endif
         case MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE:
@@ -846,17 +576,199 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 MegaChatHandle chatid = request->getChatHandle();
                 MegaChatMessage *msg = request->getMegaChatMessage();
-                ChatItemWidget *item = mMainWin->getChatItemWidget(chatid, false);
-
-                if (item)
+                ChatWindow *window = mMainWin->getChatWindowIfExists(chatid);
+                if (window)
                 {
-                    ChatWindow *win = item->getChatWindow();
-                    if (win)
-                    {
-                        win->onMessageReceived(mMegaChatApi, msg);
-                    }
+                    window->onMessageReceived(mMegaChatApi, msg);
                 }
             }
             break;
+
+            //chat links
+            case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
+                {
+                    bool del = request->getFlag();
+                    if (del)
+                    {
+                        if(e->getErrorCode() != MegaChatError::ERROR_OK)
+                        {
+                            QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
+                        }
+                        else
+                        {
+                            QMessageBox::information(nullptr, tr("Remove chat link"), tr("The chat link has been removed"));
+                        }
+                    }
+                    else
+                    {
+                        QMessageBox msg;
+                        msg.setIcon(QMessageBox::Information);
+
+                        bool createifmissing = request->getNumRetry();
+                        if (createifmissing)
+                        {
+                            if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                            {
+                                msg.setText("The chat link has been generated successfully");
+                            }
+                            else if (e->getErrorCode() == MegaChatError::ERROR_ARGS)
+                            {
+                                QMessageBox::warning(nullptr, tr("Create chat link"), tr("You need to set a chat title before"));
+                            }
+                            else
+                            {
+                                QMessageBox::critical(nullptr, tr("Create chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+                            }
+                        }
+                        else
+                        {
+                            if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                            {
+                                msg.setText("The chat link already exists");
+                            }
+                            else if (e->getErrorCode() == MegaChatError::ERROR_NOENT)
+                            {
+                                QMessageBox::warning(nullptr, tr("Query chat link"), tr("No chat-link exists in this chatroom"));
+                            }
+                            else
+                            {
+                                QMessageBox::critical(nullptr, tr("Query chat link"), tr("Error querying chat link ").append(e->getErrorString()));
+                            }
+                        }
+
+                        if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                        {
+                            QString chatlink (request->getText());
+                            msg.setDetailedText(chatlink);
+                            foreach (QAbstractButton *button, msg.buttons())
+                            {
+                                if (msg.buttonRole(button) == QMessageBox::ActionRole)
+                                {
+                                    button->click();
+                                    break;
+                                }
+                            }
+                            msg.exec();
+                        }
+                    }
+                }
+                break;
+
+            case MegaChatRequest::TYPE_LOAD_PREVIEW:
+            {
+                MegaChatHandle chatid = request->getChatHandle();
+                bool checkChatLink = !request->getFlag();
+
+                //Check chat link
+                if (checkChatLink)
+                {
+                    int numPeers = request->getNumber();
+                    const char *title = request->getText();
+                    const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
+
+                    QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
+                            .arg(QString::fromStdString(request->getLink()))
+                            .arg(QString::fromStdString(chatHandle_64))
+                            .arg(QString(title))
+                            .arg(QString::fromStdString(std::to_string(numPeers)));
+
+                    QMessageBox msgBox;
+                    msgBox.setWindowTitle("Check chat link");
+                    msgBox.setText(line);
+                    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                    msgBox.setDefaultButton(QMessageBox::Cancel);
+                    int ret = msgBox.exec();
+                    if (ret == QMessageBox::Ok)
+                    {
+                        this->mMegaChatApi->openChatPreview(request->getLink());
+                    }
+
+                    delete chatHandle_64;
+                }
+                else //Load chat link
+                {
+                    if (e->getErrorCode() == MegaChatError::ERROR_OK)
+                    {
+                        const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
+                        mMainWin->activeControls(mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS);
+                        mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
+                        mMainWin->reorderAppChatList();
+                        delete chatListItem;
+                    }
+                    else
+                    {
+                        MegaChatRoom *room = mMegaChatApi->getChatRoom(chatid);
+                        if (room)
+                        {
+                            if (room->isPreview() && room->isActive())
+                            {
+                                QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to open a chat in preview mode twice"));
+                            }
+                            else if(room->isActive())
+                            {
+                                QMessageBox::critical(nullptr, tr("Load chat link"), tr("You are trying to preview a chat wich you are currently part of"));
+                            }
+                            else //Rejoin
+                            {
+                                QMessageBox msgBox;
+                                msgBox.setText("You are trying to preview a chat which you were part of. Do you want to rejoin this chat?");
+                                msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                                msgBox.setDefaultButton(QMessageBox::Cancel);
+                                int ret = msgBox.exec();
+                                if (ret == QMessageBox::Ok)
+                                {
+                                    MegaChatHandle ph = request->getUserHandle();
+                                    this->mMegaChatApi->autorejoinPublicChat(chatid, ph);
+                                }
+                            }
+                            delete room;
+                        }
+                        else
+                        {
+                            QMessageBox::critical(nullptr, tr("Load chat link"), tr("Error loading chat link"));
+                        }
+                    }
+                }
+                break;
+            }
+
+            case MegaChatRequest::TYPE_SET_PRIVATE_MODE:
+            {
+                if(e->getErrorCode() != MegaChatError::ERROR_OK)
+                {
+                    QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat to private mode ").append(e->getErrorString()));
+                }
+                else
+                {
+                    QMessageBox::information(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
+                }
+                break;
+            }
+
+            case MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT:
+            {
+                if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                {
+                    const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(request->getChatHandle());
+                    mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
+                    mMainWin->reorderAppChatList();
+                    delete chatListItem;
+
+                    if (request->getUserHandle() == megachat::MEGACHAT_INVALID_HANDLE)
+                    {
+                        QMessageBox::information(nullptr, tr("Join chat link"), tr("You have joined successfully"));
+                    }
+                    else
+                    {
+                        QMessageBox::information(nullptr, tr("Rejoin chat link"), tr("You have rejoined successfully"));
+                    }
+                }
+                else
+                {
+                    QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link ").append(e->getErrorString()));
+                }
+                break;
+            }
+
     }
 }

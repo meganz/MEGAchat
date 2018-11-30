@@ -4,7 +4,7 @@
 #include <QMenu>
 #include <QFileDialog>
 
-ChatWindow::ChatWindow(QWidget* parent, megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *cRoom, const char * title)
+ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, megachat::MegaChatRoom *cRoom, const char *title)
     : QDialog(parent),
       ui(new Ui::ChatWindowUi)
 {
@@ -128,10 +128,10 @@ ChatWindow::~ChatWindow()
 {
     delete mFrameAttachments;
 
-    ChatItemWidget *item = mMainWin->getChatItemWidget(mChatRoom->getChatId(), false);
-    if (item)
+    ChatListItemController *itemController = mMainWin->getChatControllerById(mChatRoom->getChatId());
+    if(itemController)
     {
-        item->invalidChatWindowHandle();
+       itemController->invalidChatWindow();
     }
 
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
@@ -164,7 +164,7 @@ void ChatWindow::onMsgSendBtn()
     }
 }
 
-void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage * msg)
+void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage *msg)
 {
     nSending++;
     nManualSending--;
@@ -332,9 +332,9 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
     itMessages = mMsgsWidgetsMap.find(msgId);
     if (itMessages != mMsgsWidgetsMap.end())
     {
-        ChatMessage * auxMessage = itMessages->second;
+        ChatMessage *auxMessage = itMessages->second;
         int row = ui->mMessageList->row(auxMessage->getWidgetItem());
-        QListWidgetItem * auxItem = ui->mMessageList->takeItem(row);
+        QListWidgetItem *auxItem = ui->mMessageList->takeItem(row);
         mMsgsWidgetsMap.erase(itMessages);
         delete auxItem;
         return true;
@@ -342,7 +342,7 @@ bool ChatWindow::eraseChatMessage(megachat::MegaChatMessage *msg, bool /*tempora
     return false;
 }
 
-ChatMessage * ChatWindow::findChatMessage(megachat::MegaChatHandle msgId)
+ChatMessage *ChatWindow::findChatMessage(megachat::MegaChatHandle msgId)
 {
     std::map<megachat::MegaChatHandle, ChatMessage *>::iterator itMessages;
     itMessages = mMsgsWidgetsMap.find(msgId);
@@ -456,9 +456,9 @@ void ChatWindow::onAttachmentLoaded(MegaChatApi */*api*/, MegaChatMessage *msg)
 {
     if (msg)
     {
-        QListWidgetItem* item = new QListWidgetItem;
+        QListWidgetItem *item = new QListWidgetItem;
         megachat::MegaChatHandle chatId = mChatRoom->getChatId();
-        ChatMessage * widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
+        ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
         widget->setWidgetItem(item);
         item->setSizeHint(widget->size());
         setMessageHeight(msg,item);
@@ -484,7 +484,7 @@ void ChatWindow::onAttachmentReceived(MegaChatApi */*api*/, MegaChatMessage *msg
 {
     if (msg)
     {
-        QListWidgetItem* item = new QListWidgetItem;
+        QListWidgetItem *item = new QListWidgetItem;
         megachat::MegaChatHandle chatId = mChatRoom->getChatId();
         ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg->copy());
         widget->setWidgetItem(item);
@@ -506,7 +506,7 @@ void ChatWindow::onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid)
 {
     for (int i = 0; i < mAttachmentList->count(); i++)
     {
-        QListWidgetItem* item = mAttachmentList->item(i);
+        QListWidgetItem *item = mAttachmentList->item(i);
         ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
         if (widget && widget->getMessage()->getMsgId() == msgid)
         {
@@ -528,7 +528,7 @@ void ChatWindow::onTruncate(MegaChatApi */*api*/, MegaChatHandle msgid)
     std::vector <MegaChatHandle> ids;
     for (int j = 0; j < mAttachmentList->count(); j++)
     {
-        QListWidgetItem* item = mAttachmentList->item(j);
+        QListWidgetItem *item = mAttachmentList->item(j);
         ChatMessage *widget = static_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
         ids.push_back(widget->getMessage()->getMsgId());
         if (widget->getMessage()->getMsgId() == msgid)
@@ -542,7 +542,7 @@ void ChatWindow::onTruncate(MegaChatApi */*api*/, MegaChatHandle msgid)
         MegaChatHandle id = ids[j];
         for (int i = 0; i < mAttachmentList->count(); i++)
         {
-            QListWidgetItem* item = mAttachmentList->item(i);
+            QListWidgetItem *item = mAttachmentList->item(i);
             ChatMessage *widget = dynamic_cast<ChatMessage *>(mAttachmentList->itemWidget(item));
             if (widget && widget->getMessage()->getMsgId() == id)
             {
@@ -573,9 +573,9 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetIte
 
 QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int index)
 {
-    QListWidgetItem* item = new QListWidgetItem;
+    QListWidgetItem *item = new QListWidgetItem;
     megachat::MegaChatHandle chatId = mChatRoom->getChatId();
-    ChatMessage * widget = new ChatMessage(this, mMegaChatApi, chatId, msg);
+    ChatMessage *widget = new ChatMessage(this, mMegaChatApi, chatId, msg);
     widget->setWidgetItem(item);
     item->setSizeHint(widget->size());
     setMessageHeight(msg,item);

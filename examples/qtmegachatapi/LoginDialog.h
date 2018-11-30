@@ -29,7 +29,7 @@ class LoginDialog : public QDialog
         void enableControls(bool enable);
         QString getEmail();
         QString getPassword();
-        std::string getChatLink() const;
+        void anonymousLogin();
 
     private:
         Ui::LoginDialog *ui;
@@ -43,8 +43,8 @@ class LoginDialog : public QDialog
         void on_bCancel_clicked();
         void on_eEmail_textChanged(const QString &arg1);
         void on_ePassword_textChanged(const QString &arg1);
-        void on_bAnonymous_clicked();
         void on_bAnonymousText_clicked();
+        void on_bAnonymous_clicked();
 
     signals:
         void onLoginClicked();

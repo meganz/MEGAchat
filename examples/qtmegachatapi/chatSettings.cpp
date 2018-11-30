@@ -2,7 +2,7 @@
 
 #include <vector>
 
-WebRTCSettingsDialog::WebRTCSettingsDialog(QMainWindow *parent, WebRTCSettings *chatSettings)
+ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent, ChatSettings *chatSettings)
     :QDialog(parent),
     ui(new Ui::SettingsDialog)
 {
@@ -46,12 +46,12 @@ WebRTCSettingsDialog::WebRTCSettingsDialog(QMainWindow *parent, WebRTCSettings *
 #endif
 }
 
-WebRTCSettingsDialog::~WebRTCSettingsDialog()
+ChatSettingsDialog::~ChatSettingsDialog()
 {
     delete ui;
 }
 
-void WebRTCSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
+void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
 {
 #ifndef KARERE_DISABLE_WEBRTC
     if (ui->audioInCombo->currentIndex() != mChatSettings->getAudioInIdx()
@@ -65,7 +65,7 @@ void WebRTCSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-void WebRTCSettingsDialog::setDevices()
+void ChatSettingsDialog::setDevices()
 {
     int audioInIdx = ui->audioInCombo->currentIndex();
     if (audioInIdx != deviceListInvalidIndex)
@@ -91,33 +91,33 @@ void WebRTCSettingsDialog::setDevices()
 }
 #endif
 
-WebRTCSettings::WebRTCSettings()
+ChatSettings::ChatSettings()
 {
     mAudioInIdx = deviceListInvalidIndex;
     mVideoInIdx = deviceListInvalidIndex;
 }
 
-WebRTCSettings::~WebRTCSettings()
+ChatSettings::~ChatSettings()
 {
 
 }
 
-int WebRTCSettings::getAudioInIdx() const
+int ChatSettings::getAudioInIdx() const
 {
     return mAudioInIdx;
 }
 
-void WebRTCSettings::setAudioInIdx(int audioInIdx)
+void ChatSettings::setAudioInIdx(int audioInIdx)
 {
     mAudioInIdx = audioInIdx;
 }
 
-int WebRTCSettings::getVideoInIdx() const
+int ChatSettings::getVideoInIdx() const
 {
     return mVideoInIdx;
 }
 
-void WebRTCSettings::setVideoInIdx(int videoInIdx)
+void ChatSettings::setVideoInIdx(int videoInIdx)
 {
     mVideoInIdx = videoInIdx;
 }

@@ -27,9 +27,10 @@ class ContactItemWidget : public QWidget
 
     private:
         Ui::ChatItem *ui;
-        megachat::MegaChatHandle mUserHandle;
-        megachat::MegaChatApi *mMegaChatApi;
-        mega::MegaApi *mMegaApi;
+        ::megachat::MegaChatHandle mUserHandle;
+        int mUserVisibility;
+        ::megachat::MegaChatApi *mMegaChatApi;
+        ::mega::MegaApi *mMegaApi;
         QListWidgetItem *mListWidgetItem;
         MainWindow *mMainWin;
 
@@ -40,5 +41,6 @@ class ContactItemWidget : public QWidget
         void onCreatePublicGroupChat();
         void onContactRemove();
         void onRequestLastGreen();
+        void onExContactInvite();
 };
 #endif // CONTACITEMWIDGET_H
