@@ -6,13 +6,24 @@
 #include <buffer.h>
 #include "karereId.h"
 
-enum { CHATD_KEYID_INVALID = 0, CHATD_KEYID_UNCONFIRMED = 0xffffffff };
+enum
+{
+    CHATD_KEYID_INVALID = 0,                // used when no keyid is set
+    CHATD_KEYID_UNCONFIRMED = 0xfffffffe,   // used when a new keyid has been requested. Should be kept as constant as possible and in the range of 0xffff0001 to 0xffffffff
+    CHATD_KEYID_MAX = 0xffffffff,           // higher keyid allowed for unconfirmed new keys
+    CHATD_KEYID_MIN = 0xffff0000            // lower keyid allowed for unconfirmed new keys
+};
 
 namespace chatd
 {
 
 typedef uint32_t KeyId;
 typedef uint64_t BackRefId;
+
+static bool isLocalKeyId(KeyId localKeyid)
+{
+    return (localKeyid >= CHATD_KEYID_MIN);
+}
 
 enum { kMaxBackRefs = 32 };
 
@@ -75,7 +86,8 @@ enum Opcode
       *   managed across devices.
       * Send: <chatid> <msgid>
       *
-      * S->C: The last seen message has been updated from another device.
+      * S->C: The last seen message has been updated (from another device or current
+      * device). Also received as part of the login process.
       * Receive: <chatid> <msgid>
       */
     OP_SEEN = 5,
@@ -178,9 +190,10 @@ enum Opcode
       * S->C: Key notification. Payload format is (userid.8 keyid.4 keylen.2 key)*
       * Receive: <chatid> <keyid> <payload>
       *
-      * Keep <keyxid> as constant as possible (e.g. 0xffffffff).
+      * Note that <keyxid> should be constant. Valid range: [0xFFFF0001 - 0xFFFFFFFF]
       * Note that ( chatid, userid, keyid ) is unique. Neither ( chatid, keyid ) nor
       * ( userid, keyid ) are unique!
+      * Note that <keyxid> is per connection. It does not survive a reconnection.
       */
     OP_NEWKEY = 17,
 
@@ -326,7 +339,38 @@ enum Opcode
       */
     OP_SYNC = 38,
 
-    OP_LAST = OP_DELREACTION
+    /**
+      ** @brief <chatid> <callDuration.4>
+      *
+      * S->C: inform about call duration in seconds for a call that exists before we get online.
+      * It is sent before any INCALL or CALLDATA.
+      */
+    OP_CALLTIME = 42,
+
+    /**
+      ** @brief
+      *
+      * C->S: Add new message to this chat. msgid is a temporary random 64-bit
+      *    integer ("msgxid"). No two such msgxids must be generated in the same chat
+      *    in the same server-time second, or only the first NEWNODEMSG will be written.
+      *
+      *    This opcode must be used, instead of OP_NEWMSG, to send messages that include
+      *    node/s attachment/s (type kMsgNodeAttachment). Messages sent with this opcode
+      *    will behave exactly as the ones sent with OP_NEWMSG, but chatd will mark them
+      *    as attachments. In result, client can use OP_NODEHIST to retrieve messages of
+      *    this type.
+      */
+    OP_NEWNODEMSG = 44,
+
+    /**
+      * @brief
+      * C->S: Requests the count older attach messages from msgid, which will be sent as a sequence
+      *    of OLDMSGs, followed by a HISTDONE.
+      * Send: <chatid> <msgid> <count>
+      */
+    OP_NODEHIST = 45,
+
+    OP_LAST = OP_NODEHIST
 };
 
 // privilege levels
@@ -343,7 +387,7 @@ enum Priv: signed char
 class Message: public Buffer
 {
 public:
-    enum: uint8_t
+    enum Type: uint8_t
     {
         kMsgInvalid           = 0x00,
         kMsgNormal            = 0x01,
@@ -352,12 +396,14 @@ public:
         kMsgTruncate          = 0x03,
         kMsgPrivChange        = 0x04,
         kMsgChatTitle         = 0x05,
-        kMsgManagementHighest = 0x05,
-        kMsgUserFirst         = 0x10,
-        kMsgAttachment        = 0x10,
-        kMsgRevokeAttachment  = 0x11,
-        kMsgContact           = 0x12,
-        kMsgContainsMeta      = 0x13
+        kMsgCallEnd           = 0x06,
+        kMsgManagementHighest = 0x06,
+        kMsgOffset            = 0x55,   // Offset between old message types and new message types
+        kMsgUserFirst         = 0x65,
+        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
+        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
+        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
+        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
     };
     enum Status
     {
@@ -371,6 +417,19 @@ public:
         kSeen ///< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
+
+    enum EncryptionStatus
+    {
+        kNotEncrypted        = 0,    /// Message already decrypted
+        kEncryptedPending    = 1,    /// Message pending to be decrypted (transient)
+        kEncryptedNoKey      = 2,    /// Key not found for the message (permanent failure)
+        kEncryptedSignature  = 3,    /// Signature verification failure (permanent failure)
+        kEncryptedMalformed  = 4,    /// Malformed/corrupted data in the message (permanent failure)
+        kEncryptedNoType     = 5     /// Management message of unknown type (transient, not supported by the app yet)
+        // if type of management message is unknown, it would be stored encrypted and will not be decrypted
+        // even if the library adds support to the new type (unless the message is reloaded from server)
+    };
+
     /** @brief Info recorder in a management message.
      * When a message is a management message, _and_ it needs to carry additional
      * info besides the standard fields (such as sender), the additional data
@@ -401,38 +460,106 @@ public:
         Priv privilege = PRIV_INVALID;
     };
 
+    class CallEndedInfo
+    {
+        public:
+        karere::Id callid;
+        uint8_t termCode = 0;
+        uint32_t duration = 0;
+        std::vector<karere::Id> participants;
+
+        static CallEndedInfo *fromBuffer(const char *buffer, size_t len)
+        {
+            CallEndedInfo *info = new CallEndedInfo;
+            size_t numParticipants;
+            unsigned int lenCallid = sizeof (info->callid);
+            unsigned int lenDuration = sizeof (info->duration);
+            unsigned int lenTermCode = sizeof (info->termCode);
+            unsigned int lenNumParticipants = sizeof (numParticipants);
+            unsigned int lenId = sizeof (karere::Id);
+
+            if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
+            {
+                return NULL;
+            }
+
+            unsigned int position = 0;
+            memcpy(&info->callid, &buffer[position], lenCallid);
+            position += lenCallid;
+            memcpy(&info->duration, &buffer[position], lenDuration);
+            position += lenDuration;
+            memcpy(&info->termCode, &buffer[position], lenTermCode);
+            position += lenTermCode;
+            memcpy(&numParticipants, &buffer[position], lenNumParticipants);
+            position += lenNumParticipants;
+
+            if (len < (position + (lenId * numParticipants)))
+            {
+                delete info;
+                return NULL;
+            }
+
+            for (size_t i = 0; i < numParticipants; i++)
+            {
+                karere::Id id;
+                memcpy(&id, &buffer[position], lenId);
+                position += lenId;
+                info->participants.push_back(id);
+            }
+
+            return info;
+        }
+    };
+
 private:
-//avoid setting the id and flag pairs one by one by making them accessible only by setXXX(Id,bool)
+    //avoid setting the id and flag pairs one by one by making them accessible only by setId(Id,bool)
     karere::Id mId;
     bool mIdIsXid = false;
+
 protected:
-    uint8_t mIsEncrypted = 0; //0 = not encrypted, 1 = encrypted, 2 = encrypted, there was a decrypt error
-    uint8_t mFlags = 0;
+    uint8_t mIsEncrypted = kNotEncrypted;
+
 public:
     karere::Id userid;
     uint32_t ts;
     uint16_t updated;
-    uint32_t keyid;
+    KeyId keyid;
     unsigned char type;
-    BackRefId backRefId;
+    BackRefId backRefId = 0;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
     mutable uint8_t userFlags = 0;
+    bool richLinkRemoved = 0;
+
     karere::Id id() const { return mId; }
-    bool isSending() const { return mIdIsXid; }
-    uint8_t isEncrypted() const { return mIsEncrypted; }
-    void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
     void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
+    bool isSending() const { return mIdIsXid; }
+
+    bool isLocalKeyid() const { return isLocalKeyId(keyid); }
+
+    uint8_t isEncrypted() const { return mIsEncrypted; }
+    bool isPendingToDecrypt() const { return (mIsEncrypted == kEncryptedPending); }
+    // true if message is valid, but permanently undecryptable (not transient like unknown types or keyid not found)
+    bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
+    void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
+
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
           unsigned char aType=kMsgNormal, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+
     explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr)
         :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
             updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+
+    Message(const Message& msg)
+        : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
+          userid(msg.userid), ts(msg.ts), updated(msg.updated), keyid(msg.keyid), type(msg.type), backRefId(msg.backRefId),
+          backRefs(msg.backRefs), userp(msg.userp), userFlags(msg.userFlags), richLinkRemoved(msg.richLinkRemoved)
+    {}
 
     /** @brief Returns the ManagementInfo structure contained within the message
      * content. Throws if the message is not a management message, or if the
@@ -448,19 +575,31 @@ public:
     /** @brief Allocated a ManagementInfo structure in the message's buffer,
      * and writes the contents of the provided structure. The message contents
      * *must* be empty when the method is called.
-     * @returns A reference to the newly created and filled ManagementInfo structure */
-    ManagementInfo& createMgmtInfo(const ManagementInfo& src)
+     */
+    void createMgmtInfo(const ManagementInfo& src)
     {
         assert(empty());
         append(&src, sizeof(src));
-        return *reinterpret_cast<ManagementInfo*>(buf());
+    }
+
+    void createCallEndedInfo(const CallEndedInfo& src)
+    {
+        assert(empty());
+        append(&src.callid, sizeof(src.callid));
+        append(&src.duration, sizeof(src.duration));
+        append(&src.termCode, sizeof(src.termCode));
+        size_t numParticipants = src.participants.size();
+        append(&numParticipants, sizeof(numParticipants));
+        for (size_t i = 0; i < numParticipants; i++)
+        {
+            append(&src.participants[i], sizeof(src.participants[i]));
+        }
     }
 
     static const char* statusToStr(unsigned status)
     {
         return (status > kSeen) ? "(invalid status)" : statusNames[status];
     }
-    void generateRefId();
     StaticBuffer backrefBuf() const
     {
         return backRefs.empty()
@@ -474,31 +613,39 @@ public:
     std::string managementInfoToString() const; //implementation is in strongelope.cpp, as the management info is created there
 
     /** @brief Returns whether this message is a management message. */
-    bool isManagementMessage() const { return type >= kMsgManagementLowest && type <= kMsgManagementHighest; }
-    bool isText() const
+    bool isManagementMessage() const
     {
-        return (!empty()                                // skip deleted messages
-                && ((mFlags & kFlagForceNonText) == 0)  // only want text messages
-                && (type == kMsgNormal                  // include normal messages
-                    || type == kMsgAttachment           // include node-attachment messages
-                    || type == kMsgContact              // include contact-attachment messages
-                    || type == kMsgContainsMeta));      // include containsMeta messages
+        return (keyid == 0) && !isSending();    // msgs in sending status use keyid=CHATD_KEYID_INVALID (0)
     }
-
+    bool isManagementMessageKnownType()
+    {
+        return (isManagementMessage()
+                && type >= Message::kMsgManagementLowest
+                && type <= Message::kMsgManagementHighest);
+    }
+    bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
+    bool isDeleted() const { return (updated && !size()); } // returns false for truncate (update = 0)
     bool isValidLastMessage() const
     {
-        return ((!empty() || type == kMsgTruncate)  // skip deleted messages, except truncate
+        return (!isDeleted()                        // skip deleted messages (keep truncates)
                 && type != kMsgRevokeAttachment     // skip revokes
-                && type != kMsgInvalid);            // skip (still) encrypted messages
+                && type != kMsgInvalid              // skip (still) encrypted messages
+                && (!mIsEncrypted                   // include decrypted messages
+                    || isUndecryptable()));         // or undecryptable messages due to permantent error
     }
-
     // conditions to consider unread messages should match the
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
     bool isValidUnread(karere::Id myHandle) const
     {
-        return (userid != myHandle              // skip own messages
-                && !(updated && !size())        // skip deleted messages
-                && (isText()));                 // Only text messages
+        return (!isOwnMessage(myHandle)             // exclude own messages
+                && !isDeleted()                     // exclude deleted messages
+                && (!mIsEncrypted                   // include decrypted messages
+                    || isUndecryptable())           // or undecryptable messages due to permantent error
+                && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
+                    || type == kMsgAttachment
+                    || type == kMsgContact
+                    || type == kMsgContainsMeta)
+                );
     }
 
     /** @brief Convert attachment etc. special messages to text */
@@ -517,6 +664,12 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
+    static bool hasUrl(const std::string &text, std::string &url);
+    static bool parseUrl(const std::string &url);
+    static void removeUnnecessaryLastCharacters(std::string& buf);
+    static void removeUnnecessaryFirstCharacters(std::string& buf);
+    static bool isValidEmail(const std::string &buf);
 
 protected:
     static const char* statusNames[];
@@ -561,7 +714,7 @@ public:
     bool isMessage() const
     {
         auto op = opcode();
-        return ((op == OP_NEWMSG) || (op == OP_MSGUPD) || (op == OP_MSGUPDX));
+        return ((op == OP_NEWMSG) || (op == OP_NEWNODEMSG)|| (op == OP_MSGUPD) || (op == OP_MSGUPDX));
     }
     uint8_t opcode() const { return read<uint8_t>(0); }
     static const char* opcodeToStr(uint8_t opcode);
@@ -571,19 +724,38 @@ public:
     virtual ~Command(){}
 };
 
+/**
+ * @brief The KeyCommand class represents a `NEWKEY` command for chatd.
+ *
+ * It inherits from Buffer and the structure of the byte-sequence is:
+ *      opcode.1 + chatid.8 + keyid.4 + keyblobslen.4 + keyblobs.keylen
+ *
+ * The keyblobs follow the structure:
+ *      userid.8 + keylen.2 + key.keylen
+ *
+ * Additionally, the KeyCommand stores the given local keyid, which is used
+ * internally. The keyid encoded in the command is always hardwire to the
+ * constant value CHATD_KEYID_UNCONFIRMED.
+ */
 class KeyCommand: public Command
 {
+private:
+    KeyId mLocalKeyid;
+
 public:
-    explicit KeyCommand(karere::Id chatid, uint32_t keyid=CHATD_KEYID_UNCONFIRMED,
-        size_t reserve=128)
-    : Command(OP_NEWKEY, reserve)
+    explicit KeyCommand(karere::Id chatid, KeyId aLocalkeyid, size_t reserve=128)
+    : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
-        append(chatid.val).append<uint32_t>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
+        assert(isLocalKeyId(mLocalKeyid));
+
+        KeyId keyid = CHATD_KEYID_UNCONFIRMED;
+        append(chatid.val).append<KeyId>(keyid).append<uint32_t>(0); //last is length of keys payload, initially empty
     }
-    KeyCommand(): Command(){} //for db loading
-    KeyId keyId() const { return read<uint32_t>(9); }
+
+    KeyId localKeyid() const { return mLocalKeyid; }
+    KeyId keyId() const { return read<KeyId>(9); }
     void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
-    void setKeyId(uint32_t keyid) { write(9, keyid); }
+    void setKeyId(KeyId keyid) { write(9, keyid); }
     void addKey(karere::Id userid, void* keydata, uint16_t keylen)
     {
         assert(keydata && (keylen != 0));
@@ -593,7 +765,20 @@ public:
         append(keydata, keylen);
     }
     bool hasKeys() const { return dataSize() > 17; }
-    void clearKeys() { setDataSize(17); } //opcode.1+chatid.8+keyid.4+length.4
+    uint32_t keybloblen() const { return read<uint32_t>(13); }
+    StaticBuffer keyblob() const
+    {
+        auto len = keybloblen();
+        return StaticBuffer(readPtr(17, len), len);
+    }
+    void setKeyBlobs(const char* keyblob, uint32_t len)
+    {
+        write(13, len);
+        memcpy(writePtr(17, len), keyblob, len);
+        setDataSize(17 + len);
+    }
+
+    void clearKeys() { setDataSize(17); }
     virtual std::string toString() const;
 };
 
@@ -655,7 +840,13 @@ static inline std::string& operator+(std::string&& str, karere::Id id)
 }
 
 enum ChatState
-{kChatStateOffline = 0, kChatStateConnecting, kChatStateJoining, kChatStateOnline};
+{
+    kChatStateOffline = 0,
+    kChatStateConnecting,       // connecting to chatd (resolve DNS, open socket...)
+    kChatStateJoining,          // connection to chatd is established, logging in
+    kChatStateOnline            // login completed (HISTDONE received for JOIN/JOINRANGEHIST)
+};
+
 static inline const char* chatStateToStr(unsigned state)
 {
     static const char* chatStates[] =

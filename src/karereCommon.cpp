@@ -16,7 +16,11 @@ namespace rtcModule {void globalCleanup(); }
 
 namespace karere
 {
-const char* gDbSchemaVersionSuffix = "2";
+const char* gDbSchemaVersionSuffix = "5";
+// 2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
+// 3 --> +4: invalidate both caches, SDK + MEGAchat, if there's at least one chat (so deleted chats are re-fetched from API)
+// 4 --> +5: modify attachment, revoke, contact and containsMeta and create a new table node_history
+
 bool gCatchException = true;
 
 void globalInit(void(*postFunc)(void*, void*), uint32_t options, const char* logPath, size_t logSize)
@@ -36,7 +40,7 @@ void globalCleanup()
     services_shutdown();
 }
 
-void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned flags)
+void RemoteLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsigned /*flags*/)
 {
 //WARNING:
 //This is a logger callback, and can be called by worker threads.
@@ -73,7 +77,7 @@ void RemoteLogger::log(krLogLevel level, const char* msg, size_t len, unsigned f
 
 void init_uv_timer(void *ctx, uv_timer_t *timer)
 {
-    uv_timer_init(((mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
+    uv_timer_init(((::mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
 }
 
 #else
@@ -82,7 +86,7 @@ eventloop *get_ev_loop(void *ctx)
 {
     if (ctx)
     {
-        return ((mega::LibeventWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop;
+        return ((::mega::LibeventWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop;
     }
     else
     {

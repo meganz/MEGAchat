@@ -38,9 +38,6 @@ enum ResolvedState
     #define PROMISE_LOG_REF(fmtString,...)
 #endif
 
-static const char* kNoMoreCallbacksMsg =
-  "No more space for promise callbacks, please increase the L template argument";
-
 //===
 struct _Void{};
 typedef _Void Void;
@@ -95,7 +92,12 @@ struct ErrorShared
 
 enum
 {
-    kErrorTypeGeneric = 1
+    kErrorTypeGeneric       =   1,
+    kErrorUnknown           =  -1,
+    kErrorArgs              =  -2,
+    kErrorNoEnt             =  -9,
+    kErrorAccess            = -11,
+    kErrorAlreadyExist      = -12
 };
 enum
 {
@@ -161,7 +163,7 @@ public:
 
     inline C*& operator[](int idx)
     {
-        assert((idx >= 0) && (idx < items.size()));
+        assert((idx >= 0) && (idx < (int)items.size()));
         return items[idx];
     }
     inline const C*& operator[](int idx) const
@@ -326,13 +328,13 @@ protected:
         static Promise<Out> call(CB& cb, const In& val) {  return cb(val);  }
 
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && !std::is_same<CbOut, void>::value, int>::type>
-        static Promise<Out> call(CB& cb, const _Void& val) {  return cb();   }
+        static Promise<Out> call(CB& cb, const _Void& /*val*/) {  return cb();   }
 
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<!std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
         static Promise<void> call(CB& cb, const In& val){ cb(val); return _Void(); }
 
         template<class Out, class CbOut, class In, class CB, class=typename std::enable_if<std::is_same<In,_Void>::value && std::is_same<CbOut,void>::value, int>::type>
-        static Promise<void> call(CB& cb, const _Void& val) { cb(); return _Void(); }
+        static Promise<void> call(CB& cb, const _Void& /*val*/) { cb(); return _Void(); }
     };
 //===
     void reset(SharedObj* other=NULL)
@@ -659,7 +661,7 @@ public:
     {
         assert(err);
         if (mSharedObj->mResolved)
-            throw std::runtime_error("Alrady resolved/rejected");
+            throw std::runtime_error("Already resolved/rejected");
 
         mSharedObj->mError = err;
         mSharedObj->mResolved = kFailed;

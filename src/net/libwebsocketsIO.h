@@ -21,7 +21,7 @@ public:
     virtual void addevents(::mega::Waiter*, int);
     
 protected:
-    virtual bool wsResolveDNS(const char *hostname, std::function<void(int, std::string, std::string)> f);
+    virtual bool wsResolveDNS(const char *hostname, std::function<void(int, std::vector<std::string>&, std::vector<std::string>&)> f);
     virtual WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client);

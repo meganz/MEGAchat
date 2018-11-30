@@ -39,12 +39,18 @@ inline static Buffer* bufFromCstr(const char* cstr)
     return new Buffer(cstr, strlen(cstr));
 }
 
-Buffer* getDataNotImpl(const ::mega::MegaRequest& req)
+inline static Buffer* bufFromTLV(const ::mega::MegaStringMap *map, const char *key)
+{
+    const char *buf = map->get(key);
+    return buf ? new Buffer(buf, strlen(buf)) : new Buffer(nullptr, 0);
+}
+
+Buffer* getDataNotImpl(const ::mega::MegaRequest& /*req*/)
 {
      throw std::runtime_error("Not implemented");
 }
 
-UserAttrDesc gUserAttrDescs[10] =
+UserAttrDesc gUserAttrDescs[21] =
 { //attrib code, getData func, changeMask
   //avatar
     {
@@ -91,17 +97,75 @@ UserAttrDesc gUserAttrDescs[10] =
       ::mega::MegaApi::USER_ATTR_KEYRING,
       &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_KEYRING
     },
+
+  //RSA-pubk - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_SIG_RSA_PUBLIC_KEY,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA
+    },
+  //CU255 - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_SIG_CU255_PUBLIC_KEY,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_SIG_PUBKEY_CU255
+    },
+  //Country - not used by userAttrCache
+    {
+      10,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_COUNTRY
+    },
+  //BirthDay - not used by userAttrCache
+    {
+      11,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_BIRTHDAY
+    },
+  //BirthMonth - not used by userAttrCache
+    {
+      12,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_BIRTHDAY
+    },
+  //BirthYear - not used by userAttrCache
+    {
+      13,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_BIRTHDAY
+    },
+  //language - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_LANGUAGE,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_LANGUAGE
+    },
+  //PWD reminder - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_PWD_REMINDER,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_PWD_REMINDER
+    },
+  //Disable versions - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_DISABLE_VERSIONS,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_DISABLE_VERSIONS
+    },
+  //Contact link verification - not used by userAttrCache
+    {
+      ::mega::MegaApi::USER_ATTR_CONTACT_LINK_VERIFICATION,
+      &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_CONTACT_LINK_VERIFICATION
+    },
+  //richLink
+    {
+      ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS,
+      [](const ::mega::MegaRequest& req)->Buffer* { return bufFromTLV(req.getMegaStringMap(), "num"); },
+      ::mega::MegaUser::CHANGE_TYPE_RICH_PREVIEWS
+    },
   //email
-  {
+    {
       USER_ATTR_EMAIL,
       &getDataNotImpl, ::mega::MegaUser::CHANGE_TYPE_EMAIL
-  },
+    },
   //FULLNAME - virtual attrib with no DB backing
     {
       USER_ATTR_FULLNAME,
       &getDataNotImpl,
       ::mega::MegaUser::CHANGE_TYPE_FIRSTNAME | ::mega::MegaUser::CHANGE_TYPE_LASTNAME
-    }
+    },
+
 };
 
 UserAttrCache::~UserAttrCache()
@@ -154,6 +218,7 @@ const char* attrName(uint8_t type)
     case ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY: return "PUB_ED25519";
     case ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY: return "PUB_CU25519";
     case ::mega::MegaApi::USER_ATTR_KEYRING: return "KEYRING";
+    case ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS: return "RICH_LINKS";
     case USER_ATTR_EMAIL: return "EMAIL";
     case USER_ATTR_RSA_PUBKEY: return "PUB_RSA";
     case USER_ATTR_FULLNAME: return "FULLNAME";
@@ -259,7 +324,7 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     notify();
 }
 
-void UserAttrCacheItem::errorNoDb(int errCode)
+void UserAttrCacheItem::errorNoDb(int /*errCode*/)
 {
     pending = kCacheFetchNotPending;
     data.reset();
@@ -351,7 +416,7 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
         item->data.reset(gUserAttrDescs[key.attrType].getData(*result));
         item->resolve(key);
     })
-    .fail([wptr, this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
@@ -371,7 +436,7 @@ void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheIt
         item->data.reset(new Buffer(email, strlen(email)));
         item->resolve(key);
     })
-    .fail([wptr, this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
@@ -394,7 +459,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         if (!data->empty())
             ctx->firstname.assign(data->buf(), data->dataSize());
     })
-    .fail([](const Error& err)
+    .fail([](const Error& /*err*/)
     {
         return _Void();
     });
@@ -405,12 +470,12 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         if (!data->empty())
             ctx->lastname.assign(data->buf(), data->dataSize());
     })
-    .fail([](const Error& err)
+    .fail([](const Error& /*err*/)
     {
         return _Void();
     });
 
-    promise::when(pms1, pms2)
+    ::promise::when(pms1, pms2)
     .then([wptr, this, ctx, key, item]()
     {
         wptr.throwIfDeleted();
@@ -447,13 +512,13 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
 {
     auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserData, key.user.toString().c_str())
-    .fail([wptr, this, key, item](const promise::Error& err)
+    .fail([wptr, this, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
         return err;
     })
-    .then([wptr, this, key, item](ReqResult result) -> promise::Promise<void>
+    .then([wptr, this, key, item](ReqResult result) -> ::promise::Promise<void>
     {
         wptr.throwIfDeleted();
         auto rsakey = result->getPassword();
@@ -462,13 +527,13 @@ void UserAttrCache::fetchRsaPubkey(UserAttrPair key, std::shared_ptr<UserAttrCac
         {
             KR_LOG_WARNING("Public RSA key returned by API for user %s is null or empty", key.user.toString().c_str());
             item->error(key, ::mega::API_ENOENT);
-            return promise::Error("No key", ::mega::API_ENOENT, ERRTYPE_MEGASDK);
+            return ::promise::Error("No key", ::mega::API_ENOENT, ERRTYPE_MEGASDK);
         }
         item->data.reset(new Buffer(keylen+1));
         int binlen = base64urldecode(rsakey, keylen, item->data->buf(), keylen);
         item->data->setDataSize(binlen);
         item->resolve(key);
-        return promise::_Void();
+        return ::promise::_Void();
     });
 }
 
@@ -496,7 +561,7 @@ void UserAttrCache::onLogOut()
     mIsLoggedIn = false;
 }
 
-promise::Promise<Buffer*>
+::promise::Promise<Buffer*>
 UserAttrCache::getAttr(uint64_t user, unsigned attrType)
 {
     auto pms = new Promise<Buffer*>;

@@ -241,7 +241,7 @@ public slots:
         if (!data) //delete message
         {
             assert(msg.userp);
-            if (!mChat->msgModify(msg, nullptr, 0, msg.userp))
+            if (!mChat->msgModify(msg, nullptr, 0, msg.userp, chatd::Message::kMsgNormal))
             {
                 showCantEditNotice();
                 goto noedit;
@@ -256,7 +256,7 @@ public slots:
             if (msg.dataEquals(data, size))  //no change
                 goto noedit;
 
-            chatd::Message* edited = mChat->msgModify(msg, data, size, msg.userp);
+            chatd::Message* edited = mChat->msgModify(msg, data, size, msg.userp, chatd::Message::kMsgNormal);
             if (!edited) //can't edit, msg too old
             {
                 showCantEditNotice();
@@ -314,7 +314,7 @@ noedit:
         auto widget = action->data().value<MessageWidget*>();
         assert(widget);
         auto& msg = widget->mMessage;
-        if (!mChat->msgModify(*msg, nullptr, 0, msg->userp))
+        if (!mChat->msgModify(*msg, nullptr, 0, msg->userp, chatd::Message::kMsgNormal))
         {
             showCantEditNotice(tr("delete"));
             return;
@@ -634,7 +634,7 @@ public:
         if ((state == chatd::kChatStateOnline) && (mChat->size() < 2)
         && ((!mChat->isFetchingFromServer())))
         {
-            // avoid re-entrancy - we are in a chatd callback. We could use mega::marshallCall instead,
+            // avoid re-entrancy - we are in a chatd callback. We could use ::mega::marshallCall instead,
             // but this is safer as the window may get destroyed before the message is processed
             QMetaObject::invokeMethod(this, "fetchMoreHistory", Qt::QueuedConnection, Q_ARG(bool, false));
         }

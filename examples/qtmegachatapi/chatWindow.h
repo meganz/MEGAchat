@@ -2,12 +2,14 @@
 #define CHATWINDOW_H
 #include "ui_chatWindow.h"
 #include "QTMegaChatRoomListener.h"
+#include "QTMegaChatNodeHistoryListener.h"
 #include "megachatapi.h"
 #include "chatItemWidget.h"
 #include "chatMessage.h"
 #include "megaLoggerApplication.h"
 #include "MainWindow.h"
 #include <QMessageBox>
+#include "QTMegaTransferListener.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
 #include "callGui.h"
@@ -29,7 +31,10 @@ class ChatWindowUi;
 }
 class ChatItemWidget;
 
-class ChatWindow : public QDialog, megachat::MegaChatRoomListener
+class ChatWindow : public QDialog,
+        public megachat::MegaChatRoomListener,
+        public ::mega::MegaTransferListener,
+        public megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
     public:
@@ -37,12 +42,17 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         virtual ~ChatWindow();
         void openChatRoom();
         void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
-        void onMessageReceived(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageUpdate(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onMessageLoaded(megachat::MegaChatApi* api, megachat::MegaChatMessage *msg);
-        void onHistoryReloaded(megachat::MegaChatApi* api, megachat::MegaChatRoom *chat);
+        void onMessageReceived(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageUpdate(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onMessageLoaded(megachat::MegaChatApi *api, megachat::MegaChatMessage *msg);
+        void onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
+        void onAttachmentLoaded(MegaChatApi *api, MegaChatMessage *msg);
+        void onAttachmentReceived(MegaChatApi *api, MegaChatMessage *msg);
+        void onAttachmentDeleted(MegaChatApi *api, MegaChatHandle msgid);
+        void onTruncate(MegaChatApi *api, MegaChatHandle msgid);
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
+        void createSettingsMenu(QMenu& menu);
         void truncateChatUI();
         void connectCall();
         void hangCall();
@@ -54,6 +64,7 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+        void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
@@ -65,17 +76,24 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;
-        mega::MegaApi *mMegaApi;
+        ::mega::MegaApi *mMegaApi;
         megachat::MegaChatRoom *mChatRoom;
         ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
+        ::mega::QTMegaTransferListener *megaTransferListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
         int nSending;
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        int loadedAttachments;
+        bool mScrollToBottomAttachments;
+        megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
+        MyMessageList *mAttachmentList = NULL;
+        QWidget *mFrameAttachments = NULL;
+        QMessageBox *mUploadDlg;
 
     private slots:
         void onMsgListRequestHistory();
@@ -85,17 +103,22 @@ class ChatWindow : public QDialog, megachat::MegaChatRoomListener
         void onMemberAdd();
         void onTruncateChat();
         void onMembersBtn(bool);
+        void onShowAttachments(bool active);
+        void onAttachmentRequestHistory();
+        void on_mAttachBtn_clicked();
+        void on_mCancelTransfer(QAbstractButton *);
+        void onArchiveClicked(bool);
+        void onAttachmentsClosed(QObject*);
+
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
-#endif
-    protected slots:
-#ifndef KARERE_DISABLE_WEBRTC
         void closeEvent(QCloseEvent *event);
         void createCallGui(bool);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
 #endif
+        void on_mSettingsBtn_clicked();
 
     friend class CallGui;
     friend class ChatMessage;

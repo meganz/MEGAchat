@@ -181,6 +181,9 @@ using namespace megachat;
         case MEGAChatCallTermCodeAnswerElseWhere:
             result = @"Answer else where";
             break;
+        case MEGAChatCallTermCodeRejectElseWhere:
+            result = @"Reject else where";
+            break;
         case MEGAChatCallTermCodeAnswerTimeout:
             result = @"Answer timeout";
             break;

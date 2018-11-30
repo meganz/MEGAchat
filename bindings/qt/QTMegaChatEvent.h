@@ -21,6 +21,7 @@ public:
         OnChatOnlineStatusUpdate,
         OnChatPresenceConfigUpdate,
         OnChatConnectionStateUpdate,
+        OnChatPresenceLastGreen,
         OnChatRoomUpdate,
         OnMessageLoaded,
         OnMessageReceived,
@@ -28,7 +29,11 @@ public:
         OnHistoryReloaded,
         OnChatNotification,
         OnChatVideoData,
-        OnChatCallUpdate
+        OnChatCallUpdate,
+        OnAttachmentLoaded,
+        OnAttachmentReceived,
+        OnAttachmentDeleted,
+        OnAttachmentTruncated
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);
@@ -64,7 +69,6 @@ public:
     void setHeight(int height);
     void setBuffer(char *buffer);
     void setSize(size_t size);
-
 
 private:
     MegaChatApi *megaChatApi;

@@ -120,7 +120,7 @@ void DeviceManager::enumInputDevices()
     }
 
     int numDevices = info->NumberOfDevices();
-    RTCM_LOG_WARNING("Enumerate input devices: %d found.", numDevices);
+    RTCM_LOG_INFO("Enumerate input devices: %d found.", numDevices);
     auto& devices = mInputDevices.video;
     for (int i = 0; i < numDevices; ++i)
     {
@@ -138,7 +138,7 @@ void DeviceManager::enumInputDevices()
             {
                 devices.insert(devices.begin(), cricket::Device(name, id));
             }
-            RTCM_LOG_WARNING("Video input device %d: '%s'", i+1, name);
+            RTCM_LOG_INFO("Video input device %d: '%s'", i+1, name);
         }
     }
 

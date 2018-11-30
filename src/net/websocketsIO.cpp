@@ -87,7 +87,7 @@ WebsocketsClient::~WebsocketsClient()
     ctx = NULL;
 }
 
-bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, std::string, std::string)> f)
+bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostname, std::function<void (int, std::vector<std::string>&, std::vector<std::string>&)> f)
 {
     return websocketIO->wsResolveDNS(hostname, f);
 }
@@ -177,4 +177,99 @@ void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *pr
     WEBSOCKETS_LOG_DEBUG("Socket was closed gracefully or by server");
 
     wsCloseCb(errcode, errtype, preason, reason_len);
+}
+
+bool DNScache::set(const std::string &url, const std::string &ipv4, const std::string &ipv6)
+{
+    if (!isMatch(url, ipv4, ipv6))
+    {
+        DNSrecord record;
+        record.ipv4 = ipv4;
+        record.ipv6 = ipv6;
+        record.resolveTs = time(NULL);
+
+        mRecords[url] = record;
+
+        return true;
+    }
+
+    return false;
+}
+
+void DNScache::clear(const std::string &url)
+{
+    mRecords.erase(url);
+}
+
+bool DNScache::get(const std::string &url, std::string &ipv4, std::string &ipv6)
+{
+    auto it = mRecords.find(url);
+    if (it == mRecords.end())
+    {
+        return false;
+    }
+
+    ipv4 = it->second.ipv4;
+    ipv6 = it->second.ipv6;
+
+    return true;
+}
+
+void DNScache::connectDone(const std::string &url, const std::string &ip)
+{
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        if (ip == it->second.ipv4)
+        {
+            it->second.connectIpv4Ts = time(NULL);
+        }
+        else if (ip == it->second.ipv6)
+        {
+            it->second.connectIpv6Ts = time(NULL);
+        }
+    }
+}
+
+time_t DNScache::age(const std::string &url)
+{
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        return it->second.resolveTs;
+    }
+
+    return 0;
+}
+
+bool DNScache::isMatch(const std::string &url, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+{
+    bool match = false;
+
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        std::string ipv4 = it->second.ipv4;
+        std::string ipv6 = it->second.ipv6;
+
+        match = ( ((ipv4.empty() && ipsv4.empty()) // don't have IPv4, but it wasn't received either
+                   || (std::find(ipsv4.begin(), ipsv4.end(), ipv4) != ipsv4.end())) // IPv4 is contained in `ipsv4`
+                  && ((ipv6.empty() && ipsv6.empty())
+                      || std::find(ipsv6.begin(), ipsv6.end(), ipv6) != ipsv6.end()));
+    }
+
+    return match;
+}
+
+bool DNScache::isMatch(const std::string &url, const std::string &ipv4, const std::string &ipv6)
+{
+    bool match = false;
+
+    auto it = mRecords.find(url);
+    if (it != mRecords.end())
+    {
+        match = (it->second.ipv4 == ipv4) && (it->second.ipv6 == ipv6);
+    }
+
+    return match;
 }

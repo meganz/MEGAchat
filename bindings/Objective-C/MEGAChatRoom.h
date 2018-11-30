@@ -8,7 +8,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
     MEGAChatRoomChangeTypeUserTyping     = 0x10,
     MEGAChatRoomChangeTypeClosed         = 0x20,
     MEGAChatRoomChangeTypeOwnPriv        = 0x40,
-    MEGAChatRoomChangeTypeUserStopTyping = 0x80
+    MEGAChatRoomChangeTypeUserStopTyping = 0x80,
+    MEGAChatRoomChangeTypeArchive = 0x100
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
@@ -33,10 +34,12 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) NSUInteger peerCount;
 @property (readonly, nonatomic, getter=isGroup) BOOL group;
 @property (readonly, nonatomic) NSString *title;
+@property (readonly, nonatomic, getter=hasCustomTitle) BOOL customTitle;
 @property (readonly, nonatomic) MEGAChatRoomChangeType changes;
 @property (readonly, nonatomic) NSInteger unreadCount;
 @property (readonly, nonatomic) uint64_t userTypingHandle;
 @property (readonly, nonatomic, getter=isActive) BOOL active;
+@property (readonly, nonatomic, getter=isArchived) BOOL archived;
 
 
 - (instancetype)clone;

@@ -3,7 +3,7 @@
 #include <fstream>
 #include "megachatapi.h"
 
-class MegaLoggerApplication : public mega::MegaLogger, public megachat::MegaChatLogger
+class MegaLoggerApplication : public ::mega::MegaLogger, public megachat::MegaChatLogger
 {
     public:
         MegaLoggerApplication(const char *filename);

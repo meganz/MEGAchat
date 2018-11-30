@@ -18,18 +18,21 @@ class ChatMessage: public QWidget
     protected:
         Ui::ChatMessageWidget *ui;
         megachat::MegaChatHandle mChatId;
-        megachat::MegaChatMessage *mMessage;
-        megachat::MegaChatApi* megaChatApi;
-        QListWidgetItem * mListWidgetItem;
+        megachat::MegaChatMessage *mMessage = NULL;
+        megachat::MegaChatApi *megaChatApi;
+        QListWidgetItem *mListWidgetItem;
         void updateToolTip();
+        void showRichLinkData();
+        void setMessageContent(const char *content);
         ChatWindow *mChatWindow;
         friend class ChatWindow;
 
     public:
-        ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
+        ChatMessage(ChatWindow *window, megachat::MegaChatApi *mChatApi, megachat::MegaChatHandle mChatId, megachat::MegaChatMessage *msg);
         virtual ~ChatMessage();
         std::string managementInfoToString() const;
-        void setMessageContent(const char * content);
+
+        void updateContent();
         void setTimestamp(int64_t ts);
         void setStatus(int status);
         void setAuthor(const char *author);
@@ -51,5 +54,8 @@ class ChatMessage: public QWidget
         void onMessageCtxMenu(const QPoint& point);
         void onMessageDelAction();
         void onMessageEditAction();
+        void onMessageRemoveLinkAction();
+        void onNodeDownload(::mega::MegaNode *node);
+        void on_bSettings_clicked();
 };
 #endif // CHATMESSAGE_H

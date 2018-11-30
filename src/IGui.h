@@ -52,7 +52,7 @@ public:
          * count, if count < 0, then there are *at least* \c count unread messages,
          * and possibly more. In that case the indicator should show e.g. '2+'
          */
-        virtual void onUnreadCountChanged(int count) {}
+        virtual void onUnreadCountChanged(int /*count*/) {}
     };
 
     /** @brief This interface must be implemented to receive events related to a chat.
@@ -78,7 +78,10 @@ public:
          * @param userid The member user handle
          * @param newName The new name. The first char of the name
          */
-        virtual void onMemberNameChanged(uint64_t userid, const std::string& newName){}
+        virtual void onMemberNameChanged(uint64_t /*userid*/, const std::string& /*newName*/){}
+
+        /** @brief Called when the chat is un/archived */
+        virtual void onChatArchived(bool /*archived*/) {}
 
         /** @brief Returns an optionally associated user data pointer */
         void* userp = nullptr;
@@ -118,7 +121,7 @@ public:
          * @brief Called when the state of the login operation changes,
          * to inform the user about the progress of the login operation.
          */
-        virtual void setState(LoginStage state) {}
+        virtual void setState(LoginStage /*state*/) {}
         /** @brief Destroys the dialog. Directly deleting it may not be appropriate
          * for the GUI toolkit used */
         virtual void destroy() = 0;
@@ -152,7 +155,7 @@ public:
          * even if the contact is removed (for viewing the history in read-only
          * mode)
          * @param newVisibility The new visibility code, as defined in the Mega SDK
-         * class mega::MegaUser
+         * class ::mega::MegaUser
          */
         virtual void onVisibilityChanged(int newVisibility) = 0;
 
@@ -193,22 +196,22 @@ public:
          * This means that either a new message has been received, or the last
          * message of existing history was just fetched (this is the first message
          * received when fetching history, because it is fetched from newest to oldest).
-         * @param type The message type, as in chatd::Message::type
-         * @param contents The contents of the message. May contain binary data
-         * @param ts The message timestamp, as in chatd::Message::ts
-         * @param userid Id of the sender of the message
+         * @param msg Contains the properties of the last text message
          */
-        virtual void onLastMessageUpdated(const chatd::LastTextMsg& msg) {}
+        virtual void onLastMessageUpdated(const chatd::LastTextMsg& /*msg*/) {}
 
         /** @brief Called when the timestamp of the most-recent message has changed.
          * This happens when a new message is received, or when there were no locally
          * known messages and the first old message is received
          */
-        virtual void onLastTsUpdated(uint32_t ts) {}
+        virtual void onLastTsUpdated(uint32_t /*ts*/) {}
 
         /** @brief Called when the connection state to the chatroom shard changes.
          */
-        virtual void onChatOnlineState(const chatd::ChatState state) {}
+        virtual void onChatOnlineState(const chatd::ChatState /*state*/) {}
+
+        /** @brief Called when the chat is un/archived */
+        virtual void onChatArchived(bool /*archived*/) {}
     };
 
     /**
@@ -235,11 +238,11 @@ public:
          * @param userid The handle of the user
          * @param priv The privilege of the joined user - look at chatd::Priv
          */
-        virtual void onUserJoin(uint64_t userid, chatd::Priv priv) {}
+        virtual void onUserJoin(uint64_t /*userid*/, chatd::Priv /*priv*/) {}
         /** @brief User has left the chat.
          * @param userid - the user handle of the user who left the chat.
          */
-        virtual void onUserLeave(uint64_t userid) {}
+        virtual void onUserLeave(uint64_t /*userid*/) {}
     };
 
     /** @brief Manages contactlist items that in turn receive events
@@ -318,7 +321,7 @@ public:
      * @param pres The presence code
      * @param inProgress Whether the presence is being set or not
      */
-    virtual void onPresenceChanged(Id userid, Presence pres, bool inProgress) {}
+    virtual void onPresenceChanged(Id /*userid*/, Presence /*pres*/, bool /*inProgress*/) {}
 
     /**
      * @brief Called when the presence preferences have changed due to
@@ -337,6 +340,20 @@ public:
      */
     virtual void onPresenceConfigChanged(const presenced::Config& config, bool pending) = 0;
 
+    /**
+     * @brief Called when client receives from presenced last time that a user has been green
+     *
+     * @note If the requested user has disabled the visibility of last-green or has never been green,
+     * this callback will NOT be triggered at all.
+     *
+     * If the value of \c lastGreen is 65535 minutes (the maximum), apps should show "long time ago"
+     * or similar, rather than the specific time period.
+     *
+     * @param userid User id whose last green is notified
+     * @param lastGreen Time elapsed (minutes) since the last time user was green
+     */
+    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief Called by karere when there is an incoming call.
@@ -353,9 +370,9 @@ public:
      * Look at karere::Client::InitState for the possible values of the client init
      * state and their meaning.
      */
-    virtual void onInitStateChange(int newState) {}
+    virtual void onInitStateChange(int /*newState*/) {}
 
-    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx) {}
+    virtual void onChatNotification(karere::Id /*chatid*/, const chatd::Message &/*msg*/, chatd::Message::Status /*status*/, chatd::Idx /*idx*/) {}
 
     virtual ~IApp() {}
 };

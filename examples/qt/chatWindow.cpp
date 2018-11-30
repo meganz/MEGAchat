@@ -3,7 +3,7 @@
 using namespace karere;
 
 ChatWindow::ChatWindow(QWidget* parent, karere::ChatRoom& room)
-    : QDialog(parent), client(room.parent.client), mRoom(room), mWaitMsg(*this)
+    : QDialog(parent), client(room.parent.mKarereClient), mRoom(room), mWaitMsg(*this)
 {
     userp = this;
     ui.setupUi(this);
@@ -160,7 +160,7 @@ void ChatWindow::onMemberRemove()
     uint64_t handle(handleFromAction(QObject::sender()));
     mWaitMsg.addMsg(tr("Removing user(s), please wait..."));
     auto waitMsgKeepalive = mWaitMsg;
-    client.api.call(&mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
+    client.api.call(&::mega::MegaApi::removeFromChat, mRoom.chatid(), handle)
     .fail([this, waitMsgKeepalive](const promise::Error& err)
     {
         QMessageBox::critical(nullptr, tr("Remove member from group chat"),

@@ -5,6 +5,7 @@
 #import "MEGAChatMessage+init.h"
 #import "MEGAChatPeerList+init.h"
 #import "MEGANodeList+init.h"
+#import "MEGAHandleList+init.h"
 
 using namespace megachat;
 
@@ -92,15 +93,23 @@ using namespace megachat;
 }
 
 - (MEGAChatMessage *)chatMessage {
-    return self.megaChatRequest ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatRequest->getMegaChatMessage()->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatRequest->getMegaChatMessage() ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatRequest->getMegaChatMessage()->copy() cMemoryOwn:YES] : nil;
 }
 
 - (MEGANodeList *)nodeList {
-    return self.megaChatRequest ? [[MEGANodeList alloc] initWithNodeList:self.megaChatRequest->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatRequest->getMegaNodeList() ? [[MEGANodeList alloc] initWithNodeList:self.megaChatRequest->getMegaNodeList()->copy() cMemoryOwn:YES] : nil;
 }
 
 - (NSInteger)paramType {
     return self.megaChatRequest ? self.megaChatRequest->getParamType() : 0;
+}
+
+- (MEGAHandleList *)megaHandleList {
+    return self.megaChatRequest->getMegaHandleList() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleList()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)megaHandleListForChat:(uint64_t)chatId {
+    return self.megaChatRequest->getMegaHandleListByChat(chatId) ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleListByChat(chatId)->copy() cMemoryOwn:YES] : nil;
 }
 
 @end
