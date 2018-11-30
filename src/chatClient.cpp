@@ -3116,6 +3116,14 @@ void ChatRoom::notifyChatModeChanged()
 
 void GroupChatRoom::enablePreview(uint64_t ph)
 {
+    // Current priv is PRIV_NOTPRESENT and need to be updated
+    mOwnPriv = chatd::PRIV_RDONLY;
+    parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
+    if (mRoomGui)
+    {
+        mRoomGui->onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
+    }
+
     mChat->setPublicHandle(ph);
     chat().disable(false);
     connect();
