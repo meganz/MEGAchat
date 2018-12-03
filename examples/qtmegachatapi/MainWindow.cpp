@@ -862,12 +862,6 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
 
     if (newState == MegaChatApi::INIT_ONLINE_SESSION || newState == MegaChatApi::INIT_OFFLINE_SESSION)
     {
-        if(!isVisible())
-        {
-            mApp->resetLoginDialog();
-            show();
-        }
-
         QString auxTitle(mMegaChatApi->getMyEmail());
         if (mApp->sid() && newState == MegaChatApi::INIT_OFFLINE_SESSION)
         {

@@ -160,8 +160,13 @@ void MegaChatApplication::onAnonymousLogout()
 void MegaChatApplication::login()
 {
     mSid = readSid();
+    int initState = mMegaChatApi->init(mSid);
+    assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
+           || initState == MegaChatApi::INIT_NO_CACHE);
+
     if (!mSid)
     {
+        // New login
         mLoginDialog = new LoginDialog();
         connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
         connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
@@ -169,7 +174,7 @@ void MegaChatApplication::login()
     }
     else
     {
-        int initState = mMegaChatApi->init(mSid);
+        // Fast login
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
@@ -319,10 +324,23 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             }
             else if (e->getErrorCode() == MegaError::API_OK)
             {
+                if(!mMainWin->isVisible())
+                {
+                    resetLoginDialog();
+                    mMainWin->show();
+                }
+
+                if (!mSid)
+                {
+                    mSid = mMegaApi->dumpSession();
+                    saveSid(mSid);
+                }
+
                 if (mLoginDialog)
                 {
                     mLoginDialog->setState(LoginDialog::fetchingNodes);
                 }
+
                 api->fetchNodes();
             }
             else
@@ -341,11 +359,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_FETCH_NODES:
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                if (!mSid)
-                {
-                    mSid = mMegaApi->dumpSession();
-                    saveSid(mSid);
-                }
                 mMegaChatApi->connect();
             }
             else
@@ -412,7 +425,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             }
             else
             {
-                QMessageBox::warning(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
+                QMessageBox::critical(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
             break;
     }
@@ -425,7 +438,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
          case MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
             {
-                QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
+                QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection: ").append(e->getErrorString()));
                 init();
             }
             else
