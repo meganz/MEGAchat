@@ -859,7 +859,6 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     }
 
     // Set signal activity true, signal activity to false is sent automatically by presenced client
-    flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
     megaChatApi[accountIndex]->signalPresenceActivity();
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set activity. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
 
