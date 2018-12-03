@@ -397,6 +397,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!group && peersList->size() == 0)
+            {   // peer list must have one peer to create a 1on1 chat
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (!group && peersList->size() > 1)
             {
                 group = true;
