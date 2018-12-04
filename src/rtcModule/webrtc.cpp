@@ -1461,35 +1461,35 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
     mLocalStream.reset();
 
     Promise<void> pms((::promise::Empty())); //non-initialized promise
-    if (weTerminate)
+
+    switch (mPredestroyState)
     {
-        switch (mPredestroyState)
-        {
         case kStateReqSent:
-            cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, (code == TermCode::kDestroyByCallCollision) ? TermCode::kUserHangup : code);
             code = kCallReqCancel;  // overwrite code for onDestroy() callback
             pms = ::promise::_Void();
             break;
         case kStateRingIn:
-            cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, code);
             pms = ::promise::_Void();
             break;
         default:
-            if (!mIsGroup)
+            if (weTerminate)
             {
-                cmdBroadcast(RTCMD_CALL_TERMINATE, code);
-            }
+                if (!mIsGroup)
+                {
+                    cmdBroadcast(RTCMD_CALL_TERMINATE, code);
+                }
 
-            // if we initiate the call termination, we must initiate the
-            // session termination handshake
-            pms = gracefullyTerminateAllSessions(code);
+                // if we initiate the call termination, we must initiate the
+                // session termination handshake
+                pms = gracefullyTerminateAllSessions(code);
+            }
+            else
+            {
+                pms = waitAllSessionsTerminated(code);
+            }
             break;
-        }
     }
-    else
-    {
-        pms = waitAllSessionsTerminated(code);
-    }
+
 
     mDestroyPromise = pms;
     auto wptr = weakHandle();
@@ -1990,7 +1990,8 @@ void Call::hangup(TermCode reason)
                    || reason == TermCode::kAppTerminating);
         }
 
-        destroy(reason, true);
+        cmdBroadcast(RTCMD_CALL_REQ_CANCEL, mId, (reason == TermCode::kDestroyByCallCollision) ? TermCode::kUserHangup : reason);
+        destroy(reason, false);
         return;
 
     case kStateRingIn:
@@ -2005,7 +2006,8 @@ void Call::hangup(TermCode reason)
             reason = TermCode::kInvalid;
         }
         assert(mSessions.empty());
-        destroy(reason, true);
+        cmdBroadcast(RTCMD_CALL_REQ_DECLINE, mId, reason);
+        destroy(reason, false);
         return;
 
     case kStateJoining:
