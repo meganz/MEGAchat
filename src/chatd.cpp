@@ -336,6 +336,7 @@ void Chat::connect()
             mConnection.mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
 
             CHATD_LOG_DEBUG("Call-RECONNECT from Chat::connect()- kStateNew");
+            mConnection.abortRetryController();
             mConnection.reconnect()
             .fail([this](const ::promise::Error& err)
             {
@@ -347,6 +348,7 @@ void Chat::connect()
     else if (mConnection.state() == Connection::kStateDisconnected)
     {
         CHATD_LOG_DEBUG("Call-RECONNECT from Chat::connect()- kStateDisconnected");
+        mConnection.abortRetryController();
         mConnection.reconnect()
         .fail([this](const ::promise::Error& err)
         {
