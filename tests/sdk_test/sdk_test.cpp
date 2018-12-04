@@ -864,13 +864,11 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
 
     // now wait for timeout to expire
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-//    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
 
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout()+3);
-//    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    sleep(config->getAutoawayTimeout() + 6);
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
     // and check the status is away
