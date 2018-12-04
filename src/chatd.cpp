@@ -335,6 +335,7 @@ void Chat::connect()
             mConnection.mUrl.parse(sUrl);
             mConnection.mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
 
+            CHATD_LOG_DEBUG("Call-RECONNECT from Chat::connect()- kStateNew");
             mConnection.reconnect()
             .fail([this](const ::promise::Error& err)
             {
@@ -345,6 +346,7 @@ void Chat::connect()
     }
     else if (mConnection.state() == Connection::kStateDisconnected)
     {
+        CHATD_LOG_DEBUG("Call-RECONNECT from Chat::connect()- kStateDisconnected");
         mConnection.reconnect()
         .fail([this](const ::promise::Error& err)
         {
@@ -411,6 +413,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         CHATDS_LOG_DEBUG("Socket close at state kStateConnected");
 
         assert(!mRetryCtrl);
+        CHATDS_LOG_WARNING("Call-RECONNECT from Connection::onSocketClose");
         reconnect(); //start retry controller
     }
     else // (mState < kStateConnected) --> tell retry controller that the connect attempt failed
@@ -465,6 +468,7 @@ void Connection::sendEcho()
 
         setState(kStateDisconnected);
         abortRetryController();
+        CHATDS_LOG_WARNING("Call-RECONNECT from Connection::sendEcho");
         reconnect();
 
     }, kEchoTimeout * 1000, mChatdClient.mKarereClient->appCtx);
@@ -821,6 +825,7 @@ void Connection::retryPendingConnection(bool disconnect)
 
             setState(kStateDisconnected);
             abortRetryController();
+            CHATDS_LOG_WARNING("Call-RECONNECT from Connection::retryPendingConnection");
             reconnect();
         }
         else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
@@ -859,6 +864,7 @@ void Connection::heartbeat()
     {
         CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
 
+        CHATDS_LOG_WARNING("Call-RECONNECT from Connection::heartbeat");
         setState(kStateDisconnected);
         abortRetryController();
         reconnect();

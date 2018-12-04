@@ -1503,6 +1503,7 @@ void PeerChatRoom::initWithChatd()
 
 void PeerChatRoom::connect()
 {
+    KR_LOG_DEBUG("CALL-CHAT-CONNECT from PeerChatRoom::connect");
     mChat->connect();
 }
 
@@ -1634,6 +1635,7 @@ void GroupChatRoom::connect()
     if (chat().onlineState() != chatd::kChatStateOffline)
         return;
 
+    KR_LOG_DEBUG("CALL-CHAT-CONNECT from GroupChatRoom::connect");
     mChat->connect();
     if (mHasTitle)
     {
@@ -2690,6 +2692,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                     KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
                     if (mChat->onlineState() != ::chatd::ChatState::kChatStateJoining)
                     {
+                        KR_LOG_DEBUG("CALL-CHAT-CONNECT from GroupChatRoom::syncWithApi");
                         mChat->connect();
                     }
                     else
