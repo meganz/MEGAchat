@@ -4737,6 +4737,14 @@ void MegaChatCallPrivate::setStatus(int status)
 {
     this->status = status;
     changed |= MegaChatCall::CHANGE_TYPE_STATUS;
+
+    if (status == MegaChatCall::CALL_STATUS_DESTROYED)
+    {
+        setFinalTimeStamp(time(NULL));
+        API_LOG_INFO("Call Destroyed. ChatId: %s, callid: %s, duration: %d (s)",
+                     karere::Id(getChatid()).toString().c_str(),
+                     karere::Id(getId()).toString().c_str(), getDuration());
+    }
 }
 
 void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
@@ -6970,7 +6978,6 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                 chatCall->setIsRinging(false);
                 chatCall->setTermCode(call->termCode());
-                chatCall->setFinalTimeStamp(time(NULL));
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
