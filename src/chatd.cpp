@@ -653,7 +653,7 @@ Promise<void> Connection::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP [INFO_CONNECTION_STATE=",mState,"[]");
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP [INFO_CONNECTION_STATE=%d]",mState);
                     assert(isOnline());
                     assert(cachedIPs);
                     return;
@@ -742,7 +742,7 @@ Promise<void> Connection::reconnect()
                 if (wptr.deleted())
                     return;
 
-                CHATDS_LOG_DEBUG("[INFO_CONNECTION_STATE=",mState,"]");
+                CHATDS_LOG_DEBUG("[INFO_CONNECTION_STATE=%d]",mState);
                 assert(isOnline());
                 sendCommand(Command(OP_CLIENTID)+mChatdClient.mKarereClient->myIdentity());
                 mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
