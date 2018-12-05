@@ -42,12 +42,21 @@ class DelegateMegaChatNodeHistoryListener extends MegaChatNodeHistoryListener {
     @Override
     public void onAttachmentLoaded(MegaChatApi api, MegaChatMessage msg){
         if (listener != null) {
-            final MegaChatMessage megaChatMessage = msg.copy();
-            megaChatApi.runCallback(new Runnable() {
-                public void run() {
-                    listener.onAttachmentLoaded(megaChatApi, megaChatMessage);
-                }
-            });
+            if(msg!=null){
+                final MegaChatMessage megaChatMessage = msg.copy();
+                megaChatApi.runCallback(new Runnable() {
+                    public void run() {
+                        listener.onAttachmentLoaded(megaChatApi, megaChatMessage);
+                    }
+                });
+            }
+            else{
+                megaChatApi.runCallback(new Runnable() {
+                    public void run() {
+                        listener.onAttachmentLoaded(megaChatApi, null);
+                    }
+                });
+            }
         }
     }
 
