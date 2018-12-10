@@ -1548,14 +1548,15 @@ static void process_line(const char* l)
 }
 
 #ifndef NO_READLINE
+#ifdef HAVE_AUTOCOMPLETE
 char* longestCommonPrefix(ac::CompletionState& acs)
 {
     string s = acs.completions[0].s;
     for (int i = acs.completions.size(); i--; )
     {
-        for (unsigned j = 0; j < acs.completions[i].s.size(); ++j)
+        for (unsigned j = 0; j < s.size() && j < acs.completions[i].s.size(); ++j)
         {
-            if (j < s.size() && s[j] != acs.completions[i].s[j])
+            if (s[j] != acs.completions[i].s[j])
             {
                 s.erase(j, string::npos);
                 break;
@@ -1570,8 +1571,8 @@ char** my_rl_completion(const char *text, int start, int end)
     rl_attempted_completion_over = 1;
 
     std::string line(rl_line_buffer, end);
-    ac::CompletionState acs = ac::autoComplete(line, line.size(), autocompleteTemplate, true); 
-    
+    ac::CompletionState acs = ac::autoComplete(line, line.size(), autocompleteTemplate, true);
+
     if (acs.completions.empty())
     {
         return NULL;
@@ -1582,20 +1583,25 @@ char** my_rl_completion(const char *text, int start, int end)
         acs.completions[0].s += " ";
     }
 
-    char** result = (char**)malloc((sizeof(char*)*(2+acs.completions.size())));
+    char** result = (char**)malloc((sizeof(char*)*(2 + acs.completions.size())));
     for (int i = acs.completions.size(); i--; )
     {
-        result[i+1] = strdup(acs.completions[i].s.c_str());
+        result[i + 1] = strdup(acs.completions[i].s.c_str());
     }
-    result[acs.completions.size()+1] = NULL;
+    result[acs.completions.size() + 1] = NULL;
     result[0] = longestCommonPrefix(acs);
     //for (int i = 0; i <= acs.completions.size(); ++i)
     //{
     //    cout << "i " << i << ": " << result[i] << endl;
     //}
     rl_completion_suppress_append = true;
+    rl_basic_word_break_characters = " \r\n";
+    rl_completer_word_break_characters = strdup(" \r\n");
+    rl_completer_quote_characters = "";
+    rl_special_prefixes = "";
     return result;
 }
+#endif
 #endif
 
 int responseprogress = -1;  // loading progress of lengthy API responses
@@ -1759,9 +1765,9 @@ int main()
 #endif 
 
 #ifdef WIN32
-    fs::path basePath = getenv("USERPROFILE");
+    fs::path basePath = fs::u8path(getenv("USERPROFILE"));
 #else
-    fs::path basePath = getenv("HOME");
+    fs::path basePath = fs::u8path(getenv("HOME"));
 #endif
     basePath /= "temp_MEGAclc";
     fs::create_directory(basePath);
