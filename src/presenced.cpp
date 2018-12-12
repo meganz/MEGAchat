@@ -38,7 +38,7 @@ Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& c
     mConfig = config;
     mCurrentPeers = std::move(currentPeers);
     mUrl.parse(url);
-
+    abortRetryController();
     return reconnect();
 }
 
@@ -250,10 +250,16 @@ Client::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                    assert(isOnline());
-                    assert(cachedIPs);
-                    return;
+                    if (!isOnline())
+                    {
+                        onSocketClose(0, 0, "DNS resolution completed but ignored: there's not exists any RetryController instance (presenced)");
+                    }
+                    else
+                    {
+                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        assert(cachedIPs);
+                        return;
+                    }
                 }
                 if (mRetryCtrl.get() != retryCtrl)
                 {
