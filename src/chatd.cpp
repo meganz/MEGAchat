@@ -653,7 +653,7 @@ Promise<void> Connection::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    if(!(isOnline())
+                    if (!isOnline())
                     {
                         onSocketClose(0, 0, "DNS resolution completed but ignored: there's not exists any RetryController instance");
                     }
