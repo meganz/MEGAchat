@@ -333,7 +333,7 @@ protected:
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
-    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
+    void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
