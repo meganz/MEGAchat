@@ -653,10 +653,16 @@ Promise<void> Connection::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP [INFO_CONNECTION_STATE=%d]",mState);
-                    assert(isOnline());
-                    assert(cachedIPs);
-                    return;
+                    if(!(isOnline())
+                    {
+                        onSocketClose(0, 0, "DNS resolution completed but ignored: there's not exists any RetryController instance");
+                    }
+                    else
+                    {
+                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP [INFO_CONNECTION_STATE=%d]",mState);
+                        assert(cachedIPs);
+                        return;
+                    }
                 }
                 if (mRetryCtrl.get() != retryCtrl)
                 {
