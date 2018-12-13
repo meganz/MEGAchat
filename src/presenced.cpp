@@ -38,7 +38,6 @@ Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& c
     mConfig = config;
     mCurrentPeers = std::move(currentPeers);
     mUrl.parse(url);
-    abortRetryController();
     return reconnect();
 }
 
@@ -206,16 +205,15 @@ Promise<void>
 Client::reconnect()
 {
     assert(!mHeartbeatEnabled);
-    assert(!mRetryCtrl);
     try
     {
-        if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
+        if (mConnState >= kRetrying) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
         if (!mUrl.isValid())
             return ::promise::Error("Current URL is not valid");
 
-        setConnState(kResolving);
+        setConnState(kRetrying);
 
         // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
         abortRetryController();
@@ -230,7 +228,6 @@ Client::reconnect()
                 return ::promise::_Void();
             }
 
-            setConnState(kDisconnected);
             mConnectPromise = Promise<void>();
 
             string ipv4, ipv6;
@@ -250,16 +247,18 @@ Client::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    if (!isOnline())
-                    {
-                        onSocketClose(0, 0, "DNS resolution completed but ignored: there's not exists any RetryController instance (presenced)");
-                    }
-                    else
+                    assert((mConnState == kRetrying) || isOnline());
+                    assert(cachedIPs);
+
+                    if (isOnline())
                     {
                         PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                        assert(cachedIPs);
-                        return;
                     }
+                    else if(mConnState == kRetrying)
+                    {
+                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
+                    }
+                    return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
                 {
@@ -434,8 +433,8 @@ void Client::heartbeat()
     }
     if (needReconnect)
     {
+        // If time out waiting for KEEPALIVE has expired we need to reconnect
         setConnState(kDisconnected);
-        abortRetryController();
         reconnect();
     }
 }
@@ -503,7 +502,6 @@ void Client::retryPendingConnection(bool disconnect)
             PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
 
             setConnState(kDisconnected);
-            abortRetryController();
             reconnect();
         }
         else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)

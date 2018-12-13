@@ -337,7 +337,6 @@ void Chat::connect()
             mConnection.mUrl.path.append("/").append(std::to_string(Client::kChatdProtocolVersion));
 
             CHATD_LOG_DEBUG("Call-RECONNECT from Chat::connect()- kStateNew");
-            mConnection.abortRetryController();
             mConnection.reconnect()
             .fail([this](const ::promise::Error& err)
             {
@@ -349,13 +348,11 @@ void Chat::connect()
     else if (mConnection.state() == Connection::kStateDisconnected)
     {
         CHATD_LOG_DEBUG("Call-RECONNECT from Chat::connect()- kStateDisconnected");
-        mConnection.abortRetryController();
         mConnection.reconnect()
         .fail([this](const ::promise::Error& err)
         {
             CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
         });
-
     }
     else if (mConnection.isOnline())
     {
@@ -473,7 +470,6 @@ void Connection::sendEcho()
 
         CHATD_LOG_DEBUG("CHANGING-SETSTATE Connection::kStateDisconnected - Connection::sendEcho");
         setState(kStateDisconnected);
-        abortRetryController();
         CHATDS_LOG_WARNING("Call-RECONNECT from Connection::sendEcho");
         reconnect();
 
@@ -599,17 +595,16 @@ Promise<void> Connection::reconnect()
 {
     mChatdClient.mKarereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
-    assert(!mRetryCtrl);
     try
     {
-        if (mState >= kStateResolving) //would be good to just log and return, but we have to return a promise
+        if (mState >= kStateRetrying) //would be good to just log and return, but we have to return a promise
             throw std::runtime_error(std::string("Already connecting/connected to shard ")+std::to_string(mShardNo));
 
         if (!mUrl.isValid())
             throw std::runtime_error("Current URL is not valid for shard "+std::to_string(mShardNo));
 
-        CHATD_LOG_DEBUG("CHANGING-SETSTATE Connection::kStateResolving - Connection::reconnect");
-        setState(kStateResolving);
+        CHATD_LOG_DEBUG("CHANGING-SETSTATE Connection::kStateRetrying - Connection::reconnect");
+        setState(kStateRetrying);
 
         // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
         abortRetryController();
@@ -625,7 +620,6 @@ Promise<void> Connection::reconnect()
             }
 
             CHATD_LOG_DEBUG("CHANGING-SETSTATE Connection::kStateDisconnected - Connection::reconnect");
-            setState(kStateDisconnected);
             mConnectPromise = Promise<void>();
 
             string ipv4, ipv6;
@@ -651,18 +645,21 @@ Promise<void> Connection::reconnect()
                     CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client was deleted.");
                     return;
                 }
+
                 if (!mRetryCtrl)
                 {
-                    if (!isOnline())
+                    assert((mState == kStateRetrying) || isOnline());
+                    assert(cachedIPs);
+
+                    if (isOnline())
                     {
-                        onSocketClose(0, 0, "DNS resolution completed but ignored: there's not exists any RetryController instance");
+                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
                     }
-                    else
+                    else if(mState == kStateRetrying)
                     {
-                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP [INFO_CONNECTION_STATE=%d]",mState);
-                        assert(cachedIPs);
-                        return;
+                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
                     }
+                    return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
                 {
@@ -843,7 +840,6 @@ void Connection::retryPendingConnection(bool disconnect)
 
             CHATD_LOG_DEBUG("CHANGING-SETSTATE Connection::kStateDisconnected - Connection::retryPendingConnection");
             setState(kStateDisconnected);
-            abortRetryController();
             CHATDS_LOG_WARNING("Call-RECONNECT from Connection::retryPendingConnection");
             reconnect();
         }
@@ -886,7 +882,6 @@ void Connection::heartbeat()
         CHATD_LOG_DEBUG("CHANGING-SETSTATE Connection::kStateDisconnected - Connection::heartbeat");
         CHATDS_LOG_WARNING("Call-RECONNECT from Connection::heartbeat");
         setState(kStateDisconnected);
-        abortRetryController();
         reconnect();
     }
 }
