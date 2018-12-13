@@ -706,6 +706,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
                         mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
                         mMainWin->reorderAppChatList();
+                        ChatWindow *auxWin = mMainWin->getChatWindowIfExists(request->getChatHandle());
+                        if (auxWin)
+                        {
+                            auxWin->previewUpdate(mMegaChatApi->getChatRoom(request->getChatHandle()));
+                        }
                         delete chatListItem;
                     }
                     else
@@ -765,6 +770,12 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(request->getChatHandle());
                     mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
                     mMainWin->reorderAppChatList();
+
+                    ChatWindow *auxWin = mMainWin->getChatWindowIfExists(request->getChatHandle());
+                    if (auxWin)
+                    {
+                        auxWin->previewUpdate(mMegaChatApi->getChatRoom(request->getChatHandle()));
+                    }
                     delete chatListItem;
 
                     if (request->getUserHandle() == megachat::MEGACHAT_INVALID_HANDLE)

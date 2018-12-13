@@ -54,6 +54,8 @@ class ChatWindow : public QDialog,
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);
         void updatePreviewers(unsigned int numPrev);
+        void enableWindowControls(bool enable);
+        void previewUpdate(MegaChatRoom *auxRoom = NULL);
         void truncateChatUI();
         void connectCall();
         void hangCall();
@@ -79,7 +81,6 @@ class ChatWindow : public QDialog,
         megachat::MegaChatApi *mMegaChatApi;
         ::mega::MegaApi *mMegaApi;
         megachat::MegaChatRoom *mChatRoom;
-        ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
         ::mega::QTMegaTransferListener *megaTransferListenerDelegate;

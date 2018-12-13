@@ -70,10 +70,7 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
 
     if (!mChatRoom->isActive())
     {
-        ui->mMessageEdit->setEnabled(false);
-        ui->mMessageEdit->blockSignals(true);
-        ui->mMsgSendBtn->setEnabled(false);
-        ui->mMembersBtn->hide();
+        enableWindowControls(false);
     }
 
     QDialog::show();
@@ -111,6 +108,11 @@ void ChatWindow::setChatTittle(const char *title)
     if(mChatRoom->isPreview())
     {
         chatTitle.append("        <PREVIEW>");
+    }
+
+    if(mChatRoom->isArchived())
+    {
+        chatTitle.append("        <AR>");
     }
     ui->mTitleLabel->setText(chatTitle);
 }
@@ -174,42 +176,71 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage *msg)
 void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoom *chat)
 {
     delete mChatRoom;
-    this->mChatRoom = chat->copy();
+    mChatRoom = chat->copy();
 
-    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
+    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
     {
-        ui->mMessageEdit->setEnabled(false);
-        ui->mMessageEdit->blockSignals(true);
-        ui->mMsgSendBtn->setEnabled(false);
-        ui->mMembersBtn->hide();
+        if (!mPreview)
+        {
+            enableWindowControls(mChatRoom->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RO);
+            setChatTittle(mChatRoom->getTitle());
+        }
+        else
+        {
+            previewUpdate();
+        }
     }
 
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
+    if ((chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
+        || (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
+        || (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_ARCHIVE)))
     {
-       this->setChatTittle(mChatRoom->getTitle());
-    }
-
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
-    {
-        setChatTittle(NULL);
-    }
-
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS)
-                || chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_ARCHIVE))
-    {
-        delete mChatRoom;
-        this->mChatRoom = chat->copy();
+       setChatTittle(mChatRoom->getTitle());
     }
 
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
     {
-        this->ui->mTitlebar->setStyleSheet("background-color:#c1efff");
+       ui->mTitlebar->setStyleSheet("background-color:#c1efff");
     }
 
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
     {
-        updatePreviewers(chat->getNumPreviewers());
+       updatePreviewers(chat->getNumPreviewers());
     }
+}
+
+void ChatWindow::previewUpdate(MegaChatRoom *auxRoom)
+{
+    if (auxRoom)
+    {
+        delete mChatRoom;
+        mChatRoom = auxRoom;
+    }
+
+    if (mPreview && !mChatRoom->isPreview())
+    {
+        mPreview = false;
+
+        if (mChatRoom->isPublic())
+        {
+            ui->mTitlebar->setStyleSheet("background-color:#c4f2c9");
+        }
+        else
+        {
+            ui->mTitlebar->setStyleSheet("background-color:#c1efff");
+        }
+    }
+
+    enableWindowControls(!mChatRoom->isPreview());
+    setChatTittle(mChatRoom->getTitle());
+}
+
+void ChatWindow::enableWindowControls(bool enable)
+{
+    ui->mMessageEdit->setEnabled(enable);
+    ui->mMessageEdit->blockSignals(!enable);
+    ui->mMsgSendBtn->setEnabled(enable);
+    enable ?ui->mMembersBtn->show() :ui->mMembersBtn->hide();
 }
 
 void ChatWindow::updatePreviewers(unsigned int numPrev)
