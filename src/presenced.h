@@ -305,7 +305,6 @@ public:
     {
         kConnNew = 0,
         kDisconnected,
-        kRetrying,
         kResolving,
         kConnecting,
         kConnected,

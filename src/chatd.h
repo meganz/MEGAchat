@@ -358,7 +358,6 @@ public:
         kStateNew,
         kStateFetchingUrl,
         kStateDisconnected,
-        kStateRetrying,
         kStateResolving,
         kStateConnecting,
         kStateConnected};

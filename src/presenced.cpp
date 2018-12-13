@@ -207,13 +207,13 @@ Client::reconnect()
     assert(!mHeartbeatEnabled);
     try
     {
-        if (mConnState >= kRetrying) //would be good to just log and return, but we have to return a promise
+        if (mConnState >= kResolving) //would be good to just log and return, but we have to return a promise
             return ::promise::Error(std::string("Already connecting/connected"));
 
         if (!mUrl.isValid())
             return ::promise::Error("Current URL is not valid");
 
-        setConnState(kRetrying);
+        setConnState(kResolving);
 
         // if there were an existing retry in-progress, abort it first or it will kick in after its backoff
         abortRetryController();
@@ -232,8 +232,6 @@ Client::reconnect()
 
             string ipv4, ipv6;
             bool cachedIPs = mDNScache.get(mUrl.host, ipv4, ipv6);
-
-            setConnState(kResolving);
             PRESENCED_LOG_DEBUG("Resolving hostname %s...", mUrl.host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
@@ -247,14 +245,14 @@ Client::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    assert((mConnState == kRetrying) || isOnline());
+                    assert((mConnState == kResolving) || isOnline());
                     assert(cachedIPs);
 
                     if (isOnline())
                     {
                         PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
                     }
-                    else if(mConnState == kRetrying)
+                    else if(mConnState == kResolving)
                     {
                         PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
                     }
