@@ -3,9 +3,6 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
-SOURCES += \
-    ../../../examples/megaclc/megaclc.cpp
-
 TARGET = megaclc
 
 debug_and_release {
@@ -28,9 +25,9 @@ CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
 CONFIG += USE_LIBWEBSOCKETS
 CONFIG += USE_WEBRTC
+CONFIG += nofreeimage
 
 include(../../../bindings/qt/megachat.pri)
-include(../../../third-party/mega/bindings/qt/sdk.pri)
 
 DEPENDPATH += ../../../examples/megaclc
 INCLUDEPATH += ../../../examples/megaclc
@@ -54,3 +51,7 @@ macx {
     QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
 }
 
+INCLUDEPATH += ../../../third-party/mega/sdk_build/install/include
+QMAKE_LIBDIR += ../../../third-party/mega/sdk_build/install/lib
+
+LIBS += -lstdc++fs -lreadline -ltermcap

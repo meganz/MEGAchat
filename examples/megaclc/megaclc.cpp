@@ -219,7 +219,7 @@ static void store_line(char* l)
 
 struct CLCListener : public c::MegaChatListener
 {
-    void onChatInitStateUpdate(c::MegaChatApi* api, int newState) override
+    void onChatInitStateUpdate(c::MegaChatApi*, int newState) override
     {
         auto cl = conlock(cout);
         cout << "Status update : ";
@@ -255,7 +255,7 @@ public:
         finishFn[n] = f;
     }
 
-    void onRequestStart(c::MegaChatApi* api, c::MegaChatRequest *request) override
+    void onRequestStart(c::MegaChatApi*, c::MegaChatRequest *) override
     {
     }
 
@@ -317,11 +317,11 @@ public:
         }
     }
 
-    void onRequestUpdate(c::MegaChatApi*api, c::MegaChatRequest *request) override
+    void onRequestUpdate(c::MegaChatApi*, c::MegaChatRequest *) override
     {
     }
 
-    void onRequestTemporaryError(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error) override
+    void onRequestTemporaryError(c::MegaChatApi *, c::MegaChatRequest *, c::MegaChatError*) override
     {
     }
 };
@@ -331,37 +331,37 @@ class MegaclcListener : public m::MegaListener
 {
 public:
 
-    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
+    void onRequestStart(m::MegaApi* , m::MegaRequest *) override
     {
     }
 
     void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override;
 
-    virtual void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
+    virtual void onRequestUpdate(m::MegaApi*, m::MegaRequest *) override
     {
     }
 
-    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
+    void onRequestTemporaryError(m::MegaApi *, m::MegaRequest *, m::MegaError* ) override
     {
     }
 
-    void onTransferStart(m::MegaApi *api, m::MegaTransfer *transfer) override
+    void onTransferStart(m::MegaApi *, m::MegaTransfer *) override
     {
     }
 
-    void onTransferFinish(m::MegaApi* api, m::MegaTransfer *transfer, m::MegaError* error) override
+    void onTransferFinish(m::MegaApi* , m::MegaTransfer *, m::MegaError* ) override
     {
     }
 
-    void onTransferUpdate(m::MegaApi *api, m::MegaTransfer *transfer) override
+    void onTransferUpdate(m::MegaApi *, m::MegaTransfer *) override
     {
     }
 
-    void onTransferTemporaryError(m::MegaApi *api, m::MegaTransfer *transfer, m::MegaError* error) override
+    void onTransferTemporaryError(m::MegaApi *, m::MegaTransfer *, m::MegaError* ) override
     {
     }
 
-    void onUsersUpdate(m::MegaApi* api, m::MegaUserList *users) override
+    void onUsersUpdate(m::MegaApi* , m::MegaUserList *users) override
     {
         conlock(cout) << "User list updated:  " << (users ? users->size() : -1) << endl;
         if (users)
@@ -398,17 +398,17 @@ public:
         }
     }
 
-    void onNodesUpdate(m::MegaApi* api, m::MegaNodeList *nodes) override
+    void onNodesUpdate(m::MegaApi* , m::MegaNodeList *nodes) override
     {
         conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
     }
 
-    void onAccountUpdate(m::MegaApi *api) override
+    void onAccountUpdate(m::MegaApi *) override
     {
         conlock(cout) << "Account updated" << endl;
     }
 
-    void onContactRequestsUpdate(m::MegaApi* api, m::MegaContactRequestList* requests) override
+    void onContactRequestsUpdate(m::MegaApi*, m::MegaContactRequestList* requests) override
     {
         conlock(cout) << "Contact requests list updated:  " << (requests ? requests->size() : -1) << endl;
     }
@@ -421,24 +421,26 @@ public:
         api->fetchNodes();
     }
 
-    void onSyncFileStateChanged(m::MegaApi *api, m::MegaSync *sync, string *localPath, int newState) override
+#ifdef ENABLE_SYNC
+    void onSyncFileStateChanged(m::MegaApi *, m::MegaSync *, string *, int ) override
     {
     }
 
-    void onSyncEvent(m::MegaApi *api, m::MegaSync *sync, m::MegaSyncEvent *event) override
+    void onSyncEvent(m::MegaApi *, m::MegaSync *, m::MegaSyncEvent *) override
     {
     }
 
-    void onSyncStateChanged(m::MegaApi *api, m::MegaSync *sync) override
+    void onSyncStateChanged(m::MegaApi*, m::MegaSync*) override
     {
     }
 
-    void onGlobalSyncStateChanged(m::MegaApi* api) override
+    void onGlobalSyncStateChanged(m::MegaApi*) override
     {
         conlock(cout) << "Sync state changed";
     }
+#endif
 
-    void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override
+    void onChatsUpdate(m::MegaApi*, m::MegaTextChatList *chats) override
     {
         conlock(cout) << "Chats updated:  " << (chats ? chats->size() : -1) << endl;
     }
@@ -456,7 +458,7 @@ public:
         }
     }
 
-    void onEvent(m::MegaApi* api, m::MegaEvent *e) override
+    void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
         conlock(cout) << "Event: " << (e ? eventName(e->getType()) : "(null)") << endl;
     }
@@ -580,11 +582,11 @@ void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* 
         cout << " (reason: ";
         switch (msg->getCode())
         {
-        case c::MegaChatMessage::REASON_PEERS_CHANGED: cout << "REASON_PEERS_CHANGED";
-        case c::MegaChatMessage::REASON_TOO_OLD: cout << "REASON_TOO_OLD";
-        case c::MegaChatMessage::REASON_GENERAL_REJECT: cout << "REASON_GENERAL_REJECT";
-        case c::MegaChatMessage::REASON_NO_WRITE_ACCESS: cout << "REASON_NO_WRITE_ACCESS";
-        case c::MegaChatMessage::REASON_NO_CHANGES: cout << "REASON_NO_CHANGES";
+        case c::MegaChatMessage::REASON_PEERS_CHANGED: cout << "REASON_PEERS_CHANGED"; break;
+        case c::MegaChatMessage::REASON_TOO_OLD: cout << "REASON_TOO_OLD"; break;
+        case c::MegaChatMessage::REASON_GENERAL_REJECT: cout << "REASON_GENERAL_REJECT"; break;
+        case c::MegaChatMessage::REASON_NO_WRITE_ACCESS: cout << "REASON_NO_WRITE_ACCESS"; break;
+        case c::MegaChatMessage::REASON_NO_CHANGES: cout << "REASON_NO_CHANGES"; break;
         default: cout << msg->getCode();
         }
         cout << ")";
@@ -608,27 +610,27 @@ struct CLCRoomListener : public c::MegaChatRoomListener
 {
     c::MegaChatHandle room = c::MEGACHAT_INVALID_HANDLE;
 
-    void onChatRoomUpdate(c::MegaChatApi* api, c::MegaChatRoom *chat) override
+    void onChatRoomUpdate(c::MegaChatApi*, c::MegaChatRoom *chat) override
     {
         conlock(cout) << "Room " << ch_s(chat->getChatId()) << " updated" << endl;
     }
 
-    void onMessageLoaded(c::MegaChatApi* api, c::MegaChatMessage *msg) override
+    void onMessageLoaded(c::MegaChatApi*, c::MegaChatMessage *msg) override
     {
         reportMessage(room, msg, "loaded");
     }
 
-    virtual void onMessageReceived(c::MegaChatApi* api, c::MegaChatMessage *msg)
+    virtual void onMessageReceived(c::MegaChatApi*, c::MegaChatMessage *msg)
     {
         reportMessage(room, msg, "received");
     }
 
-    virtual void onMessageUpdate(c::MegaChatApi* api, c::MegaChatMessage *msg)
+    virtual void onMessageUpdate(c::MegaChatApi*, c::MegaChatMessage *msg)
     {
         reportMessage(room, msg, "updated");
     }
 
-    virtual void onHistoryReloaded(c::MegaChatApi* api, c::MegaChatRoom *chat)
+    virtual void onHistoryReloaded(c::MegaChatApi*, c::MegaChatRoom *chat)
     {
         conlock(cout) << "Room " << room << " notification that room " << chat->getChatId() << " is reloading" << endl;
     }
@@ -672,7 +674,7 @@ void exec_login(ac::ACState& s)
             login = s.words[1].s;
             setprompt(LOGINPASSWORD);
         }
-        else if (s.words.size() == 2 || s.words.size() == 3 && !hasemail && s.words[1].s == "autoresume")
+        else if ((s.words.size() == 2) || (s.words.size() == 3 && !hasemail && s.words[1].s == "autoresume"))
         {
             string session, filename = "mega_autoresume_session" + (s.words.size() == 3 ? "_" + s.words[2].s : "");
             ifstream file(filename.c_str());
@@ -785,7 +787,7 @@ void exec_repeat(ac::ACState& s)
 
 
 
-void exec_getonlinestatus(ac::ACState& s)
+void exec_getonlinestatus(ac::ACState&)
 {
     auto cl = conlock(cout);
     switch (g_chatApi->getOnlineStatus())
@@ -874,33 +876,33 @@ void exec_getuserhandlebyemail(ac::ACState& s)
     conlock(cout) << s.words[1].s << " -> " << ch_s(userhandle) << endl;
 }
 
-void exec_getmyuserhandle(ac::ACState& s)
+void exec_getmyuserhandle(ac::ACState&)
 {
     conlock(cout) << ch_s(g_chatApi->getMyUserHandle()) << endl;
 }
 
-void exec_getmyfirstname(ac::ACState& s)
+void exec_getmyfirstname(ac::ACState&)
 {
     unique_ptr<char[]> t(g_chatApi->getMyFirstname());
 
     conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
-void exec_getmylastname(ac::ACState& s)
+void exec_getmylastname(ac::ACState&)
 {
     unique_ptr<char[]> t(g_chatApi->getMyLastname());
 
     conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
-void exec_getmyfullname(ac::ACState& s)
+void exec_getmyfullname(ac::ACState&)
 {
     unique_ptr<char[]> t(g_chatApi->getMyFullname());
 
     conlock(cout) << (t ? t.get() : "<no result>") << endl;
 }
 
-void exec_getmyemail(ac::ACState& s)
+void exec_getmyemail(ac::ACState&)
 {
     unique_ptr<char[]> t(g_chatApi->getMyEmail());
 
@@ -926,7 +928,7 @@ string chatDetails(const c::MegaChatRoom& cr)
 };
 
 
-void exec_getchatrooms(ac::ACState& s)
+void exec_getchatrooms(ac::ACState&)
 {
     unique_ptr<c::MegaChatRoomList> crl(g_chatApi->getChatRooms());
     if (crl)
@@ -985,7 +987,7 @@ string chatlistDetails(const c::MegaChatListItem& cli)
     return s.str();
 };
 
-void exec_getchatlistitems(ac::ACState& s)
+void exec_getchatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getChatListItems());
     if (clil)
@@ -1009,12 +1011,12 @@ void exec_getchatlistitem(ac::ACState& s)
     conlock(cout) << (p ? chatlistDetails(*p) : "not found") << endl;
 }
 
-void exec_getunreadchats(ac::ACState& s)
+void exec_getunreadchats(ac::ACState&)
 {
     conlock(cout) << "unread message count: " << g_chatApi->getUnreadChats() << endl;
 }
 
-void exec_getactivechatlistitems(ac::ACState& s)
+void exec_getactivechatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getActiveChatListItems());
     if (clil)
@@ -1030,7 +1032,7 @@ void exec_getactivechatlistitems(ac::ACState& s)
     }
 }
 
-void exec_getinactivechatlistitems(ac::ACState& s)
+void exec_getinactivechatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getInactiveChatListItems());
     if (clil)
@@ -1046,7 +1048,7 @@ void exec_getinactivechatlistitems(ac::ACState& s)
     }
 }
 
-void exec_getunreadchatlistitems(ac::ACState& s)
+void exec_getunreadchatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getUnreadChatListItems());
     if (clil)
@@ -1400,13 +1402,13 @@ void exec_sendtypingnotification(ac::ACState& s)
     g_chatApi->sendTypingNotification(s_ch(s.words[1].s), &g_chatListener);
 }
 
-void exec_ismessagereceptionconfirmationactive(ac::ACState& s)
+void exec_ismessagereceptionconfirmationactive(ac::ACState&)
 {
     conlock(cout) << (g_chatApi->isMessageReceptionConfirmationActive() ? "Yes" : "No") << endl;
 }
 
 
-void exec_savecurrentstate(ac::ACState& s)
+void exec_savecurrentstate(ac::ACState&)
 {
     g_chatApi->saveCurrentState();
 }
@@ -1425,7 +1427,7 @@ void exec_dos_unix(ac::ACState& s)
 
 ac::ACN autocompleteTemplate;
 
-void exec_help(ac::ACState& s)
+void exec_help(ac::ACState&)
 {
     conlock(cout) << *autocompleteTemplate << flush;
 }
@@ -1437,7 +1439,7 @@ void exec_history(ac::ACState& s)
 }
 #endif
 
-void exec_quit(ac::ACState& s)
+void exec_quit(ac::ACState&)
 {
     quit_flag = true;
 }
@@ -1570,7 +1572,7 @@ char* longestCommonPrefix(ac::CompletionState& acs)
     return strdup(s.c_str());
 }
 
-char** my_rl_completion(const char *text, int start, int end)
+char** my_rl_completion(const char *, int , int end)
 {
     rl_attempted_completion_over = 1;
 
@@ -1712,7 +1714,7 @@ void megaclc()
 
 class MegaCLLogger : public m::Logger {
 public:
-    virtual void log(const char *time, int loglevel, const char *source, const char *message)
+    virtual void log(const char *, int loglevel, const char *, const char *message)
     {
 #ifdef _WIN32
         OutputDebugStringA(message);
