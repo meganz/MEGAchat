@@ -97,7 +97,7 @@ class ChatWindow : public QDialog,
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
 
-    private slots:
+    protected slots:
         void onMsgListRequestHistory();
         void onMemberSetPriv();
         void onMemberRemove();
@@ -119,12 +119,12 @@ class ChatWindow : public QDialog,
         void on_mCancelTransfer(QAbstractButton *);
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
-        void on_mJoinBtn_clicked();
         void on_mSettingsBtn_clicked();
         void createCallGui(bool);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
+        void on_mJoinBtn_clicked();
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);

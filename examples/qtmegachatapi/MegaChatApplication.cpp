@@ -143,6 +143,7 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     mMegaChatApi->openChatPreview(chatlink.c_str());
     connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
     mMainWin->show();
+    mMainWin->activeControls(false);
     return true;
 }
 
@@ -703,7 +704,6 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     if (e->getErrorCode() == MegaChatError::ERROR_OK)
                     {
                         const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
-                        mMainWin->activeControls(mMegaChatApi->getInitState() != MegaChatApi::INIT_ANONYMOUS);
                         mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
                         mMainWin->reorderAppChatList();
                         delete chatListItem;
