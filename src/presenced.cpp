@@ -245,16 +245,19 @@ Client::reconnect()
                 }
                 if (!mRetryCtrl)
                 {
-                    assert((mConnState == kResolving) || isOnline());
                     assert(cachedIPs);
 
                     if (isOnline())
                     {
                         PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
                     }
-                    else if(mConnState == kResolving)
+                    else if (mConnState == kResolving)
                     {
                         PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
+                    }
+                    else if (mConnState == kDisconnected)
+                    {
+                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: presenced client has been disconnected");
                     }
                     return;
                 }

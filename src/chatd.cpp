@@ -646,17 +646,21 @@ Promise<void> Connection::reconnect()
 
                 if (!mRetryCtrl)
                 {
-                    assert((mState == kStateResolving) || isOnline());
                     assert(cachedIPs);
 
                     if (isOnline())
                     {
                         CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
                     }
-                    else if(mState == kStateResolving)
+                    else if (mState == kStateResolving)
                     {
                         CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
                     }
+                    else if (mState == kStateDisconnected)
+                    {
+                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client has been disconnected");
+                    }
+
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
