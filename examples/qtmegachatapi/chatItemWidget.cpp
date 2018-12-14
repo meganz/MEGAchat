@@ -428,8 +428,8 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actRemoveLink = clMenu->addAction(tr("Remove chat link"));
     connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
 
-    auto autojoinPublicChat = clMenu->addAction("Join chat link");
-    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(on_mJoin_clicked()));
+    auto actAutojoinPublicChat = clMenu->addAction(tr("Join chat link"));
+    connect(actAutojoinPublicChat, SIGNAL(triggered()), this, SLOT(autojoinChatLink()));
 
     auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
     connect(actcloseChatPreview, SIGNAL(triggered()), this, SLOT(closeChatPreview()));
@@ -485,7 +485,7 @@ void ChatItemWidget::removeChatLink()
     }
 }
 
-void ChatItemWidget::on_mJoin_clicked()
+void ChatItemWidget::autojoinChatLink()
 {
     auto ret = QMessageBox::question(this, tr("Join chat link"), tr("Do you want to join to this chat?"));
     if (ret != QMessageBox::Yes)

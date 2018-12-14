@@ -52,7 +52,7 @@ class ChatItemWidget : public QWidget
         void closeChatPreview();
         void removeChatLink();
         void archiveChat(bool checked);
-        void on_mJoin_clicked();
+        void autojoinChatLink();
 
     friend class MainWindow;
     friend class ContactItemWidget;

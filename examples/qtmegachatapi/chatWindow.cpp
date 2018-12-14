@@ -829,7 +829,7 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     //Auto-join chat link
     auto autojoinPublicChat = clMenu->addAction("Join chat link");
-    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
+    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(onAutojoinChatLink()));
 
     //Close chat link
     auto setPublicChatToPrivate = clMenu->addAction("Close chat link");
@@ -1025,7 +1025,7 @@ void ChatWindow::deleteCallGui()
 }
 #endif
 
-void ChatWindow::on_mJoinBtn_clicked()
+void ChatWindow::onAutojoinChatLink()
 {
     auto ret = QMessageBox::question(this, tr("Join chat link"), tr("Do you want to join to this chat?"));
     if (ret != QMessageBox::Yes)

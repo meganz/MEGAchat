@@ -125,7 +125,7 @@ class ChatWindow : public QDialog,
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
-        void on_mJoinBtn_clicked();
+        void onAutojoinChatLink();
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
