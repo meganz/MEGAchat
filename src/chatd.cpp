@@ -3246,6 +3246,7 @@ void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
     uint64_t ph = getPublicHandle();
     Command comm (OP_HANDLEJOINRANGEHIST);
     comm.append((const char*) &ph, Id::CHATLINKHANDLE);
+    mFetchRequest.push(FetchType::kFetchMessages);
     sendCommand(comm + dbInfo.oldestDbId + at(highnum()).id());
 }
 
