@@ -39,7 +39,15 @@ Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& c
     mCurrentPeers = std::move(currentPeers);
     mUrl.parse(url);
 
-    return reconnect();
+    if (mConnState == kConnNew)
+    {
+        return reconnect();
+    }
+    else    // connect() was already called, reconnection is automatic
+    {
+        PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
+        return ::promise::Void();
+    }
 }
 
 void Client::pushPeers()
@@ -373,7 +381,6 @@ Client::reconnect()
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
-
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     

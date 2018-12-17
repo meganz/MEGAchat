@@ -341,16 +341,6 @@ void Chat::connect()
                 CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
             });
         });
-
-    }
-    else if (mConnection.state() == Connection::kStateDisconnected)
-    {
-        mConnection.reconnect()
-        .fail([this](const ::promise::Error& err)
-        {
-            CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
-        });
-
     }
     else if (mConnection.isOnline())
     {
