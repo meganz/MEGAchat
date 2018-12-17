@@ -1585,7 +1585,7 @@ bool Call::broadcastCallReq()
             }
             else
             {
-                destroy(TermCode::kAnswerTimeout, true);
+                hangup(TermCode::kAnswerTimeout);
             }
         }
         else if (chat().isGroup() && mState == Call::kStateInProgress)
