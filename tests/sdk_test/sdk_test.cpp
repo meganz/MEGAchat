@@ -838,9 +838,16 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
+    // Update autoway timeout to force to send values to the server
+    int64_t autowayTimeout = 5;
+    if (megaChatApi[accountIndex]->getPresenceConfig()->getAutoawayTimeout() == autowayTimeout)
+    {
+        autowayTimeout ++;
+    }
+
     // enable auto-away with 5 seconds timeout
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
-    megaChatApi[accountIndex]->setPresenceAutoaway(true, 5);
+    megaChatApi[accountIndex]->setPresenceAutoaway(true, autowayTimeout);
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
 
     // disable persist
@@ -851,15 +858,17 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
         ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     }
 
+    // Set signal activity true, signal activity to false is sent automatically by presenced client
+    megaChatApi[accountIndex]->signalPresenceActivity();
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set activity. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+
     // now wait for timeout to expire
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-//    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
 
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout()+3);
-//    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    sleep(config->getAutoawayTimeout() + 6);
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
     // and check the status is away

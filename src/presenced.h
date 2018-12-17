@@ -439,7 +439,9 @@ public:
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
-    void signalActivity(bool force = false);
+
+    /** Tells presenced that there's user's activity (notified by the app) */
+    void signalActivity();
 
     // peers management
     void addPeer(karere::Id peer);
