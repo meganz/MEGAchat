@@ -162,7 +162,6 @@ protected:
     bool mHadRingAck = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
-    void msgCallTerminate(RtMessage& packet);
     void msgSession(RtMessage& packet);
     void msgJoin(RtMessage& packet);
     void msgRinging(RtMessage& packet);

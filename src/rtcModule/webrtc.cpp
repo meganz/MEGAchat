@@ -969,7 +969,7 @@ void Call::handleMessage(RtMessage& packet)
     switch (packet.type)
     {
         case RTCMD_CALL_TERMINATE:
-            msgCallTerminate(packet);
+            // This message can be received from old clients. It can be ignored
             return;
         case RTCMD_SESSION:
             msgSession(packet);
@@ -1051,52 +1051,6 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     mLocalPlayer->enableVideo(av.video());
 }
 
-void Call::msgCallTerminate(RtMessage& packet)
-{
-    if (packet.payload.dataSize() < 1)
-    {
-        SUB_LOG_ERROR("Ignoring CALL_TERMINATE without reason code");
-        return;
-    }
-    auto code = packet.payload.read<uint8_t>(0);
-    bool isCallParticipant = false;
-    if (mSessions.size() > 0)
-    {
-        for (auto sessionIt = mSessions.begin(); sessionIt != mSessions.end();)
-        {
-            auto& session = sessionIt->second;
-            sessionIt++;
-
-            if (session->mPeer == packet.userid && session->mPeerClient == packet.clientid)
-            {
-                isCallParticipant = true;
-                break;
-            }
-        }
-    }
-    else if (mState <= kStateJoining && mCallerUser == packet.userid && mCallerClient == packet.clientid)
-    {
-        isCallParticipant = true;
-    }
-    else
-    {
-        EndpointId endpointId(packet.userid, packet.clientid);
-        auto itSessionRety = mSessRetries.find(endpointId);
-        if (itSessionRety != mSessRetries.end())
-        {
-            // no session to this peer at the moment, but we are in the process of reconnecting to them
-            isCallParticipant = true;
-        }
-    }
-
-    if (!isCallParticipant)
-    {
-        SUB_LOG_WARNING("Received CALL_TERMINATE from a client that is not in the call, ignoring");
-        return;
-    }
-
-    destroy(static_cast<TermCode>(code | TermCode::kPeer), false);
-}
 void Call::msgCallReqDecline(RtMessage& packet)
 {
     // callid.8 termcode.1
@@ -1488,11 +1442,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             pms = ::promise::_Void();
             break;
         default:
-            if (!mIsGroup)
-            {
-                cmdBroadcast(RTCMD_CALL_TERMINATE, code);
-            }
-
             // if we initiate the call termination, we must initiate the
             // session termination handshake
             pms = gracefullyTerminateAllSessions(code);
