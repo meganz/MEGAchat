@@ -66,6 +66,12 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*r
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
+    if (mKarereClient->isTerminated())
+    {
+        PRESENCED_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mConnState;
@@ -205,6 +211,13 @@ void Client::abortRetryController()
 Promise<void>
 Client::reconnect()
 {
+    if (mKarereClient->isTerminated())
+    {
+        PRESENCED_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        assert(false);
+        return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
+    }
+
     assert(!mHeartbeatEnabled);
     assert(!mRetryCtrl);
     try

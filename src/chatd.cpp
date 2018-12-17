@@ -396,6 +396,12 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
+    if (mChatdClient.mKarereClient->isTerminated())
+    {
+        CHATDS_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mState;
@@ -590,6 +596,13 @@ uint32_t Connection::clientId() const
 
 Promise<void> Connection::reconnect()
 {
+    if (mChatdClient.mKarereClient->isTerminated())
+    {
+        CHATDS_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        assert(false);
+        return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
+    }
+
     mChatdClient.mKarereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
     assert(!mRetryCtrl);
