@@ -4826,7 +4826,7 @@ void MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kDestroyByCallCollision:
             this->termCode = MegaChatCall::TERM_CODE_DESTROY_BY_COLLISION;
             break;
-        case rtcModule::TermCode::kCallGone:
+        case rtcModule::TermCode::kCallerGone:
         case rtcModule::TermCode::kInvalid:
         default:
             this->termCode = MegaChatCall::TERM_CODE_ERROR;

@@ -2089,7 +2089,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
 
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
     {
-        destroy(TermCode::kUserHangup, false);
+        destroy(TermCode::kCallerGone, false);
         return;
     }
 
@@ -3182,7 +3182,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kAnswerTimeout);
         RET_ENUM_NAME(kRingOutTimeout);
         RET_ENUM_NAME(kAppTerminating);
-        RET_ENUM_NAME(kCallGone);
+        RET_ENUM_NAME(kCallerGone);
         RET_ENUM_NAME(kBusy);
         RET_ENUM_NAME(kNormalHangupLast);
         RET_ENUM_NAME(kErrApiTimeout);
