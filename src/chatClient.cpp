@@ -1299,12 +1299,8 @@ void Client::terminate(bool deleteDb)
 
     setConnState(kDisconnected);
 
-    // stop sync of user attributes in cache
-    assert(mOwnNameAttrHandle.isValid());
+    // stop syncing own-name and close user-attributes cache
     mUserAttrCache->removeCb(mOwnNameAttrHandle);
-    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
-
-    // close user-attributes cache
     mUserAttrCache->onLogOut();
     mUserAttrCache.reset();
 
