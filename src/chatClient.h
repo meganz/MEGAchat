@@ -781,9 +781,6 @@ public:
      */
     promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
 
-    /** @brief Disconnects the client from chatd and presenced */
-    void disconnect();
-
     /**
      * @brief Retry pending connections to chatd and presenced
      * @return A promise to track the result of the action.

@@ -284,11 +284,7 @@ void Client::heartbeat()
 
 Client::~Client()
 {
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
+    assert(isTerminated());
 }
 
 void Client::retryPendingConnections(bool disconnect)
@@ -1006,30 +1002,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     return pms;
 }
 
-void Client::disconnect()
-{
-    if (mConnState == kDisconnected)
-        return;
-
-    setConnState(kDisconnected);
-    // stop sync of user attributes in cache
-    assert(mOwnNameAttrHandle.isValid());
-    mUserAttrCache->removeCb(mOwnNameAttrHandle);
-    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
-    mUserAttrCache->onLogOut();
-
-    // stop heartbeats
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
-
-    // disconnect from chatd shards and presenced
-    mChatdClient->disconnect();
-    mPresencedClient.disconnect();
-}
-
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;
@@ -1325,9 +1297,29 @@ void Client::terminate(bool deleteDb)
         rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
-    disconnect();
+    setConnState(kDisconnected);
+
+    // stop sync of user attributes in cache
+    assert(mOwnNameAttrHandle.isValid());
+    mUserAttrCache->removeCb(mOwnNameAttrHandle);
+    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
+
+    // close user-attributes cache
+    mUserAttrCache->onLogOut();
     mUserAttrCache.reset();
 
+    // stop heartbeats
+    if (mHeartbeatTimer)
+    {
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
+        mHeartbeatTimer = 0;
+    }
+
+    // disconnect from chatd shards and presenced
+    mChatdClient->disconnect();
+    mPresencedClient.disconnect();
+
+    // close or delete MEGAchat's DB file
     try
     {
         if (deleteDb && !mSid.empty())
