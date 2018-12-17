@@ -51,7 +51,7 @@ void Client::pushPeers()
         peers.push_back(peer.first);
     }
 
-    updatePeers(peers, true);
+    updatePeers(peers, OP_SNSETPEERS);
 }
 
 void Client::wsConnectCb()
@@ -357,11 +357,13 @@ bool Client::sendKeepalive(time_t now)
     return sendCommand(Command(OP_KEEPALIVE));
 }
 
-void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
+void Client::updatePeers(const vector<Id> &peers, uint8_t command)
 {
-    if (addOrRemove && peers.empty())
+    assert(command == OP_SNADDPEERS || command == OP_SNDELPEERS || command == OP_SNSETPEERS);
+
+    if ((command == OP_SNADDPEERS || command == OP_SNDELPEERS) && peers.empty())
     {
-        PRESENCED_LOG_DEBUG("updatePeers: no peers to allow to see the presence status");
+        PRESENCED_LOG_DEBUG("updatePeers: no peers to update the list");
         return;
     }
 
@@ -372,7 +374,7 @@ void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
     size_t numPeers = peers.size();
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
 
-    Command cmd(addOrRemove ? OP_SNADDPEERS : OP_SNDELPEERS, totalSize);
+    Command cmd(command, totalSize);
     cmd.append<uint64_t>(scsn.val);
     cmd.append<uint32_t>(numPeers);
     for (unsigned int i = 0; i < numPeers; i++)
@@ -634,6 +636,29 @@ void Command::toString(char* buf, size_t bufsize) const
                 uint16_t lastGreen = read<uint16_t>(9);
                 tmpString.append(" Last green: ");
                 tmpString.append(to_string(lastGreen));
+            }
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
+            break;
+        }
+        case OP_SNSETPEERS:
+        {
+            Id sn = read<uint64_t>(1);
+            uint32_t numPeers = read<uint32_t>(9);
+            string tmpString;
+            tmpString.append("SNSETPEERS - scsn: ");
+            tmpString.append(ID_CSTR(sn));
+            tmpString.append(" num_peers: ");
+            tmpString.append(to_string(numPeers));
+            if (numPeers)
+            {
+                tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
+            }
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(13+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
             }
             snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
@@ -924,7 +949,7 @@ void Client::addPeer(karere::Id peer)
     {
         std::vector<karere::Id> peers;
         peers.push_back(peer);
-        updatePeers(peers, true);
+        updatePeers(peers, OP_SNADDPEERS);
     }
 }
 void Client::removePeer(karere::Id peer, bool force)
@@ -954,6 +979,6 @@ void Client::removePeer(karere::Id peer, bool force)
     mCurrentPeers.erase(it);
     std::vector<karere::Id> peers;
     peers.push_back(peer);
-    updatePeers(peers, false);
+    updatePeers(peers, OP_SNDELPEERS);
 }
 }
