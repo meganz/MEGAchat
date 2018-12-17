@@ -713,7 +713,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 if (wptr.deleted())
                     return;
 
-                if (initState() != kInitTerminated)
+                if (!isTerminated())
                 {
                     setInitState(kInitErrSidInvalid);
                 }
@@ -1247,7 +1247,7 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
-    if (mInitState == kInitTerminated)
+    if (isTerminated())
     {
         return;
     }
@@ -1687,7 +1687,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
         parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
 
     if (parent.mKarereClient.mChatdClient)
@@ -2325,7 +2325,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
     if (parent.mKarereClient.mChatdClient)
@@ -3081,7 +3081,7 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    if (client.initState() != Client::kInitTerminated)
+    if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
         client.presenced().removePeer(mUserid, true);

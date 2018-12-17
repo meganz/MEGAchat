@@ -762,6 +762,7 @@ public:
     InitState init(const char* sid);
     InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
+    bool isTerminated() const { return mInitState == kInitTerminated; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
     const char* connStateStr() const { return connStateToStr(mConnState); }
