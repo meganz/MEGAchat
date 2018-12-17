@@ -248,6 +248,13 @@ Client::reconnect()
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
+
+                if (mKarereClient->isTerminated())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+                    return;
+                }
+
                 if (!mRetryCtrl)
                 {
                     PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
@@ -879,21 +886,24 @@ void Client::setConnState(ConnState newState)
             mConnectTimer = 0;
         }
 
-        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
-        auto wptr = weakHandle();
-        mConnectTimer = setTimeout([this, wptr]()
+        if (!mKarereClient->isTerminated())
         {
-            if (wptr.deleted())
-                return;
+            // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+            auto wptr = weakHandle();
+            mConnectTimer = setTimeout([this, wptr]()
+            {
+                if (wptr.deleted())
+                    return;
 
-            mConnectTimer = 0;
+                mConnectTimer = 0;
 
-            PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
+                PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
 
-            retryPendingConnection(true);
+                retryPendingConnection(true);
 
-        }, kConnectTimeout * 1000, mKarereClient->appCtx);
+            }, kConnectTimeout * 1000, mKarereClient->appCtx);
+        }
 
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
