@@ -116,7 +116,6 @@ bool Client::setPresence(Presence pres)
     PRESENCED_LOG_DEBUG("setPresence(): %s -> %s", mConfig.mPresence.toString(), pres.toString());
 
     mConfig.mPresence = pres;
-    signalActivity(true);
     return sendPrefs();
 }
 
@@ -128,7 +127,6 @@ bool Client::setPersist(bool enable)
     PRESENCED_LOG_DEBUG("setPersist(): %d -> %d", (int)mConfig.mPersist, (int)enable);
 
     mConfig.mPersist = enable;
-    signalActivity(true);
     return sendPrefs();
 }
 
@@ -136,8 +134,8 @@ bool Client::setLastGreenVisible(bool enable)
 {
     if (enable == mConfig.mLastGreenVisible)
         return true;
+
     mConfig.mLastGreenVisible = enable;
-    signalActivity(true);
     return sendPrefs();
 }
 
@@ -148,44 +146,40 @@ bool Client::requestLastGreen(Id userid)
 
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
+    if (enable == mConfig.mAutoawayActive && timeout == mConfig.mAutoawayTimeout)
+        return true;
+
     if (enable)
     {
         mConfig.mPersist = false;
+        mConfig.mPresence = Presence::kOnline;
     }
 
     mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
-    signalActivity(true);
     return sendPrefs();
 }
 
 bool Client::autoAwayInEffect()
 {
-    return mConfig.mPresence.isValid()    // don't want to change to away from default status
-            && !mConfig.mPersist
-            && mConfig.mPresence == Presence::kOnline
-            && mConfig.mAutoawayTimeout
-            && mConfig.mAutoawayActive;
+    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive;
 }
 
-void Client::signalActivity(bool force)
+void Client::signalActivity()
 {
     if (!mConfig.mPresence.isValid())
     {
-        PRESENCED_LOG_WARNING("signalActivity(): the current configuration is yet received, cannot be changed");
+        PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is yet received, cannot be changed");
+        return;
+    }
+    if (!mConfig.mAutoawayActive)
+    {
+        PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
         return;
     }
 
     mTsLastUserActivity = time(NULL);
-
-    if (mConfig.mPresence == Presence::kAway)
-    {
-        sendUserActive(false);
-    }
-    else if (mConfig.mPresence != Presence::kOffline)
-    {
-        sendUserActive(true, force);
-    }
+    sendUserActive(true);
 }
 
 void Client::abortRetryController()
@@ -396,9 +390,12 @@ void Client::heartbeat()
         return;
 
     auto now = time(NULL);
-    if (autoAwayInEffect() && (now - mTsLastUserActivity > mConfig.mAutoawayTimeout) && !mKarereClient->isCallInProgress())
+    if (autoAwayInEffect()
+            && mLastSentUserActive
+            && (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
+            && !mKarereClient->isCallInProgress())
     {
-        sendUserActive(false);
+            sendUserActive(false);
     }
 
     bool needReconnect = false;
@@ -661,10 +658,6 @@ void Client::login()
         sendPrefs();
     }
 
-    // signal whether the user is active or inactive
-    bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
-    sendUserActive(isActive, true);
-
     // send the list of peers allowed to see the own presence's status
     pushPeers();
 }
@@ -809,6 +802,12 @@ void Client::handleMessage(const StaticBuffer& buf)
                     else if (loginCompleted)
                     {
                         PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
+                        if (autoAwayInEffect())
+                        {
+                            // signal whether the user is active or inactive
+                            bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            sendUserActive(isActive, true);
+                        }
                     }
                     else
                     {
