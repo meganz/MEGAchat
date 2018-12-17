@@ -359,7 +359,7 @@ bool Client::sendKeepalive(time_t now)
 
 void Client::updatePeers(const vector<Id> &peers, uint8_t command)
 {
-    assert(command != OP_SNADDPEERS || command != OP_SNDELPEERS || command != OP_SNSETPEERS);
+    assert(command == OP_SNADDPEERS || command == OP_SNDELPEERS || command == OP_SNSETPEERS);
 
     if ((command == OP_SNADDPEERS || command == OP_SNDELPEERS) && peers.empty())
     {
@@ -649,7 +649,10 @@ void Command::toString(char* buf, size_t bufsize) const
             tmpString.append(ID_CSTR(sn));
             tmpString.append(" num_peers: ");
             tmpString.append(to_string(numPeers));
-            tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
+            if (numPeers)
+            {
+                tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
+            }
             for (unsigned int i = 0; i < numPeers; i++)
             {
                 Id peerId = read<uint64_t>(13+i*8);
