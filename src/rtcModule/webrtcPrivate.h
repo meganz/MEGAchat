@@ -135,7 +135,7 @@ class Call: public ICall
 
     enum
     {
-        kRinging = 0x04,
+        kFlagRinging = 0x04
     };
 
 protected:

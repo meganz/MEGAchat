@@ -325,8 +325,8 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
     uint8_t flag = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
-    AvFlags avFlagsRemote = flag & ~Call::kRinging;
-    bool ringing = flag & Call::kRinging;
+    AvFlags avFlagsRemote = flag & ~Call::kFlagRinging;
+    bool ringing = flag & Call::kFlagRinging;
     RTCM_LOG_DEBUG("Handle CALLDATA: callid -> %s - state -> %d  - ringing -> %d", callid.toString().c_str(), state, ringing);
 
     if (userid == chat.client().mKarereClient->myHandle()
@@ -1773,7 +1773,7 @@ bool Call::sendCallData(CallDataState state)
     uint8_t flags = sentAv().value();
     if (mIsRingingOut)
     {
-        flags = flags | kRinging;
+        flags = flags | kFlagRinging;
     }
 
     command.write<uint8_t>(32, flags);
