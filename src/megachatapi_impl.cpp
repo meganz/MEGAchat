@@ -464,10 +464,9 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
-
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
@@ -508,7 +507,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -520,7 +519,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
             {
-                errorCode = MegaChatError::ERROR_ACCESS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -546,7 +545,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -774,7 +773,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatid == MEGACHAT_INVALID_HANDLE ||
                     ((!nodeList || !nodeList->size()) && (h == MEGACHAT_INVALID_HANDLE)))
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -866,7 +865,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaNode *node = megaApi->getNodeByHandle(request->getUserHandle());
             if (chatid == MEGACHAT_INVALID_HANDLE || !node)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -1201,7 +1200,7 @@ void MegaChatApiImpl::sendPendingRequests()
             bool archive = request->getFlag();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
