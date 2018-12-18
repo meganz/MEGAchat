@@ -2,6 +2,7 @@
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
+#include <QClipboard>
 
 const char *messageStatus[] =
 {
@@ -137,6 +138,26 @@ void ChatMessage::setMessageContent(const char *content)
     ui->mMsgDisplay->setText(content);
 }
 
+QString ChatMessage::nodelistText()
+{
+    QString text;
+    ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+    for(int i = 0; i < nodeList->size(); i++)
+    {
+        const char *auxNodeHandle_64 = mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
+        text.append("\n[Node").append(std::to_string(i+1).c_str()).append("]")
+        .append("\nHandle: ")
+        .append(QString::fromStdString(auxNodeHandle_64))
+        .append("\nName: ")
+        .append(nodeList->get(i)->getName())
+        .append("\nSize: ")
+        .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
+        .append(" bytes");
+        delete [] auxNodeHandle_64;
+    }
+    return text;
+}
+
 void ChatMessage::updateContent()
 {
     if (mMessage->isEdited())
@@ -150,27 +171,26 @@ void ChatMessage::updateContent()
             {
                 QString text;
                 text.append(tr("[Nodes attachment msg]"));
-                ::mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
-                for(int i = 0; i < nodeList->size(); i++)
-                {
-                    const char *auxNodeHandle_64 =this->mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
-                    text.append(tr("\n[Node]"))
-                    .append("\nHandle: ")
-                    .append(QString::fromStdString(auxNodeHandle_64))
-                    .append("\nName: ")
-                    .append(nodeList->get(i)->getName())
-                    .append("\nSize: ")
-                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
-                    .append(" bytes");
-                    delete [] auxNodeHandle_64;
-                }
+                text.append(nodelistText());
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
                 ui->bSettings->show();
-                text.clear();
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+            {
+                QString text;
+                text.append(tr("[Voice clip msg]"));
+                text.append(nodelistText());
+                ui->mMsgDisplay->setText(text);
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(229,66,244,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                ui->bSettings->show();
                 break;
             }
             case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
@@ -590,7 +610,8 @@ void ChatMessage::onDiscardManualSending()
 
 void ChatMessage::on_bSettings_clicked()
 {
-    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT
+       && mMessage->getType() != megachat::MegaChatMessage::TYPE_VOICE_CLIP)
     {
         return;
     }
@@ -602,10 +623,11 @@ void ChatMessage::on_bSettings_clicked()
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
             ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
-            for(int i = 0; i < nodeList->size(); i++)
+            for (int i = 0; i < nodeList->size(); i++)
             {
+                ::mega::MegaNode *node = nodeList->get(i);
                 QString text("Download \"");
-                text.append(nodeList->get(i)->getName()).append("\"");
+                text.append(node->getName()).append("\"");
                 auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
                 connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownloadOrImport(nodeList->get(i), false);});
 
@@ -614,9 +636,30 @@ void ChatMessage::on_bSettings_clicked()
                 text.append(nodeList->get(i)->getName()).append("\" to cloud drive");
                 auto actImport = menu.addAction(tr(text.toStdString().c_str()));
                 connect(actImport,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownloadOrImport(nodeList->get(i), true);});
+
+                text.clear();
+                text = "Stream \"";
+                text.append(node->getName()).append("\"");
+                auto actStream = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actStream,  &QAction::triggered, this, [this, node]{ onNodePlay(node); });
             }
             break;
         }
+
+        case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+        {
+            ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+            for (int i = 0; i < nodeList->size(); i++)
+            {
+                ::mega::MegaNode *node = nodeList->get(i);
+                QString text("Play \"");
+                text.append(node->getName()).append("\"");
+                auto actStream = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actStream,  &QAction::triggered, this, [this, node]{ onNodePlay(node); });
+            }
+            break;
+        }
+
         default:
             break;
     }
@@ -672,5 +715,41 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
         {
             mChatWindow->mMegaApi->startDownload(resultNode, target.c_str());
         }
+    }
+}
+
+void ChatMessage::onNodePlay(mega::MegaNode *node)
+{
+    if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
+    {
+        mChatWindow->mMegaApi->httpServerStart();
+    }
+    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
+
+    if (localUrl)
+    {
+        QClipboard *clipboard = QApplication::clipboard();
+        QString clipUrl(localUrl);
+        QMessageBox msg;
+        msg.setText("URL for streaming the file: \""+QString(node->getName())+"\"");
+        msg.setIcon(QMessageBox::Information);
+        msg.setDetailedText(clipUrl);
+        msg.addButton(tr("Ok"), QMessageBox::ActionRole);
+
+        QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
+        copyButton->disconnect();
+        connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(clipUrl);});
+
+        foreach (QAbstractButton *button, msg.buttons())
+        {
+            if (msg.buttonRole(button) == QMessageBox::ActionRole)
+            {
+                button->click();
+                break;
+            }
+        }
+        msg.setStyleSheet("width: 150px;");
+        msg.exec();
+        delete localUrl;
     }
 }

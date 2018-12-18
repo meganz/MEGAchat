@@ -56,6 +56,7 @@ class ChatWindow : public QDialog,
         void updatePreviewers(unsigned int numPrev);
         void enableWindowControls(bool enable);
         void previewUpdate(MegaChatRoom *auxRoom = NULL);
+        void createAttachMenu(QMenu& menu);
         void truncateChatUI();
         void connectCall();
         void hangCall();
@@ -121,6 +122,7 @@ class ChatWindow : public QDialog,
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
         void on_mSettingsBtn_clicked();
+        void onAttachNode(bool isVoiceClip);
         void createCallGui(bool);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);

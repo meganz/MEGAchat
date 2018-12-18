@@ -266,7 +266,7 @@ public:
                 "and (userid != ?2)"
                 "and not (updated != 0 and length(data) = 0)"
                 "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
-                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9)";
+                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9 or type = ?10)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
@@ -278,7 +278,8 @@ public:
              << chatd::Message::kMsgNormal                  // include only known type of messages
              << chatd::Message::kMsgAttachment
              << chatd::Message::kMsgContact
-             << chatd::Message::kMsgContainsMeta;
+             << chatd::Message::kMsgContainsMeta
+             << chatd::Message::kMsgVoiceClip;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
