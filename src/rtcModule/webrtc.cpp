@@ -362,8 +362,8 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         {
             if (!chat.isGroup())
             {
-                RTCM_LOG_WARNING("Received not-terminat CALLDATA with ringing flag oof for 1on1 in kStateRingIn. "
-                                 "The call should have already beein takien out of this state by a RTMSG");
+                RTCM_LOG_WARNING("Received not-terminating CALLDATA with ringing flag to fasle for 1on1 in state kStateRingIn. "
+                                 "The call should have already been taken out of this state by a RTMSG");
             }
 
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
