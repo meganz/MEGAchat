@@ -72,7 +72,6 @@ protected:
     void msgSessTerminate(RtMessage& packet);
     void msgIceCandidate(RtMessage& packet);
     void msgMute(RtMessage& packet);
-    void mungeSdp(std::string& sdp);
     void onVideoRecv();
     void submitStats(TermCode termCode, const std::string& errInfo);
     bool verifySdpFingerprints(const std::string& sdp);
@@ -106,6 +105,7 @@ public:
     void onDataChannel(webrtc::DataChannelInterface* data_channel);
     void onRenegotiationNeeded() {}
     void onError() {}
+    void updateAvFlags(karere::AvFlags flags);
     //====
     static bool isTermRetriable(TermCode reason);
     friend class Call;
@@ -121,7 +121,7 @@ class Call: public ICall
         kCallDataEnd                    = 2,
         kCallDataSession                = 3,
         kCallDataMute                   = 4,
-        kCallDataSessionKeepRinging     = 5
+        kCallDataSessionKeepRinging     = 5  // obsolete
     };
 
     enum
@@ -131,6 +131,11 @@ class Call: public ICall
         kCallDataReasonNoAnswer     = 0x03, /// outgoing call didn't receive any answer from the callee
         kCallDataReasonFailed       = 0x04, /// on-going call failed
         kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
+    };
+
+    enum
+    {
+        kFlagRinging = 0x04
     };
 
 protected:
@@ -157,7 +162,6 @@ protected:
     bool mHadRingAck = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
-    void msgCallTerminate(RtMessage& packet);
     void msgSession(RtMessage& packet);
     void msgJoin(RtMessage& packet);
     void msgRinging(RtMessage& packet);
@@ -217,6 +221,8 @@ public:
     virtual std::map<karere::Id, uint8_t> sessionState() const;
     void sendBusy(bool isCallToSameUser);
     uint32_t clientidFromSession(karere::Id userid);
+    void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
+    bool isCaller(karere::Id userid, uint32_t clientid);
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -227,8 +233,8 @@ public:
         kCallAnswerTimeout = 40000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 14000,
-        kCallSetupTimeout = 30000
+        kSessSetupTimeout = 25000,
+        kCallSetupTimeout = 35000
     };
 
     enum Resolution
