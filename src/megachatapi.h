@@ -2614,6 +2614,11 @@ public:
      * exists with that person, then this call will return the information for the existing chat, rather
      * than a new chat.
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If we are trying to create a chat with no participants
+     * - MegaChatError::ERROR_ACCESS - If the target user does not exists or is the same as caller
+     * - MegaChatError::ERROR_NOENT - If the target user is not a contact
+     *
      * @param group Flag to indicate if the chat is a group chat or not
      * @param peers MegaChatPeerList including other users and their privilege level
      * @param listener MegaChatRequestListener to track this request

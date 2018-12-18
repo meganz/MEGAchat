@@ -385,7 +385,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
             if (!peersList || !peersList->size())   // refuse to create chats without participants
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -393,7 +393,7 @@ void MegaChatApiImpl::sendPendingRequests()
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
             if (!userpriv)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
