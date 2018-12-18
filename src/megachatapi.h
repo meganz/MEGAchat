@@ -1947,6 +1947,8 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT
      *
+     * @obsolete This function must NOT be used in new developments and has no effect. It will eventually be removed.
+     *
      * @param listener MegaChatRequestListener to track this request
      */
     void disconnect(MegaChatRequestListener *listener = NULL);

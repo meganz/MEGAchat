@@ -762,6 +762,7 @@ public:
     InitState init(const char* sid);
     InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
+    bool isTerminated() const { return mInitState == kInitTerminated; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
     const char* connStateStr() const { return connStateToStr(mConnState); }
@@ -779,9 +780,6 @@ public:
      * avoid to tell chatd that the client is active.
      */
     promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
-
-    /** @brief Disconnects the client from chatd and presenced */
-    void disconnect();
 
     /**
      * @brief Retry pending connections to chatd and presenced
