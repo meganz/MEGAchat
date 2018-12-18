@@ -3427,6 +3427,13 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                         mRichLinkFlag[apiIndex] = request->getFlag();
                         mCountRichLink[apiIndex] = request->getNumber();
                     }
+                    else
+                    {
+                        // internal getua() made by MEGAchat upon user-attr changes
+                        // --> do not set the requestFlag, since the request is not made by the tests
+                        // (change this if `isRichPreviewEnabled()` is used in tests)
+                        return;
+                    }
                 }
                 break;
 
