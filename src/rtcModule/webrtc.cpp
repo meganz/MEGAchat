@@ -368,8 +368,6 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
 
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
-
-        itCall->second->updateAvFlags(userid, clientid, avFlagsRemote);
     }
     else if (ringing)
     {
@@ -686,6 +684,14 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
     }
 
     callHandler->addParticipant(userid, clientid, av);
+
+    for (auto itCall = mCalls.begin(); itCall != mCalls.end(); itCall++)
+    {
+        if (itCall->second->id() == callid)
+        {
+            itCall->second->updateAvFlags(userid, clientid, av);
+        }
+    }
 }
 
 void RtcModule::removeCall(Id chatid, bool keepCallHandler)

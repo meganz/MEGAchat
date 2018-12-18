@@ -121,7 +121,7 @@ class Call: public ICall
         kCallDataEnd                    = 2,
         kCallDataSession                = 3,
         kCallDataMute                   = 4,
-        kCallDataSessionKeepRinging     = 5
+        kCallDataSessionKeepRinging     = 5  // obsolete
     };
 
     enum
