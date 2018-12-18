@@ -508,7 +508,7 @@ void MegaChatApiImpl::sendPendingRequests()
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -537,6 +537,12 @@ void MegaChatApiImpl::sendPendingRequests()
             else  // join chat in preview (previously loaded)
             {
                 ph = chatroom->getPublicHandle();
+            }
+
+            if (ph == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
             }
 
             ((GroupChatRoom *)chatroom)->autojoinPublicChat(ph)
@@ -885,7 +891,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatHandle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
@@ -928,8 +934,20 @@ void MegaChatApiImpl::sendPendingRequests()
             bool del = request->getFlag();
             bool createifmissing = request->getNumRetry();
 
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             GroupChatRoom *room = (GroupChatRoom *) findChatRoom(chatid);
-            if (!room || (del && createifmissing))
+            if (!room)
+            {
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
+            if (del && createifmissing)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -946,7 +964,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!del && createifmissing && !room->hasTitle())
             {
                 API_LOG_DEBUG("Cannot create chat-links on chatrooms without title");
-                errorCode = MegaChatError::ERROR_ARGS;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 

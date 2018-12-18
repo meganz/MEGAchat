@@ -2743,10 +2743,12 @@ public:
      * - MegaChatRequest::getText - Returns the chat-link for the chatroom, if it already exist
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links or the
-     * chatroom is a private chatroom or a 1on1 room.
-     * - MegaChatError::ERROR_NOENT - If there isn't any chat-link associated to the specified chatid
-     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to create chat-links, the
+     * chatroom is a private chatroom or a 1on1 room or the chat does not have topic and we try to
+     * create a chat-link.
+     * - MegaChatError::ERROR_NOENT - If there isn't any valid chat-link associated to the specified chatid or the
+     * chatroom does not exists.
+     * - MegaChatError::ERROR_ARGS - If the chat is not an public chat.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2817,9 +2819,10 @@ public:
      * - MegaChatRequest::getUserHandle - Returns invalid handle to identify that is an autojoin
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
-     * the chatroom is not public or the chatroom is in preview mode.
-     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is not groupal, the chatroom is not public
+     * or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If the chatid is not valid, there isn't any chat with the specified
+     * chatid or the chat doesn't have a valid public handle.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -2841,9 +2844,10 @@ public:
      * is a rejoin
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS - If the chatid is not valid, the chatroom is not groupal,
-     * the chatroom is not public or the chatroom is in preview mode.
-     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is not groupal, the chatroom is not public
+     * or the chatroom is in preview mode.
+     * - MegaChatError::ERROR_NOENT - If the chatid is not valid, there isn't any chat with the specified
+     * chatid or the chat doesn't have a valid public handle.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param ph MegaChatHandle that corresponds with the public handle of chat room
@@ -3018,6 +3022,7 @@ public:
      *      chat which he was part of. In this case the user will have to call MegaChatApi::autorejoinPublicChat to join
      *      to autojoin the chat again. Note that you won't be able to preview a public chat any more, once
      *      you have been part of the chat.
+     * - MegaChatError::ERROR_NOENT - If the chatroom not exists or the public handle is not valid.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK or MegaError::ERROR_EXIST:
@@ -3046,6 +3051,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS - If chatlink has not an appropiate format
+     * - MegaChatError::ERROR_NOENT - If the chatroom not exists or the public handle is not valid.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3069,9 +3075,10 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to set chat
-     * mode to private
-     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
+     * mode to private.
+     * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid or
+     * if the chatid is invalid.
+     * - MegaChatError::ERROR_ARGS - If the chat is not public.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
