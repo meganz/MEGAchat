@@ -183,48 +183,61 @@ enum: uint8_t
     /**
       * @brief
       * C->S
-      * Client must send all of the peers it wants to see its status when the connection is
-      * (re-)established. This command is sent after OP_HELLO and every time the user wants
-      * to subscribe to the status of a new peer or contact.
+      * This command is sent when the client wants to add a peer to see its status. The list
+      * is established with command OP_SNSETPEERS
       *
-     * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
-     * between different clients sending outdated list of users. If presenced receives an outdated
-     * list, the command will be discarded.
-     *
+      * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+      * between different clients sending outdated list of users. If presenced receives an outdated
+      * list, the command will be discarded.
+      *
       * <sn.8> <numberOfPeers.4> <peerHandle1.8>...<peerHandleN.8>
       */
     OP_SNADDPEERS = 8,
 
      /**
-     * @brief
-     * C->S
-     * This command is sent when the client doesn't want a peer to see its status
-     * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
-     * in any groupchat any longer.
-     *
-     * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
-     * between different clients sending outdated list of users. If presenced receives an outdated
-     * list, the command will be discarded.
-     *
-     * <sn.8> <1.4> <peerHandle.8>
-     */
+       * @brief
+       * C->S
+       * This command is sent when the client doesn't want a peer to see its status
+       * anymore. In example, the contact relationship is broken or a non-contact doesn't participate
+       * in any groupchat any longer.
+       *
+       * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+       * between different clients sending outdated list of users. If presenced receives an outdated
+       * list, the command will be discarded.
+       *
+       * <sn.8> <1.4> <peerHandle.8>
+       */
     OP_SNDELPEERS = 9,
 
     /**
-    * @brief
-    * C->S
-    * This command is sent when the client wants to know the last time that a user has been green
-    *
-    * <peerHandle.8>
-    *
-    * S->C
-    * This command is sent by server as answer of a previous request from the client.
-    * There will be no reply if the user was not ever seen by presenced
-    * Maximun time value is 65535 minutes
-    *
-    * <peerHandle.8><minutes.2>
-    */
-   OP_LASTGREEN = 10
+      * @brief
+      * C->S
+      * This command is sent when the client wants to know the last time that a user has been green
+      *
+      * <peerHandle.8>
+      *
+      * S->C
+      * This command is sent by server as answer of a previous request from the client.
+      * There will be no reply if the user was not ever seen by presenced
+      * Maximun time value is 65535 minutes
+      *
+      * <peerHandle.8><minutes.2>
+      */
+   OP_LASTGREEN = 10,
+
+    /**
+      * @brief
+      * C->S
+      * Client must send all of the peers it wants to see its status when the connection is
+      * (re-)established. This command is sent after OP_HELLO and OP_PREF (if it would be necessary)
+      *
+      * The sn parameter is the sequence-number as provided by API, in order to avoid race-conditions
+      * between different clients sending outdated list of users. If presenced receives an outdated
+      * list, the command will be discarded.
+      *
+      * <sn.8> <numberOfPeers.4> <peerHandle1.8>...<peerHandleN.8>
+      */
+    OP_SNSETPEERS = 12
 };
 
 class Config
@@ -395,7 +408,7 @@ protected:
     void configChanged();
     std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
-    void updatePeers(const std::vector<karere::Id> &peers, bool addOrRemove);
+    void updatePeers(const std::vector<karere::Id> &peers, uint8_t command);
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
@@ -426,7 +439,9 @@ public:
      * Must be called externally in order to have all clients
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
-    void signalActivity(bool force = false);
+
+    /** Tells presenced that there's user's activity (notified by the app) */
+    void signalActivity();
 
     // peers management
     void addPeer(karere::Id peer);

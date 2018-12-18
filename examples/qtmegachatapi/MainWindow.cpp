@@ -818,9 +818,6 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chati
         // we skip all reorders until we receive this event to avoid app overload
         allowOrder = true;
 
-        //Update chatListItems in chatControllers
-        updateChatControllersItems();
-
         //Reorder chat list in QtApp
         reorderAppChatList();
 
