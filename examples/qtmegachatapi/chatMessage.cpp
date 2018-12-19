@@ -720,36 +720,22 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
 
 void ChatMessage::onNodePlay(mega::MegaNode *node)
 {
+    mega::MegaNode *resultNode = node;
+
+    //Autorize node with PH if we are in preview mode
+    if (mChatWindow->mChatRoom->isPreview())
+    {
+        const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
+        resultNode = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
+        delete [] cauth;
+    }
+
+    //Start an HTTP proxy server
     if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
     {
         mChatWindow->mMegaApi->httpServerStart();
     }
-    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
 
-    if (localUrl)
-    {
-        QClipboard *clipboard = QApplication::clipboard();
-        QString clipUrl(localUrl);
-        QMessageBox msg;
-        msg.setText("URL for streaming the file: \""+QString(node->getName())+"\"");
-        msg.setIcon(QMessageBox::Information);
-        msg.setDetailedText(clipUrl);
-        msg.addButton(tr("Ok"), QMessageBox::ActionRole);
-
-        QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
-        copyButton->disconnect();
-        connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(clipUrl);});
-
-        foreach (QAbstractButton *button, msg.buttons())
-        {
-            if (msg.buttonRole(button) == QMessageBox::ActionRole)
-            {
-                button->click();
-                break;
-            }
-        }
-        msg.setStyleSheet("width: 150px;");
-        msg.exec();
-        delete localUrl;
-    }
+    //Start streaming
+    mChatWindow->mMegaApi->startStreaming(resultNode, (int64_t)0, resultNode->getSize(), mChatWindow->megaTransferListenerDelegate);
 }

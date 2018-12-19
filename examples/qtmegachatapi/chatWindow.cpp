@@ -1168,3 +1168,13 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
         }
     }
 }
+
+void ChatWindow::onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer)
+{
+
+}
+
+bool ChatWindow::onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size)
+{
+
+}

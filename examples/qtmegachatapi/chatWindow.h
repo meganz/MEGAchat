@@ -69,6 +69,9 @@ class ChatWindow : public QDialog,
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
+        void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
+        bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
+
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;
         void setCallGui(CallGui *callGui);
