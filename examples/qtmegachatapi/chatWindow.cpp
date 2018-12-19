@@ -745,7 +745,6 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto closeChatLink = clMenu->addAction("Close chat link");
     connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
     // TODO: connect to slot in chat-links branch once merged
-
 }
 
 void ChatWindow::onTruncateChat()
@@ -898,20 +897,51 @@ void ChatWindow::on_mAttachBtn_clicked()
 
 void ChatWindow::createAttachMenu(QMenu& menu)
 {
-     //Attach node
-     auto actNode = menu.addAction("Attach node");
+    //Attach node
+    auto actNode = menu.addAction("Attach node");
+    connect(actNode, &QAction::triggered, this, [=](){onAttachNode(false);});
 
-     //Attach voice clip
-     auto actVoice = menu.addAction("Attach voice clip");
+    //Attach voice clip
+    auto actVoice = menu.addAction("Attach voice clip");
+    connect(actVoice, &QAction::triggered, this, [=](){onAttachNode(true);});
 
-     //Attach voice clip
-     auto actLocation = menu.addAction("Attach location");
-     connect(actLocation, &QAction::triggered, this, [=](){onAttachLocation();});
+    //Attach geolocation
+    auto actLocation = menu.addAction("Attach location");
+    connect(actLocation, &QAction::triggered, this, [=](){onAttachLocation();});
 }
 
 void ChatWindow::onAttachLocation()
 {
     mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
+}
+
+void ChatWindow::onAttachNode(bool isVoiceClip)
+{
+    QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
+    if (node.isEmpty())
+       return;
+
+    mUploadDlg = new QMessageBox;
+    mUploadDlg->setWindowTitle((tr("Uploading file...")));
+    mUploadDlg->setIcon(QMessageBox::Warning);
+    mUploadDlg->setText(tr("Please, wait.\nThe file will be attached when the transfer completes."));
+    mUploadDlg->setStandardButtons(QMessageBox::Cancel);
+    mUploadDlg->setModal(true);
+    mUploadDlg->show();
+    connect(mUploadDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelTransfer(QAbstractButton*)));
+
+    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
+
+    if (isVoiceClip)
+    {
+        mMegaApi->startUploadWithData(node.toStdString().c_str(), parent, "vm");
+    }
+    else
+    {
+        mMegaApi->startUpload(node.toStdString().c_str(), parent);
+    }
+
+    delete parent;
 }
 
 void ChatWindow::on_mCancelTransfer(QAbstractButton*)
@@ -948,8 +978,15 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
             mUploadDlg->hide();
             if (e->getErrorCode() == ::mega::MegaError::API_OK)
             {
-                QMessageBox::information(nullptr, tr("Upload"), tr("Upload successful. Attaching node..."));
-                mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+                const char *appData = transfer->getAppData();
+                if (appData && strcmp(transfer->getAppData(),"vm") == 0)
+                {
+                    mMegaChatApi->attachVoiceMessage(mChatRoom->getChatId(), transfer->getNodeHandle());
+                }
+                else
+                {
+                    mMegaChatApi->attachNode(mChatRoom->getChatId(), transfer->getNodeHandle());
+                }
             }
             else
             {

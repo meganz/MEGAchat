@@ -60,11 +60,11 @@ enum ManualSendReason: uint8_t
 /** The source from where history is being retrieved by the app */
 enum HistSource
 {
-    kHistSourceNone = 0, //< History is not being retrieved
-    kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
-    kHistSourceDb = 2, //<History is being retrieved from the local DB
-    kHistSourceServer = 3, //< History is being retrieved from the server
-    kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
+    kHistSourceNone = 0, ///< History is not being retrieved
+    kHistSourceRam = 1, ///< History is being retrieved from the history buffer in RAM
+    kHistSourceDb = 2, ///<History is being retrieved from the local DB
+    kHistSourceServer = 3, ///< History is being retrieved from the server
+    kHistSourceNotLoggedIn = 4 ///< History has to be fetched from server, but we are not logged in yet
 };
 
 enum
@@ -353,7 +353,8 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State {
+    enum State
+    {
         kStateNew,
         kStateFetchingUrl,
         kStateDisconnected,
@@ -361,7 +362,8 @@ public:
         kStateConnecting,
         kStateConnected};
 
-    enum {
+    enum
+    {
         kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
         kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
         kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
@@ -710,7 +712,7 @@ protected:
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
-    karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
+    karere::SetOfIds mUserDump; ///< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -844,7 +846,7 @@ protected:
     friend class Client;
 /// @endcond PRIVATE
 public:
-    unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
+    unsigned initialHistoryFetchCount = 32; ///< This is the amount of messages that will be requested from server _only_ in case local db is empty
     /** @brief users The current set of users in the chatroom */
     const karere::SetOfIds& users() const { return mUsers; }
     ~Chat();

@@ -711,6 +711,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->isRevoked(chatId, nodeHandle);
 }
 
+- (void)attachVoiceMessageToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->attachVoiceMessage(chatId, nodeHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)attachVoiceMessageToChat:(uint64_t)chatId node:(uint64_t)nodeHandle {
+    self.megaChatApi->attachVoiceMessage(chatId, nodeHandle);
+}
+
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message {
     return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->editMessage(chatId, messageId, message ? [message UTF8String] : NULL) cMemoryOwn:YES] : nil;
 }

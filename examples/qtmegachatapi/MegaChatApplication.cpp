@@ -49,6 +49,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
 MegaChatApplication::~MegaChatApplication()
 {
+    mMegaApi->httpServerStop();
     mMegaApi->removeListener(megaListenerDelegate);
     mMegaChatApi->removeChatRequestListener(megaChatRequestListenerDelegate);
     mMegaChatApi->removeChatNotificationListener(megaChatNotificationListenerDelegate);
@@ -157,7 +158,7 @@ void MegaChatApplication::configureLogs()
     MegaChatApi::setCatchException(false);
 }
 
-void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
+void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
     if(mMainWin && userList)
     {

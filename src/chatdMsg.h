@@ -400,10 +400,11 @@ public:
         kMsgManagementHighest = 0x06,
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
-        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
-        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
-        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
-        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
+        kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10
+        kMsgRevokeAttachment  = 0x66,   // kMsgNormal's subtype = 0x11
+        kMsgContact           = 0x67,   // kMsgNormal's subtype = 0x12
+        kMsgContainsMeta      = 0x68,   // kMsgNormal's subtype = 0x13
+        kMsgVoiceClip         = 0x69    // kMsgNormal's subtype = 0x14
     };
 
     enum ContainsMetaSubType: uint8_t
@@ -415,14 +416,14 @@ public:
 
     enum Status
     {
-        kSending, //< Message has not been sent or is not yet confirmed by the server
-        kSendingManual, //< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
-        kServerReceived, //< Message confirmed by server, but not yet delivered to recepient(s)
-        kServerRejected, //< Message is rejected by server for some reason (editing too old message for example)
-        kDelivered, //< Peer confirmed message receipt. Used only for 1on1 chats
+        kSending, ///< Message has not been sent or is not yet confirmed by the server
+        kSendingManual, ///< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        kServerReceived, ///< Message confirmed by server, but not yet delivered to recepient(s)
+        kServerRejected, ///< Message is rejected by server for some reason (editing too old message for example)
+        kDelivered, ///< Peer confirmed message receipt. Used only for 1on1 chats
         kLastOwnMessageStatus = kDelivered, //if a status is <= this, we created the msg, oherwise not
-        kNotSeen, //< User hasn't read this message yet
-        kSeen //< User has read this message
+        kNotSeen, ///< User hasn't read this message yet
+        kSeen ///< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
 
@@ -652,7 +653,8 @@ public:
                 && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
                     || type == kMsgAttachment
                     || type == kMsgContact
-                    || type == kMsgContainsMeta)
+                    || type == kMsgContainsMeta
+                    || type == kMsgVoiceClip)
                 );
     }
     ContainsMetaSubType containMetaSubtype() const
