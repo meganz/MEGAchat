@@ -745,20 +745,7 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto closeChatLink = clMenu->addAction("Close chat link");
     connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
     // TODO: connect to slot in chat-links branch once merged
-
 }
-
-void ChatWindow::createAttachMenu(QMenu& menu)
-{
-     //Attach node
-     auto actNode = menu.addAction("Attach node");
-     connect(actNode, &QAction::triggered, this, [=](){onAttachNode(false);});
-
-     //Attach voice clip
-     auto actVoice = menu.addAction("Attach voice clip");
-     connect(actVoice, &QAction::triggered, this, [=](){onAttachNode(true);});
-}
-
 
 void ChatWindow::onTruncateChat()
 {
@@ -906,6 +893,26 @@ void ChatWindow::on_mAttachBtn_clicked()
     menu.exec(ui->mAttachBtn->mapToGlobal(
     QPoint(-menu.width()+ui->mAttachBtn->width(), ui->mAttachBtn->height())));
     menu.deleteLater();
+}
+
+void ChatWindow::createAttachMenu(QMenu& menu)
+{
+    //Attach node
+    auto actNode = menu.addAction("Attach node");
+    connect(actNode, &QAction::triggered, this, [=](){onAttachNode(false);});
+
+    //Attach voice clip
+    auto actVoice = menu.addAction("Attach voice clip");
+    connect(actVoice, &QAction::triggered, this, [=](){onAttachNode(true);});
+
+    //Attach geolocation
+    auto actLocation = menu.addAction("Attach location");
+    connect(actLocation, &QAction::triggered, this, [=](){onAttachLocation();});
+}
+
+void ChatWindow::onAttachLocation()
+{
+    mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
 }
 
 void ChatWindow::onAttachNode(bool isVoiceClip)
