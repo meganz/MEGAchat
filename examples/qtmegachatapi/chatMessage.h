@@ -15,7 +15,10 @@ class ChatMessageWidget;
 class ChatMessage: public QWidget
 {
     Q_OBJECT
-    protected:
+private:
+    QString nodelistText();
+
+protected:
         Ui::ChatMessageWidget *ui;
         megachat::MegaChatHandle mChatId;
         megachat::MegaChatMessage *mMessage = NULL;
@@ -56,6 +59,7 @@ class ChatMessage: public QWidget
         void onMessageEditAction();
         void onMessageRemoveLinkAction();
         void onNodeDownloadOrImport(mega::MegaNode *node, bool import);
+        void onNodePlay(::mega::MegaNode *node);
         void on_bSettings_clicked();
 };
 #endif // CHATMESSAGE_H

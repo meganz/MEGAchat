@@ -5048,6 +5048,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
 
         if (msgsLoadedFromRam)
         {
+            CALL_LISTENER_FH(onLoaded, NULL, 0); // All messages requested has been returned or no more messages from this source
             return HistSource::kHistSourceRam;
         }
     }
@@ -5066,6 +5067,8 @@ HistSource FilteredHistory::getHistory(uint32_t count)
             {
                 addMessage(*messages[i], false, true);   // takes ownership of Message*
             }
+
+            CALL_LISTENER_FH(onLoaded, NULL, 0);  // All messages requested has been returned or no more messages from this source
             return HistSource::kHistSourceDb;
         }
     }

@@ -195,6 +195,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                        .append(" attached a node: ").append(item->getLastMessage());
             break;
 
+        case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+            lastMessage.append("User ").append(senderHandle)
+                       .append(" sent a ").append(item->getLastMessage());
+            break;
+
         case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
             lastMessage.append("User ").append(senderHandle)
                        .append(" set chat title: ").append(item->getLastMessage());

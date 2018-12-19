@@ -75,6 +75,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
 MegaChatApplication::~MegaChatApplication()
 {
+    mMegaApi->httpServerStop();
     mMegaApi->removeListener(megaListenerDelegate);
     mMegaChatApi->removeChatRequestListener(megaChatRequestListenerDelegate);
     mMegaChatApi->removeChatNotificationListener(megaChatNotificationListenerDelegate);
