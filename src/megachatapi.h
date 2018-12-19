@@ -2700,9 +2700,8 @@ public:
      * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_NOENT - If the logged in user doesn't have privileges to update the privilege level.
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to update the privilege level.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_NOENT - If the chatid or user handle are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param uh MegaChatHandle that identifies the user
@@ -3079,9 +3078,7 @@ public:
      * a message id set to MEGACHAT_INVALID_HANDLE.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_NOENT - If the chat room does not exists
-     * - MegaChatError::ERROR_NOENT - If the node provided does not exists
-     * - MegaChatError::ERROR_NOENT - If the target user does not exists
+     * - MegaChatError::ERROR_NOENT - If the chatroom, the node or the target user don't exists
      * - MegaChatError::ERROR_ACCESS - If the target user is the same as caller
      * - MegaChatError::ERROR_ACCESS - If the target user is anonymous but the chat room is in private mode
      * - MegaChatError::ERROR_ACCESS - If caller is not an operator or the target user is not a chat member

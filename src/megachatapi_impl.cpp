@@ -385,7 +385,7 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
             if (!peersList || !peersList->size())   // refuse to create chats without participants
             {
-                errorCode = MegaChatError::ERROR_NOENT;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -393,7 +393,7 @@ void MegaChatApiImpl::sendPendingRequests()
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
             if (!userpriv)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
@@ -435,7 +435,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 if (it == mClient->contactList->end())
                 {
                     // contact not found
-                    errorCode = MegaChatError::ERROR_ARGS;
+                    errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
                 it->second->createChatRoom()
@@ -519,7 +519,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
+                errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
 
