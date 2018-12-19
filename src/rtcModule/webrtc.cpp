@@ -683,12 +683,11 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
 
     callHandler->addParticipant(userid, clientid, av);
 
-    for (auto itCall = mCalls.begin(); itCall != mCalls.end(); itCall++)
+
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
     {
-        if (itCall->second->id() == callid)
-        {
-            itCall->second->updateAvFlags(userid, clientid, av);
-        }
+        itCall->second->updateAvFlags(userid, clientid, av);
     }
 }
 
@@ -1678,14 +1677,14 @@ bool Call::startOrJoin(AvFlags av)
     std::string errors;
 
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
+
+    getLocalStream(av, errors);
     if (mIsJoiner)
     {
-        getLocalStream(av, errors);
         return join();
     }
     else
     {
-        getLocalStream(av, errors);
         return broadcastCallReq();
     }
 }
