@@ -528,6 +528,11 @@ void MegaChatApi::attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, M
     pImpl->attachNode(chatid, nodehandle, listener);
 }
 
+void MegaChatApi::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener)
+{
+    pImpl->attachVoiceMessage(chatid, nodehandle, listener);
+}
+
 MegaChatMessage *MegaChatApi::revokeAttachmentMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     return pImpl->editMessage(chatid, msgid, NULL);

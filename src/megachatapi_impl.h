@@ -857,7 +857,7 @@ private:
 
     static int convertInitState(int state);
 
-    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid);
+    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid, uint8_t type);
 
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
@@ -1015,6 +1015,7 @@ public:
     MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+    void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
     MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
