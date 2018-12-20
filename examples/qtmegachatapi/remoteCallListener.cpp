@@ -3,7 +3,7 @@
 #include <QImage>
 
 RemoteCallListener::RemoteCallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatHandle peerid):
-CallListener(megaChatApi,callGui, peerid)
+CallListener(megaChatApi, callGui, peerid)
 {
     mMegaChatApi->addChatRemoteVideoListener(mCallGui->getCall()->getChatid(), mPeerid, megaChatVideoListenerDelegate);
 }

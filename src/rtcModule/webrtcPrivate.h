@@ -82,7 +82,6 @@ protected:
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
-    void sdpSetVideoBw(std::string& sdp, int maxbr);
     int calculateNetworkQuality(const stats::Sample *sample);
 
 public:

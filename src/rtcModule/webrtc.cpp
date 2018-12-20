@@ -6,8 +6,6 @@
 #include "streamPlayer.h"
 #include "rtcStats.h"
 
-#include <regex>
-
 #define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_WARNING(fmtString,...) RTCM_LOG_WARNING("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
@@ -685,12 +683,11 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
 
     callHandler->addParticipant(userid, clientid, av);
 
-    for (auto itCall = mCalls.begin(); itCall != mCalls.end(); itCall++)
+
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
     {
-        if (itCall->second->id() == callid)
-        {
-            itCall->second->updateAvFlags(userid, clientid, av);
-        }
+        itCall->second->updateAvFlags(userid, clientid, av);
     }
 }
 
@@ -1680,14 +1677,14 @@ bool Call::startOrJoin(AvFlags av)
     std::string errors;
 
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
+
+    getLocalStream(av, errors);
     if (mIsJoiner)
     {
-        getLocalStream(av, errors);
         return join();
     }
     else
     {
-        getLocalStream(av, errors);
         return broadcastCallReq();
     }
 }
@@ -3222,20 +3219,6 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
             break;
     }
     return result;
-}
-void Session::sdpSetVideoBw(std::string& sdp, int maxbr)
-{
-    std::regex expresion("m=video.*", std::regex::icase);
-    std::smatch m;
-    if (!regex_search(sdp, m, expresion))
-    {
-        SUB_LOG_WARNING("setVideoQuality: m=video line not found in local SDP");
-        return;
-    }
-
-    assert(m.size());
-    std::string line = "\r\nb=AS:" + std::to_string(maxbr);
-    sdp.insert(m.position(0) + m.length(0), line);
 }
 
 int Session::calculateNetworkQuality(const stats::Sample *sample)
