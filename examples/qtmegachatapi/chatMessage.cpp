@@ -78,29 +78,58 @@ void ChatMessage::updateToolTip()
     delete [] auxUserId_64;
 }
 
-void ChatMessage::showRichLinkData()
+void ChatMessage::showContainsMetaData()
 {
-    QString text = tr("[Contains-metadata msg]");
     const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
-    if (containsMeta && containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+    assert(containsMeta);
+    QString text = tr("[Contains-metadata msg]");
+    if (containsMeta)
     {
-        const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
-        text.append(tr("\nSubtype: rich-link"))
-            .append(tr("\nOriginal content: "))
-            .append(richPreview->getText())
-            .append(tr("\nURL: "))
-            .append(richPreview->getUrl())
-            .append(tr("\nDomain Name: "))
-            .append(richPreview->getDomainName())
-            .append(tr("\nTitle: "))
-            .append(richPreview->getTitle())
-            .append(tr("\nDescription: "))
-            .append(richPreview->getDescription())
-            .append(tr("\nHas icon: "))
-            .append(richPreview->getIcon() ? "yes" : "no")
-            .append(tr("\nHas image: "))
-            .append(richPreview->getImage() ? "yes" : "no");
+        switch (containsMeta->getType()) {
+            case  megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
+            {
+                const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
+                text.append(tr("\nSubtype: rich-link"))
+                    .append(tr("\nOriginal content: "))
+                    .append(richPreview->getText())
+                    .append(tr("\nURL: "))
+                    .append(richPreview->getUrl())
+                    .append(tr("\nDomain Name: "))
+                    .append(richPreview->getDomainName())
+                    .append(tr("\nTitle: "))
+                    .append(richPreview->getTitle())
+                    .append(tr("\nDescription: "))
+                    .append(richPreview->getDescription())
+                    .append(tr("\nHas icon: "))
+                    .append(richPreview->getIcon() ? "yes" : "no")
+                    .append(tr("\nHas image: "))
+                    .append(richPreview->getImage() ? "yes" : "no");
+                break;
+            }
+            case  megachat::MegaChatContainsMeta::CONTAINS_META_GEOLOCATION:
+            {
+                const MegaChatGeolocation *geolocation = containsMeta->getGeolocation();
+                text.append(tr("\nSubtype: Geolocation"))
+                    .append(tr("\nText content: "))
+                    .append(containsMeta->getTextMessage())
+                    .append(tr("\nLongitude: "))
+                    .append(QString::number(geolocation->getLongitude()))
+                    .append(tr("\nLatitude: "))
+                    .append(QString::number(geolocation->getLatitude()))
+                    .append(tr("\nHas image: "))
+                    .append(geolocation->getImage() ? "yes" : "no");
+                break;
+            }
+            default:
+            {
+                text.append(tr("\nSubtype: unkown"))
+                    .append(tr("\nText content: "))
+                    .append(containsMeta->getTextMessage());
+                break;
+            }
+        }
     }
+
     ui->mMsgDisplay->setText(text);
     ui->mMsgDisplay->setStyleSheet("background-color: rgba(213,245,160,128)\n");
     ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
@@ -228,7 +257,7 @@ void ChatMessage::updateContent()
             }
             case megachat::MegaChatMessage::TYPE_CONTAINS_META:
             {
-                showRichLinkData();
+                showContainsMetaData();
                 break;
             }
             case megachat::MegaChatMessage::TYPE_INVALID:

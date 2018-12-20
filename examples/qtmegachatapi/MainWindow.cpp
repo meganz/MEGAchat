@@ -388,7 +388,6 @@ void MainWindow::on_bSettings_clicked()
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
     actArchived->setCheckable(true);
     actArchived->setChecked(mShowArchived);
-    // TODO: adjust with new flags in chat-links branch
 
     menu.addSeparator();
 
@@ -422,7 +421,6 @@ void MainWindow::on_bSettings_clicked()
     menu.addSeparator();
     auto actPrintMyInfo = menu.addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-    // TODO: connect to slot once chat-links branch is merged
 
     menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();

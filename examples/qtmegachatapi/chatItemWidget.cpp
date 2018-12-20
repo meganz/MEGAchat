@@ -439,8 +439,8 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
     connect(actcloseChatPreview, SIGNAL(triggered()), this, SLOT(closeChatPreview()));
 
-    menu.addSeparator();
-    auto actSetPrivate = clMenu->addAction(tr("Set chat private"));
+    clMenu->addSeparator();
+    auto actSetPrivate = clMenu->addAction(tr("Set private mode"));
     connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(setPublicChatToPrivate()));
 
     delete chatRoom;

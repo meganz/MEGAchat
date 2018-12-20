@@ -71,6 +71,7 @@ class ChatWindow : public QDialog,
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
         void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
         bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
+        void onAttachLocation();
 
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *getCallGui() const;

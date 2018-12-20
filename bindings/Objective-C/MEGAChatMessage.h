@@ -32,7 +32,8 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypeAttachment        = 101,
     MEGAChatMessageTypeRevokeAttachment  = 102, /// Obsolete
     MEGAChatMessageTypeContact           = 103,
-    MEGAChatMessageTypeContainsMeta      = 104
+    MEGAChatMessageTypeContainsMeta      = 104,
+    MEGAChatMessageTypeVoiceClip         = 105
 };
 
 typedef NS_ENUM(NSInteger, MEGAChatMessageChangeType) {

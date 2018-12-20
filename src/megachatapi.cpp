@@ -578,6 +578,11 @@ void MegaChatApi::attachNodes(MegaChatHandle chatid, MegaNodeList *nodes, MegaCh
     pImpl->attachNodes(chatid, nodes, listener);
 }
 
+MegaChatMessage * MegaChatApi::sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img)
+{
+    return pImpl->sendGeolocation(chatid, longitude, latitude, img);
+}
+
 void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener)
 {
     pImpl->revokeAttachment(chatid, nodeHandle, listener);
@@ -1647,12 +1652,42 @@ int MegaChatContainsMeta::getType() const
     return MegaChatContainsMeta::CONTAINS_META_INVALID;
 }
 
+const char *MegaChatContainsMeta::getTextMessage() const
+{
+    return NULL;
+}
+
 const MegaChatRichPreview *MegaChatContainsMeta::getRichPreview() const
 {
     return NULL;
 }
 
+const MegaChatGeolocation *MegaChatContainsMeta::getGeolocation() const
+{
+    return NULL;
+}
+
 const char *MegaChatRichPreview::getDomainName() const
+{
+    return NULL;
+}
+
+MegaChatGeolocation *MegaChatGeolocation::copy() const
+{
+    return NULL;
+}
+
+float MegaChatGeolocation::getLongitude() const
+{
+    return 0;
+}
+
+float MegaChatGeolocation::getLatitude() const
+{
+    return 0;
+}
+
+const char *MegaChatGeolocation::getImage() const
 {
     return NULL;
 }

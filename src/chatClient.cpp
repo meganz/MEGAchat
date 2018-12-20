@@ -321,11 +321,7 @@ void Client::heartbeat()
 
 Client::~Client()
 {
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
+    assert(isTerminated());
 }
 
 void Client::retryPendingConnections(bool disconnect)
@@ -893,7 +889,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 if (wptr.deleted())
                     return;
 
-                if (initState() != kInitTerminated)
+                if (!isTerminated())
                 {
                     setInitState(kInitErrSidInvalid);
                 }
@@ -1183,30 +1179,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     return pms;
 }
 
-void Client::disconnect()
-{
-    if (mConnState == kDisconnected)
-        return;
-
-    setConnState(kDisconnected);
-    // stop sync of user attributes in cache
-    assert(mOwnNameAttrHandle.isValid());
-    mUserAttrCache->removeCb(mOwnNameAttrHandle);
-    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
-    mUserAttrCache->onLogOut();
-
-    // stop heartbeats
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
-
-    // disconnect from chatd shards and presenced
-    mChatdClient->disconnect();
-    mPresencedClient.disconnect();
-}
-
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;
@@ -1424,7 +1396,7 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
-    if (mInitState == kInitTerminated)
+    if (isTerminated())
     {
         return;
     }
@@ -1519,9 +1491,25 @@ void Client::terminate(bool deleteDb)
         }
     }
 
-    disconnect();
+    setConnState(kDisconnected);
+
+    // stop syncing own-name and close user-attributes cache
+    mUserAttrCache->removeCb(mOwnNameAttrHandle);
+    mUserAttrCache->onLogOut();
     mUserAttrCache.reset();
 
+    // stop heartbeats
+    if (mHeartbeatTimer)
+    {
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
+        mHeartbeatTimer = 0;
+    }
+
+    // disconnect from chatd shards and presenced
+    mChatdClient->disconnect();
+    mPresencedClient.disconnect();
+
+    // close or delete MEGAchat's DB file
     try
     {
         if (deleteDb)
@@ -2120,7 +2108,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
     {
         parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
     }
@@ -2708,7 +2696,8 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
     {
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
     }
@@ -3162,8 +3151,7 @@ void ChatRoomList::previewCleanup(Id chatid)
         db.query("delete from manual_sending where chatid = ?", chatid);
         db.query("delete from sending where chatid = ?", chatid);
         db.query("delete from sendkeys where chatid = ?", chatid);
-        // TODO: uncomment the following line when the node-history buffer is supported
-        // d.query("delete from node_history where chatid = ?", chatid);
+        db.query("delete from node_history where chatid = ?", chatid);
     }
 }
 
@@ -3709,7 +3697,7 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    if (client.initState() != Client::kInitTerminated)
+    if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
         client.presenced().removePeer(mUserid, true);

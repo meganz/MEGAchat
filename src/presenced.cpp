@@ -39,7 +39,15 @@ Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& c
     mCurrentPeers = std::move(currentPeers);
     mUrl.parse(url);
 
-    return reconnect();
+    if (mConnState == kConnNew)
+    {
+        return reconnect();
+    }
+    else    // connect() was already called, reconnection is automatic
+    {
+        PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
+        return ::promise::Void();
+    }
 }
 
 void Client::pushPeers()
@@ -66,6 +74,12 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*r
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
+    if (mKarereClient->isTerminated())
+    {
+        PRESENCED_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mConnState;
@@ -199,6 +213,13 @@ void Client::abortRetryController()
 Promise<void>
 Client::reconnect()
 {
+    if (mKarereClient->isTerminated())
+    {
+        PRESENCED_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        assert(false);
+        return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
+    }
+
     assert(!mHeartbeatEnabled);
     assert(!mRetryCtrl);
     try
@@ -242,6 +263,13 @@ Client::reconnect()
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
+
+                if (mKarereClient->isTerminated())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+                    return;
+                }
+
                 if (!mRetryCtrl)
                 {
                     PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
@@ -347,7 +375,6 @@ Client::reconnect()
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
-
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
@@ -903,21 +930,24 @@ void Client::setConnState(ConnState newState)
             mConnectTimer = 0;
         }
 
-        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
-        auto wptr = weakHandle();
-        mConnectTimer = setTimeout([this, wptr]()
+        if (!mKarereClient->isTerminated())
         {
-            if (wptr.deleted())
-                return;
+            // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+            auto wptr = weakHandle();
+            mConnectTimer = setTimeout([this, wptr]()
+            {
+                if (wptr.deleted())
+                    return;
 
-            mConnectTimer = 0;
+                mConnectTimer = 0;
 
-            PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
+                PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
 
-            retryPendingConnection(true);
+                retryPendingConnection(true);
 
-        }, kConnectTimeout * 1000, mKarereClient->appCtx);
+            }, kConnectTimeout * 1000, mKarereClient->appCtx);
+        }
 
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)

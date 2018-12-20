@@ -452,6 +452,14 @@ public:
         kMsgContainsMeta        = 0x68,   // kMsgNormal's subtype = 0x13
         kMsgVoiceClip           = 0x69    // kMsgNormal's subtype = 0x14
     };
+
+    enum ContainsMetaSubType: uint8_t
+    {
+        kInvalid              = 0xff,
+        kRichLink             = 0x00,
+        kGeoLocation          = 0x01
+    };
+
     enum Status
     {
         kSending, ///< Message has not been sent or is not yet confirmed by the server
@@ -694,6 +702,14 @@ public:
                     || type == kMsgContainsMeta
                     || type == kMsgVoiceClip)
                 );
+    }
+    ContainsMetaSubType containMetaSubtype() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 2) ? ((ContainsMetaSubType)*(buf()+2)) : ContainsMetaSubType::kInvalid;
+    }
+    std::string containsMetaJson() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
     }
 
     /** @brief Convert attachment etc. special messages to text */

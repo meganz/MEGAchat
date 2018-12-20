@@ -284,7 +284,9 @@ using namespace megachat;
         case MEGAChatMessageTypeContainsMeta:
             result = @"Contains meta";
             break;
-            
+        case MEGAChatMessageTypeVoiceClip:
+            result = @"Voice clip";
+            break;
         default:
             result = @"Default";
             break;
