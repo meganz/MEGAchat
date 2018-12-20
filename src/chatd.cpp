@@ -3419,7 +3419,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
             if (msg->isDeleted())
             {
-                if (msg->isOwnMessage(client().myHandle()))
+                if (!msg->isOwnMessage(client().myHandle()))
                 {
                     CALL_LISTENER(onUnreadChanged);
                 }
