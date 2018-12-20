@@ -219,7 +219,7 @@
         <property name="styleSheet">
          <string notr="true"/>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0,0">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0,0,0">
          <property name="spacing">
           <number>6</number>
          </property>
@@ -444,19 +444,19 @@ border-image: url(':/groupchat-members-hover.svg')
            </property>
           </widget>
          </item>
-		 <item>
-				  <widget class="QToolButton" name="mSettingsBtn">
-				   <property name="enabled">
-				    <bool>true</bool>
-				   </property>
-				   <property name="minimumSize">
-				    <size>
-				     <width>30</width>
-				     <height>20</height>
-				    </size>
-				   </property>
-				   <property name="styleSheet">
-				    <string notr="true">QToolButton
+         <item>
+          <widget class="QToolButton" name="mSettingsBtn">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>30</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">QToolButton
 				{
 				border-image: url(':/settings.svg')
 				}
@@ -465,14 +465,12 @@ border-image: url(':/groupchat-members-hover.svg')
 				border-image: url(':/settings-hover.svg')
 				}
 				</string>
-				   </property>
-				   <property name="text">
-				    <string/>
-				   </property>
-				  </widget>
-				 </item>
-
-
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </item>
@@ -553,7 +551,7 @@ border-image: url(':/groupchat-members-hover.svg')
             </property>
            </widget>
            <widget class="QWidget" name="layoutWidget">
-            <layout class="QHBoxLayout" name="typeAndSend" stretch="1,0">
+            <layout class="QHBoxLayout" name="typeAndSend" stretch="0,0,0">
              <property name="spacing">
               <number>0</number>
              </property>
@@ -573,13 +571,13 @@ border-image: url(':/groupchat-members-hover.svg')
                </property>
                <property name="minimumSize">
                 <size>
-                 <width>80</width>
+                 <width>40</width>
                  <height>0</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>80</width>
+                 <width>40</width>
                  <height>16777215</height>
                 </size>
                </property>
@@ -624,7 +622,7 @@ p, li { white-space: pre-wrap; }
               </widget>
              </item>
              <item>
-              <layout class="QVBoxLayout" name="verticalLayout" stretch="1">
+              <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
                <property name="spacing">
                 <number>0</number>
                </property>

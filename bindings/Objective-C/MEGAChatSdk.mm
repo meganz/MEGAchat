@@ -682,6 +682,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->attachNodes(chatId, (nodeList != nil) ? [nodeList getCPtr] : NULL);
 }
 
+- (MEGAChatMessage *)sendGeolocationToChat:(uint64_t)chatId longitude:(float)longitude latitude:(float)latitude image:(NSString *)image {
+    MegaChatMessage *message = self.megaChatApi->sendGeolocation(chatId, longitude, latitude, image ? [image UTF8String] : NULL);
+    return message ? [[MEGAChatMessage alloc] initWithMegaChatMessage:message cMemoryOwn:YES] : nil;
+}
+
 - (void)revokeAttachmentToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->revokeAttachment(chatId, nodeHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -704,6 +709,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId {
     return self.megaChatApi->isRevoked(chatId, nodeHandle);
+}
+
+- (void)attachVoiceMessageToChat:(uint64_t)chatId node:(uint64_t)nodeHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->attachVoiceMessage(chatId, nodeHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)attachVoiceMessageToChat:(uint64_t)chatId node:(uint64_t)nodeHandle {
+    self.megaChatApi->attachVoiceMessage(chatId, nodeHandle);
 }
 
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message {

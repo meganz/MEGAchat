@@ -39,7 +39,15 @@ Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& c
     mCurrentPeers = std::move(currentPeers);
     mUrl.parse(url);
 
-    return reconnect();
+    if (mConnState == kConnNew)
+    {
+        return reconnect();
+    }
+    else    // connect() was already called, reconnection is automatic
+    {
+        PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
+        return ::promise::Void();
+    }
 }
 
 void Client::pushPeers()
@@ -51,7 +59,7 @@ void Client::pushPeers()
         peers.push_back(peer.first);
     }
 
-    updatePeers(peers, true);
+    updatePeers(peers, OP_SNSETPEERS);
 }
 
 void Client::wsConnectCb()
@@ -66,6 +74,12 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t /*r
     
 void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
+    if (mKarereClient->isTerminated())
+    {
+        PRESENCED_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
     PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
 
     auto oldState = mConnState;
@@ -116,7 +130,6 @@ bool Client::setPresence(Presence pres)
     PRESENCED_LOG_DEBUG("setPresence(): %s -> %s", mConfig.mPresence.toString(), pres.toString());
 
     mConfig.mPresence = pres;
-    signalActivity(true);
     return sendPrefs();
 }
 
@@ -128,7 +141,6 @@ bool Client::setPersist(bool enable)
     PRESENCED_LOG_DEBUG("setPersist(): %d -> %d", (int)mConfig.mPersist, (int)enable);
 
     mConfig.mPersist = enable;
-    signalActivity(true);
     return sendPrefs();
 }
 
@@ -136,8 +148,8 @@ bool Client::setLastGreenVisible(bool enable)
 {
     if (enable == mConfig.mLastGreenVisible)
         return true;
+
     mConfig.mLastGreenVisible = enable;
-    signalActivity(true);
     return sendPrefs();
 }
 
@@ -148,44 +160,40 @@ bool Client::requestLastGreen(Id userid)
 
 bool Client::setAutoaway(bool enable, time_t timeout)
 {
+    if (enable == mConfig.mAutoawayActive && timeout == mConfig.mAutoawayTimeout)
+        return true;
+
     if (enable)
     {
         mConfig.mPersist = false;
+        mConfig.mPresence = Presence::kOnline;
     }
 
     mConfig.mAutoawayTimeout = timeout;
     mConfig.mAutoawayActive = enable;
-    signalActivity(true);
     return sendPrefs();
 }
 
 bool Client::autoAwayInEffect()
 {
-    return mConfig.mPresence.isValid()    // don't want to change to away from default status
-            && !mConfig.mPersist
-            && mConfig.mPresence == Presence::kOnline
-            && mConfig.mAutoawayTimeout
-            && mConfig.mAutoawayActive;
+    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive;
 }
 
-void Client::signalActivity(bool force)
+void Client::signalActivity()
 {
     if (!mConfig.mPresence.isValid())
     {
-        PRESENCED_LOG_WARNING("signalActivity(): the current configuration is yet received, cannot be changed");
+        PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is yet received, cannot be changed");
+        return;
+    }
+    if (!mConfig.mAutoawayActive)
+    {
+        PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
         return;
     }
 
     mTsLastUserActivity = time(NULL);
-
-    if (mConfig.mPresence == Presence::kAway)
-    {
-        sendUserActive(false);
-    }
-    else if (mConfig.mPresence != Presence::kOffline)
-    {
-        sendUserActive(true, force);
-    }
+    sendUserActive(true);
 }
 
 void Client::abortRetryController()
@@ -205,6 +213,13 @@ void Client::abortRetryController()
 Promise<void>
 Client::reconnect()
 {
+    if (mKarereClient->isTerminated())
+    {
+        PRESENCED_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        assert(false);
+        return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
+    }
+
     assert(!mHeartbeatEnabled);
     assert(!mRetryCtrl);
     try
@@ -248,6 +263,13 @@ Client::reconnect()
                     PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
                     return;
                 }
+
+                if (mKarereClient->isTerminated())
+                {
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+                    return;
+                }
+
                 if (!mRetryCtrl)
                 {
                     PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
@@ -353,7 +375,6 @@ Client::reconnect()
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
-
     KR_EXCEPTION_TO_PROMISE(kPromiseErrtype_presenced);
 }
     
@@ -363,11 +384,13 @@ bool Client::sendKeepalive(time_t now)
     return sendCommand(Command(OP_KEEPALIVE));
 }
 
-void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
+void Client::updatePeers(const vector<Id> &peers, uint8_t command)
 {
-    if (addOrRemove && peers.empty())
+    assert(command == OP_SNADDPEERS || command == OP_SNDELPEERS || command == OP_SNSETPEERS);
+
+    if ((command == OP_SNADDPEERS || command == OP_SNDELPEERS) && peers.empty())
     {
-        PRESENCED_LOG_DEBUG("updatePeers: no peers to allow to see the presence status");
+        PRESENCED_LOG_DEBUG("updatePeers: no peers to update the list");
         return;
     }
 
@@ -378,7 +401,7 @@ void Client::updatePeers(const vector<Id> &peers, bool addOrRemove)
     size_t numPeers = peers.size();
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
 
-    Command cmd(addOrRemove ? OP_SNADDPEERS : OP_SNDELPEERS, totalSize);
+    Command cmd(command, totalSize);
     cmd.append<uint64_t>(scsn.val);
     cmd.append<uint32_t>(numPeers);
     for (unsigned int i = 0; i < numPeers; i++)
@@ -396,9 +419,12 @@ void Client::heartbeat()
         return;
 
     auto now = time(NULL);
-    if (autoAwayInEffect() && (now - mTsLastUserActivity > mConfig.mAutoawayTimeout) && !mKarereClient->isCallInProgress())
+    if (autoAwayInEffect()
+            && mLastSentUserActive
+            && (now - mTsLastUserActivity > mConfig.mAutoawayTimeout)
+            && !mKarereClient->isCallInProgress())
     {
-        sendUserActive(false);
+            sendUserActive(false);
     }
 
     bool needReconnect = false;
@@ -641,6 +667,29 @@ void Command::toString(char* buf, size_t bufsize) const
             snprintf(buf, bufsize, "%s", tmpString.c_str());
             break;
         }
+        case OP_SNSETPEERS:
+        {
+            Id sn = read<uint64_t>(1);
+            uint32_t numPeers = read<uint32_t>(9);
+            string tmpString;
+            tmpString.append("SNSETPEERS - scsn: ");
+            tmpString.append(ID_CSTR(sn));
+            tmpString.append(" num_peers: ");
+            tmpString.append(to_string(numPeers));
+            if (numPeers)
+            {
+                tmpString.append((numPeers == 1) ? " peer: " :  " peers: ");
+            }
+            for (unsigned int i = 0; i < numPeers; i++)
+            {
+                Id peerId = read<uint64_t>(13+i*8);
+                tmpString.append(ID_CSTR(peerId));
+                if (i + 1 < numPeers)
+                    tmpString.append(", ");
+            }
+            snprintf(buf, bufsize, "%s", tmpString.c_str());
+            break;
+        }
         default:
         {
             snprintf(buf, bufsize, "%s", opcodeName());
@@ -660,10 +709,6 @@ void Client::login()
     {
         sendPrefs();
     }
-
-    // signal whether the user is active or inactive
-    bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
-    sendUserActive(isActive, true);
 
     // send the list of peers allowed to see the own presence's status
     pushPeers();
@@ -809,6 +854,12 @@ void Client::handleMessage(const StaticBuffer& buf)
                     else if (loginCompleted)
                     {
                         PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
+                        if (autoAwayInEffect())
+                        {
+                            // signal whether the user is active or inactive
+                            bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            sendUserActive(isActive, true);
+                        }
                     }
                     else
                     {
@@ -879,21 +930,24 @@ void Client::setConnState(ConnState newState)
             mConnectTimer = 0;
         }
 
-        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
-        auto wptr = weakHandle();
-        mConnectTimer = setTimeout([this, wptr]()
+        if (!mKarereClient->isTerminated())
         {
-            if (wptr.deleted())
-                return;
+            // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+            auto wptr = weakHandle();
+            mConnectTimer = setTimeout([this, wptr]()
+            {
+                if (wptr.deleted())
+                    return;
 
-            mConnectTimer = 0;
+                mConnectTimer = 0;
 
-            PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
+                PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
 
-            retryPendingConnection(true);
+                retryPendingConnection(true);
 
-        }, kConnectTimeout * 1000, mKarereClient->appCtx);
+            }, kConnectTimeout * 1000, mKarereClient->appCtx);
+        }
 
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
@@ -925,7 +979,7 @@ void Client::addPeer(karere::Id peer)
     {
         std::vector<karere::Id> peers;
         peers.push_back(peer);
-        updatePeers(peers, true);
+        updatePeers(peers, OP_SNADDPEERS);
     }
 }
 void Client::removePeer(karere::Id peer, bool force)
@@ -955,6 +1009,6 @@ void Client::removePeer(karere::Id peer, bool force)
     mCurrentPeers.erase(it);
     std::vector<karere::Id> peers;
     peers.push_back(peer);
-    updatePeers(peers, false);
+    updatePeers(peers, OP_SNDELPEERS);
 }
 }
