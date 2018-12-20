@@ -2688,6 +2688,11 @@ public:
      * exists with that person, then this call will return the information for the existing chat, rather
      * than a new chat.
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If we are trying to create a chat with no participants
+     * - MegaChatError::ERROR_ACCESS - If the target user does not exists or is the same as caller
+     * - MegaChatError::ERROR_NOENT - If the target user is not a contact
+     *
      * @param group Flag to indicate if the chat is a group chat or not
      * @param peers MegaChatPeerList including other users and their privilege level
      * @param listener MegaChatRequestListener to track this request
@@ -2705,7 +2710,8 @@ public:
      * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers
+     * or the target is not actually contact of the user.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot invite peers)
      *
@@ -2770,7 +2776,6 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to update the privilege level.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param uh MegaChatHandle that identifies the user
@@ -2867,7 +2872,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
-     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     * - MegaChatError::ERROR_ACCESS - If caller is not operator.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param archive True to set the chat as archived, false to unarchive it.
@@ -3172,6 +3177,12 @@ public:
      *
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom, the node or the target user don't exists
+     * - MegaChatError::ERROR_ACCESS - If the target user is the same as caller
+     * - MegaChatError::ERROR_ACCESS - If the target user is anonymous but the chat room is in private mode
+     * - MegaChatError::ERROR_ACCESS - If caller is not an operator or the target user is not a chat member
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodehandle Handle of the node that the user wants to attach
