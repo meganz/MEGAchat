@@ -3724,7 +3724,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
 {
     if (mChatRoom)
     {
-        KR_LOG_WARNING("Contact::createChatRoom: chat room already exists, check before caling this method");
+        KR_LOG_WARNING("Contact::createChatRoom: chat room already exists, check before calling this method");
         return Promise<ChatRoom*>(mChatRoom);
     }
     mega::MegaTextChatPeerListPrivate peers;

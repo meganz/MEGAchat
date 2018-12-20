@@ -398,6 +398,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!group && peersList->size() == 0)
+            {
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (!group && peersList->size() > 1)
             {
                 group = true;
@@ -433,11 +439,17 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else    // 1on1 chat
             {
+                if (peersList->getPeerHandle(0) == mClient->myHandle())
+                {
+                    // can't create a 1on1 chat with own user.
+                    errorCode = MegaChatError::ERROR_NOENT;
+                    break;
+                }
                 ContactList::iterator it = mClient->contactList->find(peersList->getPeerHandle(0));
                 if (it == mClient->contactList->end())
                 {
                     // contact not found
-                    errorCode = MegaChatError::ERROR_ARGS;
+                    errorCode = MegaChatError::ERROR_ACCESS;
                     break;
                 }
                 it->second->createChatRoom()
@@ -902,7 +914,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!room->publicChat())
+            if (!room->isGroup() || !room->publicChat())
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -953,9 +965,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (room->ownPriv() != Priv::PRIV_OPER
-                    || !room->publicChat()
-                    || !room->isGroup())
+            if (!room->publicChat() || !room->isGroup())
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            if (room->ownPriv() != Priv::PRIV_OPER)
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
