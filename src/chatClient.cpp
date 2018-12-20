@@ -1697,7 +1697,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 return promise::Error("Chat created successfully, but instance was removed");
 
             auto& list = *result->getMegaTextChatList();
-            if (list.size() < 1)
+            if (list.size() != 1)
                 return promise::Error("Empty chat list returned from API");
 
             auto room = chats->addRoom(*list.get(0));
