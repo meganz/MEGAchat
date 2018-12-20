@@ -531,7 +531,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!chatroom->isGroup()
                 || !chatroom->publicChat()
-                || (!chatroom->previewMode() && chatroom->isActive()))   // Join only for public group chats in preview mode
+                || (!chatroom->previewMode() && chatroom->isActive())) // cannot autojoin an active chat if it's not in preview mode
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
