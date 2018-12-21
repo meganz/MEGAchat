@@ -291,7 +291,7 @@ bool Client::openDb(const std::string& sid)
 
 void Client::createDbSchema()
 {
-    mMyHandle = Id::null();
+    mMyHandle = Id::inval();
     db.simpleQuery(gDbSchema); //db.query() uses a prepared statement and will execute only the first statement up to the first semicolon
     std::string ver(gDbSchemaHash);
     ver.append("_").append(gDbSchemaVersionSuffix);
@@ -666,6 +666,7 @@ Client::InitState Client::initWithAnonymousSession()
     setInitState(kInitAnonymousMode);
     mSid.clear();
     createDb();
+    mMyHandle = Id::null(); // anonymous mode should use ownHandle set to all zeros
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
 
@@ -791,7 +792,7 @@ void Client::initWithDbSession(const char* sid)
         api.sdk.addGlobalListener(this);
 
         mMyHandle = getMyHandleFromDb();
-        assert(mMyHandle);
+        assert(mMyHandle && mMyHandle.isValid());
 
         mMyEmail = getMyEmailFromDb();
 

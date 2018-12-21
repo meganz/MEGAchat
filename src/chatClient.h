@@ -701,7 +701,7 @@ public:
     IApp::ILoginDialog::Handle mLoginDlg;
 
 protected:
-    Id mMyHandle = Id::null(); //mega::UNDEF
+    Id mMyHandle = Id::inval(); //mega::UNDEF
     std::string mMyName = std::string("\0", 1);
     std::string mMyEmail;
     uint64_t mMyIdentity = 0; // seed for CLIENTID

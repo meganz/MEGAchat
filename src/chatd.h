@@ -1301,7 +1301,6 @@ protected:
 
     // maps chatids to the seen timers
     std::map<karere::Id, megaHandle> mSeenTimers;
-    karere::Id mUserId;
 
     bool mMessageReceivedConfirmation = false;
 

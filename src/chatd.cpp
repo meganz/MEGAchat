@@ -1235,7 +1235,7 @@ void Chat::handlejoin()
     uint64_t ph = getPublicHandle();
     Command comm (OP_HANDLEJOIN);
     comm.append((const char*) &ph, Id::CHATLINKHANDLE);
-    sendCommand(comm + mChatdClient.mUserId + (uint8_t)PRIV_RDONLY);
+    sendCommand(comm + mChatdClient.mMyHandle + (uint8_t)PRIV_RDONLY);
     requestHistoryFromServer(-initialHistoryFetchCount);
 }
 
@@ -4448,15 +4448,15 @@ void Chat::onUserLeave(Id userid)
     if (mOnlineState < kChatStateJoining)
         throw std::runtime_error("onUserLeave received while not joining and not online");
 
-    if (userid == client().myHandle())
-    {
-        mOwnPrivilege = PRIV_NOTPRESENT;
-    }
-    else if (previewMode() && userid == Id::null())
+    if (userid == Id::null()) // the handle of a public chat (being previewer) has become invalid
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
         disable(true);    // the ph is invalid -> do not keep trying to login into chatd anymore
         onPreviewersUpdate(0);
+    }
+    else if (userid == client().myHandle())
+    {
+        mOwnPrivilege = PRIV_NOTPRESENT;
     }
 
     if (isLoggedIn() || !mIsFirstJoin)
