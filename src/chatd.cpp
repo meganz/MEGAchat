@@ -4469,8 +4469,11 @@ void Chat::onUserLeave(Id userid)
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
 {
-    if (!isPublic())
+    if ((mNumPreviewers == numPrev)
+        || !isPublic())
+    {
         return;
+    }
 
     mNumPreviewers = numPrev;
     CALL_LISTENER(onPreviewersUpdate);
