@@ -81,8 +81,8 @@ void MegaChatApplication::init()
     mSid = NULL;
 
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
-    mSid = readSid();
 
+    mSid = readSid();
     if (!mSid)
     {
         login();
@@ -179,16 +179,16 @@ void MegaChatApplication::onAnonymousLogout()
     mMegaChatApi->logout();
 }
 
-
-
-
 void MegaChatApplication::onLoginClicked()
 {
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
-    int initState = mMegaChatApi->init(mSid);
-    assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
+    if (mMegaChatApi->getInitState() == MegaChatApi::INIT_NOT_DONE)
+    {
+        int initState = mMegaChatApi->init(mSid);
+        assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
+    }
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
@@ -311,7 +311,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_LOGIN:
             if (e->getErrorCode() == MegaError::API_EMFAREQUIRED)
             {
-                std::string auxcode = this->mMainWin->getAuthCode();
+                std::string auxcode = mMainWin->getAuthCode();
                 if (!auxcode.empty())
                 {
                     QString email(request->getEmail());
