@@ -85,7 +85,7 @@ protected:
 public:
     virtual bool previewMode() const { return false; }
     virtual bool publicChat() const { return false; }
-    virtual uint64_t getPublicHandle() const { return Id::null(); }
+    virtual uint64_t getPublicHandle() const { return Id::inval(); }
     virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
