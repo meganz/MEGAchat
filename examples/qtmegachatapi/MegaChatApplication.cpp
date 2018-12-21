@@ -20,32 +20,6 @@ int main(int argc, char **argv)
     return app.exec();
 }
 
-std::string MegaChatApplication::getChatLink()
-{
-    bool ok;
-    std::string link;
-    QString qLink;
-
-    while (1)
-    {
-        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
-                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
-
-        if (ok)
-        {
-            link = qLink.toStdString();
-            if (link.size() > 1)
-            {
-                return link;
-            }
-        }
-        else
-        {
-            return std::string();
-        }
-    }
-}
-
 MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(argc, argv)
 {
     mAppDir = MegaChatApi::getAppDir();
@@ -107,7 +81,54 @@ void MegaChatApplication::init()
     mSid = NULL;
 
     mMainWin = new MainWindow((QWidget *)this, mLogger, mMegaChatApi, mMegaApi);
-    login();
+    mSid = readSid();
+
+    if (!mSid)
+    {
+        login();
+    }
+    else
+    {
+        int initState = mMegaChatApi->init(mSid);
+        assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
+               || initState == MegaChatApi::INIT_NO_CACHE);
+
+        mMegaApi->fastLogin(mSid);
+    }
+}
+
+void MegaChatApplication::login()
+{
+   mLoginDialog = new LoginDialog();
+   connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
+   connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
+   mLoginDialog->show();
+}
+
+std::string MegaChatApplication::getChatLink()
+{
+    bool ok;
+    std::string link;
+    QString qLink;
+
+    while (1)
+    {
+        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
+                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
+
+        if (ok)
+        {
+            link = qLink.toStdString();
+            if (link.size() > 1)
+            {
+                return link;
+            }
+        }
+        else
+        {
+            return std::string();
+        }
+    }
 }
 
 void MegaChatApplication::onPreviewClicked()
@@ -159,36 +180,15 @@ void MegaChatApplication::onAnonymousLogout()
 }
 
 
-void MegaChatApplication::login()
-{
-    mSid = readSid();
-    int initState = mMegaChatApi->init(mSid);
-    assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
-           || initState == MegaChatApi::INIT_NO_CACHE);
 
-    if (!mSid)
-    {
-        // New login
-        mLoginDialog = new LoginDialog();
-        connect(mLoginDialog, SIGNAL(onLoginClicked()), this, SLOT(onLoginClicked()));
-        connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
-        mLoginDialog->show();
-    }
-    else
-    {
-        // Fast login
-        assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
-               || initState == MegaChatApi::INIT_NO_CACHE);
-
-        mMegaApi->fastLogin(mSid);
-    }
-}
 
 void MegaChatApplication::onLoginClicked()
 {
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
+    int initState = mMegaChatApi->init(mSid);
+    assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
