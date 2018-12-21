@@ -200,8 +200,6 @@ void MegaChatApiTest::init()
     MegaChatApi::setLogToConsole(false);
     MegaChatApi::setCatchException(false);
 
-    ::mega::MegaClient::APIURL = "https://staging.api.mega.co.nz/";
-
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
         // get credentials from environment variables
