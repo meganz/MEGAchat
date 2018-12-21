@@ -3117,49 +3117,45 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
     bool chatroomExist = false;
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
 
-    if (publicChat || (!publicChat && peers->size() != 0))
+    MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
+    for (unsigned int i = 0; i < chats->size() && !chatroomExist; ++i)
     {
-        MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
-
-        for (int i = 0; i < chats->size() && !chatroomExist; ++i)
+        const MegaChatRoom *chat = chats->get(i);
+        if (!chat->isGroup() || !chat->isActive() || (chat->isPublic() != publicChat) )
         {
-            const MegaChatRoom *chat = chats->get(i);
-            if (!chat->isGroup() || !chat->isActive() || (chat->isPublic() != publicChat))
-            {
-                continue;
-            }
+            continue;
+        }
 
-            // If case we find a public chat we need a chat without peers.
-            if (chat->isPublic() && chat->getPeerCount() == 0)
-            {
-                chatroomExist = true;
-                chatid = chat->getChatId();
-                break;
-            }
+        // If case we find a public chat we need a chat without peers.
+        if (chat->getPeerCount() == 0 && peers->size() == 0)
+        {
+            chatroomExist = true;
+            chatid = chat->getChatId();
+            break;
+        }
 
-            for (int userIndex = 0; userIndex < chat->getPeerCount(); userIndex++)
+        for (unsigned int userIndex = 0; userIndex < chat->getPeerCount() && peers->size(); userIndex++)
+        {
+            if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
             {
-                if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
+                bool a2LoggedIn = (megaChatApi[a2] &&
+                                   (megaChatApi[a2]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                                    megaChatApi[a2]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION));
+
+                MegaChatRoom *chatToCheck = a2LoggedIn ? megaChatApi[a2]->getChatRoom(chat->getChatId()) : NULL;
+                if (!a2LoggedIn || (chatToCheck))
                 {
-                    bool a2LoggedIn = (megaChatApi[a2] &&
-                                       (megaChatApi[a2]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
-                                        megaChatApi[a2]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION));
-
-                    MegaChatRoom *chatToCheck = a2LoggedIn ? megaChatApi[a2]->getChatRoom(chat->getChatId()) : NULL;
-                    if (!a2LoggedIn || (chatToCheck))
-                    {
-                        delete chatToCheck;
-                        chatroomExist = true;
-                        chatid = chat->getChatId();
-                        break;
-                    }
+                    delete chatToCheck;
+                    chatroomExist = true;
+                    chatid = chat->getChatId();
+                    break;
                 }
             }
         }
-
-        delete chats;
-        chats = NULL;
     }
+
+    delete chats;
+    chats = NULL;
 
     if (!chatroomExist && create)
     {
