@@ -4469,8 +4469,7 @@ void Chat::onUserLeave(Id userid)
 
 void Chat::onPreviewersUpdate(uint32_t numPrev)
 {
-    if ((mNumPreviewers == numPrev)
-        || !isPublic())
+    if (!isPublic())
         return;
 
     mNumPreviewers = numPrev;
@@ -4509,11 +4508,6 @@ void Chat::setOnlineState(ChatState state)
     CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
     CALL_LISTENER(onOnlineStateChange, state);
-
-    if (isPublic() && (mOnlineState == kChatStateOffline))
-    {
-        onPreviewersUpdate(0);
-    }
 
     if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
     {
