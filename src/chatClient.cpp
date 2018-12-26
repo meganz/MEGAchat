@@ -1102,6 +1102,12 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
+
+    if (anonymousMode())
+    {
+        return doConnect(pres, isInBackground);
+    }
+
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
@@ -1127,11 +1133,38 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
 
     setConnState(kConnecting);
+
+    connectToChatd(isInBackground);
+
+    // start heartbeats timer
+    assert(!mHeartbeatTimer);
+    auto wptr = weakHandle();
+    mHeartbeatTimer = karere::setInterval([this, wptr]()
+    {
+        if (wptr.deleted() || !mHeartbeatTimer)
+        {
+            return;
+        }
+
+        heartbeat();
+    }, kHeartbeatTimeout, appCtx);
+
+    // notify user-attr cache
+    assert(mUserAttrCache);
+    mUserAttrCache->onLogin();
+
+    if (anonymousMode())
+    {
+        // avoid to connect to presenced (no user, no peerstatus)
+        // avoid to retrieve own user-attributes (no user, no attributes)
+        // avoid to initialize WebRTC (no user, no calls)
+        setConnState(kConnected);
+        return ::promise::_Void();
+    }
+
     mOwnPresence = pres;
     assert(mSessionReadyPromise.succeeded());
-    assert(mUserAttrCache);
 
-    mUserAttrCache->onLogin();
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
     {
@@ -1143,14 +1176,11 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     });
 
 #ifndef KARERE_DISABLE_WEBRTC
-// Create the rtc module
+    // Create the rtc module
     rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
-    connectToChatd(isInBackground);
-
-    auto wptr = weakHandle();
     auto pms = connectToPresenced(mOwnPresence)
     .then([this, wptr]()
     {
@@ -1167,16 +1197,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         return err;
     });
 
-    assert(!mHeartbeatTimer);
-    mHeartbeatTimer = karere::setInterval([this, wptr]()
-    {
-        if (wptr.deleted() || !mHeartbeatTimer)
-        {
-            return;
-        }
-
-        heartbeat();
-    }, kHeartbeatTimeout, appCtx);
     return pms;
 }
 

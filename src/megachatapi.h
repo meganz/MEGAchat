@@ -1818,6 +1818,8 @@ public:
  *  - The instance of MegaChatApi must be deleted before the instance of MegaApi passed to the constructor.
  *  - In case we have init session in anonymous mode the app should call MegaChatApi::logout manually.
  *
+ * In order to initialize in anonymous mode, the app will skip the steps 1, 4 and 5, but needs to perform steps 2, 3 and
+ * 6 accordingly (but replacing the call to MegaChatApi::init by MegaChatApi::initAnonymous).
  *
  * Some functions in this class return a pointer and give you the ownership. In all of them, memory allocations
  * are made using new (for single objects) and new[] (for arrays) so you should use delete and delete[] to free them.
@@ -1977,6 +1979,9 @@ public:
      * case of initialization error, it will return MegaChatApi::INIT_ERROR.
      *
      * This function should be called to preview chat-links without a valid session (anonymous mode).
+     *
+     * @note The app will not call MegaApi::login nor MegaApi::fetchnodes, but still need to
+     * call MegaChatApi::connect.
      *
      * The anonymous mode is going to initialize the chat engine but is not going to login in MEGA,
      * so the way to logout in anoymous mode is call MegaChatApi::logout manually.

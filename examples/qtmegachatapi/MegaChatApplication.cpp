@@ -162,6 +162,7 @@ bool MegaChatApplication::initAnonymous(std::string chatlink)
     mSid = NULL;
 
     mMainWin->setWindowTitle("Anonymous mode");
+    mMegaChatApi->connect();
     mMegaChatApi->openChatPreview(chatlink.c_str());
     connect(mMainWin, SIGNAL(onAnonymousLogout()), this, SLOT(onAnonymousLogout()));
     mMainWin->show();

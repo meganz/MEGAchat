@@ -393,7 +393,6 @@ void Client::updatePeers(const vector<Id> &peers, uint8_t command)
         return;
     }
 
-    assert(peers.size());
     const char *buf = mApi->sdk.getSequenceNumber();
     Id scsn(buf, strlen(buf));
     delete [] buf;
@@ -973,6 +972,9 @@ void Client::setConnState(ConnState newState)
 }
 void Client::addPeer(karere::Id peer)
 {
+    if (mKarereClient->anonymousMode())
+        return;
+
     int result = mCurrentPeers.insert(peer);
     if (result == 1) //refcount = 1, wasnt there before
     {
@@ -983,6 +985,9 @@ void Client::addPeer(karere::Id peer)
 }
 void Client::removePeer(karere::Id peer, bool force)
 {
+    if (mKarereClient->anonymousMode())
+        return;
+
     auto it = mCurrentPeers.find(peer);
     if (it == mCurrentPeers.end())
     {
