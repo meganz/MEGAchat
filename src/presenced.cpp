@@ -5,7 +5,6 @@ using namespace std;
 using namespace promise;
 using namespace karere;
 
-#define ID_CSTR(id) id.toString().c_str()
 #define PRESENCED_LOG_LISTENER_CALLS
 
 #ifdef PRESENCED_LOG_LISTENER_CALLS
