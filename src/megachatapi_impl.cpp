@@ -1326,8 +1326,8 @@ void MegaChatApiImpl::sendPendingRequests()
                     // for each chatroom, load all unread messages)
                     for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                     {
-                        // remove this block when apps start showing inactive chats
-                        if (!it->second->isActive())
+                        // don't want to generate notifications for archived chats
+                        if (it->second->isArchived())
                             continue;
 
                         MegaHandleList *msgids = MegaHandleList::createInstance();

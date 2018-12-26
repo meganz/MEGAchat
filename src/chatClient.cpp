@@ -1511,24 +1511,27 @@ void Client::terminate(bool deleteDb)
             it++;
         }
     }
-
-    setConnState(kDisconnected);
-
-    // stop syncing own-name and close user-attributes cache
-    mUserAttrCache->removeCb(mOwnNameAttrHandle);
-    mUserAttrCache->onLogOut();
-    mUserAttrCache.reset();
-
-    // stop heartbeats
-    if (mHeartbeatTimer)
+  
+    if (mConnState != kDisconnected)
     {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
+        setConnState(kDisconnected);
 
-    // disconnect from chatd shards and presenced
-    mChatdClient->disconnect();
-    mPresencedClient.disconnect();
+        // stop syncing own-name and close user-attributes cache
+        mUserAttrCache->removeCb(mOwnNameAttrHandle);
+        mUserAttrCache->onLogOut();
+        mUserAttrCache.reset();
+
+        // stop heartbeats
+        if (mHeartbeatTimer)
+        {
+            karere::cancelInterval(mHeartbeatTimer, appCtx);
+            mHeartbeatTimer = 0;
+        }
+
+        // disconnect from chatd shards and presenced
+        mChatdClient->disconnect();
+        mPresencedClient.disconnect();
+    }
 
     // close or delete MEGAchat's DB file
     try
