@@ -633,13 +633,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR &&
-                    uh != MEGACHAT_INVALID_HANDLE)
-            {
-                    errorCode = MegaChatError::ERROR_ACCESS;
-                    break;
-            }
-
             if ( uh == MEGACHAT_INVALID_HANDLE || uh == mClient->myHandle())
             {
                 ((GroupChatRoom *)chatroom)->leave()
@@ -658,6 +651,12 @@ void MegaChatApiImpl::sendPendingRequests()
             }
             else
             {
+                if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
+                {
+                        errorCode = MegaChatError::ERROR_ACCESS;
+                        break;
+                }
+
                 ((GroupChatRoom *)chatroom)->excludeMember(uh)
                 .then([request, this]()
                 {

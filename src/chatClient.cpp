@@ -2292,13 +2292,19 @@ bool GroupChatRoom::removeMember(uint64_t userid)
 
 promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
 {
-    assert(userid != parent.mKarereClient.myHandle());
     auto wptr = getDelTracker();
     return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
     .then([this, wptr, userid, priv]()
     {
         wptr.throwIfDeleted();
-        parent.mKarereClient.db.query("update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
+        if (userid == parent.mKarereClient.myHandle())
+        {
+            parent.mKarereClient.db.query("update chats set own_priv=? where chatid=?", priv, mChatid);
+        }
+        else
+        {
+            parent.mKarereClient.db.query("update chat_peers set priv=? where chatid=? and userid=?", priv, mChatid, userid);
+        }
     });
 }
 

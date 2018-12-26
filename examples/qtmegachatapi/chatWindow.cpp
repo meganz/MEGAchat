@@ -710,7 +710,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             }
 
             privilege = mChatRoom->getOwnPrivilege();
-            userhandle = mMegaApi->getMyUserHandle();
+            userhandle = QVariant((qulonglong)mMegaChatApi->getMyUserHandle());
             title.append(" Me [")
                     .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getOnlineStatus())))
                     .append("]");
@@ -952,7 +952,7 @@ void ChatWindow::onMemberSetPriv()
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhandle = uHandle.toLongLong();
       megachat::MegaChatHandle chatId = mChatRoom->getChatId();
-      this->mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);}
+      mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);}
 
 void ChatWindow::onMsgListRequestHistory()
 {
