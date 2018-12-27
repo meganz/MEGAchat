@@ -959,7 +959,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     fireOnChatRequestFinish(request, megaChatError);
                     return;
                 }
-                else if (!room->isActive())
+                else if (room->isArchived()) // don't want to generate notifications for archived chats
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
                     fireOnChatRequestFinish(request, megaChatError);

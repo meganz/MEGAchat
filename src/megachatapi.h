@@ -3487,6 +3487,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not does not exist.
+     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be generated).
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
