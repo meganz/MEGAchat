@@ -2038,24 +2038,23 @@ void GroupChatRoom::setRemoved()
     notifyExcludedFromChat();
 }
 
-void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
+void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
 {
     if (!rooms)
-        return;
-    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn;
-    if (pscsn)
     {
-        scsn = pscsn;
-        delete[] pscsn;
+        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", api.sdk.getSequenceNumber());
+        return;
     }
+
+    assert(mContactsLoaded);
+
+    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    assert(mContactsLoaded);
+
     auto wptr = weakHandle();
-    marshallCall([wptr, this, copy, scsn]()
+    marshallCall([wptr, this, copy]()
     {
         if (wptr.deleted())
         {
@@ -2066,29 +2065,20 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 {
-    SetOfIds added;
+    SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
     auto count = rooms.size();
     for (int i = 0; i < count; i++)
     {
-        auto apiRoom = rooms.get(i);
-        auto chatid = apiRoom->getHandle();
+        const ::mega::MegaTextChat *apiRoom = rooms.get(i);
+        ::mega::MegaHandle chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
 
-        auto it = find(chatid);
-        auto localRoom = (it != end()) ? it->second : nullptr;
-        assert(localRoom);
-        if (localRoom)
-        {
-            localRoom->syncWithApi(*apiRoom);
-        }
-        else
-        {
-            KR_LOG_ERROR("Chatroom %s notified by API is not found", Id(chatid).toString().c_str());
-        }
+        ChatRoom *room = at(chatid);
+        room->syncWithApi(*apiRoom);
     }
 }
 
