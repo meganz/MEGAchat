@@ -947,12 +947,14 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_PUSH_RECEIVED:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            int type = request->getType();
+            int type = request->getParamType();
             if (type == 1 && chatid != MEGACHAT_INVALID_HANDLE) // if iOS specifies a chatid, check it's valid
             {
                 ChatRoom *room = findChatRoom(chatid);
                 if (!room)
                 {
+                    megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
+
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                     fireOnChatRequestFinish(request, megaChatError);
                     return;

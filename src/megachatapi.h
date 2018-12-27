@@ -3485,6 +3485,9 @@ public:
      * - MegaChatRequest::getChatHandle - Return the chatid to check for updates
      * - MegaChatRequest::getParamType - Return 1
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not does not exist.
+     *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
      * @param listener MegaChatRequestListener to track this request
