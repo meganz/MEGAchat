@@ -45,6 +45,7 @@ class ChatItemWidget : public QWidget
     protected slots:
         void leaveGroupChat();
         void setTitle();
+        void onPrintChatInfo();
         void truncateChat();
         void queryChatLink();
         void createChatLink();

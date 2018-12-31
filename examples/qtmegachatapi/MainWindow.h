@@ -201,6 +201,7 @@ class MainWindow :
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
+        void onRetryPendingConnections();
 
     signals:
         void esidLogout();

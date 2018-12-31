@@ -93,6 +93,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     const char *lastMessageId_64 = "----------";
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
+    std::string chatId_Bin = std::to_string(mChatId);
 
     megachat::MegaChatHandle lastMessageSender = item->getLastMessageSender();
     if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
@@ -241,8 +242,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     {
         const char *peerEmail = chatRoom->getPeerEmail(0);
         const char *peerHandle_64 = mMainWin->mMegaApi->userHandleToBase64(item->getPeerHandle());
-        text.append(tr("1on1 Chat room:"))
+        text.append(tr("1on1 Chat room handle B64:"))
             .append(QString::fromStdString(chatId_64))
+            .append(tr("\n1on1 Chat room handle Bin:"))
+            .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
@@ -256,8 +259,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     else
     {
         int ownPrivilege = chatRoom->getOwnPrivilege();
-        text.append(tr("Group chat room: "))
+        text.append(tr("Group chat room handle B64: "))
             .append(QString::fromStdString(chatId_64)
+            .append(tr("\nGroup chat room handle Bin: "))
+            .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nOwn privilege: "))
             .append(QString(chatRoom->privToString(ownPrivilege)))
             .append(tr("\nOther participants:")));
@@ -407,6 +412,8 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+    auto actPrintChat = menu.addAction(tr("Print chat info"));
+    connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
     auto actLeave = menu.addAction(tr("Leave group chat"));
     connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
@@ -446,6 +453,14 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     delete chatRoom;
     menu.exec(event->globalPos());
     menu.deleteLater();
+}
+
+void ChatItemWidget::onPrintChatInfo()
+{
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(this->toolTip());
+    msg.exec();
 }
 
 void ChatItemWidget::truncateChat()

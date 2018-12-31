@@ -423,9 +423,14 @@ void MainWindow::on_bSettings_clicked()
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
     menu.addSeparator();
+    auto actRetryPendingConn = menu.addAction(tr("Retry pending connections"));
+    connect(actRetryPendingConn, SIGNAL(triggered()), this, SLOT(onRetryPendingConnections()));
+
+    menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     auto actlastGreenVisible = menu.addAction("Enable/Disable Last-Green");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
+
     if (presenceConfig)
     {
         actlastGreenVisible->setCheckable(true);
@@ -441,6 +446,11 @@ void MainWindow::on_bSettings_clicked()
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
     menu.exec(mapToGlobal(pos));
+}
+
+void MainWindow::onRetryPendingConnections()
+{
+    mMegaChatApi->retryPendingConnections();
 }
 
 void MainWindow::openChatPreview(bool create)
