@@ -18,7 +18,6 @@ class ChatItemWidget : public QWidget
         void unshowAsHidden();
         void showAsHidden();
         void contextMenuEvent(QContextMenuEvent *event);
-        void setChatHandle(const megachat::MegaChatHandle &mChatId);
         megachat::MegaChatHandle getChatId() const;
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);

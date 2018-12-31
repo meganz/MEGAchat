@@ -403,11 +403,6 @@ megachat::MegaChatHandle ChatItemWidget::getChatId() const
     return mChatId;
 }
 
-void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
-{
-    mChatId = chatId;
-}
-
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
