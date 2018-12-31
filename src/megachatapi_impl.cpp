@@ -819,7 +819,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            mClient->openChatPreview(ph, unifiedKey)
+            mClient->openChatPreview(ph)
             .then([request, this, unifiedKey](ReqResult result)
             {
                 assert(result);

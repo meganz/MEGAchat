@@ -411,12 +411,11 @@ promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
 }
 
 
-promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle, const std::string &key)
+promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 {
     auto wptr = weakHandle();
-    std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle)
-    .then([this, unifiedKey, wptr](ReqResult result) -> promise::Promise<ReqResult>
+    .then([this, wptr](ReqResult result) -> promise::Promise<ReqResult>
     {
         wptr.throwIfDeleted();
         return result;

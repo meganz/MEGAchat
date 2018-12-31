@@ -781,7 +781,7 @@ public:
      *
      * @return The chatid, the connection url, the encrypted title, and the number of participants.
      */
-    promise::Promise<ReqResult> openChatPreview(uint64_t publicHandle, const std::string &key);
+    promise::Promise<ReqResult> openChatPreview(uint64_t publicHandle);
 
     /**
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
