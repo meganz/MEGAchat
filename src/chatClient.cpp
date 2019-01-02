@@ -2454,16 +2454,17 @@ void ChatRoomList::loadFromDb()
             }
 
             // Get title and check if it's encrypted or not
-            Buffer titleBuf;
             std::string auxTitle;
-            int isTitleEncrypted = true;
+            int isTitleEncrypted = strongvelope::kDecrypted;
+
+            Buffer titleBuf;
             stmt.blobCol(6, titleBuf);
             if (!titleBuf.empty())
             {
                 const char *posTitle = titleBuf.buf();
                 isTitleEncrypted = (uint8_t)*posTitle;  posTitle++;
                 size_t len = titleBuf.size() - 1;
-                auxTitle.append(posTitle, len);
+                auxTitle.assign(posTitle, len);
             }
 
             room = new GroupChatRoom(*this, chatid, stmt.intCol(2), (chatd::Priv)stmt.intCol(3), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted);
