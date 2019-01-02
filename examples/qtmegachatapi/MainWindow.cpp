@@ -192,7 +192,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             if (callGui->getPeerid() == peerid && callGui->getClientid() == clientid)
             {
                 MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
-                if(session->hasVideo())
+                if (session->hasVideo())
                 {
                     callGui->ui->videoRenderer->disableStaticImage();
                 }
