@@ -224,9 +224,9 @@ enum
 
 enum
 {
-    kKeyDecrypted = 0,
-    kKeyEncrypted = 1,
-    kKeyUndecryptable = 2
+    kDecrypted = 0,
+    kEncrypted = 1,
+    kUndecryptable = 2
 };
 
 /** @brief Encrypts and holds an encrypted message and its attributes - key and

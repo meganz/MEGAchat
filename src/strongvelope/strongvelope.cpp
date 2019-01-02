@@ -548,12 +548,12 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 
     if (unifiedKey && !unifiedKey->empty()) // also for private mode if chat was public before
     {
-        if (isUnifiedKeyEncrypted == kKeyDecrypted) // from chat-link, creation's API request or cache
+        if (isUnifiedKeyEncrypted == kDecrypted) // from chat-link, creation's API request or cache
         {
             mUnifiedKey.reset(new UnifiedKey(unifiedKey->data(), unifiedKey->size()));
             mUnifiedKeyDecrypted.resolve(mUnifiedKey);
         }
-        else if (isUnifiedKeyEncrypted == kKeyEncrypted)    // from API or cache (not decrypted yet)
+        else if (isUnifiedKeyEncrypted == kEncrypted)    // from API or cache (not decrypted yet)
         {
             assert(unifiedKey->size() == strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE);
 
@@ -577,7 +577,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 
                 // Save Unified key decrypted
                 Buffer auxBuf;
-                auxBuf.write(0, (uint8_t)kKeyDecrypted);  // prefix to indicate it's decrypted
+                auxBuf.write(0, (uint8_t)kDecrypted);  // prefix to indicate it's decrypted
                 auxBuf.append(*unifiedKey);
                 mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
             })
@@ -588,7 +588,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
 
                 // Update Unified key
                 Buffer auxBuf;
-                auxBuf.write(0, (uint8_t)kKeyUndecryptable);  // prefix to indicate it's undecryptable
+                auxBuf.write(0, (uint8_t)kUndecryptable);  // prefix to indicate it's undecryptable
                 auxBuf.append(*bufunifiedkey);
                 mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
                 return err;
@@ -596,7 +596,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
         }
         else
         {
-            assert(isUnifiedKeyEncrypted == kKeyUndecryptable);
+            assert(isUnifiedKeyEncrypted == kUndecryptable);
             STRONGVELOPE_LOG_WARNING("Undecryptable unified-key");
             mUnifiedKeyDecrypted.reject("Undecryptable unified-key");
         }

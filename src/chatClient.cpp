@@ -1960,7 +1960,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     const char *unifiedKeyPtr = aChat.getUnifiedKey();
     assert(!(isPublicChat && !unifiedKeyPtr));
     std::shared_ptr<std::string> unifiedKey;
-    int isUnifiedKeyEncrypted = strongvelope::kKeyDecrypted;
+    int isUnifiedKeyEncrypted = strongvelope::kDecrypted;
     if (unifiedKeyPtr)
     {
         std::string unifiedKeyB64(unifiedKeyPtr);
@@ -1969,12 +1969,12 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         if (len != strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE)
         {
             KR_LOG_ERROR("Invalid size for unified key");
-            isUnifiedKeyEncrypted = strongvelope::kKeyUndecryptable;
+            isUnifiedKeyEncrypted = strongvelope::kUndecryptable;
             parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99002, "invalid unified-key detected");
         }
         else
         {
-            isUnifiedKeyEncrypted = strongvelope::kKeyEncrypted;
+            isUnifiedKeyEncrypted = strongvelope::kEncrypted;
         }
 
         // Save (still) encrypted unified key
@@ -2044,7 +2044,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     auto db = parent.mKarereClient.db;
 
     Buffer unifiedKeyBuf;
-    unifiedKeyBuf.write(0, (uint8_t)strongvelope::kKeyDecrypted);  // prefix to indicate it's decrypted
+    unifiedKeyBuf.write(0, (uint8_t)strongvelope::kDecrypted);  // prefix to indicate it's decrypted
     unifiedKeyBuf.append(unifiedKey->data(), unifiedKey->size());
 
     db.query(
@@ -2414,7 +2414,7 @@ void ChatRoomList::loadFromDb()
         else
         {
             std::shared_ptr<std::string> unifiedKey;
-            int isUnifiedKeyEncrypted = strongvelope::kKeyDecrypted;
+            int isUnifiedKeyEncrypted = strongvelope::kDecrypted;
 
             Buffer unifiedKeyBuf;
             stmt.blobCol(9, unifiedKeyBuf);
@@ -2423,8 +2423,8 @@ void ChatRoomList::loadFromDb()
                 const char *pos = unifiedKeyBuf.buf();
                 isUnifiedKeyEncrypted = (uint8_t)*pos;  pos++;
                 size_t len = unifiedKeyBuf.size() - 1;
-                assert( (isUnifiedKeyEncrypted == strongvelope::kKeyDecrypted && len == 16)
-                        || (isUnifiedKeyEncrypted == strongvelope::kKeyEncrypted && len == 24)  // encrypted version includes invitor's userhandle (8 bytes)
+                assert( (isUnifiedKeyEncrypted == strongvelope::kDecrypted && len == 16)
+                        || (isUnifiedKeyEncrypted == strongvelope::kEncrypted && len == 24)  // encrypted version includes invitor's userhandle (8 bytes)
                         || (isUnifiedKeyEncrypted));
                 unifiedKey.reset(new std::string(pos, len));
             }
