@@ -341,16 +341,6 @@ void Chat::connect()
                 CHATID_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
             });
         });
-
-    }
-    else if (mConnection.state() == Connection::kStateDisconnected)
-    {
-        mConnection.reconnect()
-        .fail([this](const ::promise::Error& err)
-        {
-            CHATID_LOG_ERROR("Chat::connect(): connection state: disconnected. Error connecting to server: %s", err.what());
-        });
-
     }
     else if (mConnection.isOnline())
     {
@@ -396,6 +386,12 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
 void Connection::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
+    if (mChatdClient.mKarereClient->isTerminated())
+    {
+        CHATDS_LOG_WARNING("Socket close but karere client was terminated.");
+        return;
+    }
+
     CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     auto oldState = mState;
     setState(kStateDisconnected);
@@ -523,21 +519,24 @@ void Connection::setState(State state)
             mConnectTimer = 0;
         }
 
-        // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
-        auto wptr = weakHandle();
-        mConnectTimer = setTimeout([this, wptr]()
+        if (!mChatdClient.mKarereClient->isTerminated())
         {
-            if (wptr.deleted())
-                return;
+            // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+            auto wptr = weakHandle();
+            mConnectTimer = setTimeout([this, wptr]()
+            {
+                if (wptr.deleted())
+                    return;
 
-            mConnectTimer = 0;
+                mConnectTimer = 0;
 
-            CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-            mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
+                CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
 
-            retryPendingConnection(true);
+                retryPendingConnection(true);
 
-        }, kConnectTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+            }, kConnectTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+        }
 
         // notify chatrooms that connection is down
         for (auto& chatid: mChatIds)
@@ -600,6 +599,13 @@ uint32_t Connection::clientId() const
 
 Promise<void> Connection::reconnect()
 {
+    if (mChatdClient.mKarereClient->isTerminated())
+    {
+        CHATDS_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        assert(false);
+        return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
+    }
+
     mChatdClient.mKarereClient->setCommitMode(false);
     assert(!mHeartbeatEnabled);
     assert(!mRetryCtrl);
@@ -651,6 +657,13 @@ Promise<void> Connection::reconnect()
                     CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client was deleted.");
                     return;
                 }
+
+                if (mChatdClient.mKarereClient->isTerminated())
+                {
+                    CHATDS_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+                    return;
+                }
+
                 if (!mRetryCtrl)
                 {
                     CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
@@ -679,16 +692,13 @@ Promise<void> Connection::reconnect()
                         return;
                     }
 
-                    string errStr;
                     if (statusDNS < 0)
                     {
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
-                        errStr = "Async DNS error in chatd for shard "+std::to_string(mShardNo);
                     }
                     else
                     {
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
-                        errStr = "Async DNS in chatd result on empty set of IPs for shard "+std::to_string(mShardNo);
                     }
 
                     assert(!isOnline());
@@ -2261,7 +2271,7 @@ void Chat::requestRichLink(Message &message)
                     return;
                 }
 
-                updateText.insert(updateText.begin(), 0x0);
+                updateText.insert(updateText.begin(), Message::ContainsMetaSubType::kRichLink);
                 updateText.insert(updateText.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
                 updateText.insert(updateText.begin(), 0x0);
                 std::string::size_type size = updateText.size();
@@ -4829,6 +4839,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
 
         if (msgsLoadedFromRam)
         {
+            CALL_LISTENER_FH(onLoaded, NULL, 0); // All messages requested has been returned or no more messages from this source
             return HistSource::kHistSourceRam;
         }
     }
@@ -4847,6 +4858,8 @@ HistSource FilteredHistory::getHistory(uint32_t count)
             {
                 addMessage(*messages[i], false, true);   // takes ownership of Message*
             }
+
+            CALL_LISTENER_FH(onLoaded, NULL, 0);  // All messages requested has been returned or no more messages from this source
             return HistSource::kHistSourceDb;
         }
     }

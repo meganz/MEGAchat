@@ -6,8 +6,6 @@
 #include "streamPlayer.h"
 #include "rtcStats.h"
 
-#include <regex>
-
 #define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_WARNING(fmtString,...) RTCM_LOG_WARNING("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
@@ -324,8 +322,10 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     // PayLoad: <callid> <state> <AV flags> [if (state == kCallDataEnd) <termCode>]
     karere::Id callid = msg.read<karere::Id>(0);
     uint8_t state = msg.read<uint8_t>(sizeof(karere::Id));
-    AvFlags avFlagsRemote = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
-    RTCM_LOG_DEBUG("Handle CALLDATA: callid -> %s - state -> %d", callid.toString().c_str(), state);
+    uint8_t flag = msg.read<uint8_t>(sizeof(karere::Id) + sizeof(uint8_t));
+    AvFlags avFlagsRemote = flag & ~Call::kFlagRinging;
+    bool ringing = flag & Call::kFlagRinging;
+    RTCM_LOG_DEBUG("Handle CALLDATA: callid -> %s - state -> %d  - ringing -> %d", callid.toString().c_str(), state, ringing);
 
     if (userid == chat.client().mKarereClient->myHandle()
         && clientid == chat.connection().clientId())
@@ -334,16 +334,42 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    if (state == Call::CallDataState::kCallDataEnd)
+    //Compatibility
+    if (state == Call::CallDataState::kCallDataRinging || state == Call::CallDataState::kCallDataSessionKeepRinging)
+    {
+        ringing = true;
+    }
+    else if (state == Call::CallDataState::kCallDataEnd)
     {
         // Peer will be removed from call participants with OP_ENDCALL
         return;
     }
 
-    updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-    if (state == Call::CallDataState::kCallDataRinging ||
-            state == Call::CallDataState::kCallDataSessionKeepRinging)
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
     {
+        if (itCall->second->id() != callid)
+        {
+            RTCM_LOG_WARNING("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
+            return;
+        }
+
+        updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
+
+        if (itCall->second->state() == Call::kStateRingIn && itCall->second->isCaller(userid, clientid) && !ringing)
+        {
+            if (!chat.isGroup())
+            {
+                RTCM_LOG_WARNING("Received not-terminating CALLDATA with ringing flag to fasle for 1on1 in state kStateRingIn. "
+                                 "The call should have already been taken out of this state by a RTMSG");
+            }
+
+            itCall->second->destroy(TermCode::kAnswerTimeout, false);
+        }
+    }
+    else if (ringing)
+    {
+        updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
         auto itCallHandler = mCallHandlers.find(chatid);
         // itCallHandler is created at updatePeerAvState
         assert(itCallHandler != mCallHandlers.end());
@@ -351,30 +377,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         {
             handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
         }
-
-        if (state == Call::CallDataState::kCallDataSessionKeepRinging)
-        {
-            if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
-            {
-                itCallHandler->second->setInitialTimeStamp(time(NULL));
-            }
-        }
     }
-    else if (state == Call::CallDataState::kCallDataNotRinging)
+    else
     {
-        auto itCall = mCalls.find(chatid);
-        if (itCall == mCalls.end())
-        {
-            RTCM_LOG_DEBUG("Ingoring kCallDataNotRinging CALLDATA for unknown call");
-            return;
-        }
-
-        if (chat.isGroup() && itCall->second->state() == Call::kStateRingIn)
-        {
-            itCall->second->destroy(TermCode::kAnswerTimeout, false);
-        }
+        updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
     }
-    else if (state == Call::CallDataState::kCallDataSession)
+
+    if (state == Call::CallDataState::kCallDataSession || state == Call::CallDataState::kCallDataSessionKeepRinging)
     {
         auto itCallHandler = mCallHandlers.find(chatid);
         if (itCallHandler != mCallHandlers.end() && !itCallHandler->second->getInitialTimeStamp())
@@ -651,6 +660,18 @@ bool RtcModule::isCallInProgress(Id chatid) const
     return callInProgress;
 }
 
+bool RtcModule::isCallActive(Id chatid) const
+{
+    if (chatid.isValid())
+    {
+        return (mCallHandlers.find(chatid) != mCallHandlers.end());
+    }
+    else
+    {
+        return !mCallHandlers.empty();
+    }
+}
+
 void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clientid, AvFlags av)
 {
     ICallHandler *callHandler = NULL;
@@ -671,6 +692,13 @@ void RtcModule::updatePeerAvState(Id chatid, Id callid, Id userid, uint32_t clie
     }
 
     callHandler->addParticipant(userid, clientid, av);
+
+
+    auto itCall = mCalls.find(chatid);
+    if (itCall != mCalls.end())
+    {
+        itCall->second->updateAvFlags(userid, clientid, av);
+    }
 }
 
 void RtcModule::removeCall(Id chatid, bool keepCallHandler)
@@ -763,8 +791,37 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
     if (callIt != mCalls.end())
     {
         RTCM_LOG_WARNING("We have been removed from chatroom: %s, and we are in a call. Finishing the call", chatid.toString().c_str());
-        callIt->second->hangup(TermCode::kErrKickedFromChat);
+        auto wptr = weakHandle();
+        callIt->second->destroy(TermCode::kErrKickedFromChat, true)
+        .then([this, chatid, wptr]()
+        {
+            if (wptr.deleted())
+                return;
+
+            auto callHandlerIt = mCallHandlers.find(chatid);
+            if (callHandlerIt != mCallHandlers.end())
+            {
+                RTCM_LOG_WARNING("We have been removed from chatroom %s -> finishing existing call %s",
+                                 chatid.toString().c_str(), callHandlerIt->second->getCallId().toString().c_str());
+                callHandlerIt->second->removeAllParticipants();
+            }
+
+            removeCallWithoutParticipants(chatid);
+        });
     }
+    else
+    {
+        auto callHandlerIt = mCallHandlers.find(chatid);
+        if (callHandlerIt != mCallHandlers.end())
+        {
+            RTCM_LOG_WARNING("We have been removed from chatroom %s -> finishing existing call %s",
+                             chatid.toString().c_str(), callHandlerIt->second->getCallId().toString().c_str());
+            callHandlerIt->second->removeAllParticipants();
+        }
+
+        removeCallWithoutParticipants(chatid);
+    }
+
 }
 
 uint32_t RtcModule::clientidFromPeer(karere::Id chatid, Id userid)
@@ -925,7 +982,7 @@ void Call::handleMessage(RtMessage& packet)
     switch (packet.type)
     {
         case RTCMD_CALL_TERMINATE:
-            msgCallTerminate(packet);
+            // This message can be received from old clients. It can be ignored
             return;
         case RTCMD_SESSION:
             msgSession(packet);
@@ -1007,52 +1064,6 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     mLocalPlayer->enableVideo(av.video());
 }
 
-void Call::msgCallTerminate(RtMessage& packet)
-{
-    if (packet.payload.dataSize() < 1)
-    {
-        SUB_LOG_ERROR("Ignoring CALL_TERMINATE without reason code");
-        return;
-    }
-    auto code = packet.payload.read<uint8_t>(0);
-    bool isCallParticipant = false;
-    if (mSessions.size() > 0)
-    {
-        for (auto sessionIt = mSessions.begin(); sessionIt != mSessions.end();)
-        {
-            auto& session = sessionIt->second;
-            sessionIt++;
-
-            if (session->mPeer == packet.userid && session->mPeerClient == packet.clientid)
-            {
-                isCallParticipant = true;
-                break;
-            }
-        }
-    }
-    else if (mState <= kStateJoining && mCallerUser == packet.userid && mCallerClient == packet.clientid)
-    {
-        isCallParticipant = true;
-    }
-    else
-    {
-        EndpointId endpointId(packet.userid, packet.clientid);
-        auto itSessionRety = mSessRetries.find(endpointId);
-        if (itSessionRety != mSessRetries.end())
-        {
-            // no session to this peer at the moment, but we are in the process of reconnecting to them
-            isCallParticipant = true;
-        }
-    }
-
-    if (!isCallParticipant)
-    {
-        SUB_LOG_WARNING("Received CALL_TERMINATE from a client that is not in the call, ignoring");
-        return;
-    }
-
-    destroy(static_cast<TermCode>(code | TermCode::kPeer), false);
-}
 void Call::msgCallReqDecline(RtMessage& packet)
 {
     // callid.8 termcode.1
@@ -1306,10 +1317,14 @@ void Call::msgJoin(RtMessage& packet)
             monitorCallSetupTimeout();
 
             // Send OP_CALLDATA with call inProgress
-            if (!chat().isGroup() && !sendCallData(CallDataState::kCallDataNotRinging))
+            if (!chat().isGroup())
             {
-                SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) because cannot send CALLDATA (offline)", packet.userid.toString().c_str(), packet.clientid);
-                return;
+                mIsRingingOut = false;
+                if (!sendCallData(CallDataState::kCallDataNotRinging))
+                {
+                    SUB_LOG_WARNING("Ignoring JOIN from User: %s (client: 0x%x) because cannot send CALLDATA (offline)", packet.userid.toString().c_str(), packet.clientid);
+                    return;
+                }
             }
         }
 
@@ -1439,11 +1454,6 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
             pms = ::promise::_Void();
             break;
         default:
-            if (!mIsGroup)
-            {
-                cmdBroadcast(RTCMD_CALL_TERMINATE, code);
-            }
-
             // if we initiate the call termination, we must initiate the
             // session termination handshake
             pms = gracefullyTerminateAllSessions(code);
@@ -1536,7 +1546,7 @@ bool Call::broadcastCallReq()
             }
             else
             {
-                destroy(TermCode::kAnswerTimeout, true);
+                hangup(TermCode::kAnswerTimeout);
             }
         }
         else if (chat().isGroup() && mState == Call::kStateInProgress)
@@ -1676,14 +1686,14 @@ bool Call::startOrJoin(AvFlags av)
     std::string errors;
 
     manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
+
+    getLocalStream(av, errors);
     if (mIsJoiner)
     {
-        getLocalStream(av, errors);
         return join();
     }
     else
     {
-        getLocalStream(av, errors);
         return broadcastCallReq();
     }
 }
@@ -1772,7 +1782,13 @@ bool Call::sendCallData(CallDataState state)
     command.write<uint16_t>(21, payLoadLen);
     command.write<uint64_t>(23, mId);
     command.write<uint8_t>(31, state);
-    command.write<uint8_t>(32, sentAv().value());
+    uint8_t flags = sentAv().value();
+    if (mIsRingingOut)
+    {
+        flags = flags | kFlagRinging;
+    }
+
+    command.write<uint8_t>(32, flags);
     if (state == CallDataState::kCallDataEnd)
     {
         command.write<uint8_t>(33, convertTermCodeToCallDataCode());
@@ -2034,7 +2050,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
 
     if (mState == kStateRingIn && userid == mCallerUser && clientid == mCallerClient) // caller went offline
     {
-        destroy(TermCode::kUserHangup, false);
+        destroy(TermCode::kCallerGone, false);
         return;
     }
 
@@ -2071,14 +2087,7 @@ void Call::notifySessionConnected(Session& /*sess*/)
     if (mCallStartedSignalled)
         return;
 
-    if (mIsRingingOut && mChat.isGroup())
-    {
-        sendCallData(CallDataState::kCallDataSessionKeepRinging);
-    }
-    else
-    {
-        sendCallData(CallDataState::kCallDataSession);
-    }
+    sendCallData(CallDataState::kCallDataSession);
 
     if (mCallSetupTimer)
     {
@@ -2156,6 +2165,24 @@ uint32_t Call::clientidFromSession(Id userid)
     }
 
     return 0;
+}
+
+void Call::updateAvFlags(Id userid, uint32_t clientid, AvFlags flags)
+{
+    for (auto it = mSessions.begin(); it != mSessions.end(); it++)
+    {
+        if (it->second->peer() == userid &&
+                it->second->peerClient() == clientid &&
+                it->second->receivedAv() != flags)
+        {
+            it->second->updateAvFlags(flags);
+        }
+    }
+}
+
+bool Call::isCaller(Id userid, uint32_t clientid)
+{
+    return (userid == mCallerUser && clientid == mCallerClient);
 }
 
 AvFlags Call::sentAv() const
@@ -2639,6 +2666,14 @@ void Session::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
 void Session::onDataChannel(webrtc::DataChannelInterface*)
 {}
 
+void Session::updateAvFlags(AvFlags flags)
+{
+    auto oldAv = mPeerAv;
+    mPeerAv = flags;
+    mRemotePlayer->enableVideo(mPeerAv.video());
+    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
+}
+
 //end of event handlers
 
 // stats interface
@@ -2959,11 +2994,8 @@ void Session::msgIceCandidate(RtMessage& packet)
 
 void Session::msgMute(RtMessage& packet)
 {
-    auto oldAv = mPeerAv;
-    mPeerAv.set(packet.payload.read<uint8_t>(8));
-    mRemotePlayer->enableVideo(mPeerAv.video());
-
-    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
+    AvFlags flags(packet.payload.read<uint8_t>(8));
+    updateAvFlags(flags);
 }
 
 Session::~Session()
@@ -3111,7 +3143,7 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kAnswerTimeout);
         RET_ENUM_NAME(kRingOutTimeout);
         RET_ENUM_NAME(kAppTerminating);
-        RET_ENUM_NAME(kCallGone);
+        RET_ENUM_NAME(kCallerGone);
         RET_ENUM_NAME(kBusy);
         RET_ENUM_NAME(kNormalHangupLast);
         RET_ENUM_NAME(kErrApiTimeout);
@@ -3196,20 +3228,6 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
             break;
     }
     return result;
-}
-void Session::sdpSetVideoBw(std::string& sdp, int maxbr)
-{
-    std::regex expresion("m=video.*", std::regex::icase);
-    std::smatch m;
-    if (!regex_search(sdp, m, expresion))
-    {
-        SUB_LOG_WARNING("setVideoQuality: m=video line not found in local SDP");
-        return;
-    }
-
-    assert(m.size());
-    std::string line = "\r\nb=AS:" + std::to_string(maxbr);
-    sdp.insert(m.position(0) + m.length(0), line);
 }
 
 int Session::calculateNetworkQuality(const stats::Sample *sample)

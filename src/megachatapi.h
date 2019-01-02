@@ -816,6 +816,9 @@ public:
       * be only valid until the MegaChatRichPreview is deleted.
       *
       * @return Text from rich preview
+      *
+      * @deprecated use MegaChatContainsMeta::getTextMessage instead, it contains the same
+      * value. This function will eventually be removed in future versions of MEGAchat.
       */
     virtual const char *getText() const;
 
@@ -901,6 +904,43 @@ public:
 };
 
 /**
+ * @brief This class store geolocation data
+ *
+ * This class contains the data for geolocation.
+ */
+class MegaChatGeolocation
+{
+public:
+    virtual ~MegaChatGeolocation() {}
+    virtual MegaChatGeolocation *copy() const;
+
+    /**
+      * @brief Returns geolocation longitude
+      *
+      * @return Geolocation logitude value
+      */
+    virtual float getLongitude() const;
+
+    /**
+      * @brief Returns geolocation latitude
+      *
+      * @return Geolocation latitude value
+      */
+    virtual float getLatitude() const;
+
+    /**
+      * @brief Returns preview from shared geolocation
+      *
+      * The MegaChatGeolocation retains the ownership of the returned string. It will
+      * be only valid until the MegaChatGeolocation is deleted.
+      * It can be NULL
+      *
+      * @return Preview from geolocation as a byte array encoded in Base64URL, or NULL if not available.
+      */
+    virtual const char *getImage() const;
+};
+
+/**
  * @brief This class represents meta contained
  *
  * This class includes pointer to differents kind of meta contained, like MegaChatRichPreview.
@@ -914,6 +954,7 @@ public:
     {
       CONTAINS_META_INVALID         = -1,   /// Unknown type of meta contained
       CONTAINS_META_RICH_PREVIEW    = 0,    /// Rich-preview type for meta contained
+      CONTAINS_META_GEOLOCATION     = 1,    /// Geolocation type for meta contained
     };
 
     virtual ~MegaChatContainsMeta() {}
@@ -929,9 +970,26 @@ public:
      *  - MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW   = 0
      * Meta contained is from rich preview type
      *
+     *  - MegaChatContainsMeta::CONTAINS_META_GEOLOCATION  = 1
+     * Meta contained is from geolocation type
+     *
      * @return Type from meta contained of the message
      */
     virtual int getType() const;
+
+    /**
+     * @brief Returns a generic message to be shown when app does not support the type of the contained meta
+     *
+     * This string is always available for all messages of MegaChatMessage::TYPE_CONTAINS_META.
+     * When the app does not support yet the sub-type of contains-meta, this string
+     * can be shown as alternative.
+     *
+     * The MegaChatContainsMeta retains the ownership of the returned string. It will
+     * be only valid until the MegaChatContainsMeta is deleted.
+     *
+     * @return String to be shown when app can't parse the meta contained
+     */
+    virtual const char *getTextMessage() const;
 
     /**
      * @brief Returns data about rich-links
@@ -946,6 +1004,20 @@ public:
      * @return MegaChatRichPreview with details about rich-link.
      */
     virtual const MegaChatRichPreview *getRichPreview() const;
+
+    /**
+     * @brief Returns data about geolocation
+     *
+     * @note This function only returns a valid object in case the function
+     * \c MegaChatContainsMeta::getType returns MegaChatContainsMeta::CONTAINS_META_GEOLOCATION.
+     * Otherwise, it returns NULL.
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatContainsMeta object is deleted.
+     *
+     * @return MegaChatGeolocation with details about geolocation.
+     */
+    virtual const MegaChatGeolocation *getGeolocation() const;
 };
 
 class MegaChatMessage
@@ -982,6 +1054,7 @@ public:
         TYPE_REVOKE_NODE_ATTACHMENT = 102,   /// User message including info about a node that has stopped being shared (obsolete)
         TYPE_CONTACT_ATTACHMENT     = 103,   /// User message including info about shared contacts
         TYPE_CONTAINS_META          = 104,   /// User message including additional metadata (ie. rich-preview for links)
+        TYPE_VOICE_CLIP             = 105,   /// User message including info about shared voice clip
     };
 
     enum
@@ -1106,6 +1179,7 @@ public:
      *  - TYPE_ATTACHMENT: User message including info about a shared node
      *  - TYPE_REVOKE_ATTACHMENT: User message including info about a node that has stopped being shared
      *  - TYPE_CONTACT: User message including info about a contact
+     *  - TYPE_VOICE_CLIP: User messages incluiding info about a node that represents a voice-clip
      *  - TYPE_UNKNOWN: Unknown message, should be ignored/hidden. The MegaChatMessage::getCode can take the following values:
      *      * INVALID_TYPE
      *      * INVALID_KEYID
@@ -1127,10 +1201,8 @@ public:
      * The SDK retains the ownership of the returned value. It will be valid until
      * the MegaChatMessage object is deleted.
      *
-     * @note If message is of type MegaChatMessage::TYPE_CONTAINS_META and the type of meta
-     * is MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW, for convenience this function
-     * will return the original content of the message, the same than
-     * MegaChatRichPreview::getText
+     * @note If message is of type MegaChatMessage::TYPE_CONTAINS_META, for convenience this function
+     * will return the same content than MegaChatContainsMeta::getTextMessage
      *
      * @return Content of the message. If message was deleted, it returns NULL.
      */
@@ -1865,6 +1937,7 @@ public:
         ERROR_OK        =   0,
         ERROR_UNKNOWN   =  -1,		// internal error
         ERROR_ARGS      =  -2,		// bad arguments
+        ERROR_TOOMANY   =  -6,		// too many uses for this resource
         ERROR_NOENT     =  -9,		// resource does not exist
         ERROR_ACCESS    = -11,		// access denied
         ERROR_EXIST     = -12		// resource already exists
@@ -2144,6 +2217,8 @@ public:
      * @brief Disconnect from chat-related servers (chatd, presenced and Gelb).
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISCONNECT
+     *
+     * @obsolete This function must NOT be used in new developments and has no effect. It will eventually be removed.
      *
      * @param listener MegaChatRequestListener to track this request
      */
@@ -3117,7 +3192,7 @@ public:
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
+     * temporal id with MegaChatMessage::getTempId
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -3146,7 +3221,7 @@ public:
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
+     * temporal id with MegaChatMessage::getTempId
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -3169,7 +3244,7 @@ public:
      *
      * The MegaChatMessage object returned by this function includes a message transaction id,
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
-     * temporal id with MegaChatMessage::getTempId()
+     * temporal id with MegaChatMessage::getTempId
      *
      * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
      * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
@@ -3200,6 +3275,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getNodeList - Returns the list of nodes
+     * - MegaChatRequest::getParamType - Returns 0 (to identify the attachment as regular attachment message)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3220,6 +3296,31 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
      void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Share a geolocation in the specified chatroom
+     *
+     * The MegaChatMessage object returned by this function includes a message transaction id,
+     * That id is not the definitive id, which will be assigned by the server. You can obtain the
+     * temporal id with MegaChatMessage::getTempId
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param longitude from shared geolocation
+     * @param latitude from shared geolocation
+     * @param img Preview as a byte array encoded in Base64URL. It can be NULL
+     * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+     */
+     MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
 
     /**
      * @brief Revoke the access to a node in the specified chatroom
@@ -3269,6 +3370,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     * - MegaChatRequest::getParamType - Returns 0 (to identify the attachment as regular attachment message)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -3287,6 +3389,39 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
      void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Sends a node that contains a voice message to the specified chatroom
+     *
+     * The voice clip message includes information about the node, so the receiver can reproduce it online.
+     *
+     * In contrast to other functions to send messages, such as MegaChatApi::sendMessage or
+     * MegaChatApi::attachContacts, this function is asynchronous and does not return a MegaChatMessage
+     * directly. Instead, the MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the node
+     * - MegaChatRequest::getParamType - Returns 1 (to identify the attachment as a voice message)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+     *
+     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
+     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
+     * At this point, the app should refresh the message identified by the temporal id and move it to
+     * the final position in the history, based on the reported index in the callback.
+     *
+     * If the message is rejected by the server, the message will keep its temporal id and will have its
+     * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param nodehandle Handle of the node that the user wants to attach
+     * @param listener MegaChatRequestListener to track this request
+    */
+    void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Revoke the access to a node granted by an attachment message
@@ -3611,13 +3746,20 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
-     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it.
+     *
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3633,13 +3775,20 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - Returns true if it is a video-audio call or false for audio call
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
      *
-     * @note In case of group calls, if there is already too many peers sending video, the video flag
-     * will be disabled automatically and the MegaChatRequest::getFlag updated consequently.
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it.
+     *
+     * @note In case of group calls, if there is already too many peers sending video and there are no
+     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3679,6 +3828,9 @@ public:
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending audio already (no more audio slots are available).
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
@@ -3706,6 +3858,9 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
      * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call sending video already (no more video slots are available).
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -4168,6 +4323,7 @@ public:
      *  - MegaChatMessage::TYPE_ATTACHMENT: filenames of the attached nodes (separated by ASCII character '0x01')
      *  - MegaChatMessage::TYPE_CONTACT: usernames of the attached contacts (separated by ASCII character '0x01')
      *  - MegaChatMessage::TYPE_CONTAINS_META: original content of the messsage
+     *  - MegaChatMessage::TYPE_VOICE_CLIP: filename of the attached node
      *  - MegaChatMessage::TYPE_CHAT_TITLE: new title
      *  - MegaChatMessage::TYPE_TRUNCATE: empty string
      *  - MegaChatMessage::TYPE_ALTER_PARTICIPANTS: empty string
@@ -4210,6 +4366,8 @@ public:
      *  - MegaChatMessage::TYPE_NORMAL: for regular text messages
      *  - MegaChatMessage::TYPE_ATTACHMENT: for messages sharing a node
      *  - MegaChatMessage::TYPE_CONTACT: for messages sharing a contact
+     *  - MegaChatMessage::TYPE_CONTAINS_META: for messages with meta-data
+     *  - MegaChatMessage::TYPE_VOICE_CLIP: for voice-clips
      *  - 0xFF when it's still fetching from server (for the public API)
      *
      * @return The type of the last message

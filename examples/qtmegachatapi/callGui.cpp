@@ -11,7 +11,7 @@ using namespace karere;
 
 CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool local)
     : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
-{    
+{
     ui->setupUi(this);
     mPeerid = peerid;
     mClientid = clientid;

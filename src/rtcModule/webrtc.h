@@ -98,7 +98,7 @@ enum TermCode: uint8_t
     kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
     // < users are online
     kAppTerminating = 7,        // < The application is terminating
-    kCallGone = 8,
+    kCallerGone = 8,
     kBusy = 9,                  // < Peer is in another call
     kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
     kDestroyByCallCollision = 19,// < The call has finished by a call collision
@@ -411,6 +411,7 @@ public:
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
     virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
     virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;
+    virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const = 0;
 
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;

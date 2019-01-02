@@ -55,6 +55,7 @@ class ChatWindow : public QDialog,
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);
+        void createAttachMenu(QMenu& menu);
         void truncateChatUI();
         void connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
         void destroyCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
@@ -69,6 +70,8 @@ class ChatWindow : public QDialog,
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
         void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* e);
         megachat::MegaChatApi *getMegaChatApi();
+        void onAttachLocation();
+
 #ifndef KARERE_DISABLE_WEBRTC
         std::set<CallGui *> *getCallGui();
         void setCallGui(CallGui *callGui);
@@ -115,6 +118,7 @@ class ChatWindow : public QDialog,
         void on_mCancelTransfer(QAbstractButton *);
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
+        void onAttachNode(bool isVoiceClip);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);

@@ -154,7 +154,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 window->hangCall();
                 return;
-                break;
             }
             case megachat::MegaChatCall::CALL_STATUS_RING_IN:
             {
@@ -759,9 +758,6 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chati
         // When we are connected to all chats we have to reorder the chatlist
         // we skip all reorders until we receive this event to avoid app overload
         allowOrder = true;
-
-        //Update chatListItems in chatControllers
-        updateChatControllersItems();
 
         //Reorder chat list in QtApp
         reorderAppChatList();
