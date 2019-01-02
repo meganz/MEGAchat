@@ -5008,7 +5008,7 @@ MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &ses
     auto it = sessions.find(EndpointId(sess.peer(), sess.peerClient()));
     if (it != sessions.end())
     {
-        API_LOG_WARNING("addSession: this peer (%s) already has a session. Removing it...", sess.peer().toString().c_str());
+        API_LOG_WARNING("addSession: this peer (id: %s, clientid: %d) already has a session. Removing it...", sess.peer().toString().c_str(), sess.peerClient());
         delete it->second;
     }
 
@@ -7422,7 +7422,7 @@ void MegaChatSessionHandler::onSessStateChange(uint8_t newState)
 
 void MegaChatSessionHandler::onSessDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const std::string& /*msg*/)
 {
-    MegaChatCallPrivate* chatCall = callHandler->getMegaChatCall();
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
     chatCall->removeSession(session->peer(), session->peerClient());
     delete this;
 }
