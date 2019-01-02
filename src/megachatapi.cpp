@@ -523,6 +523,11 @@ MegaChatMessage * MegaChatApi::sendGeolocation(MegaChatHandle chatid, float long
     return pImpl->sendGeolocation(chatid, longitude, latitude, img);
 }
 
+MegaChatMessage *MegaChatApi::editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img)
+{
+    return pImpl->editGeolocation(chatid, msgid, longitude, latitude, img);
+}
+
 void MegaChatApi::revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener)
 {
     pImpl->revokeAttachment(chatid, nodeHandle, listener);

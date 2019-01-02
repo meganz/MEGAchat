@@ -2789,6 +2789,13 @@ MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float 
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img)
+{
+    string buf = JSonUtils::generateGeolocationJSon(longitude, latitude, img);
+    MegaChatMessage *megaMsg = editMessage(chatid, msgid, buf.c_str(), buf.size());
+    return megaMsg;
+}
+
 void MegaChatApiImpl::revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE, listener);
