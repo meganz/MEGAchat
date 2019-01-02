@@ -2661,6 +2661,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
 
     auto wptr = getDelTracker();
+    mDecryptingTitle = true;
     promise::Promise<std::string> pms = chat().crypto()->decryptChatTitleFromApi(buf);
     return pms.then([wptr, this](const std::string title)
     {
@@ -2673,9 +2674,12 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     {
         wptr.throwIfDeleted();
 
+        KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", ID_CSTR(chatid()), err.what());
+
         // Update title in cache adding a prefix to indicate that it's undecryptable
         updateChatTitleInCache(mEncryptedTitle, strongvelope::kUndecryptable);
-        KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", ID_CSTR(chatid()), err.what());
+        mDecryptingTitle = false;
+
         makeTitleFromMemberNames();
         return err;
     });
@@ -3058,25 +3062,21 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Mess
 
 void GroupChatRoom::handleTitleChange(const std::string &title)
 {
+    if (mDecryptingTitle)
+    {
+        updateChatTitleInCache(title, strongvelope::kDecrypted);
+        mDecryptingTitle = false;
+    }
+
     if (mTitleString == title)
     {
         KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
         return;
     }
-    else
-    {
-        if (!title.empty())
-        {
-            mTitleString = title;
-            mHasTitle = true;
-            // Update title in cache adding a prefix to indicate it's decrypted
-            updateChatTitleInCache(mTitleString, strongvelope::kDecrypted);
-        }
-        else
-        {
-            clearTitle();
-        }
-    }
+
+    mTitleString = title;
+    mHasTitle = true;
+
     notifyTitleChanged();
 }
 
@@ -3397,15 +3397,13 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         if (mEncryptedTitle != title)   // title has changed
         {
             mEncryptedTitle = title;
-            mHasTitle = true;
-            if (parent.mKarereClient.connected())
+            mHasTitle = true;            
+            updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
+            decryptTitle()
+            .fail([](const promise::Error& err)
             {
-                decryptTitle()
-                .fail([](const promise::Error& err)
-                {
-                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
-                });
-            }
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
+            });
         }
     }
     else if (membersChanged && !mHasTitle)

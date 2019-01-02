@@ -316,7 +316,8 @@ public:
     /** @cond PRIVATE */
 protected:
     MemberMap mPeers;
-    std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
+    std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
+    bool mDecryptingTitle = false;
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
