@@ -335,6 +335,7 @@ protected:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
+    void updateChatTitleInCache(std::string title, int isTitleEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
     virtual void connect(const char *url = NULL);
@@ -349,7 +350,7 @@ protected:
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
@@ -422,7 +423,7 @@ public:
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     int getNumPeers() const;
-    void handleTitleChange(const std::string &title);
+    void handleTitleChange(const std::string &title, int isTitleEncrypted);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
