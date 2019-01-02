@@ -1938,9 +1938,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     std::string title = aChat.getTitle() ? aChat.getTitle() : "";
     initChatTitle(title);
 
-    // Update title in cache adding a prefix to indicate that it's encrypted
-    updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
-
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
@@ -1955,6 +1952,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.step();
         stmt.reset().clearBind();
     }
+
+    // Update title in cache adding a prefix to indicate that it's encrypted
+    updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
 
     // Initialize unified-key, if any (note private chats may also have unfied-key if user participated while chat was public)
     const char *unifiedKeyPtr = aChat.getUnifiedKey();
