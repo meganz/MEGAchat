@@ -323,8 +323,7 @@ protected:
     int mNumPeers = 0; //Only for public chats in preview mode
 
     void setChatPrivateMode();
-    bool syncMembers(const mega::MegaTextChat& chat);   
-    void loadTitleFromDb();
+    bool syncMembers(const mega::MegaTextChat& chat);
     promise::Promise<void> decryptTitle();
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);

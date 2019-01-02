@@ -2734,26 +2734,6 @@ void GroupChatRoom::makeTitleFromMemberNames()
     notifyTitleChanged();
 }
 
-void GroupChatRoom::loadTitleFromDb()
-{
-    //load user title if set
-    SqliteStmt stmt(parent.mKarereClient.db, "select title from chats where chatid = ?");
-    stmt << mChatid;
-    if (!stmt.step())
-    {
-        makeTitleFromMemberNames();
-        return;
-    }
-    std::string strTitle = stmt.stringCol(0);
-    if (strTitle.empty())
-    {
-        makeTitleFromMemberNames();
-        return;
-    }
-    mTitleString = strTitle;
-    mHasTitle = true;
-}
-
 promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 {
     auto wptr = getDelTracker();
