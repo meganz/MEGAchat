@@ -431,8 +431,6 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int n
 
 promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle)
 {
-    auto wptr = weakHandle();
-
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     Buffer buf(encTitle.size());
 
@@ -2666,7 +2664,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         wptr.throwIfDeleted();
 
         // Update title and notify that has changed
-        handleTitleChange(title, strongvelope::kDecrypted);
+        handleTitleChange(title);
     })
     .fail([wptr, this](const promise::Error& err)
     {
@@ -3051,11 +3049,11 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Mess
         std::string title(msg.buf(), msg.size());
 
         // Update title and notify that has changed
-        ((GroupChatRoom *) this)->handleTitleChange(title, strongvelope::kDecrypted);
+        ((GroupChatRoom *) this)->handleTitleChange(title);
     }
 }
 
-void GroupChatRoom::handleTitleChange(const std::string &title, int isTitleEncrypted)
+void GroupChatRoom::handleTitleChange(const std::string &title)
 {
     if (mTitleString == title)
     {
@@ -3068,8 +3066,8 @@ void GroupChatRoom::handleTitleChange(const std::string &title, int isTitleEncry
         {
             mTitleString = title;
             mHasTitle = true;
-            // Update title in cache adding a prefix to indicate if it's encrypted
-            updateChatTitleInCache(mEncryptedTitle, isTitleEncrypted);
+            // Update title in cache adding a prefix to indicate it's decrypted
+            updateChatTitleInCache(mTitleString, strongvelope::kDecrypted);
         }
         else
         {
