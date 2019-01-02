@@ -1934,6 +1934,10 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // If there is not any promise at vector promise, promise::when is resolved directly
     mMemberNamesResolved = promise::when(promises);
 
+    // Initialize title, if any
+    std::string title = aChat.getTitle() ? aChat.getTitle() : "";
+    initChatTitle(title);
+
     // Update title in cache adding a prefix to indicate that it's encrypted
     updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
 
@@ -1951,10 +1955,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.step();
         stmt.reset().clearBind();
     }
-
-    // Initialize title, if any
-    std::string title = aChat.getTitle() ? aChat.getTitle() : "";
-    initChatTitle(title);
 
     // Initialize unified-key, if any (note private chats may also have unfied-key if user participated while chat was public)
     const char *unifiedKeyPtr = aChat.getUnifiedKey();
