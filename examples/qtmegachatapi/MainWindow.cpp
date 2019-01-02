@@ -154,7 +154,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 window->hangCall();
                 return;
-                break;
             }
             case megachat::MegaChatCall::CALL_STATUS_RING_IN:
             {
