@@ -1953,8 +1953,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt.reset().clearBind();
     }
 
-    // Update title in cache adding a prefix to indicate that it's encrypted
-    updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
+    if (mHasTitle)
+    {
+        // Update title in cache adding a prefix to indicate that it's encrypted
+        updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
+    }
 
     // Initialize unified-key, if any (note private chats may also have unfied-key if user participated while chat was public)
     const char *unifiedKeyPtr = aChat.getUnifiedKey();
@@ -2075,7 +2078,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     mHasTitle = true;
 
     // Update title in cache adding a prefix to indicate that it's decrypted
-    updateChatTitleInCache(mEncryptedTitle, strongvelope::kDecrypted);
+    updateChatTitleInCache(mTitleString, strongvelope::kDecrypted);
 
     // Notify that title has changed
     notifyTitleChanged();
