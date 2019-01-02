@@ -2256,7 +2256,15 @@ void GroupChatRoom::makeTitleFromMemberNames()
             }
             else
             {
-                newTitle.append(name.substr(1)).append(", ");
+                int firstnameLen = name.at(0);
+                if (firstnameLen)
+                {
+                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                }
+                else
+                {
+                    newTitle.append(name.substr(1)).append(", ");
+                }
             }
         }
         newTitle.resize(newTitle.size()-2); //truncate last ", "
