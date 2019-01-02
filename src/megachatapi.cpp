@@ -500,7 +500,7 @@ MegaChatMessage *MegaChatApi::getManualSendingMessage(MegaChatHandle chatid, Meg
 
 MegaChatMessage *MegaChatApi::sendMessage(MegaChatHandle chatid, const char *msg)
 {
-    return pImpl->sendMessage(chatid, msg);
+    return pImpl->sendMessage(chatid, msg, msg ? strlen(msg) : 0);
 }
 
 MegaChatMessage *MegaChatApi::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
@@ -540,7 +540,7 @@ void MegaChatApi::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodeh
 
 MegaChatMessage *MegaChatApi::revokeAttachmentMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    return pImpl->editMessage(chatid, msgid, NULL);
+    return deleteMessage(chatid, msgid);
 }
 
 bool MegaChatApi::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle) const
@@ -555,12 +555,12 @@ MegaChatMessage *MegaChatApi::editMessage(MegaChatHandle chatid, MegaChatHandle 
         return NULL;
     }
 
-    return pImpl->editMessage(chatid, msgid, msg);
+    return pImpl->editMessage(chatid, msgid, msg, strlen(msg));
 }
 
 MegaChatMessage *MegaChatApi::deleteMessage(MegaChatHandle chatid, MegaChatHandle msgid)
 {
-    return pImpl->editMessage(chatid, msgid, NULL);
+    return pImpl->editMessage(chatid, msgid, NULL, 0);
 }
 
 MegaChatMessage *MegaChatApi::removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid)
