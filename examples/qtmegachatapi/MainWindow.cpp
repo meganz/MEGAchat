@@ -410,6 +410,13 @@ void MainWindow::on_bSettings_clicked()
     connect(actCheckLink,  &QAction::triggered, this, [this] {openChatPreview(false);});
 
     menu.addSeparator();
+    auto actForceReconnect = menu.addAction(tr("Force reconnect"));
+    connect(actForceReconnect,  &QAction::triggered, this, [this] {onReconnect(true);});
+
+    auto actRetryPendingConn = menu.addAction(tr("Retry pending connections"));
+    connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
+
+    menu.addSeparator();
     auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));    
     connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
@@ -421,10 +428,6 @@ void MainWindow::on_bSettings_clicked()
     menu.addSeparator();
     auto actPrintMyInfo = menu.addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-
-    menu.addSeparator();
-    auto actRetryPendingConn = menu.addAction(tr("Retry pending connections"));
-    connect(actRetryPendingConn, SIGNAL(triggered()), this, SLOT(onRetryPendingConnections()));
 
     menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
@@ -448,9 +451,9 @@ void MainWindow::on_bSettings_clicked()
     menu.exec(mapToGlobal(pos));
 }
 
-void MainWindow::onRetryPendingConnections()
+void MainWindow::onReconnect(bool disconnect)
 {
-    mMegaChatApi->retryPendingConnections();
+    mMegaChatApi->retryPendingConnections(disconnect);
 }
 
 void MainWindow::openChatPreview(bool create)
