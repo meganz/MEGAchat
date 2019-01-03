@@ -990,7 +990,7 @@ void Client::removePeer(karere::Id peer, bool force)
         PRESENCED_LOG_DEBUG("removePeer: Unknown peer %s", peer.toString().c_str());
         return;
     }
-    if (--it->second > 0)
+    if (--it->second.numRefs > 0)
     {
         if (!force)
         {

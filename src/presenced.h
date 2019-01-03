@@ -297,15 +297,27 @@ public:
     static inline const char* opcodeToStr(uint8_t code);
     virtual ~Command(){}
 };
-struct IdRefMap: public std::map<karere::Id, int>
+
+/** Struct to store the presence of contacts/peers and the number of refs */
+struct PeersPresence
 {
-    typedef std::map<karere::Id, int> Base;
+    int numRefs;               //refCount
+    karere::Presence pres;     //presence value
+    PeersPresence()
+        :numRefs(1), pres(karere::Presence::kClear)
+    {}
+};
+
+/** Maps UserId to PeersPresence {numRefs, presence} */
+struct IdRefMap: public std::map<karere::Id, PeersPresence>
+{
+    typedef std::map<karere::Id, PeersPresence> Base;
     int insert(karere::Id id)
     {
-        auto result = Base::insert(std::make_pair(id, 1));
+        auto result = Base::insert(std::make_pair(id, PeersPresence()));
         return result.second
             ? 1 //we just inserted the peer
-            : ++result.first->second; //already have that peer
+            : ++result.first->second.numRefs; //already have that peer
     }
 };
 
