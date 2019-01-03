@@ -1934,10 +1934,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // If there is not any promise at vector promise, promise::when is resolved directly
     mMemberNamesResolved = promise::when(promises);
 
-    // Initialize title, if any
-    std::string title = aChat.getTitle() ? aChat.getTitle() : "";
-    initChatTitle(title);
-
     // Save Chatroom into DB
     auto db = parent.mKarereClient.db;
     bool isPublicChat = aChat.isPublicChat();
@@ -1951,12 +1947,6 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         stmt << mChatid << m.first << m.second->mPriv;
         stmt.step();
         stmt.reset().clearBind();
-    }
-
-    if (mHasTitle)
-    {
-        // Update title in cache adding a prefix to indicate that it's encrypted
-        updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
     }
 
     // Initialize unified-key, if any (note private chats may also have unfied-key if user participated while chat was public)
@@ -1990,14 +1980,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // Initialize chatd::Client (and strongvelope)
     initWithChatd(isPublicChat, unifiedKey, isUnifiedKeyEncrypted);
 
-    if (mHasTitle)
-    {
-        decryptTitle()
-        .fail([this](const promise::Error& e)
-        {
-            KR_LOG_ERROR("Failed to decrypt title for private chat %s: %s", ID_CSTR(mChatid), e.what());
-        });
-    }
+    // Initialize title, if any
+    std::string title = aChat.getTitle() ? aChat.getTitle() : "";
+    initChatTitle(title, strongvelope::kEncrypted, true);
 
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -2007,7 +1992,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived,
     const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted)
-    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
+    :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived),
     mRoomGui(nullptr)
 {
     // Initialize list of peers
@@ -2020,31 +2005,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     }
     mMemberNamesResolved = promise::when(promises);
 
-    // Initialize title, if any
-    initChatTitle(mTitleString);
-
     // Initialize chatd::Client (and strongvelope)
     initWithChatd(publicChat, unifiedKey, isUnifiedKeyEncrypted);
 
-    if (mHasTitle)
-    {
-        switch (isTitleEncrypted)
-        {
-            case strongvelope::kDecrypted:
-                notifyTitleChanged();
-                break;
-            case strongvelope::kEncrypted:
-                decryptTitle()
-                .fail([this](const promise::Error& e)
-                {
-                    KR_LOG_ERROR("Failed to decrypt title for chat %s: %s", ID_CSTR(mChatid), e.what());
-                });
-                break;
-            case strongvelope::kUndecryptable:
-                KR_LOG_ERROR("Undecryptable chat title for chat %s", ID_CSTR(mChatid));
-                break;
-        }
-    }
+    // Initialize title, if any
+    initChatTitle(title, isTitleEncrypted);
 
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -2057,8 +2022,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
   mRoomGui(nullptr), mNumPeers(aNumPeers)
 {
-    Id ph(publicHandle);
-    initWithChatd(true, unifiedKey, 0, ph); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
+    initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
     mUrl = aUrl;
 
@@ -2074,14 +2038,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
         "own_priv, ts_created, mode, unified_key) values(?,?,-1,0,?,?,2,?)",
         mChatid, mShardNo, mOwnPriv, mCreationTs, unifiedKeyBuf);
 
-    // All chatrooms in preview mode must have a valid title
-    mHasTitle = true;
-
-    // Update title in cache adding a prefix to indicate that it's decrypted
-    updateChatTitleInCache(mTitleString, strongvelope::kDecrypted);
-
-    // Notify that title has changed
-    notifyTitleChanged();
+    initChatTitle(title, strongvelope::kDecrypted, true);
 
     mRoomGui = addAppItem();
     mIsInitializing = false;
@@ -2637,10 +2594,7 @@ ChatRoomList::~ChatRoomList()
 
 promise::Promise<void> GroupChatRoom::decryptTitle()
 {
-    if (mEncryptedTitle.empty())
-    {
-        return promise::_Void();
-    }
+    assert(!mEncryptedTitle.empty());
 
     Buffer buf(mEncryptedTitle.size());    
     try
@@ -2650,46 +2604,41 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
     catch(std::exception& e)
     {
-        // Update title in cache adding a prefix to indicate that it's undecryptable
-        updateChatTitleInCache(mEncryptedTitle, strongvelope::kUndecryptable);
+        KR_LOG_ERROR("Failed to base64-decode chat title for chat %s: %s. Falling back to member names", ID_CSTR(mChatid), e.what());
+
+        updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
         makeTitleFromMemberNames();
-        std::string err("Failed to base64-decode chat title for chat ");
-        err.append(ID_CSTR(mChatid)).append(": ");
-        err.append(e.what()).append(". Falling back to member names");
-        KR_LOG_ERROR("%s", err.c_str());
-        return promise::Error(err);
+
+        return promise::Error(e.what());
     }
 
     auto wptr = getDelTracker();
-    mDecryptingTitle = true;
     promise::Promise<std::string> pms = chat().crypto()->decryptChatTitleFromApi(buf);
     return pms.then([wptr, this](const std::string title)
     {
         wptr.throwIfDeleted();
 
-        // Update title and notify that has changed
-        handleTitleChange(title);
+        // Update title (also in cache) and notify that has changed
+        handleTitleChange(title, true);
     })
     .fail([wptr, this](const promise::Error& err)
     {
         wptr.throwIfDeleted();
 
-        KR_LOG_ERROR("Error decrypting chat title for chat %s:\n%s\nFalling back to member names.", ID_CSTR(chatid()), err.what());
+        KR_LOG_ERROR("Error decrypting chat title for chat %s: %s. Falling back to member names.", ID_CSTR(chatid()), err.what());
 
-        // Update title in cache adding a prefix to indicate that it's undecryptable
-        updateChatTitleInCache(mEncryptedTitle, strongvelope::kUndecryptable);
-        mDecryptingTitle = false;
-
+        updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
         makeTitleFromMemberNames();
+
         return err;
     });
 }
 
-void GroupChatRoom::updateChatTitleInCache(std::string title, int isTitleEncrypted)
+void GroupChatRoom::updateTitleInDb(const std::string &title, int isEncrypted)
 {
     KR_LOG_DEBUG("Title update in cache");
     Buffer titleBuf;
-    titleBuf.write(0, (uint8_t)isTitleEncrypted);
+    titleBuf.write(0, (uint8_t)isEncrypted);
     titleBuf.append(title.data(), title.size());
     parent.mKarereClient.db.query("update chats set title=? where chatid=?", titleBuf, mChatid);
 }
@@ -3060,17 +3009,16 @@ void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Mess
     }
 }
 
-void GroupChatRoom::handleTitleChange(const std::string &title)
+void GroupChatRoom::handleTitleChange(const std::string &title, bool saveToDB)
 {
-    if (mDecryptingTitle)
+    if (saveToDB)
     {
-        updateChatTitleInCache(title, strongvelope::kDecrypted);
-        mDecryptingTitle = false;
+        updateTitleInDb(title, strongvelope::kDecrypted);
     }
 
     if (mTitleString == title)
     {
-        KR_LOG_DEBUG("decryptTitle: Same title has been set, skipping update");
+        KR_LOG_DEBUG("Same title has already been notified, skipping update");
         return;
     }
 
@@ -3300,26 +3248,48 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
     return peersChanged;
 }
 
-void GroupChatRoom::initChatTitle(std::string &title)
+void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb)
 {
-    bool hasCustomTitle = (!title.empty() && title.at(0));
-    if (hasCustomTitle)
+    mHasTitle = (!title.empty() && title.at(0));
+    if (mHasTitle)
     {
-        // Update cache with title if exists indicating if it's encrypted or not.
-        mEncryptedTitle = title;
-        mHasTitle = true;
-    }
-    else
-    {
-        auto wptr = weakHandle();
-        mMemberNamesResolved.then([wptr, this]()
+        if (saveToDb)
         {
-            if (wptr.deleted())
+            updateTitleInDb(title, isTitleEncrypted);
+        }
+
+        switch (isTitleEncrypted)
+        {
+            case strongvelope::kDecrypted:
+                mTitleString = title;
+                notifyTitleChanged();
                 return;
 
-            makeTitleFromMemberNames();
-        });
+            case strongvelope::kEncrypted:
+                mEncryptedTitle = title;
+                decryptTitle()
+                .fail([this](const promise::Error& e)
+                {
+                    KR_LOG_ERROR("GroupChatRoom: failed to decrypt title for chat %s: %s", ID_CSTR(mChatid), e.what());
+                });
+                return;
+
+            case strongvelope::kUndecryptable:
+                KR_LOG_ERROR("Undecryptable chat title for chat %s", ID_CSTR(mChatid));
+                // fallback to makeTitleFromMemberNames()
+                break;
+        }
     }
+
+    // if has no title or it's undecryptable...
+    auto wptr = weakHandle();
+    mMemberNamesResolved.then([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        makeTitleFromMemberNames();
+    });
 }
 
 void GroupChatRoom::clearTitle()
@@ -3391,14 +3361,18 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool membersChanged = syncMembers(chat);
 
     // Title changes
-    auto title = chat.getTitle();
-    if (title && title[0])
+    const char *title = chat.getTitle();
+    mHasTitle = (title && title[0]);
+    if (mHasTitle)
     {
         if (mEncryptedTitle != title)   // title has changed
         {
+            // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't be initialized yet
+            // (the encrypted flavour of the title is saved in cache but overwriten when decrypted)
+            // In consequence, the first actionpacket will initialize it and decrypt it once per execution
             mEncryptedTitle = title;
-            mHasTitle = true;            
-            updateChatTitleInCache(mEncryptedTitle, strongvelope::kEncrypted);
+            updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
+
             decryptTitle()
             .fail([](const promise::Error& err)
             {
@@ -3406,7 +3380,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
             });
         }
     }
-    else if (membersChanged && !mHasTitle)
+    else if (membersChanged)
     {
         KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", ID_CSTR(mChatid));
         clearTitle();

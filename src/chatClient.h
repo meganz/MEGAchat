@@ -317,7 +317,6 @@ public:
 protected:
     MemberMap mPeers;
     std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
-    bool mDecryptingTitle = false;
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
@@ -335,12 +334,12 @@ protected:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    void updateChatTitleInCache(std::string title, int isTitleEncrypted);
+    void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
-    void initChatTitle(std::string &title);
+    void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
     friend class ChatRoomList;
     friend class Member;
@@ -423,7 +422,7 @@ public:
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     int getNumPeers() const;
-    void handleTitleChange(const std::string &title);
+    void handleTitleChange(const std::string &title, bool saveToDb = false);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
