@@ -1011,4 +1011,26 @@ void Client::removePeer(karere::Id peer, bool force)
     peers.push_back(peer);
     updatePeers(peers, OP_SNDELPEERS);
 }
+
+void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
+{
+    auto it = mCurrentPeers.find(peer);
+    if (it == mCurrentPeers.end())
+    {
+        PRESENCED_LOG_DEBUG("updatePeerPresence: Unknown peer %s", peer.toString().c_str());
+        return;
+    }
+    it->second.pres = pres;
+}
+
+karere::Presence Client::peerPresence(karere::Id peer)
+{
+    auto it = mCurrentPeers.find(peer);
+    if (it == mCurrentPeers.end())
+    {
+        return karere::Presence::kInvalid;
+    }
+    return it->second.pres;
+    karere::Presence a;
+}
 }

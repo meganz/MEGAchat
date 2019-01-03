@@ -304,7 +304,7 @@ struct PeersPresence
     int numRefs;               //refCount
     karere::Presence pres;     //presence value
     PeersPresence()
-        :numRefs(1), pres(karere::Presence::kClear)
+        :numRefs(1), pres(karere::Presence::kInvalid)
     {}
 };
 
@@ -458,6 +458,8 @@ public:
     // peers management
     void addPeer(karere::Id peer);
     void removePeer(karere::Id peer, bool force=false);
+    void updatePeerPresence(karere::Id peer, karere::Presence pres);
+    karere::Presence peerPresence(karere::Id peer);
     ~Client();
 };
 

@@ -294,9 +294,6 @@ public:
         /** @brief The current privilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
 
-        /** @brief The presence of the peer */
-        Presence presence() const { return mPresence; }
-
         promise::Promise<void> nameResolved() const;
 
         friend class GroupChatRoom;
@@ -318,7 +315,6 @@ public:
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
-    void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
@@ -854,6 +850,8 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
     bool isChatRoomOpened(Id chatid);
+    void updatePeerPresence(uint64_t userid, Presence pres);
+    Presence peerPresence(uint64_t userid);
 
 protected:
     void heartbeat();

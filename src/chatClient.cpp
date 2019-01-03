@@ -262,6 +262,16 @@ void Client::createDbSchema()
     db.commit();
 }
 
+void Client::updatePeerPresence(uint64_t userid, Presence pres)
+{
+    mPresencedClient.updatePeerPresence(karere::Id(userid), pres);
+}
+
+Presence Client::peerPresence(uint64_t userid)
+{
+    return mPresencedClient.peerPresence(karere::Id(userid));
+}
+
 void Client::heartbeat()
 {
     if (db.isOpen())
@@ -1232,14 +1242,7 @@ void Client::onPresenceChange(Id userid, Presence pres)
     {
         contactList->onPresenceChanged(userid, pres);
     }
-    for (auto& item: *chats)
-    {
-        auto& chat = *item.second;
-        if (!chat.isGroup())
-            continue;
-        static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
-    }
-    app.onPresenceChanged(userid, pres, false);
+    updatePeerPresence(userid, pres);
 }
 void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
 {
@@ -1254,14 +1257,6 @@ void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 
-}
-
-void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
-{
-    auto it = mPeers.find(userid);
-    if (it == mPeers.end())
-        return;
-    it->second->mPresence = pres;
 }
 
 void Client::notifyNetworkOffline()
