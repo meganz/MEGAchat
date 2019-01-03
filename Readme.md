@@ -25,8 +25,8 @@ You may need to install the following packages in your system
 *Windows: the cygwin version of cmake will not be sufficient, you need to install the native cmake for Windows from the official site, and instead of ccmake use cmake-gui. You will also need to add the path to Cmake to Cygwin.
  
 ### Debian, Ubuntu like distribution users can install prerequisites
-- `$ chmod +x ./requirements.sh`
-- `$ ./requirements.sh`
+1. `$ chmod +x ./requirements.sh`
+2. `$ ./requirements.sh`
 
 ## Build WebRTC: ##
 
