@@ -67,8 +67,8 @@ protected:
     bool mIsInitializing = true;
     int64_t mCreationTs;
     bool mIsArchived;
-    std::string mTitleString;
-    bool mHasTitle;
+    std::string mTitleString;   // decrypted `ct` or title from member-names
+    bool mHasTitle;             // only true if chat has custom topic (`ct`)
     void notifyTitleChanged();
     void notifyChatModeChanged();
     void switchListenerToApp();
