@@ -2706,7 +2706,7 @@ MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHand
     sdkMutex.lock();
 
     string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->contactList.get());
-    MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContainsMeta);
+    MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContact);
 
     sdkMutex.unlock();
 
