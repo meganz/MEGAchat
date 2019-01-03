@@ -27,6 +27,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic, getter=isActive) BOOL active;
 
 @property (readonly, nonatomic) NSString *lastMessage;
+@property (readonly, nonatomic) uint64_t lastMessageId;
 @property (readonly, nonatomic) MEGAChatMessageType lastMessageType;
 @property (readonly, nonatomic) uint64_t lastMessageSender;
 @property (readonly, nonatomic) NSDate *lastMessageDate;
