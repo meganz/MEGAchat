@@ -805,13 +805,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete nodeListAux;
             }
 
-            const char *buffer = JSonUtils::generateAttachNodeJSon(nodeList);
-            if (!buffer)
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
-            }
-
             uint8_t msgType = Message::kMsgInvalid;
             switch (request->getParamType())
             {
@@ -829,14 +822,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            string buffer = JSonUtils::generateAttachNodeJSon(nodeList, msgType);
+            if (buffer.empty())
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             chatroom->requesGrantAccessToNodes(nodeList)
             .then([this, request, buffer, msgType]()
             {
                 int errorCode = MegaChatError::ERROR_ARGS;
-                std::string stringToSend(buffer);
-                delete [] buffer;
-
-                MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle(), msgType);
+                MegaChatMessage *msg = sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType);
                 if (msg)
                 {
                     request->setMegaChatMessage(msg);
@@ -854,9 +851,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     API_LOG_WARNING("Already granted access to this node previously");
 
                     int errorCode = MegaChatError::ERROR_ARGS;
-                    std::string stringToSend(buffer);
-
-                    MegaChatMessage *msg = prepareAttachNodesMessage(stringToSend, request->getChatHandle(), msgType);
+                    MegaChatMessage *msg = sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType);
                     if (msg)
                     {
                         request->setMegaChatMessage(msg);
@@ -871,7 +866,6 @@ void MegaChatApiImpl::sendPendingRequests()
                     API_LOG_ERROR("Failed to grant access to some nodes");
                 }
 
-                delete [] buffer;
                 fireOnChatRequestFinish(request, megaChatError);
             });
             break;
@@ -899,23 +893,17 @@ void MegaChatApiImpl::sendPendingRequests()
             ::promise::when(promise)
             .then([this, request]()
             {
-                ChatRoom *chatroom = findChatRoom(request->getChatHandle());
-                char *base64Handle = MegaApi::handleToBase64(request->getUserHandle());
-                std::string stringToSend = std::string(base64Handle);
-                delete base64Handle;
-                stringToSend.insert(stringToSend.begin(), Message::kMsgRevokeAttachment - Message::kMsgOffset);
-                stringToSend.insert(stringToSend.begin(), 0x0);
-                Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgRevokeAttachment, NULL);
+                std::string buf = Id(request->getUserHandle()).toString();
+                buf.insert(buf.begin(), Message::kMsgRevokeAttachment - Message::kMsgOffset);
+                buf.insert(buf.begin(), 0x0);
+
+                MegaChatMessage *megaMsg = sendMessage(request->getChatHandle(), buf.c_str(), buf.length());
+                request->setMegaChatMessage(megaMsg);
 
                 int errorCode = MegaChatError::ERROR_OK;
-                if (!m)
+                if (!megaMsg)
                 {
                     errorCode = MegaChatError::ERROR_ARGS;
-                }
-                else
-                {
-                    MegaChatMessage *megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-                    request->setMegaChatMessage(megaMsg);
                 }
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
@@ -2660,25 +2648,29 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg)
+MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char *msg, size_t msgLen, int type)
 {
     if (!msg)
     {
         return NULL;
     }
 
-    size_t msgLen = strlen(msg);
-    while (msgLen)
+    if (type == Message::kMsgNormal)
     {
-        if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
+        // remove ending carrier-returns
+        while (msgLen)
         {
-            msgLen--;
-        }
-        else
-        {
-            break;
+            if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
+            {
+                msgLen--;
+            }
+            else
+            {
+                break;
+            }
         }
     }
+
     if (!msgLen)
     {
         return NULL;
@@ -2690,8 +2682,7 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        unsigned char t = MegaChatMessage::TYPE_NORMAL;
-        Message *m = chatroom->chat().msgSubmit(msg, msgLen, t, NULL);
+        Message *m = chatroom->chat().msgSubmit(msg, msgLen, type, NULL);
 
         if (!m)
         {
@@ -2705,76 +2696,20 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHandleList *handles)
+MegaChatMessage *MegaChatApiImpl::attachContacts(MegaChatHandle chatid, MegaHandleList *contacts)
 {
-    if (!mClient || chatid == MEGACHAT_INVALID_HANDLE || handles == NULL || handles->size() == 0)
+    if (!mClient)
     {
         return NULL;
     }
 
-    MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
-    {
-        bool error = false;
-        rapidjson::Document jSonDocument(rapidjson::kArrayType);
-        for (unsigned int i = 0; i < handles->size(); ++i)
-        {
-            auto contactIterator = mClient->contactList->find(handles->get(i));
-            if (contactIterator != mClient->contactList->end())
-            {
-                karere::Contact* contact = contactIterator->second;
+    string buf = JSonUtils::generateAttachContactJSon(contacts, mClient->contactList.get());
+    MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContact);
 
-                rapidjson::Value jSonContact(rapidjson::kObjectType);
-                const char *base64Handle = MegaApi::userHandleToBase64(contact->userId());
-                std::string handleString(base64Handle);
-                rapidjson::Value userHandleValue(rapidjson::kStringType);
-                userHandleValue.SetString(handleString.c_str(), handleString.length(), jSonDocument.GetAllocator());
-                jSonContact.AddMember(rapidjson::Value("u"), userHandleValue, jSonDocument.GetAllocator());
-                delete [] base64Handle;
-
-                rapidjson::Value emailValue(rapidjson::kStringType);
-                emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
-                jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
-
-                std::string nameString = contact->titleString();
-                nameString.erase(0, 1);
-                rapidjson::Value nameValue(rapidjson::kStringType);
-                nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
-                jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());
-
-                jSonDocument.PushBack(jSonContact, jSonDocument.GetAllocator());
-            }
-            else
-            {
-                error = true;
-                API_LOG_ERROR("Failed to find the contact: %d", handles->get(i));
-                break;
-            }
-        }
-
-        if (!error)
-        {
-            unsigned char zero = 0x0;
-            unsigned char contactType = Message::kMsgContact - Message::kMsgOffset;
-            rapidjson::StringBuffer buffer;
-            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-            jSonDocument.Accept(writer);
-            std::string stringToSend(buffer.GetString());
-            stringToSend.insert(stringToSend.begin(), contactType);
-            stringToSend.insert(stringToSend.begin(), zero);
-            Message *m = chatroom->chat().msgSubmit(stringToSend.c_str(), stringToSend.length(), Message::kMsgContact, NULL);
-            if (!m)
-            {
-                sdkMutex.unlock();
-                return NULL;
-            }
-            megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-        }
-    }
     sdkMutex.unlock();
+
     return megaMsg;
 }
 
@@ -2849,66 +2784,15 @@ void MegaChatApiImpl::attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle n
 
 MegaChatMessage * MegaChatApiImpl::sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img)
 {
-    std::string textMessage("https://www.google.com/maps/search/?api=1&query=");
-    textMessage.append(std::to_string(latitude)).append(",").append(std::to_string(longitude));
+    string buf = JSonUtils::generateGeolocationJSon(longitude, latitude, img);
+    MegaChatMessage *megaMsg = sendMessage(chatid, buf.c_str(), buf.size(), Message::kMsgContainsMeta);
+    return megaMsg;
+}
 
-    // Add generic `textMessage`
-    rapidjson::Document jsonContainsMeta(rapidjson::kObjectType);
-    rapidjson::Value jsonTextMessage(rapidjson::kStringType);
-    jsonTextMessage.SetString(textMessage.c_str(), textMessage.length(), jsonContainsMeta.GetAllocator());
-    jsonContainsMeta.AddMember(rapidjson::Value("textMessage"), jsonTextMessage, jsonContainsMeta.GetAllocator());
-
-    // prepare geolocation object: longitude, latitude, image
-    rapidjson::Value jsonGeolocation(rapidjson::kObjectType);
-    // longitud
-    rapidjson::Value jsonLongitude(rapidjson::kStringType);
-    std::string longitudeString = std::to_string(longitude);
-    jsonLongitude.SetString(longitudeString.c_str(), longitudeString.length());
-    jsonGeolocation.AddMember(rapidjson::Value("lng"), jsonLongitude, jsonContainsMeta.GetAllocator());
-    // latitude
-    rapidjson::Value jsonLatitude(rapidjson::kStringType);
-    std::string latitudeString = std::to_string(latitude);
-    jsonLatitude.SetString(latitudeString.c_str(), latitudeString.length());
-    jsonGeolocation.AddMember(rapidjson::Value("la"), jsonLatitude, jsonContainsMeta.GetAllocator());
-    // image/thumbnail
-    if (img)
-    {
-        rapidjson::Value jsonImage(rapidjson::kStringType);
-        jsonImage.SetString(img, strlen(img), jsonContainsMeta.GetAllocator());
-        jsonGeolocation.AddMember(rapidjson::Value("img"), jsonImage, jsonContainsMeta.GetAllocator());
-    }
-
-    // Add the `extra` with the geolocation data
-    rapidjson::Value jsonExtra(rapidjson::kArrayType);
-    jsonExtra.PushBack(jsonGeolocation, jsonContainsMeta.GetAllocator());
-    jsonContainsMeta.AddMember(rapidjson::Value("extra"), jsonExtra, jsonContainsMeta.GetAllocator());
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    jsonContainsMeta.Accept(writer);
-
-    // assemble final message with the type (contains-meta) and subtype (geolocation)
-    std::string message((const char*)buffer.GetString(), buffer.GetSize());
-    message.insert(message.begin(), Message::ContainsMetaSubType::kGeoLocation);
-    message.insert(message.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
-    message.insert(message.begin(), 0x0);
-
-    MegaChatMessagePrivate *megaMsg = NULL;
-    sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
-    {
-        Message *m = chatroom->chat().msgSubmit(message.c_str(), message.size(), Message::kMsgContainsMeta , NULL);
-        if (!m)
-        {
-            sdkMutex.unlock();
-            return NULL;
-        }
-        megaMsg = new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID);
-    }
-
-    sdkMutex.unlock();
+MegaChatMessage *MegaChatApiImpl::editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img)
+{
+    string buf = JSonUtils::generateGeolocationJSon(longitude, latitude, img);
+    MegaChatMessage *megaMsg = editMessage(chatid, msgid, buf.c_str(), buf.size());
     return megaMsg;
 }
 
@@ -2938,7 +2822,7 @@ bool MegaChatApiImpl::isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle
     return ret;
 }
 
-MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg)
+MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char *msg, size_t msgLen)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();
@@ -2961,9 +2845,13 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            size_t msgLen = msg ? strlen(msg) : 0;
-            if (msg)    // actually not deletion, but edit
+            unsigned char newtype = (originalMsg->containMetaSubtype() == Message::ContainsMetaSubType::kRichLink)
+                    ? (unsigned char) Message::kMsgNormal
+                    : originalMsg->type;
+
+            if (msg && newtype == Message::kMsgNormal)    // actually not deletion, but edit
             {
+                // remove ending carrier-returns
                 while (msgLen)
                 {
                     if (msg[msgLen-1] == '\n' || msg[msgLen-1] == '\r')
@@ -2981,8 +2869,6 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
                     return NULL;
                 }
             }
-
-            unsigned char newtype = (originalMsg->type == (unsigned char) Message::kMsgContainsMeta) ? (unsigned char) Message::kMsgNormal : originalMsg->type;
 
             const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, NULL, newtype);
             if (editedMsg)
@@ -3786,18 +3672,6 @@ int MegaChatApiImpl::convertChatConnectionState(ChatState state)
 
     assert(false);  // check compilation warnings, new ChatState not considered
     return state;
-}
-
-MegaChatMessage *MegaChatApiImpl::prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid, uint8_t type)
-{
-    ChatRoom *chatroom = findChatRoom(chatid);
-
-    buffer.insert(buffer.begin(), type - Message::kMsgOffset);
-    buffer.insert(buffer.begin(), 0x0);
-
-    Message *m = chatroom->chat().msgSubmit(buffer.c_str(), buffer.length(), type, NULL);
-    MegaChatMessage *megaMsg = m ? new MegaChatMessagePrivate(*m, Message::Status::kSending, CHATD_IDX_INVALID) : NULL;
-    return megaMsg;
 }
 
 IApp::IGroupChatListItem *MegaChatApiImpl::addGroupChatItem(GroupChatRoom &chat)
@@ -7164,11 +7038,12 @@ std::string DataTranslation::vector_to_b(std::vector<int32_t> vector)
     return dataToReturn;
 }
 
-const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
+std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
 {
-    if (!nodes)
+    std::string ret;
+    if (!nodes || type == Message::kMsgInvalid)
     {
-        return NULL;
+        return ret;
     }
 
     rapidjson::Document jSonAttachmentNodes(rapidjson::kArrayType);
@@ -7177,11 +7052,10 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         rapidjson::Value jsonNode(rapidjson::kObjectType);
 
         MegaNode *megaNode = nodes->get(i);
-
         if (megaNode == NULL)
         {
             API_LOG_ERROR("Invalid node at index %d", i);
-            return NULL;
+            return ret;
         }
 
         // h -> handle
@@ -7203,7 +7077,7 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
         if (keyVector.size() != 8)
         {
             API_LOG_ERROR("Invalid nodekey for attached node: %d", megaNode->getHandle());
-            return NULL;
+            return ret;
         }
         for (unsigned int j = 0; j < keyVector.size(); ++j)
         {
@@ -7268,7 +7142,11 @@ const char *JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes)
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     jSonAttachmentNodes.Accept(writer);
 
-    return MegaApi::strdup(buffer.GetString());
+    ret.assign(buffer.GetString(), buffer.GetSize());
+    ret.insert(ret.begin(), type - Message::kMsgOffset);
+    ret.insert(ret.begin(), 0x0);
+
+    return ret;
 }
 
 MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
@@ -7411,6 +7289,62 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
     return megaNodeList;
 }
 
+std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, ContactList *contactList)
+{
+    std::string ret;
+    if (!contacts || contacts->size() == 0 || !contactList || contacts->size() < contactList->size())
+    {
+        API_LOG_ERROR("parseAttachContactJSon: no contacts available");
+        return ret;
+    }
+
+    rapidjson::Document jSonDocument(rapidjson::kArrayType);
+    for (unsigned int i = 0; i < contacts->size(); ++i)
+    {
+        auto contactIterator = contactList->find(contacts->get(i));
+        if (contactIterator != contactList->end())
+        {
+            karere::Contact* contact = contactIterator->second;
+
+            rapidjson::Value jSonContact(rapidjson::kObjectType);
+            const char *base64Handle = MegaApi::userHandleToBase64(contact->userId());
+            std::string handleString(base64Handle);
+            rapidjson::Value userHandleValue(rapidjson::kStringType);
+            userHandleValue.SetString(handleString.c_str(), handleString.length(), jSonDocument.GetAllocator());
+            jSonContact.AddMember(rapidjson::Value("u"), userHandleValue, jSonDocument.GetAllocator());
+            delete [] base64Handle;
+
+            rapidjson::Value emailValue(rapidjson::kStringType);
+            emailValue.SetString(contact->email().c_str(), contact->email().length(), jSonDocument.GetAllocator());
+            jSonContact.AddMember(rapidjson::Value("email"), emailValue, jSonDocument.GetAllocator());
+
+            std::string nameString = contact->titleString();
+            nameString.erase(0, 1);
+            rapidjson::Value nameValue(rapidjson::kStringType);
+            nameValue.SetString(nameString.c_str(), nameString.length(), jSonDocument.GetAllocator());
+            jSonContact.AddMember(rapidjson::Value("name"), nameValue, jSonDocument.GetAllocator());
+
+            jSonDocument.PushBack(jSonContact, jSonDocument.GetAllocator());
+        }
+        else
+        {
+            API_LOG_ERROR("Failed to find the contact: %d", contacts->get(i));
+            return ret;
+        }
+    }
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jSonDocument.Accept(writer);
+
+    // assemble final message with the type
+    ret.assign(buffer.GetString(), buffer.GetSize());
+    ret.insert(ret.begin(), Message::kMsgContact - Message::kMsgOffset);
+    ret.insert(ret.begin(), 0x0);
+
+    return ret;
+}
+
 std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char *json)
 {
     if (!json  || strcmp(json, "") == 0)
@@ -7469,6 +7403,55 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
 
     return megaChatUsers;
 
+}
+
+std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, const char *img)
+{
+    std::string textMessage("https://www.google.com/maps/search/?api=1&query=");
+    textMessage.append(std::to_string(latitude)).append(",").append(std::to_string(longitude));
+
+    // Add generic `textMessage`
+    rapidjson::Document jsonContainsMeta(rapidjson::kObjectType);
+    rapidjson::Value jsonTextMessage(rapidjson::kStringType);
+    jsonTextMessage.SetString(textMessage.c_str(), textMessage.length(), jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("textMessage"), jsonTextMessage, jsonContainsMeta.GetAllocator());
+
+    // prepare geolocation object: longitude, latitude, image
+    rapidjson::Value jsonGeolocation(rapidjson::kObjectType);
+    // longitud
+    rapidjson::Value jsonLongitude(rapidjson::kStringType);
+    std::string longitudeString = std::to_string(longitude);
+    jsonLongitude.SetString(longitudeString.c_str(), longitudeString.length());
+    jsonGeolocation.AddMember(rapidjson::Value("lng"), jsonLongitude, jsonContainsMeta.GetAllocator());
+    // latitude
+    rapidjson::Value jsonLatitude(rapidjson::kStringType);
+    std::string latitudeString = std::to_string(latitude);
+    jsonLatitude.SetString(latitudeString.c_str(), latitudeString.length());
+    jsonGeolocation.AddMember(rapidjson::Value("la"), jsonLatitude, jsonContainsMeta.GetAllocator());
+    // image/thumbnail
+    if (img)
+    {
+        rapidjson::Value jsonImage(rapidjson::kStringType);
+        jsonImage.SetString(img, strlen(img), jsonContainsMeta.GetAllocator());
+        jsonGeolocation.AddMember(rapidjson::Value("img"), jsonImage, jsonContainsMeta.GetAllocator());
+    }
+
+    // Add the `extra` with the geolocation data
+    rapidjson::Value jsonExtra(rapidjson::kArrayType);
+    jsonExtra.PushBack(jsonGeolocation, jsonContainsMeta.GetAllocator());
+    jsonContainsMeta.AddMember(rapidjson::Value("extra"), jsonExtra, jsonContainsMeta.GetAllocator());
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jsonContainsMeta.Accept(writer);
+
+    // assemble final message with the type (contains-meta) and subtype (geolocation)
+    std::string message(buffer.GetString(), buffer.GetSize());
+    message.insert(message.begin(), Message::ContainsMetaSubType::kGeoLocation);
+    message.insert(message.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
+    message.insert(message.begin(), 0x0);
+
+    return message;
 }
 
 string JSonUtils::getLastMessageContent(const string& content, uint8_t type)

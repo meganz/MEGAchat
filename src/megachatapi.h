@@ -3116,6 +3116,41 @@ public:
      */
      MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
 
+     /**
+      * @brief Edit a geolocation message
+      *
+      * Message's edits are only allowed during a short timeframe, usually 1 hour.
+      * Message's deletions are equivalent to message's edits, but with empty content.
+      *
+      * There is only one pending edit for not-yet confirmed edits. Therefore, this function will
+      * discard previous edits that haven't been notified via MegaChatRoomListener::onMessageUpdate
+      * where the message has MegaChatMessage::hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT).
+      *
+      * If the edit is rejected because the original message is too old, this function return NULL.
+      *
+      * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status
+      * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
+      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
+      * to know when an edit has been delivered to the target user, but only when the edit has been
+      * received by the server, so for convenience the status of the original message is kept.
+      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+      * reach the status delivered, since the target user will not send the required acknowledge to the
+      * server upon reception.
+      *
+      * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+      * that it isn't typing
+      *
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chat room
+      * @param msgid MegaChatHandle that identifies the message
+      * @param longitude from shared geolocation
+      * @param latitude from shared geolocation
+      * @param img Preview as a byte array encoded in Base64URL. It can be NULL
+      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+      */
+      MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
+
     /**
      * @brief Revoke the access to a node in the specified chatroom
      *
