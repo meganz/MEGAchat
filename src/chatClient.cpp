@@ -2005,7 +2005,9 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
 {
     if (!rooms)
     {
-        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", api.sdk.getSequenceNumber());
+        const char *scsn = api.sdk.getSequenceNumber();
+        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", scsn);
+        delete [] scsn;
         return;
     }
 
