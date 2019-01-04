@@ -533,11 +533,16 @@ void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
             uint64_t userid = user->getHandle();
             int newVisibility = user->getVisibility();
 
+            if (userid == mKarereClient->myHandle())
+            {
+                continue;
+            }
+
             auto it = mContacts.find(userid);
             if (it == mContacts.end())  // new contact
             {
                 addPeer(userid);
-                assert(newVisibility != ::mega::MegaUser::VISIBILITY_VISIBLE);
+                assert(newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE);
                 mContacts[userid] = newVisibility;
             }
             else    // existing (ex)contact
