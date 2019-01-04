@@ -58,10 +58,8 @@ typedef ::mega::LibuvWaiter MegaChatWaiter;
 #else
 
 #include "net/libwsIO.h"
-#include "waiter/libeventWaiter.h"
 
 typedef LibwsIO MegaWebsocketsIO;
-typedef ::mega::LibeventWaiter MegaChatWaiter;
 
 #endif
 

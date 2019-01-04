@@ -3,14 +3,12 @@
 #include <libws_log.h>
 #include "base/gcmpp.h"
 
-#include "waiter/libeventWaiter.h"
 
 using namespace std;
 
 LibwsIO::LibwsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
-{
-    ::mega::LibeventWaiter *libeventWaiter = dynamic_cast<::mega::LibeventWaiter *>(waiter);
-    ws_global_init(&wscontext, libeventWaiter ? libeventWaiter->eventloop : services_get_event_loop(), NULL,
+{    
+    ws_global_init(&wscontext, services_get_event_loop(), NULL,
     [](struct bufferevent* bev, void* userp)
     {
         karere::marshallCall([bev, userp]()

@@ -91,8 +91,7 @@ HEADERS  += asyncTest-framework.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
-            waiter/libuvWaiter.h \
-            waiter/libeventWaiter.h
+            waiter/libuvWaiter.h
 
 DEFINES += USE_LIBWEBSOCKETS=1
 

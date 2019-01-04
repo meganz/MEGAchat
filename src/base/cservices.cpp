@@ -11,10 +11,6 @@ extern "C"
 {
 MEGAIO_EXPORT eventloop* services_eventloop = NULL;
 MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
-t_svc_thread_handle libeventThread; //can't default-initialzie with pthreads - there is no reserved invalid value
-t_svc_thread_id libeventThreadId;
-
-bool hasLibeventThread = false;
 
 #ifndef USE_LIBWEBSOCKETS
     static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
@@ -25,21 +21,6 @@ bool hasLibeventThread = false;
 MEGAIO_EXPORT eventloop* services_get_event_loop()
 {
     return services_eventloop;
-}
-
-SVC_THREAD_FUNCDECL(libeventThreadFunc)
-{
-    /* enter the event loop */
-    SVC_LOG_INFO("Libevent thread started, entering eventloop");
-    
-#ifndef USE_LIBWEBSOCKETS
-    event_base_loop(services_eventloop, 0);//EVLOOP_NO_EXIT_ON_EMPTY
-#else
-    uv_run(services_eventloop, UV_RUN_DEFAULT);
-#endif
-    
-    SVC_LOG_INFO("Libevent loop terminated");
-    return (t_svc_thread_funcret)0;
 }
 
 MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
@@ -71,9 +52,7 @@ MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
     uv_timer_init(services_eventloop, timerhandle);
     uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);
 #endif
-    
-    hasLibeventThread = svc_thread_start(
-                NULL, &libeventThread, &libeventThreadId, libeventThreadFunc);
+   
     return 0;
 }
 
@@ -84,11 +63,7 @@ MEGAIO_EXPORT int services_shutdown()
 #else    
     uv_stop(services_eventloop);
 #endif
-    
-    SVC_LOG_INFO("Terminating libevent thread...");
-    svc_thread_join(libeventThread);
-    hasLibeventThread = false;
-    SVC_LOG_INFO("Libevent thread terminated");
+       
     return 0;
 }
 

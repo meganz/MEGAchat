@@ -6,8 +6,6 @@
 
 #ifdef USE_LIBWEBSOCKETS
 #include "waiter/libuvWaiter.h"
-#else
-#include "waiter/libeventWaiter.h"
 #endif
 
 #ifndef KARERE_DISABLE_WEBRTC
