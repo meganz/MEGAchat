@@ -19,15 +19,16 @@ class CallGui: public QWidget
 {
     Q_OBJECT
     protected:
-        ChatWindow *mChatWindow;
+        MegaChatHandle mPeerid;
+        ChatWindow *mChatWindow;        
         megachat::MegaChatCall *mCall;
         RemoteCallListener *remoteCallListener;
         LocalCallListener *localCallListener;
         bool mVideo;
-        void setAvatarOnRemote();
-        void setAvatarOnLocal();
+        bool mLocal;
+        int mIndex;
+        void setAvatar();
         void drawAvatar(QImage &image, QChar letter, uint64_t userid);
-        void drawOwnAvatar(QImage &image);
         void drawPeerAvatar(QImage &image);
     public slots:
         void onHangCall(bool);
@@ -37,22 +38,25 @@ class CallGui: public QWidget
         void onAnswerCallBtn(bool);
     public:
         Ui::CallGui *ui;
-        CallGui(ChatWindow *parent, bool video);
+        CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local);
         virtual ~ CallGui();
         void hangCall();
-        void connectCall();
+        void connectPeerCallGui();
         virtual void onLocalStreamObtained(rtcModule::IVideoRenderer *&renderer);
         virtual void onRemoteStreamAdded(rtcModule::IVideoRenderer *&rendererRet);
         virtual void onDestroy(rtcModule::TermCode reason, bool byPeer, const std::string &msg);
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
         virtual void onLocalMediaError(const std::string err);
         virtual void onVideoRecv();
+        MegaChatHandle getPeer();
 
     friend class RemoteCallListener;
     friend class LocalCallListener;
     friend class MainWindow;
     megachat::MegaChatCall *getCall() const;
     void setCall(megachat::MegaChatCall *call);
+    int getIndex() const;
+    void setIndex(int index);
 };
 
 #endif // MAINWINDOW_H

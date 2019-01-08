@@ -134,47 +134,96 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     ChatListItemController *itemController = getChatControllerById(call->getChatid());
     if (!itemController)
     {
+        if (call->getStatus() > MegaChatCall::CALL_STATUS_IN_PROGRESS)
+        {
+            // It's a valid condition if we have been removed from the chatroom and call is being destroyed
+            return;
+        }
+
         throw std::runtime_error("Incoming call from unknown contact");
     }
 
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
 
-    switch(call->getStatus())
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
-        case megachat::MegaChatCall::CALL_STATUS_TERMINATING:
-           {
-               window->hangCall();
-               return;
-           }
-           break;
-        case megachat::MegaChatCall::CALL_STATUS_RING_IN:
-           {
-              if (window->getCallGui() == NULL)
-              {
-                 window->createCallGui(call->hasRemoteVideo());
-              }
-           }
-           break;
-        case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
-           {
-               CallGui *callGui = window->getCallGui();
-               assert(callGui);
+        switch (call->getStatus())
+        {
+            case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+            {
+                window->hangCall();
+                return;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_RING_IN:
+            {
+                std::set<CallGui *> *setCallGui = window->getCallGui();
 
-               if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
-               {
-                    if(call->hasRemoteVideo())
-                    {
-                        callGui->ui->remoteRenderer->disableStaticImage();
-                    }
-                    else
-                    {
-                        callGui->setAvatarOnRemote();
-                        callGui->ui->remoteRenderer->enableStaticImage();
-                    }
-               }
+                if (setCallGui->size() == 0)
+                {
+                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle());
+                }
+                break;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            {
+                std::set<CallGui *> *setOfCallGui = window->getCallGui();
+
+                if (setOfCallGui->size() != 0)
+                {
+                    window->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
+                }
+
+                break;
+            }
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS) &&
+            call->getStatus() == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        std::set<CallGui *> *setOfCallGui = window->getCallGui();
+        std::set<CallGui *>::iterator it;
+        for (it = setOfCallGui->begin(); it != setOfCallGui->end(); ++it)
+        {
+            CallGui *callGui = *it;
+            MegaChatHandle peerid = call->getPeerSessionStatusChange();
+            if (callGui->getPeer() == peerid)
+            {
+                MegaChatSession *session = call->getMegaChatSession(peerid);
+                if (session->hasVideo())
+                {
+                    callGui->ui->videoRenderer->disableStaticImage();
+                }
+                else
+                {
+                    callGui->setAvatar();
+                    callGui->ui->videoRenderer->enableStaticImage();
+                }
+                break;
+            }
+        }
+    }
+
+    //NEW SESSIONS
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
+    {
+       MegaChatHandle peerid = call->getPeerSessionStatusChange();
+       MegaChatSession *session = call->getMegaChatSession(peerid);
+       assert(session);
+       switch (session->getStatus())
+       {
+           case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
+           {
+               window->createCallGui(call->hasVideoInitialCall(), peerid);
+               window->connectPeerCallGui(peerid);
+               break;
            }
-           break;
+
+           case MegaChatSession::SESSION_STATUS_DESTROYED:
+               window->destroyCallGui(peerid);
+               break;
+       }
     }
 }
 #endif

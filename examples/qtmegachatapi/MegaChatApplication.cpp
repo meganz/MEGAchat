@@ -96,6 +96,8 @@ void MegaChatApplication::init()
 
         mMegaApi->fastLogin(mSid);
     }
+
+    mMegaChatApi->enableGroupChatCalls(true);
 }
 
 void MegaChatApplication::login()
@@ -473,7 +475,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 if(itemController)
                 {
                     ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectCall();
+                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
                 }
             }
             break;

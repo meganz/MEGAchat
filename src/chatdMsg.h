@@ -325,14 +325,14 @@ enum Opcode
     OP_ADDREACTION = 33,
 
     /**
-      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <unicodechar32le>
       *
       * User delete a reaction to message
       */
     OP_DELREACTION = 34,
 
     /**
-      ** @brief <chatid>
+      * @brief <chatid>
       *
       * C->S: ping server to ensure client is up to date for the specified chatid
       * S->C: response to the ping initiated by client
@@ -397,7 +397,8 @@ public:
         kMsgPrivChange        = 0x04,
         kMsgChatTitle         = 0x05,
         kMsgCallEnd           = 0x06,
-        kMsgManagementHighest = 0x06,
+        kMsgCallStarted       = 0x07,
+        kMsgManagementHighest = 0x07,
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
         kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10

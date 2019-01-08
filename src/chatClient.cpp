@@ -401,6 +401,16 @@ bool Client::isChatRoomOpened(Id chatid)
     return false;
 }
 
+bool Client::areGroupCallsEnabled()
+{
+    return mGroupCallsEnabled;
+}
+
+void Client::enableGroupCalls(bool enable)
+{
+    mGroupCallsEnabled = enable;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -966,7 +976,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
@@ -1502,6 +1512,11 @@ rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handl
 {
     return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
 }
+
+rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
+{
+    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
+}
 #endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
@@ -1876,9 +1891,9 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
-bool ChatRoom::isCallInProgress() const
+bool ChatRoom::isCallActive() const
 {
-    return parent.mKarereClient.isCallInProgress(mChatid);
+    return parent.mKarereClient.isCallActive(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -3162,26 +3177,33 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress(Id chatid) const
+bool Client::isCallActive(Id chatid) const
 {
-    bool callInProgress = false;
+    bool callActive = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress(chatid);
+        callActive = rtc->isCallActive(chatid);
     }
 #endif
 
-    return callInProgress;
+    return callActive;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
+bool Client::isCallInProgress(karere::Id chatid) const
 {
-    return app.onIncomingCall(call, av);
-}
+    bool participantingInCall = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        participantingInCall = rtc->isCallInProgress(chatid);
+    }
 #endif
+
+    return participantingInCall;
+}
 
 std::string encodeFirstName(const std::string& first)
 {

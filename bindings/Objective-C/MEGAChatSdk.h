@@ -143,11 +143,11 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate;
 - (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate;
 
-- (void)addChatLocalVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
-- (void)removeChatLocalVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)addChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)removeChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
 
-- (void)addChatRemoteVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
-- (void)removeChatRemoteVideoDelegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)addChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId delegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)removeChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId delegate:(id<MEGAChatVideoDelegate>)delegate;
 
 #endif
 
@@ -273,6 +273,9 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 @property (nonatomic, readonly) NSInteger numCalls;
 - (MEGAHandleList *)chatCalls;
 - (MEGAHandleList *)chatCallsIds;
+- (BOOL)hasCallInChatRoom:(uint64_t)chatId;
+- (void)enableGroupChatCalls:(BOOL)enable;
+- (BOOL)areGroupChatCallEnabled;
 
 #endif
 
