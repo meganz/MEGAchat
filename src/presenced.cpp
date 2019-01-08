@@ -187,19 +187,25 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
-    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive;
+    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive && mConfig.mPresence == Presence::kOnline;
 }
 
 void Client::signalActivity()
 {
-    if (!mConfig.mPresence.isValid())
+    if (!autoAwayInEffect())
     {
-        PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is yet received, cannot be changed");
-        return;
-    }
-    if (!mConfig.mAutoawayActive)
-    {
-        PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
+        if (!mConfig.mPresence.isValid())
+        {
+            PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is not yet received, cannot be changed");
+        }
+        else if (!mConfig.mAutoawayActive)
+        {
+            PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
+        }
+        else if (mConfig.mPresence != Presence::kOnline)
+        {
+            PRESENCED_LOG_WARNING("signalActivity(): configured status is not online, autoaway shouldn't be used");
+        }
         return;
     }
 
