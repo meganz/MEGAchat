@@ -15,10 +15,10 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     ui(new Ui::MainWindow)
 {
     mApp = (MegaChatApplication *) parent;
-    nContacts = 0;
-    activeChats = 0;
-    archivedChats = 0;
-    inactiveChats = 0;
+    mNContacts = 0;
+    mActiveChats = 0;
+    mArchivedChats = 0;
+    mInactiveChats = 0;
     ui->setupUi(this);
     ui->contactList->setSelectionMode(QAbstractItemView::NoSelection);
     ui->chatList->setSelectionMode(QAbstractItemView::NoSelection);
@@ -417,7 +417,7 @@ void MainWindow::on_bSettings_clicked()
     connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
 
     menu.addSeparator();
-    auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));    
+    auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
     connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
 
@@ -566,8 +566,8 @@ void MainWindow::onShowArchivedChats()
 ContactItemWidget *MainWindow::addQtContactWidget(MegaUser *user)
 {
     //Create widget and add to interface
-    int index = -(archivedChats + nContacts);
-    nContacts += 1;
+    int index = -(mArchivedChats + mNContacts);
+    mNContacts += 1;
     ContactItemWidget *widget = new ContactItemWidget(ui->contactList, this, mMegaChatApi, mMegaApi, user);
     widget->updateToolTip(user);
     QListWidgetItem *item = new QListWidgetItem();
@@ -652,18 +652,18 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
     int index = 0;
     if (chatListItem->isArchived())
     {
-        index = -(archivedChats);
-        archivedChats += 1;
+        index = -(mArchivedChats);
+        mArchivedChats += 1;
     }
     else if (!chatListItem->isActive())
     {
-        index = -(nContacts + archivedChats + inactiveChats);
-        inactiveChats += 1;
+        index = -(mNContacts + mArchivedChats + mInactiveChats);
+        mInactiveChats += 1;
     }
     else
     {
-        index = -(activeChats + inactiveChats + archivedChats+nContacts);
-        activeChats += 1;
+        index = -(mActiveChats + mInactiveChats + mArchivedChats+mNContacts);
+        mActiveChats += 1;
     }
 
     megachat::MegaChatHandle chathandle = chatListItem->getChatId();
@@ -695,7 +695,7 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
     }
     itemController = addOrUpdateChatControllerItem(item->copy());
 
-    if (!allowOrder
+    if (!mAllowOrder
         && !(item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UPDATE_PREVIEWERS)))
     {
         return;
@@ -840,7 +840,7 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chati
     {
         // When we are connected to all chats we have to reorder the chatlist
         // we skip all reorders until we receive this event to avoid app overload
-        allowOrder = true;
+        mAllowOrder = true;
 
         //Reorder chat list in QtApp
         reorderAppChatList();
@@ -912,7 +912,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
         // If we don't receive our presence we'll skip all chats reorders
         // when we are connected to all chats this flag will be set true
         // and chatlist will be reordered
-        allowOrder = false;
+        mAllowOrder = false;
         status = 0;
     }
 
@@ -982,7 +982,7 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
 
 void MainWindow::setNContacts(int nContacts)
 {
-    this->nContacts = nContacts;
+    this->mNContacts = nContacts;
 }
 
 void MainWindow::updateMessageFirstname(MegaChatHandle contactHandle, const char *firstname)

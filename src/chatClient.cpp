@@ -2063,7 +2063,7 @@ void GroupChatRoom::initWithChatd(bool isPublic, std::shared_ptr<std::string> un
     Id myHandle = parent.mKarereClient.myHandle();
 
     //Don't add my own handle in preview mode because previewers are not chat members
-    if(myHandle != Id::null() && !ph.isValid())
+    if (myHandle != Id::null() && !ph.isValid())
     {
         users.insert(myHandle);
     }
@@ -2772,7 +2772,7 @@ promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
         pms = chat().crypto()->encryptChatTitle(mTitleString, userid)
         .then([](const std::shared_ptr<Buffer>& buf)
         {
-            return base64urlencode(buf->buf(), buf->dataSize());;
+            return base64urlencode(buf->buf(), buf->dataSize());
         });
     }
     else
