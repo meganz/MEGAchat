@@ -117,8 +117,6 @@
 ../../src/url.cpp
 ../../src/net/libwebsocketsIO.cpp
 ../../src/net/libwebsocketsIO.h
-../../src/net/libwsIO.cpp
-../../src/net/libwsIO.h
 ../../src/net/websocketsIO.cpp
 ../../src/net/websocketsIO.h
 ../../src/waiter/libuvWaiter.cpp

@@ -68,17 +68,6 @@ License: ISC License
 
 https://github.com/jedisct1/libsodium
 
-#### libws
-Copyright (c) 2014 Joakim Soderberg
-
-Communicate across application servers, web services, API servers, SSO, SQL, Facebook API and run commands and PHP on remote servers.
-
-https://github.com/JoakimSoderberg/libws
-
-License: MIT License
-
-https://github.com/meganz/libws
-
 #### rapidjson
 Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 

@@ -54,13 +54,6 @@
 
 typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
-
-#else
-
-#include "net/libwsIO.h"
-
-typedef LibwsIO MegaWebsocketsIO;
-
 #endif
 
 namespace megachat
