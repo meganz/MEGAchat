@@ -1690,9 +1690,9 @@ void MegaChatApiImpl::createKarereClient()
     if (!mClient)
     {
 #ifndef KARERE_DISABLE_WEBRTC
-        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc;
+        uint8_t caps = karere::kClientIsMobile | karere::kClientCanWebrtc | karere::kClientSupportLastGreen;
 #else
-        uint8_t caps = karere::kClientIsMobile;
+        uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
         mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);
         terminating = false;

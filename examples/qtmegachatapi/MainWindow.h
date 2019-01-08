@@ -167,11 +167,11 @@ class MainWindow :
         MegaLoggerApplication *mLogger;
         Ui::MainWindow *ui;
         bool mShowArchived = false;
-        int activeChats;
-        int archivedChats;
-        int inactiveChats;
-        int nContacts;
-        bool allowOrder = false;
+        int mActiveChats;
+        int mArchivedChats;
+        int mInactiveChats;
+        int mNContacts;
+        bool mAllowOrder = false;
         bool mNeedReorder = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
