@@ -386,9 +386,7 @@ protected:
      * (currently, it includes contacts and any user in our groupchats, except ex-contacts) */
     IdRefMap mCurrentPeers;
 
-    /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API)
-     * @note: peers who are ex-contacts are not included
-     */
+    /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API) */
     std::map<uint64_t, karere::SetOfIds> mChatMembers;
 
     /** Map of userid of contacts (key) and their visibility (value) (updated only from API)

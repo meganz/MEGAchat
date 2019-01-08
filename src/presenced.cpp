@@ -452,11 +452,8 @@ void Client::onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *roomsUpda
                 for (int j = 0; j < peerList->size(); j++)
                 {
                     uint64_t userid = peerList->getPeerHandle(j);
-                    if (!isExContact(userid))
-                    {
-                        addPeer(userid);
-                        mChatMembers[chatid].insert(userid);
-                    }
+                    mChatMembers[chatid].insert(userid);
+                    addPeer(userid);
                 }
             }
             else    // existing room
@@ -477,8 +474,8 @@ void Client::onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *roomsUpda
                     uint64_t userid = *oldIt;
                     if (!newPeerList.has(userid))
                     {
-                        removePeer(userid);
                         mChatMembers[chatid].erase(userid);
+                        removePeer(userid);
                     }
                 }
 
@@ -486,10 +483,10 @@ void Client::onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *roomsUpda
                 for (auto newIt = newPeerList.begin(); newIt != newPeerList.end(); newIt++)
                 {
                     uint64_t userid = *newIt;
-                    if (!isExContact(userid) && !oldPeerList.has(userid))
+                    if (!oldPeerList.has(userid))
                     {
-                        addPeer(userid);
                         mChatMembers[chatid].insert(userid);
+                        addPeer(userid);
                     }
                 }
             }
@@ -541,9 +538,9 @@ void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
             auto it = mContacts.find(userid);
             if (it == mContacts.end())  // new contact
             {
-                addPeer(userid);
                 assert(newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE);
                 mContacts[userid] = newVisibility;
+                addPeer(userid);
             }
             else    // existing (ex)contact
             {
@@ -552,8 +549,8 @@ void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
 
                 if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE) // user cancelled the account
                 {
-                    removePeer(userid, true);
                     mContacts.erase(it);
+                    removePeer(userid, true);
                 }
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE && newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
                 {
@@ -562,6 +559,16 @@ void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
                 else if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
                     addPeer(userid);
+
+                    // update mCurrentPeers's counter in order to consider groupchats. Otherwise, the count=1 will be zeroed if
+                    // the user (now contact again) is removed from any groupchat, resulting in an incorrect DELPEERS
+                    for (auto it = mChatMembers.begin(); it != mChatMembers.end(); it++)
+                    {
+                        if (it->second.has(userid))
+                        {
+                            addPeer(userid);
+                        }
+                    }
                 }
             }
         }
@@ -1208,6 +1215,12 @@ void Client::setConnState(ConnState newState)
 }
 void Client::addPeer(karere::Id peer)
 {
+    if (isExContact(peer))
+    {
+        PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
+        return;
+    }
+
     assert(mLastScsn.isValid());
 
     int result = mCurrentPeers.insert(peer);
