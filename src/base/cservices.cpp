@@ -12,11 +12,7 @@ extern "C"
 MEGAIO_EXPORT eventloop* services_eventloop = NULL;
 MEGA_GCM_DLLEXPORT GcmPostFunc megaPostMessageToGui = NULL;
 
-#ifndef USE_LIBWEBSOCKETS
-    static void keepalive_timer_cb(evutil_socket_t fd, short what, void *arg){}
-#else
-    static void keepalive_timer_cb(uv_timer_t* handle) {}
-#endif
+static void keepalive_timer_cb(uv_timer_t* handle) {}
     
 MEGAIO_EXPORT eventloop* services_get_event_loop()
 {
@@ -25,45 +21,18 @@ MEGAIO_EXPORT eventloop* services_get_event_loop()
 
 MEGAIO_EXPORT int services_init(GcmPostFunc postFunc, unsigned options)
 {
-    megaPostMessageToGui = postFunc;
-    
-#ifndef USE_LIBWEBSOCKETS
-
-#ifdef _WIN32
-    WSADATA wsadata;
-    WSAStartup(MAKEWORD(2,2), &wsadata);
-    evthread_use_windows_threads();
-#else
-    evthread_use_pthreads();
-#endif
-    services_eventloop = event_base_new();
-    evthread_make_base_notifiable(services_eventloop);
-    
-    struct event* keepalive = evtimer_new(services_eventloop, keepalive_timer_cb, NULL);
-    struct timeval tv;
-    tv.tv_sec = 123456;//0x7FFFFFFF;
-    tv.tv_usec = 0;
-    evtimer_add(keepalive, &tv);
-#else
+    megaPostMessageToGui = postFunc;   
     services_eventloop = new uv_loop_t();
-    uv_loop_init(services_eventloop);
-    
+    uv_loop_init(services_eventloop);    
     uv_timer_t* timerhandle = new uv_timer_t();
     uv_timer_init(services_eventloop, timerhandle);
-    uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);
-#endif
-   
+    uv_timer_start(timerhandle, keepalive_timer_cb, 1234567890ULL, 1);   
     return 0;
 }
 
 MEGAIO_EXPORT int services_shutdown()
 {
-#ifndef USE_LIBWEBSOCKETS
-    event_base_loopexit(services_eventloop, NULL);
-#else    
-    uv_stop(services_eventloop);
-#endif
-       
+    uv_stop(services_eventloop);       
     return 0;
 }
 
@@ -139,11 +108,7 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
 int64_t services_get_time_ms()
 {
     struct timeval tv;
-#ifndef USE_LIBWEBSOCKETS
-    evutil_gettimeofday(&tv, nullptr);
-#else
     gettimeofday(&tv, nullptr);
-#endif
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
 }

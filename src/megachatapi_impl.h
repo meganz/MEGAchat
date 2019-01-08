@@ -44,17 +44,12 @@
 
 #include "net/websocketsIO.h"
 #include <rapidjson/document.h>
-
 #include <stdint.h>
-
-#ifdef USE_LIBWEBSOCKETS
-
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
 
 typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
-#endif
 
 namespace megachat
 {
