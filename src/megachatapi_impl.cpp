@@ -7913,7 +7913,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, ContactList *contactList)
 {
     std::string ret;
-    if (!contacts || contacts->size() == 0 || !contactList || contacts->size() < contactList->size())
+    if (!contacts || contacts->size() == 0 || !contactList || contacts->size() > contactList->size())
     {
         API_LOG_ERROR("parseAttachContactJSon: no contacts available");
         return ret;
