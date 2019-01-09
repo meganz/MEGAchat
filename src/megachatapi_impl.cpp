@@ -3830,11 +3830,6 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
         IGroupChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-//            TODO: Redmine ticket #5693
-//            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
-//            listItem->setClosed();
-//            fireOnChatListItemUpdate(listItem);
-
             delete (itemHandler);
             chatGroupListItemHandler.erase(it);
             return;
@@ -3852,11 +3847,6 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
         IPeerChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-//            TODO: Redmine ticket #5693
-//            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
-//            listItem->setClosed();
-//            fireOnChatListItemUpdate(listItem);
-
             delete (itemHandler);
             chatPeerListItemHandler.erase(it);
             return;
