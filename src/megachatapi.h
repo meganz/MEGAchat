@@ -514,7 +514,7 @@ public:
      * regardless your own user participates or not. In consequence,
      * the list can differ from the one returned by MegaChatCall::getSessionsPeerid
      *
-     * To idendentify completely a call participant it's necessary the peerid plus the clientid
+     * To identify completely a call participant it's necessary the peerid plus the clientid
      * (megaChatCall::getClientidParticipants)
      *
      * You take the ownership of the returned value.
