@@ -2721,6 +2721,37 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistroy(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Message *msg = chat.getMessageFromNodeHistory(msgid);
+        if (msg)
+        {
+            Idx idx = chat.getIdxFromNodeHistory(msgid);
+            assert(idx != CHATD_IDX_INVALID);
+            Message::Status status = (msg->userid == mClient->myHandle()) ? Message::Status::kServerReceived : Message::Status::kSeen;
+            megaMsg = new MegaChatMessagePrivate(*msg, status, idx);
+        }
+        else
+        {
+            API_LOG_ERROR("Failed to find message at node history (id: %d)",  msgid);
+        }
+    }
+    else
+    {
+        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
+}
+
 MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
 

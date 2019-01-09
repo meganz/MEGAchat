@@ -2130,6 +2130,16 @@ bool Chat::haveAllHistoryNotified() const
     return (mNextHistFetchIdx < lownum());
 }
 
+Message *Chat::getMessageFromNodeHistory(Id msgid) const
+{
+    return mAttachmentNodes->getMessage(msgid);
+}
+
+Idx Chat::getIdxFromNodeHistory(Id msgid) const
+{
+    return mAttachmentNodes->getMessageIdx(msgid);
+}
+
 uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 {
     uint64_t ts = time(nullptr);
@@ -4924,6 +4934,38 @@ void FilteredHistory::finishFetchingFromServer()
     assert(mFetchingFromServer);
     CALL_LISTENER_FH(onLoaded, NULL, 0);
     mFetchingFromServer = false;
+}
+
+Message *FilteredHistory::getMessage(Id id)
+{
+    Message *msg = NULL;
+    auto msgItetrator = mIdToMsgMap.find(id);
+    if (msgItetrator != mIdToMsgMap.end())
+    {
+        msg = msgItetrator->second->get();
+    }
+
+    return msg;
+}
+
+Idx FilteredHistory::getMessageIdx(Id id)
+{
+    Idx idx = CHATD_IDX_INVALID;
+    auto msgItetrator = mIdToMsgMap.find(id);
+    if (msgItetrator != mIdToMsgMap.end())
+    {
+        idx = mNewestIdx;
+        for (auto iterator = mBuffer.begin(); iterator != mBuffer.end(); iterator++)
+        {
+            if (iterator->get()->id() == id)
+            {
+                break;
+            }
+            idx--;
+        }
+    }
+
+    return idx;
 }
 
 void FilteredHistory::init()

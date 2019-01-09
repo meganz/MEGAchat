@@ -625,6 +625,8 @@ public:
     void setHandler(FilteredHistoryHandler *handler);
     void unsetHandler();
     void finishFetchingFromServer();
+    Message *getMessage(karere::Id id);
+    Idx getMessageIdx(karere::Id id);
 
 protected:
     DbInterface *mDb;
@@ -1050,6 +1052,22 @@ public:
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
+
+    /**
+     * @brief Returns the message with specifict msgid that it's stored at node history
+     * @param msgid The message id
+     * @return Pointer to the message. The ownership of the message is retained in c\ FilteredHistory
+     */
+    Message *getMessageFromNodeHistory(karere::Id msgid) const;
+
+    /**
+     * @brief Returns the index of the message with the specified msgid that it's stored at node history
+     * @param msgid The message id whose index to find
+     * @return The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx getIdxFromNodeHistory(karere::Id msgid) const;
 
     /**
      * @brief Initiates fetching more history - from local RAM history buffer,
