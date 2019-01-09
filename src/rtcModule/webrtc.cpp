@@ -1,3 +1,7 @@
+#ifdef WIN32
+#include <WinSock2.h> // for htonll, needed in webrtc\rtc_base\byteorder.h
+#endif
+
 #include "webrtc.h"
 #include "webrtcPrivate.h"
 #include <chatClient.h>
@@ -380,11 +384,11 @@ std::shared_ptr<artc::LocalStreamHandle>
 RtcModule::getLocalStream(AvFlags av, std::string& errors)
 {
     const auto& devices = mDeviceManager.inputDevices();
-    if (devices.video.empty() || mVideoInDeviceName.empty())
+    if (devices.video.empty() || mVideoInDeviceName.empty() || !av.video())
     {
         mVideoInput.reset();
     }
-    else if (!mVideoInput || mVideoInput.mediaOptions().device.name != mVideoInDeviceName)
+    else if (av.video() && (!mVideoInput || mVideoInput.mediaOptions().device.name != mVideoInDeviceName))
     try
     {
         auto device = getDevice(mVideoInDeviceName, devices.video);
@@ -2473,7 +2477,7 @@ void StateDesc::assertStateChange(uint8_t oldState, uint8_t newState) const
 }
 
 const StateDesc Call::sStateDesc = {
-    .transMap = {
+    {
         { kStateReqSent, kStateHasLocalStream, kStateTerminating }, //for kStateInitial
         { kStateJoining, kStateReqSent, kStateTerminating }, //for kStateHasLocalStream
         { kStateInProgress, kStateTerminating },             //for kStateReqSent
@@ -2484,20 +2488,20 @@ const StateDesc Call::sStateDesc = {
         { kStateDestroyed },                                 //for kStateTerminating,
         {}                                                   //for kStateDestroyed
     },
-    .toStrFunc = Call::stateToStr
+    Call::stateToStr
 };
 
 const StateDesc Session::sStateDesc = {
-    .transMap = {
+    {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kSWaitSdpOffer
         { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
-        { kStateInProgress, kStateTerminating },               //for kStateWaitSdpAnswer
+        { kStateInProgress, kStateTerminating },         //for kStateWaitSdpAnswer
         { kStateTerminating },                           //for kStateInProgress
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
     },
-    .toStrFunc = Session::stateToStr
+    Session::stateToStr
 };
 
 const char* rtcmdTypeToStr(uint8_t type)

@@ -21,7 +21,6 @@
 
 // This program is intended for exploring the chat API, performing testing and so on.
 // It's not well tested and should be considered alpha at best. 
-// Currently only built under Visual Studio.
 
 #include <iomanip>
 #include <fstream>
@@ -1444,6 +1443,170 @@ void exec_quit(ac::ACState&)
     quit_flag = true;
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+
+void exec_getchataudioindevices(ac::ACState&)
+{
+    unique_ptr<m::MegaStringList> audioDevices(g_chatApi->getChatAudioInDevices());
+    for (int i = 0; i < audioDevices->size(); ++i)
+    {
+        cout << audioDevices->get(i) << endl;
+    }
+}
+
+void exec_getchatvideoindevices(ac::ACState&)
+{
+    unique_ptr<m::MegaStringList> videoDevices(g_chatApi->getChatVideoInDevices());
+    for (int i = 0; i < videoDevices->size(); ++i)
+    {
+        cout << videoDevices->get(i) << endl;
+    }
+}
+
+void exec_setchataudioindevice(ac::ACState& s)
+{
+    if (!g_chatApi->setChatAudioInDevice(s.words[1].s.c_str()))
+    {
+        cout << "setChatAudioInDevice failed" << endl;
+    }
+}
+
+void exec_setchatvideoindevice(ac::ACState& s)
+{
+    if (!g_chatApi->setChatVideoInDevice(s.words[1].s.c_str()))
+    {
+        cout << "setChatVideoInDevice failed" << endl;
+    }
+}
+
+void exec_startchatcall(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    bool enableVideo = s.words.size() > 2 && s.words[2].s == "true";  
+    g_chatApi->startChatCall(room, enableVideo, listener);
+}
+
+void exec_answerchatcall(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    bool enableVideo = s.words.size() < 2 || s.words[2].s == "true";
+    g_chatApi->answerChatCall(room, enableVideo, listener);
+}
+
+
+void exec_hangchatcall(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->hangChatCall(room, listener);
+}
+
+void exec_hangallchatcalls(ac::ACState&)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    g_chatApi->hangAllChatCalls(listener);
+}
+
+void exec_enableaudio(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->enableAudio(room, listener);
+}
+
+void exec_disableaudio(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->disableAudio(room, listener);
+}
+
+void exec_enablevideo(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->enableVideo(room, listener);
+}
+
+void exec_disablevideo(ac::ACState& s)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->disableVideo(room, listener);
+}
+
+void exec_loadaudiovideodevicelist(ac::ACState&)
+{
+    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    g_chatApi->loadAudioVideoDeviceList(listener);
+}
+
+void exec_getchatcall(ac::ACState&)
+{
+    /**
+     * @brief Get the MegaChatCall associated with a chatroom
+     *
+     * If \c chatid is invalid or there isn't any MegaChatCall associated with the chatroom,
+     * this function returns NULL.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @return MegaChatCall object associated with chatid or NULL if it doesn't exist
+     */
+   // MegaChatCall *getChatCall(MegaChatHandle chatid);
+}
+
+void exec_setignoredcall(ac::ACState& s)
+{
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->setIgnoredCall(room);
+}
+
+
+void exec_getchatcallbycallid(ac::ACState&)
+{
+    /**
+ * @brief Get the MegaChatCall that has a specific id
+ *
+ * You can get the id of a MegaChatCall using MegaChatCall::getId().
+ *
+ * You take the ownership of the returned value.
+ *
+ * @param callId MegaChatHandle that identifies the call
+ * @return MegaChatCall object for the specified \c callId. NULL if call doesn't exist
+ */
+  //  MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
+}
+
+void exec_getnumcalls(ac::ACState&)
+{
+    cout << g_chatApi->getNumCalls() << endl;
+}
+
+void exec_getchatcalls(ac::ACState&)
+{
+    unique_ptr<m::MegaHandleList> list(g_chatApi->getChatCalls());
+    for (unsigned i = 0; i < list->size(); ++i)
+    {
+        cout << ch_s(list->get(i)) << endl;
+    }
+}
+
+void exec_getchatcallsids(ac::ACState&)
+{
+    unique_ptr<m::MegaHandleList> list(g_chatApi->getChatCallsIds());
+    for (unsigned i = 0; i < list->size(); ++i)
+    {
+        cout << ch_s(list->get(i)) << endl;
+    }
+}
+
+#endif
+
+
 
 ac::ACN autocompleteSyntax()
 {
@@ -1504,6 +1667,28 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_sendtypingnotification, sequence(text("sendtypingnotification"), param("roomid")));
     p->Add(exec_ismessagereceptionconfirmationactive, sequence(text("ismessagereceptionconfirmationactive")));
     p->Add(exec_savecurrentstate, sequence(text("savecurrentstate")));
+     
+#ifndef KARERE_DISABLE_WEBRTC
+    p->Add(exec_getchataudioindevices, sequence(text("getchataudioindevices")));
+    p->Add(exec_getchatvideoindevices, sequence(text("getchatvideoindevices")));
+    p->Add(exec_setchataudioindevice, sequence(text("setchataudioindevice"), param("device")));
+    p->Add(exec_setchatvideoindevice, sequence(text("setchatvideoindevice"), param("device")));
+    p->Add(exec_startchatcall, sequence(text("startchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
+    p->Add(exec_answerchatcall, sequence(text("answerchatcall"), param("roomid"), opt(either(text("true"), text("false")))));
+    p->Add(exec_hangchatcall, sequence(text("hangchatcall"), param("roomid")));
+    p->Add(exec_hangallchatcalls, sequence(text("hangallchatcalls")));
+    p->Add(exec_enableaudio, sequence(text("enableaudio"), param("roomid")));
+    p->Add(exec_disableaudio, sequence(text("disableaudio"), param("roomid")));
+    p->Add(exec_enablevideo, sequence(text("enablevideo"), param("roomid")));
+    p->Add(exec_disablevideo, sequence(text("disablevideo"), param("roomid")));
+    p->Add(exec_loadaudiovideodevicelist, sequence(text("loadaudiovideodevicelist")));
+    p->Add(exec_getchatcall, sequence(text("getchatcall"), param("roomid")));
+    p->Add(exec_setignoredcall, sequence(text("setignoredcall"), param("roomid")));
+    p->Add(exec_getchatcallbycallid, sequence(text("getchatcallbycallid"), param("callid")));
+    p->Add(exec_getnumcalls, sequence(text("getnumcalls")));
+    p->Add(exec_getchatcalls, sequence(text("getchatcalls")));
+    p->Add(exec_getchatcallsids, sequence(text("getchatcallsids")));
+#endif
 
     p->Add(exec_detail,     sequence(text("detail"), opt(either(text("high"), text("low")))));
 #ifdef WIN32

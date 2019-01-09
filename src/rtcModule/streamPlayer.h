@@ -159,8 +159,7 @@ public:
         if (mVideoEnable)
         {
             void* userData = NULL;
-            rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
-                frame.video_frame_buffer()->ToI420());
+            auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
             if (frame.rotation() != webrtc::kVideoRotation_0)
             {
                 buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());

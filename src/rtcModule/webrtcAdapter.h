@@ -1,6 +1,6 @@
 #pragma once
 //#include <p2p/base/common.h>
-#include <rtc_base/scoped_ref_ptr.h>
+#include <base/scoped_ref_ptr.h>
 #include <api/peerconnectioninterface.h>
 #include <api/jsep.h>
 #include <media/base/device.h>

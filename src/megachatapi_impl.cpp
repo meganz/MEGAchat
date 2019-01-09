@@ -4534,7 +4534,7 @@ void* MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short
     MegaChatVideoFrame *frame = new MegaChatVideoFrame;
     frame->width = width;
     frame->height = height;
-    frame->buffer = new byte[width * height * 4];  // in format ARGB: 4 bytes per pixel
+    frame->buffer = new ::mega::byte[width * height * 4];  // in format ARGB: 4 bytes per pixel
     userData = frame;
     return frame->buffer;
 }
