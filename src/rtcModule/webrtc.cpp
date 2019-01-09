@@ -430,7 +430,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
     artc::InputAudioDevice audioInput;
     const auto& devices = mDeviceManager.inputDevices();
 
-    if (!devices.video.empty() && !mVideoInDeviceName.empty())
+    if (av.video() && (!devices.video.empty() && !mVideoInDeviceName.empty()))
      {
         try
          {
@@ -3094,7 +3094,7 @@ const StateDesc Call::sStateDesc = {
 };
 
 const StateDesc Session::sStateDesc = {
-    .transMap = {
+    {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kStateWaitSdpOffer
         { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer

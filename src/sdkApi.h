@@ -84,7 +84,7 @@ public:
     MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
 
     promise::Promise<void> mPromise;
-    virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest */*request*/, ::mega::MegaError* e)
+    virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest * /*request*/, ::mega::MegaError* e)
     {
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
