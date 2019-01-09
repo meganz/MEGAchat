@@ -447,8 +447,11 @@ public:
     /**
      * @brief Get a list with the ids of peers that have a session with me
      *
-     * It's necessary to call MegaChatCall::getSessionsClientid to know the clientid. With clientid and
-     * sessionid, you can identify a Session. We can have a session with the same peerid but with different clientids
+     * Every session is identified by a pair of \c peerid and \c clientid. This method returns the
+     * list of peerids for each session. Note that, if there are multiple sessions with the same peer
+     * (who uses multiple clients), the same peerid will be included multiple times (once per session)
+     *
+     * The pair peerid and clientid that identify a session are at same position in the list
      *
      * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
      *
@@ -461,8 +464,10 @@ public:
     /**
      * @brief Get a list with the ids of client that have a session with me
      *
-     * It's necessary to call MegaChatCall::getSessionsPeerid to know the peerid. With clientid and
-     * sessionid, you can identify a Session. We can have a session with the same peerid but with different clientids
+     * Every session is identified by a pair of \c peerid and \c clientid. This method returns the
+     * list of clientids for each session.
+     *
+     * The pair peerid and clientid that identify a session are at same position in the list
      *
      * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
      *
