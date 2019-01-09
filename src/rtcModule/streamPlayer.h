@@ -176,6 +176,11 @@ public:
             mRenderer->frameComplete(userData);
         }
     }
+
+    webrtc::AudioTrackInterface *getAudioTrack()
+    {
+        return mAudio.get();
+    }
 };
 }
 

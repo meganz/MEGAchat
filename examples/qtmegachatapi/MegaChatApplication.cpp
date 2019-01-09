@@ -49,6 +49,7 @@ MegaChatApplication::MegaChatApplication(int &argc, char **argv) : QApplication(
 
 MegaChatApplication::~MegaChatApplication()
 {
+    mMegaApi->httpServerStop();
     mMegaApi->removeListener(megaListenerDelegate);
     mMegaChatApi->removeChatRequestListener(megaChatRequestListenerDelegate);
     mMegaChatApi->removeChatNotificationListener(megaChatNotificationListenerDelegate);
@@ -95,6 +96,8 @@ void MegaChatApplication::init()
 
         mMegaApi->fastLogin(mSid);
     }
+
+    mMegaChatApi->enableGroupChatCalls(true);
 }
 
 void MegaChatApplication::login()
@@ -157,7 +160,7 @@ void MegaChatApplication::configureLogs()
     MegaChatApi::setCatchException(false);
 }
 
-void MegaChatApplication::onUsersUpdate(mega::MegaApi *, mega::MegaUserList *userList)
+void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
     if(mMainWin && userList)
     {
@@ -472,7 +475,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 if(itemController)
                 {
                     ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectCall();
+                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
                 }
             }
             break;

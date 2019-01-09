@@ -284,11 +284,7 @@ void Client::heartbeat()
 
 Client::~Client()
 {
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
+    assert(isTerminated());
 }
 
 void Client::retryPendingConnections(bool disconnect)
@@ -403,6 +399,16 @@ bool Client::isChatRoomOpened(Id chatid)
         return it->second->hasChatHandler();
     }
     return false;
+}
+
+bool Client::areGroupCallsEnabled()
+{
+    return mGroupCallsEnabled;
+}
+
+void Client::enableGroupCalls(bool enable)
+{
+    mGroupCallsEnabled = enable;
 }
 
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
@@ -713,7 +719,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 if (wptr.deleted())
                     return;
 
-                if (initState() != kInitTerminated)
+                if (!isTerminated())
                 {
                     setInitState(kInitErrSidInvalid);
                 }
@@ -970,7 +976,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
@@ -1004,30 +1010,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         heartbeat();
     }, kHeartbeatTimeout, appCtx);
     return pms;
-}
-
-void Client::disconnect()
-{
-    if (mConnState == kDisconnected)
-        return;
-
-    setConnState(kDisconnected);
-    // stop sync of user attributes in cache
-    assert(mOwnNameAttrHandle.isValid());
-    mUserAttrCache->removeCb(mOwnNameAttrHandle);
-    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
-    mUserAttrCache->onLogOut();
-
-    // stop heartbeats
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
-
-    // disconnect from chatd shards and presenced
-    mChatdClient->disconnect();
-    mPresencedClient.disconnect();
 }
 
 void Client::setConnState(ConnState newState)
@@ -1236,7 +1218,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+    return mPresencedClient.connect(url, std::move(peers), presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1247,7 +1229,7 @@ void Contact::updatePresence(Presence pres)
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
-    if (mInitState == kInitTerminated)
+    if (isTerminated())
     {
         return;
     }
@@ -1325,9 +1307,28 @@ void Client::terminate(bool deleteDb)
         rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
-    disconnect();
-    mUserAttrCache.reset();
+    if (mConnState != kDisconnected)
+    {
+        setConnState(kDisconnected);
 
+        // stop syncing own-name and close user-attributes cache
+        mUserAttrCache->removeCb(mOwnNameAttrHandle);
+        mUserAttrCache->onLogOut();
+        mUserAttrCache.reset();
+
+        // stop heartbeats
+        if (mHeartbeatTimer)
+        {
+            karere::cancelInterval(mHeartbeatTimer, appCtx);
+            mHeartbeatTimer = 0;
+        }
+
+        // disconnect from chatd shards and presenced
+        mChatdClient->disconnect();
+        mPresencedClient.disconnect();
+    }
+
+    // close or delete MEGAchat's DB file
     try
     {
         if (deleteDb && !mSid.empty())
@@ -1511,6 +1512,11 @@ rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handl
 {
     return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
 }
+
+rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
+{
+    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
+}
 #endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
@@ -1687,7 +1693,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
         parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
 
     if (parent.mKarereClient.mChatdClient)
@@ -1885,9 +1891,9 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
-bool ChatRoom::isCallInProgress() const
+bool ChatRoom::isCallActive() const
 {
-    return parent.mKarereClient.isCallInProgress(mChatid);
+    return parent.mKarereClient.isCallActive(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -2266,7 +2272,15 @@ void GroupChatRoom::makeTitleFromMemberNames()
             }
             else
             {
-                newTitle.append(name.substr(1)).append(", ");
+                int firstnameLen = name.at(0);
+                if (firstnameLen)
+                {
+                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                }
+                else
+                {
+                    newTitle.append(name.substr(1)).append(", ");
+                }
             }
         }
         newTitle.resize(newTitle.size()-2); //truncate last ", "
@@ -2326,7 +2340,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
     if (parent.mKarereClient.mChatdClient)
@@ -3082,7 +3096,7 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    if (client.initState() != Client::kInitTerminated)
+    if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
         client.presenced().removePeer(mUserid, true);
@@ -3164,26 +3178,33 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress(Id chatid) const
+bool Client::isCallActive(Id chatid) const
 {
-    bool callInProgress = false;
+    bool callActive = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress(chatid);
+        callActive = rtc->isCallActive(chatid);
     }
 #endif
 
-    return callInProgress;
+    return callActive;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
+bool Client::isCallInProgress(karere::Id chatid) const
 {
-    return app.onIncomingCall(call, av);
-}
+    bool participantingInCall = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        participantingInCall = rtc->isCallInProgress(chatid);
+    }
 #endif
+
+    return participantingInCall;
+}
 
 std::string encodeFirstName(const std::string& first)
 {

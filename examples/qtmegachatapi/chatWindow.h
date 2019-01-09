@@ -21,6 +21,8 @@ namespace rtcmodule
 class CallGui: public rtcModule::ICallHandler {};*/
 #endif
 
+const int callMaxParticipants = 9;
+const int widgetsFixed = 3;
 
 #define NMESSAGES_LOAD 16   // number of messages to load at every fetch
 class ChatMessage;
@@ -53,8 +55,10 @@ class ChatWindow : public QDialog,
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);
+        void createAttachMenu(QMenu& menu);
         void truncateChatUI();
-        void connectCall();
+        void connectPeerCallGui(MegaChatHandle peerid);
+        void destroyCallGui(MegaChatHandle mPeerid);
         void hangCall();
         void setChatTittle(const char *title);
         bool eraseChatMessage(megachat::MegaChatMessage *msg, bool temporal);
@@ -65,14 +69,17 @@ class ChatWindow : public QDialog,
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
+        void onAttachLocation();
+
 #ifndef KARERE_DISABLE_WEBRTC
-        CallGui *getCallGui() const;
+        std::set<CallGui *> *getCallGui();
         void setCallGui(CallGui *callGui);
 #endif
     protected:
         Ui::ChatWindowUi *ui;
 #ifndef KARERE_DISABLE_WEBRTC
         CallGui *mCallGui;
+        std::set<CallGui *> callParticipantsGui;
 #endif
         MainWindow *mMainWin;
         megachat::MegaChatApi *mMegaChatApi;
@@ -88,6 +95,7 @@ class ChatWindow : public QDialog,
         int loadedMessages;
         int nManualSending;
         int mPendingLoad;
+        MegaChatHandle mFreeCallGui [callMaxParticipants];
         int loadedAttachments;
         bool mScrollToBottomAttachments;
         megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
@@ -109,11 +117,13 @@ class ChatWindow : public QDialog,
         void on_mCancelTransfer(QAbstractButton *);
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
+        void onAttachNode(bool isVoiceClip);
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
         void closeEvent(QCloseEvent *event);
-        void createCallGui(bool);
+        void createCallGui(bool, MegaChatHandle peerid);
+        void getCallPos(int index, int &row, int &col);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();

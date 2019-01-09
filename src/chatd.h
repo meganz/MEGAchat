@@ -60,11 +60,11 @@ enum ManualSendReason: uint8_t
 /** The source from where history is being retrieved by the app */
 enum HistSource
 {
-    kHistSourceNone = 0, //< History is not being retrieved
-    kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
-    kHistSourceDb = 2, //<History is being retrieved from the local DB
-    kHistSourceServer = 3, //< History is being retrieved from the server
-    kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
+    kHistSourceNone = 0, ///< History is not being retrieved
+    kHistSourceRam = 1, ///< History is being retrieved from the history buffer in RAM
+    kHistSourceDb = 2, ///<History is being retrieved from the local DB
+    kHistSourceServer = 3, ///< History is being retrieved from the server
+    kHistSourceNotLoggedIn = 4 ///< History has to be fetched from server, but we are not logged in yet
 };
 
 enum
@@ -321,7 +321,7 @@ public:
     virtual void handleMessage(Chat& /*chat*/, const StaticBuffer& /*msg*/) {}
     virtual void handleCallData(Chat& /*chat*/, karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/, const StaticBuffer& /*msg*/) {}
     virtual void onShutdown() {}
-    virtual void onUserOffline(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
+    virtual void onClientLeftCall(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
     virtual void onDisconnect(chatd::Connection& /*conn*/) {}
 
     /**
@@ -329,21 +329,49 @@ public:
      * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
      */
     virtual void stopCallsTimers(int shard) = 0;
+    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
+    virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
+    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
+    enum {kBufferSize = 12};
     karere::Id userid;
     uint32_t clientid;
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    unsigned char buffer[kBufferSize];
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
+    {
+        memcpy(buffer, &userid.val , 8);
+        memcpy(buffer + 8, &clientid, 4);
+    }
+
     bool operator<(EndpointId other) const
     {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
+        if (userid.val < other.userid.val)
+        {
+            return true;
+        }
+        else if (userid.val > other.userid.val)
+        {
+            return false;
+        }
+        else
+        {
+            return (clientid < other.clientid);
+        }
+    }
+
+    bool operator>(EndpointId other) const
+    {
+        return other < *this;
+    }
+
+    /** Comparison at byte level, necessary to compatibility with the webClient (javascript)*/
+    static bool greaterThanForJs(EndpointId first, EndpointId second)
+    {
+        return (memcmp(first.buffer, second.buffer, kBufferSize) > 0);
     }
 };
 
@@ -353,7 +381,8 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State {
+    enum State
+    {
         kStateNew,
         kStateFetchingUrl,
         kStateDisconnected,
@@ -361,7 +390,8 @@ public:
         kStateConnecting,
         kStateConnected};
 
-    enum {
+    enum
+    {
         kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
         kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
         kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
@@ -436,6 +466,7 @@ protected:
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
     void sendEcho();
+    void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
     friend class Client;
     friend class Chat;
 
@@ -710,7 +741,7 @@ protected:
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
-    karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
+    karere::SetOfIds mUserDump; ///< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -784,7 +815,6 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
-    std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -844,7 +874,7 @@ protected:
     friend class Client;
 /// @endcond PRIVATE
 public:
-    unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
+    unsigned initialHistoryFetchCount = 32; ///< This is the amount of messages that will be requested from server _only_ in case local db is empty
     /** @brief users The current set of users in the chatroom */
     const karere::SetOfIds& users() const { return mUsers; }
     ~Chat();
@@ -1303,7 +1333,9 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    enum :unsigned { kChatdProtocolVersion = 4 };
+    // - Version 5:
+    //  * Changes at CALLDATA protocol (new state)
+    static const unsigned chatdVersion = 5;
 
     Client(karere::Client *aKarereClient);
     ~Client();

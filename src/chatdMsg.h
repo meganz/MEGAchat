@@ -325,14 +325,14 @@ enum Opcode
     OP_ADDREACTION = 33,
 
     /**
-      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <unicodechar32le>
       *
       * User delete a reaction to message
       */
     OP_DELREACTION = 34,
 
     /**
-      ** @brief <chatid>
+      * @brief <chatid>
       *
       * C->S: ping server to ensure client is up to date for the specified chatid
       * S->C: response to the ping initiated by client
@@ -398,24 +398,34 @@ public:
         kMsgPrivChange        = 0x04,
         kMsgChatTitle         = 0x05,
         kMsgCallEnd           = 0x06,
-        kMsgManagementHighest = 0x06,
+        kMsgCallStarted       = 0x07,
+        kMsgManagementHighest = 0x07,
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
-        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
-        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
-        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
-        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
+        kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10
+        kMsgRevokeAttachment  = 0x66,   // kMsgNormal's subtype = 0x11
+        kMsgContact           = 0x67,   // kMsgNormal's subtype = 0x12
+        kMsgContainsMeta      = 0x68,   // kMsgNormal's subtype = 0x13
+        kMsgVoiceClip         = 0x69    // kMsgNormal's subtype = 0x14
     };
+
+    enum ContainsMetaSubType: uint8_t
+    {
+        kInvalid              = 0xff,
+        kRichLink             = 0x00,
+        kGeoLocation          = 0x01
+    };
+
     enum Status
     {
-        kSending, //< Message has not been sent or is not yet confirmed by the server
-        kSendingManual, //< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
-        kServerReceived, //< Message confirmed by server, but not yet delivered to recepient(s)
-        kServerRejected, //< Message is rejected by server for some reason (editing too old message for example)
-        kDelivered, //< Peer confirmed message receipt. Used only for 1on1 chats
+        kSending, ///< Message has not been sent or is not yet confirmed by the server
+        kSendingManual, ///< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        kServerReceived, ///< Message confirmed by server, but not yet delivered to recepient(s)
+        kServerRejected, ///< Message is rejected by server for some reason (editing too old message for example)
+        kDelivered, ///< Peer confirmed message receipt. Used only for 1on1 chats
         kLastOwnMessageStatus = kDelivered, //if a status is <= this, we created the msg, oherwise not
-        kNotSeen, //< User hasn't read this message yet
-        kSeen //< User has read this message
+        kNotSeen, ///< User hasn't read this message yet
+        kSeen ///< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
 
@@ -645,8 +655,17 @@ public:
                 && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
                     || type == kMsgAttachment
                     || type == kMsgContact
-                    || type == kMsgContainsMeta)
+                    || type == kMsgContainsMeta
+                    || type == kMsgVoiceClip)
                 );
+    }
+    ContainsMetaSubType containMetaSubtype() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 2) ? ((ContainsMetaSubType)*(buf()+2)) : ContainsMetaSubType::kInvalid;
+    }
+    std::string containsMetaJson() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
     }
 
     /** @brief Convert attachment etc. special messages to text */

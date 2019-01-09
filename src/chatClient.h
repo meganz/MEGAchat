@@ -108,7 +108,7 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
-    bool isCallInProgress() const;
+    bool isCallActive() const;
 
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
@@ -170,6 +170,11 @@ public:
      *  @param av Whether to initially send video and/or audio
      */
     virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+
+    /** @brief Joins a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
 #endif
 
     //chatd::Listener implementation
@@ -311,7 +316,7 @@ public:
     std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    bool syncMembers(const mega::MegaTextChat& chat);   
+    bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
@@ -321,7 +326,7 @@ public:
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
-    void deleteSelf(); //<Deletes the room from db and then immediately destroys itself (i.e. delete this)
+    void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
     void initWithChatd();
     void setRemoved();
@@ -547,8 +552,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalHandler,
-              public ::mega::MegaGlobalListener,
+class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
               public karere::DeleteTrackable
@@ -688,6 +692,7 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
+    bool mGroupCallsEnabled = false;
 
 public:
 
@@ -761,6 +766,7 @@ public:
     InitState init(const char* sid);
     InitState initState() const { return mInitState; }
     bool hasInitError() const { return mInitState >= kInitErrFirst; }
+    bool isTerminated() const { return mInitState == kInitTerminated; }
     const char* initStateStr() const { return initStateToStr(mInitState); }
     static const char* initStateToStr(unsigned char state);
     const char* connStateStr() const { return connStateToStr(mConnState); }
@@ -778,9 +784,6 @@ public:
      * avoid to tell chatd that the client is active.
      */
     promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
-
-    /** @brief Disconnects the client from chatd and presenced */
-    void disconnect();
 
     /**
      * @brief Retry pending connections to chatd and presenced
@@ -839,14 +842,14 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
-
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
+    /** @brief There is a call active in the chatroom*/
+    bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
+
+    /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
-#ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
-#endif
 
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
@@ -855,6 +858,8 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
     bool isChatRoomOpened(Id chatid);
+    bool areGroupCallsEnabled();
+    void enableGroupCalls(bool enable);
 
 protected:
     void heartbeat();
