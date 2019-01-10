@@ -70,7 +70,6 @@ HEADERS  += asyncTest-framework.h \
             base/services.h \
             base/timers.hpp \
             base/trackDelete.h \
-            net/libwsIO.h \
             net/libwebsocketsIO.h \
             net/websocketsIO.h \
             rtcModule/IDeviceListImpl.h \
