@@ -4248,6 +4248,7 @@ void Chat::onUserLeave(Id userid)
     }
 
 
+
     if (isLoggedIn() || !mIsFirstJoin)
     {
         mUsers.erase(userid);

@@ -42,26 +42,12 @@
 #include <karereCommon.h>
 #include <logger.h>
 #include <rapidjson/document.h>
-
 #include <stdint.h>
-
-#ifdef USE_LIBWEBSOCKETS
-
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
 
 typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
-
-#else
-
-#include "net/libwsIO.h"
-#include "waiter/libeventWaiter.h"
-
-typedef LibwsIO MegaWebsocketsIO;
-typedef ::mega::LibeventWaiter MegaChatWaiter;
-
-#endif
 
 namespace megachat
 {

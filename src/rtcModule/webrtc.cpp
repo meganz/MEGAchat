@@ -371,10 +371,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
     }
-    else if (ringing)
+    else
     {
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-        handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        if (ringing)
+        {
+            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        }
     }
 
     if (state == Call::CallDataState::kCallDataSession || state == Call::CallDataState::kCallDataSessionKeepRinging)
@@ -431,7 +434,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
     const auto& devices = mDeviceManager.inputDevices();
 
     if (av.video() && (!devices.video.empty() && !mVideoInDeviceName.empty()))
-     {
+    {
         try
          {
             auto device = getDevice(mVideoInDeviceName, devices.video);
@@ -452,7 +455,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
             errors.append("Error getting video device: ")
                   .append(e.what()?e.what():"Unknown error")+='\n';
         }
-     }
+    }
 
     if (!devices.audio.empty() && !mAudioInDeviceName.empty())
      {
