@@ -1,4 +1,3 @@
-CONFIG += USE_LIBWEBSOCKETS
 include(../../third-party/mega/bindings/qt/sdk.pri)
 
 CONFIG += c++11
@@ -91,10 +90,7 @@ HEADERS  += asyncTest-framework.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
-            waiter/libuvWaiter.h \
-            waiter/libeventWaiter.h
-
-DEFINES += USE_LIBWEBSOCKETS=1
+            waiter/libuvWaiter.h
 
 CONFIG(qt) {
   SOURCES += ../bindings/qt/QTMegaChatEvent.cpp \
