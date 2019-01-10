@@ -13,7 +13,9 @@ namespace rtcModule
 using namespace artc;
 using namespace std::placeholders;
 using namespace karere;
-using ::mega::mega_snprintf;
+#if WIN32
+using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
+#endif
 
 namespace stats
 {
