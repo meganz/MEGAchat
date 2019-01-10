@@ -24,8 +24,6 @@ find_package(Sqlite3 REQUIRED)
 
 
 set(KARERE_LOGGER_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/base CACHE PATH "Karere logger include dir") #tell mpenc to use the karere logger
-set(LIBWS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/libws CACHE PATH "libws source dir, where its CMakeLists.txt is located")
-set(LIBWS_EXTERNAL_LOOP 1 CACHE BOOL "Use libws with external libevent loop")
 
 set (SRCS
     karereCommon.cpp
@@ -44,8 +42,6 @@ set (SRCS
 
 if (optKarereUseLibwebsockets)
     list(APPEND SRCS waiter/libuvWaiter.cpp net/libwebsocketsIO.cpp)	
-else()
-    list(APPEND SRCS waiter/libeventWaiter.cpp net/libwsIO.cpp)	
 endif()
 
 if (NOT optKarereDisableWebrtc)
@@ -70,7 +66,6 @@ if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" S
     endif()
 endif()
 
-#seems _WIN32 is not seen in libevent dns header
 if (WIN32)
     add_definitions(-D_WIN32 -DWIN32)
 endif()
@@ -85,10 +80,6 @@ else()
 endif()
 
 get_property(SERVICES_INCLUDE_DIRS GLOBAL PROPERTY SERVICES_INCLUDE_DIRS)
-
-if (NOT optKarereUseLibwebsockets)
-	add_subdirectory(${LIBWS_DIR} libws)
-endif()
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/karereDbSchema.cpp
     COMMAND ${CMAKE_COMMAND} -DSRCDIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/genDbSchema.cmake
@@ -108,10 +99,6 @@ set(KARERE_INCLUDE_DIRS
     ${CRYPTOPP_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
 )
-
-if (NOT optKarereUseLibwebsockets)
-    list(APPEND KARERE_INCLUDE_DIRS ${LIBWS_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/libws)
-endif()
 
 set(KARERE_DEP_LIBS
     ${LIBMEGA_LIBRARIES}
