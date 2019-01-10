@@ -1054,7 +1054,7 @@ public:
     }
 
     /**
-     * @brief Returns the message with specifict msgid that it's stored at node history
+     * @brief Returns the message with specific msgid that it's stored at node history
      * @param msgid The message id
      * @return Pointer to the message. The ownership of the message is retained in c\ FilteredHistory
      */
