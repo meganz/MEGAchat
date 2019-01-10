@@ -62,6 +62,10 @@ CONFIG += ENABLE_CHAT
 CONFIG += USE_WEBRTC
 DEFINES += ENABLE_CHAT
 
+!win32 {
+    CONFIG += sanitizer sanitize_address
+}
+
 include(../../../bindings/qt/megachat.pri)
 
 
