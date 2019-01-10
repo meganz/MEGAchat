@@ -25,7 +25,8 @@ CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
 CONFIG += ENABLE_CHAT
 CONFIG += USE_WEBRTC
-CONFIG += nofreeimage
+CONFIG += USE_AUTOCOMPLETE
+CONFIG += USE_CONSOLE
 
 include(../../../bindings/qt/megachat.pri)
 
