@@ -1510,7 +1510,7 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
 
     virtual Idx getOldestIdx() = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
@@ -1520,6 +1520,8 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
+
+    virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 };
 
 }

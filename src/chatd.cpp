@@ -1367,8 +1367,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mOldestKnownMsgId = info.oldestDbId;
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
-    mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
-    mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
+    mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
+    mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
 
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
@@ -2755,7 +2755,7 @@ void Chat::onLastReceived(Id msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
-        Idx idx = mDbInterface->getIdxOfMsgid(msgid);
+        Idx idx = mDbInterface->getIdxOfMsgidFromHistory(msgid);
         if (idx != CHATD_IDX_INVALID)
         {
             if ((mLastReceivedIdx != CHATD_IDX_INVALID) && (idx < mLastReceivedIdx))
@@ -2820,7 +2820,7 @@ void Chat::onLastSeen(Id msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())  // msgid not loaded in RAM
     {
-        idx = mDbInterface->getIdxOfMsgid(msgid);   // return CHATD_IDX_INVALID if not found in DB
+        idx = mDbInterface->getIdxOfMsgidFromHistory(msgid);   // return CHATD_IDX_INVALID if not found in DB
     }
     else    // msgid is in RAM
     {
@@ -4950,22 +4950,7 @@ Message *FilteredHistory::getMessage(Id id)
 
 Idx FilteredHistory::getMessageIdx(Id id)
 {
-    Idx idx = CHATD_IDX_INVALID;
-    auto msgItetrator = mIdToMsgMap.find(id);
-    if (msgItetrator != mIdToMsgMap.end())
-    {
-        idx = mNewestIdx;
-        for (auto iterator = mBuffer.begin(); iterator != mBuffer.end(); iterator++)
-        {
-            if (iterator->get()->id() == id)
-            {
-                break;
-            }
-            idx--;
-        }
-    }
-
-    return idx;
+    return mDb->getIdxOfMsgidFromNodeHistory(id);
 }
 
 void FilteredHistory::init()
