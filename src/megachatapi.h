@@ -3116,7 +3116,7 @@ public:
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param msgid MegaChatHandle that identifies the message (msg id or a temporal id)
+     * @param msgid MegaChatHandle that identifies the message
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessageFromNodeHistroy(MegaChatHandle chatid, MegaChatHandle msgid);
