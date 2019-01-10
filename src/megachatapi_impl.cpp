@@ -2721,7 +2721,7 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
-MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistroy(MegaChatHandle chatid, MegaChatHandle msgid)
+MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid)
 {
     MegaChatMessagePrivate *megaMsg = NULL;
     sdkMutex.lock();

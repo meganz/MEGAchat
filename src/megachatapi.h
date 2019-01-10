@@ -3119,7 +3119,7 @@ public:
      * @param msgid MegaChatHandle that identifies the message
      * @return The MegaChatMessage object, or NULL if not found.
      */
-    MegaChatMessage *getMessageFromNodeHistroy(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
      * @brief Returns the MegaChatMessage specified from manual sending queue.
