@@ -367,10 +367,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
     }
-    else if (ringing)
+    else
     {
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-        handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        if (ringing)
+        {
+            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+        }
     }
 
     if (state == Call::CallDataState::kCallDataSession || state == Call::CallDataState::kCallDataSessionKeepRinging)
