@@ -1183,34 +1183,6 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
 
-    // Prepare list of peers to subscribe to its presence
-    // add contacts
-    presenced::IdRefMap peers;
-    for (auto& contact: *contactList)
-    {
-        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
-            peers.insert(contact.first);   
-        }
-    }
-    // add peers from groupchats
-    for (auto& chat: *chats)
-    {
-        if (!chat.second->isGroup())
-        {
-            continue;
-        }
-
-        auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
-        for (auto& peer: members)
-        {
-            if (!contactList->isExContact(peer.first))
-            {
-                peers.insert(peer.first);
-            }
-        }
-    }
-
     // Notify presence, if any
     if (pres.isValid())
     {
@@ -1218,7 +1190,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
-    return mPresencedClient.connect(url, std::move(peers), presenced::Config(pres));
+    return mPresencedClient.connect(url, presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1828,14 +1800,6 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     else
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
-
-        if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
-        {
-            if (!parent.mKarereClient.contactList->isExContact(userid))
-            {
-                parent.mKarereClient.presenced().addPeer(userid);
-            }
-        }
     }
     if (saveToDb)
     {
@@ -1858,8 +1822,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     }
 
     delete it->second;
-    mPeers.erase(it);    
-    parent.mKarereClient.presenced().removePeer(userid);
+    mPeers.erase(it);
     parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
 
     return true;
@@ -2053,24 +2016,25 @@ void GroupChatRoom::setRemoved()
     notifyExcludedFromChat();
 }
 
-void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
+void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
 {
     if (!rooms)
-        return;
-    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn;
-    if (pscsn)
     {
-        scsn = pscsn;
-        delete[] pscsn;
+        const char *scsn = api.sdk.getSequenceNumber();
+        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", scsn);
+        delete [] scsn;
+        return;
     }
+
+    assert(mContactsLoaded);
+
+    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    assert(mContactsLoaded);
+
     auto wptr = weakHandle();
-    marshallCall([wptr, this, copy, scsn]()
+    marshallCall([wptr, this, copy]()
     {
         if (wptr.deleted())
         {
@@ -2081,29 +2045,20 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 {
-    SetOfIds added;
+    SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
     auto count = rooms.size();
     for (int i = 0; i < count; i++)
     {
-        auto apiRoom = rooms.get(i);
-        auto chatid = apiRoom->getHandle();
+        const ::mega::MegaTextChat *apiRoom = rooms.get(i);
+        ::mega::MegaHandle chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
 
-        auto it = find(chatid);
-        auto localRoom = (it != end()) ? it->second : nullptr;
-        assert(localRoom);
-        if (localRoom)
-        {
-            localRoom->syncWithApi(*apiRoom);
-        }
-        else
-        {
-            KR_LOG_ERROR("Chatroom %s notified by API is not found", Id(chatid).toString().c_str());
-        }
+        ChatRoom *room = at(chatid);
+        room->syncWithApi(*apiRoom);
     }
 }
 
@@ -2889,23 +2844,18 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
 void Contact::onVisibilityChanged(int newVisibility)
 {
     assert(newVisibility != mVisibility);
-    auto old = mVisibility;
+    auto oldVisibility = mVisibility;
     mVisibility = newVisibility;
     if (mDisplay)
     {
         mDisplay->onVisibilityChanged(newVisibility);
     }
 
-    auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    if (mChatRoom
+            && oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
+            && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
     {
-        client.presenced().removePeer(mUserid, true);
-    }
-    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-    {
-        mClist.client.presenced().addPeer(mUserid);
-        if (mChatRoom)
-            mChatRoom->notifyRejoinedChat();
+        mChatRoom->notifyRejoinedChat();
     }
 }
 
@@ -3063,10 +3013,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         updateTitle(encodeFirstName(email));
         assert(!mTitleString.empty());
     }
-    auto& client = mClist.client;
-    if ((client.initState() >= Client::kInitHasOnlineSession)
-         && (mVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE))
-        client.presenced().addPeer(mUserid);
 
     mIsInitializing = false;
 }
@@ -3098,7 +3044,6 @@ Contact::~Contact()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
-        client.presenced().removePeer(mUserid, true);
         if (mDisplay)
         {
             client.app.contactListHandler()->removeContactItem(*mDisplay);

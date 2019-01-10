@@ -30,13 +30,14 @@ namespace presenced
 Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps)
 : mApi(api), mKarereClient(client), mListener(&listener), mCapabilities(caps),
   mDNScache(mKarereClient->websocketIO->mDnsCache)
-{}
+{
+    mApi->sdk.addGlobalListener(this);
+}
 
 ::promise::Promise<void>
-Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& config)
+Client::connect(const std::string& url, const Config& config)
 {
     mConfig = config;
-    mCurrentPeers = std::move(currentPeers);
     mUrl.parse(url);
 
     if (mConnState == kConnNew)
@@ -52,14 +53,24 @@ Client::connect(const std::string& url, IdRefMap&& currentPeers, const Config& c
 
 void Client::pushPeers()
 {
-    std::vector<karere::Id> peers;
-
-    for (auto& peer: mCurrentPeers)
+    if (!mLastScsn.isValid())
     {
-        peers.push_back(peer.first);
+        PRESENCED_LOG_WARNING("pushPeers: still not catch-up with API");
+        return;
     }
 
-    updatePeers(peers, OP_SNSETPEERS);
+    size_t numPeers = mCurrentPeers.size();
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
+
+    Command cmd(OP_SNSETPEERS, totalSize);
+    cmd.append<uint64_t>(mLastScsn.val);
+    cmd.append<uint32_t>(numPeers);
+    for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
+    {
+        cmd.append<uint64_t>(it->first);
+    }
+
+    sendCommand(std::move(cmd));
 }
 
 void Client::wsConnectCb()
@@ -176,19 +187,25 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
-    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive;
+    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive && mConfig.mPresence == Presence::kOnline;
 }
 
 void Client::signalActivity()
 {
-    if (!mConfig.mPresence.isValid())
+    if (!autoAwayInEffect())
     {
-        PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is yet received, cannot be changed");
-        return;
-    }
-    if (!mConfig.mAutoawayActive)
-    {
-        PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
+        if (!mConfig.mPresence.isValid())
+        {
+            PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is not yet received, cannot be changed");
+        }
+        else if (!mConfig.mAutoawayActive)
+        {
+            PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
+        }
+        else if (mConfig.mPresence != Presence::kOnline)
+        {
+            PRESENCED_LOG_WARNING("signalActivity(): configured status is not online, autoaway shouldn't be used");
+        }
         return;
     }
 
@@ -384,32 +401,257 @@ bool Client::sendKeepalive(time_t now)
     return sendCommand(Command(OP_KEEPALIVE));
 }
 
-void Client::updatePeers(const vector<Id> &peers, uint8_t command)
+bool Client::isExContact(uint64_t userid)
 {
-    assert(command == OP_SNADDPEERS || command == OP_SNDELPEERS || command == OP_SNSETPEERS);
-
-    if ((command == OP_SNADDPEERS || command == OP_SNDELPEERS) && peers.empty())
+    auto it = mContacts.find(userid);
+    if (it == mContacts.end() || (it != mContacts.end() && it->second != mega::MegaUser::VISIBILITY_HIDDEN))
     {
-        PRESENCED_LOG_DEBUG("updatePeers: no peers to update the list");
+        return false;
+    }
+
+    return true;
+}
+
+void Client::onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *roomsUpdated)
+{
+    const char *buf = api->getSequenceNumber();
+    Id scsn(buf, strlen(buf));
+    delete [] buf;
+
+    if (!roomsUpdated)
+    {
+        PRESENCED_LOG_DEBUG("Chatroom list up to date. scsn: %s", scsn.toString().c_str());
         return;
     }
 
-    assert(peers.size());
-    const char *buf = mApi->sdk.getSequenceNumber();
+    std::shared_ptr<::mega::MegaTextChatList> rooms(roomsUpdated->copy());
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, rooms, scsn]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!mLastScsn.isValid())
+        {
+            PRESENCED_LOG_DEBUG("onChatsUpdate: still catching-up with actionpackets");
+            return;
+        }
+
+        mLastScsn = scsn;
+
+        for (int i = 0; i < rooms->size(); i++)
+        {
+            const ::mega::MegaTextChat *room = rooms->get(i);
+            uint64_t chatid = room->getHandle();
+            const ::mega::MegaTextChatPeerList *peerList = room->getPeerList();
+
+            auto it = mChatMembers.find(chatid);
+            if (it == mChatMembers.end())  // new room
+            {
+                if (!peerList)
+                {
+                    continue;   // no peers in this chatroom
+                }
+
+                for (int j = 0; j < peerList->size(); j++)
+                {
+                    uint64_t userid = peerList->getPeerHandle(j);
+                    mChatMembers[chatid].insert(userid);
+                    addPeer(userid);
+                }
+            }
+            else    // existing room
+            {
+                SetOfIds oldPeerList = mChatMembers[chatid];
+                SetOfIds newPeerList;
+                if (peerList)
+                {
+                    for (int j = 0; j < peerList->size(); j++)
+                    {
+                        newPeerList.insert(peerList->getPeerHandle(j));
+                    }
+                }
+
+                // check for removals
+                for (auto oldIt = oldPeerList.begin(); oldIt != oldPeerList.end(); oldIt++)
+                {
+                    uint64_t userid = *oldIt;
+                    if (!newPeerList.has(userid))
+                    {
+                        mChatMembers[chatid].erase(userid);
+                        removePeer(userid);
+                    }
+                }
+
+                // check for additions
+                for (auto newIt = newPeerList.begin(); newIt != newPeerList.end(); newIt++)
+                {
+                    uint64_t userid = *newIt;
+                    if (!oldPeerList.has(userid))
+                    {
+                        mChatMembers[chatid].insert(userid);
+                        addPeer(userid);
+                    }
+                }
+            }
+        }
+
+    }, mKarereClient->appCtx);
+}
+
+void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
+{
+    const char *buf = api->getSequenceNumber();
     Id scsn(buf, strlen(buf));
     delete [] buf;
-    size_t numPeers = peers.size();
-    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) * numPeers;
 
-    Command cmd(command, totalSize);
-    cmd.append<uint64_t>(scsn.val);
-    cmd.append<uint32_t>(numPeers);
-    for (unsigned int i = 0; i < numPeers; i++)
+    if (!usersUpdated)
     {
-        cmd.append<uint64_t>(peers[i].val);
+        PRESENCED_LOG_DEBUG("User list up to date. scsn: %s", scsn.toString().c_str());
+        return;
     }
 
-    sendCommand(std::move(cmd));
+    std::shared_ptr<::mega::MegaUserList> users(usersUpdated->copy());
+    auto wptr = weakHandle();
+    marshallCall([wptr, this, users, scsn]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!mLastScsn.isValid())
+        {
+            PRESENCED_LOG_DEBUG("onUsersUpdate: still catching-up with actionpackets");
+            return;
+        }
+
+        mLastScsn = scsn;
+
+        for (int i = 0; i < users->size(); i++)
+        {
+            ::mega::MegaUser *user = users->get(i);
+            uint64_t userid = user->getHandle();
+            int newVisibility = user->getVisibility();
+
+            if (userid == mKarereClient->myHandle())
+            {
+                continue;
+            }
+
+            auto it = mContacts.find(userid);
+            if (it == mContacts.end())  // new contact
+            {
+                assert(newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE);
+                mContacts[userid] = newVisibility;
+                addPeer(userid);
+            }
+            else    // existing (ex)contact
+            {
+                int oldVisibility = it->second;
+                it->second = newVisibility;
+
+                if (newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE) // user cancelled the account
+                {
+                    mContacts.erase(it);
+                    removePeer(userid, true);
+                }
+                else if (oldVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE && newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN)
+                {
+                    removePeer(userid, true);
+                }
+                else if (oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    addPeer(userid);
+
+                    // update mCurrentPeers's counter in order to consider groupchats. Otherwise, the count=1 will be zeroed if
+                    // the user (now contact again) is removed from any groupchat, resulting in an incorrect DELPEERS
+                    for (auto it = mChatMembers.begin(); it != mChatMembers.end(); it++)
+                    {
+                        if (it->second.has(userid))
+                        {
+                            addPeer(userid);
+                        }
+                    }
+                }
+            }
+        }
+
+    }, mKarereClient->appCtx);
+}
+
+void Client::onEvent(mega::MegaApi *api, mega::MegaEvent *event)
+{
+    if (event->getType() == ::mega::MegaEvent::EVENT_NODES_CURRENT)
+    {
+        // Prepare list of peers to subscribe to its presence now, when catch-up phase is completed
+        std::shared_ptr<::mega::MegaUserList> contacts(api->getContacts());
+        std::shared_ptr<::mega::MegaTextChatList> chats(api->getChatList());
+        const char *buf = api->getSequenceNumber();
+        Id scsn(buf, strlen(buf));
+        delete [] buf;
+
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, contacts, chats, scsn]()
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
+            assert(!mLastScsn.isValid());
+            assert(mCurrentPeers.empty());
+            assert(mContacts.empty());
+            assert(mChatMembers.empty());
+
+            mLastScsn = scsn;
+            mCurrentPeers.clear();
+            mContacts.clear();
+            mChatMembers.clear();
+
+            // initialize the list of contacts
+            for (int i = 0; i < contacts->size(); i++)
+            {
+                ::mega::MegaUser *user = contacts->get(i);
+                uint64_t userid = user->getHandle();
+                int visibility = user->getVisibility();
+
+                mContacts[userid] = visibility; // add ex-contacts to identify them
+                if (visibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
+                {
+                    mCurrentPeers.insert(userid);
+                }
+            }
+
+            // initialize chatroom's peers
+            for (int i = 0; i < chats->size(); i++)
+            {
+                const ::mega::MegaTextChat *chat = chats->get(i);
+                uint64_t chatid = chat->getHandle();
+                const ::mega::MegaTextChatPeerList *peerlist = chat->getPeerList();
+                if (!peerlist)
+                {
+                    continue;   // no peers in this chatroom
+                }
+
+                for (int j = 0; j < peerlist->size(); j++)
+                {
+                    uint64_t userid = peerlist->getPeerHandle(j);
+                    if (!isExContact(userid))
+                    {
+                        mCurrentPeers.insert(userid);
+                        mChatMembers[chatid].insert(userid);
+                    }
+                }
+            }
+
+            // finally send to presenced the initial set of peers
+            pushPeers();
+
+        }, mKarereClient->appCtx);
+    }
 }
 
 void Client::heartbeat()
@@ -710,8 +952,11 @@ void Client::login()
         sendPrefs();
     }
 
-    // send the list of peers allowed to see the own presence's status
-    pushPeers();
+    if (mLastScsn.isValid())
+    {
+        // send the list of peers allowed to see the own presence's status
+        pushPeers();
+    }
 }
 
 bool Client::sendUserActive(bool active, bool force)
@@ -774,6 +1019,8 @@ uint16_t Config::toCode() const
 
 Client::~Client()
 {
+    mApi->sdk.removeGlobalListener(this);
+
     disconnect();
     CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
 }
@@ -974,26 +1221,43 @@ void Client::setConnState(ConnState newState)
 }
 void Client::addPeer(karere::Id peer)
 {
+    if (isExContact(peer))
+    {
+        PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
+        return;
+    }
+
+    assert(mLastScsn.isValid());
+
     int result = mCurrentPeers.insert(peer);
     if (result == 1) //refcount = 1, wasnt there before
     {
-        std::vector<karere::Id> peers;
-        peers.push_back(peer);
-        updatePeers(peers, OP_SNADDPEERS);
+        size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
+
+        Command cmd(OP_SNADDPEERS, totalSize);
+        cmd.append<uint64_t>(mLastScsn.val);
+        cmd.append<uint32_t>(1);
+        cmd.append<uint64_t>(peer.val);
+
+        sendCommand(std::move(cmd));
     }
 }
+
 void Client::removePeer(karere::Id peer, bool force)
 {
+    assert(mLastScsn.isValid());
+
     auto it = mCurrentPeers.find(peer);
     if (it == mCurrentPeers.end())
     {
-        PRESENCED_LOG_DEBUG("removePeer: Unknown peer %s", peer.toString().c_str());
+        PRESENCED_LOG_WARNING("removePeer: Unknown peer %s", peer.toString().c_str());
         return;
     }
     if (--it->second > 0)
     {
         if (!force)
         {
+            PRESENCED_LOG_DEBUG("removePeer: decremented number of references for peer %s", peer.toString().c_str());
             return;
         }
         else
@@ -1007,8 +1271,14 @@ void Client::removePeer(karere::Id peer, bool force)
     }
 
     mCurrentPeers.erase(it);
-    std::vector<karere::Id> peers;
-    peers.push_back(peer);
-    updatePeers(peers, OP_SNDELPEERS);
+
+    size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
+
+    Command cmd(OP_SNDELPEERS, totalSize);
+    cmd.append<uint64_t>(mLastScsn.val);
+    cmd.append<uint32_t>(1);
+    cmd.append<uint64_t>(peer.val);
+
+    sendCommand(std::move(cmd));
 }
 }
