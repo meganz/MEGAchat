@@ -52,3 +52,12 @@ macx {
     DEFINES += WEBRTC_MAC
 }
 
+unix:debug|macx:debug{
+    CONFIG += sanitizer sanitize_address
+    CONFIG += QMAKE_COMMON_SANITIZE_CFLAGS
+}
+else {
+    CONFIG -= sanitizer sanitize_address
+    CONFIG -= QMAKE_COMMON_SANITIZE_CFLAGS
+}
+

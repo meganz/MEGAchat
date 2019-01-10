@@ -62,10 +62,6 @@ CONFIG += ENABLE_CHAT
 CONFIG += USE_WEBRTC
 DEFINES += ENABLE_CHAT
 
-!win32 {
-    CONFIG += sanitizer sanitize_address
-}
-
 include(../../../bindings/qt/megachat.pri)
 
 
@@ -139,6 +135,15 @@ macx {
     QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
     QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
     DEFINES += WEBRTC_MAC
+}
+
+unix:debug|macx:debug{
+    CONFIG += sanitizer sanitize_address
+    CONFIG += QMAKE_COMMON_SANITIZE_CFLAGS
+}
+else {
+    CONFIG -= sanitizer sanitize_address
+    CONFIG -= QMAKE_COMMON_SANITIZE_CFLAGS
 }
 
 RESOURCES += \
