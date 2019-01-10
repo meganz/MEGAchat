@@ -67,8 +67,8 @@ protected:
     bool mIsInitializing = true;
     int64_t mCreationTs;
     bool mIsArchived;
-    std::string mTitleString;
-    bool mHasTitle;
+    std::string mTitleString;   // decrypted `ct` or title from member-names
+    bool mHasTitle;             // only true if chat has custom topic (`ct`)
     void notifyTitleChanged();
     void notifyChatModeChanged();
     void switchListenerToApp();
@@ -316,15 +316,14 @@ public:
     /** @cond PRIVATE */
 protected:
     MemberMap mPeers;
-    std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
+    std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
     int mNumPeers = 0; //Only for public chats in preview mode
 
     void setChatPrivateMode();
-    bool syncMembers(const mega::MegaTextChat& chat);   
-    void loadTitleFromDb();
+    bool syncMembers(const mega::MegaTextChat& chat);
     promise::Promise<void> decryptTitle();
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
@@ -335,11 +334,12 @@ protected:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
+    void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
-    void initChatTitle(std::string &title);
+    void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
     friend class ChatRoomList;
     friend class Member;
@@ -349,7 +349,7 @@ protected:
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
-                bool aIsArchived, const std::string& title, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
 
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
@@ -422,7 +422,7 @@ public:
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     int getNumPeers() const;
-    void handleTitleChange(const std::string &title);
+    void handleTitleChange(const std::string &title, bool saveToDb = false);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
