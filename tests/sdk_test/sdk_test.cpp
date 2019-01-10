@@ -1295,6 +1295,13 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
     delete chatroom; chatroom = NULL;
 
+    // TODO: Redmine ticket: #10596
+    {
+        // give some margin to API-chatd synchronization, so chatd knows the room is archived and needs
+        // to be unarchived upon new message
+        sleep(3);
+    }
+
     // --> Send a message and wait for reception by target user
     string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing groupchats";
     bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
