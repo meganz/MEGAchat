@@ -171,15 +171,6 @@ in the platform's GUI designer by placing the corresponding standard widget and 
 to tell the GUI designer to use that subclass. You must include these files in your project, including the headers, to make the subclass visible
 to the GUI designer.
 
-## Test Applications (deprecated) ##
-
-MEGAchat provides several example apps, which, among other things, show how the GCM (Gui Call Marshaller) is implemented on the API user's side.
-It also shows how to use the video renderer widgets and the IVideoRenderer interface they implement to do video playback.
-
-The test apps are:
-* examples/qt - a Qt application.
-* examples/objc - an iOS app.
-
 ## For application implementors ##
 
   * The rtctestapp above is the reference app. Build it, study it, experiment with it.  
