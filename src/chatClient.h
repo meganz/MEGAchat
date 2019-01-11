@@ -436,8 +436,6 @@ protected:
     int64_t mSince;
     std::string mTitleString;
     int mVisibility;
-    IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
-    IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
     void notifyTitleChanged();
@@ -457,11 +455,6 @@ public:
      * Otherwise returns NULL
      */
     PeerChatRoom* chatRoom() { return mChatRoom; }
-    /** @brief The \c IApp::IContactListItem that is associated with this
-     * contact. Can be NULL if there is no IContactListHandler or it returned
-     * NULL from \c addContactListItem()
-     */
-    IApp::IContactListItem* appItem() const { return mDisplay; }
 
     /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
      * otherwise returns the existing one.
@@ -495,11 +488,6 @@ public:
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
-    void updateAllOnlineDisplays(Presence pres)
-    {
-        if (mDisplay)
-            mDisplay->onPresenceChanged(pres);
-    }
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -531,7 +519,6 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
@@ -664,8 +651,6 @@ public:
 
     // resolved only when up to date
     promise::Promise<void> mSyncPromise;
-
-    IApp::ILoginDialog::Handle mLoginDlg;
 
 protected:
 
@@ -892,22 +877,6 @@ protected:
     promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
     promise::Promise<int> initializeContactList();
 
-    /** @brief A convenience method to log in the associated Mega SDK instance,
-     *  using IApp::ILoginDialog to ask the user/app for credentials. This
-     * method is to be used in a standalone chat app where the SDK instance is not
-     * logged by other code, like for example the qt test app. THe reason this
-     * method does not just accept a user and pass but rather calls back into
-     * ILoginDialog is to be able to update the login progress via ILoginDialog,
-     * and to save the app the management of the dialog, retries in case of
-     * bad credentials etc. This is just a convenience method.
-     */
-    promise::Promise<void> sdkLoginNewSession();
-
-    /** @brief A convenience method to log the sdk in using an existing session,
-     * identified by \c sid. This is to be used in a standalone chat app where
-     * there is no existing code that logs in the Mega SDK instance.
-     */
-    promise::Promise<void> sdkLoginExistingSession(const char* sid);
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
 

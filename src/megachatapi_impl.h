@@ -1108,7 +1108,6 @@ public:
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
-    virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
