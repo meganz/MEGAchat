@@ -1796,10 +1796,13 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
     {
         // notify at MegaChatListItem level about new calls and calls being terminated
         ChatRoom *room = findChatRoom(call->getChatid());
-        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
-        item->setCallInProgress();
+        if (room)
+        {
+            MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
+            item->setCallInProgress();
 
-        fireOnChatListItemUpdate(item);
+            fireOnChatListItemUpdate(item);
+        }
     }
 
     call->removeChanges();
