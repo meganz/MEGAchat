@@ -333,6 +333,19 @@ void MegaChatApiImpl::sendPendingRequests()
                 mClient = NULL;
                 terminating = false;
 
+                for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
+                {
+                    delete it->second;
+                }
+
+                chatRoomHandler.clear();
+
+                for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
+                {
+                    delete it->second;
+                }
+
+                nodeHistoryHandlers.clear();
 #ifndef KARERE_DISABLE_WEBRTC
                 cleanCallHandlerMap();
 #endif
