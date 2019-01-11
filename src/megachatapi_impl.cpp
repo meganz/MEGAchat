@@ -337,14 +337,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     delete it->second;
                 }
-
                 chatRoomHandler.clear();
 
                 for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
                 {
                     delete it->second;
                 }
-
                 nodeHistoryHandlers.clear();
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -2643,7 +2641,7 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     }
     else
     {
-        API_LOG_WARNING("Try to close nonexistent chatroom: %d", chatid);
+        API_LOG_WARNING("Try to close nonexistent chatroom: %s", karere::Id(chatid).toString().c_str());
     }
 
     removeChatRoomListener(chatid, listener);
