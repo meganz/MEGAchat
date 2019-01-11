@@ -404,7 +404,7 @@ bool Client::sendKeepalive(time_t now)
 bool Client::isExContact(uint64_t userid)
 {
     auto it = mContacts.find(userid);
-    if (it == mContacts.end() || (it != mContacts.end() && it->second != mega::MegaUser::VISIBILITY_HIDDEN))
+    if (it == mContacts.end() || (it != mContacts.end() && it->second != ::mega::MegaUser::VISIBILITY_HIDDEN))
     {
         return false;
     }
@@ -412,7 +412,7 @@ bool Client::isExContact(uint64_t userid)
     return true;
 }
 
-void Client::onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *roomsUpdated)
+void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *roomsUpdated)
 {
     const char *buf = api->getSequenceNumber();
     Id scsn(buf, strlen(buf));
@@ -501,7 +501,7 @@ void Client::onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *roomsUpda
     }, mKarereClient->appCtx);
 }
 
-void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
+void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpdated)
 {
     const char *buf = api->getSequenceNumber();
     Id scsn(buf, strlen(buf));
@@ -582,7 +582,7 @@ void Client::onUsersUpdate(mega::MegaApi *api, mega::MegaUserList *usersUpdated)
     }, mKarereClient->appCtx);
 }
 
-void Client::onEvent(mega::MegaApi *api, mega::MegaEvent *event)
+void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
 {
     if (event->getType() == ::mega::MegaEvent::EVENT_NODES_CURRENT)
     {
