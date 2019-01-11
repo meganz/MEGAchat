@@ -5,7 +5,6 @@ INCLUDEPATH += ../../../tests/sdk_test
 SOURCES +=  ../../../tests/sdk_test/sdk_test.cpp
 HEADERS +=  ../../../tests/sdk_test/sdk_test.h
 
-include(../../../bindings/qt/mega.pri)
 include(../../../bindings/qt/megachat.pri)
 
 macx {

@@ -22,11 +22,9 @@ QT       += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT += svg
 
-include(../../../bindings/qt/mega.pri)
 include(../../../bindings/qt/megachat.pri)
 
 TARGET = megachat
-DEFINES += ENABLE_CHAT
 DEPENDPATH += examples/qtmegachatapi/
 INCLUDEPATH += ../../../examples/qtmegachatapi/
 
