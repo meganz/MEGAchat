@@ -330,7 +330,7 @@ public:
     virtual void handleMessage(Chat& /*chat*/, const StaticBuffer& /*msg*/) {}
     virtual void handleCallData(Chat& /*chat*/, karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/, const StaticBuffer& /*msg*/) {}
     virtual void onShutdown() {}
-    virtual void onUserOffline(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
+    virtual void onClientLeftCall(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
     virtual void onDisconnect(chatd::Connection& /*conn*/) {}
 
     /**
@@ -338,21 +338,49 @@ public:
      * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
      */
     virtual void stopCallsTimers(int shard) = 0;
+    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
+    virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
+    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
+    enum {kBufferSize = 12};
     karere::Id userid;
     uint32_t clientid;
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    unsigned char buffer[kBufferSize];
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
+    {
+        memcpy(buffer, &userid.val , 8);
+        memcpy(buffer + 8, &clientid, 4);
+    }
+
     bool operator<(EndpointId other) const
     {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
+        if (userid.val < other.userid.val)
+        {
+            return true;
+        }
+        else if (userid.val > other.userid.val)
+        {
+            return false;
+        }
+        else
+        {
+            return (clientid < other.clientid);
+        }
+    }
+
+    bool operator>(EndpointId other) const
+    {
+        return other < *this;
+    }
+
+    /** Comparison at byte level, necessary to compatibility with the webClient (javascript)*/
+    static bool greaterThanForJs(EndpointId first, EndpointId second)
+    {
+        return (memcmp(first.buffer, second.buffer, kBufferSize) > 0);
     }
 };
 
@@ -447,6 +475,7 @@ protected:
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
     void sendEcho();
+    void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
     friend class Client;
     friend class Chat;
 
@@ -796,7 +825,6 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
-    std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -1327,8 +1355,8 @@ public:
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
     // - Version 5:
-    //  * Add NUMBYHANDLE command
-    enum :unsigned { kChatdProtocolVersion = 5 };
+    //  * Changes at CALLDATA protocol (new state)
+    static const unsigned chatdVersion = 5;
 
     Client(karere::Client *aKarereClient);
     ~Client();

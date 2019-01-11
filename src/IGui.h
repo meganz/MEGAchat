@@ -18,7 +18,7 @@ class Contact;
  * @brief The karere chat application class that the app needs to
  * implement in order to receive (mostly GUI) events.
  */
-class IApp
+class IApp : public rtcModule::IGlobalHandler
 {
 public:
 

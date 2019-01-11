@@ -76,7 +76,7 @@ public:
         mLastCommitTs = 0;
     }
     bool isOpen() const { return mDb != nullptr; }
-    void setCommitEach(bool commitEach)
+    void setCommitMode(bool commitEach)
     {
         if (commitEach == mCommitEach)
             return;

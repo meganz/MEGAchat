@@ -3,14 +3,14 @@
 #include <QImage>
 
 LocalCallListener::LocalCallListener(MegaChatApi *megaChatApi, CallGui *callGui):
-CallListener(megaChatApi,callGui)
+CallListener(megaChatApi, callGui, MEGACHAT_INVALID_HANDLE)
 {
-    mMegaChatApi->addChatLocalVideoListener(megaChatVideoListenerDelegate);    
+    mMegaChatApi->addChatLocalVideoListener(mCallGui->getCall()->getChatid(), megaChatVideoListenerDelegate);
 }
 
 LocalCallListener::~LocalCallListener()
 {
-    mMegaChatApi->removeChatLocalVideoListener(megaChatVideoListenerDelegate);    
+    mMegaChatApi->removeChatLocalVideoListener(mCallGui->getCall()->getChatid(), megaChatVideoListenerDelegate);
 }
 
 void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
@@ -18,7 +18,7 @@ void LocalCallListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid,
     QImage *auxImg = CreateFrame(width, height, buffer, size);
     if(auxImg)
     {
-        this->mCallGui->ui->localRenderer->setStaticImage(auxImg);
-        this->mCallGui->ui->localRenderer->enableStaticImage();
+        this->mCallGui->ui->videoRenderer->setStaticImage(auxImg);
+        this->mCallGui->ui->videoRenderer->enableStaticImage();
     }
 }

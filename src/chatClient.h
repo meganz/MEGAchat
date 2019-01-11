@@ -125,8 +125,7 @@ public:
     /** @brief Whether this chatroom is archived or not */
     bool isArchived() const { return mIsArchived; }
 
-    /** @brief True if there's a call in progress */
-    bool isCallInProgress() const;
+    bool isCallActive() const;
 
     /** @brief The websocket url that is used to connect to chatd for that chatroom. Contains an authentication token */
     const std::string& url() const { return mUrl; }
@@ -188,6 +187,11 @@ public:
      *  @param av Whether to initially send video and/or audio
      */
     virtual rtcModule::ICall& mediaCall(AvFlags av, rtcModule::ICallHandler& handler);
+
+    /** @brief Joins a webrtc call in the chatroom
+     *  @param av Whether to initially send video and/or audio
+     */
+    virtual rtcModule::ICall& joinCall(AvFlags av, rtcModule::ICallHandler& handler, Id callid);
 #endif
 
     //chatd::Listener implementation
@@ -324,6 +328,7 @@ protected:
 
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
+    void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
@@ -578,8 +583,7 @@ public:
  *  6. Call karere::Client::connect() and wait for completion
  *  7. The app is ready to operate
  */
-class Client: public rtcModule::IGlobalHandler,
-              public ::mega::MegaGlobalListener,
+class Client: public ::mega::MegaGlobalListener,
               public ::mega::MegaRequestListener,
               public presenced::Listener,
               public karere::DeleteTrackable
@@ -725,6 +729,7 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
+    bool mGroupCallsEnabled = false;
 
 public:
 
@@ -909,16 +914,14 @@ public:
      */
     promise::Promise<karere::Id>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
-
-    /** If true, every write to DB is immediately written to disk. If false, it works with transactions and changes
-     * require a call to db.commit() */
-    void setCommitEach(bool commitEach);
+    void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
+    /** @brief There is a call active in the chatroom*/
+    bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
+
+    /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
-#ifndef KARERE_DISABLE_WEBRTC
-    virtual rtcModule::ICallHandler* onCallIncoming(rtcModule::ICall& call, karere::AvFlags av);
-#endif
 
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
@@ -928,6 +931,8 @@ public:
 
     bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
+    bool areGroupCallsEnabled();
+    void enableGroupCalls(bool enable);
 
 protected:
     void heartbeat();

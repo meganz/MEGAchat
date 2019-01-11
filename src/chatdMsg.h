@@ -327,7 +327,7 @@ enum Opcode
     OP_ADDREACTION = 33,
 
     /**
-      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <unicodechar32le>
       *
       * User delete a reaction to message
       */

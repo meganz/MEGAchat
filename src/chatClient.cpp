@@ -562,6 +562,16 @@ bool Client::isChatRoomOpened(Id chatid)
     return false;
 }
 
+bool Client::areGroupCallsEnabled()
+{
+    return mGroupCallsEnabled;
+}
+
+void Client::enableGroupCalls(bool enable)
+{
+    mGroupCallsEnabled = enable;
+}
+
 promise::Promise<void> Client::loginSdkAndInit(const char* sid)
 {
     init(sid);
@@ -702,9 +712,9 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     });
 }
 
-void Client::setCommitEach(bool commitEach)
+void Client::setCommitMode(bool commitEach)
 {
-    db.setCommitEach(commitEach);
+    db.setCommitMode(commitEach);
 }
 
 void Client::commit(const std::string& scsn)
@@ -1168,8 +1178,8 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     });
 
 #ifndef KARERE_DISABLE_WEBRTC
-    // Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+// Create the rtc module
+    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
@@ -1362,35 +1372,6 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
 promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
-
-    // Prepare list of peers to subscribe to its presence
-    // add contacts
-    presenced::IdRefMap peers;
-    for (auto& contact: *contactList)
-    {
-        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
-            peers.insert(contact.first);
-        }
-    }
-    // add peers from groupchats
-    for (auto& chat: *chats)
-    {
-        if (!chat.second->isGroup())
-        {
-            continue;
-        }
-
-        auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
-        for (auto& peer: members)
-        {
-            if (!contactList->isExContact(peer.first))
-            {
-                peers.insert(peer.first);
-            }
-        }
-    }
-
     // Notify presence, if any
     if (pres.isValid())
     {
@@ -1398,7 +1379,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
-    return mPresencedClient.connect(url, std::move(peers), presenced::Config(pres));
+    return mPresencedClient.connect(url, presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
@@ -1817,6 +1798,11 @@ void PeerChatRoom::connect(const char */*url*/)
 rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handler)
 {
     return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
+}
+
+rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
+{
+    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
 }
 #endif
 
@@ -2252,14 +2238,6 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     else
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
-
-        if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
-        {
-            if (!parent.mKarereClient.contactList->isExContact(userid))
-            {
-                parent.mKarereClient.presenced().addPeer(userid);
-            }
-        }
     }
     if (saveToDb)
     {
@@ -2282,8 +2260,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     }
 
     delete it->second;
-    mPeers.erase(it);    
-    parent.mKarereClient.presenced().removePeer(userid);
+    mPeers.erase(it);
     parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
 
     return true;
@@ -2321,9 +2298,9 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
-bool ChatRoom::isCallInProgress() const
+bool ChatRoom::isCallActive() const
 {
-    return parent.mKarereClient.isCallInProgress(mChatid);
+    return parent.mKarereClient.isCallActive(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -2527,24 +2504,25 @@ void GroupChatRoom::setRemoved()
     notifyExcludedFromChat();
 }
 
-void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
+void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
 {
     if (!rooms)
-        return;
-    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn;
-    if (pscsn)
     {
-        scsn = pscsn;
-        delete[] pscsn;
+        const char *scsn = api.sdk.getSequenceNumber();
+        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", scsn);
+        delete [] scsn;
+        return;
     }
+
+    assert(mContactsLoaded);
+
+    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    assert(mContactsLoaded);
+
     auto wptr = weakHandle();
-    marshallCall([wptr, this, copy, scsn]()
+    marshallCall([wptr, this, copy]()
     {
         if (wptr.deleted())
         {
@@ -2555,29 +2533,20 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 {
-    SetOfIds added;
+    SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
     auto count = rooms.size();
     for (int i = 0; i < count; i++)
     {
-        auto apiRoom = rooms.get(i);
-        auto chatid = apiRoom->getHandle();
+        const ::mega::MegaTextChat *apiRoom = rooms.get(i);
+        ::mega::MegaHandle chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
 
-        auto it = find(chatid);
-        auto localRoom = (it != end()) ? it->second : nullptr;
-        assert(localRoom);
-        if (localRoom)
-        {
-            localRoom->syncWithApi(*apiRoom);
-        }
-        else
-        {
-            KR_LOG_ERROR("Chatroom %s notified by API is not found", ID_CSTR(chatid));
-        }
+        ChatRoom *room = at(chatid);
+        room->syncWithApi(*apiRoom);
     }
 }
 
@@ -2670,7 +2639,15 @@ void GroupChatRoom::makeTitleFromMemberNames()
             }
             else
             {
-                newTitle.append(name.substr(1)).append(", ");
+                int firstnameLen = name.at(0);
+                if (firstnameLen)
+                {
+                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                }
+                else
+                {
+                    newTitle.append(name.substr(1)).append(", ");
+                }
             }
         }
         newTitle.resize(newTitle.size()-2); //truncate last ", "
@@ -3527,23 +3504,18 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
 void Contact::onVisibilityChanged(int newVisibility)
 {
     assert(newVisibility != mVisibility);
-    auto old = mVisibility;
+    auto oldVisibility = mVisibility;
     mVisibility = newVisibility;
     if (mDisplay)
     {
         mDisplay->onVisibilityChanged(newVisibility);
     }
 
-    auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    if (mChatRoom
+            && oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
+            && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
     {
-        client.presenced().removePeer(mUserid, true);
-    }
-    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-    {
-        mClist.client.presenced().addPeer(mUserid);
-        if (mChatRoom)
-            mChatRoom->notifyRejoinedChat();
+        mChatRoom->notifyRejoinedChat();
     }
 }
 
@@ -3701,10 +3673,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         updateTitle(encodeFirstName(email));
         assert(!mTitleString.empty());
     }
-    auto& client = mClist.client;
-    if ((client.initState() >= Client::kInitHasOnlineSession)
-         && (mVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE))
-        client.presenced().addPeer(mUserid);
 
     mIsInitializing = false;
 }
@@ -3736,7 +3704,6 @@ Contact::~Contact()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
-        client.presenced().removePeer(mUserid, true);
         if (mDisplay)
         {
             client.app.contactListHandler()->removeContactItem(*mDisplay);
@@ -3815,26 +3782,33 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress(Id chatid) const
+bool Client::isCallActive(Id chatid) const
 {
-    bool callInProgress = false;
+    bool callActive = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress(chatid);
+        callActive = rtc->isCallActive(chatid);
     }
 #endif
 
-    return callInProgress;
+    return callActive;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
+bool Client::isCallInProgress(karere::Id chatid) const
 {
-    return app.onIncomingCall(call, av);
-}
+    bool participantingInCall = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        participantingInCall = rtc->isCallInProgress(chatid);
+    }
 #endif
+
+    return participantingInCall;
+}
 
 std::string encodeFirstName(const std::string& first)
 {
