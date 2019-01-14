@@ -302,77 +302,6 @@ void Client::retryPendingConnections(bool disconnect)
     }
 }
 
-#define TOKENPASTE2(a,b) a##b
-#define TOKENPASTE(a,b) TOKENPASTE2(a,b)
-
-#define SHARED_STATE(varname, membtype)             \
-    struct TOKENPASTE(SharedState,__LINE__){membtype value;};  \
-    std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
-
-//This is a convenience method to log in the SDK in case the app does not do it.
-promise::Promise<void> Client::sdkLoginNewSession()
-{
-    mLoginDlg.assign(app.createLoginDialog());
-    async::loop((int)0, [](int) { return true; }, [](int&){},
-    [this](async::Loop<int>& loop)
-    {
-        auto pms = mLoginDlg->requestCredentials();
-        return pms
-        .then([this](const std::pair<std::string, std::string>& cred)
-        {
-            mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
-            return api.callIgnoreResult(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
-        })
-        .then([&loop]()
-        {
-            loop.breakLoop();
-            return 0;
-        })
-        .fail([this](const promise::Error& err) -> Promise<int>
-        {
-            if (err.code() != mega::API_ENOENT && err.code() != mega::API_EARGS)
-                return err;
-
-            mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
-            return 0;
-        });
-    }, this)
-    .then([this](int)
-    {
-        mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
-        return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
-    })
-    .fail([this](const promise::Error& err)
-    {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this, err]()
-        {
-            if (wptr.deleted())
-            {
-                return;
-            }
-
-            mSessionReadyPromise.reject(err);
-        }, appCtx);
-    })
-    .then([this]()
-    {
-        mLoginDlg.free();
-    });
-    return mSessionReadyPromise;
-}
-
-promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
-{
-    assert(sid);
-    api.callIgnoreResult(&::mega::MegaApi::fastLogin, sid)
-    .then([this]()
-    {
-        api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
-    });
-    return mSessionReadyPromise;
-}
-
 void Client::onSyncReceived(Id chatid)
 {
     if (mSyncCount <= 0)
@@ -409,19 +338,6 @@ bool Client::areGroupCallsEnabled()
 void Client::enableGroupCalls(bool enable)
 {
     mGroupCallsEnabled = enable;
-}
-
-promise::Promise<void> Client::loginSdkAndInit(const char* sid)
-{
-    init(sid);
-    if (!sid)
-    {
-        return sdkLoginNewSession();
-    }
-    else
-    {
-        return sdkLoginExistingSession(sid);
-    }
 }
 
 void Client::saveDb()
@@ -1196,7 +1112,6 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 void Contact::updatePresence(Presence pres)
 {
     mPresence = pres;
-    updateAllOnlineDisplays(pres);
 }
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
@@ -2846,10 +2761,6 @@ void Contact::onVisibilityChanged(int newVisibility)
     assert(newVisibility != mVisibility);
     auto oldVisibility = mVisibility;
     mVisibility = newVisibility;
-    if (mDisplay)
-    {
-        mDisplay->onVisibilityChanged(newVisibility);
-    }
 
     if (mChatRoom
             && oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
@@ -2993,9 +2904,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
      mSince(since), mVisibility(visibility)
 {
-    auto appClist = clist.client.app.contactListHandler();
-    mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
-
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         USER_ATTR_FULLNAME, this,
         [](Buffer* data, void* userp)
@@ -3029,9 +2937,6 @@ void Contact::notifyTitleChanged()
 {
     callAfterInit(this, [this]
     {
-        if (mDisplay)
-            mDisplay->onTitleChanged(mTitleString);
-
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
             mChatRoom->updateTitle(mTitleString);
@@ -3044,10 +2949,6 @@ Contact::~Contact()
     if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
-        if (mDisplay)
-        {
-            client.app.contactListHandler()->removeContactItem(*mDisplay);
-        }
     }
 }
 

@@ -3675,11 +3675,6 @@ IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
     return getChatRoomHandler(room.chatid());
 }
 
-IApp::IContactListHandler *MegaChatApiImpl::contactListHandler()
-{
-    return nullptr;
-}
-
 IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()
 {
     return this;
