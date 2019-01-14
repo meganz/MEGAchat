@@ -1783,6 +1783,11 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
         return;
     }
 
+    if (terminating)
+    {
+        return;
+    }
+
     for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
         (*it)->onChatCallUpdate(chatApi, call);
@@ -1796,13 +1801,10 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
     {
         // notify at MegaChatListItem level about new calls and calls being terminated
         ChatRoom *room = findChatRoom(call->getChatid());
-        if (room)
-        {
-            MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
-            item->setCallInProgress();
+        MegaChatListItemPrivate *item = new MegaChatListItemPrivate(*room);
+        item->setCallInProgress();
 
-            fireOnChatListItemUpdate(item);
-        }
+        fireOnChatListItemUpdate(item);
     }
 
     call->removeChanges();
