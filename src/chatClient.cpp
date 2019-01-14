@@ -1372,6 +1372,7 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
 promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
+
     // Notify presence, if any
     if (pres.isValid())
     {

@@ -333,6 +333,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 mClient = NULL;
                 terminating = false;
 
+                for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
+                {
+                    delete it->second;
+                }
+                chatRoomHandler.clear();
+
+                for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
+                {
+                    delete it->second;
+                }
+                nodeHistoryHandlers.clear();
+
 #ifndef KARERE_DISABLE_WEBRTC
                 cleanCallHandlerMap();
 #endif
@@ -3063,10 +3075,15 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     if (chatroom)
     {
         chatroom->removeAppChatHandler();
-
-        removeChatRoomListener(chatid, listener);
-        removeChatRoomHandler(chatid);
     }
+    else
+    {
+        API_LOG_WARNING("closeChatRoom(): chatid not found [%s]", karere::Id(chatid).toString().c_str());
+    }
+
+    removeChatRoomListener(chatid, listener);
+    removeChatRoomHandler(chatid);
+
     sdkMutex.unlock();
 }
 
