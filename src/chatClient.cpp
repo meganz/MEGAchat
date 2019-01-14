@@ -285,6 +285,10 @@ void Client::heartbeat()
 Client::~Client()
 {
     assert(isTerminated());
+
+#ifndef KARERE_DISABLE_WEBRTC
+   rtc.reset();
+#endif
 }
 
 void Client::retryPendingConnections(bool disconnect)
