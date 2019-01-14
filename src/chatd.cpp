@@ -1367,8 +1367,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mOldestKnownMsgId = info.oldestDbId;
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
-    mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
-    mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
+    mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
+    mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
 
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
@@ -2130,6 +2130,16 @@ bool Chat::haveAllHistoryNotified() const
     return (mNextHistFetchIdx < lownum());
 }
 
+Message *Chat::getMessageFromNodeHistory(Id msgid) const
+{
+    return mAttachmentNodes->getMessage(msgid);
+}
+
+Idx Chat::getIdxFromNodeHistory(Id msgid) const
+{
+    return mAttachmentNodes->getMessageIdx(msgid);
+}
+
 uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 {
     uint64_t ts = time(nullptr);
@@ -2745,7 +2755,7 @@ void Chat::onLastReceived(Id msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
-        Idx idx = mDbInterface->getIdxOfMsgid(msgid);
+        Idx idx = mDbInterface->getIdxOfMsgidFromHistory(msgid);
         if (idx != CHATD_IDX_INVALID)
         {
             if ((mLastReceivedIdx != CHATD_IDX_INVALID) && (idx < mLastReceivedIdx))
@@ -2810,7 +2820,7 @@ void Chat::onLastSeen(Id msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())  // msgid not loaded in RAM
     {
-        idx = mDbInterface->getIdxOfMsgid(msgid);   // return CHATD_IDX_INVALID if not found in DB
+        idx = mDbInterface->getIdxOfMsgidFromHistory(msgid);   // return CHATD_IDX_INVALID if not found in DB
     }
     else    // msgid is in RAM
     {
@@ -4924,6 +4934,23 @@ void FilteredHistory::finishFetchingFromServer()
     assert(mFetchingFromServer);
     CALL_LISTENER_FH(onLoaded, NULL, 0);
     mFetchingFromServer = false;
+}
+
+Message *FilteredHistory::getMessage(Id id)
+{
+    Message *msg = NULL;
+    auto msgItetrator = mIdToMsgMap.find(id);
+    if (msgItetrator != mIdToMsgMap.end())
+    {
+        msg = msgItetrator->second->get();
+    }
+
+    return msg;
+}
+
+Idx FilteredHistory::getMessageIdx(Id id)
+{
+    return mDb->getIdxOfMsgidFromNodeHistory(id);
 }
 
 void FilteredHistory::init()
