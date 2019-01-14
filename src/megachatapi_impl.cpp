@@ -334,6 +334,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 mClient = NULL;
                 terminating = false;
 
+                for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
+                {
+                    delete it->second;
+                }
+                chatRoomHandler.clear();
+
+                for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
+                {
+                    delete it->second;
+                }
+                nodeHistoryHandlers.clear();
+
 #ifndef KARERE_DISABLE_WEBRTC
                 cleanCallHandlerMap();
 #endif
@@ -709,7 +721,6 @@ void MegaChatApiImpl::sendPendingRequests()
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                request->setText(data->buf());
                 string firstname = string(data->buf(), data->dataSize());
                 request->setText(firstname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -2627,10 +2638,14 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     if (chatroom)
     {
         chatroom->removeAppChatHandler();
-
-        removeChatRoomListener(chatid, listener);
-        removeChatRoomHandler(chatid);
     }
+    else
+    {
+        API_LOG_WARNING("Try to close nonexistent chatroom: %s", karere::Id(chatid).toString().c_str());
+    }
+
+    removeChatRoomListener(chatid, listener);
+    removeChatRoomHandler(chatid);
 
     sdkMutex.unlock();
 }
@@ -3873,11 +3888,6 @@ void MegaChatApiImpl::removeGroupChatItem(IGroupChatListItem &item)
         IGroupChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-//            TODO: Redmine ticket #5693
-//            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
-//            listItem->setClosed();
-//            fireOnChatListItemUpdate(listItem);
-
             delete (itemHandler);
             chatGroupListItemHandler.erase(it);
             return;
@@ -3895,11 +3905,6 @@ void MegaChatApiImpl::removePeerChatItem(IPeerChatListItem &item)
         IPeerChatListItem *itemHandler = (*it);
         if (itemHandler == &item)
         {
-//            TODO: Redmine ticket #5693
-//            MegaChatListItemPrivate *listItem = new MegaChatListItemPrivate((*it)->getChatRoom());
-//            listItem->setClosed();
-//            fireOnChatListItemUpdate(listItem);
-
             delete (itemHandler);
             chatPeerListItemHandler.erase(it);
             return;
