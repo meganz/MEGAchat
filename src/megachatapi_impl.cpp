@@ -720,7 +720,6 @@ void MegaChatApiImpl::sendPendingRequests()
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                request->setText(data->buf());
                 string firstname = string(data->buf(), data->dataSize());
                 request->setText(firstname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
