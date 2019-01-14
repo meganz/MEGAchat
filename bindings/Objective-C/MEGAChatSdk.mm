@@ -642,6 +642,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->getMessage(chatId, messageId) ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->getMessage(chatId, messageId) cMemoryOwn:YES] : nil;
 }
 
+- (MEGAChatMessage *)messageFromNodeHistoryForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
+    return self.megaChatApi->getMessageFromNodeHistory(chatId, messageId) ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->getMessageFromNodeHistory(chatId, messageId) cMemoryOwn:YES] : nil;
+}
+
 - (MEGAChatMessage *)sendMessageToChat:(uint64_t)chatId message:(NSString *)message {
     return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->sendMessage(chatId, message ? [message UTF8String] : NULL) cMemoryOwn:YES] : nil;
 }
