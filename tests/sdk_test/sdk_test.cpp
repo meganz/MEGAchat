@@ -459,6 +459,14 @@ const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
     {
         buffer << "\tArchived chat: no" << endl;
     }
+    if (chat->isPublic())
+    {
+        buffer << "\tPublic chat: yes" << endl;
+    }
+    else
+    {
+        buffer << "\tPublic chat: no" << endl;
+    }
     buffer << "\tPeers:";
 
     if (chat->getPeerCount())
@@ -892,7 +900,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
                      "Online status didn't changed to online from autoaway after signaling activity. Received: " + std::string(MegaChatRoom::statusToString(onlineStatus)));
 
 
-    delete sesion;
+    delete [] sesion;
     sesion = NULL;
 }
 
@@ -909,7 +917,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
  */
 void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 {
-    char *sesion = login(accountIndex);
+    char *session = login(accountIndex);
 
     MegaChatRoomList *chats = megaChatApi[accountIndex]->getChatRooms();
     std::stringstream buffer;
@@ -993,8 +1001,8 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 
     logger->postLog(buffer.str().c_str());
 
-    delete sesion;
-    sesion = NULL;
+    delete [] session;
+    session = NULL;
 }
 
 /**

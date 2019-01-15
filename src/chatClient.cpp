@@ -431,22 +431,15 @@ promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
 
 promise::Promise<uint64_t> Client::deleteChatLink(karere::Id chatid)
 {
-    auto wptr = weakHandle();
-
     return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
-    .then([this, wptr, chatid](ReqResult) -> promise::Promise<uint64_t>
+    .then([this, chatid](ReqResult) -> promise::Promise<uint64_t>
     {
-        if (wptr.deleted())
-            return Id::inval().val;
-
         return Id::inval().val;
     });
 }
 
 promise::Promise<uint64_t> Client::getPublicHandle(Id chatid, bool createifmissing)
 {
-    auto wptr = weakHandle();
-
     ApiPromise pms;
     if (createifmissing)
     {
@@ -457,6 +450,7 @@ promise::Promise<uint64_t> Client::getPublicHandle(Id chatid, bool createifmissi
         pms = api.call(&::mega::MegaApi::chatLinkQuery, chatid);
     }
 
+    auto wptr = weakHandle();
     return pms.then([this, chatid, wptr](ReqResult result) -> promise::Promise<uint64_t>
     {
         if (wptr.deleted())
@@ -584,6 +578,12 @@ void Client::loadContactListFromApi(::mega::MegaUserList& contacts)
 
 Client::InitState Client::initWithAnonymousSession()
 {
+    if (mInitState > kInitCreated)
+    {
+        KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
+        return kInitErrAlready;
+    }
+
     setInitState(kInitAnonymousMode);
     mSid.clear();
     createDb();
@@ -595,8 +595,8 @@ Client::InitState Client::initWithAnonymousSession()
 }
 
 promise::Promise<void> Client::initWithNewSession(const char* sid, const std::string& scsn,
-    const std::shared_ptr<::mega::MegaUserList>& contactList,
-    const std::shared_ptr<::mega::MegaTextChatList>& chatList)
+    const std::shared_ptr<mega::MegaUserList>& contactList,
+    const std::shared_ptr<mega::MegaTextChatList>& chatList)
 {
     assert(sid);
 
@@ -1516,7 +1516,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     if (publicchat)
     {
         Buffer *buf = strongvelope::ProtocolHandler::createUnifiedKey();
-        unifiedKey.reset(new std::string(buf->buf(), buf->dataSize()));
+        unifiedKey = std::make_shared<std::string>(buf->buf(), buf->dataSize());
         delete buf;
     }
 
@@ -1524,10 +1524,10 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     std::shared_ptr<strongvelope::ProtocolHandler> crypto;
     if (publicchat || title)
     {
-        crypto.reset(new strongvelope::ProtocolHandler(mMyHandle,
+        crypto = std::make_shared<strongvelope::ProtocolHandler>(mMyHandle,
                 StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
                 StaticBuffer(mMyPrivRsa, mMyPrivRsaLen), *mUserAttrCache, db, karere::Id::inval(), publicchat,
-                unifiedKey, false, Id::inval(), appCtx));
+                unifiedKey, false, Id::inval(), appCtx);
         crypto->setUsers(users.get());  // ownership belongs to this method, it will be released after `crypto`
     }
 

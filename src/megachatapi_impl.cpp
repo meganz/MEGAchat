@@ -1757,12 +1757,16 @@ void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 int MegaChatApiImpl::initAnonymous()
 {
     sdkMutex.lock();
-
     createKarereClient();
+
     int state = mClient->initWithAnonymousSession();
+    if (state != karere::Client::kInitAnonymousMode)
+    {
+        // there's been an error during initialization
+        localLogout();
+    }
 
     sdkMutex.unlock();
-
     return MegaChatApiImpl::convertInitState(state);
 }
 
@@ -1793,7 +1797,7 @@ void MegaChatApiImpl::createKarereClient()
 #else
         uint8_t caps = karere::kClientIsMobile | karere::kClientSupportLastGreen;
 #endif
-        mClient = new karere::Client(*this->megaApi, websocketsIO, *this, this->megaApi->getBasePath(), caps, this);
+        mClient = new karere::Client(*megaApi, websocketsIO, *this, megaApi->getBasePath(), caps, this);
         terminating = false;
     }
 }
