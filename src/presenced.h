@@ -386,6 +386,9 @@ protected:
      * (currently, it includes contacts and any user in our groupchats, except ex-contacts) */
     IdRefMap mCurrentPeers;
 
+    /** Map of userids (key) and last green (value) of any contact or any user in our groupchats, except ex-contacts */
+    std::map<uint64_t, time_t> mPeersLastGreen;
+
     /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API) */
     std::map<uint64_t, karere::SetOfIds> mChatMembers;
 
@@ -463,6 +466,12 @@ public:
 
     /** Tells presenced that there's user's activity (notified by the app) */
     void signalActivity();
+
+    /** @brief Updates user last green if it's more recent than the current value.
+     * @param force, if this param is set to false, prevents to update user last green,
+     * if we have called before requestLastGreen and we don't have received any
+     * response from server */
+    bool updateLastGreen(karere::Id userid, time_t lastGreen, bool force);
 
     ~Client();
 };

@@ -166,7 +166,42 @@ bool Client::setLastGreenVisible(bool enable)
 
 bool Client::requestLastGreen(Id userid)
 {
+    // Avoid send OP_LASTGREEN if user is ex-contact
+    if (isExContact(userid))
+    {
+        return false;
+    }
+
+    // Reset user last green or insert an entry in the map if not exists
+    std::map<uint64_t, time_t>::iterator it;
+    it = mPeersLastGreen.find(userid.val);
+    if (it == mPeersLastGreen.end())
+    {
+        mPeersLastGreen.insert(std::pair<uint64_t, time_t>(userid.val, 0));
+    }
+    else
+    {
+        it->second = 0;
+    }
+
     return sendCommand(Command(OP_LASTGREEN) + userid);
+}
+
+bool Client::updateLastGreen(Id userid, time_t lastGreen, bool force)
+{
+    std::map<uint64_t, time_t>::iterator it;
+    it = mPeersLastGreen.find(userid.val);
+    if (it != mPeersLastGreen.end())
+    {
+        time_t& auxLastGreen = it->second;
+        if (((auxLastGreen != 0) || force)
+            && (lastGreen > auxLastGreen))
+        {
+            auxLastGreen = lastGreen;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool Client::setAutoaway(bool enable, time_t timeout)
@@ -1271,6 +1306,13 @@ void Client::removePeer(karere::Id peer, bool force)
     }
 
     mCurrentPeers.erase(it);
+
+    // Remove peer from mPeersLastGreen map if exists
+    auto itAux = mPeersLastGreen.find(peer.val);
+    if (itAux != mPeersLastGreen.end())
+    {
+        mPeersLastGreen.erase(itAux);
+    }
 
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
 

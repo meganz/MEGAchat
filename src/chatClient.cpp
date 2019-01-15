@@ -1145,7 +1145,36 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 
 void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
 {
-    app.onPresenceLastGreenUpdated(userid, lastGreen);
+    // Calculate lastGreen ts from the system time and format
+    time_t lastGreenTs = time(NULL);
+    lastGreenTs -= (lastGreen * 60);
+
+    // Update and notify last green if needed
+    updateAndNotifyLastGreen(userid.val, lastGreenTs, true);
+}
+
+void Client::updateAndNotifyLastGreen(Id userid, time_t lastGreenTs, bool force)
+{
+    // Get latest message ts from cache
+    time_t lastMsgTs = 0;
+    SqliteStmt stmt(db, "select MAX(ts) from history where userid = ?");
+    stmt << userid.val;
+    if (stmt.step())
+    {
+        lastMsgTs = stmt.uintCol(0);
+    }
+
+    // Compare lastGreen with last message ts and get the bigger
+    time_t auxLastGreen = (lastGreenTs >= lastMsgTs) ?lastGreenTs :lastMsgTs;
+
+    // Update last green if required and notify apps
+    if (mPresencedClient.updateLastGreen(userid.val, auxLastGreen, force))
+    {
+        // Format ts to minutes
+        time_t auxTs = (time(NULL));
+        auxTs = (auxTs - auxLastGreen)/ 60;
+        app.onPresenceLastGreenUpdated(userid, auxTs);
+    }
 }
 
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)

@@ -1540,6 +1540,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else
                 {
+                    mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg->userid, msg->ts, false);
+
                     if (!chat.isFetchingNodeHistory() || opcode == OP_NEWMSG)
                     {
                         chat.msgIncoming((opcode == OP_NEWMSG), msg.release(), false);

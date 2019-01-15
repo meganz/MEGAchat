@@ -846,6 +846,7 @@ public:
     bool isChatRoomOpened(Id chatid);
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
+    void updateAndNotifyLastGreen(Id userid, time_t lastGreenTs, bool force);
 
 protected:
     void heartbeat();
