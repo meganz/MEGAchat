@@ -439,7 +439,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
     db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
 
     mUserAttrCache.reset(new UserAttrCache(*this));    
@@ -992,7 +992,7 @@ uint64_t Client::getMyIdentityFromDb()
     if (!stmt.step())
     {
         KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
-        result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+        result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
         db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     }
     else
@@ -1001,7 +1001,7 @@ uint64_t Client::getMyIdentityFromDb()
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
-            result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+            result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
             db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
         }
     }
@@ -1951,7 +1951,6 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-
     auto wptr = weakHandle();
     marshallCall([wptr, this, copy]()
     {

@@ -4,6 +4,7 @@
 #include <string.h> //for memset
 #include <karereCommon.h> //for timestampMs()
 #include <chatClient.h>
+#include <mega/utils.h>
 #define RPTYPE(name) webrtc::StatsReport::kStatsReportType##name
 #define VALNAME(name) webrtc::StatsReport::kStatsValueName##name
 
@@ -12,6 +13,9 @@ namespace rtcModule
 using namespace artc;
 using namespace std::placeholders;
 using namespace karere;
+#if WIN32
+using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
+#endif
 
 namespace stats
 {

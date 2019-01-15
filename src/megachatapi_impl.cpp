@@ -116,6 +116,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
 void MegaChatApiImpl::loop()
 {
+    sdkMutex.lock();
     while (true)
     {
         sdkMutex.unlock();
@@ -5016,7 +5017,7 @@ void* MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short
     MegaChatVideoFrame *frame = new MegaChatVideoFrame;
     frame->width = width;
     frame->height = height;
-    frame->buffer = new byte[width * height * 4];  // in format ARGB: 4 bytes per pixel
+    frame->buffer = new ::mega::byte[width * height * 4];  // in format ARGB: 4 bytes per pixel
     userData = frame;
     return frame->buffer;
 }
@@ -7726,7 +7727,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         // k -> binary key
         char tempKey[FILENODEKEYLENGTH];
         char *base64Key = megaNode->getBase64Key();
-        Base64::atob(base64Key, (byte*)tempKey, FILENODEKEYLENGTH);
+        Base64::atob(base64Key, (::mega::byte*)tempKey, FILENODEKEYLENGTH);
         delete base64Key;
 
         std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(tempKey, FILENODEKEYLENGTH));

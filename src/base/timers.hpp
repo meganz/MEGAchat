@@ -25,10 +25,10 @@
 #include "gcmpp.h"
 #include <memory>
 #include <assert.h>
-extern std::recursive_mutex timerMutex;
 
 namespace karere
 {
+
 struct TimerMsg: public megaMessage
 {
     timerevent* timerEvent = nullptr;
@@ -52,6 +52,8 @@ struct TimerMsg: public megaMessage
 };
 
 void init_uv_timer(void *ctx, uv_timer_t *timer);
+
+extern std::recursive_mutex timerMutex;
 
 template <int persist, class CB>
 inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)

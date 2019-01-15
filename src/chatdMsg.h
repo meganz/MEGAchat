@@ -370,7 +370,8 @@ enum Opcode
       */
     OP_NODEHIST = 45,
 
-    OP_LAST = OP_NODEHIST
+    OP_LAST = OP_NODEHIST,
+    OP_INVALIDCODE = 0xFF
 };
 
 // privilege levels
@@ -815,7 +816,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
