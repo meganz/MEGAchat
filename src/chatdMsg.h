@@ -535,6 +535,7 @@ public:
 
             if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
             {
+                delete info;
                 return NULL;
             }
 

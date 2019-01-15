@@ -1749,9 +1749,9 @@ public class MegaChatApiJava {
     /**
      * Returns the MegaChatMessage specified from the chat room.
      *
-     * Only the messages that are already loaded and notified
-     * by MegaChatRoomListener::onMessageLoaded can be requested. For any
-     * other message, this function will return NULL.
+     * This function allows to retrieve only those messages that are been loaded, received and/or
+     * sent (confirmed and not yet confirmed). For any other message, this function
+     * will return NULL.
      *
      * You take the ownership of the returned value.
      *
@@ -1761,6 +1761,21 @@ public class MegaChatApiJava {
      */
     public MegaChatMessage getMessage(long chatid, long msgid){
         return megaChatApi.getMessage(chatid, msgid);
+    }
+
+    /**
+     * Returns the MegaChatMessage specified from the chat room stored in node history
+     *
+     * This function allows to retrieve only those messages that are in the node history
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     * @return The MegaChatMessage object, or NULL if not found.
+     */
+    public MegaChatMessage getMessageFromNodeHistory(long chatid, long msgid){
+        return megaChatApi.getMessageFromNodeHistory(chatid, msgid);
     }
 
     /**

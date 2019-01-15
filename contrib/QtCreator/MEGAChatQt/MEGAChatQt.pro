@@ -18,44 +18,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
-
-
-debug_and_release {
-    CONFIG -= debug_and_release
-    CONFIG += debug_and_release
-}
-CONFIG(debug, debug|release) {
-    CONFIG -= debug release
-    CONFIG += debug
-}
-CONFIG(release, debug|release) {
-    CONFIG -= debug release
-    CONFIG += release
-}
-
 QT       += core gui
-
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT += svg
 
-TARGET = megachat
-TEMPLATE = app
-
-DEFINES += LOG_TO_LOGGER
-
-CONFIG += USE_LIBUV
-CONFIG += USE_MEGAAPI
-CONFIG += USE_MEDIAINFO
-CONFIG += ENABLE_CHAT
-CONFIG += USE_WEBRTC
-DEFINES += ENABLE_CHAT
-
 include(../../../bindings/qt/megachat.pri)
 
-
+TARGET = megachat
 DEPENDPATH += examples/qtmegachatapi/
 INCLUDEPATH += ../../../examples/qtmegachatapi/
-
 
 SOURCES +=  ../../../examples/qtmegachatapi/MegaChatApplication.cpp \
             ../../../examples/qtmegachatapi/LoginDialog.cpp \
@@ -92,8 +63,6 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/chatMessageWidget.ui \
     ../../../examples/qtmegachatapi/chatGroupDialog.ui
 
-
-
 CONFIG(USE_WEBRTC) {
     SOURCES +=  ../../../examples/qtmegachatapi/callGui.cpp \
         ../../../examples/qtmegachatapi/callListener.cpp \
@@ -108,21 +77,6 @@ CONFIG(USE_WEBRTC) {
         ../../src/videoRenderer_Qt.h
 
     FORMS += ../../../examples/qtmegachatapi/callGui.ui
-}
-
-win32 {
-    QMAKE_LFLAGS += /LARGEADDRESSAWARE
-    QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
-    QMAKE_LFLAGS_CONSOLE += /SUBSYSTEM:CONSOLE,5.01
-    DEFINES += PSAPI_VERSION=1
-}
-
-macx {
-    QMAKE_CXXFLAGS += -DCRYPTOPP_DISABLE_ASM -D_DARWIN_C_SOURCE
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
-    QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
-    DEFINES += WEBRTC_MAC
 }
 
 RESOURCES += \

@@ -634,6 +634,8 @@ public:
     void setHandler(FilteredHistoryHandler *handler);
     void unsetHandler();
     void finishFetchingFromServer();
+    Message *getMessage(karere::Id id);
+    Idx getMessageIdx(karere::Id id);
 
 protected:
     DbInterface *mDb;
@@ -1064,6 +1066,22 @@ public:
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
+
+    /**
+     * @brief Returns the message with specific msgid that it's stored at node history
+     * @param msgid The message id
+     * @return Pointer to the message. The ownership of the message is retained in c\ FilteredHistory
+     */
+    Message *getMessageFromNodeHistory(karere::Id msgid) const;
+
+    /**
+     * @brief Returns the index of the message with the specified msgid that it's stored at node history
+     * @param msgid The message id whose index to find
+     * @return The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx getIdxFromNodeHistory(karere::Id msgid) const;
 
     /**
      * @brief Initiates fetching more history - from local RAM history buffer,
@@ -1517,7 +1535,7 @@ public:
     virtual bool removeChatVar (const char *name) = 0;
 
     virtual Idx getOldestIdx() = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
@@ -1525,6 +1543,8 @@ public:
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
+
+    virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 };
 
 }

@@ -612,6 +612,11 @@ MegaChatMessage *MegaChatApi::getMessage(MegaChatHandle chatid, MegaChatHandle m
     return pImpl->getMessage(chatid, msgid);
 }
 
+MegaChatMessage *MegaChatApi::getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    return pImpl->getMessageFromNodeHistory(chatid, msgid);
+}
+
 MegaChatMessage *MegaChatApi::getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
     return pImpl->getManualSendingMessage(chatid, rowid);

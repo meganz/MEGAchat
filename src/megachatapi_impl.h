@@ -1087,6 +1087,7 @@ public:
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
     MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msgLen, int type = MegaChatMessage::TYPE_NORMAL);
     MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* contacts);
@@ -1145,7 +1146,6 @@ public:
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
-    virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);

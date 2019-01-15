@@ -1066,7 +1066,6 @@ void MegaChatApiImpl::sendPendingRequests()
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                request->setText(data->buf());
                 string firstname = string(data->buf(), data->dataSize());
                 request->setText(firstname.c_str());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -2156,6 +2155,11 @@ void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
         return;
     }
 
+    if (terminating)
+    {
+        return;
+    }
+
     for (set<MegaChatCallListener *>::iterator it = callListeners.begin(); it != callListeners.end() ; it++)
     {
         (*it)->onChatCallUpdate(chatApi, call);
@@ -3181,6 +3185,37 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
     return megaMsg;
 }
 
+MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid)
+{
+    MegaChatMessagePrivate *megaMsg = NULL;
+    sdkMutex.lock();
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (chatroom)
+    {
+        Chat &chat = chatroom->chat();
+        Message *msg = chat.getMessageFromNodeHistory(msgid);
+        if (msg)
+        {
+            Idx idx = chat.getIdxFromNodeHistory(msgid);
+            assert(idx != CHATD_IDX_INVALID);
+            Message::Status status = (msg->userid == mClient->myHandle()) ? Message::Status::kServerReceived : Message::Status::kSeen;
+            megaMsg = new MegaChatMessagePrivate(*msg, status, idx);
+        }
+        else
+        {
+            API_LOG_ERROR("Failed to find message at node history (id: %d)",  msgid);
+        }
+    }
+    else
+    {
+        API_LOG_ERROR("Chatroom not found (chatid: %d)", chatid);
+    }
+
+    sdkMutex.unlock();
+    return megaMsg;
+}
+
 MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid)
 {
 
@@ -4118,11 +4153,6 @@ void MegaChatApiImpl::removeChatNotificationListener(MegaChatNotificationListene
 IApp::IChatHandler *MegaChatApiImpl::createChatHandler(ChatRoom &room)
 {
     return getChatRoomHandler(room.chatid());
-}
-
-IApp::IContactListHandler *MegaChatApiImpl::contactListHandler()
-{
-    return nullptr;
 }
 
 IApp::IChatListHandler *MegaChatApiImpl::chatListHandler()

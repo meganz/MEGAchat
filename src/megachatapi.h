@@ -3448,9 +3448,8 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * This function allows to retrieve only those messages that are already loaded
-     * and notified by MegaChatRoomListener::onMessageLoaded and/or messages that are
-     * in sending-status (not yet confirmed). For any other message, this function
+     * This function allows to retrieve only those messages that are been loaded, received and/or
+     * sent (confirmed and not yet confirmed). For any other message, this function
      * will return NULL.
      *
      * You take the ownership of the returned value.
@@ -3460,6 +3459,19 @@ public:
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+
+    /**
+     * @brief Returns the MegaChatMessage specified from the chat room stored in node history
+     *
+     * This function allows to retrieve only those messages that are in the node history
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     * @return The MegaChatMessage object, or NULL if not found.
+     */
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
      * @brief Returns the MegaChatMessage specified from manual sending queue.
@@ -4025,6 +4037,7 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
