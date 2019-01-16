@@ -4033,8 +4033,12 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
-        // Update last green if needed
-        mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid, msg.ts, false);
+        time_t lastGreen = mChatdClient.mKarereClient->getLastGreen(msg.userid.val);
+        if (lastGreen)
+        {
+            // Update last green if needed
+            mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid, msg.ts);
+        }
         CALL_LISTENER(onRecvNewMessage, idx, msg, status);
     }
     else

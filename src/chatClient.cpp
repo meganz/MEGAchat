@@ -1149,10 +1149,15 @@ void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
     time_t lastGreenTs = time(NULL) - (lastGreen * 60);
 
     // Update and notify last green if needed
-    updateAndNotifyLastGreen(userid.val, lastGreenTs, true);
+    updateAndNotifyLastGreen(userid.val, lastGreenTs);
 }
 
-void Client::updateAndNotifyLastGreen(Id userid, time_t lastGreenTs, bool force)
+time_t Client::getLastGreen(Id userid)
+{
+    return mPresencedClient.getLastGreen(userid.val);
+}
+
+void Client::updateAndNotifyLastGreen(Id userid, time_t lastGreenTs)
 {
     // Get latest message ts from cache
     time_t lastMsgTs = 0;
@@ -1167,7 +1172,7 @@ void Client::updateAndNotifyLastGreen(Id userid, time_t lastGreenTs, bool force)
     time_t auxLastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
 
     // Update last green if required and notify apps
-    if (mPresencedClient.updateLastGreen(userid.val, auxLastGreen, force))
+    if (mPresencedClient.updateLastGreen(userid.val, auxLastGreen))
     {
         // Format ts to minutes
         time_t auxTs = (time(NULL));

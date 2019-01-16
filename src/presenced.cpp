@@ -178,20 +178,27 @@ bool Client::requestLastGreen(Id userid)
     return sendCommand(Command(OP_LASTGREEN) + userid);
 }
 
-bool Client::updateLastGreen(Id userid, time_t lastGreen, bool force)
+time_t Client::getLastGreen(Id userid)
 {
     std::map<uint64_t, time_t>::iterator it;
     it = mPeersLastGreen.find(userid.val);
     if (it != mPeersLastGreen.end())
     {
-        time_t& auxLastGreen = it->second;
-        if (((auxLastGreen != 0) || force)
-            && (lastGreen > auxLastGreen))
-        {
-            auxLastGreen = lastGreen;
-            return true;
-        }
+        return it->second;
     }
+
+    return 0;
+}
+
+bool Client::updateLastGreen(Id userid, time_t lastGreen)
+{
+    time_t &auxLastGreen = mPeersLastGreen[userid.val];
+    if (lastGreen > auxLastGreen)
+    {
+        auxLastGreen = lastGreen;
+        return true;
+    }
+
     return false;
 }
 

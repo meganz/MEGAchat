@@ -467,11 +467,9 @@ public:
     /** Tells presenced that there's user's activity (notified by the app) */
     void signalActivity();
 
-    /** @brief Updates user last green if it's more recent than the current value.
-     * @param force, if this param is set to false, prevents to update user last green,
-     * if we have called before requestLastGreen and we don't have received any
-     * response from server */
-    bool updateLastGreen(karere::Id userid, time_t lastGreen, bool force);
+    /** @brief Updates user last green if it's more recent than the current value.*/
+    bool updateLastGreen(karere::Id userid, time_t lastGreen);
+    time_t getLastGreen(karere::Id userid);
 
     ~Client();
 };
