@@ -1165,7 +1165,7 @@ void Client::updateAndNotifyLastGreen(Id userid, time_t lastGreenTs, bool force)
     }
 
     // Compare lastGreen with last message ts and get the bigger
-    time_t auxLastGreen = (lastGreenTs >= lastMsgTs) ?lastGreenTs :lastMsgTs;
+    time_t auxLastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
 
     // Update last green if required and notify apps
     if (mPresencedClient.updateLastGreen(userid.val, auxLastGreen, force))
