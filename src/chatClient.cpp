@@ -1146,8 +1146,7 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
 void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
 {
     // Calculate lastGreen ts from the system time and format
-    time_t lastGreenTs = time(NULL);
-    lastGreenTs -= (lastGreen * 60);
+    time_t lastGreenTs = time(NULL) - (lastGreen * 60);
 
     // Update and notify last green if needed
     updateAndNotifyLastGreen(userid.val, lastGreenTs, true);

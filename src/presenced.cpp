@@ -173,16 +173,7 @@ bool Client::requestLastGreen(Id userid)
     }
 
     // Reset user last green or insert an entry in the map if not exists
-    std::map<uint64_t, time_t>::iterator it;
-    it = mPeersLastGreen.find(userid.val);
-    if (it == mPeersLastGreen.end())
-    {
-        mPeersLastGreen.insert(std::pair<uint64_t, time_t>(userid.val, 0));
-    }
-    else
-    {
-        it->second = 0;
-    }
+    mPeersLastGreen[userid.val] = 0;
 
     return sendCommand(Command(OP_LASTGREEN) + userid);
 }
@@ -1308,11 +1299,8 @@ void Client::removePeer(karere::Id peer, bool force)
     mCurrentPeers.erase(it);
 
     // Remove peer from mPeersLastGreen map if exists
-    auto itAux = mPeersLastGreen.find(peer.val);
-    if (itAux != mPeersLastGreen.end())
-    {
-        mPeersLastGreen.erase(itAux);
-    }
+    mPeersLastGreen.erase(peer.val);
+
 
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
 
