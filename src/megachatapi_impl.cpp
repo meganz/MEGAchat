@@ -7722,7 +7722,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         char tempKey[FILENODEKEYLENGTH];
         char *base64Key = megaNode->getBase64Key();
         Base64::atob(base64Key, (byte*)tempKey, FILENODEKEYLENGTH);
-        delete base64Key;
+        delete [] base64Key;
 
         std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(tempKey, FILENODEKEYLENGTH));
         rapidjson::Value keyVectorNode(rapidjson::kArrayType);
