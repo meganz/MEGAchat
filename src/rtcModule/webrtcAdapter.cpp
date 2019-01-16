@@ -1,5 +1,5 @@
 #include "webrtcAdapter.h"
-#include <rtc_base/ssladapter.h>
+#include <base/ssladapter.h>
 #include <modules/video_capture/video_capture_factory.h>
 #include <modules/video_capture/video_capture.h>
 #include <media/engine/webrtcvideocapturerfactory.h>

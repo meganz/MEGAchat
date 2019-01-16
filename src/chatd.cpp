@@ -12,6 +12,12 @@ using namespace std;
 using namespace promise;
 using namespace karere;
 
+#if WIN32
+#include <mega/utils.h>
+using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
+#endif
+
+
 #define CHATD_LOG_LISTENER_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
@@ -4256,6 +4262,7 @@ void Chat::onUserLeave(Id userid)
         }
 #endif
     }
+
 
 
     if (isLoggedIn() || !mIsFirstJoin)
