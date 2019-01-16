@@ -1540,8 +1540,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
                 else
                 {
-                    mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg->userid, msg->ts, false);
-
                     if (!chat.isFetchingNodeHistory() || opcode == OP_NEWMSG)
                     {
                         chat.msgIncoming((opcode == OP_NEWMSG), msg.release(), false);
@@ -4035,6 +4033,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
+        // Update last green if needed
+        mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid, msg.ts, false);
         CALL_LISTENER(onRecvNewMessage, idx, msg, status);
     }
     else
