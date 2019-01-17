@@ -2117,7 +2117,7 @@ AvFlags Call::muteUnmute(AvFlags av)
                 if (!device)
                 {
                     device = &devices.video[0];
-                    SUB_LOG_ERROR("Configured video input device '%s' not present, using default device\n", mManager.mVideoInDeviceName);
+                    SUB_LOG_ERROR("Configured video input device '%s' not present, using default device\n", mManager.mVideoInDeviceName.c_str());
                 }
 
                 RtcModule::Resolution resolution = mChat.isGroup() ? RtcModule::Resolution::low : RtcModule::Resolution::notDefined;
