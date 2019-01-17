@@ -410,6 +410,14 @@ public:
     tspMediaStream& stream() { return mStream; }
     operator webrtc::MediaStreamInterface*() { return mStream; }
     operator const webrtc::MediaStreamInterface*() const { return mStream; }
+    void setvideoTrack(const std::shared_ptr<LocalVideoTrackHandle>& aVideo)
+    {
+        mVideo = aVideo;
+        if (!mStream->AddTrack(*aVideo))
+        {
+            throw std::runtime_error("Error adding video track to media stream");
+        }
+    }
 };
 
 class DeviceManager

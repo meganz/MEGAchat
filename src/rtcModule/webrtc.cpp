@@ -2103,6 +2103,42 @@ AvFlags Call::muteUnmute(AvFlags av)
         return AvFlags(0);
 
     AvFlags oldAv = mLocalStream->effectiveAv();
+
+    if (av.video() && !mLocalStream->video())
+    {
+        artc::InputVideoDevice videoInput;
+        const auto& devices = mManager.mDeviceManager.inputDevices();
+
+        if (!devices.video.empty() && !mManager.mVideoInDeviceName.empty())
+        {
+            try
+            {
+                auto device = mManager.getDevice(mManager.mVideoInDeviceName, devices.video);
+                if (!device)
+                {
+                    device = &devices.video[0];
+                    SUB_LOG_ERROR("Configured video input device '%s' not present, using default device\n", mManager.mVideoInDeviceName);
+                }
+
+                RtcModule::Resolution resolution = mChat.isGroup() ? RtcModule::Resolution::low : RtcModule::Resolution::notDefined;
+                mManager.updateConstraints(resolution);
+                auto opts = std::make_shared<artc::MediaGetOptions>(*device, mManager.mMediaConstraints);
+                videoInput = mManager.mDeviceManager.getUserVideo(opts);
+            }
+            catch(exception& e)
+            {
+                videoInput.reset();
+                SUB_LOG_ERROR("Error getting video device: %s'\n", e.what() ? e.what() : "Unknow error");
+            }
+        }
+
+        if (videoInput && mLocalStream && mLocalPlayer)
+        {
+            mLocalStream->setvideoTrack(videoInput.getTrack());
+            mLocalPlayer->attachVideo(mLocalStream->video());
+        }
+    }
+
     mLocalStream->setAv(av);
     av = mLocalStream->effectiveAv();
     if (av == oldAv)
