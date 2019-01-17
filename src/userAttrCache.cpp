@@ -409,7 +409,11 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     auto wptr = weakHandle();
-    const char *ph = key.mPh.isValid() ? key.mPh.toString(Id::CHATLINKHANDLE).c_str() : NULL;
+
+    // We need to create an aux var to store ph in heap instead of stack in order to avoid stack-use-after-scope
+    std::string auxPh = key.mPh.toString(Id::CHATLINKHANDLE);
+    const char *ph = key.mPh.isValid() ? auxPh.c_str() : NULL;
+
     mClient.api.call(&::mega::MegaApi::getChatUserAttribute,
         key.user.toString().c_str(), (int)key.attrType, ph)
     .then([wptr, this, key, item](ReqResult result)

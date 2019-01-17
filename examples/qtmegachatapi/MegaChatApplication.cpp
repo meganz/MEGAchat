@@ -701,7 +701,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         this->mMegaChatApi->openChatPreview(request->getLink());
                     }
 
-                    delete chatHandle_64;
+                    delete [] chatHandle_64;
                 }
                 else //Load chat link
                 {

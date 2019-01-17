@@ -546,7 +546,7 @@ void MainWindow::updateToolTipMyInfo()
     text.append("\nMy User handle B64: ");
     text.append(QString::fromStdString(myHandle_64));
     ui->bOnlineStatus->setToolTip(text);
-    delete myHandle_64;
+    delete [] myHandle_64;
     delete [] myMail;
 }
 
@@ -845,7 +845,7 @@ char *MainWindow::askChatTitle()
     std::string auxTitle = QInputDialog::getText(this, tr("Set chat title"), tr("Leave blank for default title")).toStdString();
     if (!auxTitle.empty())
     {
-        title = new char[auxTitle.size()];
+        title = new char[auxTitle.size() + 1];
         strcpy(title, auxTitle.c_str());
     }
     return title;
