@@ -4308,10 +4308,11 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
 
+    CHATID_LOG_DEBUG("Online state change: %s --> %s", chatStateToStr(mOnlineState), chatStateToStr(state));
+
     mOnlineState = state;
-    CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
-    CALL_LISTENER(onOnlineStateChange, state);
+    mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
     if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
     {
