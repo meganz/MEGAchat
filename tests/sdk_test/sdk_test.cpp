@@ -49,8 +49,9 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
 #endif
 
-    // The test below is a manual test. It requires call will be answered from webClient or similar
-    //EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
+    // The tests below are manual tests. They require the call to be answered from another client
+//    EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
+//    EXECUTE_TEST(t.TEST_ManualGroupCalls(0, <name_of_groupchat>), "TEST Manual Calls");
 
     // The test below is a manual test. It requires to stop the intenet conection
 //    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
@@ -1533,25 +1534,15 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
-    // Prepare peers, privileges...
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
-        delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
-
-    MegaChatHandle uh = user->getHandle();
     delete user;
     user = NULL;
 
-    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
-    delete peers;
-    peers = NULL;
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     // Open chatrooms
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
@@ -2736,7 +2727,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
  * - A answers it
  * - A hangs the call
  */
-void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName)
+void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName)
 {
     char *primarySession = login(a1);
     megachat::MegaChatRoomList *chatRoomList = megaChatApi[a1]->getChatRooms();
