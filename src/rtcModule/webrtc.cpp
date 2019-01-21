@@ -433,7 +433,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
     artc::InputAudioDevice audioInput;
     const auto& devices = mDeviceManager.inputDevices();
 
-    if (av.video() && (!devices.video.empty() && !mVideoInDeviceName.empty()))
+    if (!devices.video.empty() && !mVideoInDeviceName.empty())
     {
         try
          {
