@@ -36,6 +36,12 @@ static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
 
+/** Enum for chat title */
+enum: uint8_t { TITLE_OR_NOT = 0, NO_TITLE = 1, TITLE = 2};
+
+/** Enum for chat mode */
+enum: uint8_t { PUBLIC_OR_NOT = 0, PUBLIC = 1, PRIVATE = 2};
+
 class ChatTestException : public std::exception
 {
 public:
@@ -211,7 +217,7 @@ private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, bool create = true, bool publicChat = false, const char *title = NULL);
+                                              megachat::MegaChatPeerList *peers, bool create = true, uint8_t publicChat = PRIVATE, uint8_t hasTitle = TITLE_OR_NOT);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
