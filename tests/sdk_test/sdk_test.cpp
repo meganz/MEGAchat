@@ -366,12 +366,19 @@ void MegaChatApiTest::TearDown()
                  uh = megaChatApi[i]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
             }
 
+            // If chat to skip does not have peers we'll asume that it's a public chat
+            uint8_t chatMode;
             if (uh != MEGACHAT_INVALID_HANDLE)
             {
                 peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+                chatMode = PRIVATE;
+            }
+            else
+            {
+                chatMode = PUBLIC;
             }
 
-            chatToSkip = getGroupChatRoom(i, a2, peers, false, PUBLIC_OR_NOT);
+            chatToSkip = getGroupChatRoom(i, a2, peers, false, chatMode);
             delete peers;
             peers = NULL;
             clearAndLeaveChats(i, chatToSkip);
