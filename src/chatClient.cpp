@@ -1147,41 +1147,32 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
     app.onPresenceConfigChanged(state, pending);
 }
 
-void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+void Client::onPresenceLastGreenUpdated(Id userid)
 {
-    // Calculate lastGreen ts from the system time and format
-    time_t lastGreenTs = time(NULL) - (lastGreen * 60);
-
-    // Update and notify last green if needed
-    updateAndNotifyLastGreen(userid.val, lastGreenTs);
+    // This callback is received from presenced upon reception of LASTGREEN
+    updateAndNotifyLastGreen(userid.val);
 }
 
-time_t Client::getLastGreen(Id userid)
+void Client::updateAndNotifyLastGreen(Id userid)
 {
-    return mPresencedClient.getLastGreen(userid.val);
-}
-
-void Client::updateAndNotifyLastGreen(Id userid, time_t lastGreenTs)
-{
-    // Get latest message ts from cache
-    time_t lastMsgTs = 0;
-    SqliteStmt stmt(db, "select MAX(ts) from history where userid = ?");
-    stmt << userid.val;
-    if (stmt.step())
+    mega::m_time_t lastGreenTs = mPresencedClient.getLastGreen(userid);
+    if (!lastGreenTs)
     {
-        lastMsgTs = stmt.uintCol(0);
+        KR_LOG_DEBUG("Skip notification, last-green not received yet");
+        return;
     }
 
-    // Compare lastGreen with last message ts and get the bigger
-    time_t auxLastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
+    mega::m_time_t lastMsgTs = mChatdClient->getLastMsgTs(userid);
 
-    // Update last green if required and notify apps
-    if (mPresencedClient.updateLastGreen(userid.val, auxLastGreen))
+    // check what is newer: ts from chatd (messages) or ts from presenced (last-green response)
+    mega::m_time_t lastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
+
+    // Update last green and notify apps, if required
+    bool changed = mPresencedClient.updateLastGreen(userid.val, lastGreen);
+    if (changed)
     {
-        // Format ts to minutes
-        time_t auxTs = (time(NULL));
-        auxTs = (auxTs - auxLastGreen)/ 60;
-        app.onPresenceLastGreenUpdated(userid, auxTs);
+        uint16_t lastGreenMinutes = (time(NULL) - lastGreen) / 60;
+        app.onPresenceLastGreenUpdated(userid, lastGreenMinutes);
     }
 }
 
