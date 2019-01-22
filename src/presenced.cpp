@@ -171,7 +171,37 @@ bool Client::setLastGreenVisible(bool enable)
 
 bool Client::requestLastGreen(Id userid)
 {
+    // Avoid send OP_LASTGREEN if user is ex-contact
+    if (isExContact(userid))
+    {
+        return false;
+    }
+
+    // Reset user last green or insert an entry in the map if not exists
+    mPeersLastGreen[userid.val] = 0;
+
     return sendCommand(Command(OP_LASTGREEN) + userid);
+}
+
+time_t Client::getLastGreen(Id userid)
+{
+    std::map<uint64_t, time_t>::iterator it = mPeersLastGreen.find(userid.val);
+    if (it != mPeersLastGreen.end())
+    {
+        return it->second;
+    }
+    return 0;
+}
+
+bool Client::updateLastGreen(Id userid, time_t lastGreen)
+{
+    time_t &auxLastGreen = mPeersLastGreen[userid.val];
+    if (lastGreen >= auxLastGreen)
+    {
+        auxLastGreen = lastGreen;
+        return true;
+    }
+    return false;
 }
 
 bool Client::setAutoaway(bool enable, time_t timeout)
@@ -1127,7 +1157,12 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 0);
                 READ_16(lastGreen, 8);
                 PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %d", ID_CSTR(userid), lastGreen);
-                CALL_LISTENER(onPresenceLastGreenUpdated, userid, lastGreen);
+
+                // convert the received minutes into a UNIX timestamp
+                time_t lastGreenTs = time(NULL) - (lastGreen * 60);
+                mPeersLastGreen[userid] = lastGreenTs;
+
+                CALL_LISTENER(onPresenceLastGreenUpdated, userid);
                 break;
             }
             default:
@@ -1276,6 +1311,10 @@ void Client::removePeer(karere::Id peer, bool force)
     }
 
     mCurrentPeers.erase(it);
+
+    // Remove peer from mPeersLastGreen map if exists
+    mPeersLastGreen.erase(peer.val);
+
 
     size_t totalSize = sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t);
 

@@ -1147,9 +1147,33 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
     app.onPresenceConfigChanged(state, pending);
 }
 
-void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+void Client::onPresenceLastGreenUpdated(Id userid)
 {
-    app.onPresenceLastGreenUpdated(userid, lastGreen);
+    // This callback is received from presenced upon reception of LASTGREEN
+    updateAndNotifyLastGreen(userid.val);
+}
+
+void Client::updateAndNotifyLastGreen(Id userid)
+{
+    mega::m_time_t lastGreenTs = mPresencedClient.getLastGreen(userid);
+    if (!lastGreenTs)
+    {
+        KR_LOG_DEBUG("Skip notification, last-green not received yet");
+        return;
+    }
+
+    mega::m_time_t lastMsgTs = mChatdClient->getLastMsgTs(userid);
+
+    // check what is newer: ts from chatd (messages) or ts from presenced (last-green response)
+    mega::m_time_t lastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
+
+    // Update last green and notify apps, if required
+    bool changed = mPresencedClient.updateLastGreen(userid.val, lastGreen);
+    if (changed)
+    {
+        uint16_t lastGreenMinutes = (time(NULL) - lastGreen) / 60;
+        app.onPresenceLastGreenUpdated(userid, lastGreenMinutes);
+    }
 }
 
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)

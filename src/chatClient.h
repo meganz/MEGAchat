@@ -845,6 +845,7 @@ public:
     bool isChatRoomOpened(Id chatid);
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
+    void updateAndNotifyLastGreen(Id userid);
 
 protected:
     void heartbeat();
@@ -898,7 +899,7 @@ protected:
     virtual void onConnStateChange(presenced::Client::ConnState state);
     virtual void onPresenceChange(Id userid, Presence pres);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid);
 
     //==
     friend class ChatRoom;
