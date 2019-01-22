@@ -116,8 +116,14 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
 
 int64_t services_get_time_ms()
 {
+#if defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
+#else
     struct timeval tv;
     gettimeofday(&tv, nullptr);
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+#endif
 }
 }
