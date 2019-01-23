@@ -3542,6 +3542,16 @@ bool MegaChatApiImpl::areGroupChatCallEnabled()
     return enabledGroupCalls;
 }
 
+int MegaChatApiImpl::getMaxCallParticipants()
+{
+    return rtcModule::IRtcModule::kMaxCallReceivers;
+}
+
+int MegaChatApiImpl::getMaxVideoCallParticipants()
+{
+    return rtcModule::IRtcModule::kMaxCallVideoSenders;
+}
+
 #endif
 
 void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)
@@ -5028,7 +5038,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
     chatApi->fireOnChatVideoData(chatid, peerid, frame->width, frame->height, (char *)frame->buffer);
     chatApi->videoMutex.unlock();
-    delete frame->buffer;
+    delete [] frame->buffer;
     delete frame;
 }
 

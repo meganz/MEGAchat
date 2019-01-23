@@ -1097,6 +1097,8 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
     void enableGroupChatCalls(bool enable);
     bool areGroupChatCallEnabled();
+    int getMaxCallParticipants();
+    int getMaxVideoCallParticipants();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
