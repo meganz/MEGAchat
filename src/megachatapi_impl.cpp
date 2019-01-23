@@ -5038,7 +5038,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
     chatApi->fireOnChatVideoData(chatid, peerid, frame->width, frame->height, (char *)frame->buffer);
     chatApi->videoMutex.unlock();
-    delete frame->buffer;
+    delete [] frame->buffer;
     delete frame;
 }
 
