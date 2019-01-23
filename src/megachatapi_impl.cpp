@@ -3542,6 +3542,16 @@ bool MegaChatApiImpl::areGroupChatCallEnabled()
     return enabledGroupCalls;
 }
 
+int MegaChatApiImpl::getMaxCallParticipants()
+{
+    return rtcModule::IRtcModule::kMaxCallReceivers;
+}
+
+int MegaChatApiImpl::getMaxVideoCallParticipants()
+{
+    return rtcModule::IRtcModule::kMaxCallVideoSenders;
+}
+
 #endif
 
 void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)

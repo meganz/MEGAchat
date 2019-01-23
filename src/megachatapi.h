@@ -3984,6 +3984,20 @@ public:
      */
     bool areGroupChatCallEnabled();
 
+    /**
+     * @brief Returns the maximum call participants
+     *
+     * @return Maximun call participants
+     */
+    int getMaxCallParticipants();
+
+    /**
+     * @brief Returns the maximum video call participants
+     *
+     * @return Maximun video call participants
+     */
+    int getMaxVideoCallParticipants();
+
 #endif
 
     // Listeners
