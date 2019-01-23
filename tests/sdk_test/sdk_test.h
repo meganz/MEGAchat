@@ -186,7 +186,6 @@ public:
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
     void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_AnonymousMode(unsigned int a1, unsigned int a2);
     void TEST_OfflineMode(unsigned int accountIndex);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
