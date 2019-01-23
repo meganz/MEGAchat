@@ -305,9 +305,9 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-mega::m_time_t Client::getLastMsgTs(Id userid) const
+::mega::m_time_t Client::getLastMsgTs(Id userid) const
 {
-    std::map<karere::Id, mega::m_time_t>::const_iterator it = mLastMsgTs.find(userid);
+    std::map<karere::Id, ::mega::m_time_t>::const_iterator it = mLastMsgTs.find(userid);
     if (it != mLastMsgTs.end())
     {
         return it->second;
