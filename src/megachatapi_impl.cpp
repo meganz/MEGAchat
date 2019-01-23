@@ -71,6 +71,24 @@ MegaChatApiImpl::~MegaChatApiImpl()
     waiter->notify();
     thread.join();
 
+    delete request;
+    for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
+    {
+        delete *it;
+    }
+    for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
+    {
+        delete *it;
+    }
+    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
+    {
+        delete it->second;
+    }
+    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
+    {
+        delete it->second;
+    }
+
     // TODO: destruction of waiter hangs forever or may cause crashes
     //delete waiter;
 
