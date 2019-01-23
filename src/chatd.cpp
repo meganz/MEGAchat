@@ -3666,9 +3666,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             auto erased = it;
             it++;
             mPendingEdits.erase(cipherMsg->id());
-            mSending.erase(erased);
             updateTs = item.msg->updated;
             richLinkRemoved = item.msg->richLinkRemoved;
+            mSending.erase(erased);
         }
     }
     mCrypto->msgDecrypt(cipherMsg)

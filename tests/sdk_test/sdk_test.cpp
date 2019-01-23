@@ -302,7 +302,6 @@ void MegaChatApiTest::SetUp()
 
         chatid[i] = MEGACHAT_INVALID_HANDLE;  // chatroom id from request
         chatroom[i] = NULL;
-        chatListItem[i] = NULL;
         chatUpdated[i] = false;
         chatItemUpdated[i] = false;
         chatItemClosed[i] = false;
@@ -473,13 +472,15 @@ const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
         buffer << "\t\t(userhandle)\t(privilege)\t(firstname)\t(lastname)\t(fullname)" << endl;
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
+            const char *fullName = chat->getPeerFullname(i);
             MegaChatHandle uh = chat->getPeerHandle(i);
             Base64::btoa((const byte *)&uh, sizeof(handle), hstr);
             buffer << "\t\t\t" << hstr;
             buffer << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
             buffer << "\t\t" << chat->getPeerFirstname(i);
             buffer << "\t" << chat->getPeerLastname(i);
-            buffer << "\t" << chat->getPeerFullname(i) << endl;
+            buffer << "\t" << fullName << endl;
+            delete [] fullName;
         }
     }
     else
@@ -3956,7 +3957,6 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     {
         std::stringstream buffer;
         buffer << "[api: " << apiIndex << "] Chat list item added or updated - ";
-        chatListItem[apiIndex] = item->copy();
 
         const char *info = MegaChatApiTest::printChatListItemInfo(item);
         buffer << info;
