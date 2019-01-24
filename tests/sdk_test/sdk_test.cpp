@@ -28,21 +28,24 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
+    // Tests that requires a chatroom
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
+    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
+    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
+    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
+
     EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
     EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
     EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
-    EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
-    EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
     EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
     EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
     EXECUTE_TEST(t.TEST_LastMessage(0, 1), "TEST Last message");
-    EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
     EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
     EXECUTE_TEST(t.TEST_SendRichLink(0, 1), "TEST Send Rich link");
+
 
 #ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
@@ -1088,7 +1091,8 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
  * - Send message (automatically unarchives)
  * - Archive chatroom
  * - Unarchive chatroom
- *
+ * - Remove peer from groupchat
+ * - Invite another account
  */
 void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
 {
@@ -1373,10 +1377,10 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
 
     delete messageReceived;
     messageReceived = NULL;
+
     // --> Close the chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
-    delete chatroomListener;
 
     // --> Remove peer from groupchat
     bool *flagRemoveFromChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChatRoom = false;
@@ -1390,6 +1394,13 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(!chatroom->isActive(), "Chatroom should be inactive, but it's still active");
     delete chatroom;    chatroom = NULL;
 
+    // --> Invite to chat
+    flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
+    megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
+    ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+
+    delete chatroomListener;
     delete [] sessionPrimary;
     sessionPrimary = NULL;
     delete [] sessionSecondary;
@@ -1433,9 +1444,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
  * + Set chat to private mode
  * + Remove peer from groupchat (OK)
  * + Preview chat link (ERR)
+ * - Invite other account
  * - Leave chat room
- * - Logout
- * + Logout
 */
 void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2)
 {
@@ -1622,8 +1632,15 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagPreviewChat), "Timeout expired for load chat link");
 
+    // --> Invite to chat
+    bool *flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
+    megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
+    ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+
     // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     delete chatroomListener;
     delete [] sessionPrimary;
