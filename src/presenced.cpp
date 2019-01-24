@@ -598,6 +598,12 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         Id scsn(buf, strlen(buf));
         delete [] buf;
 
+        // reset current status (for the full reload once logged in already)
+        mLastScsn = karere::Id::inval();
+        mCurrentPeers.clear();
+        mContacts.clear();
+        mChatMembers.clear();
+
         auto wptr = weakHandle();
         marshallCall([wptr, this, contacts, chats, scsn]()
         {
