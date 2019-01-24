@@ -1639,11 +1639,7 @@ public:
 
 void exec_apiurl(ac::ACState& s)
 {
-    if (g_megaApi->isLoggedIn())
-    {
-        cout << "You must not be logged in, to change APIURL" << endl;
-    }
-    else if (s.words.size() == 3 || s.words.size() == 2)
+    if (s.words.size() == 3 || s.words.size() == 2)
     {
         if (s.words[1].s.size() < 8 || s.words[1].s.substr(0, 8) != "https://")
         {
@@ -1654,6 +1650,7 @@ void exec_apiurl(ac::ACState& s)
             s.words[1].s += '/';
         }
         g_megaApi->changeApiUrl(s.words[1].s.c_str(), s.words.size() > 2 && s.words[2].s == "true");
+        g_megaApi->fetchNodes();
     }
 }
 
