@@ -153,12 +153,12 @@ unique_ptr<m::Console> console;
 
 static const char* prompts[] =
 {
-    "MEGAclc> ", "Password:"
+    "", "MEGAclc> ", "Password:"
 };
 
 enum prompttype
 {
-    COMMAND, LOGINPASSWORD
+    NOPROMPT, COMMAND, LOGINPASSWORD
 };
 
 static prompttype prompt = COMMAND;
@@ -174,20 +174,24 @@ static int pw_buf_pos;
 // lock this for output since we are using cout on multiple threads
 std::mutex g_outputMutex;
 
+// console input line to process
+static char* line = NULL;
 
 static void setprompt(prompttype p)
 {
+    auto cl = conlock(cout);
+
     prompt = p;
 
     if (p == COMMAND)
     {
         console->setecho(true);
+        line = strdup("");  // causes main loop to iterate and update the prompt
     }
     else
     {
         pw_buf_pos = 0;
 #if defined(WIN32) && defined(NO_READLINE)
-        auto cl = conlock(cout);
         static_cast<m::WinConsole*>(console.get())->updateInputPrompt(prompts[p]);
 #else
         cout << prompts[p] << flush;
@@ -197,7 +201,6 @@ static void setprompt(prompttype p)
 }
 
 // readline callback - exit if EOF, add to history unless password
-static char* line = NULL;
 static void store_line(char* l)
 {
     if (!l)
@@ -1650,7 +1653,21 @@ void exec_apiurl(ac::ACState& s)
             s.words[1].s += '/';
         }
         g_megaApi->changeApiUrl(s.words[1].s.c_str(), s.words.size() > 2 && s.words[2].s == "true");
-        g_megaApi->fetchNodes();
+        if (g_megaApi->isLoggedIn())
+        {
+            conlock(cout) << "Re-fetching nodes due to change of APIURL" << endl;
+
+            setprompt(NOPROMPT);
+
+            auto listener = new OneShotRequestListener;
+            listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *, m::MegaError* e) 
+            {
+                conlock(cout) << "Fetchnodes finished: " << e->getErrorString() << endl;
+                setprompt(COMMAND);
+            };
+
+            g_megaApi->fetchNodes(listener);
+        }
     }
 }
 
@@ -1893,14 +1910,17 @@ void megaclc()
             {
                 auto cl = conlock(cout);
                 static_cast<m::WinConsole*>(console.get())->consolePeek();
-                line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
+                if (prompt >= COMMAND && !line)
+                {
+                    line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
+                }
             }
 #else
             if (prompt == COMMAND)
             {
                 rl_callback_read_char();
             }
-            else
+            else if (prompt > COMMAND)
             {
                 console->readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &line);
             }
