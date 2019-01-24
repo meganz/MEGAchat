@@ -325,14 +325,14 @@ enum Opcode
     OP_ADDREACTION = 33,
 
     /**
-      ** @brief <chatid> <userid> <msgid> <unicodechar32le>
+      * @brief <chatid> <userid> <msgid> <unicodechar32le>
       *
       * User delete a reaction to message
       */
     OP_DELREACTION = 34,
 
     /**
-      ** @brief <chatid>
+      * @brief <chatid>
       *
       * C->S: ping server to ensure client is up to date for the specified chatid
       * S->C: response to the ping initiated by client
@@ -370,7 +370,8 @@ enum Opcode
       */
     OP_NODEHIST = 45,
 
-    OP_LAST = OP_NODEHIST
+    OP_LAST = OP_NODEHIST,
+    OP_INVALIDCODE = 0xFF
 };
 
 // privilege levels
@@ -397,7 +398,8 @@ public:
         kMsgPrivChange        = 0x04,
         kMsgChatTitle         = 0x05,
         kMsgCallEnd           = 0x06,
-        kMsgManagementHighest = 0x06,
+        kMsgCallStarted       = 0x07,
+        kMsgManagementHighest = 0x07,
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
         kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10
@@ -489,6 +491,7 @@ public:
 
             if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
             {
+                delete info;
                 return NULL;
             }
 
@@ -813,7 +816,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }

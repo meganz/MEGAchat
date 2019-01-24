@@ -18,7 +18,7 @@ class Contact;
  * @brief The karere chat application class that the app needs to
  * implement in order to receive (mostly GUI) events.
  */
-class IApp
+class IApp : public rtcModule::IGlobalHandler
 {
 public:
 
@@ -87,47 +87,6 @@ public:
         void* userp = nullptr;
     };
 
-    /**
-     * @brief This is the interafce that must be implemented by the
-     * login dialog implementation, in case the app uses karere to login the
-     * SDK instance via \c karere::Client::sdkLoginNewSession()
-     *
-     * If that method is never used, then the application does not need to
-     * implement this interface, and can return NULL from
-     * \c karere::IGui::createLoginDialog()
-     */
-    class ILoginDialog
-    {
-    public:
-        enum LoginStage {
-            kAuthenticating,
-            kBadCredentials,
-            kLoggingIn,
-            kFetchingNodes,
-            kLoginComplete,
-            kLast=kLoginComplete
-        };
-        static void destroyInstance(ILoginDialog* inst) { inst->destroy(); }
-        typedef MyAutoHandle<ILoginDialog*, void(*)(ILoginDialog*), &destroyInstance, nullptr> Handle;
-        virtual ~ILoginDialog() {}
-        /**
-         * @brief This is the method that karere calls when it needs the dialog shown
-         * and credentials entered.
-         * @returns A promise with a pair of (username, password)
-         */
-        virtual promise::Promise<std::pair<std::string, std::string>> requestCredentials() = 0;
-
-        /**
-         * @brief Called when the state of the login operation changes,
-         * to inform the user about the progress of the login operation.
-         */
-        virtual void setState(LoginStage /*state*/) {}
-        /** @brief Destroys the dialog. Directly deleting it may not be appropriate
-         * for the GUI toolkit used */
-        virtual void destroy() = 0;
-
-    };
-
     /** @brief
      * Implemented by contactlist and chat list items
      */
@@ -140,34 +99,6 @@ public:
         void* userp = nullptr;
     };
 
-    /**
-     * @brief The IContactListItem class represents an interface to a contact display
-     * in the application's contactlist
-     */
-    class IContactListItem: public virtual IListItem
-    {
-    public:
-        /** @brief Called when the contact's visibility has changed, i.e. the
-         * contact was removed or added. Used only for contacts (not groupchats).
-         *
-         * The contact itself is never removed from the contactlist,
-         * because it is hard-linked with its chatroom, which must exist
-         * even if the contact is removed (for viewing the history in read-only
-         * mode)
-         * @param newVisibility The new visibility code, as defined in the Mega SDK
-         * class ::mega::MegaUser
-         */
-        virtual void onVisibilityChanged(int newVisibility) = 0;
-
-        /**
-         * @brief The online state of the person/chatroom has changed. This can be used
-         * to update the indicator that shows the online status
-         * of the contact/groupchat (online, offline, busy, etc)
-         *
-         * @param state The presence code
-         */
-        virtual void onPresenceChanged(Presence state) = 0;
-    };
     /**
      * @brief The IChatListItem class represents an interface to a 1on1 or group
      * chat entry displayed in the application's chat list
@@ -245,34 +176,6 @@ public:
         virtual void onUserLeave(uint64_t /*userid*/) {}
     };
 
-    /** @brief Manages contactlist items that in turn receive events
-      *
-      * Note that both contacts and group chatrooms are considered contactlist
-      * items. However the app may choose to present them separately to the user,
-      * i.e. a contact list and a chat list view. In that case, a contact's 1on1
-      * chatroom can be obtained by
-      * \c PeerChatRoom* karere::Contact::chatRoom()
-      * which will return NULL in case there is no existing chat with that contact.
-      */
-    class IContactListHandler
-    {
-    public:
-        virtual ~IContactListHandler() {}
-
-        /**
-         * @brief Called when a contact is added to the contactlist
-         */
-        virtual IContactListItem* addContactItem(Contact& contact) = 0;
-
-        /**
-         * @brief Called when a contact is removed from contactlist
-         */
-        virtual void removeContactItem(IContactListItem& item) = 0;
-
-        /**
-         * @brief Called when a groupchat is removed from the contactlist
-         */
-    };
     class IChatListHandler
     {
     public:
@@ -294,19 +197,6 @@ public:
          */
         virtual void removePeerChatItem(IPeerChatListItem& item) = 0;
     };
-
-    /**
-     * @brief Called when karere needs to create a login dialog.
-     *
-     * This is only needed if the app uses karere to log in the SDK instance,
-     * by calling \c karere::Client::sdkLoginNewSession().
-     * This method can just return NULL if the app never calls
-     * \c karere::Client::sdkLoginNewSession()
-     */
-    virtual ILoginDialog* createLoginDialog() { return nullptr; }
-
-    /** @brief Returns the interface to the contactlist */
-    virtual IContactListHandler* contactListHandler() = 0;
 
     /** @brief Returns the interface to the chat list */
     virtual IChatListHandler* chatListHandler() = 0;

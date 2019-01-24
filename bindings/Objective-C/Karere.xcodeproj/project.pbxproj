@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */; };
 		77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */; };
+		8394CF9E211992A200A1634A /* MEGAChatSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8394CF9D211992A200A1634A /* MEGAChatSession.mm */; };
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
 		947566561F3397AE00FE8664 /* cservices.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 947566551F3397AE00FE8664 /* cservices.cpp */; };
 		A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */ = {isa = PBXBuildFile; fileRef = A82750BB1E9788A3007CD9E2 /* MEGAChatError.mm */; };
@@ -70,6 +71,9 @@
 		77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatRichPreview.mm; sourceTree = "<group>"; };
 		77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatContainsMeta+init.h"; sourceTree = "<group>"; };
 		77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatRichPreview+init.h"; sourceTree = "<group>"; };
+		8394CF9C211992A200A1634A /* MEGAChatSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatSession.h; sourceTree = "<group>"; };
+		8394CF9D211992A200A1634A /* MEGAChatSession.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatSession.mm; sourceTree = "<group>"; };
+		8394CFA02119F3E700A1634A /* MEGAChatSession+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MEGAChatSession+init.h"; path = "Private/MEGAChatSession+init.h"; sourceTree = "<group>"; };
 		941977321F163DDE00A76EE3 /* websocketsIO.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = websocketsIO.cpp; path = ../../src/net/websocketsIO.cpp; sourceTree = "<group>"; };
 		947565EE1F168CB400FE8664 /* timers.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = timers.hpp; path = ../../src/base/timers.hpp; sourceTree = "<group>"; };
 		947565F01F18D4E900FE8664 /* asyncTest-framework.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "asyncTest-framework.h"; path = "../../src/asyncTest-framework.h"; sourceTree = "<group>"; };
@@ -128,7 +132,6 @@
 		9475663D1F18D60300FE8664 /* libwebsocketsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libwebsocketsIO.h; path = ../../src/net/libwebsocketsIO.h; sourceTree = "<group>"; };
 		9475663E1F18D60300FE8664 /* libwsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libwsIO.h; path = ../../src/net/libwsIO.h; sourceTree = "<group>"; };
 		9475663F1F18D60300FE8664 /* websocketsIO.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = websocketsIO.h; path = ../../src/net/websocketsIO.h; sourceTree = "<group>"; };
-		947566401F18D61100FE8664 /* libeventWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libeventWaiter.h; path = ../../src/waiter/libeventWaiter.h; sourceTree = "<group>"; };
 		947566441F197C0A00FE8664 /* libuvWaiter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = libuvWaiter.h; path = ../../src/waiter/libuvWaiter.h; sourceTree = "<group>"; };
 		947566551F3397AE00FE8664 /* cservices.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = cservices.cpp; path = ../../src/base/cservices.cpp; sourceTree = "<group>"; };
 		A819DE8D219EE12E00EA9C22 /* MEGAChatGeolocation+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MEGAChatGeolocation+init.h"; path = "Private/MEGAChatGeolocation+init.h"; sourceTree = "<group>"; };
@@ -330,7 +333,6 @@
 			isa = PBXGroup;
 			children = (
 				947566441F197C0A00FE8664 /* libuvWaiter.h */,
-				947566401F18D61100FE8664 /* libeventWaiter.h */,
 			);
 			name = waiter;
 			sourceTree = "<group>";
@@ -348,6 +350,7 @@
 		A82750F21E9788E5007CD9E2 /* private */ = {
 			isa = PBXGroup;
 			children = (
+				8394CFA02119F3E700A1634A /* MEGAChatSession+init.h */,
 				A82750DC1E9788D8007CD9E2 /* DelegateMEGAChatListener.h */,
 				A82750DD1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm */,
 				A82750DE1E9788D8007CD9E2 /* DelegateMEGAChatLoggerListener.h */,
@@ -417,8 +420,10 @@
 				77875CD82097A69400B8340F /* MEGAChatContainsMeta.h */,
 				77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */,
 				77875CDB2097A80700B8340F /* MEGAChatRichPreview.h */,
-				77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */,
+                77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */,
 				A837387A213018CB0014328D /* MEGAChatNotificationDelegate.h */,
+                8394CF9C211992A200A1634A /* MEGAChatSession.h */,
+                8394CF9D211992A200A1634A /* MEGAChatSession.mm */,
 				A8AA1BF62195B11B00E15B60 /* MEGAChatNodeHistoryDelegate.h */,
 				A8F96C18219DE3A2005A3EB6 /* MEGAChatGeolocation.h */,
 				A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */,
@@ -599,6 +604,7 @@
 				A82750DA1E9788A3007CD9E2 /* MEGAChatRoomList.mm in Sources */,
 				A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */,
 				A879F3C31F96683A007C5394 /* url.cpp in Sources */,
+				8394CF9E211992A200A1634A /* MEGAChatSession.mm in Sources */,
 				A879F3C81F96683A007C5394 /* megachatapi_impl.cpp in Sources */,
 				A82750D71E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm in Sources */,
 				A82750D61E9788A3007CD9E2 /* MEGAChatPeerList.mm in Sources */,

@@ -138,13 +138,10 @@ class TestChatRoomListener;
 class TestChatVideoListener : public megachat::MegaChatVideoListener
 {
 public:
-    TestChatVideoListener(const std::string& type);
+    TestChatVideoListener();
     virtual ~TestChatVideoListener();
 
     virtual void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size);
-
-private:
-    std::string mType;
 };
 #endif
 
@@ -199,6 +196,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
+    void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);

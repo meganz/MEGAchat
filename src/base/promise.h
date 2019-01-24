@@ -183,7 +183,7 @@ public:
     inline void addListMoveItems(CallbackList& other)
     {
         items.insert(items.end(), other.items.begin(), other.items.end());
-        other.clear();
+        other.items.clear();
     }
     void clear()
     {

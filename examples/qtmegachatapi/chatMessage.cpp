@@ -22,11 +22,17 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, me
     setTimestamp(mMessage->getTimestamp());
     megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatId);
 
+    assert (chatRoom);
     if (chatRoom->isGroup() && mMessage->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
+    {
         setStatus(megachat::MegaChatMessage::STATUS_SERVER_RECEIVED);
+    }
     else
+    {
         setStatus(mMessage->getStatus());
+    }
 
+    delete chatRoom;
     updateContent();
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
@@ -310,69 +316,76 @@ std::string ChatMessage::managementInfoToString() const
 
     switch (mMessage->getType())
     {
-    case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
-    {
-        ret.append("User ").append(userHandle_64)
-           .append((mMessage->getPrivilege() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
-           .append(" user ").append(actionHandle_64);
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_TRUNCATE:
-    {
-        ChatListItemController *itemController = mChatWindow->mMainWin->getChatControllerById(mChatId);
-        if(itemController)
+        case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
         {
-           ChatItemWidget *widget = itemController->getWidget();
-           if (widget)
-           {
-              widget->updateToolTip(itemController->getItem(), NULL);
-              ret.append("Chat history was truncated by user ").append(userHandle_64);
-           }
+            ret.append("User ").append(userHandle_64)
+               .append((mMessage->getPrivilege() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
+               .append(" user ").append(actionHandle_64);
+            break;
         }
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
-    {
-        ret.append("User ").append(userHandle_64)
-           .append(" set privilege of user ").append(actionHandle_64)
-           .append(" to ").append(std::to_string(mMessage->getPrivilege()));
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
-    {
-        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
-        ret.append("User ").append(userHandle_64)
-           .append(" set chat title to '")
-           .append(chatRoom->getTitle())+='\'';
-        delete chatRoom;
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_CALL_ENDED:
-    {
-        ret.append("User ").append(userHandle_64)
-           .append(" start a call with: ");
-
-        ::mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
-        for (unsigned int i = 0; i < handleList->size(); i++)
+        case megachat::MegaChatMessage::TYPE_TRUNCATE:
         {
-            char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
-            ret.append(participant_64).append(" ");
-            delete [] participant_64;
+            ChatListItemController *itemController = mChatWindow->mMainWin->getChatControllerById(mChatId);
+            if(itemController)
+            {
+               ChatItemWidget *widget = itemController->getWidget();
+               if (widget)
+               {
+                  widget->updateToolTip(itemController->getItem(), NULL);
+                  ret.append("Chat history was truncated by user ").append(userHandle_64);
+               }
+            }
+            break;
         }
+        case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" set privilege of user ").append(actionHandle_64)
+               .append(" to ").append(std::to_string(mMessage->getPrivilege()));
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
+        {
+            megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
+            ret.append("User ").append(userHandle_64)
+               .append(" set chat title to '")
+               .append(chatRoom->getTitle())+='\'';
+            delete chatRoom;
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_CALL_ENDED:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" start a call with: ");
 
-        ret.append("\nDuration: ")
-           .append(std::to_string(mMessage->getDuration()))
-           .append("secs TermCode: ")
-           .append(std::to_string(mMessage->getTermCode()));
-        return ret;
-    }
-    default:
-        ret.append("Management message with unknown type: ")
-           .append(std::to_string(mMessage->getType()));
-        return ret;
+            ::mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
+            for (unsigned int i = 0; i < handleList->size(); i++)
+            {
+                char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
+                ret.append(participant_64).append(" ");
+                delete [] participant_64;
+            }
+
+            ret.append("\nDuration: ")
+               .append(std::to_string(mMessage->getDuration()))
+               .append("secs TermCode: ")
+               .append(std::to_string(mMessage->getTermCode()));
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" has started a call");
+            break;
+        }
+        default:
+            ret.append("Management message with unknown type: ")
+               .append(std::to_string(mMessage->getType()));
+            break;
     }
     delete [] userHandle_64;
     delete [] actionHandle_64;
+    return ret;
 }
 
 void ChatMessage::setTimestamp(int64_t ts)

@@ -323,7 +323,8 @@ struct IdRefMap: public std::map<karere::Id, PeersPresence>
 
 class Listener;
 
-class Client: public karere::DeleteTrackable, public WebsocketsClient
+class Client: public karere::DeleteTrackable, public WebsocketsClient,
+        public ::mega::MegaGlobalListener
 {
 public:
     enum ConnState
@@ -397,6 +398,20 @@ protected:
      * (currently, it includes contacts and any user in our groupchats, except ex-contacts) */
     IdRefMap mCurrentPeers;
 
+    /** Map of userids (key) and last green (value) of any contact or any user in our groupchats, except ex-contacts */
+    std::map<uint64_t, time_t> mPeersLastGreen;
+
+    /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API) */
+    std::map<uint64_t, karere::SetOfIds> mChatMembers;
+
+    /** Map of userid of contacts (key) and their visibility (value) (updated only from API)
+     * @note: ex-contacts are included.
+     */
+    std::map<uint64_t, int> mContacts;
+
+    /** Sequence-number for the list of peers and contacts above (initialized upon completion of catch-up phase) */
+    karere::Id mLastScsn = karere::Id::inval();
+
     void setConnState(ConnState newState);
 
     virtual void wsConnectCb();
@@ -408,19 +423,28 @@ protected:
     void abortRetryController();
     void handleMessage(const StaticBuffer& buf); // Destroys the buffer content
     bool sendCommand(Command&& cmd);
-    bool sendCommand(const Command& cmd);
-    void login();
+    bool sendCommand(const Command& cmd);    
     bool sendBuf(Buffer&& buf);
     void logSend(const Command& cmd);
+
+    void login();
     bool sendUserActive(bool active, bool force=false);
-    bool sendPrefs();
-    void setOnlineConfig(Config Config);
-    void pingWithPresence();
-    void pushPeers();
-    void configChanged();
-    std::string prefsString() const;
     bool sendKeepalive(time_t now=0);
-    void updatePeers(const std::vector<karere::Id> &peers, uint8_t command);
+
+    // config management
+    bool sendPrefs();
+    void configChanged();
+
+    // peers management
+    void addPeer(karere::Id peer);
+    void removePeer(karere::Id peer, bool force=false);
+    void pushPeers();
+    bool isExContact(uint64_t userid);
+
+    // mega::MegaGlobalListener interface, called by worker thread
+    virtual void onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms);
+    virtual void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users);
+    virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
     
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
@@ -442,7 +466,7 @@ public:
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
     promise::Promise<void>
-    connect(const std::string& url, IdRefMap&& peers, const Config& Config);
+    connect(const std::string& url, const Config& Config);
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect);
@@ -460,6 +484,9 @@ public:
     void removePeer(karere::Id peer, bool force=false);
     void updatePeerPresence(karere::Id peer, karere::Presence pres);
     karere::Presence peerPresence(karere::Id peer);
+    /** @brief Updates user last green if it's more recent than the current value.*/
+    bool updateLastGreen(karere::Id userid, time_t lastGreen);
+    time_t getLastGreen(karere::Id userid);
     ~Client();
 };
 
@@ -469,7 +496,7 @@ public:
     virtual void onConnStateChange(Client::ConnState state) = 0;
     virtual void onPresenceChange(karere::Id userid, karere::Presence pres) = 0;
     virtual void onPresenceConfigChanged(const Config& Config, bool pending) = 0;
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
+    virtual void onPresenceLastGreenUpdated(karere::Id userid) = 0;
     virtual void onDestroy(){}
 };
 

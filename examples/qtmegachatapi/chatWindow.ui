@@ -107,10 +107,7 @@
      <property name="autoFillBackground">
       <bool>true</bool>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1">
-      <property name="spacing">
-       <number>0</number>
-      </property>
+     <layout class="QGridLayout" name="gridLayout">
       <property name="leftMargin">
        <number>0</number>
       </property>
@@ -123,7 +120,7 @@
       <property name="bottomMargin">
        <number>0</number>
       </property>
-      <item>
+      <item row="0" column="0">
        <widget class="QWidget" name="mTitlebar" native="true">
         <property name="palette">
          <palette>
@@ -477,7 +474,7 @@ border-image: url(':/groupchat-members-hover.svg')
         </layout>
        </widget>
       </item>
-      <item>
+      <item row="1" column="0">
        <widget class="QWidget" name="mTextChatWidget" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">

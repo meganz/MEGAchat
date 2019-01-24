@@ -321,7 +321,7 @@ public:
     virtual void handleMessage(Chat& /*chat*/, const StaticBuffer& /*msg*/) {}
     virtual void handleCallData(Chat& /*chat*/, karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/, const StaticBuffer& /*msg*/) {}
     virtual void onShutdown() {}
-    virtual void onUserOffline(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
+    virtual void onClientLeftCall(karere::Id /*chatid*/, karere::Id /*userid*/, uint32_t /*clientid*/) {}
     virtual void onDisconnect(chatd::Connection& /*conn*/) {}
 
     /**
@@ -329,21 +329,49 @@ public:
      * and avoid to destroy the call due to an error sending process (kErrNetSignalling)
      */
     virtual void stopCallsTimers(int shard) = 0;
+    virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
+    virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
+    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
+    enum {kBufferSize = 12};
     karere::Id userid;
     uint32_t clientid;
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    unsigned char buffer[kBufferSize];
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
+    {
+        memcpy(buffer, &userid.val , 8);
+        memcpy(buffer + 8, &clientid, 4);
+    }
+
     bool operator<(EndpointId other) const
     {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
+        if (userid.val < other.userid.val)
+        {
+            return true;
+        }
+        else if (userid.val > other.userid.val)
+        {
+            return false;
+        }
+        else
+        {
+            return (clientid < other.clientid);
+        }
+    }
+
+    bool operator>(EndpointId other) const
+    {
+        return other < *this;
+    }
+
+    /** Comparison at byte level, necessary to compatibility with the webClient (javascript)*/
+    static bool greaterThanForJs(EndpointId first, EndpointId second)
+    {
+        return (memcmp(first.buffer, second.buffer, kBufferSize) > 0);
     }
 };
 
@@ -438,6 +466,7 @@ protected:
     void execCommand(const StaticBuffer& buf);
     bool sendKeepalive(uint8_t opcode);
     void sendEcho();
+    void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
     friend class Client;
     friend class Chat;
 
@@ -596,6 +625,8 @@ public:
     void setHandler(FilteredHistoryHandler *handler);
     void unsetHandler();
     void finishFetchingFromServer();
+    Message *getMessage(karere::Id id);
+    Idx getMessageIdx(karere::Id id);
 
 protected:
     DbInterface *mDb;
@@ -786,7 +817,6 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
-    std::set<EndpointId> mCallParticipants;
     Chat(Connection& conn, karere::Id chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
@@ -1022,6 +1052,22 @@ public:
         auto it = mIdToIndexMap.find(msgid);
         return (it == mIdToIndexMap.end()) ? CHATD_IDX_INVALID : it->second;
     }
+
+    /**
+     * @brief Returns the message with specific msgid that it's stored at node history
+     * @param msgid The message id
+     * @return Pointer to the message. The ownership of the message is retained in c\ FilteredHistory
+     */
+    Message *getMessageFromNodeHistory(karere::Id msgid) const;
+
+    /**
+     * @brief Returns the index of the message with the specified msgid that it's stored at node history
+     * @param msgid The message id whose index to find
+     * @return The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx getIdxFromNodeHistory(karere::Id msgid) const;
 
     /**
      * @brief Initiates fetching more history - from local RAM history buffer,
@@ -1278,6 +1324,9 @@ protected:
     // maps chatids to the Chat object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
 
+    // maps userids to the timestamp of the most recent message received from the userid
+    std::map<karere::Id, ::mega::m_time_t> mLastMsgTs;
+
     // set of seen timers
     std::set<megaHandle> mSeenTimers;
 
@@ -1305,7 +1354,9 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    enum :unsigned { kChatdProtocolVersion = 4 };
+    // - Version 5:
+    //  * Changes at CALLDATA protocol (new state)
+    static const unsigned chatdVersion = 5;
 
     Client(karere::Client *aKarereClient);
     ~Client();
@@ -1351,6 +1402,10 @@ public:
 
     // True if clients send confirmation to chatd when they receive a new message
     bool isMessageReceivedConfirmationActive() const;
+
+    // The timestamps of the most recent message from userid
+    mega::m_time_t getLastMsgTs(karere::Id userid) const;
+    void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
 
     friend class Connection;
     friend class Chat;
@@ -1462,7 +1517,7 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
 
     virtual Idx getOldestIdx() = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
@@ -1472,6 +1527,8 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
+
+    virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 };
 
 }

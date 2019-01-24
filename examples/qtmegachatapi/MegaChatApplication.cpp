@@ -94,6 +94,7 @@ void MegaChatApplication::init()
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
+        mMegaChatApi->enableGroupChatCalls(true);
         mMegaApi->fastLogin(mSid);
     }
 }
@@ -110,6 +111,12 @@ void MegaChatApplication::onLoginClicked()
     QString email = mLoginDialog->getEmail();
     QString password = mLoginDialog->getPassword();
     mLoginDialog->setState(LoginDialog::loggingIn);
+    if (mMegaChatApi->getInitState() == MegaChatApi::INIT_NOT_DONE)
+    {
+        int initState = mMegaChatApi->init(mSid);
+        assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
+        mMegaChatApi->enableGroupChatCalls(true);
+    }
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
@@ -127,7 +134,7 @@ const char *MegaChatApplication::readSid()
        sidf.getline(buf, 256);
        if (!sidf.fail())
        {
-           return strdup(buf);
+           return MegaApi::strdup(buf);
        }
     }
     return NULL;
@@ -186,18 +193,18 @@ const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {
-        return strdup("Me");
+        return MegaApi::strdup("Me");
     }
 
     if (uh == 13041471603018644609U)   // handle for API user / Commander
     {
-        return strdup("API-user");
+        return MegaApi::strdup("API-user");
     }
 
     auto it = mFirstnamesMap.find(uh);
     if (it != mFirstnamesMap.end())
     {
-        return strdup(it->second.c_str());
+        return MegaApi::strdup(it->second.c_str());
     }
 
     if (!mFirstnameFetching[uh])
@@ -473,7 +480,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 if(itemController)
                 {
                     ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectCall();
+                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
                 }
             }
             break;

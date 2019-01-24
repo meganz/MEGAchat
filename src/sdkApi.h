@@ -8,7 +8,7 @@
 #include <megaapi.h>
 #include "base/promise.h"
 #include "base/gcmpp.h"
-#include <base/trackDelete.h>
+#include "base/trackDelete.h"
 #include <logger.h>
 #include <string.h>
 #include "karereCommon.h" //for KR_LOG_DEBUG
@@ -84,7 +84,7 @@ public:
     MyListenerNoResult(void *ctx, karere::DeleteTrackable::Handle wptr) : appCtx(ctx), wptr(wptr) { }
 
     promise::Promise<void> mPromise;
-    virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest */*request*/, ::mega::MegaError* e)
+    virtual void onRequestFinish(::mega::MegaApi* /*api*/, ::mega::MegaRequest * /*request*/, ::mega::MegaError* e)
     {
         int errCode = e->getErrorCode();
         karere::marshallCall([this, errCode]()
@@ -113,7 +113,7 @@ public:
 
 class MyMegaLogger: public ::mega::MegaLogger
 {
-    virtual void log(const char */*time*/, int loglevel, const char *source, const char *message)
+    virtual void log(const char * /*time*/, int loglevel, const char *source, const char *message)
     {
         static krLogLevel sdkToKarereLogLevels[::mega::MegaApi::LOG_LEVEL_MAX+1] =
         {

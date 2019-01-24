@@ -3,12 +3,7 @@
 #include "sdkApi.h"
 #include "base/timers.hpp"
 #include "megachatapi_impl.h"
-
-#ifdef USE_LIBWEBSOCKETS
 #include "waiter/libuvWaiter.h"
-#else
-#include "waiter/libeventWaiter.h"
-#endif
 
 #ifndef KARERE_DISABLE_WEBRTC
 namespace rtcModule {void globalCleanup(); }
@@ -73,27 +68,8 @@ void RemoteLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsign
         });
 }
 
-#ifdef USE_LIBWEBSOCKETS
-
 void init_uv_timer(void *ctx, uv_timer_t *timer)
 {
     uv_timer_init(((::mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
 }
-
-#else
-
-eventloop *get_ev_loop(void *ctx)
-{
-    if (ctx)
-    {
-        return ((::mega::LibeventWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop;
-    }
-    else
-    {
-        return services_get_event_loop();
-    }
-}
-
-#endif
-
 }

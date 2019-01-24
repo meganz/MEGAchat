@@ -12,57 +12,69 @@ namespace stats
 
 struct BwInfo
 {
-    long bs;
-    long bps;
-    long abps;
+    long bt = 0;        // total bytes
+    long bps = 0;       // bits-per-second
+    long abps = 0;      // average bits-per-second
 };
 
 struct Sample
 {
     int64_t ts;
+    int lq;         // network quality
+    long f;         // Av flags + cpu limit resolution + bandwith limit resolution
     struct
     {
+        long rtt = 0;               // Round-Trip delay Time
+
         struct : BwInfo
         {
-            long pl = 0;
-            long fps = 0;
-            long dly = 0;
-            long jtr = 0;
-            short width = 0;
-            short height = 0;
-            long bwav = 0;
-        } r;
+            long pl = 0;            // packets-lost
+            long fps = 0;           // frames-per-second
+            long dly = 0;           // current delay (ms)
+            long jtr = 0;           // jitter
+            short width = 0;        // width of frame
+            short height = 0;       // height of frame
+            long bwav = 0;          // bandwidth available
+            long firtx = 0;         // full intra request
+            long plitx = 0;         // picture loss indication
+            long nacktx = 0;        // Negative Acknowledgement
+        } r;    // receive
+
         struct : BwInfo
         {
-            long gbps = 0;
-            long gabps = 0;
-            long rtt = 0;
-            short fps = 0;
-            short cfps = 0;
-            long cjtr = 0;
-            short width = 0;
-            short height = 0;
-            float el = 0.0;
-            short lcpu = 0;
-            short lbw = 0;
-            long bwav = 0;
+            long gbps = 0;          // transmit bitrate
+            short fps = 0;          // frames-per-second
+            short cfps = 0;         // frame-rate input
+            short width = 0;        // width of frame
+            short height = 0;       // height of frame
+            float el = 0.0;         // encode-usage percentage
+            long bwav = 0;          // bandwidth available
             long targetEncBitrate = 0;
-        } s;
-    } vstats;
+        } s;    // sent
+
+    } vstats;   // video-stats
+
     struct
     {
-        long rtt = 0;
-        long pl = 0;
-        long jtr = 0;
-        BwInfo r;
+        long rtt = 0;               // Round-Trip delay Time
+        long plDifference = 0;      // packets lost difference
+        struct : BwInfo
+        {
+            long pl = 0;            // packets lost
+            long jtr = 0;           // jitter
+            long dly = 0;           // current delay in milliseconds
+            long al = 0;            // audio output level
+        } r;
         BwInfo s;
-    } astats;
+
+    } astats;   // audio-stats
+
     struct
     {
-        long rtt = 0;
-        BwInfo r;
-        BwInfo s;
-    } cstats;
+        long rtt = 0;   // Round-Trip delay Time
+        BwInfo r;       // reception
+        BwInfo s;       // sending
+    } cstats;   // connection-stats
 };
 
 class IConnInfo

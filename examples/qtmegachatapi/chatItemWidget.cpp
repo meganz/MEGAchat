@@ -195,17 +195,24 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         case megachat::MegaChatMessage::TYPE_CALL_ENDED:
         {
             QString qstring(item->getLastMessage());
-            QStringList stringList = qstring.split(0x01);
-            assert(stringList.size() >= 2);
-            lastMessage.append("Call started by: ")
-                       .append(senderHandle)
-                       .append(" Duration: ")
-                       .append(stringList.at(0).toStdString())
-                       .append("secs TermCode: ")
-                       .append(stringList.at(1).toStdString());
+            if (!qstring.isEmpty())
+            {
+                QStringList stringList = qstring.split(0x01);
+                assert(stringList.size() >= 2);
+                lastMessage.append("Call started by: ")
+                           .append(senderHandle)
+                           .append(" Duration: ")
+                           .append(stringList.at(0).toStdString())
+                           .append("secs TermCode: ")
+                           .append(stringList.at(1).toStdString());
+            }
             break;
         }
-
+        case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+        {
+            lastMessage.append("User ").append(senderHandle)
+               .append(" has started a call");
+        }
         default:
             lastMessage = item->getLastMessage();
             break;
@@ -297,8 +304,9 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
         size_t len = msg ? strlen(msg) : 0;
         if (len)
         {
-            msgAuthor = new char[len];
+            msgAuthor = new char[len + 1];
             strncpy(msgAuthor, msg, len);
+            msgAuthor[len] = '\0';
         }
         delete chatRoom;
     }
