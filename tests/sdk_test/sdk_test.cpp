@@ -357,7 +357,7 @@ void MegaChatApiTest::TearDown()
             {
                 MegaChatPeerList *peers = MegaChatPeerList::createInstance();
                 peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                chatToSkip = getGroupChatRoom(i, a2, peers);
+                chatToSkip = getGroupChatRoom(i, a2, peers, false);
                 delete peers;
                 peers = NULL;
             }
@@ -1433,7 +1433,6 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
  * + Set chat to private mode
  * + Remove peer from groupchat (OK)
  * + Preview chat link (ERR)
- * + Open chatroom (ERR)
  * - Leave chat room
  * - Logout
  * + Logout
@@ -1623,11 +1622,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), this);
     ASSERT_CHAT_TEST(waitForResponse(flagPreviewChat), "Timeout expired for load chat link");
 
-    // Open chatroom
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
-
-    // Leave chatroom
-    leaveChat(a1, chatid);
+    // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
     delete chatroomListener;
