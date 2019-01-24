@@ -33,12 +33,12 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeLoadAudioVideoDevices,
     MEGAChatRequestTypeArchiveChatRoom,
     MEGAChatRequestTypePushReceived,
+    MEGAChatRequestTypeSetLastGreenVisible,
+    MEGAChatRequestTypeLastGreen,
     MEGAChatRequestTypeLoadPreview,
     MEGAChatRequestTypeChatLinkHandle,
     MEGAChatRequestTypeSetPrivateMode,
-    MEGAChatRequestTypeAutojoinPublicChat,
-    MEGAChatRequestTypeSetLastGreenVisible,
-    MEGAChatRequestTypeSetLastGreen
+    MEGAChatRequestTypeAutojoinPublicChat
 };
 
 enum {
