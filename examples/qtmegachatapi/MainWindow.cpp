@@ -472,6 +472,9 @@ void MainWindow::on_bSettings_clicked()
     }
     delete presenceConfig;
 
+    menu.addSeparator();
+    auto actSettings = menu.addAction("Settings");
+    connect(actSettings, SIGNAL(triggered()), this, SLOT(onChatsSettingsClicked()));
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
@@ -1037,3 +1040,14 @@ void MainWindow::onlastGreenVisibleClicked()
     mMegaChatApi->setLastGreenVisible(!presenceConfig->isLastGreenVisible());
     delete presenceConfig;
 }
+
+void MainWindow::onChatsSettingsClicked()
+{
+    if (!mSettings)
+    {
+        mSettings = new SettingWindow(mMegaApi, this);
+    }
+
+    mSettings->show();
+}
+

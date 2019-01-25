@@ -14,6 +14,7 @@
 #include "MegaChatApplication.h"
 #include "listItemController.h"
 #include "chatWindow.h"
+#include "SettingWindow.h"
 
 const int chatNotArchivedStatus = 0;
 const int chatArchivedStatus = 1;
@@ -180,6 +181,7 @@ class MainWindow :
 
         //Maps UserId to to ContactListItemController
         std::map<mega::MegaHandle, ContactListItemController *> mContactControllers;
+        SettingWindow *mSettings = NULL;
 
     private slots:
         void on_bSettings_clicked();
@@ -195,6 +197,7 @@ class MainWindow :
         void onTwoFactorCheck(bool);
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
+        void onChatsSettingsClicked();
 
     signals:
         void esidLogout();
