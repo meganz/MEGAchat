@@ -3,7 +3,7 @@
 #include "assert.h"
 #include <mega/utils.h>
 
-SettingWindow::SettingWindow(mega::MegaApi *megaApi, QWidget *parent) :
+SettingWindow::SettingWindow(::mega::MegaApi *megaApi, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SettingWindow),
     mMegaApi(megaApi)
@@ -14,7 +14,7 @@ SettingWindow::SettingWindow(mega::MegaApi *megaApi, QWidget *parent) :
 
     connect(ui->confirmButtons, SIGNAL(accepted()), this, SLOT(accepted()));
     connect(ui->confirmButtons, SIGNAL(rejected()), this, SLOT(rejected()));
-    mMegaRequestDelegate = new mega::QTMegaRequestListener(mMegaApi, this);
+    mMegaRequestDelegate = new ::mega::QTMegaRequestListener(mMegaApi, this);
     mMegaApi->fetchTimeZone(mMegaRequestDelegate);
 }
 
@@ -26,12 +26,12 @@ SettingWindow::~SettingWindow()
     delete mMegaRequestDelegate;
 }
 
-void SettingWindow::onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e)
+void SettingWindow::onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e)
 {
     switch (request->getType())
     {
-        case mega::MegaRequest::TYPE_GET_ATTR_USER:
-            if (request->getParamType() == mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
+        case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
+            if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
             {
                 if (request->getMegaPushNotificationSettings())
                 {
@@ -44,7 +44,7 @@ void SettingWindow::onRequestFinish(mega::MegaApi* api, mega::MegaRequest *reque
                 }
             }
             break;
-        case mega::MegaRequest::TYPE_FETCH_TIMEZONE:
+        case ::mega::MegaRequest::TYPE_FETCH_TIMEZONE:
             mTimeZoneDetails = request->getMegaTimeZoneDetails();
             if (mPushNotificationSettings && mTimeZoneDetails)
             {
@@ -69,7 +69,7 @@ void SettingWindow::show()
 void SettingWindow::fillWidget()
 {
     assert(mPushNotificationSettings);
-    mega::m_time_t timestamp = mega::m_time(NULL);
+    ::mega::m_time_t timestamp = ::mega::m_time(NULL);
     ui->chats->setChecked(mPushNotificationSettings->isChatsEnabled());
     ui->pcr->setChecked(mPushNotificationSettings->isContactsEnabled());
     ui->shares->setChecked(mPushNotificationSettings->isSharesEnabled());
@@ -90,15 +90,15 @@ void SettingWindow::fillWidget()
     ui->endTime->setTime(QTime(hours, minutes));
 
     mModel.clear();
-    mega::MegaTextChatList *chatList = mMegaApi->getChatList();
+    ::mega::MegaTextChatList *chatList = mMegaApi->getChatList();
     for (int i = 0; i < chatList->size(); i++)
     {
-        mega::MegaHandle chatid = chatList->get(i)->getHandle();
+        ::mega::MegaHandle chatid = chatList->get(i)->getHandle();
         std::cerr << "chat ids: " << chatid << std::endl;
         if (mPushNotificationSettings->getChatDnd(chatid) > -1)
         {
             const char *chatid_64 = mMegaApi->handleToBase64(chatid);
-            mega::m_time_t differenceChats = mPushNotificationSettings->getChatDnd(chatid) - timestamp;
+            ::mega::m_time_t differenceChats = mPushNotificationSettings->getChatDnd(chatid) - timestamp;
             std::string rowContain = std::string(chatid_64) + " -> " + std::to_string(differenceChats);
             QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
             mModel.appendRow(chat);
@@ -112,7 +112,7 @@ void SettingWindow::fillWidget()
 void SettingWindow::accepted()
 {
     bool updated = false;
-    mega::m_time_t timestamp = mega::m_time(NULL);
+    ::mega::m_time_t timestamp = ::mega::m_time(NULL);
     QString stringDnd = ui->globalDnd->text();
     int globalDnd = stringDnd.toInt();
     if (mGlobalDifference != globalDnd)

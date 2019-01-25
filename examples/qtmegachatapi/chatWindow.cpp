@@ -74,7 +74,7 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
     megaTransferListenerDelegate = new ::mega::QTMegaTransferListener(mMegaApi, this);
     mMegaApi->addTransferListener(megaTransferListenerDelegate);
 
-    mMegaRequestDelegate = new mega::QTMegaRequestListener(mMegaApi, this);
+    mMegaRequestDelegate = new ::mega::QTMegaRequestListener(mMegaApi, this);
 }
 
 void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
@@ -1168,17 +1168,17 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
     }
 }
 
-void ChatWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+void ChatWindow::onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e)
 {
     switch (request->getType())
     {
-        case mega::MegaRequest::TYPE_GET_ATTR_USER:
-            if (request->getParamType() == mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
+        case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
+            if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
             {
-                mega::MegaPushNotificationSettings *pushNotificationSettings = request->getMegaPushNotificationSettings()->copy();
+                ::mega::MegaPushNotificationSettings *pushNotificationSettings = request->getMegaPushNotificationSettings()->copy();
                 if (pushNotificationSettings)
                 {
-                    mega::m_time_t timestamp = mega::m_time(NULL);
+                    ::mega::m_time_t timestamp = ::mega::m_time(NULL);
                     int dndDelay = pushNotificationSettings->getChatDnd(mChatRoom->getChatId()) - timestamp;
                     dndDelay = (dndDelay > -1) ? dndDelay : -1;
                     bool ok;
@@ -1187,7 +1187,7 @@ void ChatWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request,
 
                     if (ok && dndDelay != newDndDelay)
                     {
-                        timestamp = mega::m_time(NULL);
+                        timestamp = ::mega::m_time(NULL);
                         pushNotificationSettings->setChatDnd(mChatRoom->getChatId(), (newDndDelay > -1) ? timestamp + newDndDelay : -1);
                         mMegaApi->setPushNotificationSettings(pushNotificationSettings);
                     }

@@ -38,7 +38,7 @@ class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
         public ::mega::MegaTransferListener,
         public megachat::MegaChatNodeHistoryListener,
-        public mega::MegaRequestListener
+        public ::mega::MegaRequestListener
 {
     Q_OBJECT
     public:
@@ -71,7 +71,7 @@ class ChatWindow : public QDialog,
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
-        void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
+        void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e);
         void onAttachLocation();
 
 #ifndef KARERE_DISABLE_WEBRTC

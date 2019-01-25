@@ -11,25 +11,25 @@ namespace Ui {
 class SettingWindow;
 }
 
-class SettingWindow : public QDialog, public mega::MegaRequestListener
+class SettingWindow : public QDialog, public ::mega::MegaRequestListener
 {
     Q_OBJECT
 
 public:
-    explicit SettingWindow(mega::MegaApi *megaApi, QWidget *parent = 0);
+    explicit SettingWindow(::mega::MegaApi *megaApi, QWidget *parent = 0);
     ~SettingWindow();
-    void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
+    void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e);
     void show();
 
 private:
     Ui::SettingWindow *ui;
-    mega::MegaApi *mMegaApi;
-    mega::MegaPushNotificationSettings *mPushNotificationSettings = NULL;
-    mega::MegaTimeZoneDetails *mTimeZoneDetails = NULL;
+    ::mega::MegaApi *mMegaApi;
+    ::mega::MegaPushNotificationSettings *mPushNotificationSettings = NULL;
+    ::mega::MegaTimeZoneDetails *mTimeZoneDetails = NULL;
 
-    mega::m_time_t mGlobalDifference = -1;
+    ::mega::m_time_t mGlobalDifference = -1;
     QStandardItemModel mModel;
-    mega::QTMegaRequestListener *mMegaRequestDelegate;
+    ::mega::QTMegaRequestListener *mMegaRequestDelegate;
 
     void fillWidget();
 
