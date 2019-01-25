@@ -1645,7 +1645,7 @@ void exec_smsverify(ac::ACState& s)
             { 
                 conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
             };
-        g_megaApi->sendSMSVerificationCode(s.words[2].s.c_str(), listener);
+        g_megaApi->sendSMSVerificationCode(s.words[2].s.c_str(), listener, s.words.size() > 3 && s.words[3].s == "to");
     }
     else if (s.words[1].s == "code")
     {
@@ -1659,6 +1659,11 @@ void exec_smsverify(ac::ACState& s)
     else if (s.words[1].s == "allowed")
     {
         conlock(cout) << "SMS Verify Text Result: " << g_megaApi->smsAllowedState() << endl;
+    }
+    else if (s.words[1].s == "phone")
+    {
+        unique_ptr<char[]> number(g_megaApi->smsVerifiedPhoneNumber());
+        conlock(cout) << "Verified phone: " << (number ? number.get() : "<none>") << endl;
     }
 }
 
@@ -1778,7 +1783,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_quit,       sequence(text("exit")));
 
     // sdk level commands (intermediate layer of megacli commands)
-    p->Add(exec_smsverify, sequence(text("smsverify"), either(sequence(text("send"), param("phoneNumber")), sequence(text("code"), param("code")), sequence(text("allowed")))));
+    p->Add(exec_smsverify, sequence(text("smsverify"), either(sequence(text("send"), param("phoneNumber"), opt(text("to"))), sequence(text("code"), param("code")), text("allowed"), text("phone"))));
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
     
     return p;
