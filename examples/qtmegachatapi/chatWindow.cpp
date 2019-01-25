@@ -30,7 +30,9 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
     ui->mChatdStatusDisplay->hide();
     mUploadDlg = NULL;
     setChatTittle(title);
-    setWindowTitle(title);
+    const char *chatid_64 = mMegaApi->userHandleToBase64(cRoom->getChatId());
+    setWindowTitle(chatid_64);
+    delete [] chatid_64;
     connect(ui->mMsgSendBtn,  SIGNAL(clicked()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(sendMsg()), this, SLOT(onMsgSendBtn()));
     connect(ui->mMessageEdit, SIGNAL(editLastMsg()), this, SLOT(editLastMsg()));
