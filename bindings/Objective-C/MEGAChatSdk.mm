@@ -907,6 +907,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->areGroupChatCallEnabled();
 }
 
+- (NSInteger)getMaxVideoCallParticipants {
+    return self.megaChatApi->getMaxVideoCallParticipants();
+}
+
+- (NSInteger)getMaxCallParticipants {
+    return self.megaChatApi->getMaxCallParticipants();
+}
+
 #endif
 
 #pragma mark - Debug log messages
