@@ -452,33 +452,37 @@ void ChatMessage::markAsEdited()
 
 void ChatMessage::onMessageCtxMenu(const QPoint& point)
 {
-   if (isMine() && !mMessage->isManagementMessage())
-   {
-       QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
-       if (mMessage->isEditable())
-       {
-           auto action = menu->addAction(tr("&Edit message"));
-           action->setData(QVariant::fromValue(this));
-           connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
-       }
+    QMenu *menu = ui->mMsgDisplay->createStandardContextMenu(point);
+    if (isMine() && !mMessage->isManagementMessage())
+    {
+        if (mMessage->isEditable())
+        {
+            auto action = menu->addAction(tr("&Edit message"));
+            action->setData(QVariant::fromValue(this));
+            connect(action, SIGNAL(triggered()), this, SLOT(onMessageEditAction()));
+        }
 
-       if (mMessage->isDeletable())
-       {
-           auto delAction = menu->addAction(tr("Delete message"));
-           delAction->setData(QVariant::fromValue(this));
-           connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
-       }
+        if (mMessage->isDeletable())
+        {
+            auto delAction = menu->addAction(tr("Delete message"));
+            delAction->setData(QVariant::fromValue(this));
+            connect(delAction, SIGNAL(triggered()), this, SLOT(onMessageDelAction()));
+        }
 
-       if (mMessage->getType() == MegaChatMessage::TYPE_CONTAINS_META
-               && mMessage->getContainsMeta()
-               && mMessage->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
-       {
-           auto richAction = menu->addAction(tr("Remove rich link"));
-           richAction->setData(QVariant::fromValue(this));
-           connect(richAction, SIGNAL(triggered()), this, SLOT(onMessageRemoveLinkAction()));
-       }
-       menu->popup(this->mapToGlobal(point));
-   }
+        if (mMessage->getType() == MegaChatMessage::TYPE_CONTAINS_META
+                && mMessage->getContainsMeta()
+                && mMessage->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+        {
+            auto richAction = menu->addAction(tr("Remove rich link"));
+            richAction->setData(QVariant::fromValue(this));
+            connect(richAction, SIGNAL(triggered()), this, SLOT(onMessageRemoveLinkAction()));
+        }
+    }
+
+    auto actCopy = menu->addAction(tr("Copy to clipboard message id"));
+    connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
+
+    menu->popup(this->mapToGlobal(point));
 }
 
 void ChatMessage::onMessageDelAction()
@@ -676,6 +680,14 @@ void ChatMessage::on_bSettings_clicked()
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
     menu.exec(mapToGlobal(pos));
+}
+
+void ChatMessage::onCopyHandle()
+{
+    const char *messageid_64 = mChatWindow->mMegaApi->handleToBase64(mMessage->getMsgId());
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(messageid_64);
+    delete []messageid_64;
 }
 
 void ChatMessage::onNodeDownload(::mega::MegaNode *node)

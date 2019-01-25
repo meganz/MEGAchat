@@ -41,5 +41,6 @@ private slots:
     void onContactRemove();
     void onExContactInvite();
     void onRequestLastGreen();
+    void onCopyHandle();
 };
 #endif // CONTACITEMWIDGET_H

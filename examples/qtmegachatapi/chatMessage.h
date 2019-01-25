@@ -60,5 +60,6 @@ protected:
         void onNodeDownload(::mega::MegaNode *node);
         void onNodePlay(::mega::MegaNode *node);
         void on_bSettings_clicked();
+        void onCopyHandle();
 };
 #endif // CHATMESSAGE_H

@@ -4,6 +4,7 @@
 #include <QMenu>
 #include <iostream>
 #include <QMessageBox>
+#include <QClipboard>
 
 ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item) :
     QWidget(parent),
@@ -433,6 +434,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
     // TODO: connect to slot in chat-links branch once merged
 
+    auto actCopy = menu.addAction(tr("Copy to clipboard chatid"));
+    connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
+
 
     delete chatRoom;
     menu.exec(event->globalPos());
@@ -452,6 +456,14 @@ void ChatItemWidget::archiveChat(bool checked)
         mMegaChatApi->archiveChat(mChatId, checked);
     }
     delete room;
+}
+
+void ChatItemWidget::onCopyHandle()
+{
+    const char *chatid_64 = mMegaApi->handleToBase64(mChatId);
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(chatid_64);
+    delete []chatid_64;
 }
 
 void ChatItemWidget::setTitle()

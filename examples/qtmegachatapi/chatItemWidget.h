@@ -44,6 +44,7 @@ class ChatItemWidget : public QWidget
         void setTitle();
         void truncateChat();
         void archiveChat(bool checked);
+        void onCopyHandle();
 
     friend class MainWindow;
     friend class ContactItemWidget;

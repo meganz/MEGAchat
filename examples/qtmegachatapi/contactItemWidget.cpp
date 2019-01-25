@@ -3,6 +3,7 @@
 #include "uiSettings.h"
 #include <QMessageBox>
 #include <QMenu>
+#include <QClipboard>
 
 ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megachat::MegaChatApi *megaChatApi, ::mega::MegaApi *megaApi, ::mega::MegaUser *contact) :
     QWidget(parent),
@@ -64,6 +65,11 @@ void ContactItemWidget::contextMenuEvent(QContextMenuEvent *event)
     }
     auto lastGreenAction = menu.addAction(tr("Last time user was online"));
     connect(lastGreenAction, SIGNAL(triggered()), this, SLOT(onRequestLastGreen()));
+
+    menu.addSeparator();
+    auto copyHandleAction = menu.addAction(tr("Copy to clipboard user id"));
+    connect(copyHandleAction, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
+
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
@@ -231,6 +237,14 @@ void ContactItemWidget::onExContactInvite()
 void ContactItemWidget::onRequestLastGreen()
 {
     mMegaChatApi->requestLastGreen(mUserHandle);
+}
+
+void ContactItemWidget::onCopyHandle()
+{
+    const char *handel_64 = mMegaApi->userHandleToBase64(mUserHandle);
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(handel_64);
+    delete []handel_64;
 }
 
 void ContactItemWidget::updateTitle(const char *firstname)
