@@ -153,12 +153,12 @@ unique_ptr<m::Console> console;
 
 static const char* prompts[] =
 {
-    "MEGAclc> ", "Password:"
+    "", "MEGAclc> ", "Password:"
 };
 
 enum prompttype
 {
-    COMMAND, LOGINPASSWORD
+    NOPROMPT, COMMAND, LOGINPASSWORD
 };
 
 static prompttype prompt = COMMAND;
@@ -174,20 +174,24 @@ static int pw_buf_pos;
 // lock this for output since we are using cout on multiple threads
 std::mutex g_outputMutex;
 
+// console input line to process
+static char* line = NULL;
 
 static void setprompt(prompttype p)
 {
+    auto cl = conlock(cout);
+
     prompt = p;
 
     if (p == COMMAND)
     {
         console->setecho(true);
+        line = strdup("");  // causes main loop to iterate and update the prompt
     }
     else
     {
         pw_buf_pos = 0;
 #if defined(WIN32) && defined(NO_READLINE)
-        auto cl = conlock(cout);
         static_cast<m::WinConsole*>(console.get())->updateInputPrompt(prompts[p]);
 #else
         cout << prompts[p] << flush;
@@ -197,7 +201,6 @@ static void setprompt(prompttype p)
 }
 
 // readline callback - exit if EOF, add to history unless password
-static char* line = NULL;
 static void store_line(char* l)
 {
     if (!l)
@@ -1606,6 +1609,67 @@ void exec_getchatcallsids(ac::ACState&)
 
 #endif
 
+class OneShotRequestListener : public m::MegaRequestListener
+{
+public:
+    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
+    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
+    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
+    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
+
+    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
+
+
+void exec_apiurl(ac::ACState& s)
+{
+    if (s.words.size() == 3 || s.words.size() == 2)
+    {
+        if (s.words[1].s.size() < 8 || s.words[1].s.substr(0, 8) != "https://")
+        {
+            s.words[1].s = "https://" + s.words[1].s;
+        }
+        if (s.words[1].s.empty() || s.words[1].s.back() != '/')
+        {
+            s.words[1].s += '/';
+        }
+        g_megaApi->changeApiUrl(s.words[1].s.c_str(), s.words.size() > 2 && s.words[2].s == "true");
+        if (g_megaApi->isLoggedIn())
+        {
+            conlock(cout) << "Re-fetching nodes due to change of APIURL" << endl;
+
+            setprompt(NOPROMPT);
+
+            auto listener = new OneShotRequestListener;
+            listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *, m::MegaError* e) 
+            {
+                conlock(cout) << "Fetchnodes finished: " << e->getErrorString() << endl;
+                setprompt(COMMAND);
+            };
+
+            g_megaApi->fetchNodes(listener);
+        }
+    }
+}
 
 
 ac::ACN autocompleteSyntax()
@@ -1702,6 +1766,9 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_quit,       sequence(either(text("quit"), text("q"))));
     p->Add(exec_quit,       sequence(text("exit")));
 
+    // sdk level commands (intermediate layer of megacli commands)
+    p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
+    
     return p;
 }
 
@@ -1843,14 +1910,17 @@ void megaclc()
             {
                 auto cl = conlock(cout);
                 static_cast<m::WinConsole*>(console.get())->consolePeek();
-                line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
+                if (prompt >= COMMAND && !line)
+                {
+                    line = static_cast<m::WinConsole*>(console.get())->checkForCompletedInputLine();
+                }
             }
 #else
             if (prompt == COMMAND)
             {
                 rl_callback_read_char();
             }
-            else
+            else if (prompt > COMMAND)
             {
                 console->readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &line);
             }
