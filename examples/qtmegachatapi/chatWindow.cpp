@@ -3,6 +3,7 @@
 #include "assert.h"
 #include <QMenu>
 #include <QFileDialog>
+#include <mega/utils.h>
 
 ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, megachat::MegaChatRoom *cRoom, const char *title)
     : QDialog(parent),
@@ -70,6 +71,8 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
     megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
     megaTransferListenerDelegate = new ::mega::QTMegaTransferListener(mMegaApi, this);
     mMegaApi->addTransferListener(megaTransferListenerDelegate);
+
+    mMegaRequestDelegate = new mega::QTMegaRequestListener(mMegaApi, this);
 }
 
 void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
@@ -126,6 +129,7 @@ ChatWindow::~ChatWindow()
     delete mChatRoom;
     delete mUploadDlg;
     delete ui;
+    delete mMegaRequestDelegate;
 }
 
 void ChatWindow::onMsgSendBtn()
@@ -752,6 +756,10 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto closeChatLink = clMenu->addAction("Close chat link");
     connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
     // TODO: connect to slot in chat-links branch once merged
+
+    //Set push notification restriction for chatroom
+    auto pushNotificationRestriction = menu.addAction("Push notification restriction");
+    connect(pushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onPushNotificationRestriction()));
 }
 
 void ChatWindow::onTruncateChat()
@@ -1082,6 +1090,11 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     delete parent;
 }
 
+void ChatWindow::onPushNotificationRestriction()
+{
+    mMegaApi->getPushNotificationSettings(mMegaRequestDelegate);
+}
+
 void ChatWindow::on_mCancelTransfer(QAbstractButton*)
 {
     mMegaApi->cancelTransfers(::mega::MegaTransfer::TYPE_UPLOAD);
@@ -1150,5 +1163,36 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
         {
             QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
         }
+    }
+}
+
+void ChatWindow::onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+{
+    switch (request->getType())
+    {
+        case mega::MegaRequest::TYPE_GET_ATTR_USER:
+            if (request->getParamType() == mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
+            {
+                mega::MegaPushNotificationSettings *pushNotificationSettings = request->getMegaPushNotificationSettings()->copy();
+                if (pushNotificationSettings)
+                {
+                    mega::m_time_t timestamp = mega::m_time(NULL);
+                    int dndDelay = pushNotificationSettings->getChatDnd(mChatRoom->getChatId()) - timestamp;
+                    dndDelay = (dndDelay > -1) ? dndDelay : -1;
+                    bool ok;
+                    int newDndDelay = QInputDialog::getInt(this, tr("Push notification restriction"),
+                                                             tr("Intro time without notifications: "), dndDelay, -1, 2147483647, 1, &ok);
+
+                    if (ok && dndDelay != newDndDelay)
+                    {
+                        timestamp = mega::m_time(NULL);
+                        pushNotificationSettings->setChatDnd(mChatRoom->getChatId(), (newDndDelay > -1) ? timestamp + newDndDelay : -1);
+                        mMegaApi->setPushNotificationSettings(pushNotificationSettings);
+                    }
+                }
+            }
+            break;
+        default:
+            break;
     }
 }

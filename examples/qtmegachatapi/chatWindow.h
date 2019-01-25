@@ -10,6 +10,7 @@
 #include "MainWindow.h"
 #include <QMessageBox>
 #include "QTMegaTransferListener.h"
+#include "QTMegaRequestListener.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
 #include "callGui.h"
@@ -36,7 +37,8 @@ class ChatItemWidget;
 class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
         public ::mega::MegaTransferListener,
-        public megachat::MegaChatNodeHistoryListener
+        public megachat::MegaChatNodeHistoryListener,
+        public mega::MegaRequestListener
 {
     Q_OBJECT
     public:
@@ -69,6 +71,7 @@ class ChatWindow : public QDialog,
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
+        void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
         void onAttachLocation();
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -102,6 +105,7 @@ class ChatWindow : public QDialog,
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
+        ::mega::QTMegaRequestListener *mMegaRequestDelegate;
 
     private slots:
         void onMsgListRequestHistory();
@@ -118,6 +122,7 @@ class ChatWindow : public QDialog,
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
         void onAttachNode(bool isVoiceClip);
+        void onPushNotificationRestriction();
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);
