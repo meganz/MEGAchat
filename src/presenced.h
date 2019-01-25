@@ -480,10 +480,9 @@ public:
     void signalActivity();
 
     // peers management
-    void addPeer(karere::Id peer);
-    void removePeer(karere::Id peer, bool force=false);
     void updatePeerPresence(karere::Id peer, karere::Presence pres);
     karere::Presence peerPresence(karere::Id peer);
+
     /** @brief Updates user last green if it's more recent than the current value.*/
     bool updateLastGreen(karere::Id userid, time_t lastGreen);
     time_t getLastGreen(karere::Id userid);
