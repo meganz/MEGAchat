@@ -198,6 +198,7 @@ class MainWindow :
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
+        void onChatCheckPushNotificationRestrictionClicked();
 
     signals:
         void esidLogout();

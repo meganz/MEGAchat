@@ -226,6 +226,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
        }
     }
 }
+
 #endif
 
 ChatWindow *MainWindow::getChatWindowIfExists(MegaChatHandle chatId)
@@ -475,6 +476,10 @@ void MainWindow::on_bSettings_clicked()
     menu.addSeparator();
     auto actSettings = menu.addAction("Settings");
     connect(actSettings, SIGNAL(triggered()), this, SLOT(onChatsSettingsClicked()));
+
+    auto actChatCheckPushNotificationRestriction = menu.addAction("Check chat push notification restriction");
+    connect(actChatCheckPushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onChatCheckPushNotificationRestrictionClicked()));
+
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
@@ -622,7 +627,6 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
         activeChats += 1;
     }
 
-    megachat::MegaChatHandle chathandle = chatListItem->getChatId();
     ChatItemWidget *widget = new ChatItemWidget(this, mMegaChatApi, chatListItem);
     widget->updateToolTip(chatListItem, NULL);
     QListWidgetItem *item = new QListWidgetItem();
@@ -1051,3 +1055,17 @@ void MainWindow::onChatsSettingsClicked()
     mSettings->show();
 }
 
+void MainWindow::onChatCheckPushNotificationRestrictionClicked()
+{
+    QString text = QInputDialog::getText(this, tr("Introduce chat to check push notification restriction"), tr("Intro chatid: "));
+
+    if (text != "")
+    {
+        MegaHandle chatid = mMegaApi->base64ToHandle(text.toStdString().c_str());
+        bool pushNotification = mMegaApi->isChatNotificable(chatid);
+        std::string result;
+        result.append("Push notification for: ").append(text.toStdString()).append(pushNotification ? " IS generated" : " IS NOT generated");
+        QMessageBox::information(this, tr("Push Restriction"), result.c_str());
+    }
+
+}
