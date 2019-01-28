@@ -445,7 +445,7 @@ void MainWindow::on_bSettings_clicked()
 
     menu.addSeparator();
     auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
-    connect(actTwoFactCheck, SIGNAL(clicked(bool)), this, SLOT(onTwoFactorCheck(bool)));
+    connect(actTwoFactCheck, SIGNAL(toggled(bool)), this, SLOT(onTwoFactorCheck(bool)));
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
 
     menu.addSeparator();
@@ -471,6 +471,12 @@ void MainWindow::on_bSettings_clicked()
         actlastGreenVisible->setEnabled(false);
     }
     delete presenceConfig;
+
+    menu.addSeparator();
+    auto actUseStaging = menu.addAction("Use API staging");
+    connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
+    actUseStaging->setCheckable(true);
+    actUseStaging->setChecked(mApp->isStagingEnabled());
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -1036,4 +1042,9 @@ void MainWindow::onlastGreenVisibleClicked()
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     mMegaChatApi->setLastGreenVisible(!presenceConfig->isLastGreenVisible());
     delete presenceConfig;
+}
+
+void MainWindow::onUseApiStagingClicked(bool enable)
+{
+    mApp->enableStaging(enable);
 }

@@ -216,6 +216,32 @@ const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
     return NULL;
 }
 
+bool MegaChatApplication::isStagingEnabled()
+{
+    return useStaging;
+}
+
+void MegaChatApplication::enableStaging(bool enable)
+{
+    if (useStaging == enable)
+    {
+        return;
+    }
+
+    useStaging = enable;
+    if (enable)
+    {
+        mMegaApi->changeApiUrl("https://staging.api.mega.co.nz/");
+    }
+    else
+    {
+        mMegaApi->changeApiUrl("https://g.api.mega.co.nz/");
+    }
+
+    // force a reload upon api-url changes
+    mMegaApi->fetchNodes();
+}
+
 const char *MegaChatApplication::sid() const
 {
     return mSid;
@@ -281,7 +307,11 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     mSid = mMegaApi->dumpSession();
                     saveSid(mSid);
                 }
-                mMegaChatApi->connect();
+
+                if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
+                {
+                    mMegaChatApi->connect();
+                }
             }
             else
             {
@@ -360,7 +390,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
          case MegaChatRequest::TYPE_CONNECT:
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
             {
-                QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection").append(e->getErrorString()));
+                QMessageBox::critical(nullptr, tr("Chat Connection"), tr("Error stablishing connection: ").append(e->getErrorString()));
                 init();
             }
             else
