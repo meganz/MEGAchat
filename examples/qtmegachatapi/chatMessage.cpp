@@ -684,7 +684,7 @@ void ChatMessage::on_bSettings_clicked()
 
 void ChatMessage::onCopyHandle()
 {
-    const char *messageid_64 = mChatWindow->mMegaApi->handleToBase64(mMessage->getMsgId());
+    const char *messageid_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getMsgId());
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setText(messageid_64);
     delete []messageid_64;

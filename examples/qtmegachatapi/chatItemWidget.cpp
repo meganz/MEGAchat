@@ -460,7 +460,7 @@ void ChatItemWidget::archiveChat(bool checked)
 
 void ChatItemWidget::onCopyHandle()
 {
-    const char *chatid_64 = mMegaApi->handleToBase64(mChatId);
+    const char *chatid_64 = mMegaApi->userHandleToBase64(mChatId);
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setText(chatid_64);
     delete []chatid_64;
