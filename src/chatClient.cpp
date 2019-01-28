@@ -1143,7 +1143,8 @@ void Client::onPresenceChange(Id userid, Presence pres)
     {
         contactList->onPresenceChanged(userid, pres);
     }
-    updatePeerPresence(userid, pres);
+
+    app.onPresenceChanged(userid, pres, false);
 }
 void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
 {
