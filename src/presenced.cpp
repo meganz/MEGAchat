@@ -1313,7 +1313,7 @@ void Client::removePeer(karere::Id peer, bool force)
     }
     else //refcount reched zero
     {
-        assert(it->second.pres == 0);
+        assert(it->second.numRefs == 0);
     }
 
     mCurrentPeers.erase(it);

@@ -2138,7 +2138,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
                 GroupChatRoom *chat = (GroupChatRoom*) it->second;
                 const GroupChatRoom::MemberMap &membersMap = chat->peers();
                 GroupChatRoom::MemberMap::const_iterator itMembers = membersMap.find(userhandle);
-                int pres = mClient->peerPresence(userhandle).status();
+                int pres = mClient->peerPresence(karere::Id(userhandle)).status();
                 sdkMutex.unlock();
                 return pres;
             }

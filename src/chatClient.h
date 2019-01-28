@@ -838,8 +838,8 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
     bool isChatRoomOpened(Id chatid);
-    void updatePeerPresence(uint64_t userid, Presence pres);
-    Presence peerPresence(uint64_t userid) const;
+    void updatePeerPresence(karere::Id userid, Presence pres);
+    Presence peerPresence(karere::Id userid) const;
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);

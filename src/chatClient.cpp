@@ -262,14 +262,14 @@ void Client::createDbSchema()
     db.commit();
 }
 
-void Client::updatePeerPresence(uint64_t userid, Presence pres)
+void Client::updatePeerPresence(karere::Id userid, Presence pres)
 {
-    mPresencedClient.updatePeerPresence(karere::Id(userid), pres);
+    mPresencedClient.updatePeerPresence(userid, pres);
 }
 
-Presence Client::peerPresence(uint64_t userid) const
+Presence Client::peerPresence(karere::Id userid) const
 {
-    return mPresencedClient.peerPresence(karere::Id(userid));
+    return mPresencedClient.peerPresence(userid);
 }
 
 void Client::heartbeat()
@@ -535,7 +535,7 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
 }
 Presence Client::ownPresence() const
 {
-    peerPresence(mMyHandle.val);
+    return peerPresence(mMyHandle);
 }
 
 void Client::initWithDbSession(const char* sid)
@@ -892,7 +892,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
 
     setConnState(kConnecting);
-    updatePeerPresence(mMyHandle.val, pres);
+    updatePeerPresence(mMyHandle, pres);
     assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
 
@@ -915,7 +915,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
     connectToChatd(isInBackground);
 
-    Presence ownPres = peerPresence(mMyHandle.val);
+    Presence ownPres = peerPresence(mMyHandle);
     auto wptr = weakHandle();
     auto pms = connectToPresenced(ownPres)
     .then([this, wptr]()
@@ -1120,21 +1120,11 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     // Notify presence, if any
     if (pres.isValid())
     {
-        updatePeerPresence(mMyHandle.val, pres);
+        updatePeerPresence(mMyHandle, pres);
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
     return mPresencedClient.connect(url, presenced::Config(pres));
-}
-
-void Contact::updatePresence(Presence pres)
-{
-    mChatRoom->chat().mChatdClient.mKarereClient->updatePeerPresence(userId(), pres);
-}
-
-Presence Contact::presence() const
-{
-    return mChatRoom->chat().mChatdClient.mKarereClient->peerPresence(userId());
 }
 
 // presenced handlers
@@ -1147,7 +1137,7 @@ void Client::onPresenceChange(Id userid, Presence pres)
 
     if (userid == mMyHandle)
     {
-        updatePeerPresence(mMyHandle.val, pres);
+        updatePeerPresence(mMyHandle, pres);
     }
     else
     {
@@ -1272,7 +1262,7 @@ promise::Promise<void> Client::setPresence(Presence pres)
 {
     if (pres == mPresencedClient.config().presence())
     {
-        Presence ownPres = peerPresence(mMyHandle.val);
+        Presence ownPres = peerPresence(mMyHandle);
         std::string err = "setPresence: tried to change online state to the current configured state (";
         err.append(ownPres.toString(ownPres)).append(")");
         return promise::Error(err, kErrorArgs);
@@ -2801,6 +2791,16 @@ void Contact::onVisibilityChanged(int newVisibility)
     {
         mChatRoom->notifyRejoinedChat();
     }
+}
+
+void Contact::updatePresence(Presence pres)
+{
+    mClist.client.mChatdClient->mKarereClient->updatePeerPresence(karere::Id(mUserid), pres);
+}
+
+Presence Contact::presence() const
+{
+    return mClist.client.mChatdClient->mKarereClient->peerPresence(karere::Id(mUserid));
 }
 
 void ContactList::syncWithApi(mega::MegaUserList& users)
