@@ -481,7 +481,7 @@ public:
 
     // peers management
     void updatePeerPresence(karere::Id peer, karere::Presence pres);
-    karere::Presence peerPresence(karere::Id peer);
+    karere::Presence peerPresence(karere::Id peer) const;
 
     /** @brief Updates user last green if it's more recent than the current value.*/
     bool updateLastGreen(karere::Id userid, time_t lastGreen);

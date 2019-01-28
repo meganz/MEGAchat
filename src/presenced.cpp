@@ -1343,7 +1343,7 @@ void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
     it->second.pres = pres;
 }
 
-karere::Presence Client::peerPresence(karere::Id peer)
+karere::Presence Client::peerPresence(karere::Id peer) const
 {
     auto it = mCurrentPeers.find(peer);
     if (it == mCurrentPeers.end())
@@ -1351,6 +1351,5 @@ karere::Presence Client::peerPresence(karere::Id peer)
         return karere::Presence::kInvalid;
     }
     return it->second.pres;
-    karere::Presence a;
 }
 }

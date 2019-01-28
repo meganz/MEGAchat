@@ -267,7 +267,7 @@ void Client::updatePeerPresence(uint64_t userid, Presence pres)
     mPresencedClient.updatePeerPresence(karere::Id(userid), pres);
 }
 
-Presence Client::peerPresence(uint64_t userid)
+Presence Client::peerPresence(uint64_t userid) const
 {
     return mPresencedClient.peerPresence(karere::Id(userid));
 }
@@ -532,6 +532,10 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
     default:
         break;
     }
+}
+Presence Client::ownPresence() const
+{
+    peerPresence(mMyHandle.val);
 }
 
 void Client::initWithDbSession(const char* sid)
@@ -888,8 +892,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
 
     setConnState(kConnecting);
-    mOwnPresence = pres;
-
+    updatePeerPresence(mMyHandle.val, pres);
     assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
 
@@ -912,8 +915,9 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
     connectToChatd(isInBackground);
 
+    Presence ownPres = peerPresence(mMyHandle.val);
     auto wptr = weakHandle();
-    auto pms = connectToPresenced(mOwnPresence)
+    auto pms = connectToPresenced(ownPres)
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1116,7 +1120,7 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
     // Notify presence, if any
     if (pres.isValid())
     {
-        mOwnPresence = pres;
+        updatePeerPresence(mMyHandle.val, pres);
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
@@ -1143,7 +1147,7 @@ void Client::onPresenceChange(Id userid, Presence pres)
 
     if (userid == mMyHandle)
     {
-        mOwnPresence = pres;
+        updatePeerPresence(mMyHandle.val, pres);
     }
     else
     {
@@ -1268,8 +1272,9 @@ promise::Promise<void> Client::setPresence(Presence pres)
 {
     if (pres == mPresencedClient.config().presence())
     {
+        Presence ownPres = peerPresence(mMyHandle.val);
         std::string err = "setPresence: tried to change online state to the current configured state (";
-        err.append(mOwnPresence.toString(mOwnPresence)).append(")");
+        err.append(ownPres.toString(ownPres)).append(")");
         return promise::Error(err, kErrorArgs);
     }
 

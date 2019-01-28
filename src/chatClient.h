@@ -668,7 +668,6 @@ protected:
     // resolved when connection to presenced is established
     promise::Promise<void> mConnectPromise;
 
-    Presence mOwnPresence = Presence::kInvalid;
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
 
@@ -704,7 +703,7 @@ public:
     bool connected() const { return mConnState == kConnected; }
     bool contactsLoaded() const { return mContactsLoaded; }
 
-    Presence ownPresence() const { return mOwnPresence; }
+    Presence ownPresence() const;
     presenced::Client& presenced() { return mPresencedClient; }
 
     /**
@@ -840,7 +839,7 @@ public:
 
     bool isChatRoomOpened(Id chatid);
     void updatePeerPresence(uint64_t userid, Presence pres);
-    Presence peerPresence(uint64_t userid);
+    Presence peerPresence(uint64_t userid) const;
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
