@@ -280,7 +280,6 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        Presence mPresence;
         void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
     public:
@@ -479,7 +478,8 @@ public:
     int visibility() const { return mVisibility; }
 
     /** @brief The presence of the contact */
-    Presence presence() const { return mPresence; }
+    Presence presence() const;
+
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);

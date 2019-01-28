@@ -1125,8 +1125,14 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 
 void Contact::updatePresence(Presence pres)
 {
-    mPresence = pres;
+    mChatRoom->chat().mChatdClient.mKarereClient->updatePeerPresence(userId(), pres);
 }
+
+Presence Contact::presence() const
+{
+    return mChatRoom->chat().mChatdClient.mKarereClient->peerPresence(userId());
+}
+
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
