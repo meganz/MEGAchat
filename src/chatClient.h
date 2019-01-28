@@ -494,7 +494,6 @@ class ContactList: public std::map<uint64_t, Contact*>
 protected:
     void removeUser(iterator it);
     void onPresenceChanged(Id userid, Presence pres);
-    void setAllOffline();
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -780,11 +779,6 @@ public:
      */
     promise::Promise<void> loginSdkAndInit(const char* sid);
 
-    /** @brief Notifies the client that network connection is down */
-    void notifyNetworkOffline();
-
-    /** @brief Notifies the client that internet connection is again available */
-    void notifyNetworkOnline();
     /** @brief Call this when the app goes into background, so that it notifies
      * the servers to enable PUSH notifications
      */

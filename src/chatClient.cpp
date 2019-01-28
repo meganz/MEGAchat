@@ -1185,12 +1185,6 @@ void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 
 }
 
-void Client::notifyNetworkOffline()
-{
-}
-void Client::notifyNetworkOnline()
-{
-}
 void Client::notifyUserIdle()
 {
     if (mChatdClient)
@@ -2865,13 +2859,6 @@ void ContactList::onPresenceChanged(Id userid, Presence pres)
         return;
     {
         it->second->updatePresence(pres);
-    }
-}
-void ContactList::setAllOffline()
-{
-    for (auto& it: *this)
-    {
-        it.second->updatePresence(Presence::kOffline);
     }
 }
 

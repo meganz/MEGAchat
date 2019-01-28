@@ -124,7 +124,7 @@
      </property>
      <property name="styleSheet">
       <string notr="true">border-radius:4px;
-background-color: lightgray</string>
+background-color: black</string>
      </property>
     </widget>
    </item>
