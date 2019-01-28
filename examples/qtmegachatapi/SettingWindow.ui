@@ -84,33 +84,72 @@
              <layout class="QHBoxLayout" name="horizontalLayout">
               <item>
                <widget class="QLabel" name="label">
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Schedule Start:</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QTimeEdit" name="startTime"/>
+               <widget class="QTimeEdit" name="startTime">
+                <property name="maximumSize">
+                 <size>
+                  <width>125</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QLabel" name="label_2">
+                <property name="maximumSize">
+                 <size>
+                  <width>30</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>End:</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QTimeEdit" name="endTime"/>
+               <widget class="QTimeEdit" name="endTime">
+                <property name="maximumSize">
+                 <size>
+                  <width>125</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QLabel" name="label_3">
+                <property name="maximumSize">
+                 <size>
+                  <width>75</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Time Zone:</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QComboBox" name="comboBox"/>
+               <widget class="QComboBox" name="timeZones">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
              </layout>
             </item>

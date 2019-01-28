@@ -84,6 +84,20 @@ void SettingWindow::fillWidget()
     int minutes = scheduleTime % 60;
     ui->startTime->setTime(QTime(hours, minutes));
 
+    QList<QString> stringsList;
+    int index = 0;
+    for (int i = 0; i < mTimeZoneDetails->getNumTimeZones(); i++)
+    {
+        stringsList.append(QString(mTimeZoneDetails->getTimeZone(i)));
+        if (strcmp(mTimeZoneDetails->getTimeZone(i), mPushNotificationSettings->getGlobalScheduleTimezone()) == 0)
+        {
+            index = i;
+        }
+    }
+
+    ui->timeZones->addItems(stringsList);
+    ui->timeZones->setCurrentIndex(index);
+
     scheduleTime = (mPushNotificationSettings->getGlobalScheduleEnd() > 0) ? mPushNotificationSettings->getGlobalScheduleEnd() : 0;
     hours = scheduleTime / 60;
     minutes = scheduleTime % 60;
@@ -141,16 +155,28 @@ void SettingWindow::accepted()
 
     QTime time = ui->startTime->time();
     int startTime = time.hour() * 60 + time.minute();
-    startTime = (startTime == 0) ? -1 : startTime;
     time = ui->endTime->time();
     int endTime = time.hour() * 60 + time.minute();
-    endTime = (endTime == 0) ? -1 : endTime;
-    std::string timeZone;
+    std::string timeZone = ui->timeZones->currentText().toStdString();
 
-    if (startTime != mPushNotificationSettings->getGlobalScheduleStart() || endTime != mPushNotificationSettings->getGlobalScheduleEnd())
+    if (startTime != mPushNotificationSettings->getGlobalScheduleStart() ||
+            endTime != mPushNotificationSettings->getGlobalScheduleEnd() ||
+            timeZone != mPushNotificationSettings->getGlobalScheduleTimezone())
     {
-        mPushNotificationSettings->setGlobalSchedule(startTime, endTime, timeZone.c_str());
-        updated = true;
+        if (startTime == endTime)
+        {
+            if (mPushNotificationSettings->isGlobalScheduleEnabled())
+            {
+                mPushNotificationSettings->disableGlobalSchedule();
+                updated = true;
+            }
+        }
+        else
+        {
+            mPushNotificationSettings->setGlobalSchedule(startTime, endTime, timeZone.c_str());
+            updated = true;
+        }
+
     }
 
     if (updated)
