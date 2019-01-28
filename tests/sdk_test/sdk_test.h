@@ -264,7 +264,6 @@ private:
 
     megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
     megachat::MegaChatRoom *chatroom[NUM_ACCOUNTS];
-    megachat::MegaChatListItem *chatListItem[NUM_ACCOUNTS];
     std::string chatLinks[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];

@@ -28,16 +28,17 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
-    // Tests that requires a chatroom
+    // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
     EXECUTE_TEST(t.TEST_ClearHistory(0, 1), "TEST Clear history");
     EXECUTE_TEST(t.TEST_GroupLastMessage(0, 1), "TEST Last message (group)");
 
+    // Test using a 1on1 chat
     EXECUTE_TEST(t.TEST_SetOnlineStatus(0), "TEST Online status");
     EXECUTE_TEST(t.TEST_GetChatRoomsAndMessages(0), "TEST Load chatrooms & messages");
-    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
     EXECUTE_TEST(t.TEST_EditAndDeleteMessages(0, 1), "TEST Edit & delete messages");
+    EXECUTE_TEST(t.TEST_SwitchAccounts(0, 1), "TEST Switch accounts");
     EXECUTE_TEST(t.TEST_ResumeSession(0), "TEST Resume session");
     EXECUTE_TEST(t.TEST_Attachment(0, 1), "TEST Attachments");
     EXECUTE_TEST(t.TEST_SendContact(0, 1), "TEST Send contact");
@@ -45,7 +46,6 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_ChangeMyOwnName(0), "TEST Change my name");
     EXECUTE_TEST(t.TEST_RichLinkUserAttribute(0), "TEST Rich link user attributes");
     EXECUTE_TEST(t.TEST_SendRichLink(0, 1), "TEST Send Rich link");
-
 
 #ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
@@ -1464,9 +1464,9 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
     bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    megaChatApi[a1]->createPublicChat(peers, NULL, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "Expired timeout for creating groupchat");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create groupchat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    megaChatApi[a1]->createPublicChat(peers);
+    ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "Expired timeout for creating public groupchat");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create public groupchat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
     chatid = this->chatid[a1];
     ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
     delete peers;
