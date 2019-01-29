@@ -1062,7 +1062,7 @@ void MainWindow::onChatCheckPushNotificationRestrictionClicked()
     if (text != "")
     {
         MegaHandle chatid = mMegaApi->base64ToHandle(text.toStdString().c_str());
-        bool pushNotification = mMegaApi->isChatNotificable(chatid);
+        bool pushNotification = mMegaApi->isChatNotifiable(chatid);
         std::string result;
         result.append("Push notification for: ").append(text.toStdString()).append(pushNotification ? " IS generated" : " IS NOT generated");
         QMessageBox::information(this, tr("Push Restriction"), result.c_str());
