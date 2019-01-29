@@ -387,6 +387,9 @@ protected:
      * (currently, it includes contacts and any user in our groupchats, except ex-contacts) */
     IdRefMap mCurrentPeers;
 
+    /** Map of userids (key) and presence (value) of any user wich we're allowed to receive it's presence */
+    std::map<uint64_t, karere::Presence> mPeersPresence;
+
     /** Map of userids (key) and last green (value) of any contact or any user in our groupchats, except ex-contacts */
     std::map<uint64_t, time_t> mPeersLastGreen;
 

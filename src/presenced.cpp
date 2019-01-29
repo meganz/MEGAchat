@@ -1333,24 +1333,17 @@ void Client::removePeer(karere::Id peer, bool force)
 
 void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 {
-    auto it = mCurrentPeers.find(peer);
-    if (it == mCurrentPeers.end())
-    {
-        PRESENCED_LOG_DEBUG("updatePeerPresence: Unknown peer %s", peer.toString().c_str());
-        return;
-    }
-    it->second.pres = pres;
-
+    mPeersPresence[peer] = pres;
     CALL_LISTENER(onPresenceChange, peer, pres);
 }
 
 karere::Presence Client::peerPresence(karere::Id peer) const
 {
-    auto it = mCurrentPeers.find(peer);
-    if (it == mCurrentPeers.end())
+    auto it = mPeersPresence.find(peer);
+    if (it == mPeersPresence.end())
     {
         return karere::Presence::kInvalid;
     }
-    return it->second.pres;
+    return it->second;
 }
 }
