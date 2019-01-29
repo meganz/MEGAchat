@@ -1086,10 +1086,7 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
         return api.call(&::mega::MegaApi::getChatPresenceURL)
         .then([this, forcedPres](ReqResult result) -> Promise<void>
         {
-            auto url = result->getLink();
-            if (!url)
-                return promise::Error("No presenced URL received from API");
-            mPresencedUrl = url;
+            mPresencedUrl = result->getLink();
             return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
         });
     }

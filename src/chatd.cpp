@@ -363,15 +363,7 @@ void Chat::connect()
                 return;
             }
 
-            const char* url = result->getLink();
-            if (!url || !url[0])
-            {
-                CHATID_LOG_ERROR("No chatd URL received from API");
-                return;
-            }
-
-            std::string sUrl = url;
-            mConnection.mUrl.parse(sUrl);
+            mConnection.mUrl.parse(result->getLink());
             mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 
             mConnection.reconnect()
