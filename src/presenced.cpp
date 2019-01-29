@@ -42,18 +42,16 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
 ::promise::Promise<void>
 Client::connect(const std::string& url, const Config& config)
 {
-    mConfig = config;
-    mUrl.parse(url);
-
-    if (mConnState == kConnNew)
-    {
-        return reconnect();
-    }
-    else    // connect() was already called, reconnection is automatic
+    if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
         PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
         return ::promise::Void();
     }
+
+    mConfig = config;
+    mUrl.parse(url);
+
+    return reconnect();
 }
 
 void Client::pushPeers()
