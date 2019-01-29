@@ -797,8 +797,30 @@ void Client::doConnect()
     }
 }
 
-void Client::retryPendingConnection(bool disconnect)
+void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 {
+    if (refreshURL)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+
+        // abort and prevent any further reconnection attempt
+        setConnState(kDisconnected);
+        abortRetryController();
+        cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+        mConnectTimer = 0;
+
+        mUrl = Url();
+
+        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+        .then([this](ReqResult result)
+        {
+            mUrl.parse(result->getLink());
+            retryPendingConnection(true);
+        });
+
+        return;
+    }
+
     if (mUrl.isValid())
     {
         if (disconnect)

@@ -291,7 +291,7 @@ Client::~Client()
 #endif
 }
 
-void Client::retryPendingConnections(bool disconnect)
+void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 {
     if (mConnState == kDisconnected)  // already a connection attempt in-progress
     {
@@ -299,10 +299,10 @@ void Client::retryPendingConnections(bool disconnect)
         return;
     }
 
-    mPresencedClient.retryPendingConnection(disconnect);
+    mPresencedClient.retryPendingConnection(disconnect, refreshURL);
     if (mChatdClient)
     {
-        mChatdClient->retryPendingConnections(disconnect);
+        mChatdClient->retryPendingConnections(disconnect, refreshURL);
     }
 }
 

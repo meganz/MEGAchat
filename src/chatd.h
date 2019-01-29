@@ -476,7 +476,7 @@ public:
     bool isOnline() const;
     const std::set<karere::Id>& chatIds() const;
     uint32_t clientId() const;
-    void retryPendingConnection(bool disconnect);
+    void retryPendingConnection(bool disconnect, bool refreshURL = false);
     virtual ~Connection();
 
     void heartbeat();
@@ -1388,7 +1388,7 @@ public:
     void leave(karere::Id chatid);
 
     void disconnect();
-    void retryPendingConnections(bool disconnect);
+    void retryPendingConnections(bool disconnect, bool refreshURL = false);
     void heartbeat();
 
     void notifyUserIdle();

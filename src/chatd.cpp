@@ -876,8 +876,33 @@ void Connection::doConnect()
     }
 }
 
-void Connection::retryPendingConnection(bool disconnect)
+void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 {
+    if (refreshURL)
+    {
+        CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+
+        // abort and prevent any further reconnection attempt
+        setState(kStateDisconnected);
+        abortRetryController();
+        cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+        mConnectTimer = 0;
+
+        setState(State::kStateFetchingUrl);
+        mUrl = Url();
+
+        assert(mChatIds.size());
+
+        mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+        .then([this](ReqResult result)
+        {
+            mUrl.parse(result->getLink());
+            retryPendingConnection(true);
+        });
+
+        return;
+    }
+
     if (mUrl.isValid())
     {
         if (disconnect)
@@ -943,11 +968,11 @@ void Client::disconnect()
     }
 }
 
-void Client::retryPendingConnections(bool disconnect)
+void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 {
     for (auto& conn: mConnections)
     {
-        conn.second->retryPendingConnection(disconnect);
+        conn.second->retryPendingConnection(disconnect, refreshURL);
     }
 }
 

@@ -249,7 +249,8 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
         {
             bool disconnect = request->getFlag();
-            mClient->retryPendingConnections(disconnect);
+            bool refreshURLs = (bool)(request->getParamType() == 1);
+            mClient->retryPendingConnections(disconnect, refreshURLs);
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
@@ -1986,10 +1987,11 @@ bool MegaChatApiImpl::areAllChatsLoggedIn()
     return ret;
 }
 
-void MegaChatApiImpl::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
+void MegaChatApiImpl::retryPendingConnections(bool disconnect, bool refreshURL, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
     request->setFlag(disconnect);
+    request->setParamType(refreshURL ? 1 : 0);
     requestQueue.push(request);
     waiter->notify();
 }

@@ -240,6 +240,7 @@ void MegaChatApplication::enableStaging(bool enable)
 
     // force a reload upon api-url changes
     mMegaApi->fetchNodes();
+    mMegaChatApi->retryPendingConnections(true, true);
 }
 
 const char *MegaChatApplication::sid() const

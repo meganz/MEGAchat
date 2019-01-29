@@ -457,7 +457,7 @@ public:
     connect(const std::string& url, const Config& Config);
     void disconnect();
     void doConnect();
-    void retryPendingConnection(bool disconnect);
+    void retryPendingConnection(bool disconnect, bool refreshURL = false);
 
     /** @brief Performs server ping and check for network inactivity.
      * Must be called externally in order to have all clients
