@@ -2122,7 +2122,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
         ContactList::iterator it = mClient->contactList->find(userhandle);
         if (it != mClient->contactList->end())
         {
-            status = it->second->presence().status();
+            status = mClient->peerPresence(karere::Id(userhandle)).status();
         }
         else if (userhandle == mClient->myHandle())
         {

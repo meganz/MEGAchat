@@ -435,7 +435,6 @@ protected:
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
-    void updatePresence(Presence pres);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
@@ -477,9 +476,6 @@ public:
      */
     int visibility() const { return mVisibility; }
 
-    /** @brief The presence of the contact */
-    Presence presence() const;
-
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
@@ -493,7 +489,6 @@ class ContactList: public std::map<uint64_t, Contact*>
     friend class Client;
 protected:
     void removeUser(iterator it);
-    void onPresenceChanged(Id userid, Presence pres);
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;

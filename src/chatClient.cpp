@@ -1135,15 +1135,10 @@ void Client::onPresenceChange(Id userid, Presence pres)
         return;
     }
 
-    if (userid == mMyHandle)
-    {
-        updatePeerPresence(mMyHandle, pres);
-    }
-    else
-    {
-        contactList->onPresenceChanged(userid, pres);
-    }
+    // Update peer presence
+    updatePeerPresence(userid, pres);
 
+    // Notify apps
     app.onPresenceChanged(userid, pres, false);
 }
 void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
@@ -2788,16 +2783,6 @@ void Contact::onVisibilityChanged(int newVisibility)
     }
 }
 
-void Contact::updatePresence(Presence pres)
-{
-    mClist.client.mChatdClient->mKarereClient->updatePeerPresence(karere::Id(mUserid), pres);
-}
-
-Presence Contact::presence() const
-{
-    return mClist.client.mChatdClient->mKarereClient->peerPresence(karere::Id(mUserid));
-}
-
 void ContactList::syncWithApi(mega::MegaUserList& users)
 {
     std::set<uint64_t> apiUsers;
@@ -2851,15 +2836,6 @@ void ContactList::removeUser(iterator it)
     delete it->second;
     erase(it);
     client.db.query("delete from contacts where userid=?", handle);
-}
-void ContactList::onPresenceChanged(Id userid, Presence pres)
-{
-    auto it = find(userid);
-    if (it == end())
-        return;
-    {
-        it->second->updatePresence(pres);
-    }
 }
 
 promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
