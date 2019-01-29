@@ -1025,8 +1025,8 @@ bool Client::sendPrefs()
 
 void Client::configChanged()
 {
-    CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), mConfig.mPresence, mPrefsAckWait);
     CALL_LISTENER(onPresenceConfigChanged, mConfig, mPrefsAckWait);
+    CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), mConfig.mPresence, mPrefsAckWait);
 }
 
 void Config::fromCode(uint16_t code)
