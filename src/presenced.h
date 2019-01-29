@@ -298,26 +298,15 @@ public:
     virtual ~Command(){}
 };
 
-/** Struct to store the presence of contacts/peers and the number of refs */
-struct PeersPresence
+struct IdRefMap: public std::map<karere::Id, int>
 {
-    int numRefs;               //refCount
-    karere::Presence pres;     //presence value
-    PeersPresence()
-        :numRefs(1), pres(karere::Presence::kInvalid)
-    {}
-};
-
-/** Maps UserId to PeersPresence {numRefs, presence} */
-struct IdRefMap: public std::map<karere::Id, PeersPresence>
-{
-    typedef std::map<karere::Id, PeersPresence> Base;
+    typedef std::map<karere::Id, int> Base;
     int insert(karere::Id id)
     {
-        auto result = Base::insert(std::make_pair(id, PeersPresence()));
+        auto result = Base::insert(std::make_pair(id, 1));
         return result.second
             ? 1 //we just inserted the peer
-            : ++result.first->second.numRefs; //already have that peer
+            : ++result.first->second; //already have that peer
     }
 };
 

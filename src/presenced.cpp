@@ -1298,7 +1298,7 @@ void Client::removePeer(karere::Id peer, bool force)
         PRESENCED_LOG_WARNING("removePeer: Unknown peer %s", peer.toString().c_str());
         return;
     }
-    if (--it->second.numRefs > 0)
+    if (--it->second > 0)
     {
         if (!force)
         {
@@ -1312,7 +1312,7 @@ void Client::removePeer(karere::Id peer, bool force)
     }
     else //refcount reched zero
     {
-        assert(it->second.numRefs == 0);
+        assert(it->second == 0);
     }
 
     mCurrentPeers.erase(it);
