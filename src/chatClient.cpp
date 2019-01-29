@@ -1115,12 +1115,9 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
 
 promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
 {
-//we assume app.onOwnPresence(Presence::kOffline) has been called at application start
-
-    // Notify presence, if any
+    // Notify presence, if any, in order to initialize the GUI
     if (pres.isValid())
     {
-        updatePeerPresence(mMyHandle, pres);
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
@@ -1128,19 +1125,17 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 }
 
 // presenced handlers
-void Client::onPresenceChange(Id userid, Presence pres)
+void Client::onPresenceChange(Id userid, Presence pres, bool inProgress)
 {
     if (isTerminated())
     {
         return;
     }
 
-    // Update peer presence
-    updatePeerPresence(userid, pres);
-
     // Notify apps
-    app.onPresenceChanged(userid, pres, false);
+    app.onPresenceChanged(userid, pres, inProgress);
 }
+
 void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
 {
     app.onPresenceConfigChanged(state, pending);
@@ -1264,7 +1259,6 @@ promise::Promise<void> Client::setPresence(Presence pres)
         return promise::Error("setPresence: not connected", kErrorAccess);
     }
 
-    app.onPresenceChanged(mMyHandle, pres, true);
     return promise::_Void();
 }
 

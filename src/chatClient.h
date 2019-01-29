@@ -883,7 +883,7 @@ protected:
 
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);
-    virtual void onPresenceChange(Id userid, Presence pres);
+    virtual void onPresenceChange(Id userid, Presence pres, bool inProgress = false);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onPresenceLastGreenUpdated(karere::Id userid);
 

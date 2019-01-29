@@ -1027,6 +1027,7 @@ bool Client::sendPrefs()
 
 void Client::configChanged()
 {
+    CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), mConfig.mPresence, mPrefsAckWait);
     CALL_LISTENER(onPresenceConfigChanged, mConfig, mPrefsAckWait);
 }
 
@@ -1114,7 +1115,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                CALL_LISTENER(onPresenceChange, userid, pres);
+                updatePeerPresence(userid, pres);
                 break;
             }
             case OP_PREFS:
@@ -1245,9 +1246,9 @@ void Client::setConnState(ConnState newState)
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
         {
-            CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
+            updatePeerPresence(it->first, Presence::kInvalid);
         }
-        CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), Presence::kInvalid);
+        updatePeerPresence(mKarereClient->myHandle(), Presence::kInvalid);
     }
     else if (mConnState == kConnected)
     {
@@ -1341,6 +1342,8 @@ void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
         return;
     }
     it->second.pres = pres;
+
+    CALL_LISTENER(onPresenceChange, peer, pres);
 }
 
 karere::Presence Client::peerPresence(karere::Id peer) const

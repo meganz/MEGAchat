@@ -493,7 +493,7 @@ class Listener
 {
 public:
     virtual void onConnStateChange(Client::ConnState state) = 0;
-    virtual void onPresenceChange(karere::Id userid, karere::Presence pres) = 0;
+    virtual void onPresenceChange(karere::Id userid, karere::Presence pres, bool inProgress = false) = 0;
     virtual void onPresenceConfigChanged(const Config& Config, bool pending) = 0;
     virtual void onPresenceLastGreenUpdated(karere::Id userid) = 0;
     virtual void onDestroy(){}
