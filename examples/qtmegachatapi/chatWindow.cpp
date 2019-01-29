@@ -1183,7 +1183,7 @@ void ChatWindow::onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *requ
                     dndDelay = (dndDelay > -1) ? dndDelay : -1;
                     bool ok;
                     int newDndDelay = QInputDialog::getInt(this, tr("Push notification restriction"),
-                                                             tr("Intro time without notifications: "), dndDelay, -1, 2147483647, 1, &ok);
+                                                             tr("Intro time without notifications (s): "), dndDelay, -1, 2147483647, 1, &ok);
 
                     if (ok && dndDelay != newDndDelay)
                     {

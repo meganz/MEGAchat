@@ -36,6 +36,8 @@ private:
 private slots:
     void accepted();
     void rejected();
+    void onGlobalClicked(bool value);
+    void onScheduleClicked(bool value);
 };
 
 #endif // SETTINGWINDOW_H

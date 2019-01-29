@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>721</width>
+    <width>856</width>
     <height>566</height>
    </rect>
   </property>
@@ -49,7 +49,7 @@
             <item>
              <widget class="QCheckBox" name="shares">
               <property name="text">
-               <string>In shares</string>
+               <string>Shares</string>
               </property>
              </widget>
             </item>
@@ -58,7 +58,34 @@
               <item>
                <widget class="QLabel" name="label_4">
                 <property name="text">
-                 <string>General do not disturb:</string>
+                 <string>Global do not disturb:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="globalEnabled">
+                <property name="text">
+                 <string>Enabled</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_2">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_5">
+                <property name="text">
+                 <string>Period(s):</string>
                 </property>
                </widget>
               </item>
@@ -92,6 +119,13 @@
                 </property>
                 <property name="text">
                  <string>Schedule Start:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="scheduleEnabled">
+                <property name="text">
+                 <string>Enabled</string>
                 </property>
                </widget>
               </item>
