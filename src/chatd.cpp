@@ -870,6 +870,12 @@ void Connection::doConnect()
 
 void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 {
+    if (mState == kStateNew)
+    {
+        CHATDS_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        return;
+    }
+
     if (refreshURL || !mUrl.isValid())
     {
         if (State::kStateFetchingUrl)

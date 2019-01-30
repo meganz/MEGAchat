@@ -810,6 +810,12 @@ void Client::doConnect()
 
 void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 {
+    if (mConnState == kConnNew)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        return;
+    }
+
     if (refreshURL || !mUrl.isValid())
     {
         if (mConnState == ConnState::kFetchingUrl)
