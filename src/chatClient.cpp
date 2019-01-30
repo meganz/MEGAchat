@@ -1088,24 +1088,13 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
             if (!url)
                 return promise::Error("No presenced URL received from API");
             mPresencedUrl = url;
-            return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+            return mPresencedClient.connect(mPresencedUrl, forcedPres);
         });
     }
     else
     {
-        return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+        return mPresencedClient.connect(mPresencedUrl, forcedPres);
     }
-}
-
-promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
-{
-    // Notify presence, if any, in order to initialize the GUI
-    if (pres.isValid())
-    {
-        app.onPresenceChanged(mMyHandle, pres, true);
-    }
-
-    return mPresencedClient.connect(url, presenced::Config(pres));
 }
 
 // presenced handlers

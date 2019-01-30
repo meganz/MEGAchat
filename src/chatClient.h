@@ -857,7 +857,6 @@ protected:
     // connection-related methods
     void connectToChatd(bool isInBackground);
     promise::Promise<void> connectToPresenced(Presence pres);
-    promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
     promise::Promise<int> initializeContactList();
 
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
