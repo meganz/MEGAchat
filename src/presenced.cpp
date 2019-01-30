@@ -810,55 +810,63 @@ void Client::doConnect()
 
 void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 {
-    if (refreshURL)
+    if (refreshURL || !mUrl.isValid())
     {
+        if (mConnState == ConnState::kFetchingUrl)
+        {
+            PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            return;
+        }
+
         PRESENCED_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
 
         // abort and prevent any further reconnection attempt
         setConnState(kDisconnected);
         abortRetryController();
-        cancelTimeout(mConnectTimer, mKarereClient->appCtx);
-        mConnectTimer = 0;
-
-        mUrl = Url();
-
-        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([this](ReqResult result)
+        if (mConnectTimer)
         {
+            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            mConnectTimer = 0;
+        }
+
+        // clear existing URL
+        mUrl = Url();
+        setConnState(kFetchingUrl);
+
+        auto wptr = getDelTracker();
+        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+        .then([this, wptr](ReqResult result)
+        {
+            if (wptr.deleted())
+            {
+                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                return;
+            }
+
             mUrl.parse(result->getLink());
             retryPendingConnection(true);
         });
-
-        return;
     }
-
-    if (mUrl.isValid())
+    else if (disconnect)
     {
-        if (disconnect)
-        {
-            PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
 
-            setConnState(kDisconnected);
-            abortRetryController();
-            reconnect();
-        }
-        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
-        {
-            PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+        setConnState(kDisconnected);
+        abortRetryController();
+        reconnect();
+    }
+    else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
 
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
+        assert(!isOnline());
+        assert(!mHeartbeatEnabled);
 
-            mRetryCtrl->restart();
-        }
-        else
-        {
-            PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
-        }
+        mRetryCtrl->restart();
     }
     else
     {
-        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+        PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
     }
 }
 
