@@ -893,7 +893,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
                      "Online status didn't changed to online from autoaway after signaling activity. Received: " + std::string(MegaChatRoom::statusToString(onlineStatus)));
 
 
-    delete sesion;
+    delete [] sesion;
     sesion = NULL;
 }
 
