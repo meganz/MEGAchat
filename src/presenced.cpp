@@ -39,21 +39,32 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-::promise::Promise<void>
-Client::connect(const std::string& url, const Config& config)
+Promise<void> Client::connect(const Config& config)
 {
-    mConfig = config;
-    mUrl.parse(url);
-
-    if (mConnState == kConnNew)
-    {
-        return reconnect();
-    }
-    else    // connect() was already called, reconnection is automatic
+    if (mConnState != kConnNew)
     {
         PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
         return ::promise::Void();
     }
+
+    assert(!mUrl.isValid());
+
+    mConfig = config;
+    setConnState(kFetchingUrl);
+
+    auto wptr = getDelTracker();
+    return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+    .then([this, wptr](ReqResult result) -> Promise<void>
+    {
+        if (wptr.deleted())
+        {
+            PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+            return ::promise::_Void();
+        }
+
+        mUrl.parse(result->getLink());
+        return reconnect();
+    });
 }
 
 void Client::pushPeers()

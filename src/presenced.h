@@ -318,6 +318,7 @@ public:
     enum ConnState
     {
         kConnNew = 0,
+        kFetchingUrl,
         kDisconnected,
         kResolving,
         kConnecting,
@@ -454,7 +455,7 @@ public:
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
     promise::Promise<void>
-    connect(const std::string& url, const Config& Config);
+    connect(const Config& Config);
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect, bool refreshURL = false);
@@ -510,6 +511,7 @@ static inline const char* connStateToStr(Client::ConnState state)
     case Client::kConnecting: return "Connecting";
     case Client::kConnected: return "Connected";
     case Client::kLoggedIn: return "Logged-in";
+    case Client::kFetchingUrl: return "Fetching URL";
     case Client::kConnNew: return "New";
     default: return "(invalid)";
     }

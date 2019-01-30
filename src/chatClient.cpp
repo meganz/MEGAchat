@@ -903,7 +903,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     connectToChatd(isInBackground);
 
     auto wptr = weakHandle();
-    auto pms = connectToPresenced(mOwnPresence)
+    auto pms = mPresencedClient.connect(presenced::Config(mOwnPresence))
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1076,38 +1076,6 @@ void Client::loadOwnKeysFromDb()
     len = stmt.blobCol(0, mMyPrivEd25519, sizeof(mMyPrivEd25519));
     if (len != sizeof(mMyPrivEd25519))
         throw std::runtime_error("Unexpected length of privEd2519 in database");
-}
-
-
-promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
-{
-    if (mPresencedUrl.empty())
-    {
-        return api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([this, forcedPres](ReqResult result) -> Promise<void>
-        {
-            mPresencedUrl = result->getLink();
-            return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
-        });
-    }
-    else
-    {
-        return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
-    }
-}
-
-promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
-{
-//we assume app.onOwnPresence(Presence::kOffline) has been called at application start
-
-    // Notify presence, if any
-    if (pres.isValid())
-    {
-        mOwnPresence = pres;
-        app.onPresenceChanged(mMyHandle, pres, true);
-    }
-
-    return mPresencedClient.connect(url, presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
