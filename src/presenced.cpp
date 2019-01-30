@@ -42,18 +42,16 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
 ::promise::Promise<void>
 Client::connect(const std::string& url, const Config& config)
 {
-    mConfig = config;
-    mUrl.parse(url);
-
-    if (mConnState == kConnNew)
-    {
-        return reconnect();
-    }
-    else    // connect() was already called, reconnection is automatic
+    if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
         PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
         return ::promise::Void();
     }
+
+    mConfig = config;
+    mUrl.parse(url);
+
+    return reconnect();
 }
 
 void Client::pushPeers()
@@ -1028,6 +1026,7 @@ bool Client::sendPrefs()
 void Client::configChanged()
 {
     CALL_LISTENER(onPresenceConfigChanged, mConfig, mPrefsAckWait);
+    CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), mConfig.mPresence, mPrefsAckWait);
 }
 
 void Config::fromCode(uint16_t code)
@@ -1114,7 +1113,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                CALL_LISTENER(onPresenceChange, userid, pres);
+                updatePeerPresence(userid, pres);
                 break;
             }
             case OP_PREFS:
@@ -1245,9 +1244,9 @@ void Client::setConnState(ConnState newState)
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
         {
-            CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
+            updatePeerPresence(it->first, Presence::kInvalid);
         }
-        CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), Presence::kInvalid);
+        updatePeerPresence(mKarereClient->myHandle(), Presence::kInvalid);
     }
     else if (mConnState == kConnected)
     {
@@ -1330,5 +1329,21 @@ void Client::removePeer(karere::Id peer, bool force)
     cmd.append<uint64_t>(peer.val);
 
     sendCommand(std::move(cmd));
+}
+
+void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
+{
+    mPeersPresence[peer] = pres;
+    CALL_LISTENER(onPresenceChange, peer, pres);
+}
+
+karere::Presence Client::peerPresence(karere::Id peer) const
+{
+    auto it = mPeersPresence.find(peer);
+    if (it == mPeersPresence.end())
+    {
+        return karere::Presence::kInvalid;
+    }
+    return it->second;
 }
 }
