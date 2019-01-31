@@ -1298,6 +1298,9 @@ void Call::msgJoin(RtMessage& packet)
 {
     if (mState == kStateRingIn && packet.userid == mManager.mKarereClient.myHandle())
     {
+        // Avoid new CALLDATA, from caller, starts a new ringing call
+        // Ohter client from our user has answer the call
+        mHandler->addParticipant(packet.userid, packet.clientid, karere::AvFlags());
         destroy(TermCode::kAnsElsewhere, false);
     }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
