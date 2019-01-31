@@ -878,7 +878,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mUrl.isValid())
     {
-        if (mState == State::kStateFetchingUrl)
+        if (mState == kStateFetchingUrl)
         {
             CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
@@ -892,7 +892,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 
         // clear existing URL
         mUrl = Url();
-        setState(State::kStateFetchingUrl);
+        setState(kStateFetchingUrl);
 
         assert(mChatIds.size());
 

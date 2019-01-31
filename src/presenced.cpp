@@ -818,7 +818,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 
     if (refreshURL || !mUrl.isValid())
     {
-        if (mConnState == ConnState::kFetchingUrl)
+        if (mConnState == kFetchingUrl)
         {
             PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
