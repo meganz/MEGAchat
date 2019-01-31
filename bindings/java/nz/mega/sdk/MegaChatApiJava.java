@@ -2237,6 +2237,24 @@ public class MegaChatApiJava {
         return megaChatApi.areGroupChatCallEnabled();
     }
 
+    /**
+     * @brief Returns the maximum call participants
+     *
+     * @return Maximum call participants
+     */
+    public int getMaxCallParticipants() {
+        return megaChatApi.getMaxCallParticipants();
+    }
+
+    /**
+     * @brief Returns the maximum video call participants
+     *
+     * @return Maximum video call participants
+     */
+    public int getMaxVideoCallParticipants() {
+        return megaChatApi.getMaxVideoCallParticipants();
+    }
+
     public static void setCatchException(boolean enable) {
         MegaChatApi.setCatchException(enable);
     }
