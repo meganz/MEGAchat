@@ -69,11 +69,16 @@ protected:
 
 // Abstract class that allows to manage a websocket connection.
 // It's needed to subclass this class in order to receive callbacks
+
 class WebsocketsClient
 {
 private:
     WebsocketsClientImpl *ctx;
+#if defined(_WIN32) && defined(_MSC_VER)
+    std::thread::id thread_id;
+#else
     pthread_t thread_id;
+#endif
 
 public:
     WebsocketsClient();

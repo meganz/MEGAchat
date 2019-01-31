@@ -2904,6 +2904,11 @@ public:
      * exists with that person, then this call will return the information for the existing chat, rather
      * than a new chat.
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - If we are trying to create a chat with no participants
+     * - MegaChatError::ERROR_ACCESS - If the target user does not exists or is the same as caller
+     * - MegaChatError::ERROR_NOENT - If the target user is not a contact
+     *
      * @param group Flag to indicate if the chat is a group chat or not
      * @param peers MegaChatPeerList including other users and their privilege level
      * @param listener MegaChatRequestListener to track this request
@@ -2921,7 +2926,8 @@ public:
      * - MegaChatRequest::getPrivilege - Returns the privilege level wanted for the user
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers.
+     * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to invite peers
+     * or the target is not actually contact of the user.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
      * - MegaChatError::ERROR_ARGS - If the chat is not a group chat (cannot invite peers)
      *
@@ -2986,7 +2992,6 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - If the logged in user doesn't have privileges to update the privilege level.
      * - MegaChatError::ERROR_NOENT - If there isn't any chat with the specified chatid.
-     * - MegaChatError::ERROR_ARGS - If the chatid or user handle are invalid
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param uh MegaChatHandle that identifies the user
@@ -3083,7 +3088,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ENOENT - If the chatroom doesn't exists.
-     * - MegaChatError::ERROR_ARGS - If chatid is invalid.he chat that was actually saved.
+     * - MegaChatError::ERROR_ACCESS - If caller is not operator.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param archive True to set the chat as archived, false to unarchive it.
@@ -3163,9 +3168,8 @@ public:
     /**
      * @brief Returns the MegaChatMessage specified from the chat room.
      *
-     * This function allows to retrieve only those messages that are already loaded
-     * and notified by MegaChatRoomListener::onMessageLoaded and/or messages that are
-     * in sending-status (not yet confirmed). For any other message, this function
+     * This function allows to retrieve only those messages that are been loaded, received and/or
+     * sent (confirmed and not yet confirmed). For any other message, this function
      * will return NULL.
      *
      * You take the ownership of the returned value.
@@ -3175,6 +3179,19 @@ public:
      * @return The MegaChatMessage object, or NULL if not found.
      */
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+
+    /**
+     * @brief Returns the MegaChatMessage specified from the chat room stored in node history
+     *
+     * This function allows to retrieve only those messages that are in the node history
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param msgid MegaChatHandle that identifies the message
+     * @return The MegaChatMessage object, or NULL if not found.
+     */
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
 
     /**
      * @brief Returns the MegaChatMessage specified from manual sending queue.
@@ -3327,6 +3344,41 @@ public:
      */
      MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
 
+     /**
+      * @brief Edit a geolocation message
+      *
+      * Message's edits are only allowed during a short timeframe, usually 1 hour.
+      * Message's deletions are equivalent to message's edits, but with empty content.
+      *
+      * There is only one pending edit for not-yet confirmed edits. Therefore, this function will
+      * discard previous edits that haven't been notified via MegaChatRoomListener::onMessageUpdate
+      * where the message has MegaChatMessage::hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT).
+      *
+      * If the edit is rejected because the original message is too old, this function return NULL.
+      *
+      * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status
+      * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
+      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
+      * to know when an edit has been delivered to the target user, but only when the edit has been
+      * received by the server, so for convenience the status of the original message is kept.
+      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+      * reach the status delivered, since the target user will not send the required acknowledge to the
+      * server upon reception.
+      *
+      * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
+      * that it isn't typing
+      *
+      * You take the ownership of the returned value.
+      *
+      * @param chatid MegaChatHandle that identifies the chat room
+      * @param msgid MegaChatHandle that identifies the message
+      * @param longitude from shared geolocation
+      * @param latitude from shared geolocation
+      * @param img Preview as a byte array encoded in Base64URL. It can be NULL
+      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
+      */
+      MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
+
     /**
      * @brief Revoke the access to a node in the specified chatroom
      *
@@ -3388,6 +3440,12 @@ public:
      *
      * If the message is rejected by the server, the message will keep its temporal id and will have its
      * a message id set to MEGACHAT_INVALID_HANDLE.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom, the node or the target user don't exists
+     * - MegaChatError::ERROR_ACCESS - If the target user is the same as caller
+     * - MegaChatError::ERROR_ACCESS - If the target user is anonymous but the chat room is in private mode
+     * - MegaChatError::ERROR_ACCESS - If caller is not an operator or the target user is not a chat member
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param nodehandle Handle of the node that the user wants to attach
@@ -3690,11 +3748,16 @@ public:
      * - MegaChatRequest::getChatHandle - Return the chatid to check for updates
      * - MegaChatRequest::getParamType - Return 1
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not does not exist.
+     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be generated).
+     *
      * @param beep True if push should generate a beep, false if it shouldn't.
      * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
      * @param listener MegaChatRequestListener to track this request
      */
     void pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Audio/Video device management
@@ -3992,6 +4055,20 @@ public:
      * @return True if group calls are enabled. Otherwise, false.
      */
     bool areGroupChatCallEnabled();
+
+    /**
+     * @brief Returns the maximum call participants
+     *
+     * @return Maximum call participants
+     */
+    int getMaxCallParticipants();
+
+    /**
+     * @brief Returns the maximum video call participants
+     *
+     * @return Maximum video call participants
+     */
+    int getMaxVideoCallParticipants();
 
 #endif
 

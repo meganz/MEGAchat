@@ -1,7 +1,0 @@
-[submodule "third-party/libws"]
-	path = third-party/libws
-	url = https://github.com/meganz/libws.git
-[submodule "third-party/libevent"]
-	path = third-party/libevent
-	url = https://github.com/meganz/libevent.git
-

@@ -32,7 +32,7 @@
 #include <megaapi_impl.h>
 
 #ifndef KARERE_DISABLE_WEBRTC
-#include <rtcModule/webrtc.h>
+#include "rtcModule/webrtc.h"
 #include <IVideoRenderer.h>
 #endif
 
@@ -41,29 +41,13 @@
 #include <sdkApi.h>
 #include <karereCommon.h>
 #include <logger.h>
-
-#include "net/websocketsIO.h"
 #include <rapidjson/document.h>
-
 #include <stdint.h>
-
-#ifdef USE_LIBWEBSOCKETS
-
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
 
 typedef LibwebsocketsIO MegaWebsocketsIO;
 typedef ::mega::LibuvWaiter MegaChatWaiter;
-
-#else
-
-#include "net/libwsIO.h"
-#include "waiter/libeventWaiter.h"
-
-typedef LibwsIO MegaWebsocketsIO;
-typedef ::mega::LibeventWaiter MegaChatWaiter;
-
-#endif
 
 namespace megachat
 {
@@ -924,8 +908,6 @@ private:
 
     static int convertInitState(int state);
 
-    MegaChatMessage *prepareAttachNodesMessage(std::string buffer, MegaChatHandle chatid, uint8_t type);
-
 public:
     static void megaApiPostMessage(void* msg, void* ctx);
     void postMessage(void *msg);
@@ -1074,17 +1056,19 @@ public:
     int loadMessages(MegaChatHandle chatid, int count);
     bool isFullHistoryLoaded(MegaChatHandle chatid);
     MegaChatMessage *getMessage(MegaChatHandle chatid, MegaChatHandle msgid);
+    MegaChatMessage *getMessageFromNodeHistory(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getManualSendingMessage(MegaChatHandle chatid, MegaChatHandle rowid);
-    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg);
-    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* handles);
+    MegaChatMessage *sendMessage(MegaChatHandle chatid, const char* msg, size_t msgLen, int type = MegaChatMessage::TYPE_NORMAL);
+    MegaChatMessage *attachContacts(MegaChatHandle chatid, mega::MegaHandleList* contacts);
     MegaChatMessage *forwardContact(MegaChatHandle sourceChatid, MegaChatHandle msgid, MegaChatHandle targetChatId);
     void attachNodes(MegaChatHandle chatid, mega::MegaNodeList *nodes, MegaChatRequestListener *listener = NULL);
     void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     MegaChatMessage *sendGeolocation(MegaChatHandle chatid, float longitude, float latitude, const char *img = NULL);
+    MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
     void attachVoiceMessage(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
     void revokeAttachment(MegaChatHandle chatid, MegaChatHandle handle, MegaChatRequestListener *listener = NULL);
     bool isRevoked(MegaChatHandle chatid, MegaChatHandle nodeHandle);
-    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg);
+    MegaChatMessage *editMessage(MegaChatHandle chatid, MegaChatHandle msgid, const char* msg, size_t msgLen);
     MegaChatMessage *removeRichLink(MegaChatHandle chatid, MegaChatHandle msgid);
     bool setMessageSeen(MegaChatHandle chatid, MegaChatHandle msgid);
     MegaChatMessage *getLastMessageSeen(MegaChatHandle chatid);
@@ -1121,6 +1105,8 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
     void enableGroupChatCalls(bool enable);
     bool areGroupChatCallEnabled();
+    int getMaxCallParticipants();
+    int getMaxVideoCallParticipants();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);
@@ -1131,7 +1117,6 @@ public:
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
-    virtual IApp::IContactListHandler *contactListHandler();
     virtual IApp::IChatListHandler *chatListHandler();
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
@@ -1278,12 +1263,18 @@ public:
 class JSonUtils
 {
 public:
-    // you take the ownership of the returned value. NULL if error
-    static const char* generateAttachNodeJSon(mega::MegaNodeList* nodes);
+    static std::string generateAttachNodeJSon(mega::MegaNodeList* nodes, uint8_t type);
+    static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
+    static std::string generateGeolocationJSon(float longitude, float latitude, const char *img);
+
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
+
     // you take the ownership of returned value. NULL if error
     static std::vector<MegaChatAttachedUser> *parseAttachContactJSon(const char* json);
+
+    // you take the ownership of the returned value. NULL if error
+    static const MegaChatContainsMeta *parseContainsMeta(const char* json, uint8_t type, bool onlyTextMessage = false);
 
     /**
      * If the message is of type MegaChatMessage::TYPE_ATTACHMENT, this function
@@ -1294,12 +1285,11 @@ public:
      * by ASCII character '0x01'
      */
     static std::string getLastMessageContent(const std::string &content, uint8_t type);
-    static const MegaChatContainsMeta *parseContainsMeta(const char* json, uint8_t type, bool onlyTextMessage = false);
-    static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
-    static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
 
 private:
     static std::string getImageFormat(const char* imagen);
+    static MegaChatRichPreview *parseRichPreview(rapidjson::Document &document, std::string &textMessage);
+    static MegaChatGeolocation *parseGeolocation(rapidjson::Document &document);
 };
 
 }

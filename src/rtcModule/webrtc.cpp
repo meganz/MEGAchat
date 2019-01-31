@@ -1,3 +1,7 @@
+#ifdef WIN32
+#include <WinSock2.h> // for htonll, needed in webrtc\rtc_base\byteorder.h
+#endif
+
 #include "webrtc.h"
 #include "webrtcPrivate.h"
 #include <chatClient.h>
@@ -367,20 +371,19 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             itCall->second->destroy(TermCode::kAnswerTimeout, false);
         }
     }
-    else if (ringing)
-    {
-        updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
-        auto itCallHandler = mCallHandlers.find(chatid);
-        // itCallHandler is created at updatePeerAvState
-        assert(itCallHandler != mCallHandlers.end());
-        if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()))
-        {
-            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
-        }
-    }
     else
     {
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
+        if (ringing)
+        {
+            auto itCallHandler = mCallHandlers.find(chatid);
+            // itCallHandler is created at updatePeerAvState
+            assert(itCallHandler != mCallHandlers.end());
+            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()))
+            {
+                handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+            }
+        }
     }
 
     if (state == Call::CallDataState::kCallDataSession || state == Call::CallDataState::kCallDataSessionKeepRinging)
@@ -437,7 +440,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
     const auto& devices = mDeviceManager.inputDevices();
 
     if (!devices.video.empty() && !mVideoInDeviceName.empty())
-     {
+    {
         try
          {
             auto device = getDevice(mVideoInDeviceName, devices.video);
@@ -458,7 +461,7 @@ RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution
             errors.append("Error getting video device: ")
                   .append(e.what()?e.what():"Unknown error")+='\n';
         }
-     }
+    }
 
     if (!devices.audio.empty() && !mAudioInDeviceName.empty())
      {
@@ -3084,7 +3087,7 @@ void StateDesc::assertStateChange(uint8_t oldState, uint8_t newState) const
 }
 
 const StateDesc Call::sStateDesc = {
-    .transMap = {
+    {
         { kStateReqSent, kStateHasLocalStream, kStateTerminating }, //for kStateInitial
         { kStateJoining, kStateReqSent, kStateTerminating }, //for kStateHasLocalStream
         { kStateInProgress, kStateTerminating },             //for kStateReqSent
@@ -3095,11 +3098,11 @@ const StateDesc Call::sStateDesc = {
         { kStateDestroyed },                                 //for kStateTerminating,
         {}                                                   //for kStateDestroyed
     },
-    .toStrFunc = Call::stateToStr
+    Call::stateToStr
 };
 
 const StateDesc Session::sStateDesc = {
-    .transMap = {
+    {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kStateWaitSdpOffer
         { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
@@ -3108,7 +3111,7 @@ const StateDesc Session::sStateDesc = {
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
     },
-    .toStrFunc = Session::stateToStr
+    Session::stateToStr
 };
 
 const char* rtcmdTypeToStr(uint8_t type)

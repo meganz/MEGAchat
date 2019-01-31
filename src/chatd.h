@@ -625,6 +625,8 @@ public:
     void setHandler(FilteredHistoryHandler *handler);
     void unsetHandler();
     void finishFetchingFromServer();
+    Message *getMessage(karere::Id id);
+    Idx getMessageIdx(karere::Id id);
 
 protected:
     DbInterface *mDb;
@@ -1052,6 +1054,22 @@ public:
     }
 
     /**
+     * @brief Returns the message with specific msgid that it's stored at node history
+     * @param msgid The message id
+     * @return Pointer to the message. The ownership of the message is retained in c\ FilteredHistory
+     */
+    Message *getMessageFromNodeHistory(karere::Id msgid) const;
+
+    /**
+     * @brief Returns the index of the message with the specified msgid that it's stored at node history
+     * @param msgid The message id whose index to find
+     * @return The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx getIdxFromNodeHistory(karere::Id msgid) const;
+
+    /**
      * @brief Initiates fetching more history - from local RAM history buffer,
      * from local db or from server.
      * If ram + local db have less than the number of requested messages,
@@ -1306,6 +1324,9 @@ protected:
     // maps chatids to the Chat object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
 
+    // maps userids to the timestamp of the most recent message received from the userid
+    std::map<karere::Id, ::mega::m_time_t> mLastMsgTs;
+
     // set of seen timers
     std::set<megaHandle> mSeenTimers;
 
@@ -1381,6 +1402,10 @@ public:
 
     // True if clients send confirmation to chatd when they receive a new message
     bool isMessageReceivedConfirmationActive() const;
+
+    // The timestamps of the most recent message from userid
+    mega::m_time_t getLastMsgTs(karere::Id userid) const;
+    void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
 
     friend class Connection;
     friend class Chat;
@@ -1492,7 +1517,7 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
 
     virtual Idx getOldestIdx() = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
@@ -1502,6 +1527,8 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
+
+    virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 };
 
 }

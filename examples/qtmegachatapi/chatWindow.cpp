@@ -119,6 +119,8 @@ ChatWindow::~ChatWindow()
 
     mMegaChatApi->closeChatRoom(mChatRoom->getChatId(),megaChatRoomListenerDelegate);
     mMegaApi->removeTransferListener(megaTransferListenerDelegate);
+
+    delete megaChatNodeHistoryListenerDelegate;
     delete megaChatRoomListenerDelegate;
     delete megaTransferListenerDelegate;
     delete mChatRoom;

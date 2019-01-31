@@ -761,13 +761,6 @@ void MainWindow::onChatConnectionStateUpdate(MegaChatApi *, MegaChatHandle chati
 
         //Reorder chat list in QtApp
         reorderAppChatList();
-
-        megachat::MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-        if (presenceConfig)
-        {
-            onChatPresenceConfigUpdate(mMegaChatApi, presenceConfig);
-        }
-        delete presenceConfig;
         return;
     }
 
@@ -806,7 +799,10 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
             show();
         }
 
-        QString auxTitle(mMegaChatApi->getMyEmail());
+        const char *myEmail = mMegaChatApi->getMyEmail();
+        QString auxTitle(myEmail);
+        delete [] myEmail;
+
         if (mApp->sid() && newState == MegaChatApi::INIT_OFFLINE_SESSION)
         {
             auxTitle.append(" [OFFLINE MODE]");
@@ -836,7 +832,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
         status = 0;
     }
 
-    if (this->mMegaChatApi->getMyUserHandle() == userhandle && !inProgress)
+    if (mMegaChatApi->getMyUserHandle() == userhandle && !inProgress)
     {
         ui->bOnlineStatus->setText(kOnlineSymbol_Set);
         if (status >= 0 && status < NINDCOLORS)

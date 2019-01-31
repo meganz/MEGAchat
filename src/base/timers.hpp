@@ -25,10 +25,10 @@
 #include "gcmpp.h"
 #include <memory>
 #include <assert.h>
-extern std::recursive_mutex timerMutex;
 
 namespace karere
 {
+
 struct TimerMsg: public megaMessage
 {
     timerevent* timerEvent = nullptr;
@@ -42,25 +42,19 @@ struct TimerMsg: public megaMessage
     {
         services_hstore_remove_handle(MEGA_HTYPE_TIMER, handle);
         if (timerEvent)
-        {
-            #ifndef USE_LIBWEBSOCKETS
-                event_free(timerEvent);
-            #else
-                uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* handle)
-                {
-                    delete handle;
-                });
-            #endif
+        {            
+            uv_close((uv_handle_t *)timerEvent, [](uv_handle_t* handle)
+            {
+                delete handle;
+            });
         }
     }
 };
 
-#ifdef USE_LIBWEBSOCKETS
-    void init_uv_timer(void *ctx, uv_timer_t *timer);
-#else
-    eventloop *get_ev_loop(void *ctx);
-#endif
-    
+void init_uv_timer(void *ctx, uv_timer_t *timer);
+
+extern std::recursive_mutex timerMutex;
+
 template <int persist, class CB>
 inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 {
@@ -107,20 +101,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
 
     pMsg->appCtx = ctx;
     pMsg->time = time;
-    pMsg->loop = persist;
-    
-#ifndef USE_LIBWEBSOCKETS
-    pMsg->timerEvent = event_new(get_ev_loop(ctx), -1, persist,
-      [](evutil_socket_t fd, short what, void* evarg)
-      {
-            megaPostMessageToGui(evarg, ((Msg* )evarg)->appCtx);
-      }, pMsg);
-
-    struct timeval tv;
-    tv.tv_sec = time / 1000;
-    tv.tv_usec = (time % 1000)*1000;
-    evtimer_add(pMsg->timerEvent, &tv);
-#else
+    pMsg->loop = persist;  
     marshallCall([pMsg, ctx]()
     {
         pMsg->timerEvent = new uv_timer_t();
@@ -131,9 +112,7 @@ inline megaHandle setTimer(CB&& callback, unsigned time, void *ctx)
                        {
                            megaPostMessageToGui(handle->data, ((Msg*)handle->data)->appCtx);
                        }, pMsg->time, pMsg->loop ? pMsg->time : 0);
-    }, ctx);
-#endif
-    
+    }, ctx);    
     return pMsg->handle;
 }
 /** Cancels a previously set timeout with setTimeout()
@@ -158,25 +137,15 @@ static inline bool cancelTimeout(megaHandle handle, void *ctx)
 //we first stop the timer, and only then post a call to delete the timer.
 //That call should be processed after all timer messages
     timer->canceled = true; //disable timer callback being called by possibly queued messages, and message freeing in one-shot timer handler
-
-    timerMutex.unlock();
-
-#ifndef USE_LIBWEBSOCKETS
-    event_del(timer->timerEvent); //only removed from message loop, doesn't delete the event struct
-#endif
-    
+    timerMutex.unlock();    
     marshallCall([timer, ctx]()
     {
-#ifdef USE_LIBWEBSOCKETS
         uv_timer_stop(timer->timerEvent);
 
         marshallCall([timer, ctx]()
         {
             delete timer;
         }, ctx);
-#else
-        delete timer;   //also deletes the timerEvent
-#endif
     }, ctx);
     return true;
 }

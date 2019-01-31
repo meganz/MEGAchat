@@ -12,6 +12,12 @@ using namespace std;
 using namespace promise;
 using namespace karere;
 
+#if WIN32
+#include <mega/utils.h>
+using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
+#endif
+
+
 #define CHATD_LOG_LISTENER_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
@@ -161,6 +167,24 @@ Client::Client(karere::Client *aKarereClient) :
                 break;
             }
        });
+
+    // initialize the most recent message for each user
+    SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");
+    while (stmt1.step())
+    {
+        karere::Id userid = stmt1.uint64Col(0);
+        if (userid == Id::COMMANDER())
+        {
+            continue;
+        }
+
+        SqliteStmt stmt2(mKarereClient->db, "SELECT MAX(ts) FROM history WHERE userid = ?");
+        stmt2 << userid.val;
+        if (stmt2.step())
+        {
+            mLastMsgTs[userid] = stmt2.uintCol(0);
+        }
+    }
 }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
@@ -279,6 +303,21 @@ void Client::notifyUserActive()
 bool Client::isMessageReceivedConfirmationActive() const
 {
     return mMessageReceivedConfirmation;
+}
+
+::mega::m_time_t Client::getLastMsgTs(Id userid) const
+{
+    std::map<karere::Id, ::mega::m_time_t>::const_iterator it = mLastMsgTs.find(userid);
+    if (it != mLastMsgTs.end())
+    {
+        return it->second;
+    }
+    return 0;
+}
+
+void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
+{
+    mLastMsgTs[userid] = lastMsgTs;
 }
 
 uint8_t Client::richLinkState() const
@@ -1367,8 +1406,8 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     mOldestKnownMsgId = info.oldestDbId;
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
-    mLastSeenIdx = mDbInterface->getIdxOfMsgid(mLastSeenId);
-    mLastReceivedIdx = mDbInterface->getIdxOfMsgid(mLastReceivedId);
+    mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
+    mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
 
     if ((mHaveAllHistory = mDbInterface->haveAllHistory()))
     {
@@ -2130,6 +2169,16 @@ bool Chat::haveAllHistoryNotified() const
     return (mNextHistFetchIdx < lownum());
 }
 
+Message *Chat::getMessageFromNodeHistory(Id msgid) const
+{
+    return mAttachmentNodes->getMessage(msgid);
+}
+
+Idx Chat::getIdxFromNodeHistory(Id msgid) const
+{
+    return mAttachmentNodes->getMessageIdx(msgid);
+}
+
 uint64_t Chat::generateRefId(const ICrypto* aCrypto)
 {
     uint64_t ts = time(nullptr);
@@ -2745,7 +2794,7 @@ void Chat::onLastReceived(Id msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())
     { // we don't have that message in the buffer yet, so we don't know its index
-        Idx idx = mDbInterface->getIdxOfMsgid(msgid);
+        Idx idx = mDbInterface->getIdxOfMsgidFromHistory(msgid);
         if (idx != CHATD_IDX_INVALID)
         {
             if ((mLastReceivedIdx != CHATD_IDX_INVALID) && (idx < mLastReceivedIdx))
@@ -2810,7 +2859,7 @@ void Chat::onLastSeen(Id msgid)
     auto it = mIdToIndexMap.find(msgid);
     if (it == mIdToIndexMap.end())  // msgid not loaded in RAM
     {
-        idx = mDbInterface->getIdxOfMsgid(msgid);   // return CHATD_IDX_INVALID if not found in DB
+        idx = mDbInterface->getIdxOfMsgidFromHistory(msgid);   // return CHATD_IDX_INVALID if not found in DB
     }
     else    // msgid is in RAM
     {
@@ -3359,9 +3408,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             auto erased = it;
             it++;
             mPendingEdits.erase(cipherMsg->id());
-            mSending.erase(erased);
             updateTs = item.msg->updated;
             richLinkRemoved = item.msg->richLinkRemoved;
+            mSending.erase(erased);
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
@@ -3476,7 +3525,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
             if (msg->isDeleted())
             {
-                if (msg->isOwnMessage(client().myHandle()))
+                if (!msg->isOwnMessage(client().myHandle()))
                 {
                     CALL_LISTENER(onUnreadChanged);
                 }
@@ -4023,6 +4072,13 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
+        // update in memory the timestamp of the most recent message from this user
+        if (msg.ts > mChatdClient.getLastMsgTs(msg.userid))
+        {
+            mChatdClient.setLastMsgTs(msg.userid, msg.ts);
+            mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid);
+        }
+
         CALL_LISTENER(onRecvNewMessage, idx, msg, status);
     }
     else
@@ -4242,6 +4298,7 @@ void Chat::onUserLeave(Id userid)
     }
 
 
+
     if (isLoggedIn() || !mIsFirstJoin)
     {
         mUsers.erase(userid);
@@ -4291,10 +4348,11 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
 
+    CHATID_LOG_DEBUG("Online state change: %s --> %s", chatStateToStr(mOnlineState), chatStateToStr(state));
+
     mOnlineState = state;
-    CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
-    CALL_LISTENER(onOnlineStateChange, state);
+    mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
     if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
     {
@@ -4924,6 +4982,23 @@ void FilteredHistory::finishFetchingFromServer()
     assert(mFetchingFromServer);
     CALL_LISTENER_FH(onLoaded, NULL, 0);
     mFetchingFromServer = false;
+}
+
+Message *FilteredHistory::getMessage(Id id)
+{
+    Message *msg = NULL;
+    auto msgItetrator = mIdToMsgMap.find(id);
+    if (msgItetrator != mIdToMsgMap.end())
+    {
+        msg = msgItetrator->second->get();
+    }
+
+    return msg;
+}
+
+Idx FilteredHistory::getMessageIdx(Id id)
+{
+    return mDb->getIdxOfMsgidFromNodeHistory(id);
 }
 
 void FilteredHistory::init()

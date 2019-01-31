@@ -12,7 +12,6 @@
 #include "chatd.h"
 #include "presenced.h"
 #include "IGui.h"
-#include "net/websocketsIO.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
 
@@ -281,7 +280,6 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        Presence mPresence;
         void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
     public:
@@ -298,9 +296,6 @@ public:
 
         /** @brief The current privilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
-
-        /** @brief The presence of the peer */
-        Presence presence() const { return mPresence; }
 
         promise::Promise<void> nameResolved() const;
 
@@ -323,7 +318,6 @@ public:
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
-    void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
@@ -436,14 +430,11 @@ protected:
     int64_t mSince;
     std::string mTitleString;
     int mVisibility;
-    IApp::IContactListHandler* mAppClist; //cached, because we often need to check if it's null
-    IApp::IContactListItem* mDisplay; //must be after mTitleString because it will read it
     bool mIsInitializing = true;
     void updateTitle(const std::string& str);
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
-    void updatePresence(Presence pres);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
@@ -457,11 +448,6 @@ public:
      * Otherwise returns NULL
      */
     PeerChatRoom* chatRoom() { return mChatRoom; }
-    /** @brief The \c IApp::IContactListItem that is associated with this
-     * contact. Can be NULL if there is no IContactListHandler or it returned
-     * NULL from \c addContactListItem()
-     */
-    IApp::IContactListItem* appItem() const { return mDisplay; }
 
     /** @brief Creates a 1on1 chatroom with this contact, if one does not exist,
      * otherwise returns the existing one.
@@ -490,16 +476,9 @@ public:
      */
     int visibility() const { return mVisibility; }
 
-    /** @brief The presence of the contact */
-    Presence presence() const { return mPresence; }
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
-    void updateAllOnlineDisplays(Presence pres)
-    {
-        if (mDisplay)
-            mDisplay->onPresenceChanged(pres);
-    }
 };
 
 /** @brief This is the karere contactlist class. It maps user ids
@@ -510,8 +489,6 @@ class ContactList: public std::map<uint64_t, Contact*>
     friend class Client;
 protected:
     void removeUser(iterator it);
-    void onPresenceChanged(Id userid, Presence pres);
-    void setAllOffline();
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -531,7 +508,6 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    IApp::IContactListItem& attachRoomToContact(const uint64_t& userid, PeerChatRoom &room);
     void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
@@ -665,8 +641,6 @@ public:
     // resolved only when up to date
     promise::Promise<void> mSyncPromise;
 
-    IApp::ILoginDialog::Handle mLoginDlg;
-
 protected:
 
     Id mMyHandle = Id::null(); //mega::UNDEF
@@ -688,7 +662,6 @@ protected:
     // resolved when connection to presenced is established
     promise::Promise<void> mConnectPromise;
 
-    Presence mOwnPresence = Presence::kInvalid;
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
 
@@ -724,7 +697,6 @@ public:
     bool connected() const { return mConnState == kConnected; }
     bool contactsLoaded() const { return mContactsLoaded; }
 
-    Presence ownPresence() const { return mOwnPresence; }
     presenced::Client& presenced() { return mPresencedClient; }
 
     /**
@@ -801,11 +773,6 @@ public:
      */
     promise::Promise<void> loginSdkAndInit(const char* sid);
 
-    /** @brief Notifies the client that network connection is down */
-    void notifyNetworkOffline();
-
-    /** @brief Notifies the client that internet connection is again available */
-    void notifyNetworkOnline();
     /** @brief Call this when the app goes into background, so that it notifies
      * the servers to enable PUSH notifications
      */
@@ -861,6 +828,7 @@ public:
     bool isChatRoomOpened(Id chatid);
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
+    void updateAndNotifyLastGreen(Id userid);
 
 protected:
     void heartbeat();
@@ -889,25 +857,8 @@ protected:
     // connection-related methods
     void connectToChatd(bool isInBackground);
     promise::Promise<void> connectToPresenced(Presence pres);
-    promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
     promise::Promise<int> initializeContactList();
 
-    /** @brief A convenience method to log in the associated Mega SDK instance,
-     *  using IApp::ILoginDialog to ask the user/app for credentials. This
-     * method is to be used in a standalone chat app where the SDK instance is not
-     * logged by other code, like for example the qt test app. THe reason this
-     * method does not just accept a user and pass but rather calls back into
-     * ILoginDialog is to be able to update the login progress via ILoginDialog,
-     * and to save the app the management of the dialog, retries in case of
-     * bad credentials etc. This is just a convenience method.
-     */
-    promise::Promise<void> sdkLoginNewSession();
-
-    /** @brief A convenience method to log the sdk in using an existing session,
-     * identified by \c sid. This is to be used in a standalone chat app where
-     * there is no existing code that logs in the Mega SDK instance.
-     */
-    promise::Promise<void> sdkLoginExistingSession(const char* sid);
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
     void commit(const std::string& scsn);
 
@@ -928,9 +879,9 @@ protected:
 
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);
-    virtual void onPresenceChange(Id userid, Presence pres);
+    virtual void onPresenceChange(Id userid, Presence pres, bool inProgress = false);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid);
 
     //==
     friend class ChatRoom;
