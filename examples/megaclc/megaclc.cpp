@@ -459,7 +459,7 @@ public:
 
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
     {
-        conlock(cout) << "Event: " << (e ? eventName(e->getType()) : "(null)") << endl;
+        conlock(cout) << "Event: " << (e ? eventName(e->getType()) : "(null)") << " Text: " << (e && e->getText() ? e->getText() : "(null)")<< endl;
     }
 
 };
