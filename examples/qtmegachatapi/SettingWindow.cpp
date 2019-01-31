@@ -91,11 +91,15 @@ void SettingWindow::fillWidget()
     int index = mTimeZoneDetails->getDefault();
     for (int i = 0; i < mTimeZoneDetails->getNumTimeZones(); i++)
     {
+        const char *timeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
         stringsList.append(QString(mTimeZoneDetails->getTimeZone(i)));
-        if (strcmp(mTimeZoneDetails->getTimeZone(i), mPushNotificationSettings->getGlobalScheduleTimezone()) == 0)
+
+        if (strcmp(mTimeZoneDetails->getTimeZone(i), timeZone) == 0)
         {
             index = i;
         }
+
+        delete [] timeZone;
     }
 
     ui->timeZones->addItems(stringsList);
@@ -176,10 +180,11 @@ void SettingWindow::accepted()
     time = ui->endTime->time();
     int endTime = time.hour() * 60 + time.minute();
     std::string timeZone = ui->timeZones->currentText().toStdString();
+    const char *auxTimeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
 
     if (ui->scheduleEnabled->isChecked() != mPushNotificationSettings->isGlobalScheduleEnabled() ||
             (ui->scheduleEnabled->isChecked() && (startTime != mPushNotificationSettings->getGlobalScheduleStart() ||
-            endTime != mPushNotificationSettings->getGlobalScheduleEnd() || timeZone != mPushNotificationSettings->getGlobalScheduleTimezone())))
+            endTime != mPushNotificationSettings->getGlobalScheduleEnd() || timeZone != auxTimeZone)))
     {
         updated = true;
         if (ui->scheduleEnabled->isChecked())
@@ -196,6 +201,8 @@ void SettingWindow::accepted()
     {
         mMegaApi->setPushNotificationSettings(mPushNotificationSettings);
     }
+
+    delete [] auxTimeZone;
 }
 
 void SettingWindow::rejected()
