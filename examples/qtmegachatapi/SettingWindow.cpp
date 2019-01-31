@@ -37,14 +37,11 @@ void SettingWindow::onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *r
         case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
             if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
             {
-                if (request->getMegaPushNotificationSettings())
+                mPushNotificationSettings = request->getMegaPushNotificationSettings() ? request->getMegaPushNotificationSettings()->copy() : (::mega::MegaPushNotificationSettings::createInstance());
+                if (mTimeZoneDetails)
                 {
-                    mPushNotificationSettings = request->getMegaPushNotificationSettings()->copy();
-                    if (mPushNotificationSettings && mTimeZoneDetails)
-                    {
-                        ui->pushNotifications->setEnabled(true);
-                        fillWidget();
-                    }
+                    ui->pushNotifications->setEnabled(true);
+                    fillWidget();
                 }
             }
             break;
