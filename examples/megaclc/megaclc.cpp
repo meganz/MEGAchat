@@ -165,6 +165,7 @@ static prompttype prompt = COMMAND;
 
 #if defined(WIN32) && defined(NO_READLINE)
 static char pw_buf[512];  // double space for unicode
+#define strdup _strdup
 #else
 static char pw_buf[256];  
 #endif
@@ -1701,6 +1702,91 @@ void exec_apiurl(ac::ACState& s)
     }
 }
 
+void PrintAchievements(m::MegaAchievementsDetails & ad)
+{
+    auto cl = conlock(cout);
+
+    cl << "getBaseStorage: " << ad.getBaseStorage() << endl;
+
+    int classes[] = {   m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_WELCOME, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_INVITE, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_DESKTOP_INSTALL, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_MOBILE_INSTALL, 
+                        m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_ADD_PHONE };
+
+    for (int i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
+    {
+        cl << "class " << classes[i];
+        cl << "  getClassStorage: " << ad.getClassStorage(classes[i]);
+        cl << "  getClassTransfer: " << ad.getClassTransfer(classes[i]);
+        cl << "  getClassExpire: " << ad.getClassExpire(classes[i]) << endl;
+    }
+    cl << "getAwardsCount: " << ad.getAwardsCount() << endl;
+    for (unsigned i = 0; i < ad.getAwardsCount(); ++i)
+    {
+        cl << "Award " << i << endl;
+        cl << "  getAwardClass: " << ad.getAwardClass(i) << endl;
+        cl << "  getAwardId: " << ad.getAwardId(i) << endl;
+        cl << "  getAwardTimestamp: " << ad.getAwardTimestamp(i) << endl;
+        cl << "  getAwardExpirationTs: " << ad.getAwardExpirationTs(i) << endl;
+        cl << "  getAwardClass: " << ad.getAwardClass(i) << endl;
+        cl << "  getAwardEmails: <todo>" << endl; // << ad.getAwardEmails(i) << endl;
+    }
+    cl << "getRewardsCount: " << ad.getRewardsCount() << endl;
+    for (int i = 0; i < ad.getRewardsCount(); ++i)
+    {
+        cl << "Reward " << i << endl;
+        cl << "  getRewardAwardId: " << ad.getRewardAwardId(i) << endl;
+        cl << "  getRewardStorage: " << ad.getRewardStorage(i) << endl;
+        cl << "  getRewardTransfer: " << ad.getRewardTransfer(i) << endl;
+        cl << "  getRewardStorageByAwardId: " << ad.getRewardStorageByAwardId(ad.getRewardAwardId(i)) << endl;
+        cl << "  getRewardTransferByAwardId: " << ad.getRewardTransferByAwardId(ad.getRewardAwardId(i)) << endl;
+        cl << "  getRewardExpire: " << ad.getRewardExpire(i) << endl;
+    }
+    cl << "currentStorage: " << ad.currentStorage() << endl;
+    cl << "currentTransfer: " << ad.currentTransfer() << endl;
+    cl << "currentStorageReferrals: " << ad.currentStorageReferrals() << endl;
+    cl << "currentTransferReferrals: " << ad.currentTransferReferrals() << endl;
+};
+
+void exec_getaccountachievements(ac::ACState& s)
+{
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    {
+        conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
+        if (!e->getErrorCode())
+        {
+            unique_ptr<m::MegaAchievementsDetails> ad(request->getMegaAchievementsDetails());
+            if (ad)
+            {
+                PrintAchievements(*ad);
+            }
+        }
+    };
+
+    g_megaApi->getAccountAchievements(listener);
+}
+
+
+void exec_getmegaachievements(ac::ACState& s)
+{
+    auto listener = new OneShotRequestListener;
+    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    {
+        conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
+        if (!e->getErrorCode())
+        {
+            unique_ptr<m::MegaAchievementsDetails> ad(request->getMegaAchievementsDetails());
+            if (ad)
+            {
+                PrintAchievements(*ad);
+            }
+        }
+    };
+
+    g_megaApi->getMegaAchievements(listener);
+}
 
 ac::ACN autocompleteSyntax()
 {
@@ -1799,7 +1885,9 @@ ac::ACN autocompleteSyntax()
     // sdk level commands (intermediate layer of megacli commands)
     p->Add(exec_smsverify, sequence(text("smsverify"), either(sequence(text("send"), param("phoneNumber"), opt(text("to"))), sequence(text("code"), param("code")), text("allowed"), text("phone"))));
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
-    
+    p->Add(exec_getaccountachievements, sequence(text("getaccountachievements")));
+    p->Add(exec_getmegaachievements, sequence(text("getmegaachievements")));
+
     return p;
 }
 
