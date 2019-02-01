@@ -796,7 +796,10 @@ void MainWindow::onChatInitStateUpdate(megachat::MegaChatApi *, int newState)
             show();
         }
 
-        QString auxTitle(mMegaChatApi->getMyEmail());
+        const char *myEmail = mMegaChatApi->getMyEmail();
+        QString auxTitle(myEmail);
+        delete [] myEmail;
+
         if (mApp->sid() && newState == MegaChatApi::INIT_OFFLINE_SESSION)
         {
             auxTitle.append(" [OFFLINE MODE]");

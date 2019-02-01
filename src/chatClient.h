@@ -280,7 +280,6 @@ public:
         UserAttrCache::Handle mEmailAttrCbHandle;
         std::string mName;
         std::string mEmail;
-        Presence mPresence;
         void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
     public:
@@ -297,9 +296,6 @@ public:
 
         /** @brief The current privilege of the member within the groupchat */
         chatd::Priv priv() const { return mPriv; }
-
-        /** @brief The presence of the peer */
-        Presence presence() const { return mPresence; }
 
         promise::Promise<void> nameResolved() const;
 
@@ -322,7 +318,6 @@ public:
     void clearTitle();
     promise::Promise<void> addMember(uint64_t userid, chatd::Priv priv, bool saveToDb);
     bool removeMember(uint64_t userid);
-    void updatePeerPresence(uint64_t peer, Presence pres);
     virtual bool syncWithApi(const mega::MegaTextChat &chat);
     IApp::IGroupChatListItem* addAppItem();
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
@@ -440,7 +435,6 @@ protected:
     void notifyTitleChanged();
     void setChatRoom(PeerChatRoom& room);
     void attachChatRoom(PeerChatRoom& room);
-    void updatePresence(Presence pres);
 public:
     Contact(ContactList& clist, const uint64_t& userid, const std::string& email,
             int visibility, int64_t since, PeerChatRoom* room = nullptr);
@@ -482,8 +476,6 @@ public:
      */
     int visibility() const { return mVisibility; }
 
-    /** @brief The presence of the contact */
-    Presence presence() const { return mPresence; }
     bool isInitializing() const { return mIsInitializing; }
     /** @cond PRIVATE */
     void onVisibilityChanged(int newVisibility);
@@ -497,8 +489,6 @@ class ContactList: public std::map<uint64_t, Contact*>
     friend class Client;
 protected:
     void removeUser(iterator it);
-    void onPresenceChanged(Id userid, Presence pres);
-    void setAllOffline();
 public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
@@ -672,7 +662,6 @@ protected:
     // resolved when connection to presenced is established
     promise::Promise<void> mConnectPromise;
 
-    Presence mOwnPresence = Presence::kInvalid;
     presenced::Client mPresencedClient;
     std::string mPresencedUrl;
 
@@ -708,7 +697,6 @@ public:
     bool connected() const { return mConnState == kConnected; }
     bool contactsLoaded() const { return mContactsLoaded; }
 
-    Presence ownPresence() const { return mOwnPresence; }
     presenced::Client& presenced() { return mPresencedClient; }
 
     /**
@@ -785,11 +773,6 @@ public:
      */
     promise::Promise<void> loginSdkAndInit(const char* sid);
 
-    /** @brief Notifies the client that network connection is down */
-    void notifyNetworkOffline();
-
-    /** @brief Notifies the client that internet connection is again available */
-    void notifyNetworkOnline();
     /** @brief Call this when the app goes into background, so that it notifies
      * the servers to enable PUSH notifications
      */
@@ -845,6 +828,7 @@ public:
     bool isChatRoomOpened(Id chatid);
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
+    void updateAndNotifyLastGreen(Id userid);
 
 protected:
     void heartbeat();
@@ -873,7 +857,6 @@ protected:
     // connection-related methods
     void connectToChatd(bool isInBackground);
     promise::Promise<void> connectToPresenced(Presence pres);
-    promise::Promise<void> connectToPresencedWithUrl(const std::string& url, Presence forcedPres);
     promise::Promise<int> initializeContactList();
 
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& clist, ::mega::MegaTextChatList& chats);
@@ -896,9 +879,9 @@ protected:
 
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);
-    virtual void onPresenceChange(Id userid, Presence pres);
+    virtual void onPresenceChange(Id userid, Presence pres, bool inProgress = false);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
+    virtual void onPresenceLastGreenUpdated(karere::Id userid);
 
     //==
     friend class ChatRoom;

@@ -297,6 +297,7 @@ public:
     static inline const char* opcodeToStr(uint8_t code);
     virtual ~Command(){}
 };
+
 struct IdRefMap: public std::map<karere::Id, int>
 {
     typedef std::map<karere::Id, int> Base;
@@ -386,6 +387,12 @@ protected:
      * (currently, it includes contacts and any user in our groupchats, except ex-contacts) */
     IdRefMap mCurrentPeers;
 
+    /** Map of userids (key) and presence (value) of any user wich we're allowed to receive it's presence */
+    std::map<uint64_t, karere::Presence> mPeersPresence;
+
+    /** Map of userids (key) and last green (value) of any contact or any user in our groupchats, except ex-contacts */
+    std::map<uint64_t, time_t> mPeersLastGreen;
+
     /** Map of chatids (key) and the list of peers (value) in every chat (updated only from API) */
     std::map<uint64_t, karere::SetOfIds> mChatMembers;
 
@@ -464,6 +471,13 @@ public:
     /** Tells presenced that there's user's activity (notified by the app) */
     void signalActivity();
 
+    // peers management
+    void updatePeerPresence(karere::Id peer, karere::Presence pres);
+    karere::Presence peerPresence(karere::Id peer) const;
+
+    /** @brief Updates user last green if it's more recent than the current value.*/
+    bool updateLastGreen(karere::Id userid, time_t lastGreen);
+    time_t getLastGreen(karere::Id userid);
     ~Client();
 };
 
@@ -471,9 +485,9 @@ class Listener
 {
 public:
     virtual void onConnStateChange(Client::ConnState state) = 0;
-    virtual void onPresenceChange(karere::Id userid, karere::Presence pres) = 0;
+    virtual void onPresenceChange(karere::Id userid, karere::Presence pres, bool inProgress = false) = 0;
     virtual void onPresenceConfigChanged(const Config& Config, bool pending) = 0;
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) = 0;
+    virtual void onPresenceLastGreenUpdated(karere::Id userid) = 0;
     virtual void onDestroy(){}
 };
 

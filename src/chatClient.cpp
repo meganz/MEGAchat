@@ -878,8 +878,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
 
     setConnState(kConnecting);
-    mOwnPresence = pres;
-
     assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
 
@@ -903,7 +901,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     connectToChatd(isInBackground);
 
     auto wptr = weakHandle();
-    auto pms = connectToPresenced(mOwnPresence)
+    auto pms = connectToPresenced(pres)
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1090,66 +1088,59 @@ promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
             if (!url)
                 return promise::Error("No presenced URL received from API");
             mPresencedUrl = url;
-            return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+            return mPresencedClient.connect(mPresencedUrl, forcedPres);
         });
     }
     else
     {
-        return connectToPresencedWithUrl(mPresencedUrl, forcedPres);
+        return mPresencedClient.connect(mPresencedUrl, forcedPres);
     }
 }
 
-promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url, Presence pres)
-{
-//we assume app.onOwnPresence(Presence::kOffline) has been called at application start
-
-    // Notify presence, if any
-    if (pres.isValid())
-    {
-        mOwnPresence = pres;
-        app.onPresenceChanged(mMyHandle, pres, true);
-    }
-
-    return mPresencedClient.connect(url, presenced::Config(pres));
-}
-
-void Contact::updatePresence(Presence pres)
-{
-    mPresence = pres;
-}
 // presenced handlers
-void Client::onPresenceChange(Id userid, Presence pres)
+void Client::onPresenceChange(Id userid, Presence pres, bool inProgress)
 {
     if (isTerminated())
     {
         return;
     }
 
-    if (userid == mMyHandle)
-    {
-        mOwnPresence = pres;
-    }
-    else
-    {
-        contactList->onPresenceChanged(userid, pres);
-    }
-    for (auto& item: *chats)
-    {
-        auto& chat = *item.second;
-        if (!chat.isGroup())
-            continue;
-        static_cast<GroupChatRoom&>(chat).updatePeerPresence(userid, pres);
-    }
-    app.onPresenceChanged(userid, pres, false);
+    // Notify apps
+    app.onPresenceChanged(userid, pres, inProgress);
 }
+
 void Client::onPresenceConfigChanged(const presenced::Config& state, bool pending)
 {
     app.onPresenceConfigChanged(state, pending);
 }
 
-void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+void Client::onPresenceLastGreenUpdated(Id userid)
 {
-    app.onPresenceLastGreenUpdated(userid, lastGreen);
+    // This callback is received from presenced upon reception of LASTGREEN
+    updateAndNotifyLastGreen(userid.val);
+}
+
+void Client::updateAndNotifyLastGreen(Id userid)
+{
+    mega::m_time_t lastGreenTs = mPresencedClient.getLastGreen(userid);
+    if (!lastGreenTs)
+    {
+        KR_LOG_DEBUG("Skip notification, last-green not received yet");
+        return;
+    }
+
+    mega::m_time_t lastMsgTs = mChatdClient->getLastMsgTs(userid);
+
+    // check what is newer: ts from chatd (messages) or ts from presenced (last-green response)
+    mega::m_time_t lastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
+
+    // Update last green and notify apps, if required
+    bool changed = mPresencedClient.updateLastGreen(userid.val, lastGreen);
+    if (changed)
+    {
+        uint16_t lastGreenMinutes = (time(NULL) - lastGreen) / 60;
+        app.onPresenceLastGreenUpdated(userid, lastGreenMinutes);
+    }
 }
 
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
@@ -1157,20 +1148,6 @@ void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 
 }
 
-void GroupChatRoom::updatePeerPresence(uint64_t userid, Presence pres)
-{
-    auto it = mPeers.find(userid);
-    if (it == mPeers.end())
-        return;
-    it->second->mPresence = pres;
-}
-
-void Client::notifyNetworkOffline()
-{
-}
-void Client::notifyNetworkOnline()
-{
-}
 void Client::notifyUserIdle()
 {
     if (mChatdClient)
@@ -1244,7 +1221,7 @@ promise::Promise<void> Client::setPresence(Presence pres)
     if (pres == mPresencedClient.config().presence())
     {
         std::string err = "setPresence: tried to change online state to the current configured state (";
-        err.append(mOwnPresence.toString(mOwnPresence)).append(")");
+        err.append(pres.toString()).append(")");
         return promise::Error(err, kErrorArgs);
     }
 
@@ -1254,7 +1231,6 @@ promise::Promise<void> Client::setPresence(Presence pres)
         return promise::Error("setPresence: not connected", kErrorAccess);
     }
 
-    app.onPresenceChanged(mMyHandle, pres, true);
     return promise::_Void();
 }
 
@@ -2826,22 +2802,6 @@ void ContactList::removeUser(iterator it)
     delete it->second;
     erase(it);
     client.db.query("delete from contacts where userid=?", handle);
-}
-void ContactList::onPresenceChanged(Id userid, Presence pres)
-{
-    auto it = find(userid);
-    if (it == end())
-        return;
-    {
-        it->second->updatePresence(pres);
-    }
-}
-void ContactList::setAllOffline()
-{
-    for (auto& it: *this)
-    {
-        it.second->updatePresence(Presence::kOffline);
-    }
 }
 
 promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)

@@ -71,6 +71,24 @@ MegaChatApiImpl::~MegaChatApiImpl()
     waiter->notify();
     thread.join();
 
+    delete request;
+    for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
+    {
+        delete *it;
+    }
+    for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
+    {
+        delete *it;
+    }
+    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
+    {
+        delete it->second;
+    }
+    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
+    {
+        delete it->second;
+    }
+
     // TODO: destruction of waiter hangs forever or may cause crashes
     //delete waiter;
 
@@ -2075,7 +2093,7 @@ int MegaChatApiImpl::getOnlineStatus()
 {
     sdkMutex.lock();
 
-    int status = mClient ? mClient->ownPresence().status() : (int)MegaChatApi::STATUS_INVALID;
+    int status = mClient ? getUserOnlineStatus(mClient->myHandle()) : (int)MegaChatApi::STATUS_INVALID;
 
     sdkMutex.unlock();
 
@@ -2101,33 +2119,7 @@ int MegaChatApiImpl::getUserOnlineStatus(MegaChatHandle userhandle)
 
     if (mClient && !terminating)
     {
-        ContactList::iterator it = mClient->contactList->find(userhandle);
-        if (it != mClient->contactList->end())
-        {
-            status = it->second->presence().status();
-        }
-        else if (userhandle == mClient->myHandle())
-        {
-            status = getOnlineStatus();
-        }
-        else
-        {
-            for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
-            {
-                if (!it->second->isGroup())
-                    continue;
-
-                GroupChatRoom *chat = (GroupChatRoom*) it->second;
-                const GroupChatRoom::MemberMap &membersMap = chat->peers();
-                GroupChatRoom::MemberMap::const_iterator itMembers = membersMap.find(userhandle);
-                if (itMembers != membersMap.end())
-                {
-                    status = itMembers->second->presence().status();
-                    sdkMutex.unlock();
-                    return status;
-                }
-            }
-        }
+        status = mClient->presenced().peerPresence(userhandle).status();
     }
 
     sdkMutex.unlock();
@@ -3540,6 +3532,16 @@ bool MegaChatApiImpl::areGroupChatCallEnabled()
     sdkMutex.unlock();
 
     return enabledGroupCalls;
+}
+
+int MegaChatApiImpl::getMaxCallParticipants()
+{
+    return rtcModule::IRtcModule::kMaxCallReceivers;
+}
+
+int MegaChatApiImpl::getMaxVideoCallParticipants()
+{
+    return rtcModule::IRtcModule::kMaxCallVideoSenders;
 }
 
 #endif
@@ -5028,7 +5030,7 @@ void MegaChatVideoReceiver::frameComplete(void *userData)
     MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
     chatApi->fireOnChatVideoData(chatid, peerid, frame->width, frame->height, (char *)frame->buffer);
     chatApi->videoMutex.unlock();
-    delete frame->buffer;
+    delete [] frame->buffer;
     delete frame;
 }
 
@@ -7728,7 +7730,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         char tempKey[FILENODEKEYLENGTH];
         char *base64Key = megaNode->getBase64Key();
         Base64::atob(base64Key, (::mega::byte*)tempKey, FILENODEKEYLENGTH);
-        delete base64Key;
+        delete [] base64Key;
 
         std::vector<int32_t> keyVector = DataTranslation::b_to_vector(std::string(tempKey, FILENODEKEYLENGTH));
         rapidjson::Value keyVectorNode(rapidjson::kArrayType);

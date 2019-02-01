@@ -98,7 +98,7 @@ class ChatWindow : public QDialog,
         MegaChatHandle mFreeCallGui [callMaxParticipants];
         int loadedAttachments;
         bool mScrollToBottomAttachments;
-        megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate;
+        megachat::QTMegaChatNodeHistoryListener *megaChatNodeHistoryListenerDelegate = NULL;
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;

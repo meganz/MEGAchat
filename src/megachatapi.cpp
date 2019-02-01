@@ -799,6 +799,16 @@ bool MegaChatApi::areGroupChatCallEnabled()
     return pImpl->areGroupChatCallEnabled();
 }
 
+int MegaChatApi::getMaxCallParticipants()
+{
+    return pImpl->getMaxCallParticipants();
+}
+
+int MegaChatApi::getMaxVideoCallParticipants()
+{
+    return pImpl->getMaxVideoCallParticipants();
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

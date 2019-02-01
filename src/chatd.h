@@ -1324,6 +1324,9 @@ protected:
     // maps chatids to the Chat object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
 
+    // maps userids to the timestamp of the most recent message received from the userid
+    std::map<karere::Id, ::mega::m_time_t> mLastMsgTs;
+
     // set of seen timers
     std::set<megaHandle> mSeenTimers;
 
@@ -1399,6 +1402,10 @@ public:
 
     // True if clients send confirmation to chatd when they receive a new message
     bool isMessageReceivedConfirmationActive() const;
+
+    // The timestamps of the most recent message from userid
+    mega::m_time_t getLastMsgTs(karere::Id userid) const;
+    void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
 
     friend class Connection;
     friend class Chat;
