@@ -1599,8 +1599,6 @@ void Call::stopIncallPingTimer(bool endCall)
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
-    mSessions.erase(sess.mSid);
-
     if (mState == kStateTerminating)
     {
         return;
