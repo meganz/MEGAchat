@@ -6741,9 +6741,6 @@ int MegaChatMessagePrivate::convertEndCallTermCodeToUI(const Message::CallEndedI
     int code;
     switch (callEndInfo.termCode)
     {
-        case END_CALL_REASON_CANCELLED:
-            code = END_CALL_REASON_NO_ANSWER;
-            break;
         case END_CALL_REASON_ENDED:;
         case END_CALL_REASON_FAILED:
             if (callEndInfo.duration > 0)
