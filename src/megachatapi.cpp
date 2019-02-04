@@ -292,9 +292,14 @@ bool MegaChatApi::areAllChatsLoggedIn()
     return pImpl->areAllChatsLoggedIn();
 }
 
-void MegaChatApi::retryPendingConnections(bool disconnect, bool refreshURL, MegaChatRequestListener *listener)
+void MegaChatApi::retryPendingConnections(bool disconnect, MegaChatRequestListener *listener)
 {
-    pImpl->retryPendingConnections(disconnect, refreshURL, listener);
+    pImpl->retryPendingConnections(disconnect, false, listener);
+}
+
+void MegaChatApi::refreshUrl(MegaChatRequestListener *listener)
+{
+    pImpl->retryPendingConnections(true, true, listener);
 }
 
 void MegaChatApi::logout(MegaChatRequestListener *listener)

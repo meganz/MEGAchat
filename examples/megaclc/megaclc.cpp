@@ -1667,7 +1667,7 @@ void exec_apiurl(ac::ACState& s)
             };
 
             g_megaApi->fetchNodes(listener);
-            g_chatApi->retryPendingConnections(true, true);
+            g_chatApi->refreshUrl();
         }
     }
 }

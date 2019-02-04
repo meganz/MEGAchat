@@ -883,6 +883,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
             return;
         }
+        CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
 
         // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);

@@ -2214,15 +2214,24 @@ public:
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      *
-     * If \c refreshURL is true, a disconnect will be forced automatically, followed by a reconnection
-     * to the fresh URLs retrieved from API. This parameter is useful when the URL for the API is changed
+     * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void retryPendingConnections(bool disconnect = false, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Refresh URLs and establish fresh connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * A disconnect will be forced automatically, followed by a reconnection to the fresh URLs
+     * retrieved from API. This parameter is useful when the URL for the API is changed
      * via MegaApi::changeApiUrl.
      *
-     * @param disconnect False to simply abort any backoff, true to disconnect and reconnect from scratch.
      * @param refreshURL True to discard existing URLs for chatd/presenced and fetch fresh URLs
      * @param listener MegaChatRequestListener to track this request
      */
-    void retryPendingConnections(bool disconnect = false, bool refreshURL = false, MegaChatRequestListener *listener = NULL);
+    void refreshUrl(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Logout of chat servers invalidating the session

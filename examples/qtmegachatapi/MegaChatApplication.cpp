@@ -238,9 +238,12 @@ void MegaChatApplication::enableStaging(bool enable)
         mMegaApi->changeApiUrl("https://g.api.mega.co.nz/");
     }
 
-    // force a reload upon api-url changes
-    mMegaApi->fetchNodes();
-    mMegaChatApi->retryPendingConnections(true, true);
+    if (mMegaChatApi->getOnlineStatus() != MegaChatApi::DISCONNECTED)
+    {
+        // force a reload upon api-url changes
+        mMegaApi->fastLogin(mSid);
+        mMegaChatApi->refreshUrl();
+    }
 }
 
 const char *MegaChatApplication::sid() const
@@ -266,7 +269,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_LOGIN:
             if (e->getErrorCode() == MegaError::API_EMFAREQUIRED)
             {
-                std::string auxcode = this->mMainWin->getAuthCode();
+                std::string auxcode = mMainWin->getAuthCode();
                 if (!auxcode.empty())
                 {
                     QString email(request->getEmail());
