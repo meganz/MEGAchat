@@ -2228,7 +2228,6 @@ public:
      * retrieved from API. This parameter is useful when the URL for the API is changed
      * via MegaApi::changeApiUrl.
      *
-     * @param refreshURL True to discard existing URLs for chatd/presenced and fetch fresh URLs
      * @param listener MegaChatRequestListener to track this request
      */
     void refreshUrl(MegaChatRequestListener *listener = NULL);
