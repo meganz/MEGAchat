@@ -121,6 +121,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->retryPendingConnections(true);
 }
 
+- (void)refreshUrls {
+    self.megaChatApi->refreshUrl();
+}
+
 - (void)dealloc {
     delete _megaChatApi;
     pthread_mutex_destroy(&listenerMutex);
