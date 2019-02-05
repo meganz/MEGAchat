@@ -310,6 +310,7 @@ private:
     bool mVideoRemote[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mLoggedInAllChats[NUM_ACCOUNTS];
 
 #endif
 

@@ -160,10 +160,12 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
     // 4. Connect to chat servers
     bool *flagRequestConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagRequestConnect = false;
+    bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
     mChatConnectionOnline[accountIndex] = false;
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
+    ASSERT_CHAT_TEST(waitForResponse(loggedInFlag, 120), "Expired timeout for login to all chats in account '" + mail + "'. (DDOS protection triggered?)");
 
     return megaApi[accountIndex]->dumpSession();
 }
@@ -3708,10 +3710,11 @@ void MegaChatApiTest::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPrese
     mPresenceConfigUpdated[apiIndex] = true;
 }
 
-void MegaChatApiTest::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle /*chatid*/, int state)
+void MegaChatApiTest::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int state)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     mChatConnectionOnline[apiIndex] = (state == MegaChatApi::CHAT_CONNECTION_ONLINE);
+    mLoggedInAllChats[apiIndex] = (state == MegaChatApi::CHAT_CONNECTION_ONLINE) && (chatid == MEGACHAT_INVALID_HANDLE);
 }
 
 void MegaChatApiTest::onTransferStart(MegaApi */*api*/, MegaTransfer */*transfer*/)
