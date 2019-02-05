@@ -2064,6 +2064,15 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
                 return;
             }
         }
+
+        if (mSessRetries.find(EndpointId(userid, clientid)) != mSessRetries.end())
+        {
+            cancelSessionRetryTimer(userid, clientid);
+            if (mSessions.empty() && mSessRetries.empty())
+            {
+                destroy(TermCode::kErrPeerOffline, userid == mChat.client().mKarereClient->myHandle());
+            }
+        }
     }
     else if (mState >= kStateInProgress)
     {
