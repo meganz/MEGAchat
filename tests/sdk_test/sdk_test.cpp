@@ -299,6 +299,7 @@ void MegaChatApiTest::SetUp()
         initStateChanged[i] = false;
         initState[i] = -1;
         mChatConnectionOnline[i] = false;
+        mLoggedInAllChats[i] = false;
         lastError[i] = -1;
         lastErrorChat[i] = -1;
         lastErrorMsgChat[i].clear();
@@ -991,7 +992,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 
     logger->postLog(buffer.str().c_str());
 
-    delete sesion;
+    delete [] sesion;
     sesion = NULL;
 }
 
@@ -2982,7 +2983,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
 
     bool chatroomExist = false;
-    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+    MegaChatHandle targetChatid = MEGACHAT_INVALID_HANDLE;
     for (int i = 0; i < chats->size() && !chatroomExist; ++i)
     {
         const MegaChatRoom *chat = chats->get(i);
@@ -3004,11 +3005,13 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
                 {
                     delete chatToCheck;
                     chatroomExist = true;
-                    chatid = chat->getChatId();
+                    targetChatid = chat->getChatId();
 
                     // --> Ensure we are connected to chatd for the chatroom
-                    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),"Can't connect to chatd, account " + std::to_string(a1+1));
-                    ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),"Can't connect to chatd, account " + std::to_string(a2+1));
+                    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                                     "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
+                    ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                                     "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
                     break;
                 }
             }
@@ -3023,14 +3026,24 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
         bool *chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
         bool *chatItemSecondaryReceived = &chatItemUpdated[a2]; *chatItemSecondaryReceived = false;
-        this->chatid[a1] = MEGACHAT_INVALID_HANDLE;
+        chatid[a1] = MEGACHAT_INVALID_HANDLE;
+        bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
+        bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
 
         megaChatApi[a1]->createChat(true, peers, this);
         ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "Expired timeout for creating groupchat");
         ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create groupchat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-        chatid = this->chatid[a1];
-        ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
+        targetChatid = chatid[a1];
+        ASSERT_CHAT_TEST(targetChatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
         ASSERT_CHAT_TEST(waitForResponse(chatItemPrimaryReceived), "Expired timeout for receiving the new chat list item");
+
+        // wait for login into chatd for the new groupchat
+        while (megaChatApi[a1]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            postLog("Waiting for connection to chatd for new chat before proceeding with test...");
+            ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline1), "Timeout expired for connecting to chatd after creation");
+            *flagChatdOnline1 = false;
+        }
 
         // since we may have multiple notifications for other chats, check we received the right one
         MegaChatListItem *chatItemSecondaryCreated = NULL;
@@ -3039,14 +3052,14 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
             ASSERT_CHAT_TEST(waitForResponse(chatItemSecondaryReceived), "Expired timeout for receiving the new chat list item");
             *chatItemSecondaryReceived = false;
 
-            chatItemSecondaryCreated = megaChatApi[a2]->getChatListItem(chatid);
+            chatItemSecondaryCreated = megaChatApi[a2]->getChatListItem(targetChatid);
             if (!chatItemSecondaryCreated)
             {
                 continue;
             }
             else
             {
-                if (chatItemSecondaryCreated->getChatId() != chatid)
+                if (chatItemSecondaryCreated->getChatId() != targetChatid)
                 {
                     delete chatItemSecondaryCreated; chatItemSecondaryCreated = NULL;
                 }
@@ -3054,9 +3067,17 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
         } while (!chatItemSecondaryCreated);
 
         delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
+
+        // wait for login into chatd for the new groupchat
+        while (megaChatApi[a2]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            postLog("Waiting for connection to chatd for new chat before proceeding with test...");
+            ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline2), "Timeout expired for connecting to chatd after creation");
+            *flagChatdOnline2 = false;
+        }
     }
 
-    return chatid;
+    return targetChatid;
 }
 
 MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned int a2)
@@ -3075,6 +3096,8 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         bool *flag = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
         bool *chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
         bool *chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
+        bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
+        bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
         megaChatApi[a1]->createChat(false, peers, this);
         ASSERT_CHAT_TEST(waitForResponse(flag), "Expired timeout for create new chatroom request");
         ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error create new chatroom request. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
@@ -3085,20 +3108,17 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         ASSERT_CHAT_TEST(chatid0 != MEGACHAT_INVALID_HANDLE, "Invalid chatid");
 
         // Wait until both accounts are connected to chatd
-        bool *flagChatdOnline = &mChatConnectionOnline[a1]; *flagChatdOnline = false;
         while (megaChatApi[a1]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE)
         {
-               postLog("Waiting for connection to chatd...");
-               ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd, account " + std::to_string(a1+1));
-               *flagChatdOnline = false;
+            postLog("Waiting for connection to chatd...");
+            ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline1), "Timeout expired for connecting to chatd, account " + std::to_string(a1+1));
+            *flagChatdOnline1 = false;
         }
-
-        *flagChatdOnline = &mChatConnectionOnline[a2]; *flagChatdOnline = false;
         while (megaChatApi[a2]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE)
         {
-               postLog("Waiting for connection to chatd...");
-               ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd, account " + std::to_string(a2+1));
-               *flagChatdOnline = false;
+            postLog("Waiting for connection to chatd...");
+            ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline2), "Timeout expired for connecting to chatd, account " + std::to_string(a2+1));
+            *flagChatdOnline2 = false;
         }
     }
     else
@@ -3106,9 +3126,10 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         // --> Ensure we are connected to chatd for the chatroom
         chatid0 = chatroom0->getChatId();
         ASSERT_CHAT_TEST(chatid0 != MEGACHAT_INVALID_HANDLE, "Invalid chatid");
-        ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid0) == MegaChatApi::CHAT_CONNECTION_ONLINE),"Can't connect to chatd, account " + std::to_string(a1+1));
-        ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(chatid0) == MegaChatApi::CHAT_CONNECTION_ONLINE),"Can't connect to chatd, account " + std::to_string(a2+1));
-
+        ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid0) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                         "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
+        ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(chatid0) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                         "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
     }
 
     delete chatroom0;
