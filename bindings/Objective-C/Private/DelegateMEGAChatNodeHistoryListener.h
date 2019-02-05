@@ -14,7 +14,7 @@ public:
     void onTruncate(megachat::MegaChatApi *api, megachat::MegaChatHandle msgid);
     
 private:
-    MEGAChatSdk *megaChatSdk;
+    __weak MEGAChatSdk *megaChatSdk;
     id<MEGAChatNodeHistoryDelegate>listener;
     bool singleListener;
 };

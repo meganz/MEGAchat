@@ -11,7 +11,7 @@ public:
     void onChatVideoData(megachat::MegaChatApi *api, uint64_t chatid, int width, int height, char *buffer, size_t size);
     
 private:
-    MEGAChatSdk *megaChatSdk;
+    __weak MEGAChatSdk *megaChatSdk;
     id<MEGAChatVideoDelegate>listener;
     bool singleListener;
 };

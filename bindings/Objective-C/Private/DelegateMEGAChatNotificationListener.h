@@ -11,7 +11,7 @@ public:
     void onChatNotification(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
     
 private:
-    MEGAChatSdk *megaChatSdk;
+    __weak MEGAChatSdk *megaChatSdk;
     id<MEGAChatNotificationDelegate>listener;
     bool singleListener;
 };
