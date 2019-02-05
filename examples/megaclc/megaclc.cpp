@@ -494,6 +494,8 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             conlock(cout) << "Connecting to chat servers" << endl;
             guard.unlock();
             g_chatApi->connect(&g_chatListener);
+
+            setprompt(COMMAND);
         }
         break;
 
@@ -1655,18 +1657,14 @@ void exec_apiurl(ac::ACState& s)
         g_megaApi->changeApiUrl(s.words[1].s.c_str(), s.words.size() > 2 && s.words[2].s == "true");
         if (g_megaApi->isLoggedIn())
         {
-            conlock(cout) << "Re-fetching nodes due to change of APIURL" << endl;
+            conlock(cout) << "Refreshing local cache due to change of APIURL" << endl;
 
             setprompt(NOPROMPT);
 
-            auto listener = new OneShotRequestListener;
-            listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *, m::MegaError* e) 
-            {
-                conlock(cout) << "Fetchnodes finished: " << e->getErrorString() << endl;
-                setprompt(COMMAND);
-            };
-
-            g_megaApi->fetchNodes(listener);
+            const char *session = g_megaApi->dumpSession();
+            g_megaApi->fastLogin(session);
+            g_chatApi->refreshUrl();
+            delete [] session;
         }
     }
 }

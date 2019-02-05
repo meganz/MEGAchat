@@ -39,8 +39,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-::promise::Promise<void>
-Client::connect(const std::string& url, const Config& config)
+Promise<void> Client::connect(const Config& config)
 {
     if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
@@ -48,10 +47,24 @@ Client::connect(const std::string& url, const Config& config)
         return ::promise::Void();
     }
 
-    mConfig = config;
-    mUrl.parse(url);
+    assert(!mUrl.isValid());
 
-    return reconnect();
+    mConfig = config;
+    setConnState(kFetchingUrl);
+
+    auto wptr = getDelTracker();
+    return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+    .then([this, wptr](ReqResult result) -> Promise<void>
+    {
+        if (wptr.deleted())
+        {
+            PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+            return ::promise::_Void();
+        }
+
+        mUrl.parse(result->getLink());
+        return reconnect();
+    });
 }
 
 void Client::pushPeers()
@@ -795,35 +808,71 @@ void Client::doConnect()
     }
 }
 
-void Client::retryPendingConnection(bool disconnect)
+void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 {
-    if (mUrl.isValid())
+    if (mConnState == kConnNew)
     {
-        if (disconnect)
-        {
-            PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        PRESENCED_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        return;
+    }
 
-            setConnState(kDisconnected);
-            abortRetryController();
-            reconnect();
-        }
-        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    if (refreshURL || !mUrl.isValid())
+    {
+        if (mConnState == kFetchingUrl)
         {
-            PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
-
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
-
-            mRetryCtrl->restart();
+            PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            return;
         }
-        else
+
+        PRESENCED_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+
+        // abort and prevent any further reconnection attempt
+        setConnState(kDisconnected);
+        abortRetryController();
+        if (mConnectTimer)
         {
-            PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
+            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            mConnectTimer = 0;
         }
+
+        // clear existing URL
+        mUrl = Url();
+        setConnState(kFetchingUrl);
+
+        auto wptr = getDelTracker();
+        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+        .then([this, wptr](ReqResult result)
+        {
+            if (wptr.deleted())
+            {
+                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                return;
+            }
+
+            mUrl.parse(result->getLink());
+            retryPendingConnection(true);
+        });
+    }
+    else if (disconnect)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
+
+        setConnState(kDisconnected);
+        abortRetryController();
+        reconnect();
+    }
+    else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+
+        assert(!isOnline());
+        assert(!mHeartbeatEnabled);
+
+        mRetryCtrl->restart();
     }
     else
     {
-        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+        PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
     }
 }
 

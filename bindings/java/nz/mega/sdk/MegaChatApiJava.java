@@ -390,6 +390,32 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @brief Refresh URLs and establish fresh connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * A disconnect will be forced automatically, followed by a reconnection to the fresh URLs
+     * retrieved from API. This parameter is useful when the URL for the API is changed
+     * via MegaApi::changeApiUrl.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void refreshUrl(MegaChatRequestListenerInterface listener){
+        megaChatApi.refreshUrl(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * @brief Refresh URLs and establish fresh connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * A disconnect will be forced automatically, followed by a reconnection to the fresh URLs
+     * retrieved from API. This parameter is useful when the URL for the API is changed
+     * via MegaApi::changeApiUrl.
+     */
+    public void refreshUrl(){ megaChatApi.refreshUrl(); }
+
+    /**
      * Logout of chat servers invalidating the session
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOGOUT
