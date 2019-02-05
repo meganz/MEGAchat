@@ -54,6 +54,10 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getPeerid() : 0;
 }
 
+- (uint64_t)clientId {
+    return self.megaChatSession ? self.megaChatSession->getClientid() : 0;
+}
+
 - (NSInteger)networkQuality {
     return self.megaChatSession ? self.megaChatSession->getNetworkQuality() : 0;
 }
