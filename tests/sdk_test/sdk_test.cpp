@@ -101,6 +101,11 @@ std::string Account::getPassword() const
 
 MegaChatApiTest::MegaChatApiTest()
 {
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        megaApi[i] = NULL;
+        megaChatApi[i] = NULL;
+    }
 }
 
 MegaChatApiTest::~MegaChatApiTest()
@@ -3010,8 +3015,11 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
                     // --> Ensure we are connected to chatd for the chatroom
                     ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
                                      "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
-                    ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                    if (a2LoggedIn)
+                    {
+                        ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(targetChatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
                                      "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
+                    }
                     break;
                 }
             }
