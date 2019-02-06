@@ -62,6 +62,8 @@ void Recorder::resetBwCalculators()
 int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
 {
     int64_t numericalValue = 0;
+
+#ifndef DEBUG
     static bool failTypeLog = true;
     const webrtc::StatsReport::Value *value = item->FindValue(name);
     if (value)
@@ -82,6 +84,7 @@ int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const w
             failTypeLog = false;
         }
     }
+#endif
 
     return numericalValue;
 }
