@@ -2064,6 +2064,12 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
                 return;
             }
         }
+
+        if (mSessRetries.find(EndpointId(userid, clientid)) != mSessRetries.end())
+        {
+            cancelSessionRetryTimer(userid, clientid);
+            destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
+        }
     }
     else if (mState >= kStateInProgress)
     {
