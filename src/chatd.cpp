@@ -1784,7 +1784,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
 
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler && userid != mChatdClient.mKarereClient->myHandle())
+                if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);                    

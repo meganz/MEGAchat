@@ -147,8 +147,8 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)addChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
 - (void)removeChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
 
-- (void)addChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId delegate:(id<MEGAChatVideoDelegate>)delegate;
-- (void)removeChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId delegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)addChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId cliendId:(uint64_t)clientId delegate:(id<MEGAChatVideoDelegate>)delegate;
+- (void)removeChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId cliendId:(uint64_t)clientId delegate:(id<MEGAChatVideoDelegate>)delegate;
 
 #endif
 
@@ -280,6 +280,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (BOOL)areGroupChatCallEnabled;
 - (NSInteger)getMaxVideoCallParticipants;
 - (NSInteger)getMaxCallParticipants;
+- (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId;
 
 #endif
 

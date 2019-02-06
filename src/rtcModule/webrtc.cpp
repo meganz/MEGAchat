@@ -376,7 +376,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
         if (ringing)
         {
-            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+            auto itCallHandler = mCallHandlers.find(chatid);
+            // itCallHandler is created at updatePeerAvState
+            assert(itCallHandler != mCallHandlers.end());
+            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()))
+            {
+                handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+            }
         }
     }
 
@@ -1292,6 +1298,11 @@ void Call::msgJoin(RtMessage& packet)
 {
     if (mState == kStateRingIn && packet.userid == mManager.mKarereClient.myHandle())
     {
+        // Another client of our own user has already answered the call
+        // --> add the participant to the call, so when the upcoming CALLDATA from caller
+        // (indicating that a session has been established with our user, but other users should
+        // keep ringing), this client does not start ringing again
+        mHandler->addParticipant(packet.userid, packet.clientid, karere::AvFlags());
         destroy(TermCode::kAnsElsewhere, false);
     }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
@@ -1306,7 +1317,6 @@ void Call::msgJoin(RtMessage& packet)
                                 itSession->second->peer().toString().c_str(), itSession->second->peerClient());
                 return;
             }
-
         }
 
         if (mState == Call::kStateReqSent)
