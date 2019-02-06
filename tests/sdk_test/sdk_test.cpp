@@ -2966,7 +2966,11 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
         {
             break;  // no more history or cannot retrieve it
         }
-        ASSERT_CHAT_TEST(waitForResponse(flagHistoryLoaded), "Timeout expired for loading history");
+
+        char *handleB64 = new char[sizeof(handle) * 4 / 3 + 4];
+        Base64::btoa((const byte *)&chatid, sizeof(handle), handleB64);
+        ASSERT_CHAT_TEST(waitForResponse(flagHistoryLoaded), "Timeout expired for loading history from chat: " + std::string(handleB64));
+        delete [] handleB64;
     }
 
     return chatroomListener->msgCount[accountIndex];
