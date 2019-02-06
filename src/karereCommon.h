@@ -50,11 +50,8 @@
 
 #define KARERE_DEFAULT_TURN_SERVERS \
    "[{\"host\":\"turn:trn270n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn270n002.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn530n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn530n002.karere.mega.nz:3478?transport=udp\"}," \
     "{\"host\":\"turn:trn302n001.karere.mega.nz:3478?transport=udp\"}," \
-    "{\"host\":\"turn:trn302n002.karere.mega.nz:3478?transport=udp\"}]"
+    "{\"host\":\"turn:trn530n001.karere.mega.nz:3478?transport=udp\"}]"
 
 #define KARERE_TURN_USERNAME "inoo20jdnH"
 #define KARERE_TURN_PASSWORD "02nNKDBkkS"
@@ -140,6 +137,14 @@ public:
             result='-';
         return result;
     }
+    void setAudio(bool enable)
+    {
+        mFlags = ((enable ? kAudio : 0) | (video() ? kVideo : 0));
+    }
+    void setVideo(bool enable)
+    {
+        mFlags = ((audio() ? kAudio : 0) | (enable ? kVideo : 0));
+    }
 };
 
 /** @brief Client capability flags. There are defined by the presenced protocol */
@@ -149,7 +154,9 @@ enum: uint8_t
     /** Client has webrtc capabilities */
     kClientCanWebrtc = 0x80,
     /** Client is a mobile application */
-    kClientIsMobile = 0x40
+    kClientIsMobile = 0x40,
+    /** Client can use bit 15 from preferences to handle last-green's visibility */
+    kClientSupportLastGreen = 0x20
 };
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql

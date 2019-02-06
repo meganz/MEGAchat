@@ -1,7 +1,61 @@
-CONFIG += USE_LIBWEBSOCKETS
-include(../../third-party/mega/bindings/qt/sdk.pri)
+debug_and_release {
+    CONFIG -= debug_and_release
+    CONFIG += debug_and_release
+}
+CONFIG(debug, debug|release) {
+    CONFIG -= debug release
+    CONFIG += debug
+}
+CONFIG(release, debug|release) {
+    CONFIG -= debug release
+    CONFIG += release
+}
+
+!release {
+    DEFINES += DEBUG
+}
+else {
+    DEFINES += NDEBUG
+}
 
 CONFIG += c++11
+CONFIG += USE_LIBUV
+CONFIG += USE_MEGAAPI
+CONFIG += USE_MEDIAINFO
+CONFIG += ENABLE_CHAT
+CONFIG += USE_WEBRTC
+
+TEMPLATE = app
+
+DEFINES += LOG_TO_LOGGER
+DEFINES += ENABLE_CHAT
+
+win32 {
+    QMAKE_LFLAGS += /LARGEADDRESSAWARE
+    QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
+    QMAKE_LFLAGS_CONSOLE += /SUBSYSTEM:CONSOLE,5.01
+    DEFINES += PSAPI_VERSION=1
+}
+
+macx {
+    QMAKE_CXXFLAGS += -DCRYPTOPP_DISABLE_ASM -D_DARWIN_C_SOURCE
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+    QMAKE_CXXFLAGS += -fvisibility=hidden -fvisibility-inlines-hidden
+    QMAKE_LFLAGS += -F /System/Library/Frameworks/Security.framework/
+    DEFINES += WEBRTC_MAC
+}
+
+unix:debug|macx:debug {
+    CONFIG += sanitizer sanitize_address
+    CONFIG += QMAKE_COMMON_SANITIZE_CFLAGS
+}
+else {
+    CONFIG -= sanitizer sanitize_address
+    CONFIG -= QMAKE_COMMON_SANITIZE_CFLAGS
+}
+
+# include the configuration for MEGA SDK
+include(../../third-party/mega/bindings/qt/sdk.pri)
 
 MEGACHAT_BASE_PATH = $$PWD/../..
 
@@ -57,6 +111,7 @@ HEADERS  += asyncTest-framework.h \
             ../bindings/qt/QTMegaChatCallListener.h \
             ../bindings/qt/QTMegaChatVideoListener.h \
             ../bindings/qt/QTMegaChatNotificationListener.h \
+            ../bindings/qt/QTMegaChatNodeHistoryListener.h \
             base/asyncTools.h \
             base/addrinfo.hpp \
             base/cservices-thread.h \
@@ -70,7 +125,6 @@ HEADERS  += asyncTest-framework.h \
             base/services.h \
             base/timers.hpp \
             base/trackDelete.h \
-            net/libwsIO.h \
             net/libwebsocketsIO.h \
             net/websocketsIO.h \
             rtcModule/IDeviceListImpl.h \
@@ -90,10 +144,7 @@ HEADERS  += asyncTest-framework.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
-            waiter/libuvWaiter.h \
-            waiter/libeventWaiter.h
-
-DEFINES += USE_LIBWEBSOCKETS=1
+            waiter/libuvWaiter.h
 
 CONFIG(qt) {
   SOURCES += ../bindings/qt/QTMegaChatEvent.cpp \
@@ -102,7 +153,8 @@ CONFIG(qt) {
             ../bindings/qt/QTMegaChatRequestListener.cpp \
             ../bindings/qt/QTMegaChatCallListener.cpp \
             ../bindings/qt/QTMegaChatVideoListener.cpp \
-            ../bindings/qt/QTMegaChatNotificationListener.cpp
+            ../bindings/qt/QTMegaChatNotificationListener.cpp \
+            ../bindings/qt/QTMegaChatNodeHistoryListener.cpp
 }
 
 CONFIG(USE_WEBRTC) {
@@ -116,7 +168,6 @@ else {
     DEFINES += KARERE_DISABLE_WEBRTC=1 SVC_DISABLE_STROPHE
 }
 
-
 INCLUDEPATH += $$MEGACHAT_BASE_PATH/src
 INCLUDEPATH += $$MEGACHAT_BASE_PATH/src/base
 INCLUDEPATH += $$MEGACHAT_BASE_PATH/src/rtcModule
@@ -124,16 +175,9 @@ INCLUDEPATH += $$MEGACHAT_BASE_PATH/src/strongvelope
 INCLUDEPATH += $$MEGACHAT_BASE_PATH/third-party
 INCLUDEPATH += $$MEGACHAT_BASE_PATH/bindings/qt
 
-!release {
-    DEFINES += DEBUG
-}
-else {
-    DEFINES += NDEBUG
-}
-
 karereDbSchemaTarget.target = karereDbSchema.cpp
 karereDbSchemaTarget.depends = FORCE
-karereDbSchemaTarget.commands = cmake -P ../../src/genDbSchema.cmake
+karereDbSchemaTarget.commands = cmake -P $$MEGACHAT_BASE_PATH/src/genDbSchema.cmake
 PRE_TARGETDEPS += karereDbSchema.cpp
 QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
 

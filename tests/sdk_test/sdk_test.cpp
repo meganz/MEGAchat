@@ -49,8 +49,9 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
 #endif
 
-    // The test below is a manual test. It requires call will be answered from webClient or similar
-    //EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
+    // The tests below are manual tests. They require the call to be answered from another client
+//    EXECUTE_TEST(t.TEST_ManualCalls(0, 1), "TEST Manual Calls");
+//    EXECUTE_TEST(t.TEST_ManualGroupCalls(0, <name_of_groupchat>), "TEST Manual Calls");
 
     // The test below is a manual test. It requires to stop the intenet conection
 //    EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
@@ -277,7 +278,13 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i]->addChatCallListener(this);
 #endif
 
-        for (int j = 0; j < mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
+        login(i);
+        bool *flagRequest = &requestFlags[i][MegaRequest::TYPE_KILL_SESSION]; *flagRequest = false;
+        megaApi[i]->killSession(INVALID_HANDLE);
+        waitForResponse(flagRequest);
+        logout(i);
+
+        for (int j = 0; j < ::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
             requestFlags[i][j] = false;
         }
@@ -755,33 +762,34 @@ bool MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     }
 
 
-    // ___ Disconnect from chat server and reconnect ___
-    for (int i = 0; i < 5; i++)
-    {
-        int conState = megaChatApi[accountIndex]->getConnectionState();
-        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
+//  MegaChatApi::disconnect() is now obsolete and always returns ERROR_EACCESS (is not allowed anymore)
+//    // ___ Disconnect from chat server and reconnect ___
+//    for (int i = 0; i < 5; i++)
+//    {
+//        int conState = megaChatApi[accountIndex]->getConnectionState();
+//        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
 
-        bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
-        megaChatApi[accountIndex]->disconnect();
-        ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
-        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-        conState = megaChatApi[accountIndex]->getConnectionState();
-        ASSERT_CHAT_TEST(conState == MegaChatApi::DISCONNECTED, "Wrong connection state: " + std::to_string(conState));
+//        bool *flagDisconnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_DISCONNECT]; *flagDisconnect = false;
+//        megaChatApi[accountIndex]->disconnect();
+//        ASSERT_CHAT_TEST(waitForResponse(flagDisconnect), "Expired timeout for disconnect");
+//        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error disconect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+//        conState = megaChatApi[accountIndex]->getConnectionState();
+//        ASSERT_CHAT_TEST(conState == MegaChatApi::DISCONNECTED, "Wrong connection state: " + std::to_string(conState));
 
-        // reconnect
-        flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
-        megaChatApi[accountIndex]->connect();
-        ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
-        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-        conState = megaChatApi[accountIndex]->getConnectionState();
-        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
+//        // reconnect
+//        flagConnect = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_CONNECT]; *flagConnect = false;
+//        megaChatApi[accountIndex]->connect();
+//        ASSERT_CHAT_TEST(waitForResponse(flagConnect), "Expired timeout for connect");
+//        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+//        conState = megaChatApi[accountIndex]->getConnectionState();
+//        ASSERT_CHAT_TEST(conState == MegaChatApi::CONNECTED, "Wrong connection state: " + std::to_string(conState));
 
-        // check there's a list of chats already available
-        list = megaChatApi[accountIndex]->getChatListItems();
-        ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
-        delete list;
-        list = NULL;
-    }
+//        // check there's a list of chats already available
+//        list = megaChatApi[accountIndex]->getChatListItems();
+//        ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
+//        delete list;
+//        list = NULL;
+//    }
 
     delete [] session; session = NULL;
 }
@@ -806,9 +814,12 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     // Reset status to online before starting the test
     bool *flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
     bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
-    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
-    ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    if (megaChatApi[accountIndex]->getPresenceConfig()->getOnlineStatus() != MegaChatApi::STATUS_ONLINE)
+    {
+        megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
+        ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set online status after " + std::to_string(maxTimeout) + " seconds");
+        ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set online status. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    }
 
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
@@ -829,9 +840,16 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
+    // Update autoway timeout to force to send values to the server
+    int64_t autowayTimeout = 5;
+    if (megaChatApi[accountIndex]->getPresenceConfig()->getAutoawayTimeout() == autowayTimeout)
+    {
+        autowayTimeout ++;
+    }
+
     // enable auto-away with 5 seconds timeout
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
-    megaChatApi[accountIndex]->setPresenceAutoaway(true, 5);
+    megaChatApi[accountIndex]->setPresenceAutoaway(true, autowayTimeout);
     ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
 
     // disable persist
@@ -842,15 +860,17 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
         ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
     }
 
+    // Set signal activity true, signal activity to false is sent automatically by presenced client
+    megaChatApi[accountIndex]->signalPresenceActivity();
+    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to set activity. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+
     // now wait for timeout to expire
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-//    flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
 
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout()+3);
-//    ASSERT_CHAT_TEST(waitForResponse(flagPresence), "Presence config not received after " + std::to_string(maxTimeout) + " seconds");
+    sleep(config->getAutoawayTimeout() + 6);
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
     // and check the status is away
@@ -873,7 +893,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
                      "Online status didn't changed to online from autoaway after signaling activity. Received: " + std::string(MegaChatRoom::statusToString(onlineStatus)));
 
 
-    delete sesion;
+    delete [] sesion;
     sesion = NULL;
 }
 
@@ -1276,6 +1296,13 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
     delete chatroom; chatroom = NULL;
 
+    // TODO: Redmine ticket: #10596
+    {
+        // give some margin to API-chatd synchronization, so chatd knows the room is archived and needs
+        // to be unarchived upon new message
+        sleep(3);
+    }
+
     // --> Send a message and wait for reception by target user
     string msg0 = "HOLA " + mAccounts[a1].getEmail() + " - Testing groupchats";
     bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
@@ -1507,25 +1534,15 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
-    // Prepare peers, privileges...
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
-        delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     }
-
-    MegaChatHandle uh = user->getHandle();
     delete user;
     user = NULL;
 
-    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-
-    MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
-    delete peers;
-    peers = NULL;
+    MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     // Open chatrooms
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
@@ -2277,12 +2294,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     mLocalVideoListener[a1] = new TestChatVideoListener();
     mLocalVideoListener[a2] = new TestChatVideoListener();
-    mRemoteVideoListener[a1] = new TestChatVideoListener();
-    mRemoteVideoListener[a2] = new TestChatVideoListener();
     megaChatApi[a1]->addChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
-    megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, mRemoteVideoListener[a1]);
     megaChatApi[a2]->addChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
-    megaChatApi[a2]->addChatRemoteVideoListener(chatid, uh1, mRemoteVideoListener[a2]);
+    // Remote video listener aren't necessary because call is never ging to be answered at tests
 
     // A calls B and B hangs up the call
     bool *flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
@@ -2307,7 +2321,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
     ASSERT_CHAT_TEST(mChatIdRingInCall[a2] == chatid, "Incorrect chat id at call receptor");
     ASSERT_CHAT_TEST(mCallIdRequestSent[a1] == mCallIdRingIn[a2], "Differents call id between caller and answer");
-    MegaChatCall* call = megaChatApi[a2]->getChatCall(chatid);
+    MegaChatCall *call = megaChatApi[a2]->getChatCall(chatid);
     ASSERT_CHAT_TEST(mVideoLocal[a1] == call->hasVideoInitialCall(), "Video flags must have the same values at local account 1 and remote account 2");
     delete call;
     ASSERT_CHAT_TEST(waitForResponse(flagPeerRinging), "Remote Peer hasn't started to ring");
@@ -2454,9 +2468,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a1]);
-    megaChatApi[a1]->removeChatRemoteVideoListener(chatid, uh2, mRemoteVideoListener[a1]);
     megaChatApi[a2]->removeChatLocalVideoListener(chatid, mLocalVideoListener[a2]);
-    megaChatApi[a2]->removeChatRemoteVideoListener(chatid, uh1, mRemoteVideoListener[a2]);
 
     delete chatroomListener;
     chatroomListener = NULL;
@@ -2468,13 +2480,9 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
 
     delete mLocalVideoListener[a1];
     mLocalVideoListener[a1] = NULL;
-    delete mRemoteVideoListener[a1];
-    mRemoteVideoListener[a1] = NULL;
 
     delete mLocalVideoListener[a2];
     mLocalVideoListener[a2] = NULL;
-    delete mRemoteVideoListener[a2];
-    mRemoteVideoListener[a2] = NULL;
 
     delete [] primarySession;
     primarySession = NULL;
@@ -2537,14 +2545,12 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     megaChatApi[a1]->loadAudioVideoDeviceList();
     ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
 
-    mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
-    mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
+    ::mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
+    ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
 
     TestChatVideoListener localVideoListener;
-    TestChatVideoListener remoteVideoListener;
 
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
-    megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     // Manual Test
     // Emit call
@@ -2584,7 +2590,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
 
     ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call has to be finished");
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
-    megaChatApi[a1]->removeChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     // Receive call
     std::cout << "Ready to receive calls..." << std::endl;
@@ -2594,7 +2599,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
-    megaChatApi[a1]->addChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     sleep(5);
     std::cerr << "Mute Call" << std::endl;
@@ -2617,7 +2621,6 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     sleep(5);
 
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
-    megaChatApi[a1]->removeChatRemoteVideoListener(chatid, uh2, &remoteVideoListener);
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
 
@@ -2649,59 +2652,167 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
  */
 void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
 {
+   char *primarySession = login(a1);
+
+   // Get rich link state
+   bool *flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagRequestRichLink = false;
+   bool *flagRichLink = &mRichLinkFlag[a1]; *flagRichLink = false;
+   megaApi[a1]->shouldShowRichLinkWarning();
+   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+
+   // Enable/disable rich link generation
+   bool enableRichLink = !(*flagRichLink);
+   bool *flagRichLinkRequest = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagRichLinkRequest = false;
+   megaApi[a1]->enableRichPreviews(enableRichLink);
+   ASSERT_CHAT_TEST(waitForResponse(flagRichLinkRequest), "User attribute retrieval not finished after timeout");
+   ASSERT_CHAT_TEST(!lastError[a1], "Failed to enable rich preview. Error: " + std::to_string(lastError[a1]));
+
+   // Get rich link state
+   flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagRequestRichLink = false;
+   flagRichLink = &mRichLinkFlag[a1]; *flagRichLink = true;
+   megaApi[a1]->shouldShowRichLinkWarning();
+   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+   ASSERT_CHAT_TEST(*flagRichLink == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
+
+   // Change value for rich link counter
+   int counter = 1;
+   bool *flagCounterRichLink = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagCounterRichLink = false;
+   megaApi[a1]->setRichLinkWarningCounterValue(counter);
+   ASSERT_CHAT_TEST(waitForResponse(flagCounterRichLink), "User attribute retrieval not finished after timeout");
+   ASSERT_CHAT_TEST(!lastError[a1], "Failed to set rich preview count. Error: " + std::to_string(lastError[a1]));
+
+   flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER]; *flagRequestRichLink = false;
+   flagRichLink = &mRichLinkFlag[a1]; *flagRichLink = false;
+   int *countRichLink = &mCountRichLink[a1]; *countRichLink = 0;
+   megaApi[a1]->shouldShowRichLinkWarning();
+   ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
+   ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == ::mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+   ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value - value: " + std::to_string(*countRichLink) + " Desired value: " + std::to_string(counter));
+   ASSERT_CHAT_TEST(*flagRichLink == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
+
+   delete [] primarySession;
+   primarySession = NULL;
+}
+
+/**
+ * @brief TEST_Calls
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * - A looks for the group chat
+ * - A starts a call in that group chat
+ * - A waits for call was established correctly
+ * - A hangs up the call
+ *
+ * + A waits to receive a incoming call
+ * - A answers it
+ * - A hangs the call
+ */
+void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName)
+{
     char *primarySession = login(a1);
+    megachat::MegaChatRoomList *chatRoomList = megaChatApi[a1]->getChatRooms();
 
-    // Get rich link state
-    bool *flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
-    *flagRequestRichLink = false;
-    bool *flagRichLink = &mRichLinkFlag[a1];
-    *flagRichLink = false;
-    int *countRichLink = &mCountRichLink[a1];
-    *countRichLink = 0;
-    megaApi[a1]->shouldShowRichLinkWarning();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
+    for (unsigned int i = 0; i < chatRoomList->size(); i++)
+    {
+        const MegaChatRoom *chatRoom = chatRoomList->get(i);
+        if (chatRoomName == std::string(chatRoom->getTitle()))
+        {
+            chatid = chatRoom->getChatId();
+            break;
+        }
+    }
 
-    // Enable/disable rich link generation
-    bool enableRichLink = !(*flagRichLink);
-    bool *flagRichLinkRequest = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagRichLinkRequest = false;
-    megaApi[a1]->enableRichPreviews(enableRichLink);
-    ASSERT_CHAT_TEST(waitForResponse(flagRichLinkRequest), "User attribute retrieval not finished after timeout");
-    ASSERT_CHAT_TEST(!lastError[a1], "Failed to enable rich preview. Error: " + std::to_string(lastError[a1]));
+    delete chatRoomList;
 
-    // Get rich link state
-    flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
-    *flagRequestRichLink = false;
-    flagRichLink = &mRichLinkFlag[a1];
-    *flagRichLink = true;
-    countRichLink = &mCountRichLink[a1];
-    *countRichLink = 0;
-    megaApi[a1]->shouldShowRichLinkWarning();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
-    ASSERT_CHAT_TEST(*flagRichLink == false, "Rich link enable/disable has not worked, (Rich link warning hasn't to be shown)");
+    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Chat with title: " + chatRoomName + " not found.");
 
-    // Change value for rich link counter
-    int counter = *countRichLink + 1;
-    bool *flagCounterRichLink = &requestFlags[a1][MegaRequest::TYPE_SET_ATTR_USER]; *flagCounterRichLink = false;
-    megaApi[a1]->setRichLinkWarningCounterValue(counter);
-    ASSERT_CHAT_TEST(waitForResponse(flagCounterRichLink), "User attribute retrieval not finished after timeout");
-    ASSERT_CHAT_TEST(!lastError[a1], "Failed to set rich preview count. Error: " + std::to_string(lastError[a1]));
-    flagRequestRichLink = &requestFlags[a1][MegaRequest::TYPE_GET_ATTR_USER];
-    *flagRequestRichLink = false;
-    flagRichLink = &mRichLinkFlag[a1];
-    *flagRichLink = false;
-    countRichLink = &mCountRichLink[a1];
-    *countRichLink = 0;
-    megaApi[a1]->shouldShowRichLinkWarning();
-    ASSERT_CHAT_TEST(waitForResponse(flagRequestRichLink), "Expired timeout for rich Link");
-    ASSERT_CHAT_TEST(!lastError[a1] || lastError[a1] == mega::API_ENOENT, "Should show richLink warning. Error: " + std::to_string(lastError[a1]));
-    ASSERT_CHAT_TEST(counter == *countRichLink, "Rich link count has not taken the correct value - value: " + std::to_string(*countRichLink) + " Desired value: " + std::to_string(counter));
-    ASSERT_CHAT_TEST(*flagRichLink == true, "Rich link enable/disable has not worked, (Rich link warning has to be shown)");
+    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
+
+    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+
+    loadHistory(a1, chatid, chatroomListener);
+
+    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
+    megaChatApi[a1]->loadAudioVideoDeviceList();
+    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
+
+    ::mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
+    ::mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
+
+    TestChatVideoListener localVideoListener;
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+
+    // ---- MANUAL TEST ----
+
+    // Start call
+
+    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagRequest = false;
+    std::cerr << "Start Call" << std::endl;
+    megaChatApi[a1]->startChatCall(chatid, true);
+    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
+    bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
+    ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
+
+    std::cout << "Waiting for the other peer to answer the call..." << std::endl;
+    sleep(60);
+
+    MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
+    ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCall (by chatid)");
+
+    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
+    ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall (by callid)");
+
+    delete chatCall;    chatCall = NULL;
+    delete chatCall2;   chatCall2 = NULL;
+
+    bool *callDestroyed= &mCallDestroyed[a1]; *callDestroyed = false;
+    std::cerr << "Finish Call" << std::endl;
+    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
+    std::cout << "Call finished." << std::endl;
+    ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+
+    // Receive call
+
+    std::cout << "Waiting for the other peer to start a call..." << std::endl;
+    sleep(20);
+
+    std::cout << "Ready to receive calls..." << std::endl;
+    bool *callReceived = &mCallReceived[a1]; *callReceived = false;
+    mChatIdRingInCall[a1] = MEGACHAT_INVALID_HANDLE;
+    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
+    ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
+    megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
+    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
+
+    sleep(40);  // wait to receive some traffic
+    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
+    std::cout << "Call finished." << std::endl;
+    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
+
+    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
+
+    delete audioInDevices;
+    audioInDevices = NULL;
+    delete videoInDevices;
+    videoInDevices = NULL;
+
+    delete chatroomListener;
+    chatroomListener = NULL;
 
     delete [] primarySession;
     primarySession = NULL;
 }
+
+#endif
 
 /**
  * @brief TEST_SendRichLink
@@ -2784,140 +2895,6 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     delete [] secondarySession;
     secondarySession = NULL;
 }
-
-/**
- * @brief TEST_GroupManualCalls
- *
- * Requirements:
- *      - Both accounts should be conctacts
- * (if not accomplished, the test automatically solves them)
- *
- * This test does the following:
- * - A starts a calls with B
- * + B answers the call in another client
- * - A hangs the call
- *
- * + B starts a call with A in another client
- * - A receive the call and answers it
- * - A hangs the call
- */
-void MegaChatApiTest::TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName)
-{
-    char *primarySession = login(a1);
-    megachat::MegaChatRoomList *chatRoomList = megaChatApi[a1]->getChatRooms();
-    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-    for (unsigned int i = 0; i < chatRoomList->size(); i++)
-    {
-        const MegaChatRoom *chatRoom = chatRoomList->get(i);
-        if (chatRoomName == std::string(chatRoom->getTitle()))
-        {
-            chatid = chatRoom->getChatId();
-            break;
-        }
-    }
-
-    delete chatRoomList;
-
-    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Chat with title: " + chatRoomName + " not found.");
-    TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
-    loadHistory(a1, chatid, chatroomListener);
-    bool *audioVideoDeviceListLoaded = &requestFlagsChat[a1][MegaChatRequest::TYPE_LOAD_AUDIO_VIDEO_DEVICES]; *audioVideoDeviceListLoaded = false;
-    megaChatApi[a1]->loadAudioVideoDeviceList();
-    ASSERT_CHAT_TEST(waitForResponse(audioVideoDeviceListLoaded), "Timeout expired for load audio video devices");
-
-    mega::MegaStringList *audioInDevices = megaChatApi[a1]->getChatAudioInDevices();
-    mega::MegaStringList *videoInDevices = megaChatApi[a1]->getChatVideoInDevices();
-
-    TestChatVideoListener localVideoListener;
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
-    std::vector <TestChatVideoListener *> remoteVideoListeners;
-    std::vector <MegaChatHandle> peerHandles;
-    MegaChatRoom *chatRoom = megaChatApi[a1]->getChatRoom(chatid);
-    unsigned int peerCount = chatRoom->getPeerCount();
-    for (unsigned int i = 0; i < peerCount; i++)
-    {
-        peerHandles.push_back(chatRoom->getPeerHandle(i));
-        remoteVideoListeners.push_back(new TestChatVideoListener());
-        megaChatApi[a1]->addChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
-    }
-
-    delete chatRoom;
-
-    // ---- MANUAL TEST ----
-
-    // Start call
-    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagRequest = false;
-    std::cerr << "Start Call" << std::endl;
-    megaChatApi[a1]->startChatCall(chatid, true);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
-    bool *callAnswered = &mCallAnswered[a1]; *callAnswered = false;
-    ASSERT_CHAT_TEST(waitForResponse(callAnswered), "Timeout expired for receiving a call");
-
-    std::cout << "Waiting for the other peer to answer the call..." << std::endl;
-    sleep(60);
-
-    MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
-    ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCall (by chatid)");
-    MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getId());
-    ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall (by callid)");
-
-    delete chatCall;    chatCall = NULL;
-    delete chatCall2;   chatCall2 = NULL;
-
-    bool *callDestroyed= &mCallDestroyed[a1]; *callDestroyed = false;
-    std::cerr << "Finish Call" << std::endl;
-    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
-    std::cout << "Call finished." << std::endl;
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
-    for (unsigned int i = 0; i < peerHandles.size(); i++)
-    {
-        megaChatApi[a1]->removeChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
-    }
-
-    // Receive call
-    std::cout << "Waiting for the other peer to start a call..." << std::endl;
-    sleep(20);
-
-    std::cout << "Ready to receive calls..." << std::endl;
-    bool *callReceived = &mCallReceived[a1]; *callReceived = false;
-    mChatIdRingInCall[a1] = MEGACHAT_INVALID_HANDLE;
-    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
-    ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
-    megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
-    for (unsigned int i = 0; i < peerHandles.size(); i++)
-    {
-        megaChatApi[a1]->addChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
-    }
-
-    sleep(40);  // wait to receive some traffic
-    megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
-    std::cout << "Call finished." << std::endl;
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
-    for (unsigned int i = 0; i < peerHandles.size(); i++)
-    {
-        megaChatApi[a1]->removeChatRemoteVideoListener(chatid, peerHandles[i], remoteVideoListeners[i]);
-        delete remoteVideoListeners[i];
-    }
-
-    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
-
-    delete audioInDevices;
-    audioInDevices = NULL;
-    delete videoInDevices;
-    videoInDevices = NULL;
-
-    delete chatroomListener;
-    chatroomListener = NULL;
-
-    delete [] primarySession;
-    primarySession = NULL;
-}
-
-#endif
 
 int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
@@ -3569,8 +3546,18 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
                 }
                 else if (request->getParamType() == MegaApi::USER_ATTR_RICH_PREVIEWS)
                 {
-                    mRichLinkFlag[apiIndex] = request->getFlag();
-                    mCountRichLink[apiIndex] = request->getNumber();
+                    if (request->getNumDetails() == 1)  // filter out "getua"s other than shouldShowRichLinkWarning()
+                    {
+                        mRichLinkFlag[apiIndex] = request->getFlag();
+                        mCountRichLink[apiIndex] = request->getNumber();
+                    }
+                    else
+                    {
+                        // internal getua() made by MEGAchat upon user-attr changes
+                        // --> do not set the requestFlag, since the request is not made by the tests
+                        // (change this if `isRichPreviewEnabled()` is used in tests)
+                        return;
+                    }
                 }
                 break;
 
@@ -3770,7 +3757,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS))
     { 
-        MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
+        MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange(), call->getClientidSessionStatusChange());
         ASSERT_CHAT_TEST(session != NULL, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Change at call: " << call->getPeerSessionStatusChange()
                   << "   Audio: " << session->hasAudio() << "    Video: " << session->hasVideo() << std::endl;
@@ -3784,7 +3771,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
     {
-        MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange());
+        MegaChatSession *session = call->getMegaChatSession(call->getPeerSessionStatusChange(), call->getClientidSessionStatusChange());
         ASSERT_CHAT_TEST(session != NULL, "Invalid session for peer received at 'getMegaChatSession' change avflags");
         std::cerr << "Session peer: " << call->getPeerSessionStatusChange()
                   << "   State: " << session->getStatus() << std::endl;

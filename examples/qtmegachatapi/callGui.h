@@ -20,7 +20,8 @@ class CallGui: public QWidget
     Q_OBJECT
     protected:
         MegaChatHandle mPeerid;
-        ChatWindow *mChatWindow;
+        MegaChatHandle mClientid;
+        ChatWindow *mChatWindow;        
         megachat::MegaChatCall *mCall;
         RemoteCallListener *remoteCallListener;
         LocalCallListener *localCallListener;
@@ -38,7 +39,7 @@ class CallGui: public QWidget
         void onAnswerCallBtn(bool);
     public:
         Ui::CallGui *ui;
-        CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local);
+        CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool local);
         virtual ~ CallGui();
         void hangCall();
         void connectPeerCallGui();
@@ -48,15 +49,16 @@ class CallGui: public QWidget
         virtual void onPeerMute(karere::AvFlags state, karere::AvFlags oldState);
         virtual void onLocalMediaError(const std::string err);
         virtual void onVideoRecv();
-        MegaChatHandle getPeer() const;
+        MegaChatHandle getPeerid();
+        MegaChatHandle getClientid();
 
-    friend class RemoteCallListener;
-    friend class LocalCallListener;
-    friend class MainWindow;
-    megachat::MegaChatCall *getCall() const;
-    void setCall(megachat::MegaChatCall *call);
-    int getIndex() const;
-    void setIndex(int index);
+        friend class RemoteCallListener;
+        friend class LocalCallListener;
+        friend class MainWindow;
+        megachat::MegaChatCall *getCall() const;
+        void setCall(megachat::MegaChatCall *call);
+        int getIndex() const;
+        void setIndex(int index);
 };
 
 #endif // MAINWINDOW_H

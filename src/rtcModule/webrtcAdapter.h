@@ -1,6 +1,5 @@
 #pragma once
 //#include <p2p/base/common.h>
-#include <rtc_base/scoped_ref_ptr.h>
 #include <api/peerconnectioninterface.h>
 #include <api/jsep.h>
 #include <media/base/device.h>
@@ -62,7 +61,7 @@ enum {kCreateSdpFailed = 1, kSetSdpDescriptionFailed = 2};
 
 #ifdef RTCM_MARSHALL_CALLBACKS
 #define RTCM_DO_CALLBACK(code,...)      \
-    mega::marshallCall([__VA_ARGS__]() mutable { \
+    ::mega::marshallCall([__VA_ARGS__]() mutable { \
         code;                                    \
     })
 #else

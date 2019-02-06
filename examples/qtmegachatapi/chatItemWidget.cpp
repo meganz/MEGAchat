@@ -5,27 +5,31 @@
 #include <iostream>
 #include <QMessageBox>
 
-ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatApi, const megachat::MegaChatListItem *item) :
+ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatApi, const megachat::MegaChatListItem *item) :
     QWidget(parent),
     ui(new Ui::ChatItem)
 {
     mMainWin = (MainWindow *) parent;
     mLastMsgAuthor.clear();
     mListWidgetItem = NULL;
-    mChatWindow = NULL;
     mMegaApi = mMainWin->mMegaApi;
     mLastOverlayCount = 0;
     mChatId = item->getChatId();
     mMegaChatApi = megaChatApi;
     ui->setupUi(this);
-    int unreadCount = mMainWin->getLocalChatListItem(mChatId)->getUnreadCount();
+    int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
 
+    QString text = NULL;
     if (item->isArchived())
     {
-        QString text = NULL;
         text.append(item->getTitle())
-        .append(" [A]");
+        .append("[A]");
+
+        if (!item->isActive())
+        {
+            text.append("[H]");
+        }
         ui->mName->setText(text);
         ui->mName->setStyleSheet("color:#DEF0FC;");
         ui->mAvatar->setStyleSheet("color:#DEF0FC;");
@@ -34,7 +38,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
     {
         if (!item->isActive())
         {
-            QString text = NULL;
             text.append(item->getTitle())
             .append(" [H]");
             ui->mName->setText(text);
@@ -45,6 +48,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
         {
             ui->mName->setText(item->getTitle());
             ui->mName->setStyleSheet("color:#FFFFFF; font-weight:bold;");
+            ui->mAvatar->setStyleSheet("color:#FFFFFF; font-weight:bold;");
         }
     }
 
@@ -59,11 +63,6 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi* megaChatA
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
     this->onlineIndicatorUpdate(status);
-}
-
-void ChatItemWidget::invalidChatWindowHandle()
-{
-    mChatWindow = NULL;
 }
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
@@ -87,7 +86,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     {
         char *uh = mMainWin->mMegaApi->userHandleToBase64(lastMessageSender);
         senderHandle.assign(uh);
-        delete uh;
+        delete [] uh;
     }
 
     if (author)
@@ -135,7 +134,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             {
                 char *uh = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
                 targetName.assign(uh);
-                delete uh;
+                delete [] uh;
             }
 
             bool removed = item->getLastMessagePriv() == megachat::MegaChatRoom::PRIV_RM;
@@ -158,7 +157,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                 char *uh = mMainWin->mMegaApi->userHandleToBase64(item->getLastMessageHandle());
                 targetName.assign(uh);
                 priv.assign(megachat::MegaChatRoom::privToString(item->getLastMessagePriv()));
-                delete uh;
+                delete [] uh;
             }
             lastMessage.append("User ").append(senderHandle)
                        .append(" set privilege of user ").append(targetName)
@@ -179,6 +178,11 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                        .append(" attached a node: ").append(item->getLastMessage());
             break;
 
+        case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+            lastMessage.append("User ").append(senderHandle)
+                       .append(" sent a ").append(item->getLastMessage());
+            break;
+
         case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
             lastMessage.append("User ").append(senderHandle)
                        .append(" set chat title: ").append(item->getLastMessage());
@@ -191,14 +195,17 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         case megachat::MegaChatMessage::TYPE_CALL_ENDED:
         {
             QString qstring(item->getLastMessage());
-            QStringList stringList = qstring.split(0x01);
-            assert(stringList.size() >= 2);
-            lastMessage.append("Call started by: ")
-                       .append(senderHandle)
-                       .append(" Duration: ")
-                       .append(stringList.at(0).toStdString())
-                       .append("secs TermCode: ")
-                       .append(stringList.at(1).toStdString());
+            if (!qstring.isEmpty())
+            {
+                QStringList stringList = qstring.split(0x01);
+                assert(stringList.size() >= 2);
+                lastMessage.append("Call started by: ")
+                           .append(senderHandle)
+                           .append(" Duration: ")
+                           .append(stringList.at(0).toStdString())
+                           .append("secs TermCode: ")
+                           .append(stringList.at(1).toStdString());
+            }
             break;
         }
         case megachat::MegaChatMessage::TYPE_CALL_STARTED:
@@ -216,6 +223,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         lastMessageId_64 = auxLastMessageId_64;
     }
 
+    QDateTime t;
+    t.setTime_t(item->getLastTimestamp());
+    QString lastTs = t.toString("hh:mm:ss - dd.MM.yy");
+
     if(!item->isGroup())
     {
         const char *peerEmail = chatRoom->getPeerEmail(0);
@@ -228,8 +239,9 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             .append(tr("\n\n"))
             .append(tr("\nLast message Id: ")).append(lastMessageId_64)
             .append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str())
-            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage));
-        delete peerHandle_64;
+            .append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage))
+            .append(tr("\nLast ts: ")).append(lastTs);
+        delete [] peerHandle_64;
     }
     else
     {
@@ -260,8 +272,8 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                         .arg(QString::fromStdString(peerId_64))
                         .arg(QString(chatRoom->privToString(peerPriv)));
                 text.append(line);
-                delete peerName;
-                delete peerId_64;
+                delete [] peerName;
+                delete [] peerId_64;
             }
             text.resize(text.size()-1);
         }
@@ -269,11 +281,12 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         text.append(tr("\nLast message Id: ")).append(lastMessageId_64);
         text.append(tr("\nLast message Sender: ")).append(mLastMsgAuthor.c_str());
         text.append(tr("\nLast message: ")).append(QString::fromStdString(lastMessage));
+        text.append(tr("\nLast ts: ")).append(lastTs);
     }
     setToolTip(text);
     delete chatRoom;
-    delete chatId_64;
-    delete auxLastMessageId_64;
+    delete [] chatId_64;
+    delete [] auxLastMessageId_64;
 }
 
 const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle msgUserId)
@@ -291,8 +304,9 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
         size_t len = msg ? strlen(msg) : 0;
         if (len)
         {
-            msgAuthor = new char[len];
+            msgAuthor = new char[len + 1];
             strncpy(msgAuthor, msg, len);
+            msgAuthor[len] = '\0';
         }
         delete chatRoom;
     }
@@ -332,41 +346,13 @@ void ChatItemWidget::unshowAsHidden()
     ui->mName->setStyleSheet("color: rgba(255,255,255,255)\n");
 }
 
-ChatWindow *ChatItemWidget::showChatWindow()
-{
-    std::string titleStd = ui->mName->text().toStdString();
-    const char *chatWindowTitle = titleStd.c_str();
-    megachat::MegaChatRoom *chatRoom = this->mMegaChatApi->getChatRoom(mChatId);
-
-    if (!mChatWindow)
-    {
-        mChatWindow = new ChatWindow(mMainWin, mMegaChatApi, chatRoom->copy(), chatWindowTitle);
-        mChatWindow->show();
-        mChatWindow->openChatRoom();
-    }
-    else
-    {
-        mChatWindow->show();
-        mChatWindow->setWindowState(Qt::WindowActive);
-    }
-    delete chatRoom;
-    return mChatWindow;
-}
-
-
-ChatWindow *ChatItemWidget::getChatWindow()
-{
-    return mChatWindow;
-}
-
 void ChatItemWidget::mouseDoubleClickEvent(QMouseEvent */*event*/)
 {
-    showChatWindow();
-}
-
-void ChatItemWidget::setChatWindow(ChatWindow *chatWindow)
-{
-    mChatWindow = chatWindow;
+   ChatListItemController *itemController = mMainWin->getChatControllerById(mChatId);
+   if (itemController)
+   {
+      itemController->showChatWindow();
+   }
 }
 
 QListWidgetItem *ChatItemWidget::getWidgetItem() const

@@ -4,6 +4,7 @@
 #import "megachatapi.h"
 
 #import "MEGAChatRichPreview+init.h"
+#import "MEGAChatGeolocation+init.h"
 
 using namespace megachat;
 
@@ -45,8 +46,18 @@ using namespace megachat;
     return self.megaChatContainsMeta ? (MEGAChatContainsMetaType)self.megaChatContainsMeta->getType() : MEGAChatContainsMetaTypeInvalid;
 }
 
+- (NSString *)textMessage {
+    if (!self.megaChatContainsMeta) return nil;
+    const char *ret = self.megaChatContainsMeta->getTextMessage();
+    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
+}
+
 - (MEGAChatRichPreview *)richPreview {
-    return self.megaChatContainsMeta ? [[MEGAChatRichPreview alloc] initWithMegaChatRichPreview:self.megaChatContainsMeta->getRichPreview()->copy() cMemoryOwn:YES] : nil;
+    return self.megaChatContainsMeta->getRichPreview() ? [[MEGAChatRichPreview alloc] initWithMegaChatRichPreview:self.megaChatContainsMeta->getRichPreview()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAChatGeolocation *)geolocation {
+    return self.megaChatContainsMeta->getGeolocation() ? [[MEGAChatGeolocation alloc] initWithMegaChatGeolocation:self.megaChatContainsMeta->getGeolocation() cMemoryOwn:YES] : nil;
 }
 
 @end

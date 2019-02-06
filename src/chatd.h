@@ -60,11 +60,11 @@ enum ManualSendReason: uint8_t
 /** The source from where history is being retrieved by the app */
 enum HistSource
 {
-    kHistSourceNone = 0, //< History is not being retrieved
-    kHistSourceRam = 1, //< History is being retrieved from the history buffer in RAM
-    kHistSourceDb = 2, //<History is being retrieved from the local DB
-    kHistSourceServer = 3, //< History is being retrieved from the server
-    kHistSourceNotLoggedIn = 4 //< History has to be fetched from server, but we are not logged in yet
+    kHistSourceNone = 0, ///< History is not being retrieved
+    kHistSourceRam = 1, ///< History is being retrieved from the history buffer in RAM
+    kHistSourceDb = 2, ///<History is being retrieved from the local DB
+    kHistSourceServer = 3, ///< History is being retrieved from the server
+    kHistSourceNotLoggedIn = 4 ///< History has to be fetched from server, but we are not logged in yet
 };
 
 enum
@@ -303,6 +303,16 @@ public:
      */
     virtual void onHistoryReloaded(){}
 };
+
+class FilteredHistoryHandler
+{
+public:
+    virtual void onReceived(Message* /*msg*/, chatd::Idx idx) = 0;
+    virtual void onLoaded(Message* /*msg*/, chatd::Idx idx) = 0;
+    virtual void onDeleted(karere::Id /*id*/) = 0;
+    virtual void onTruncated(karere::Id /*id*/) = 0;
+};
+
 class Connection;
 
 class IRtcHandler
@@ -321,21 +331,47 @@ public:
     virtual void stopCallsTimers(int shard) = 0;
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid) = 0;
     virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
+    virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId
 {
+    enum {kBufferSize = 12};
     karere::Id userid;
     uint32_t clientid;
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid){}
+    unsigned char buffer[kBufferSize];
+    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
+    {
+        memcpy(buffer, &userid.val , 8);
+        memcpy(buffer + 8, &clientid, 4);
+    }
+
     bool operator<(EndpointId other) const
     {
-         if (userid.val < other.userid.val)
-             return true;
-         else if (userid.val > other.userid.val)
-             return false;
-         else
-             return (clientid < other.clientid);
+        if (userid.val < other.userid.val)
+        {
+            return true;
+        }
+        else if (userid.val > other.userid.val)
+        {
+            return false;
+        }
+        else
+        {
+            return (clientid < other.clientid);
+        }
+    }
+
+    bool operator>(EndpointId other) const
+    {
+        return other < *this;
+    }
+
+    /** Comparison at byte level, necessary to compatibility with the webClient (javascript)*/
+    static bool greaterThanForJs(EndpointId first, EndpointId second)
+    {
+        return (memcmp(first.buffer, second.buffer, kBufferSize) > 0);
     }
 };
 
@@ -345,30 +381,72 @@ class Client;
 class Connection: public karere::DeleteTrackable, public WebsocketsClient
 {
 public:
-    enum State { kStateNew, kStateFetchingUrl, kStateDisconnected, kStateResolving, kStateConnecting, kStateConnected};
-    enum {
-        kIdleTimeout = 64,  // chatd closes connection after 48-64s of not receiving a response
-        kEchoTimeout = 1    // echo to check connection is alive when back to foreground
-         };
+    enum State
+    {
+        kStateNew,
+        kStateFetchingUrl,
+        kStateDisconnected,
+        kStateResolving,
+        kStateConnecting,
+        kStateConnected};
+
+    enum
+    {
+        kIdleTimeout = 64,      // (in seconds) chatd closes connection after 48-64s of not receiving a response
+        kEchoTimeout = 1,       // (in seconds) echo to check connection is alive when back to foreground
+        kConnectTimeout = 30    // (in seconds) timeout reconnection to succeeed
+    };
 
 protected:
+    Connection(Client& chatdClient, int shardNo);
+
     Client& mChatdClient;
+
+    /** Shard number for which the Connection is configured */
     int mShardNo;
+
+    /** Set of chats using the Connection object */
     std::set<karere::Id> mChatIds;
-    State mState = kStateNew;
-    karere::Url mUrl;
-    bool usingipv6 = false; // ip version to try first (both are tried)
-    std::string mTargetIp;
-    DNScache &mDNScache;
-    bool mHeartbeatEnabled = false;
-    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
-    time_t mTsLastRecv = 0;
-    megaHandle mEchoTimer = 0;
-    promise::Promise<void> mConnectPromise;
+
+    /** Client ID is received upon login to chatd, based on a seed */
     uint32_t mClientId = 0;
-    Connection(Client& client, int shardNo);
-    State state() { return mState; }
+
+    /** Current state of the connection */
+    State mState = kStateNew;
+
+    /** When enabled, hearbeat() method is called periodically */
+    bool mHeartbeatEnabled = false;
+
+    /** URL retrieved from API to establish the connection */
+    karere::Url mUrl;
+
+    /** DNS cache to store resolved IPs */
+    DNScache &mDNScache;
+
+    /** Target IP address being used for the reconnection in-flight */
+    std::string mTargetIp;
+
+    /** ip version to try first (both are tried) */
+    bool usingipv6 = false;
+
+    /** RetryController that manages the reconnection's attempts */
+    std::unique_ptr<karere::rh::IRetryController> mRetryCtrl;
+
+    /** Input promise for the RetryController
+     *  - If it fails: a new attempt is schedulled
+     *  - If it success: the reconnection is taken as done */
+    promise::Promise<void> mConnectPromise;
+
+    /** Timestamp of the last received data from chatd */
+    time_t mTsLastRecv = 0;
+
+    /** Handler of the timeout for the ECHO command */
+    megaHandle mEchoTimer = 0;
+
+    /** Handler of the timeout for the connection establishment */
+    megaHandle mConnectTimer = 0;
     
+    // ---- callbacks called from libwebsocketsIO ----
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
@@ -391,19 +469,15 @@ protected:
     void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
     friend class Client;
     friend class Chat;
+
 public:
-    State state() const { return mState; }
-    bool isOnline() const
-    {
-        return mState == kStateConnected; //(mWebSocket && (ws_get_state(mWebSocket) == WS_STATE_CONNECTED));
-    }
-    const std::set<karere::Id>& chatIds() const { return mChatIds; }
-    uint32_t clientId() const { return mClientId; }
-    void retryPendingConnection(bool disconnect);
-    virtual ~Connection()
-    {
-        disconnect();
-    }
+    void setState(State state);
+    State state() const;
+    bool isOnline() const;
+    const std::set<karere::Id>& chatIds() const;
+    uint32_t clientId() const;
+    void retryPendingConnection(bool disconnect, bool refreshURL = false);
+    virtual ~Connection();
 
     void heartbeat();
 
@@ -510,24 +584,78 @@ protected:
     uint8_t mState = kNone;
 };
 
+/**
+ * @brief The generic class to manage history applying filters
+ *
+ * This class allows to add/delete messages and truncate history, as well as
+ * retrieve/load messages by the app (from RAM, DB's cache and/or server).
+ *
+ * A FilteredHistoryHandler can be registered by FilteredHistory::setHandler in order to
+ * receive callbacks when a message is received, loaded and deleted, or when the history
+ * is truncated.
+ *
+ * Currently, this class is used exclusively to manage history of nodes/attachments.
+ * In consequence, it uses the method Chat::requestNodeHistoryFromServer to fetch
+ * new nodes from chatd through NODEHIST. Note that node-messages are also added to
+ * the filtered history if a received/retrieved message (NEWMSG/OLDMSG) is a node-message.
+ *
+ * However, since NODEHIST only returns messages tagged in chatd as attachments via
+ * the NEWNODEMSG, the algorithm may suffer from two issues:
+ *
+ *  1. Attachments in the filtered history may not preserve the order in the history, since
+ * tagged attachments may be added to the node-history earlier than older non-tagged attachments.
+ *  2. Once all tagged attachments are loaded via NODEHIST, older non-tagged attachments (retrieved
+ * via HIST) won't be notified until the app is restarted because it's considered all node-history
+ * is already loaded.
+ */
 class FilteredHistory
 {
 public:
-    FilteredHistory(DbInterface *db);
-    void addMessage(const Message &msg, bool isNew);
+    FilteredHistory(DbInterface &db, Chat &chat);
+
+    void addMessage(Message &msg, bool isNew, bool isLocal);
     void deleteMessage(const Message &msg);
     void truncateHistory(karere::Id id);
-    Idx newestIdx() const;
-    Idx oldestIdx() const;
-    Idx oldestLoadedIdx() const;
     void clear();
+
+    HistSource getHistory(uint32_t count);
+    void setHaveAllHistory(bool haveAllHistory);
+
+    karere::Id getOldestMsgId() const;
+    void setHandler(FilteredHistoryHandler *handler);
+    void unsetHandler();
+    void finishFetchingFromServer();
+    Message *getMessage(karere::Id id);
+    Idx getMessageIdx(karere::Id id);
+
 protected:
-    std::list<std::unique_ptr<Message>> mBuffer;
-    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
     DbInterface *mDb;
-    Idx mNewest;
-    Idx mOldest;
-    Idx mOldestLoaded;
+    Chat *mChat;
+    FilteredHistoryHandler *mListener;
+
+    /** Contains the messages in the history-buffer */
+    std::list<std::unique_ptr<Message>> mBuffer;
+
+    /** Maps msgid's to their position in the history-buffer */
+    std::map<karere::Id, std::list<std::unique_ptr<Message>>::iterator> mIdToMsgMap;
+
+    /** Index of the newest (most recent) message loaded in RAM */
+    Idx mNewestIdx;
+
+    /** Index of the oldest message loaded in RAM */
+    Idx mOldestIdx;
+
+    /** Index of the oldest message available in DB */
+    Idx mOldestIdxInDb;
+
+    /** Iterator pointing to the next message to be notified from buffer in memory */
+    std::list<std::unique_ptr<Message>>::iterator mNextMsgToNotify;
+
+    /** True if we reached the beginning of the history */
+    bool mHaveAllHistory = false;
+
+    /** True while fetching messages from server via NODEHIST is in progress*/
+    bool mFetchingFromServer = false;
 
     void init();
 };
@@ -586,7 +714,13 @@ public:
         ManualSendReason reason;
     };
 
-    Client& mClient;
+    Client& mChatdClient;
+
+    enum FetchType
+    {
+        kFetchMessages,
+        kFetchNodeHistory
+    };
 
 protected:
     Connection& mConnection;
@@ -609,7 +743,7 @@ protected:
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
-    karere::SetOfIds mUserDump; //< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
+    karere::SetOfIds mUserDump; ///< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -624,6 +758,7 @@ protected:
 
     /** @brief Whether we have more not-loaded history in db */
     bool mHasMoreHistoryInDb = false;
+    /** When true, OLDMSGs received from chatd are notified to the app */
     bool mServerOldHistCbEnabled = false;
     /** @brief Have reached the beggining of the history (not necessarily the end of it) */
     bool mHaveAllHistory = false;
@@ -668,6 +803,17 @@ protected:
     uint32_t mLastMsgTs;
     bool mIsGroup;
     std::set<karere::Id> mMsgsToUpdateWithRichLink;
+    /** Indicates the type of fetchs in-flight */
+    std::queue <FetchType> mFetchRequest;
+    /** Num of node-attachment messages requested to server */
+    uint32_t mAttachNodesRequestedToServer = 0;
+    /** Num of node-attachment messages received from server during fetch in-flight */
+    uint32_t mAttachNodesReceived = 0;
+    bool mAttachmentHistDoneReceived = false;
+    std::queue <Message *> mAttachmentsPendingToDecrypt;
+    bool mDecryptionAttachmentsHalted = false;
+    /** True when node-attachments are pending to decrypt and history is truncated --> discard message being decrypted */
+    bool mTruncateAttachment = false;
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
@@ -675,8 +821,6 @@ protected:
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
-    Message* oldest() const { return (!mBackwardList.empty()) ? mBackwardList.back().get() : mForwardList.front().get(); }
-    Message* newest() const { return (!mForwardList.empty())? mForwardList.back().get() : mBackwardList.front().get(); }
     void clear()
     {
         mBackwardList.clear();
@@ -689,6 +833,7 @@ protected:
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
+    bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
     void onJoinComplete();
@@ -718,7 +863,6 @@ protected:
     void findAndNotifyLastTextMsg();
     void notifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
-    bool manualResendWhenUserJoins() const;
     void onInCall(karere::Id userid, uint32_t clientid);
     void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
@@ -727,18 +871,19 @@ protected:
     void removePendingRichLinks();
     void removePendingRichLinks(Idx idx);
     void manageRichLinkMessage(Message &message);
+    void attachmentHistDone();
     friend class Connection;
     friend class Client;
 /// @endcond PRIVATE
 public:
-    unsigned initialHistoryFetchCount = 32; //< This is the amount of messages that will be requested from server _only_ in case local db is empty
+    unsigned initialHistoryFetchCount = 32; ///< This is the amount of messages that will be requested from server _only_ in case local db is empty
     /** @brief users The current set of users in the chatroom */
     const karere::SetOfIds& users() const { return mUsers; }
     ~Chat();
     /** @brief The chatid of this chat */
     karere::Id chatId() const { return mChatId; }
     /** @brief The chatd client */
-    Client& client() const { return mClient; }
+    Client& client() const { return mChatdClient; }
     Connection& connection() const { return mConnection; }
     /** @brief The lowest index of a message in the RAM history buffer */
     Idx lownum() const { return mForwardStart - (Idx)mBackwardList.size(); }
@@ -782,6 +927,12 @@ public:
 
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
+
+    /** @brief True if joining into chatd (already connected to chatd via socket) */
+    bool isJoining() const { return mOnlineState == kChatStateJoining; }
+
+    /** @brief True if logged-in into chatd (HISTDONE received after JOIN/JOINRANGEHIST) */
+    bool isLoggedIn() const { return mOnlineState == kChatStateOnline; }
 
     /** @brief Get the seen/received status of a message. Both the message object
      * and its index in the history buffer must be provided */
@@ -903,6 +1054,22 @@ public:
     }
 
     /**
+     * @brief Returns the message with specific msgid that it's stored at node history
+     * @param msgid The message id
+     * @return Pointer to the message. The ownership of the message is retained in c\ FilteredHistory
+     */
+    Message *getMessageFromNodeHistory(karere::Id msgid) const;
+
+    /**
+     * @brief Returns the index of the message with the specified msgid that it's stored at node history
+     * @param msgid The message id whose index to find
+     * @return The index of the message inside the RAM history buffer.
+     *  If no such message exists in the RAM history buffer, CHATD_IDX_INVALID
+     * is returned
+     */
+    Idx getIdxFromNodeHistory(karere::Id msgid) const;
+
+    /**
      * @brief Initiates fetching more history - from local RAM history buffer,
      * from local db or from server.
      * If ram + local db have less than the number of requested messages,
@@ -918,6 +1085,8 @@ public:
      * the fetch is from server.
      */
     HistSource getHistory(unsigned count);
+
+    HistSource getNodeHistory(uint32_t count);
 
     /**
      * @brief Resets sending of history to the app, so that next getHistory()
@@ -1092,6 +1261,20 @@ public:
     void clearHistory();
     void sendSync();
 
+    /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
+    void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
+
+    /** Returns oldest message in  the history buffer*/
+    Message* oldest() const;
+
+    /** Returns newest message in  the history buffer*/
+    Message* newest() const;
+
+    /** Returns true when fetch in-flight is a NODEHIST */
+    bool isFetchingNodeHistory() const;
+    void setNodeHistoryHandler(FilteredHistoryHandler *handler);
+    void unsetHandlerToNodeHistory();
+
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1130,82 +1313,37 @@ public:
 class Client
 {
 protected:
-/// maps the chatd shard number to its corresponding Shard connection
+    karere::Id mMyHandle;
+
+    // maps the chatd shard number to its corresponding Shard connection
     std::map<int, std::shared_ptr<Connection>> mConnections;
-/// maps a chatid to the handling Shard connection
+
+    // maps a chatid to the handling Shard connection
     std::map<karere::Id, Connection*> mConnectionForChatId;
-/// maps chatids to the Message object
+
+    // maps chatids to the Chat object
     std::map<karere::Id, std::shared_ptr<Chat>> mChatForChatId;
-/// set of seen timers
+
+    // maps userids to the timestamp of the most recent message received from the userid
+    std::map<karere::Id, ::mega::m_time_t> mLastMsgTs;
+
+    // set of seen timers
     std::set<megaHandle> mSeenTimers;
-    karere::Id mUserId;
+
     bool mMessageReceivedConfirmation = false;
+
+    // value of richPreview's user-attribute
     uint8_t mRichLinkState = kRichLinkNotDefined;
+
+    // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
-    Connection& chatidConn(karere::Id chatid)
-    {
-        auto it = mConnectionForChatId.find(chatid);
-        if (it == mConnectionForChatId.end())
-            throw std::runtime_error("chatidConn: Unknown chatid "+chatid.toString());
-        return *it->second;
-    }
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
     void sendKeepalive();
     void sendEcho();
+
 public:
-    enum: uint32_t { kOptManualResendWhenUserJoins = 1 };
-    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
-    unsigned inactivityCheckIntervalSec = 20;
-    uint32_t options = 0;
-    MyMegaApi *mApi;
-    karere::Client *karereClient;
-    uint8_t mKeepaliveType = OP_KEEPALIVE;
-    IRtcHandler* mRtcHandler = nullptr;
-    karere::Id userId() const { return mUserId; }
-    void setKeepaliveType(bool isInBackground);
-    uint8_t keepaliveType() { return mKeepaliveType; }
-    Client(karere::Client *client, karere::Id userId);
-    ~Client();
-    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const
-    {
-        auto it = mChatForChatId.find(chatid);
-        return (it == mChatForChatId.end()) ? nullptr : it->second;
-    }
-    Chat& chats(karere::Id chatid) const
-    {
-        auto it = mChatForChatId.find(chatid);
-        if (it == mChatForChatId.end())
-            throw std::runtime_error("chatidChat: Unknown chatid "+chatid.toString());
-        return *it->second;
-    }
-    /** @brief Joins the specifed chatroom on the specified shard, using the specified
-     * url, and assocuates the specified Listener and ICRypto instances
-     * with the newly created Chat object.
-     */
-    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
-    Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
-    /** @brief Leaves the specified chatroom */
-    void leave(karere::Id chatid);
-    void disconnect();
-    void retryPendingConnections(bool disconnect);
-    void heartbeat();
-    bool manualResendWhenUserJoins() const { return options & kOptManualResendWhenUserJoins; }
-    void notifyUserIdle();
-    void notifyUserActive();
-    /** Changes the Rtc handler, returning the old one */
-    IRtcHandler* setRtcHandler(IRtcHandler* handler);
-    /** Clean the timers set */
-    void cancelTimers();
-    bool isMessageReceivedConfirmationActive() const;
-    uint8_t richLinkState() const;
-    friend class Connection;
-    friend class Chat;
-
-    bool areAllChatsLoggedIn();
-
-
     // Chatd Version:
     // - Version 0: initial version
     // - Version 1:
@@ -1216,18 +1354,73 @@ public:
     //  * Add CALLTIME command
     // - Version 4:
     //  * Add echo for SEEN command (with seen-pointer up-to-date)
-    static const unsigned chatdVersion = 4;
+    // - Version 5:
+    //  * Changes at CALLDATA protocol (new state)
+    static const unsigned chatdVersion = 5;
+
+    Client(karere::Client *aKarereClient);
+    ~Client();
+
+    enum: uint8_t { kRichLinkNotDefined = 0,  kRichLinkEnabled = 1, kRichLinkDisabled = 2};
+
+    MyMegaApi *mApi;
+    karere::Client *mKarereClient;
+    IRtcHandler* mRtcHandler = nullptr;
+    uint8_t mKeepaliveType = OP_KEEPALIVE;
+
+    /* --- getters --- */
+    const karere::Id myHandle() const;
+    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const;
+    Chat& chats(karere::Id chatid) const;
+    uint8_t richLinkState() const;
+    bool areAllChatsLoggedIn();
+
+    uint8_t keepaliveType();
+    void setKeepaliveType(bool isInBackground);
+
+    /** @brief Joins the specifed chatroom on the specified shard, using the specified url, and
+     * associates the specified Listener and ICrypto instances with the newly created Chat object.
+     */
+    Chat& createChat(karere::Id chatid, int shardNo, const std::string& url,
+    Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
+
+    /** @brief Leaves the specified chatroom */
+    void leave(karere::Id chatid);
+
+    void disconnect();
+    void retryPendingConnections(bool disconnect, bool refreshURL = false);
+    void heartbeat();
+
+    void notifyUserIdle();
+    void notifyUserActive();
+
+    /** Changes the Rtc handler, returning the old one */
+    IRtcHandler* setRtcHandler(IRtcHandler* handler);
+
+    /** Clean the timers set */
+    void cancelSeenTimers();
+
+    // True if clients send confirmation to chatd when they receive a new message
+    bool isMessageReceivedConfirmationActive() const;
+
+    // The timestamps of the most recent message from userid
+    mega::m_time_t getLastMsgTs(karere::Id userid) const;
+    void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
+
+    friend class Connection;
+    friend class Chat;
 };
 
 static inline const char* connStateToStr(Connection::State state)
 {
     switch (state)
     {
-    case Connection::State::kStateDisconnected: return "Disconnected";
-    case Connection::State::kStateConnecting: return "Connecting";
-    case Connection::State::kStateConnected: return "Connected";
     case Connection::State::kStateNew: return "New";
     case Connection::State::kStateFetchingUrl: return "Fetching URL";
+    case Connection::State::kStateDisconnected: return "Disconnected";
+    case Connection::State::kStateResolving: return "Resolving DNS";
+    case Connection::State::kStateConnecting: return "Connecting";
+    case Connection::State::kStateConnected: return "Connected";
     default: return "(invalid)";
     }
 }
@@ -1313,6 +1506,7 @@ public:
     virtual void truncateNodeHistory(karere::Id id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
     virtual void clearNodeHistory() = 0;
+    virtual void fetchDbNodeHistory(Idx idx, unsigned count, std::vector<chatd::Message*>& messages) = 0;
 
 
 //  <<<--- Additional methods: seen/received/delta/oldest/newest... --->>>
@@ -1323,7 +1517,7 @@ public:
     virtual void setLastReceived(karere::Id msgid) = 0;
 
     virtual Idx getOldestIdx() = 0;
-    virtual Idx getIdxOfMsgid(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg) = 0;
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
@@ -1333,6 +1527,8 @@ public:
 
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
+
+    virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
 };
 
 }

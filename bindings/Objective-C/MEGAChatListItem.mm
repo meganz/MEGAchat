@@ -99,6 +99,10 @@ using namespace megachat;
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
+- (uint64_t)lastMessageId {
+    return self.megaChatListItem ? self.megaChatListItem->getLastMessageId() : MEGACHAT_INVALID_HANDLE;
+}
+
 - (MEGAChatMessageType)lastMessageType {
     return (MEGAChatMessageType) (self.megaChatListItem ? self.megaChatListItem->getLastMessageType() : 0);
 }
@@ -190,8 +194,10 @@ using namespace megachat;
 
 + (NSString *)stringForMessageType:(MEGAChatMessageType)type {
     NSString *result;
-    
     switch (type) {
+        case MEGAChatMessageTypeUnknown:
+            result = @"Unknown";
+            break;
         case MEGAChatMessageTypeInvalid:
             result = @"Invalid";
             break;
@@ -210,6 +216,9 @@ using namespace megachat;
         case MEGAChatMessageTypeChatTitle:
             result = @"Chat title";
             break;
+        case MEGAChatMessageTypeCallEnded:
+            result = @"Call ended";
+            break;
         case MEGAChatMessageTypeAttachment:
             result = @"Attachment";
             break;
@@ -219,13 +228,18 @@ using namespace megachat;
         case MEGAChatMessageTypeContact:
             result = @"Contact";
             break;
+        case MEGAChatMessageTypeContainsMeta:
+            result = @"Contains meta";
+            break;
+        case MEGAChatMessageTypeVoiceClip:
+            result = @"Voice clip";
+            break;
             
         default:
             result = @"Default";
             break;
     }
     return result;
-
 }
 
 @end

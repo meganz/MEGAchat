@@ -362,7 +362,16 @@ enum Opcode
       */
     OP_NEWNODEMSG = 44,
 
-    OP_LAST = OP_CALLTIME
+    /**
+      * @brief
+      * C->S: Requests the count older attach messages from msgid, which will be sent as a sequence
+      *    of OLDMSGs, followed by a HISTDONE.
+      * Send: <chatid> <msgid> <count>
+      */
+    OP_NODEHIST = 45,
+
+    OP_LAST = OP_NODEHIST,
+    OP_INVALIDCODE = 0xFF
 };
 
 // privilege levels
@@ -393,21 +402,30 @@ public:
         kMsgManagementHighest = 0x07,
         kMsgOffset            = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst         = 0x65,
-        kMsgAttachment        = 0x65,   // Old value  kMsgAttachment        = 0x10
-        kMsgRevokeAttachment  = 0x66,   // Old value  kMsgRevokeAttachment  = 0x11
-        kMsgContact           = 0x67,   // Old value  kMsgContact           = 0x12
-        kMsgContainsMeta      = 0x68    // Old value  kMsgContainsMeta      = 0x13
+        kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10
+        kMsgRevokeAttachment  = 0x66,   // kMsgNormal's subtype = 0x11
+        kMsgContact           = 0x67,   // kMsgNormal's subtype = 0x12
+        kMsgContainsMeta      = 0x68,   // kMsgNormal's subtype = 0x13
+        kMsgVoiceClip         = 0x69    // kMsgNormal's subtype = 0x14
     };
+
+    enum ContainsMetaSubType: uint8_t
+    {
+        kInvalid              = 0xff,
+        kRichLink             = 0x00,
+        kGeoLocation          = 0x01
+    };
+
     enum Status
     {
-        kSending, //< Message has not been sent or is not yet confirmed by the server
-        kSendingManual, //< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
-        kServerReceived, //< Message confirmed by server, but not yet delivered to recepient(s)
-        kServerRejected, //< Message is rejected by server for some reason (editing too old message for example)
-        kDelivered, //< Peer confirmed message receipt. Used only for 1on1 chats
+        kSending, ///< Message has not been sent or is not yet confirmed by the server
+        kSendingManual, ///< Message is too old to auto-retry sending, or group composition has changed. User must explicitly confirm re-sending. All further messages queued for sending also need confirmation
+        kServerReceived, ///< Message confirmed by server, but not yet delivered to recepient(s)
+        kServerRejected, ///< Message is rejected by server for some reason (editing too old message for example)
+        kDelivered, ///< Peer confirmed message receipt. Used only for 1on1 chats
         kLastOwnMessageStatus = kDelivered, //if a status is <= this, we created the msg, oherwise not
-        kNotSeen, //< User hasn't read this message yet
-        kSeen //< User has read this message
+        kNotSeen, ///< User hasn't read this message yet
+        kSeen ///< User has read this message
     };
     enum { kFlagForceNonText = 0x01 };
 
@@ -473,6 +491,7 @@ public:
 
             if (!buffer || len < (lenCallid + lenDuration + lenTermCode + lenNumParticipants))
             {
+                delete info;
                 return NULL;
             }
 
@@ -637,8 +656,17 @@ public:
                 && (type == kMsgNormal              // exclude any unknown type (not shown in the apps)
                     || type == kMsgAttachment
                     || type == kMsgContact
-                    || type == kMsgContainsMeta)
+                    || type == kMsgContainsMeta
+                    || type == kMsgVoiceClip)
                 );
+    }
+    ContainsMetaSubType containMetaSubtype() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 2) ? ((ContainsMetaSubType)*(buf()+2)) : ContainsMetaSubType::kInvalid;
+    }
+    std::string containsMetaJson() const
+    {
+        return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
     }
 
     /** @brief Convert attachment etc. special messages to text */
@@ -788,7 +816,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }

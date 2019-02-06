@@ -40,7 +40,7 @@ uint8_t kCallDataRinging = 1;
 #else
 
 #include "karereCommon.h" //for AvFlags
-#include <karereId.h>
+#include "../karereId.h"
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
 
@@ -98,7 +98,7 @@ enum TermCode: uint8_t
     kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
     // < users are online
     kAppTerminating = 7,        // < The application is terminating
-    kCallGone = 8,
+    kCallerGone = 8,
     kBusy = 9,                  // < Peer is in another call
     kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
     kDestroyByCallCollision = 19,// < The call has finished by a call collision
@@ -122,8 +122,11 @@ enum TermCode: uint8_t
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
     kErrAlready = 36,           // < There is already a call in this chatroom
     kErrNotSupported = 37,      // < Clients that don't support calls send CALL_REQ_CANCEL with this code
-    kErrorLast = 37,            // < Last enum indicating call termination due to error
-    kLast = 37,                 // < Last call terminate enum value
+    kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
+    kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
+    kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
+    kErrorLast = 40,            // < Last enum indicating call termination due to error
+    kLast = 40,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
@@ -211,6 +214,9 @@ public:
     virtual void removeAllParticipants() = 0;
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
+
+    virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
+    virtual int64_t getInitialTimeStamp() = 0;
 };
 class IGlobalHandler
 {
@@ -259,6 +265,7 @@ public:
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
     karere::Id peer() const { return mPeer; }
+    uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
 };
@@ -352,7 +359,7 @@ protected:
     std::string mAudioInDeviceName;
     IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         karere::Id ownAnonId)
-        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
+        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mKarereClient(client) {}
 public:
     enum {
        kMaxCallReceivers = 20,
@@ -361,7 +368,7 @@ public:
     };
 
     virtual ~IRtcModule() {}
-    karere::Client& mClient;
+    karere::Client& mKarereClient;
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
@@ -403,6 +410,7 @@ public:
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
     virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
     virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;
+    virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const = 0;
 
     virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;

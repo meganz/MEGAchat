@@ -15,7 +15,7 @@
 class MegaLoggerApplication;
 
 class MegaChatApplication : public QApplication,
-    public mega::MegaListener,
+    public ::mega::MegaListener,
     public megachat::MegaChatRequestListener,
     public megachat::MegaChatNotificationListener
 {
@@ -26,8 +26,6 @@ class MegaChatApplication : public QApplication,
         void init();
         void login();
         void logout();
-        void addChats();
-        void addContacts();
         void configureLogs();
 
         const char *readSid();
@@ -39,27 +37,31 @@ class MegaChatApplication : public QApplication,
         void resetLoginDialog();
 
         virtual void onRequestFinish(megachat::MegaChatApi *mMegaChatApi, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
-        virtual void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e);
-        virtual void onUsersUpdate(mega::MegaApi * api, mega::MegaUserList * userList);
+        virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
+        virtual void onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
         const char *getFirstname(megachat::MegaChatHandle uh);
 
+        bool isStagingEnabled();
+        void enableStaging(bool enable);
+
     protected:
-        const char* mSid;
+        const char *mSid;
         std::string mAppDir;
         MainWindow *mMainWin;
         LoginDialog *mLoginDialog;
         MegaLoggerApplication *mLogger;
-        mega::MegaApi *mMegaApi;
+        ::mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *mMegaChatApi;
-        mega::QTMegaListener *megaListenerDelegate;
+        ::mega::QTMegaListener *megaListenerDelegate;
         megachat::QTMegaChatRequestListener *megaChatRequestListenerDelegate;
         megachat::QTMegaChatNotificationListener *megaChatNotificationListenerDelegate;
 
     private:
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
+        bool useStaging = false;
 
     public slots:
         void onLoginClicked();

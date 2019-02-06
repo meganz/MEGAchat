@@ -167,7 +167,7 @@ public:
             }
 
             mBusy = false;
-            std::string json((const char*)result->getText(), result->getTotalBytes());
+            std::string json((const char*)result->getText(), (size_t)result->getTotalBytes());
             if (!parseServersJson(json))
             {
                 return promise::Error("Data from GeLB server incorrect: " + json, 0x3e9a9e1b, 1);

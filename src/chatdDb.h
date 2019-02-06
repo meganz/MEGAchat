@@ -186,7 +186,7 @@ public:
             int rowid = stmt.intCol(0);
             uint8_t opcode = stmt.intCol(1);
             karere::Id msgid = stmt.int64Col(2);
-            karere::Id userid = mChat.client().userId();
+            karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
             unsigned char type = (unsigned char)stmt.intCol(5);
             uint32_t ts = stmt.intCol(6);
@@ -244,35 +244,7 @@ public:
     }
     virtual void fetchDbHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
-        SqliteStmt stmt(mDb, "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from history "
-            "where chatid = ?1 and idx <= ?2 order by idx desc limit ?3");
-        stmt << mChat.chatId() << idx << count;
-        int i = 0;
-        while(stmt.step())
-        {
-            i++;
-            karere::Id msgid(stmt.uint64Col(0));
-            karere::Id userid(stmt.uint64Col(1));
-            unsigned ts = stmt.uintCol(2);
-            chatd::KeyId keyid = stmt.uintCol(6);
-            Buffer buf;
-            stmt.blobCol(4, buf);
-#ifndef NDEBUG
-            auto idx = stmt.intCol(5);
-            if(idx != mChat.lownum()-1-(int)messages.size()) //we go backward in history, hence the -messages.size()
-            {
-                CHATD_LOG_ERROR("chatid %s: fetchDbHistory: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(),
-                    mChat.lownum()-1-(int)messages.size(), idx);
-                assert(false);
-            }
-#endif
-            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
-                false, keyid, (unsigned char)stmt.intCol(3));
-            msg->backRefId = stmt.uint64Col(7);
-            msg->setEncrypted((uint8_t)stmt.intCol(9));
-            messages.push_back(msg);
-        }
+        loadMessages(count, idx, messages, "history");
     }
 
     virtual chatd::Idx getIdxOfMsgid(karere::Id msgid, const std::string &table)
@@ -283,7 +255,7 @@ public:
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
 
-    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
+    virtual chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid)
     {
         return getIdxOfMsgid(msgid, "history");
     }
@@ -294,19 +266,20 @@ public:
                 "and (userid != ?2)"
                 "and not (updated != 0 and length(data) = 0)"
                 "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
-                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9)";
+                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9 or type = ?10)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
         SqliteStmt stmt(mDb, sql);
-        stmt << mChat.chatId() << mChat.client().userId()   // skip own messages
+        stmt << mChat.chatId() << mChat.client().myHandle()   // skip own messages
              << chatd::Message::kNotEncrypted               // include decrypted messages
              << chatd::Message::kEncryptedMalformed         // include encrypted messages due to malformed payload
              << chatd::Message::kEncryptedSignature         // include encrypted messages due to invalid signature
              << chatd::Message::kMsgNormal                  // include only known type of messages
              << chatd::Message::kMsgAttachment
              << chatd::Message::kMsgContact
-             << chatd::Message::kMsgContainsMeta;
+             << chatd::Message::kMsgContainsMeta
+             << chatd::Message::kMsgVoiceClip;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -329,7 +302,7 @@ public:
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().userId(),
+            auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
             items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
@@ -349,7 +322,7 @@ public:
 
         Buffer buf;
         stmt.blobCol(4, buf);
-        auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().userId(),
+        auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().myHandle(),
                                       stmt.int64Col(2), stmt.intCol(3), std::move(buf), true,
                                       CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
         item.msg = msg;
@@ -359,7 +332,7 @@ public:
     }
     virtual void truncateHistory(const chatd::Message& msg)
     {
-        auto idx = getIdxOfMsgid(msg.id());
+        auto idx = getIdxOfMsgidFromHistory(msg.id());
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
@@ -441,8 +414,8 @@ public:
 
     virtual void deleteMsgFromNodeHistory(const chatd::Message& msg)
     {
-        mDb.query("update node_history set data = ?, updated = ? where chatid = ? and msgid = ?",
-                  msg, msg.updated, mChat.chatId(), msg.id());
+        mDb.query("update node_history set data = ?, updated = ?, type = ? where chatid = ? and msgid = ?",
+                  msg, msg.updated, msg.type, mChat.chatId(), msg.id());
         assertAffectedRowCount(1, "deleteMsgFromNodeHistory");
     }
 
@@ -466,6 +439,51 @@ public:
 
         oldest = count ? stmt.intCol(0) : 0;
         newest = count ? stmt.intCol(1) : -1;
+    }
+
+    virtual void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
+    {
+        loadMessages(count, idx, messages, "node_history");
+    }
+
+    virtual chatd::Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid)
+    {
+        return getIdxOfMsgid(msgid, "node_history");
+    }
+
+    void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table)
+    {
+        std::string query = "select msgid, userid, ts, type, data, idx, keyid, backrefid, updated, is_encrypted from " + table +
+                            " where chatid = ?1 and idx <= ?2 order by idx desc limit ?3";
+
+        SqliteStmt stmt(mDb, query.c_str());
+        stmt << mChat.chatId() << idx << count;
+        int i = 0;
+        while(stmt.step())
+        {
+            i++;
+            karere::Id msgid(stmt.uint64Col(0));
+            karere::Id userid(stmt.uint64Col(1));
+            unsigned ts = stmt.uintCol(2);
+            chatd::KeyId keyid = stmt.uintCol(6);
+            Buffer buf;
+            stmt.blobCol(4, buf);
+#ifndef NDEBUG
+            auto tableIdx = stmt.intCol(5);
+            if(tableIdx != idx - (int)messages.size()) //we go backward in history, hence the -messages.size()
+            {
+                CHATD_LOG_ERROR("chatid %s: loadMessages from table %s: History discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(), table.c_str(),
+                    idx - (int)messages.size(), tableIdx);
+                assert(false);
+            }
+#endif
+            auto msg = new chatd::Message(msgid, userid, ts, stmt.intCol(8), std::move(buf),
+                false, keyid, (unsigned char)stmt.intCol(3));
+            msg->backRefId = stmt.uint64Col(7);
+            msg->setEncrypted((uint8_t)stmt.intCol(9));
+            messages.push_back(msg);
+        }
     }
 };
 

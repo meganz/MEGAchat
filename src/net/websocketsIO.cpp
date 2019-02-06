@@ -78,7 +78,9 @@ void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
 WebsocketsClient::WebsocketsClient()
 {
     ctx = NULL;
+#if !defined(_WIN32) || !defined(_MSC_VER)
     thread_id = 0;
+#endif
 }
 
 WebsocketsClient::~WebsocketsClient()
@@ -94,8 +96,12 @@ bool WebsocketsClient::wsResolveDNS(WebsocketsIO *websocketIO, const char *hostn
 
 bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, const char *host, int port, const char *path, bool ssl)
 {
+#if defined(_WIN32) && defined(_MSC_VER)
+    thread_id = std::this_thread::get_id();
+#else
     thread_id = pthread_self();
-    
+#endif
+
     WEBSOCKETS_LOG_DEBUG("Connecting to %s (%s)  port %d  path: %s   ssl: %d", host, ip, port, path, ssl);
 
     assert(!ctx);
@@ -123,7 +129,12 @@ bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
         return false;
     }
 
-    assert (thread_id == pthread_self());
+#if defined(_WIN32) && defined(_MSC_VER)
+    assert(thread_id == std::this_thread::get_id());
+#else
+    assert(thread_id == pthread_self());
+#endif
+    
     
     WEBSOCKETS_LOG_DEBUG("Sending %d bytes", len);
     bool result = ctx->wsSendMessage(msg, len);
@@ -143,7 +154,11 @@ void WebsocketsClient::wsDisconnect(bool immediate)
         return;
     }
 
-    assert (thread_id == pthread_self());
+#if defined(_WIN32) && defined(_MSC_VER)
+    assert(thread_id == std::this_thread::get_id());
+#else
+    assert(thread_id == pthread_self());
+#endif
     ctx->wsDisconnect(immediate);
 
     if (immediate)
@@ -160,7 +175,12 @@ bool WebsocketsClient::wsIsConnected()
         return false;
     }
     
-    assert (thread_id == pthread_self());
+#if defined(_WIN32) && defined(_MSC_VER)
+    assert(thread_id == std::this_thread::get_id());
+#else
+    assert(thread_id == pthread_self());
+#endif
+
     return ctx->wsIsConnected();
 }
 

@@ -25,7 +25,7 @@ class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface
 {
     public:
     AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler);
-    virtual void OnData(const void* audio_data,
+    virtual void OnData(const void *audio_data,
                         int bits_per_sample,
                         int sample_rate,
                         size_t number_of_channels,
@@ -44,10 +44,13 @@ protected:
     static const StateDesc sStateDesc;
     artc::tspMediaStream mRemoteStream;
     std::shared_ptr<artc::StreamPlayer> mRemotePlayer;
-    std::string mOwnSdp;
-    std::string mPeerSdp;
-    SdpKey mOwnSdpKey;
-    SdpKey mPeerSdpKey;
+    std::string mOwnSdpOffer;
+    std::string mOwnSdpAnswer;
+    std::string mPeerSdpOffer;
+    std::string mPeerSdpAnswer;
+    SdpKey mPeerHash;
+    SdpKey mOwnHashKey;
+    SdpKey mPeerHashKey;
     artc::myPeerConnection<Session> mRtcConn;
     std::string mName;
     ISessionHandler* mHandler = NULL;
@@ -62,20 +65,16 @@ protected:
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
-    void createRtcConn();
-    void sendCmdSession(RtMessage& packet);
     void sendAv(karere::AvFlags av);
     promise::Promise<void> sendOffer();
-    void msgSdpOfferSendAnswer(RtMessage& packet);
     void msgSdpAnswer(RtMessage& packet);
     void msgSessTerminateAck(RtMessage& packet);
     void msgSessTerminate(RtMessage& packet);
     void msgIceCandidate(RtMessage& packet);
     void msgMute(RtMessage& packet);
-    void mungeSdp(std::string& sdp);
     void onVideoRecv();
     void submitStats(TermCode termCode, const std::string& errInfo);
-    bool verifySdpFingerprints(const std::string& sdp, const SdpKey& peerHash);
+    bool verifySdpFingerprints(const std::string& sdp);
     template<class... Args>
     bool cmd(uint8_t type, Args... args);
     void destroy(TermCode code, const std::string& msg="");
@@ -83,17 +82,18 @@ protected:
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
     std::string getDeviceInfo() const;
-    void sdpSetVideoBw(std::string& sdp, int maxbr);
-    int calculateNetworkQuality(const stats::Sample* sample);
+    int calculateNetworkQuality(const stats::Sample *sample);
 
 public:
     RtcModule& mManager;
-    Session(Call& call, RtMessage& packet);
+    Session(Call& call, RtMessage& packet, SdpKey sdpkey);
     ~Session();
     void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
     virtual bool videoReceived() const { return mVideoReceived; }
     void manageNetworkQuality(stats::Sample* sample);
+    void createRtcConn();
+    void veryfySdpOfferSendAnswer();
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -104,6 +104,7 @@ public:
     void onDataChannel(webrtc::DataChannelInterface* data_channel);
     void onRenegotiationNeeded() {}
     void onError() {}
+    void updateAvFlags(karere::AvFlags flags);
     //====
     static bool isTermRetriable(TermCode reason);
     friend class Call;
@@ -114,11 +115,12 @@ class Call: public ICall
 {
     enum CallDataState
     {
-        kCallDataNotRinging     = 0,
-        kCallDataRinging        = 1,
-        kCallDataEnd            = 2,
-        kCallDataSession        = 3,
-        kCallDataMute           = 4
+        kCallDataNotRinging             = 0,
+        kCallDataRinging                = 1,
+        kCallDataEnd                    = 2,
+        kCallDataSession                = 3,
+        kCallDataMute                   = 4,
+        kCallDataSessionKeepRinging     = 5  // obsolete
     };
 
     enum
@@ -130,11 +132,17 @@ class Call: public ICall
         kCallDataReasonCancelled    = 0x05  /// outgoing call was cancelled by caller before receiving any answer from the callee
     };
 
+    enum
+    {
+        kFlagRinging = 0x04
+    };
+
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
-    std::unique_ptr<std::set<karere::Id>> mRingOutUsers;
+    std::map<chatd::EndpointId, int> mIceFails;
+    std::map<chatd::EndpointId, std::pair<karere::Id, SdpKey> > mSentSessions;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;
@@ -147,15 +155,18 @@ protected:
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
     megaHandle mStatsTimer = 0;
+    megaHandle mCallSetupTimer = 0;
     bool mNotSupportedAnswer = false;
+    bool mIsRingingOut = false;
+    bool mHadRingAck = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
-    void msgCallTerminate(RtMessage& packet);
     void msgSession(RtMessage& packet);
     void msgJoin(RtMessage& packet);
     void msgRinging(RtMessage& packet);
     void msgCallReqDecline(RtMessage& packet);
     void msgCallReqCancel(RtMessage& packet);
+    void msgSdpOffer(RtMessage& packet);
     void handleReject(RtMessage& packet);
     void handleBusy(RtMessage& packet);
     void getLocalStream(karere::AvFlags av, std::string& errors);
@@ -191,6 +202,7 @@ protected:
     bool hasNoSessionsOrPendingRetries() const;
     uint8_t convertTermCodeToCallDataCode();
     bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
+    void monitorCallSetupTimeout();
     friend class RtcModule;
     friend class Session;
 public:
@@ -207,6 +219,9 @@ public:
     virtual std::map<karere::Id, karere::AvFlags> avFlagsRemotePeers() const;
     virtual std::map<karere::Id, uint8_t> sessionState() const;
     void sendBusy(bool isCallToSameUser);
+    uint32_t clientidFromSession(karere::Id userid);
+    void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
+    bool isCaller(karere::Id userid, uint32_t clientid);
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -215,10 +230,10 @@ public:
     enum {
         kApiTimeout = 20000,
         kCallAnswerTimeout = 40000,
-        kRingOutTimeout = 30000,
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
-        kSessSetupTimeout = 30000
+        kSessSetupTimeout = 25000,
+        kCallSetupTimeout = 35000
     };
 
     enum Resolution
@@ -229,12 +244,11 @@ public:
         notDefined
     };
 
-    //TODO: set valid values
-    int maxBr = 1000;
-    int maxGroupBr = 1000;
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         const char* iceServers);
     int setIceServers(const karere::ServerList& servers);
+    void addIceServers(const karere::ServerList& servers);
+    webrtc::PeerConnectionInterface::IceServer createIceServer(const karere::TurnServerInfo &serverInfo);
     template <class... Args>
     void sendCommand(chatd::Chat& chat, uint8_t opcode, uint8_t command, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
 // IRtcHandler - interface to chatd
@@ -246,6 +260,8 @@ public:
     virtual void stopCallsTimers(int shard);
     virtual void handleInCall(karere::Id chatid, karere::Id userid, uint32_t clientid);
     virtual void handleCallTime(karere::Id chatid, uint32_t duration);
+    virtual void onKickedFromChatRoom(karere::Id chatid);
+    virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
@@ -256,10 +272,11 @@ public:
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress(karere::Id chatid) const;
+    virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
     virtual void removeCallWithoutParticipants(karere::Id chatid);
-    virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler);
-    virtual ICallHandler* findCallHandler(karere::Id chatid);
+    virtual void addCallHandler(karere::Id chatid, ICallHandler *callHandler);
+    virtual ICallHandler *findCallHandler(karere::Id chatid);
     virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
 //==
@@ -295,7 +312,7 @@ protected:
     template <class T> void random(T& result) const;
     //=== Implementation methods
     void initInputDevices();
-    const cricket::Device* getDevice(const std::string& name, const artc::DeviceList& devices);
+    const cricket::Device *getDevice(const std::string& name, const artc::DeviceList& devices);
     bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
                       std::string& selected);
 
