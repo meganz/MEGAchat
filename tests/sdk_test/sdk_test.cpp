@@ -437,12 +437,14 @@ const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
         return MegaApi::strdup("");
     }
 
-    char hstr[sizeof(handle) * 4 / 3 + 4];
     MegaChatHandle chatid = chat->getChatId();
-    Base64::btoa((const byte *)&chatid, sizeof(handle), hstr);
+    const char *hstr = MegaApi::userHandleToBase64(chatid);
 
     std::stringstream buffer;
     buffer << "Chat ID: " << hstr << " (" << chatid << ")" << endl;
+    delete [] hstr;
+    hstr = NULL;
+
     buffer << "\tOwn privilege level: " << MegaChatRoom::privToString(chat->getOwnPrivilege()) << endl;
     if (chat->isActive())
     {
@@ -476,8 +478,10 @@ const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
         for (unsigned i = 0; i < chat->getPeerCount(); i++)
         {
             MegaChatHandle uh = chat->getPeerHandle(i);
-            Base64::btoa((const byte *)&uh, sizeof(handle), hstr);
+            hstr = MegaApi::userHandleToBase64(uh);
             buffer << "\t\t\t" << hstr;
+            delete [] hstr;
+            hstr = NULL;
             buffer << "\t" << MegaChatRoom::privToString(chat->getPeerPrivilege(i));
             buffer << "\t\t" << chat->getPeerFirstname(i);
             buffer << "\t" << chat->getPeerLastname(i);
@@ -2967,10 +2971,10 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
             break;  // no more history or cannot retrieve it
         }
 
-        char *handleB64 = new char[sizeof(handle) * 4 / 3 + 4];
-        Base64::btoa((const byte *)&chatid, sizeof(handle), handleB64);
-        ASSERT_CHAT_TEST(waitForResponse(flagHistoryLoaded), "Timeout expired for loading history from chat: " + std::string(handleB64));
-        delete [] handleB64;
+        const char *hstr = MegaApi::userHandleToBase64(chatid);
+        ASSERT_CHAT_TEST(waitForResponse(flagHistoryLoaded), "Timeout expired for loading history from chat: " + std::string(hstr));
+        delete [] hstr;
+        hstr = NULL;
     }
 
     return chatroomListener->msgCount[accountIndex];
