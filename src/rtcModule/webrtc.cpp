@@ -2068,10 +2068,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
         if (mSessRetries.find(EndpointId(userid, clientid)) != mSessRetries.end())
         {
             cancelSessionRetryTimer(userid, clientid);
-            if (mSessions.empty() && mSessRetries.empty())
-            {
-                destroy(TermCode::kErrPeerOffline, userid == mChat.client().mKarereClient->myHandle());
-            }
+            destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
         }
     }
     else if (mState >= kStateInProgress)
