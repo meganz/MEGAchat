@@ -1415,7 +1415,12 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
 
     MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers);
-    MegaChatRoom *chatRoom = megaChatApi[a1]->getChatRoom(chatid);
+    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                             "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
+    ASSERT_CHAT_TEST((megaChatApi[a2]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
+                             "Not connected to chatd for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
+
+    MegaChatRoom *chatRoom = megaChatApi[a1]->getChatRoom(chatid);    
     ASSERT_CHAT_TEST(chatRoom && (chatid != MEGACHAT_INVALID_HANDLE), "Can't get a chatroom");
     delete peers;
     peers = NULL;
@@ -1509,7 +1514,6 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     delete msgSent; msgSent = NULL;
     delete chatroomListener;
     chatroomListener = NULL;
-
 
     delete [] sessionPrimary;
     delete [] sessionSecondary;
