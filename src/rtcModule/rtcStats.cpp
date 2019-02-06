@@ -62,26 +62,29 @@ void Recorder::resetBwCalculators()
 int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const webrtc::StatsReport *item)
 {
     int64_t numericalValue = 0;
-    static bool failTypeLog = true;
-    const webrtc::StatsReport::Value *value = item->FindValue(name);
-    if (value)
-    {
-        if (value->type() == webrtc::StatsReport::Value::kInt)
-        {
-            numericalValue = value->int_val();
-        }
-        else if (value->type() == webrtc::StatsReport::Value::kInt64)
-        {
-            numericalValue = value->int64_val();
-        }
-        else if (failTypeLog)
-        {
-            //This fail is almost always produced due to incompatibilities between webRtc
-            // in release mode and karere in debug mode. We only report once to avoid unnecessary log output
-            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
-            failTypeLog = false;
-        }
-    }
+
+//#ifndef DEBUG
+//    static bool failTypeLog = true;
+//    const webrtc::StatsReport::Value *value = item->FindValue(name);
+//    if (value)
+//    {
+//        if (value->type() == webrtc::StatsReport::Value::kInt)
+//        {
+//            numericalValue = value->int_val();
+//        }
+//        else if (value->type() == webrtc::StatsReport::Value::kInt64)
+//        {
+//            numericalValue = value->int64_val();
+//        }
+//        else if (failTypeLog)
+//        {
+//            //This fail is almost always produced due to incompatibilities between webRtc
+//            // in release mode and karere in debug mode. We only report once to avoid unnecessary log output
+//            KR_LOG_DEBUG("Incorrect type: Value with id %s is not an int, but has type %d", value->ToString().c_str(), value->type());
+//            failTypeLog = false;
+//        }
+//    }
+//#endif
 
     return numericalValue;
 }
