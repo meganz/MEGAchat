@@ -63,7 +63,7 @@ int64_t Recorder::getLongValue(webrtc::StatsReport::StatsValueName name, const w
 {
     int64_t numericalValue = 0;
 
-#ifndef DEBUG
+#ifdef NDEBUG
     static bool failTypeLog = true;
     const webrtc::StatsReport::Value *value = item->FindValue(name);
     if (value)
