@@ -476,7 +476,7 @@ public:
         public:
         karere::Id callid;
         uint8_t termCode = 0;
-        uint32_t duration = 0;
+        uint32_t duration = 0;  // duration of call if established or period of time ringing (if never established: missed/cancelled)
         std::vector<karere::Id> participants;
 
         static CallEndedInfo *fromBuffer(const char *buffer, size_t len)
