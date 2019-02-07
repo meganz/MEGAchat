@@ -3206,14 +3206,17 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
     Id chatid = buf.read<uint64_t>(1);
     Id userid = buf.read<uint64_t>(9);
     auto clientid = buf.read<uint32_t>(17);
-    auto dataLen = buf.read<uint16_t>(21);
+    auto dataLen = buf.read<uint16_t>(RtMessage::kHdrLen - 2) - 1;
     auto type = buf.read<uint8_t>(23);
     std::string result = Command::opcodeToStr(opcode);
     result.append(": ").append(rtcmdTypeToStr(type));
     result.append(" chatid: ").append(chatid.toString())
           .append(" userid: ").append(userid.toString())
           .append(" clientid: ").append(std::to_string(clientid));
-    StaticBuffer data(buf.buf()+23, dataLen);
+    StaticBuffer data(nullptr, 0);
+    data.assign(buf.readPtr(RtMessage::kPayloadOfs, dataLen), dataLen);
+//    payload.assign(msg.readPtr(RtMessage::kPayloadOfs, packetLen), packetLen);
+
     switch (type)
     {
         case RTCMD_CALL_REQ_DECLINE:
@@ -3233,13 +3236,14 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
             .append(" sid: ").append(Id(data.read<uint64_t>(8)).toString())
             .append(" ownAnonId: ").append(Id(data.read<uint64_t>(16)).toString());
             break;
+        case RTCMD_SESS_TERMINATE:
+            result.append(" reason: ").append(termCodeToStr(data.read<uint8_t>(8)));
         case RTCMD_SDP_OFFER:
         case RTCMD_SDP_ANSWER:
         case RTCMD_ICE_CANDIDATE:
-        case RTCMD_SESS_TERMINATE:
         case RTCMD_SESS_TERMINATE_ACK:
         case RTCMD_MUTE:
-            result.append(" sid: ").append(Id(buf.read<uint64_t>(0)).toString());
+            result.append(" sid: ").append(Id(data.read<uint64_t>(0)).toString());
             break;
     }
     return result;
