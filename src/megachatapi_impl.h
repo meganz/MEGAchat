@@ -573,7 +573,7 @@ private:
     rtcModule::ICall *call = NULL;
     MegaChatCallPrivate *chatCall = NULL;
 
-    rtcModule::IVideoRenderer *localVideoReceiver;
+    rtcModule::IVideoRenderer *localVideoReceiver = NULL;
 };
 
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
