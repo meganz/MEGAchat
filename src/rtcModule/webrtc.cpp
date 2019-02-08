@@ -3215,7 +3215,6 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
           .append(" clientid: ").append(std::to_string(clientid));
     StaticBuffer data(nullptr, 0);
     data.assign(buf.readPtr(RtMessage::kPayloadOfs, dataLen), dataLen);
-//    payload.assign(msg.readPtr(RtMessage::kPayloadOfs, packetLen), packetLen);
 
     switch (type)
     {
