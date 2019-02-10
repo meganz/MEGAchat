@@ -167,6 +167,24 @@ Client::Client(karere::Client *aKarereClient) :
                 break;
             }
        });
+
+    // initialize the most recent message for each user
+    SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");
+    while (stmt1.step())
+    {
+        karere::Id userid = stmt1.uint64Col(0);
+        if (userid == Id::COMMANDER())
+        {
+            continue;
+        }
+
+        SqliteStmt stmt2(mKarereClient->db, "SELECT MAX(ts) FROM history WHERE userid = ?");
+        stmt2 << userid.val;
+        if (stmt2.step())
+        {
+            mLastMsgTs[userid] = stmt2.uintCol(0);
+        }
+    }
 }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
@@ -287,6 +305,21 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
+::mega::m_time_t Client::getLastMsgTs(Id userid) const
+{
+    std::map<karere::Id, ::mega::m_time_t>::const_iterator it = mLastMsgTs.find(userid);
+    if (it != mLastMsgTs.end())
+    {
+        return it->second;
+    }
+    return 0;
+}
+
+void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
+{
+    mLastMsgTs[userid] = lastMsgTs;
+}
+
 uint8_t Client::richLinkState() const
 {
     return mRichLinkState;
@@ -330,15 +363,7 @@ void Chat::connect()
                 return;
             }
 
-            const char* url = result->getLink();
-            if (!url || !url[0])
-            {
-                CHATID_LOG_ERROR("No chatd URL received from API");
-                return;
-            }
-
-            std::string sUrl = url;
-            mConnection.mUrl.parse(sUrl);
+            mConnection.mUrl.parse(result->getLink());
             mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 
             mConnection.reconnect()
@@ -843,36 +868,70 @@ void Connection::doConnect()
     }
 }
 
-void Connection::retryPendingConnection(bool disconnect)
+void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 {
-    if (mUrl.isValid())
+    if (mState == kStateNew)
     {
-        if (disconnect)
-        {
-            CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        CHATDS_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        return;
+    }
 
-            setState(kStateDisconnected);
-            abortRetryController();
-            reconnect();
-        }
-        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    if (refreshURL || !mUrl.isValid())
+    {
+        if (mState == kStateFetchingUrl)
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
-
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
-            assert(!mEchoTimer);
-
-            mRetryCtrl->restart();
+            CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            return;
         }
-        else
+        CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+
+        // abort and prevent any further reconnection attempt
+        setState(kStateDisconnected);
+        abortRetryController();
+        cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+        mConnectTimer = 0;
+
+        // clear existing URL
+        mUrl = Url();
+        setState(kStateFetchingUrl);
+
+        assert(mChatIds.size());
+
+        auto wptr = getDelTracker();
+        mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+        .then([this, wptr](ReqResult result)
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
-        }
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Chatd URL request completed, but Connection was deleted");
+                return;
+            }
+
+            mUrl.parse(result->getLink());
+            retryPendingConnection(true);
+        });
+    }
+    else if (disconnect)
+    {
+        CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
+
+        setState(kStateDisconnected);
+        abortRetryController();
+        reconnect();
+    }
+    else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    {
+        CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+
+        assert(!isOnline());
+        assert(!mHeartbeatEnabled);
+        assert(!mEchoTimer);
+
+        mRetryCtrl->restart();
     }
     else
     {
-        CHATDS_LOG_WARNING("No valid URL provided to retry pending connections");
+        CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
     }
 }
 
@@ -910,11 +969,11 @@ void Client::disconnect()
     }
 }
 
-void Client::retryPendingConnections(bool disconnect)
+void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 {
     for (auto& conn: mConnections)
     {
-        conn.second->retryPendingConnection(disconnect);
+        conn.second->retryPendingConnection(disconnect, refreshURL);
     }
 }
 
@@ -1725,7 +1784,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
 
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler && userid != mChatdClient.mKarereClient->myHandle())
+                if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);                    
@@ -2416,6 +2475,12 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     if (msglen > kMaxMsgSize)
     {
         CHATID_LOG_WARNING("msgSubmit: Denying sending message because it's too long");
+        return NULL;
+    }
+
+    if (mOwnPrivilege == PRIV_NOTPRESENT)
+    {
+        CHATID_LOG_WARNING("msgSubmit: Denying sending message because we don't participate in the chat");
         return NULL;
     }
 
@@ -3375,9 +3440,9 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             auto erased = it;
             it++;
             mPendingEdits.erase(cipherMsg->id());
-            mSending.erase(erased);
             updateTs = item.msg->updated;
             richLinkRemoved = item.msg->richLinkRemoved;
+            mSending.erase(erased);
         }
     }
     mCrypto->msgDecrypt(cipherMsg)
@@ -4039,6 +4104,13 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
+        // update in memory the timestamp of the most recent message from this user
+        if (msg.ts > mChatdClient.getLastMsgTs(msg.userid))
+        {
+            mChatdClient.setLastMsgTs(msg.userid, msg.ts);
+            mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid);
+        }
+
         CALL_LISTENER(onRecvNewMessage, idx, msg, status);
     }
     else
@@ -4308,10 +4380,11 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
 
+    CHATID_LOG_DEBUG("Online state change: %s --> %s", chatStateToStr(mOnlineState), chatStateToStr(state));
+
     mOnlineState = state;
-    CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
-    CALL_LISTENER(onOnlineStateChange, state);
+    mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
     if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
     {

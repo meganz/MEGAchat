@@ -185,7 +185,7 @@ public:
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_OfflineMode(unsigned int accountIndex);
+    void TEST_OfflineMode(unsigned int a1, unsigned int a2);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
     void TEST_SendContact(unsigned int a1, unsigned int a2);
@@ -196,7 +196,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
-    void TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName);
+    void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -310,6 +310,7 @@ private:
     bool mVideoRemote[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mLoggedInAllChats[NUM_ACCOUNTS];
 
 #endif
 

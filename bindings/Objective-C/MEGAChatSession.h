@@ -16,6 +16,7 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionStatus) {
 @property (nonatomic, readonly, getter=hasVideo) BOOL video;
 
 @property (nonatomic, readonly) uint64_t peerId;
+@property (nonatomic, readonly) uint64_t clientId;
 @property (nonatomic, readonly) BOOL audioDetected;
 @property (nonatomic, readonly) NSInteger networkQuality;
 
