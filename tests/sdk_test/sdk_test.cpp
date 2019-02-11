@@ -358,62 +358,68 @@ void MegaChatApiTest::TearDown()
 {
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
-        if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
-                megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
+        if (megaChatApi[i])
         {
-            int a2 = (i == 0) ? 1 : 0;  // FIXME: find solution for more than 2 accounts
-            MegaChatHandle chatToSkip = MEGACHAT_INVALID_HANDLE;
-            MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-            if (uh != MEGACHAT_INVALID_HANDLE)
+            if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                    megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
             {
-                MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-                peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                chatToSkip = getGroupChatRoom(i, a2, peers, false);
-                delete peers;
-                peers = NULL;
+                int a2 = (i == 0) ? 1 : 0;  // FIXME: find solution for more than 2 accounts
+                MegaChatHandle chatToSkip = MEGACHAT_INVALID_HANDLE;
+                MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+                if (uh != MEGACHAT_INVALID_HANDLE)
+                {
+                    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
+                    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+                    chatToSkip = getGroupChatRoom(i, a2, peers, false);
+                    delete peers;
+                    peers = NULL;
+                }
+
+                clearAndLeaveChats(i, chatToSkip);
+
+                bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
+                megaChatApi[i]->logout();
+                TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
+                TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + lastErrorMsgChat[i] + " (" + std::to_string(lastErrorChat[i]) + ")");
+                MegaApi::addLoggerObject(logger);   // need to restore customized logger
             }
 
-            clearAndLeaveChats(i, chatToSkip);
-
-            bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-            megaChatApi[i]->logout();
-            TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
-            TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + lastErrorMsgChat[i] + " (" + std::to_string(lastErrorChat[i]) + ")");
-            MegaApi::addLoggerObject(logger);   // need to restore customized logger
-        }
-
 #ifndef KARERE_DISABLE_WEBRTC
-        megaChatApi[i]->removeChatCallListener(this);
+            megaChatApi[i]->removeChatCallListener(this);
 #endif
-        megaChatApi[i]->removeChatRequestListener(this);
-        megaChatApi[i]->removeChatListener(this);
+            megaChatApi[i]->removeChatRequestListener(this);
+            megaChatApi[i]->removeChatListener(this);
 
-        delete megaChatApi[i];
-        megaChatApi[i] = NULL;
-
-        if (megaApi[i]->isLoggedIn())
-        {
-            MegaNode* cloudNode = megaApi[i]->getRootNode();
-            purgeCloudTree(i, cloudNode);
-            delete cloudNode;
-            cloudNode = NULL;
-            MegaNode* rubbishNode = megaApi[i]->getRubbishNode();
-            purgeCloudTree(i, rubbishNode);
-            delete rubbishNode;
-            rubbishNode = NULL;
-
-            removePendingContactRequest(i);
-
-            bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-            megaApi[i]->logout();
-            TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
-            TEST_LOG_ERROR(!lastError[i], "Failed to logout from SDK. Error: " + std::to_string(lastError[i]));
+            delete megaChatApi[i];
+            megaChatApi[i] = NULL;
         }
 
-        megaApi[i]->removeRequestListener(this);
+        if (megaApi[i])
+        {
+            if (megaApi[i]->isLoggedIn())
+            {
+                MegaNode* cloudNode = megaApi[i]->getRootNode();
+                purgeCloudTree(i, cloudNode);
+                delete cloudNode;
+                cloudNode = NULL;
+                MegaNode* rubbishNode = megaApi[i]->getRubbishNode();
+                purgeCloudTree(i, rubbishNode);
+                delete rubbishNode;
+                rubbishNode = NULL;
 
-        delete megaApi[i];
-        megaApi[i] = NULL;
+                removePendingContactRequest(i);
+
+                bool *flagRequestLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
+                megaApi[i]->logout();
+                TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaApi logout");
+                TEST_LOG_ERROR(!lastError[i], "Failed to logout from SDK. Error: " + std::to_string(lastError[i]));
+            }
+
+            megaApi[i]->removeRequestListener(this);
+
+            delete megaApi[i];
+            megaApi[i] = NULL;
+        }
     }
 
     purgeLocalTree(LOCAL_PATH);
