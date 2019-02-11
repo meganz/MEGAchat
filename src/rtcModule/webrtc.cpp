@@ -2814,10 +2814,19 @@ void Session::asyncDestroy(TermCode code, const std::string& msg)
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
 {
     if (mState == Session::kStateTerminating)
+    {
+        if (mTermCode == TermCode::kInvalid || (!isTermRetriable(code) && isTermRetriable(mTermCode)))
+        {
+            mTermCode = code;
+        }
+
         return mTerminatePromise;
+    }
 
     if (mState == kStateDestroyed)
         return ::promise::_Void();
+
+    mTermCode = code;
 
     if (!msg.empty())
     {
@@ -2825,7 +2834,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     }
     assert(!mTerminatePromise.done());
     setState(kStateTerminating);
-    if (!cmd(RTCMD_SESS_TERMINATE, code))
+    if (!cmd(RTCMD_SESS_TERMINATE, mTermCode))
     {
         if (!mTerminatePromise.done())
         {
@@ -2849,11 +2858,11 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     }, 1000, mManager.mKarereClient.appCtx);
     auto pms = mTerminatePromise;
     return pms
-    .then([wptr, this, code, msg]()
+    .then([wptr, this, msg]()
     {
         if (wptr.deleted())
             return;
-        destroy(code, msg);
+        destroy(mTermCode, msg);
     });
 }
 
@@ -2885,8 +2894,15 @@ void Session::msgSessTerminate(RtMessage& packet)
     assert(packet.payload.dataSize() >= 1);
     cmd(RTCMD_SESS_TERMINATE_ACK);
 
+    TermCode code = static_cast<TermCode>(packet.payload.read<uint8_t>(8));
+
     if (mState == kStateTerminating)
     {
+        if (mTermCode == TermCode::kInvalid || (!isTermRetriable(code) && isTermRetriable(mTermCode)))
+        {
+            mTermCode = code;
+        }
+
         // handle terminate as if it were an ack - in both cases the peer is terminating
         msgSessTerminateAck(packet);
     }
@@ -2895,9 +2911,13 @@ void Session::msgSessTerminate(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring SESS_TERMINATE for a dead session");
         return;
     }
+    else
+    {
+        mTermCode = code;
+    }
 
     setState(kStateTerminating);
-    destroy(static_cast<TermCode>(packet.payload.read<uint8_t>(8) | TermCode::kPeer));
+    destroy(static_cast<TermCode>(code | TermCode::kPeer));
 }
 
 /** Terminates a session without the signalling terminate handshake.
