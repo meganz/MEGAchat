@@ -40,6 +40,10 @@
 #include <karereId.h>
 #include <mega/autocomplete.h>
 
+#ifdef WIN32
+#include <winhttp.h>
+#endif
+
 using namespace std;
 namespace m = ::mega;
 namespace ac = m::autocomplete;
@@ -63,6 +67,7 @@ void WaitMillisec(unsigned n)
 {
 #ifdef WIN32
     Sleep(n);
+    #define strdup _strdup
 #else
     usleep(n*1000);
 #endif
@@ -467,9 +472,40 @@ public:
 
 };
 
+
+class ClcMegaGlobalListener : public m::MegaGlobalListener
+{
+public:
+    void onUsersUpdate(m::MegaApi* api, m::MegaUserList *users) override {}
+
+    void onUserAlertsUpdate(m::MegaApi* api, m::MegaUserAlertList *alerts) override {}
+
+    void onNodesUpdate(m::MegaApi* api, m::MegaNodeList *nodes) override {}
+
+    void onAccountUpdate(m::MegaApi *api) override {}
+
+    void onContactRequestsUpdate(m::MegaApi* api, m::MegaContactRequestList* requests) override {}
+
+    void onReloadNeeded(m::MegaApi* api) override {}
+
+#ifdef ENABLE_SYNC
+    void onGlobalSyncStateChanged(m::MegaApi* api) override {}
+#endif
+
+    void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override {}
+
+    void onEvent(m::MegaApi* api, m::MegaEvent *event) override {}
+
+    void onMediaDetectionAvailable() override 
+    {
+        conlock(cout) << "Media Detection now available" << endl;
+    }
+};
+
 CLCListener g_clcListener;
 MegaclcListener g_megaclcListener;
 MegaclChatListener g_chatListener;
+ClcMegaGlobalListener g_globalListener;
 unique_ptr<m::MegaApi> g_megaApi;
 unique_ptr<c::MegaChatApi> g_chatApi;
 
@@ -1669,6 +1705,375 @@ void exec_apiurl(ac::ACState& s)
     }
 }
 
+map<string, unique_ptr<m::MegaBackgroundMediaUpload>> g_megaBackgroundMediaUploads;
+
+bool getNamedBackgroundMediaUpload(const string& name, m::MegaBackgroundMediaUpload*& p)
+{
+    p = NULL;
+    auto i = g_megaBackgroundMediaUploads.find(name);
+    if (i != g_megaBackgroundMediaUploads.end())
+    {
+        p = i->second.get();
+        return true;
+    }
+    return false;
+}
+
+string toHex(const string& binary)
+{
+    ostringstream s;
+    s << std::hex;
+
+    for (unsigned char c : binary)
+    {
+        s << setw(2) << setfill('0') << (unsigned)c;
+    }
+
+    return s.str();
+}
+
+unsigned char toBinary(unsigned char c)
+{
+    if (c >= 0 && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
+    return 0;
+}
+
+string toBinary(const string& hex)
+{
+    string bin;
+    for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
+    {
+        unsigned char c = toBinary(*i);
+        c <<= 4;
+        ++i;
+        if (i != hex.cend())
+        {
+            c |= toBinary(*i);
+        }
+        bin.push_back(c);
+    }
+    return bin;
+}
+
+#ifdef WIN32  // functions to perform background-upload like http request
+
+// handle WinHTTP callbacks (which can be in a worker thread context)
+VOID CALLBACK asynccallback(HINTERNET hInternet, DWORD_PTR dwContext,
+    DWORD dwInternetStatus,
+    LPVOID lpvStatusInformation,
+    DWORD dwStatusInformationLength)
+{
+    using namespace m;
+
+    if (dwInternetStatus == WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING)
+    {
+        LOG_verbose << "Closing request";
+        return;
+    }
+
+    switch (dwInternetStatus)
+    {
+    case WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_READ_COMPLETE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_READ_COMPLETE";
+        break;
+
+    case WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_REQUEST_ERROR";
+        break;
+    }
+    case WINHTTP_CALLBACK_STATUS_SECURE_FAILURE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_SECURE_FAILURE";
+        break;
+
+    case WINHTTP_CALLBACK_STATUS_SENDING_REQUEST:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_SENDING_REQUEST";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_REQUEST_SENT:
+    {
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_REQUEST_SENT";
+        break;
+    }
+
+    case WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE";
+        break;
+    case WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE:
+        LOG_verbose << "WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE";
+        break;
+    default:
+        LOG_verbose << dwInternetStatus;
+    }
+}
+
+void synchronousHttpRequest(const string& url, const string& senddata, string& responsedata)
+{
+    using namespace m;
+    LOG_info << "Sending file to " << url << ", size: " << senddata.size();
+
+    BOOL  bResults = TRUE;
+    HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
+
+    // Use WinHttpOpen to obtain a session handle.
+    hSession = WinHttpOpen(L"testmega/1.0",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS, 0);
+
+    WCHAR szURL[8192];
+    WCHAR szHost[256];
+    URL_COMPONENTS urlComp = { sizeof urlComp };
+
+    urlComp.lpszHostName = szHost;
+    urlComp.dwHostNameLength = sizeof szHost / sizeof *szHost;
+    urlComp.dwUrlPathLength = (DWORD)-1;
+    urlComp.dwSchemeLength = (DWORD)-1;
+
+    if (MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, szURL,
+        sizeof szURL / sizeof *szURL)
+        && WinHttpCrackUrl(szURL, 0, 0, &urlComp))
+    {
+        if ((hConnect = WinHttpConnect(hSession, szHost, urlComp.nPort, 0)))
+        {
+            hRequest = WinHttpOpenRequest(hConnect, L"POST",
+                urlComp.lpszUrlPath, NULL,
+                WINHTTP_NO_REFERER,
+                WINHTTP_DEFAULT_ACCEPT_TYPES,
+                (urlComp.nScheme == INTERNET_SCHEME_HTTPS)
+                ? WINHTTP_FLAG_SECURE
+                : 0);
+        }
+    }
+
+    // Send a Request.
+    if (hRequest)
+    {
+        WinHttpSetTimeouts(hRequest, 58000, 58000, 0, 0);
+
+        LPCWSTR pwszHeaders = L"Content-Type: application/octet-stream";
+
+        // HTTPS connection: ignore certificate errors, send no data yet
+        DWORD flags = SECURITY_FLAG_IGNORE_CERT_CN_INVALID
+            | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID
+            | SECURITY_FLAG_IGNORE_UNKNOWN_CA;
+
+        WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &flags, sizeof flags);
+
+        if (WinHttpSendRequest(hRequest, pwszHeaders,
+            DWORD(wcslen(pwszHeaders)),
+            (LPVOID)senddata.data(),
+            (DWORD)senddata.size(),
+            (DWORD)senddata.size(),
+            NULL))
+        {
+        }
+    }
+
+    DWORD dwBytesWritten = 0, dwSize = 0;
+
+    // End the request.
+    if (bResults)
+        bResults = WinHttpReceiveResponse(hRequest, NULL);
+
+    // Continue to verify data until there is nothing left.
+    if (bResults)
+        do
+        {
+            // Verify available data.
+            dwSize = 0;
+            if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
+                printf("Error %u in WinHttpQueryDataAvailable.\n",
+                    GetLastError());
+
+            size_t offset = responsedata.size();
+            responsedata.resize(offset + dwSize);
+
+            ZeroMemory(responsedata.data() + offset, dwSize);
+
+            DWORD dwDownloaded = 0;
+            if (!WinHttpReadData(hRequest, responsedata.data() + offset, dwSize, &dwDownloaded))
+                printf("Error %u in WinHttpReadData.\n", GetLastError());
+
+        } while (dwSize > 0);
+
+        // Report errors.
+        if (!bResults)
+            printf("Error %d has occurred.\n", GetLastError());
+
+        // Close open handles.
+        if (hRequest) WinHttpCloseHandle(hRequest);
+        if (hConnect) WinHttpCloseHandle(hConnect);
+        if (hSession) WinHttpCloseHandle(hSession);
+}
+#endif
+
+string loadfile(const string& filename)
+{
+    string filedata;
+    ifstream f(filename, ios::binary);
+    f.seekg(0, std::ios::end);
+    filedata.resize(unsigned(f.tellg()));
+    f.seekg(0, std::ios::beg);
+    f.read(filedata.data(), filedata.size());
+    return filedata;
+}
+
+void exec_backgroundupload(ac::ACState& s)
+{
+    m::MegaBackgroundMediaUpload* mbmu = nullptr;
+
+    if (s.words[1].s == "new" && s.words.size() == 3)
+    {
+        g_megaBackgroundMediaUploads[s.words[2].s].reset(g_megaApi->backgroundMediaUploadNew());
+    }
+    else if (s.words[1].s == "resume" && s.words.size() == 4)
+    {
+        string serialised = toBinary(s.words[3].s);
+        g_megaBackgroundMediaUploads[s.words[2].s].reset(g_megaApi->backgroundMediaUploadResume(&serialised));
+    }
+    else if (s.words[1].s == "analyse" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        mbmu->analyseMediaInfo(s.words[3].s.c_str());
+    }
+    else if (s.words[1].s == "encrypt" && s.words.size() == 8 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        string urlSuffix;
+        int64_t startPos = atol(s.words[5].s.c_str());
+        unsigned int length = atol(s.words[6].s.c_str());
+        bool adjustsizeonly = s.words[7].s == "true";
+        if (mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), &urlSuffix, adjustsizeonly))
+        {
+            conlock(cout) << "Encrypt complete, URL suffix: " << urlSuffix << endl;
+        }
+        else
+        {
+            conlock(cout) << "Encrypt failed" << endl;
+        }
+    }
+    else if (s.words[1].s == "geturl" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        auto ln = new OneShotRequestListener;
+        ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) 
+        { 
+            if (check_err("Get upload URL", e))
+            {
+                string uploadUrl;
+                request->getMegaBackgroundMediaUploadPtr()->getUploadURL(&uploadUrl);
+                conlock(cout) << "Upload URL: " << uploadUrl << endl;
+            }
+        };
+
+        g_megaApi->backgroundMediaUploadRequestUploadURL(atoll(s.words[3].s.c_str()), mbmu, ln);
+    }
+    else if (s.words[1].s == "serialize"  && s.words.size() == 3 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        conlock(cout) << toHex(mbmu->serialize()) << endl;
+    }
+    else if (s.words[1].s == "upload"  && s.words.size() == 4)
+    {
+#ifdef WIN32
+        string responsedata;
+        synchronousHttpRequest(s.words[2].s, loadfile(s.words[3].s), responsedata);
+        conlock(cout) << "Synchronous upload response: " << (responsedata.size() <= 3 ? responsedata : toHex(responsedata)) << endl;
+#endif
+    }
+    else if (s.words[1].s == "complete"  && s.words.size() == 8 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        const char* fingerprint = s.words[5].s.empty() ? NULL : s.words[5].s.c_str();
+        const char* fingerprintoriginal = s.words[6].s.empty() ? NULL : s.words[6].s.c_str();
+        string uploadtoken = toBinary(s.words[7].s);
+        if (m::MegaNode *parent = g_megaApi->getNodeByPath(s.words[4].s.c_str()))
+        {
+            auto ln = new OneShotRequestListener;
+            ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+            {
+                check_err("Background upload completion", e);
+            };
+
+            if (g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, &uploadtoken, ln))
+            {
+                conlock(cout) << "completion request sent" << endl;
+            }
+        }
+        else
+        {
+            conlock(cout) << "parent folder lookup failed" << endl;
+        }
+    }
+    else
+    {
+        conlock(cout) << "incorrect subcommand" << endl;
+    }
+}
+
+void exec_ensuremediainfo(ac::ACState& s)
+{
+    bool b = g_megaApi->ensureMediaInfo();
+    if (b)
+    {
+        conlock(cout) << "media info already available" << endl;
+    }
+    else
+    {
+        conlock(cout) << "media info request sent" << endl;
+    }
+}
+
+void exec_getfingerprint(ac::ACState& s)
+{
+    m::MegaBackgroundMediaUpload* mbmu = nullptr;
+
+    if (s.words[1].s == "local" && s.words.size() == 3)
+    {
+        char* fp = g_megaApi->getFingerprint(s.words[2].s.c_str());
+        conlock(cout) << (fp ? fp : "<NULL>") << endl;
+        delete[] fp;
+    }
+    else if (s.words[1].s == "remote" && s.words.size() == 3)
+    {
+        if (m::MegaNode *n = g_megaApi->getNodeByPath(s.words[2].s.c_str()))
+        {
+            char* fp = g_megaApi->getFingerprint(n);
+            conlock(cout) << (fp ? fp : "<NULL>") << endl;
+            delete[] fp;
+            delete n;
+        }
+        else
+        {
+            conlock(cout) << "node not found" << endl;
+        }
+    }
+    else if (s.words[1].s == "original" && s.words.size() == 3)
+    {
+        if (m::MegaNode *n = g_megaApi->getNodeByPath(s.words[2].s.c_str()))
+        {
+            const char* fp = n->getOriginalFingerprint();
+            conlock(cout) << (fp ? fp : "<NULL>") << endl;
+            delete n;
+        }
+        else
+        {
+            conlock(cout) << "node not found" << endl;
+        }
+    }
+}
 
 ac::ACN autocompleteSyntax()
 {
@@ -1766,7 +2171,24 @@ ac::ACN autocompleteSyntax()
 
     // sdk level commands (intermediate layer of megacli commands)
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
-    
+
+    p->Add(exec_backgroundupload, sequence(text("backgroundupload"), either(
+        sequence(text("new"), param("name")),
+        sequence(text("resume"), param("name"), param("serializeddata")),
+        sequence(text("analyse"), param("name"), localFSFile()),
+        sequence(text("encrypt"), param("name"), localFSFile(), localFSFile(), param("startPos"), param("length"), either(text("false"), text("true"))),
+        sequence(text("geturl"), param("name"), param("filesize")),
+        sequence(text("serialize"), param("name")), 
+        sequence(text("upload"), param("url"), localFSFile()),
+        sequence(text("complete"), param("name"), param("nodename"), param("remoteparentpath"), param("fingerprint"), param("originalfingerprint"), param("uploadtoken") ))));
+
+    p->Add(exec_ensuremediainfo, sequence(text("ensuremediainfo")));
+
+    p->Add(exec_getfingerprint, sequence(text("getfingerprint"), either(
+        sequence(text("local"), localFSFile()),
+        sequence(text("remote"), param("remotefile")),
+        sequence(text("original"), param("remotefile")))));
+
     return p;
 }
 
@@ -2033,6 +2455,7 @@ int main()
 
     g_megaApi.reset(new m::MegaApi("VmhTTToK", basePath.u8string().c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
+    g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
     g_chatApi->setLoggerObject(&g_chatLogger);
     g_chatApi->setLogLevel(c::MegaChatApi::LOG_LEVEL_MAX);
