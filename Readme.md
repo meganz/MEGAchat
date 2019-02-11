@@ -24,7 +24,10 @@ You may need to install the following packages in your system
  
 *Windows: the cygwin version of cmake will not be sufficient, you need to install the native cmake for Windows from the official site, and instead of ccmake use cmake-gui. You will also need to add the path to Cmake to Cygwin.
  
-  
+### Debian, Ubuntu like distribution users can install prerequisites
+1. `$ chmod +x ./requirements.sh`
+2. `$ ./requirements.sh`
+
 ## Build WebRTC: ##
 
 Create a directory to download Webrtc (webrtc_dir) and add it to $PATH
@@ -60,6 +63,7 @@ Clone the SDK repository inside `<MEGAchat>/third-party/mega`:
 
  - `cd <MEGAchat>/third-party/`  
  - `git clone https://github.com/meganz/sdk.git mega`
+ - `cd mega`
  - `./autogen.sh`    
  - `./configure`    
 
@@ -82,6 +86,13 @@ Now that you're ready, you can open `<MEGAchat>/contrib/qt/MEGAchat.pro` in QtCr
 
 You may need to change the "Build directory" in the project setting to `<MEGAchat>/build` if building complains about files not found.
 
+MacOS disclaimer:
+
+Note: You may need to (re)configure the SDK to use openssl linked by ./build_with_webrtc.sh at 3rdparty/lib/ (webrtc's boringssl) and disabling certain features in MAC:
+
+- `./configure --disable-examples --without-freeimage --with-openssl=<MEGAchat>/third-party/mega/bindings/qt/3rdparty` 
+
+And also have all the other requirements at <MEGAchat>/third-party/mega/bindings/qt/3rdparty/libs.
 
 ### QtApp example ###
 
@@ -129,7 +140,7 @@ The MEGAchat threading model is similar to the javascript threading model - ever
 
 MEGAchat relies on libuv, running in its own dedicated thread, to monitor multiple sockets for raw I/O events, and to implement timers. It also relies on the higher-level I/O functionality of libuv such as DNS resolution and SSL sockets. A thin layer on top of libuv, called 'services' (`/src/base/?services\*.\*`) is implemented on top of libuv and the GCM to have simple, javascript-like async C++11 APIs for timers (`src/base/timer.h`), DNS resolution (`/src/base/services-dns.hpp`), http client (`/src/base/services-http.hpp`). This layer was originally designed to have a lower-level component with plain C interface (`cservices*.cpp/h` files), so that the services can be used by several DLLs built with different compilers, and a high-level header-only C++11 layer that is the frontend and contains the public API - these are the .hpp files.    
 
-All network libraries in MEGAchat (libws, libcurl) use libuv for network operation and timers (C libraries use libuv directly, C++ code uses the C++11 layer, i.e. `timers.hpp`). It is strongly recommended that the SDK user also does the same, although it is possible for example to have a dedicated worker thread blocking on a socket, and posting events to the GUI thread via the GCM.
+All network libraries in MEGAchat (libcurl) use libuv for network operation and timers (C libraries use libuv directly, C++ code uses the C++11 layer, i.e. `timers.hpp`). It is strongly recommended that the SDK user also does the same, although it is possible for example to have a dedicated worker thread blocking on a socket, and posting events to the GUI thread via the GCM.
 
 The usage pattern is as follows: a callback is registered for a certain event (socket I/O event, timer, etc), and that callback is called by *the libuv thread* when the event occurs. If the event may propagate outside the library whose callback is called, and especially to the GUI, then, at some point, event processing must be marshalled to the GUI thread, using the GCM mechanism. However, if the event is internal and never propagates outside the library then it can be handled directly in the context of the libuv thread (provided that it never blocks it). This saves the performance cost of marshalling it to the GUI thread, and is recommended if the event occurs at a high frequency, e.g. an incoming data chunk event that only needs the data appended to a buffer. When the transfer is complete, a completion event can be marshalled on the GUI thread once per transfer, combining the advantages of both approaches.
 
@@ -159,15 +170,6 @@ These widgets are implemented as subclasses of standard widgets. Their code is i
 in the platform's GUI designer by placing the corresponding standard widget and then selecting the VideoRenderer_xxx class name from the menu
 to tell the GUI designer to use that subclass. You must include these files in your project, including the headers, to make the subclass visible
 to the GUI designer.
-
-## Test Applications (deprecated) ##
-
-MEGAchat provides several example apps, which, among other things, show how the GCM (Gui Call Marshaller) is implemented on the API user's side.
-It also shows how to use the video renderer widgets and the IVideoRenderer interface they implement to do video playback.
-
-The test apps are:
-* examples/qt - a Qt application.
-* examples/objc - an iOS app.
 
 ## For application implementors ##
 

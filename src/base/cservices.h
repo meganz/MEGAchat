@@ -1,22 +1,9 @@
 #ifndef CSERVICES_H_INCLUDED
 #define CSERVICES_H_INCLUDED
-
-#ifndef USE_LIBWEBSOCKETS
-#include <event2/event.h>
-#include <event2/thread.h>
-#include <event2/util.h>
-
-typedef struct event_base eventloop;
-typedef event timerevent;
-
-#else
 #include <uv.h>
 
 typedef uv_loop_t eventloop;
 typedef uv_timer_t timerevent;
-
-#endif
-
 
 /* Plain C interface of the services library */
 #include <logger.h>

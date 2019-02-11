@@ -255,7 +255,7 @@ public:
         return (stmt.step()) ? stmt.int64Col(0) : CHATD_IDX_INVALID;
     }
 
-    virtual chatd::Idx getIdxOfMsgid(karere::Id msgid)
+    virtual chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid)
     {
         return getIdxOfMsgid(msgid, "history");
     }
@@ -266,7 +266,7 @@ public:
                 "and (userid != ?2)"
                 "and not (updated != 0 and length(data) = 0)"
                 "and (is_encrypted = ?3 or is_encrypted = ?4 or is_encrypted = ?5)"
-                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9)";
+                "and (type = ?6 or type = ?7 or type = ?8 or type = ?9 or type = ?10)";
         if (idx != CHATD_IDX_INVALID)
             sql+=" and (idx > ?)";
 
@@ -278,7 +278,8 @@ public:
              << chatd::Message::kMsgNormal                  // include only known type of messages
              << chatd::Message::kMsgAttachment
              << chatd::Message::kMsgContact
-             << chatd::Message::kMsgContainsMeta;
+             << chatd::Message::kMsgContainsMeta
+             << chatd::Message::kMsgVoiceClip;
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
@@ -331,7 +332,7 @@ public:
     }
     virtual void truncateHistory(const chatd::Message& msg)
     {
-        auto idx = getIdxOfMsgid(msg.id());
+        auto idx = getIdxOfMsgidFromHistory(msg.id());
         if (idx == CHATD_IDX_INVALID)
             throw std::runtime_error("dbInterface::truncateHistory: msgid "+msg.id().toString()+" does not exist in db");
         mDb.query("delete from history where chatid = ? and idx < ?", mChat.chatId(), idx);
@@ -443,6 +444,11 @@ public:
     virtual void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages)
     {
         loadMessages(count, idx, messages, "node_history");
+    }
+
+    virtual chatd::Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid)
+    {
+        return getIdxOfMsgid(msgid, "node_history");
     }
 
     void loadMessages(int count, chatd::Idx idx, std::vector<chatd::Message*>& messages, const std::string &table)

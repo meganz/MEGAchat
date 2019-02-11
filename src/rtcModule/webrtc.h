@@ -32,14 +32,19 @@ class ICall {};
 class IRtcModule;
 class RtcModule;
 typedef uint8_t TermCode;
+uint8_t kErrNotSupported = 37;
+uint8_t RTCMD_CALL_REQ_DECLINE = 2;
+uint8_t kCallDataRinging = 1;
 }
 
 #else
 
 #include "karereCommon.h" //for AvFlags
-#include <karereId.h>
+#include "../karereId.h"
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
+
+#define CHATSTATS_PORT 1380
 
 namespace chatd
 {
@@ -93,7 +98,7 @@ enum TermCode: uint8_t
     kRingOutTimeout = 6,        // < We have sent a call request but no RINGING received within this timeout - no other
     // < users are online
     kAppTerminating = 7,        // < The application is terminating
-    kCallGone = 8,
+    kCallerGone = 8,
     kBusy = 9,                  // < Peer is in another call
     kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
     kDestroyByCallCollision = 19,// < The call has finished by a call collision
@@ -112,15 +117,25 @@ enum TermCode: uint8_t
     kErrIceFail = 31,           // < Media connection could not be established, because webrtc was unable to traverse NAT.
     // < The two endpoints just couldn't connect to each other in any way(many combinations are tested, via ICE candidates)
     kErrSdp = 32,               // < error generating or setting SDP description
-    kErrUserOffline = 33,       // < we received a notification that that user went offline
+    kErrPeerOffline = 33,       // < we received a notification that that user went offline
     kErrSessSetupTimeout = 34,  // < timed out waiting for session
     kErrSessRetryTimeout = 35,  // < timed out waiting for peer to retry a failed session
-    kErrorLast = 35,            // < Last enum indicating call termination due to error
-    kLast = 35,                 // < Last call terminate enum value
+    kErrAlready = 36,           // < There is already a call in this chatroom
+    kErrNotSupported = 37,      // < Clients that don't support calls send CALL_REQ_CANCEL with this code
+    kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
+    kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
+    kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
+    kErrorLast = 40,            // < Last enum indicating call termination due to error
+    kLast = 40,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f
 };
+
+static const uint8_t kNetworkQualityDefault = 2;    // By default, while not enough samples
+static const int kAudioThreshold = 100;             // Threshold to consider a user is speaking
+static const unsigned int kStatsPeriod = 1;         // Timeout to get new stats (in seconds)
+static const unsigned int kMaxStatsPeriod = 5;      // Maximum timeout without adding new sample to stats (in seconds)
 
 static inline bool isTermError(TermCode code)
 {
@@ -142,6 +157,29 @@ public:
     virtual void onRemoteStreamRemoved() = 0;
     virtual void onPeerMute(karere::AvFlags av, karere::AvFlags oldAv) = 0;
     virtual void onVideoRecv() {}
+
+    /**
+     * @brief Notifies about changes in network quality
+     *
+     * This callback is received when the network quality changes. The
+     * worst value is 0, the best value is 5. The default value at the
+     * beginning (without enough samples) is 2.
+     *
+     * @param currentQuality Value from 0 to 5 representing the quality.
+     */
+    virtual void onSessionNetworkQualityChange(int currentQuality) = 0;
+
+    /**
+     * @brief Notifies about changes on the audio
+     *
+     * This callback is received when a user participating in the call
+     * with us starts and/or stops talking. It can be used for nice UX/UI
+     * configurations, like getting the video of the peer larger when the
+     * user speaks.
+     *
+     * @param Whether the peer is speaking or not.
+     */
+    virtual void onSessionAudioDetected(bool audioDetected) = 0;
 };
 
 class ICallHandler
@@ -158,6 +196,7 @@ public:
      * startCall/joinCall, events on that call may be generated before that, imposing the need
      * to obtain the ICall object earlier, via this callback.
      */
+    virtual ~ICallHandler(){}
     virtual void setCall(ICall* call)  = 0;
     virtual void onStateChange(uint8_t /*newState*/) {}
     virtual void onDestroy(TermCode reason, bool byPeer, const std::string& msg) = 0;
@@ -167,6 +206,18 @@ public:
     virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
+
+    virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) = 0;
+    virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
+    virtual int callParticipants() = 0;
+    virtual bool isParticipating(karere::Id userid) = 0;
+    virtual void removeAllParticipants() = 0;
+
+    virtual karere::Id getCallId() const = 0;
+    virtual void setCallId(karere::Id callid) = 0;
+
+    virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
+    virtual int64_t getInitialTimeStamp() = 0;
 };
 class IGlobalHandler
 {
@@ -175,7 +226,14 @@ public:
      * @param call The incoming call
      * @return The call handler that will receive events about this call
      */
-    virtual ICallHandler* onCallIncoming(ICall& call, karere::AvFlags av) = 0;
+    virtual ICallHandler* onIncomingCall(ICall& call, karere::AvFlags av) = 0;
+
+    /** @brief A call is in progress at chatroom
+     * @param chatid The chatroom id
+     * @param callid The call id
+     * @return The call handler that will receive events about this call
+     */
+    virtual ICallHandler* onGroupCallActive(karere::Id chatid, karere::Id callid, uint32_t duration = 0) = 0;
 };
 
 class ISession: public karere::DeleteTrackable
@@ -208,7 +266,7 @@ public:
     Call& call() const { return mCall; }
     karere::Id peerAnonId() const { return mPeerAnonId; }
     karere::Id peer() const { return mPeer; }
-    virtual bool isRelayed() const { return false; } //TODO: Implement
+    uint32_t peerClient() const { return mPeerClient; }
     karere::AvFlags receivedAv() const { return mPeerAv; }
     karere::Id sessionId() const {return mSid;}
 };
@@ -302,10 +360,16 @@ protected:
     std::string mAudioInDeviceName;
     IRtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
         karere::Id ownAnonId)
-        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mClient(client) {}
+        : mHandler(handler), mCrypto(crypto), mOwnAnonId(ownAnonId), mKarereClient(client) {}
 public:
+    enum {
+       kMaxCallReceivers = 20,
+       kMaxCallAudioSenders = 20,
+       kMaxCallVideoSenders = 6
+    };
+
     virtual ~IRtcModule() {}
-    karere::Client& mClient;
+    karere::Client& mKarereClient;
 
     /** @brief Default video encoding parameters. */
     VidEncParams vidEncParams;
@@ -342,16 +406,21 @@ public:
      * @brief Search all audio and video devices at system at that moment.
      */
     virtual void loadDeviceList() = 0;
-    
-    virtual bool isCaptureActive() const = 0;
     virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
+    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
+    virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
     virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;
-    virtual void removeCall(karere::Id chatid) = 0;
+    virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const = 0;
 
-    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
+    virtual ICall& joinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid) = 0;
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler) = 0;
     virtual void hangupAll(TermCode reason) = 0;
+    /// RtcModule takes the ownership of the callHandler.
+    virtual void addCallHandler(karere::Id chatid, ICallHandler* callHandler) = 0;
+    virtual ICallHandler* findCallHandler(karere::Id chatid) = 0;
+    virtual int numCalls() const = 0;
+    virtual std::vector<karere::Id> chatsWithCall() const = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

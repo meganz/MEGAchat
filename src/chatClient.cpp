@@ -284,11 +284,11 @@ void Client::heartbeat()
 
 Client::~Client()
 {
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
+    assert(isTerminated());
+
+#ifndef KARERE_DISABLE_WEBRTC
+   rtc.reset();
+#endif
 }
 
 void Client::retryPendingConnections(bool disconnect)
@@ -304,77 +304,6 @@ void Client::retryPendingConnections(bool disconnect)
     {
         mChatdClient->retryPendingConnections(disconnect);
     }
-}
-
-#define TOKENPASTE2(a,b) a##b
-#define TOKENPASTE(a,b) TOKENPASTE2(a,b)
-
-#define SHARED_STATE(varname, membtype)             \
-    struct TOKENPASTE(SharedState,__LINE__){membtype value;};  \
-    std::shared_ptr<TOKENPASTE(SharedState, __LINE__)> varname(new TOKENPASTE(SharedState,__LINE__))
-
-//This is a convenience method to log in the SDK in case the app does not do it.
-promise::Promise<void> Client::sdkLoginNewSession()
-{
-    mLoginDlg.assign(app.createLoginDialog());
-    async::loop((int)0, [](int) { return true; }, [](int&){},
-    [this](async::Loop<int>& loop)
-    {
-        auto pms = mLoginDlg->requestCredentials();
-        return pms
-        .then([this](const std::pair<std::string, std::string>& cred)
-        {
-            mLoginDlg->setState(IApp::ILoginDialog::kLoggingIn);
-            return api.callIgnoreResult(&mega::MegaApi::login, cred.first.c_str(), cred.second.c_str());
-        })
-        .then([&loop]()
-        {
-            loop.breakLoop();
-            return 0;
-        })
-        .fail([this](const promise::Error& err) -> Promise<int>
-        {
-            if (err.code() != mega::API_ENOENT && err.code() != mega::API_EARGS)
-                return err;
-
-            mLoginDlg->setState(IApp::ILoginDialog::kBadCredentials);
-            return 0;
-        });
-    }, this)
-    .then([this](int)
-    {
-        mLoginDlg->setState(IApp::ILoginDialog::kFetchingNodes);
-        return api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
-    })
-    .fail([this](const promise::Error& err)
-    {
-        auto wptr = weakHandle();
-        marshallCall([wptr, this, err]()
-        {
-            if (wptr.deleted())
-            {
-                return;
-            }
-
-            mSessionReadyPromise.reject(err);
-        }, appCtx);
-    })
-    .then([this]()
-    {
-        mLoginDlg.free();
-    });
-    return mSessionReadyPromise;
-}
-
-promise::Promise<void> Client::sdkLoginExistingSession(const char* sid)
-{
-    assert(sid);
-    api.callIgnoreResult(&::mega::MegaApi::fastLogin, sid)
-    .then([this]()
-    {
-        api.callIgnoreResult(&::mega::MegaApi::fetchNodes);
-    });
-    return mSessionReadyPromise;
 }
 
 void Client::onSyncReceived(Id chatid)
@@ -405,17 +334,14 @@ bool Client::isChatRoomOpened(Id chatid)
     return false;
 }
 
-promise::Promise<void> Client::loginSdkAndInit(const char* sid)
+bool Client::areGroupCallsEnabled()
 {
-    init(sid);
-    if (!sid)
-    {
-        return sdkLoginNewSession();
-    }
-    else
-    {
-        return sdkLoginExistingSession(sid);
-    }
+    return mGroupCallsEnabled;
+}
+
+void Client::enableGroupCalls(bool enable)
+{
+    mGroupCallsEnabled = enable;
 }
 
 void Client::saveDb()
@@ -513,7 +439,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
     db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
 
     mUserAttrCache.reset(new UserAttrCache(*this));    
@@ -713,7 +639,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 if (wptr.deleted())
                     return;
 
-                if (initState() != kInitTerminated)
+                if (!isTerminated())
                 {
                     setInitState(kInitErrSidInvalid);
                 }
@@ -970,7 +896,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
 #ifndef KARERE_DISABLE_WEBRTC
 // Create the rtc module
-    rtc.reset(rtcModule::create(*this, *this, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
+    rtc.reset(rtcModule::create(*this, app, new rtcModule::RtcCrypto(*this), KARERE_DEFAULT_TURN_SERVERS));
     rtc->init();
 #endif
 
@@ -1004,30 +930,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         heartbeat();
     }, kHeartbeatTimeout, appCtx);
     return pms;
-}
-
-void Client::disconnect()
-{
-    if (mConnState == kDisconnected)
-        return;
-
-    setConnState(kDisconnected);
-    // stop sync of user attributes in cache
-    assert(mOwnNameAttrHandle.isValid());
-    mUserAttrCache->removeCb(mOwnNameAttrHandle);
-    mOwnNameAttrHandle = UserAttrCache::Handle::invalid();
-    mUserAttrCache->onLogOut();
-
-    // stop heartbeats
-    if (mHeartbeatTimer)
-    {
-        karere::cancelInterval(mHeartbeatTimer, appCtx);
-        mHeartbeatTimer = 0;
-    }
-
-    // disconnect from chatd shards and presenced
-    mChatdClient->disconnect();
-    mPresencedClient.disconnect();
 }
 
 void Client::setConnState(ConnState newState)
@@ -1090,7 +992,7 @@ uint64_t Client::getMyIdentityFromDb()
     if (!stmt.step())
     {
         KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
-        result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+        result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
         db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     }
     else
@@ -1099,7 +1001,7 @@ uint64_t Client::getMyIdentityFromDb()
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
-            result = (static_cast<uint64_t>(rand()) << 32) | time(NULL);
+            result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
             db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
         }
     }
@@ -1201,34 +1103,6 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
 {
 //we assume app.onOwnPresence(Presence::kOffline) has been called at application start
 
-    // Prepare list of peers to subscribe to its presence
-    // add contacts
-    presenced::IdRefMap peers;
-    for (auto& contact: *contactList)
-    {
-        if (contact.second->visibility() == ::mega::MegaUser::VISIBILITY_VISIBLE)
-        {
-            peers.insert(contact.first);   
-        }
-    }
-    // add peers from groupchats
-    for (auto& chat: *chats)
-    {
-        if (!chat.second->isGroup())
-        {
-            continue;
-        }
-
-        auto& members = static_cast<GroupChatRoom*>(chat.second)->peers();
-        for (auto& peer: members)
-        {
-            if (!contactList->isExContact(peer.first))
-            {
-                peers.insert(peer.first);
-            }
-        }
-    }
-
     // Notify presence, if any
     if (pres.isValid())
     {
@@ -1236,18 +1110,17 @@ promise::Promise<void> Client::connectToPresencedWithUrl(const std::string& url,
         app.onPresenceChanged(mMyHandle, pres, true);
     }
 
-    return mPresencedClient.connect(url, mMyHandle, std::move(peers), presenced::Config(pres));
+    return mPresencedClient.connect(url, presenced::Config(pres));
 }
 
 void Contact::updatePresence(Presence pres)
 {
     mPresence = pres;
-    updateAllOnlineDisplays(pres);
 }
 // presenced handlers
 void Client::onPresenceChange(Id userid, Presence pres)
 {
-    if (mInitState == kInitTerminated)
+    if (isTerminated())
     {
         return;
     }
@@ -1274,9 +1147,33 @@ void Client::onPresenceConfigChanged(const presenced::Config& state, bool pendin
     app.onPresenceConfigChanged(state, pending);
 }
 
-void Client::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
+void Client::onPresenceLastGreenUpdated(Id userid)
 {
-    app.onPresenceLastGreenUpdated(userid, lastGreen);
+    // This callback is received from presenced upon reception of LASTGREEN
+    updateAndNotifyLastGreen(userid.val);
+}
+
+void Client::updateAndNotifyLastGreen(Id userid)
+{
+    mega::m_time_t lastGreenTs = mPresencedClient.getLastGreen(userid);
+    if (!lastGreenTs)
+    {
+        KR_LOG_DEBUG("Skip notification, last-green not received yet");
+        return;
+    }
+
+    mega::m_time_t lastMsgTs = mChatdClient->getLastMsgTs(userid);
+
+    // check what is newer: ts from chatd (messages) or ts from presenced (last-green response)
+    mega::m_time_t lastGreen = (lastGreenTs >= lastMsgTs) ? lastGreenTs : lastMsgTs;
+
+    // Update last green and notify apps, if required
+    bool changed = mPresencedClient.updateLastGreen(userid.val, lastGreen);
+    if (changed)
+    {
+        uint16_t lastGreenMinutes = (time(NULL) - lastGreen) / 60;
+        app.onPresenceLastGreenUpdated(userid, lastGreenMinutes);
+    }
 }
 
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
@@ -1325,9 +1222,28 @@ void Client::terminate(bool deleteDb)
         rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
-    disconnect();
-    mUserAttrCache.reset();
+    if (mConnState != kDisconnected)
+    {
+        setConnState(kDisconnected);
 
+        // stop syncing own-name and close user-attributes cache
+        mUserAttrCache->removeCb(mOwnNameAttrHandle);
+        mUserAttrCache->onLogOut();
+        mUserAttrCache.reset();
+
+        // stop heartbeats
+        if (mHeartbeatTimer)
+        {
+            karere::cancelInterval(mHeartbeatTimer, appCtx);
+            mHeartbeatTimer = 0;
+        }
+
+        // disconnect from chatd shards and presenced
+        mChatdClient->disconnect();
+        mPresencedClient.disconnect();
+    }
+
+    // close or delete MEGAchat's DB file
     try
     {
         if (deleteDb && !mSid.empty())
@@ -1511,6 +1427,11 @@ rtcModule::ICall& ChatRoom::mediaCall(AvFlags av, rtcModule::ICallHandler& handl
 {
     return parent.mKarereClient.rtc->startCall(chatid(), av, handler);
 }
+
+rtcModule::ICall &ChatRoom::joinCall(AvFlags av, rtcModule::ICallHandler &handler, karere::Id callid)
+{
+    return parent.mKarereClient.rtc->joinCall(chatid(), av, handler, callid);
+}
 #endif
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
@@ -1687,7 +1608,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 }
 PeerChatRoom::~PeerChatRoom()
 {
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
         parent.mKarereClient.app.chatListHandler()->removePeerChatItem(*mRoomGui);
 
     if (parent.mKarereClient.mChatdClient)
@@ -1822,14 +1743,6 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
     else
     {
         mPeers.emplace(userid, new Member(*this, userid, priv)); //usernames will be updated when the Member object gets the username attribute
-
-        if (parent.mKarereClient.initState() >= Client::kInitHasOnlineSession)
-        {
-            if (!parent.mKarereClient.contactList->isExContact(userid))
-            {
-                parent.mKarereClient.presenced().addPeer(userid);
-            }
-        }
     }
     if (saveToDb)
     {
@@ -1852,8 +1765,7 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     }
 
     delete it->second;
-    mPeers.erase(it);    
-    parent.mKarereClient.presenced().removePeer(userid);
+    mPeers.erase(it);
     parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
 
     return true;
@@ -1885,9 +1797,9 @@ promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
     });
 }
 
-bool ChatRoom::isCallInProgress() const
+bool ChatRoom::isCallActive() const
 {
-    return parent.mKarereClient.isCallInProgress(mChatid);
+    return parent.mKarereClient.isCallActive(mChatid);
 }
 
 promise::Promise<void> ChatRoom::archiveChat(bool archive)
@@ -2047,24 +1959,24 @@ void GroupChatRoom::setRemoved()
     notifyExcludedFromChat();
 }
 
-void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
+void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
 {
     if (!rooms)
-        return;
-    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
-    char* pscsn = api.sdk.getSequenceNumber();
-    std::string scsn;
-    if (pscsn)
     {
-        scsn = pscsn;
-        delete[] pscsn;
+        const char *scsn = api.sdk.getSequenceNumber();
+        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", scsn);
+        delete [] scsn;
+        return;
     }
+
+    assert(mContactsLoaded);
+
+    std::shared_ptr<mega::MegaTextChatList> copy(rooms->copy());
 #ifndef NDEBUG
     dumpChatrooms(*copy);
 #endif
-    assert(mContactsLoaded);
     auto wptr = weakHandle();
-    marshallCall([wptr, this, copy, scsn]()
+    marshallCall([wptr, this, copy]()
     {
         if (wptr.deleted())
         {
@@ -2075,29 +1987,20 @@ void Client::onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms)
     }, appCtx);
 }
 
-void ChatRoomList::onChatsUpdate(mega::MegaTextChatList& rooms)
+void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms)
 {
-    SetOfIds added;
+    SetOfIds added; // out-param: records the new rooms added to the list
     addMissingRoomsFromApi(rooms, added);
     auto count = rooms.size();
     for (int i = 0; i < count; i++)
     {
-        auto apiRoom = rooms.get(i);
-        auto chatid = apiRoom->getHandle();
+        const ::mega::MegaTextChat *apiRoom = rooms.get(i);
+        ::mega::MegaHandle chatid = apiRoom->getHandle();
         if (added.has(chatid)) //room was just added, no need to sync
             continue;
 
-        auto it = find(chatid);
-        auto localRoom = (it != end()) ? it->second : nullptr;
-        assert(localRoom);
-        if (localRoom)
-        {
-            localRoom->syncWithApi(*apiRoom);
-        }
-        else
-        {
-            KR_LOG_ERROR("Chatroom %s notified by API is not found", Id(chatid).toString().c_str());
-        }
+        ChatRoom *room = at(chatid);
+        room->syncWithApi(*apiRoom);
     }
 }
 
@@ -2265,7 +2168,15 @@ void GroupChatRoom::makeTitleFromMemberNames()
             }
             else
             {
-                newTitle.append(name.substr(1)).append(", ");
+                int firstnameLen = name.at(0);
+                if (firstnameLen)
+                {
+                    newTitle.append(name.substr(1, firstnameLen)).append(", ");
+                }
+                else
+                {
+                    newTitle.append(name.substr(1)).append(", ");
+                }
             }
         }
         newTitle.resize(newTitle.size()-2); //truncate last ", "
@@ -2325,7 +2236,7 @@ promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
 GroupChatRoom::~GroupChatRoom()
 {
     removeAppChatHandler();
-    if (mRoomGui && (parent.mKarereClient.initState() != Client::kInitTerminated))
+    if (mRoomGui && !parent.mKarereClient.isTerminated())
         parent.mKarereClient.app.chatListHandler()->removeGroupChatItem(*mRoomGui);
 
     if (parent.mKarereClient.mChatdClient)
@@ -2875,23 +2786,14 @@ bool ContactList::addUserFromApi(mega::MegaUser& user)
 void Contact::onVisibilityChanged(int newVisibility)
 {
     assert(newVisibility != mVisibility);
-    auto old = mVisibility;
+    auto oldVisibility = mVisibility;
     mVisibility = newVisibility;
-    if (mDisplay)
-    {
-        mDisplay->onVisibilityChanged(newVisibility);
-    }
 
-    auto& client = mClist.client;
-    if (newVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN || newVisibility == ::mega::MegaUser::VISIBILITY_INACTIVE)
+    if (mChatRoom
+            && oldVisibility == ::mega::MegaUser::VISIBILITY_HIDDEN
+            && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
     {
-        client.presenced().removePeer(mUserid, true);
-    }
-    else if (old == ::mega::MegaUser::VISIBILITY_HIDDEN && newVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
-    {
-        mClist.client.presenced().addPeer(mUserid);
-        if (mChatRoom)
-            mChatRoom->notifyRejoinedChat();
+        mChatRoom->notifyRejoinedChat();
     }
 }
 
@@ -3029,9 +2931,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
     :mClist(clist), mUserid(userid), mChatRoom(room), mEmail(email),
      mSince(since), mVisibility(visibility)
 {
-    auto appClist = clist.client.app.contactListHandler();
-    mDisplay = appClist ? appClist->addContactItem(*this) : nullptr;
-
     mUsernameAttrCbId = mClist.client.userAttrCache().getAttr(userid,
         USER_ATTR_FULLNAME, this,
         [](Buffer* data, void* userp)
@@ -3049,10 +2948,6 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         updateTitle(encodeFirstName(email));
         assert(!mTitleString.empty());
     }
-    auto& client = mClist.client;
-    if ((client.initState() >= Client::kInitHasOnlineSession)
-         && (mVisibility == ::mega::MegaUser::VISIBILITY_VISIBLE))
-        client.presenced().addPeer(mUserid);
 
     mIsInitializing = false;
 }
@@ -3069,9 +2964,6 @@ void Contact::notifyTitleChanged()
 {
     callAfterInit(this, [this]
     {
-        if (mDisplay)
-            mDisplay->onTitleChanged(mTitleString);
-
         //1on1 chatrooms don't have a binary layout for the title
         if (mChatRoom)
             mChatRoom->updateTitle(mTitleString);
@@ -3081,14 +2973,9 @@ void Contact::notifyTitleChanged()
 Contact::~Contact()
 {
     auto& client = mClist.client;
-    if (client.initState() != Client::kInitTerminated)
+    if (!client.isTerminated())
     {
         client.userAttrCache().removeCb(mUsernameAttrCbId);
-        client.presenced().removePeer(mUserid, true);
-        if (mDisplay)
-        {
-            client.app.contactListHandler()->removeContactItem(*mDisplay);
-        }
     }
 }
 
@@ -3163,26 +3050,33 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallInProgress(Id chatid) const
+bool Client::isCallActive(Id chatid) const
 {
-    bool callInProgress = false;
+    bool callActive = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
     if (rtc)
     {
-        callInProgress = rtc->isCallInProgress(chatid);
+        callActive = rtc->isCallActive(chatid);
     }
 #endif
 
-    return callInProgress;
+    return callActive;
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
-rtcModule::ICallHandler* Client::onCallIncoming(rtcModule::ICall& call, karere::AvFlags av)
+bool Client::isCallInProgress(karere::Id chatid) const
 {
-    return app.onIncomingCall(call, av);
-}
+    bool participantingInCall = false;
+
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+    {
+        participantingInCall = rtc->isCallInProgress(chatid);
+    }
 #endif
+
+    return participantingInCall;
+}
 
 std::string encodeFirstName(const std::string& first)
 {

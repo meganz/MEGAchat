@@ -9,46 +9,69 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-CallGui::CallGui(ChatWindow *parent, bool video)
+CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local)
     : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
 {
     ui->setupUi(this);
-    ui->localRenderer->setMirrored(true);
+    mPeerid = peerid;
     connect(ui->mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHangCall(bool)));
     connect(ui->mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui->mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
     connect(ui->mMuteCamChk, SIGNAL(clicked(bool)), this, SLOT(onMuteCam(bool)));
-    connect(ui->mFullScreenChk, SIGNAL(clicked(bool)), this, SLOT(onFullScreenChk(bool)));
     connect(ui->mAnswBtn, SIGNAL(clicked(bool)), this, SLOT(onAnswerCallBtn(bool)));
-    setAvatarOnRemote();
-    setAvatarOnLocal();
-    ui->mFullScreenChk->hide();
-    ui->localRenderer->enableStaticImage();
-    ui->remoteRenderer->enableStaticImage();
-
-    mVideo = video;
-    if (!mVideo)
-    {
-        ui->mMuteCamChk->setChecked(true);
-    }
-    mCall = NULL;
-    remoteCallListener = NULL;
     localCallListener = NULL;
+    remoteCallListener = NULL;
+    mLocal = local;
+    mVideo = video;
+    mCall = NULL;
+
+    setAvatar();
+    ui->videoRenderer->enableStaticImage();
+
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
+    {
+        ui->videoRenderer->setMirrored(true);
+        ui->mFullScreenChk->hide();
+        if (!mVideo)
+        {
+            ui->mMuteCamChk->setChecked(true);
+        }
+    }
+    else
+    {
+        ui->mAnswBtn->hide();
+        ui->mFullScreenChk->hide();
+        ui->mHupBtn->hide();
+        ui->mMuteCamChk->hide();
+        ui->mMuteMicChk->hide();
+        ui->mShowChatBtn->hide();
+    }
 }
 
-void CallGui::connectCall()
+void CallGui::connectPeerCallGui()
 {
-    remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this);
-    localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
-    setCall(mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId()));
-    ui->mAnswBtn->hide();
-
-    if(!mVideo)
+    MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
+    setCall(auxCall);
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
     {
-        mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
-        setAvatarOnLocal();
-        ui->localRenderer->enableStaticImage();
+        localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
+        ui->mAnswBtn->hide();
+        if (!mVideo)
+        {
+            mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
+            setAvatar();
+            ui->videoRenderer->enableStaticImage();
+        }
     }
+    else
+    {
+        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid);
+    }
+}
+
+MegaChatHandle CallGui::getPeer()
+{
+    return mPeerid;
 }
 
 void CallGui::onAnswerCallBtn(bool)
@@ -70,20 +93,12 @@ void CallGui::drawPeerAvatar(QImage &image)
             break;
         }
     }    
-    QChar letter = (std::strlen(title) == 0)
+    QChar letter = (!title || std::strlen(title) == 0)
         ? QChar('?')
         : QChar(title[0]);
 
     drawAvatar(image, letter, peerHandle);
     delete [] title;
-}
-
-void CallGui::drawOwnAvatar(QImage &image)
-{   
-    const char *myName = mChatWindow->mMegaChatApi->getMyFirstname();
-    QChar letter = (std::strlen(myName) == 0) ? QChar('?') : QString::fromStdString(myName)[0];
-    drawAvatar(image, letter, mChatWindow->mMegaChatApi->getMyUserHandle());
-    delete [] myName;
 }
 
 void CallGui::drawAvatar(QImage &image, QChar letter, uint64_t userid)
@@ -131,8 +146,8 @@ void CallGui::hangCall()
 
 CallGui:: ~CallGui()
 {
-    delete remoteCallListener;
     delete localCallListener;
+    delete remoteCallListener;
     delete mCall;
     delete ui;
 }
@@ -151,17 +166,20 @@ void CallGui::onMuteMic(bool checked)
 
 void CallGui::onMuteCam(bool checked)
 {
-    if (checked)
-    {
-        mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
-        setAvatarOnLocal();
-        ui->localRenderer->enableStaticImage();
-    }
-    else
-    {
-        mChatWindow->mMegaChatApi->enableVideo(mChatWindow->mChatRoom->getChatId());
-        ui->localRenderer->disableStaticImage();
-    }
+   if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
+   {
+        if (checked)
+        {
+            mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
+            setAvatar();
+            ui->videoRenderer->enableStaticImage();
+        }
+        else
+        {
+            mChatWindow->mMegaChatApi->enableVideo(mChatWindow->mChatRoom->getChatId());
+            ui->videoRenderer->disableStaticImage();
+        }
+   }
 }
 
 void CallGui::onDestroy(rtcModule::TermCode code, bool byPeer, const std::string& text)
@@ -178,17 +196,17 @@ void CallGui::onPeerMute(AvFlags state, AvFlags oldState)
     }
     if (hasVideo)
     {
-        ui->remoteRenderer->disableStaticImage();
+        ui->videoRenderer->disableStaticImage();
     }
     else
     {
-        ui->remoteRenderer->enableStaticImage();
+        ui->videoRenderer->enableStaticImage();
     }
 }
 
 void CallGui::onVideoRecv()
 {
-    ui->remoteRenderer->disableStaticImage();
+    ui->videoRenderer->disableStaticImage();
 }
 
 megachat::MegaChatCall *CallGui::getCall() const
@@ -206,37 +224,46 @@ void CallGui::setCall(megachat::MegaChatCall *call)
     mCall = call;
 }
 
-void CallGui::setAvatarOnRemote()
+int CallGui::getIndex() const
+{
+    return mIndex;
+}
+
+void CallGui::setIndex(int index)
+{
+    mIndex = index;
+}
+
+void CallGui::setAvatar()
 {
     auto image = new QImage(QSize(262, 262), QImage::Format_ARGB32);
     drawPeerAvatar(*image);
-    ui->remoteRenderer->setStaticImage(image);
-}
-
-void CallGui::setAvatarOnLocal()
-{
-    auto image = new QImage(QSize(160, 150), QImage::Format_ARGB32);
-    drawOwnAvatar(*image);    
-    ui->localRenderer->setStaticImage(image);
+    ui->videoRenderer->setStaticImage(image);
 }
 
 void CallGui::onChatBtn(bool)
 {
     auto& txtChat = *mChatWindow->ui->mTextChatWidget;
     if (txtChat.isVisible())
+    {
+        txtChat.setStyleSheet("background-color: #000000");
         txtChat.hide();
+    }
     else
+    {
+        txtChat.setStyleSheet("background-color: #FFFFFF");
         txtChat.show();
+    }
 }
 
 void CallGui::onLocalStreamObtained(rtcModule::IVideoRenderer *& renderer)
 {
-    renderer = ui->localRenderer;
+    renderer = ui->videoRenderer;
 }
 
 void CallGui::onRemoteStreamAdded(rtcModule::IVideoRenderer*& rendererRet)
 {
-    rendererRet = ui->remoteRenderer;
+    rendererRet = ui->videoRenderer;
 }
 
 void CallGui::onLocalMediaError(const std::string err)

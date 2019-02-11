@@ -4,6 +4,7 @@
  *  Created on: 17/11/2015
  *      Author: admin2
  */
+
 #include <stdint.h>
 #define _DEFAULT_SOURCE 1
 #ifdef __APPLE__
@@ -27,8 +28,11 @@
 #include "tlvstore.h"
 #include <userAttrCache.h>
 #include <mega.h>
+#include <megaapi.h>
 #include <db.h>
-#include <codecvt>
+#ifndef _MSC_VER
+#include <codecvt>   // deprecated
+#endif
 #include <locale>
 #include <karereCommon.h>
 
@@ -428,9 +432,19 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
         STRONGVELOPE_LOG_DEBUG("Empty message payload");
         return;
     }
+#ifndef _MSC_VER
+    // codecvt is deprecated
     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert("parsePayload: Error doing utf8/16 conversion");
     std::u16string u16 = convert.from_bytes(data.buf(), data.buf()+data.dataSize());
     size_t len = u16.size();
+#else
+    std::string inpututf8(data.buf(), data.buf() + data.dataSize());
+    std::string outpututf8;
+    ::mega::MegaApi::utf8ToUtf16(inpututf8.c_str(), &outpututf8);
+    std::u16string u16((char16_t*)outpututf8.data(), outpututf8.size() / 2);
+    size_t len = u16.size();
+#endif
+
     if(len < 10)
         throw std::runtime_error("parsePayload: payload is less than backrefs minimum size");
 
@@ -446,7 +460,14 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
     uint16_t refsSize = data8.read<uint16_t>(8);
 
     //convert back to utf8 the binary part, only to determine its utf8 len
+#ifndef _MSC_VER
     size_t binlen8 = convert.to_bytes(&u16[0], &u16[refsSize+10]).size();
+#else
+    std::string result8;
+    ::mega::MegaApi::utf16ToUtf8((wchar_t*)u16.data(), u16.size(), &result8);
+    size_t binlen8 = result8.size();
+#endif
+
     if (data.dataSize() > binlen8)
         msg.assign(data.buf()+binlen8, data.dataSize()-binlen8);
     else
@@ -944,6 +965,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 
             return msg;
         }
+        case Message::kMsgCallStarted:
         case Message::kMsgTruncate:
         {
             msg->setEncrypted(Message::kNotEncrypted);

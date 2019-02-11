@@ -2,13 +2,14 @@
 #include "chatMessage.h"
 #include "ui_chatMessageWidget.h"
 #include <QMessageBox>
+#include <QClipboard>
 
-const char* messageStatus[] =
+const char *messageStatus[] =
 {
   "Sending", "SendingManual", "ServerReceived", "ServerRejected", "Delivered", "NotSeen", "Seen"
 };
 
-ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
+ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi *mChatApi, megachat::MegaChatHandle chatId, megachat::MegaChatMessage *msg)
     : QWidget((QWidget *)parent),
       ui(new Ui::ChatMessageWidget)
 {
@@ -21,11 +22,17 @@ ChatMessage::ChatMessage(ChatWindow *parent, megachat::MegaChatApi* mChatApi, me
     setTimestamp(mMessage->getTimestamp());
     megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(chatId);
 
+    assert (chatRoom);
     if (chatRoom->isGroup() && mMessage->getStatus() == megachat::MegaChatMessage::STATUS_DELIVERED)
+    {
         setStatus(megachat::MegaChatMessage::STATUS_SERVER_RECEIVED);
+    }
     else
+    {
         setStatus(mMessage->getStatus());
+    }
 
+    delete chatRoom;
     updateContent();
 
     connect(ui->mMsgDisplay, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(onMessageCtxMenu(const QPoint&)));
@@ -69,33 +76,62 @@ void ChatMessage::updateToolTip()
             .append(tr("\nuserid: "))
             .append(QString::fromStdString(auxUserId_64));
     ui->mHeader->setToolTip(tooltip);
-    delete auxMsgId_64;
-    delete auxUserId_64;
+    delete [] auxMsgId_64;
+    delete [] auxUserId_64;
 }
 
-void ChatMessage::showRichLinkData()
+void ChatMessage::showContainsMetaData()
 {
-    QString text = tr("[Contains-metadata msg]");
     const MegaChatContainsMeta *containsMeta = mMessage->getContainsMeta();
-    if (containsMeta && containsMeta->getType() == megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW)
+    assert(containsMeta);
+    QString text = tr("[Contains-metadata msg]");
+    if (containsMeta)
     {
-        const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
-        text.append(tr("\nSubtype: rich-link"))
-            .append(tr("\nOriginal content: "))
-            .append(richPreview->getText())
-            .append(tr("\nURL: "))
-            .append(richPreview->getUrl())
-            .append(tr("\nDomain Name: "))
-            .append(richPreview->getDomainName())
-            .append(tr("\nTitle: "))
-            .append(richPreview->getTitle())
-            .append(tr("\nDescription: "))
-            .append(richPreview->getDescription())
-            .append(tr("\nHas icon: "))
-            .append(richPreview->getIcon() ? "yes" : "no")
-            .append(tr("\nHas image: "))
-            .append(richPreview->getImage() ? "yes" : "no");
+        switch (containsMeta->getType()) {
+            case  megachat::MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW:
+            {
+                const MegaChatRichPreview *richPreview = containsMeta->getRichPreview();
+                text.append(tr("\nSubtype: rich-link"))
+                    .append(tr("\nOriginal content: "))
+                    .append(richPreview->getText())
+                    .append(tr("\nURL: "))
+                    .append(richPreview->getUrl())
+                    .append(tr("\nDomain Name: "))
+                    .append(richPreview->getDomainName())
+                    .append(tr("\nTitle: "))
+                    .append(richPreview->getTitle())
+                    .append(tr("\nDescription: "))
+                    .append(richPreview->getDescription())
+                    .append(tr("\nHas icon: "))
+                    .append(richPreview->getIcon() ? "yes" : "no")
+                    .append(tr("\nHas image: "))
+                    .append(richPreview->getImage() ? "yes" : "no");
+                break;
+            }
+            case  megachat::MegaChatContainsMeta::CONTAINS_META_GEOLOCATION:
+            {
+                const MegaChatGeolocation *geolocation = containsMeta->getGeolocation();
+                text.append(tr("\nSubtype: Geolocation"))
+                    .append(tr("\nText content: "))
+                    .append(containsMeta->getTextMessage())
+                    .append(tr("\nLongitude: "))
+                    .append(QString::number(geolocation->getLongitude()))
+                    .append(tr("\nLatitude: "))
+                    .append(QString::number(geolocation->getLatitude()))
+                    .append(tr("\nHas image: "))
+                    .append(geolocation->getImage() ? "yes" : "no");
+                break;
+            }
+            default:
+            {
+                text.append(tr("\nSubtype: unkown"))
+                    .append(tr("\nText content: "))
+                    .append(containsMeta->getTextMessage());
+                break;
+            }
+        }
     }
+
     ui->mMsgDisplay->setText(text);
     ui->mMsgDisplay->setStyleSheet("background-color: rgba(213,245,160,128)\n");
     ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
@@ -128,9 +164,29 @@ void ChatMessage::setMessage(megachat::MegaChatMessage *message)
     this->mMessage = message;
 }
 
-void ChatMessage::setMessageContent(const char * content)
+void ChatMessage::setMessageContent(const char *content)
 {
     ui->mMsgDisplay->setText(content);
+}
+
+QString ChatMessage::nodelistText()
+{
+    QString text;
+    ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+    for(int i = 0; i < nodeList->size(); i++)
+    {
+        const char *auxNodeHandle_64 = mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
+        text.append("\n[Node").append(std::to_string(i+1).c_str()).append("]")
+        .append("\nHandle: ")
+        .append(QString::fromStdString(auxNodeHandle_64))
+        .append("\nName: ")
+        .append(nodeList->get(i)->getName())
+        .append("\nSize: ")
+        .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
+        .append(" bytes");
+        delete [] auxNodeHandle_64;
+    }
+    return text;
 }
 
 void ChatMessage::updateContent()
@@ -146,27 +202,26 @@ void ChatMessage::updateContent()
             {
                 QString text;
                 text.append(tr("[Nodes attachment msg]"));
-                mega::MegaNodeList *nodeList=mMessage->getMegaNodeList();
-                for(int i = 0; i < nodeList->size(); i++)
-                {
-                    const char *auxNodeHandle_64 =this->mChatWindow->mMegaApi->handleToBase64(nodeList->get(i)->getHandle());
-                    text.append(tr("\n[Node]"))
-                    .append("\nHandle: ")
-                    .append(QString::fromStdString(auxNodeHandle_64))
-                    .append("\nName: ")
-                    .append(nodeList->get(i)->getName())
-                    .append("\nSize: ")
-                    .append(QString::fromStdString(std::to_string(nodeList->get(i)->getSize())))
-                    .append(" bytes");
-                    delete auxNodeHandle_64;
-                }
+                text.append(nodelistText());
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(198,251,187,128)\n");
                 ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
                 ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
                 ui->bSettings->show();
-                text.clear();
+                break;
+            }
+            case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+            {
+                QString text;
+                text.append(tr("[Voice clip msg]"));
+                text.append(nodelistText());
+                ui->mMsgDisplay->setText(text);
+                ui->mMsgDisplay->setStyleSheet("background-color: rgba(229,66,244,128)\n");
+                ui->mAuthorDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mTimestampDisplay->setStyleSheet("color: rgba(0,0,0,128)\n");
+                ui->mHeader->setStyleSheet("background-color: rgba(107,144,163,128)\n");
+                ui->bSettings->show();
                 break;
             }
             case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
@@ -183,7 +238,7 @@ void ChatMessage::updateContent()
                   .append(mMessage->getUserName(i))
                   .append("\nEmail: ")
                   .append(mMessage->getUserEmail(i));
-                  delete auxUserHandle_64;
+                  delete [] auxUserHandle_64;
                 }
                 ui->mMsgDisplay->setText(text);
                 ui->mMsgDisplay->setStyleSheet("background-color: rgba(205,254,251,128)\n");
@@ -204,7 +259,7 @@ void ChatMessage::updateContent()
             }
             case megachat::MegaChatMessage::TYPE_CONTAINS_META:
             {
-                showRichLinkData();
+                showContainsMetaData();
                 break;
             }
             case megachat::MegaChatMessage::TYPE_INVALID:
@@ -261,62 +316,76 @@ std::string ChatMessage::managementInfoToString() const
 
     switch (mMessage->getType())
     {
-    case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
-    {
-        ret.append("User ").append(userHandle_64)
-           .append((mMessage->getPrivilege() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
-           .append(" user ").append(actionHandle_64);
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_TRUNCATE:
-    {
-        ChatItemWidget *item = mChatWindow->mMainWin->getChatItemWidget(mChatId, false);
-        item->updateToolTip(mChatWindow->mMainWin->getLocalChatListItem(mChatId), NULL);
-        ret.append("Chat history was truncated by user ").append(userHandle_64);
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
-    {
-        ret.append("User ").append(userHandle_64)
-           .append(" set privilege of user ").append(actionHandle_64)
-           .append(" to ").append(std::to_string(mMessage->getPrivilege()));
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
-    {
-        megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
-        ret.append("User ").append(userHandle_64)
-           .append(" set chat title to '")
-           .append(chatRoom->getTitle())+='\'';
-        delete chatRoom;
-        return ret;
-    }
-    case megachat::MegaChatMessage::TYPE_CALL_ENDED:
-    {
-        ret.append("User ").append(userHandle_64)
-           .append(" start a call with: ");
-
-        mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
-        for (unsigned int i = 0; i < handleList->size(); i++)
+        case megachat::MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
         {
-            char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
-            ret.append(participant_64).append(" ");
-            delete participant_64;
+            ret.append("User ").append(userHandle_64)
+               .append((mMessage->getPrivilege() == megachat::MegaChatRoom::PRIV_RM) ? " removed" : " added")
+               .append(" user ").append(actionHandle_64);
+            break;
         }
+        case megachat::MegaChatMessage::TYPE_TRUNCATE:
+        {
+            ChatListItemController *itemController = mChatWindow->mMainWin->getChatControllerById(mChatId);
+            if(itemController)
+            {
+               ChatItemWidget *widget = itemController->getWidget();
+               if (widget)
+               {
+                  widget->updateToolTip(itemController->getItem(), NULL);
+                  ret.append("Chat history was truncated by user ").append(userHandle_64);
+               }
+            }
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_PRIV_CHANGE:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" set privilege of user ").append(actionHandle_64)
+               .append(" to ").append(std::to_string(mMessage->getPrivilege()));
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
+        {
+            megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
+            ret.append("User ").append(userHandle_64)
+               .append(" set chat title to '")
+               .append(chatRoom->getTitle())+='\'';
+            delete chatRoom;
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_CALL_ENDED:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" start a call with: ");
 
-        ret.append("\nDuration: ")
-           .append(std::to_string(mMessage->getDuration()))
-           .append("secs TermCode: ")
-           .append(std::to_string(mMessage->getTermCode()));
-        return ret;
+            ::mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
+            for (unsigned int i = 0; i < handleList->size(); i++)
+            {
+                char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
+                ret.append(participant_64).append(" ");
+                delete [] participant_64;
+            }
+
+            ret.append("\nDuration: ")
+               .append(std::to_string(mMessage->getDuration()))
+               .append("secs TermCode: ")
+               .append(std::to_string(mMessage->getTermCode()));
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_CALL_STARTED:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" has started a call");
+            break;
+        }
+        default:
+            ret.append("Management message with unknown type: ")
+               .append(std::to_string(mMessage->getType()));
+            break;
     }
-    default:
-        ret.append("Management message with unknown type: ")
-           .append(std::to_string(mMessage->getType()));
-        return ret;
-    }
-    delete userHandle_64;
-    delete actionHandle_64;
+    delete [] userHandle_64;
+    delete [] actionHandle_64;
+    return ret;
 }
 
 void ChatMessage::setTimestamp(int64_t ts)
@@ -473,7 +542,7 @@ void ChatMessage::startEditingMsgWidget()
     auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
     layout->insertWidget(2, cancelBtn);
 
-    QPushButton * saveBtn = new QPushButton(this);
+    QPushButton *saveBtn = new QPushButton(this);
     connect(saveBtn, SIGNAL(clicked(bool)), this, SLOT(saveMsgEdit(bool)));
     saveBtn->setText("Save");
     layout->insertWidget(3, saveBtn);
@@ -509,13 +578,13 @@ void ChatMessage::setManualMode(bool manualMode)
     {
         ui->mEditDisplay->hide();
         ui->mStatusDisplay->hide();
-        QPushButton * manualSendBtn = new QPushButton(this);
+        QPushButton *manualSendBtn = new QPushButton(this);
         connect(manualSendBtn, SIGNAL(clicked(bool)), this, SLOT(onManualSending()));
         manualSendBtn->setText("Send (Manual mode)");
         auto layout = static_cast<QBoxLayout*>(ui->mHeader->layout());
         layout->insertWidget(2, manualSendBtn);
 
-        QPushButton * discardBtn = new QPushButton(this);
+        QPushButton *discardBtn = new QPushButton(this);
         connect(discardBtn, SIGNAL(clicked(bool)), this, SLOT(onDiscardManualSending()));
         discardBtn->setText("Discard");
         layout->insertWidget(3, discardBtn);
@@ -557,7 +626,8 @@ void ChatMessage::onDiscardManualSending()
 
 void ChatMessage::on_bSettings_clicked()
 {
-    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    if (mMessage->getType() != megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT
+       && mMessage->getType() != megachat::MegaChatMessage::TYPE_VOICE_CLIP)
     {
         return;
     }
@@ -568,16 +638,37 @@ void ChatMessage::on_bSettings_clicked()
     {
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-            mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
-            for(int i = 0; i < nodeList->size(); i++)
+            ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+            for (int i = 0; i < nodeList->size(); i++)
             {
+                ::mega::MegaNode *node = nodeList->get(i);
                 QString text("Download \"");
-                text.append(nodeList->get(i)->getName()).append("\"");
+                text.append(node->getName()).append("\"");
                 auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
-                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownload(nodeList->get(i));});
+                connect(actDownload,  &QAction::triggered, this, [this, node]{ onNodeDownload(node); });
+
+                text = "Stream \"";
+                text.append(node->getName()).append("\"");
+                auto actStream = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actStream,  &QAction::triggered, this, [this, node]{ onNodePlay(node); });
             }
             break;
         }
+
+        case megachat::MegaChatMessage::TYPE_VOICE_CLIP:
+        {
+            ::mega::MegaNodeList *nodeList = mMessage->getMegaNodeList();
+            for (int i = 0; i < nodeList->size(); i++)
+            {
+                ::mega::MegaNode *node = nodeList->get(i);
+                QString text("Play \"");
+                text.append(node->getName()).append("\"");
+                auto actStream = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actStream,  &QAction::triggered, this, [this, node]{ onNodePlay(node); });
+            }
+            break;
+        }
+
         default:
             break;
     }
@@ -587,7 +678,7 @@ void ChatMessage::on_bSettings_clicked()
     menu.exec(mapToGlobal(pos));
 }
 
-void ChatMessage::onNodeDownload(mega::MegaNode *node)
+void ChatMessage::onNodeDownload(::mega::MegaNode *node)
 {
     std::string target(mChatWindow->mMegaChatApi->getAppDir());
     target.append("/").append(node->getName());
@@ -599,5 +690,41 @@ void ChatMessage::onNodeDownload(mega::MegaNode *node)
     if (msgBoxAns.exec() == QMessageBox::Ok)
     {
         mChatWindow->mMegaApi->startDownload(node, target.c_str());
+    }
+}
+
+void ChatMessage::onNodePlay(mega::MegaNode *node)
+{
+    if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
+    {
+        mChatWindow->mMegaApi->httpServerStart();
+    }
+    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
+
+    if (localUrl)
+    {
+        QClipboard *clipboard = QApplication::clipboard();
+        QString clipUrl(localUrl);
+        QMessageBox msg;
+        msg.setText("URL for streaming the file: \""+QString(node->getName())+"\"");
+        msg.setIcon(QMessageBox::Information);
+        msg.setDetailedText(clipUrl);
+        msg.addButton(tr("Ok"), QMessageBox::ActionRole);
+
+        QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
+        copyButton->disconnect();
+        connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(clipUrl);});
+
+        foreach (QAbstractButton *button, msg.buttons())
+        {
+            if (msg.buttonRole(button) == QMessageBox::ActionRole)
+            {
+                button->click();
+                break;
+            }
+        }
+        msg.setStyleSheet("width: 150px;");
+        msg.exec();
+        delete localUrl;
     }
 }

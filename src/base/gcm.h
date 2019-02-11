@@ -4,8 +4,13 @@
 /* This is a plain C header */
 
 #ifdef _WIN32
-    #define MEGA_GCM_DLLEXPORT __declspec(dllexport)
-    #define MEGA_GCM_DLLIMPORT __declspec(dllimport)
+    #ifndef MEGA_FULL_STATIC
+        #define MEGA_GCM_DLLEXPORT __declspec(dllexport)
+        #define MEGA_GCM_DLLIMPORT __declspec(dllimport)
+    #else
+        #define MEGA_GCM_DLLEXPORT 
+        #define MEGA_GCM_DLLIMPORT 
+    #endif
 #else
     #define MEGA_GCM_DLLEXPORT __attribute__ ((visibility("default")))
     #define MEGA_GCM_DLLIMPORT MEGA_GCM_DLLEXPORT
