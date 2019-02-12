@@ -389,6 +389,9 @@ void MegaChatApiTest::TearDown()
 #endif
             megaChatApi[i]->removeChatRequestListener(this);
             megaChatApi[i]->removeChatListener(this);
+
+            delete megaChatApi[i];
+            megaChatApi[i] = NULL;
         }
 
         if (megaApi[i])
@@ -417,12 +420,6 @@ void MegaChatApiTest::TearDown()
             delete megaApi[i];
             megaApi[i] = NULL;
         }
-    }
-
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
-    {
-        delete megaChatApi[i];
-        megaChatApi[i] = NULL;
     }
 
     purgeLocalTree(LOCAL_PATH);
@@ -4117,10 +4114,7 @@ unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
         }
     }
 
-    if (apiIndex == -1)
-    {
-        ASSERT_CHAT_TEST(false, "Instance of MegaChatApi not recognized");
-    }
+    assert(apiIndex != -1); // Instance of MegaChatApi not recognized
     return apiIndex;
 }
 
