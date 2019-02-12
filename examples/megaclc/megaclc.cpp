@@ -484,8 +484,8 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
         {
             conlock(cout) << "Loading Account with fetchNodes..." << endl;
             guard.unlock();
-            setprompt(COMMAND);
             api->fetchNodes();
+            setprompt(NOPROMPT);
         }
         else if (e->getErrorCode() == mega::MegaError::API_EMFAREQUIRED)
         {
@@ -1799,8 +1799,9 @@ static void process_line(const char* l)
         g_chatApi->init(NULL);
         g_megaApi->multiFactorAuthLogin(login.c_str(), password.c_str(), !pin.empty() ? pin.c_str() : NULL);
         {
-            conlock(cout) << "\nLogging in..." << endl << flush;
+            conlock(cout) << "\nLogging in with 2FA..." << endl << flush;
         }
+        setprompt(NOPROMPT);
         return;
     }
 
@@ -1811,6 +1812,7 @@ static void process_line(const char* l)
         {
             conlock(cout) << "\nLogging in..." << endl;
         }
+        setprompt(NOPROMPT);
         return;
 
     case COMMAND:
