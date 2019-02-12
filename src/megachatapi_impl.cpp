@@ -7024,7 +7024,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 assert(call);
                 chatCall->setCaller(call->caller());
                 state = MegaChatCall::CALL_STATUS_RING_IN;
-                mHasBeenNotifiedRingin = true;
+                mHasBeenNotifiedRinging = true;
                 break;
             case rtcModule::ICall::kStateJoining:
                 state = MegaChatCall::CALL_STATUS_JOINING;
@@ -7257,9 +7257,9 @@ int64_t MegaChatCallHandler::getInitialTimeStamp()
     return chatCall->getInitialTimeStamp();
 }
 
-bool MegaChatCallHandler::hasBeenNotifiedRingin() const
+bool MegaChatCallHandler::hasBeenNotifiedRinging() const
 {
-    return mHasBeenNotifiedRingin;
+    return mHasBeenNotifiedRinging;
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
