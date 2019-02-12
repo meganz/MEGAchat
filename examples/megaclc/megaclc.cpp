@@ -484,6 +484,7 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
         {
             conlock(cout) << "Loading Account with fetchNodes..." << endl;
             guard.unlock();
+            setprompt(COMMAND);
             api->fetchNodes();
         }
         else if (e->getErrorCode() == mega::MegaError::API_EMFAREQUIRED)
@@ -1800,7 +1801,6 @@ static void process_line(const char* l)
         {
             conlock(cout) << "\nLogging in..." << endl << flush;
         }
-        setprompt(COMMAND);
         return;
     }
 
