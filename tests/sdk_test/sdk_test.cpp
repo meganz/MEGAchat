@@ -4107,10 +4107,7 @@ unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
         }
     }
 
-    if (apiIndex == -1)
-    {
-        ASSERT_CHAT_TEST(false, "Instance of MegaChatApi not recognized");
-    }
+    assert(apiIndex != -1); // Instance of MegaChatApi not recognized
     return apiIndex;
 }
 
