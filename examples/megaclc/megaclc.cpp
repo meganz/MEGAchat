@@ -153,12 +153,12 @@ unique_ptr<m::Console> console;
 
 static const char* prompts[] =
 {
-    "", "MEGAclc> ", "Password:"
+    "", "MEGAclc> ", "Password:", "Pin:"
 };
 
 enum prompttype
 {
-    NOPROMPT, COMMAND, LOGINPASSWORD
+    NOPROMPT, COMMAND, LOGINPASSWORD, PIN
 };
 
 static prompttype prompt = COMMAND;
@@ -486,6 +486,16 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             guard.unlock();
             api->fetchNodes();
         }
+        else if (e->getErrorCode() == mega::MegaError::API_EMFAREQUIRED)
+        {
+            guard.unlock();
+            setprompt(PIN);
+        }
+        else
+        {
+            guard.unlock();
+            setprompt(COMMAND);
+        }
         break;
 
     case m::MegaRequest::TYPE_FETCH_NODES:
@@ -658,6 +668,7 @@ bool oneOpenRoom(c::MegaChatHandle room)
 
 static bool quit_flag = false;
 static string login;
+static string password;
 
 void exec_login(ac::ACState& s)
 {
@@ -671,7 +682,12 @@ void exec_login(ac::ACState& s)
                 conlock(cout) << "Initiating login attempt..." << endl;
             }
             g_chatApi->init(NULL);
-            g_megaApi->login(s.words[1].s.c_str(), s.words[2].s.c_str());
+            login = s.words[1].s;
+            password = s.words[2].s;
+
+            // Block prompt until the request has finished
+            setprompt(NOPROMPT);
+            g_megaApi->login(login.c_str(), password.c_str());
         }
         else if (s.words.size() == 2 && hasemail)
         {
@@ -1776,13 +1792,25 @@ static void process_line(const char* l)
 {
     switch (prompt)
     {
-    case LOGINPASSWORD:
+    case PIN:
+    {
+        std::string pin = l;
         g_chatApi->init(NULL);
-        g_megaApi->login(login.c_str(), l);
+        g_megaApi->multiFactorAuthLogin(login.c_str(), password.c_str(), !pin.empty() ? pin.c_str() : NULL);
+        {
+            conlock(cout) << "\nLogging in..." << endl << flush;
+        }
+        setprompt(COMMAND);
+        return;
+    }
+
+    case LOGINPASSWORD:
+        password = l;
+        g_chatApi->init(NULL);
+        g_megaApi->login(login.c_str(), password.c_str());
         {
             conlock(cout) << "\nLogging in..." << endl;
         }
-        setprompt(COMMAND);
         return;
 
     case COMMAND:
