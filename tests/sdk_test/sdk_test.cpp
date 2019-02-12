@@ -389,9 +389,6 @@ void MegaChatApiTest::TearDown()
 #endif
             megaChatApi[i]->removeChatRequestListener(this);
             megaChatApi[i]->removeChatListener(this);
-
-            delete megaChatApi[i];
-            megaChatApi[i] = NULL;
         }
 
         if (megaApi[i])
@@ -420,6 +417,12 @@ void MegaChatApiTest::TearDown()
             delete megaApi[i];
             megaApi[i] = NULL;
         }
+    }
+
+    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    {
+        delete megaChatApi[i];
+        megaChatApi[i] = NULL;
     }
 
     purgeLocalTree(LOCAL_PATH);
@@ -2979,6 +2982,13 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
                                                  MegaChatPeerList *peers, bool create)
 {
+    // --> Ensure MEGAChatApi instances are valid
+    ASSERT_CHAT_TEST(megaChatApi[a1],
+                     "MEGAChatApi instance has been removed for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
+
+    ASSERT_CHAT_TEST(megaChatApi[a2],
+                     "MEGAChatApi instance has been removed for account " + std::to_string(a2+1) + ": " + mAccounts[a2].getEmail());
+
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
 
     bool chatroomExist = false;
