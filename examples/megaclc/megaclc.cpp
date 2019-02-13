@@ -510,6 +510,18 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
         }
         break;
 
+    case m::MegaRequest::TYPE_LOGOUT:
+        if (check_err("Logout", e))
+        {
+            guard.unlock();
+            setprompt(COMMAND);
+        }
+        else
+        {
+            conlock(cout) << "Error in logout: "<< e->getErrorString() << endl;
+            guard.unlock();
+            setprompt(COMMAND);
+        }
     default:
         break;
     }
@@ -724,6 +736,20 @@ void exec_login(ac::ACState& s)
     else
     {
         conlock(cout) << "Already logged in. Please log out first." << endl;
+    }
+}
+
+void exec_logout(ac::ACState& s)
+{
+    unique_ptr<const char[]>session(g_megaApi->dumpSession());
+    if (session)
+    {
+        setprompt(NOPROMPT);
+        g_megaApi->logout();
+    }
+    else
+    {
+        conlock(cout) << "Not logged in." << endl;
     }
 }
 
@@ -1693,6 +1719,7 @@ ac::ACN autocompleteSyntax()
     unique_ptr<Either> p(new Either("      "));
 
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
+    p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
