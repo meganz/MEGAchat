@@ -791,8 +791,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            //link format: https://mega.nz/c/<public-handle>#<chat-key>
-            string separator = "c/";
+            //link format: https://mega.nz/chat/<public-handle>#<chat-key>
+            string separator = "chat/";
             size_t pos = parsedLink.find(separator);
             if (pos == string::npos)
             {
@@ -1033,7 +1033,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         string phB64;
                         Base64::btoa(phBin, phB64);
 
-                        string link = "https://mega.nz/c/" + phB64 + "#" + unifiedKeyB64;
+                        string link = "https://mega.nz/chat/" + phB64 + "#" + unifiedKeyB64;
                         request->setText(link.c_str());
 
                         megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
