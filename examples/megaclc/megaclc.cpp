@@ -511,17 +511,14 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
         break;
 
     case m::MegaRequest::TYPE_LOGOUT:
-        if (check_err("Logout", e))
-        {
-            guard.unlock();
-            setprompt(COMMAND);
-        }
-        else
+        if (!check_err("Logout", e))
         {
             conlock(cout) << "Error in logout: "<< e->getErrorString() << endl;
-            guard.unlock();
-            setprompt(COMMAND);
         }
+
+        guard.unlock();
+        setprompt(COMMAND);
+
     default:
         break;
     }
@@ -742,7 +739,7 @@ void exec_login(ac::ACState& s)
 void exec_logout(ac::ACState& s)
 {
     unique_ptr<const char[]>session(g_megaApi->dumpSession());
-    if (session)
+    if (g_megaApi->isLoggedIn())
     {
         setprompt(NOPROMPT);
         g_megaApi->logout();
