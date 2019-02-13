@@ -6,7 +6,7 @@
 #include <string.h>
 #include <vector>
 
-#ifndef __arm__
+#if !defined(__arm__) && !defined(__aarch64__)
     #define BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS 1
 #endif
 class BufferRangeError: public std::runtime_error

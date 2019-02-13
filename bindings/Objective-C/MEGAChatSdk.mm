@@ -121,6 +121,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->retryPendingConnections(true);
 }
 
+- (void)refreshUrls {
+    self.megaChatApi->refreshUrl();
+}
+
 - (void)dealloc {
     delete _megaChatApi;
     pthread_mutex_destroy(&listenerMutex);
@@ -388,11 +392,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)addChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId delegate:(id<MEGAChatVideoDelegate>)delegate {
-    self.megaChatApi->addChatRemoteVideoListener(chatId, peerId, [self createDelegateMEGAChatRemoteVideoListener:delegate singleListener:YES]);
+- (void)addChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId cliendId:(uint64_t)clientId delegate:(id<MEGAChatVideoDelegate>)delegate {
+    self.megaChatApi->addChatRemoteVideoListener(chatId, peerId, clientId, [self createDelegateMEGAChatRemoteVideoListener:delegate singleListener:YES]);
 }
 
-- (void)removeChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId delegate:(id<MEGAChatVideoDelegate>)delegate {
+- (void)removeChatRemoteVideo:(uint64_t)chatId peerId:(uint64_t)peerId cliendId:(uint64_t)clientId delegate:(id<MEGAChatVideoDelegate>)delegate {
     std::vector<DelegateMEGAChatVideoListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -411,7 +415,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     
     for (int i = 0; i < listenersToRemove.size(); i++)
     {
-        self.megaChatApi->removeChatRemoteVideoListener(chatId, peerId, listenersToRemove[i]);
+        self.megaChatApi->removeChatRemoteVideoListener(chatId, peerId, clientId, listenersToRemove[i]);
         delete listenersToRemove[i];
     }
 }
@@ -913,6 +917,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (NSInteger)getMaxCallParticipants {
     return self.megaChatApi->getMaxCallParticipants();
+}
+
+- (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId {
+    return self.megaChatApi->getMyClientidHandle(chatId);
 }
 
 #endif

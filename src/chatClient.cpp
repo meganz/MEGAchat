@@ -291,7 +291,7 @@ Client::~Client()
 #endif
 }
 
-void Client::retryPendingConnections(bool disconnect)
+void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 {
     if (mConnState == kDisconnected)  // already a connection attempt in-progress
     {
@@ -299,10 +299,10 @@ void Client::retryPendingConnections(bool disconnect)
         return;
     }
 
-    mPresencedClient.retryPendingConnection(disconnect);
+    mPresencedClient.retryPendingConnection(disconnect, refreshURL);
     if (mChatdClient)
     {
-        mChatdClient->retryPendingConnections(disconnect);
+        mChatdClient->retryPendingConnections(disconnect, refreshURL);
     }
 }
 
@@ -901,7 +901,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     connectToChatd(isInBackground);
 
     auto wptr = weakHandle();
-    auto pms = connectToPresenced(pres)
+    auto pms = mPresencedClient.connect(presenced::Config(pres))
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1074,27 +1074,6 @@ void Client::loadOwnKeysFromDb()
     len = stmt.blobCol(0, mMyPrivEd25519, sizeof(mMyPrivEd25519));
     if (len != sizeof(mMyPrivEd25519))
         throw std::runtime_error("Unexpected length of privEd2519 in database");
-}
-
-
-promise::Promise<void> Client::connectToPresenced(Presence forcedPres)
-{
-    if (mPresencedUrl.empty())
-    {
-        return api.call(&::mega::MegaApi::getChatPresenceURL)
-        .then([this, forcedPres](ReqResult result) -> Promise<void>
-        {
-            auto url = result->getLink();
-            if (!url)
-                return promise::Error("No presenced URL received from API");
-            mPresencedUrl = url;
-            return mPresencedClient.connect(mPresencedUrl, forcedPres);
-        });
-    }
-    else
-    {
-        return mPresencedClient.connect(mPresencedUrl, forcedPres);
-    }
 }
 
 // presenced handlers
@@ -2056,7 +2035,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 
     buf.setDataSize(decLen);
     auto wptr = getDelTracker();
-    return this->chat().crypto()->decryptChatTitle(buf)
+    return chat().crypto()->decryptChatTitle(buf)
     .then([wptr, this](const std::string& title)
     {
         wptr.throwIfDeleted();

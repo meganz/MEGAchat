@@ -376,7 +376,13 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
         if (ringing)
         {
-            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+            auto itCallHandler = mCallHandlers.find(chatid);
+            // itCallHandler is created at updatePeerAvState
+            assert(itCallHandler != mCallHandlers.end());
+            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()) && !itCallHandler->second->hasBeenNotifiedRinging())
+            {
+                handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+            }
         }
     }
 
@@ -1292,6 +1298,11 @@ void Call::msgJoin(RtMessage& packet)
 {
     if (mState == kStateRingIn && packet.userid == mManager.mKarereClient.myHandle())
     {
+        // Another client of our own user has already answered the call
+        // --> add the participant to the call, so when the upcoming CALLDATA from caller
+        // (indicating that a session has been established with our user, but other users should
+        // keep ringing), this client does not start ringing again
+        mHandler->addParticipant(packet.userid, packet.clientid, karere::AvFlags());
         destroy(TermCode::kAnsElsewhere, false);
     }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
@@ -1306,7 +1317,6 @@ void Call::msgJoin(RtMessage& packet)
                                 itSession->second->peer().toString().c_str(), itSession->second->peerClient());
                 return;
             }
-
         }
 
         if (mState == Call::kStateReqSent)
@@ -1599,6 +1609,13 @@ void Call::stopIncallPingTimer(bool endCall)
 
 void Call::removeSession(Session& sess, TermCode reason)
 {
+    karere::Id sessionId = sess.mSid;
+    karere::Id sessionPeer = sess.mPeer;
+    uint32_t sessionPeerClient = sess.mPeerClient;
+    bool caller = sess.isCaller();
+
+    mSessions.erase(sessionId);
+
     if (mState == kStateTerminating)
     {
         return;
@@ -1614,13 +1631,13 @@ void Call::removeSession(Session& sess, TermCode reason)
     // set the call's state to kTerminating. If that is not set, then it's only the session
     // that terminates for a reason that is not fatal to the call,
     // and can try re-establishing the session
-    if (cancelSessionRetryTimer(sess.mPeer, sess.mPeerClient))
+    if (cancelSessionRetryTimer(sessionPeer, sessionPeerClient))
     {
         SUB_LOG_DEBUG("removeSession: Trying to remove a session for which there is a scheduled retry, the retry should not be there");
         assert(false);
     }
 
-    EndpointId endpointId(sess.mPeer, sess.mPeerClient);
+    EndpointId endpointId(sessionPeer, sessionPeerClient);
     TermCode terminationCode = (TermCode)(reason & ~TermCode::kPeer);
     if (terminationCode == TermCode::kErrIceFail || terminationCode == TermCode::kErrIceTimeout)
     {
@@ -1634,25 +1651,23 @@ void Call::removeSession(Session& sess, TermCode reason)
         }
     }
 
-    if (!sess.isCaller())
+    if (!caller)
     {
-        SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sess.sessionId().toString().c_str());
+        SUB_LOG_DEBUG("Session to %s failed, re-establishing it...", sessionId.toString().c_str());
         auto wptr = weakHandle();
-        karere::Id peerid = sess.mPeer;
-        uint32_t clientid = sess.mPeerClient;
-        marshallCall([wptr, this, peerid, clientid]()
+        marshallCall([wptr, this, sessionPeer, sessionPeerClient]()
         {
             if (wptr.deleted())
                 return;
 
-            rejoin(peerid, clientid);
+            rejoin(sessionPeer, sessionPeerClient);
 
         }, mManager.mKarereClient.appCtx);
     }
     else
     {
         // Else wait for peer to re-join...
-        SUB_LOG_DEBUG("Session to %s failed, expecting peer to re-establish it...", sess.sessionId().toString().c_str());
+        SUB_LOG_DEBUG("Session to %s failed, expecting peer to re-establish it...", sessionId.toString().c_str());
     }
 
     // set a timeout for the session recovery
@@ -1674,8 +1689,6 @@ void Call::removeSession(Session& sess, TermCode reason)
             hangup(kErrSessRetryTimeout);
         }
     }, RtcModule::kSessSetupTimeout, mManager.mKarereClient.appCtx);
-
-    mSessions.erase(sess.mSid);
 }
 bool Call::startOrJoin(AvFlags av)
 {
@@ -2063,6 +2076,12 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
                 }, mManager.mKarereClient.appCtx);
                 return;
             }
+        }
+
+        if (mSessRetries.find(EndpointId(userid, clientid)) != mSessRetries.end())
+        {
+            cancelSessionRetryTimer(userid, clientid);
+            destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
         }
     }
     else if (mState >= kStateInProgress)
