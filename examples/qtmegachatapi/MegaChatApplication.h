@@ -44,6 +44,9 @@ class MegaChatApplication : public QApplication,
 
         const char *getFirstname(megachat::MegaChatHandle uh);
 
+        bool isStagingEnabled();
+        void enableStaging(bool enable);
+
     protected:
         const char *mSid;
         std::string mAppDir;
@@ -59,6 +62,7 @@ class MegaChatApplication : public QApplication,
     private:
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
+        bool useStaging = false;
 
     public slots:
         void onAnonymousLogout();

@@ -12,6 +12,12 @@ using namespace std;
 using namespace promise;
 using namespace karere;
 
+#if WIN32
+#include <mega/utils.h>
+using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
+#endif
+
+
 #define CHATD_LOG_LISTENER_CALLS
 
 #define ID_CSTR(id) id.toString().c_str()
@@ -161,6 +167,24 @@ Client::Client(karere::Client *aKarereClient) :
                 break;
             }
        });
+
+    // initialize the most recent message for each user
+    SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");
+    while (stmt1.step())
+    {
+        karere::Id userid = stmt1.uint64Col(0);
+        if (userid == Id::COMMANDER())
+        {
+            continue;
+        }
+
+        SqliteStmt stmt2(mKarereClient->db, "SELECT MAX(ts) FROM history WHERE userid = ?");
+        stmt2 << userid.val;
+        if (stmt2.step())
+        {
+            mLastMsgTs[userid] = stmt2.uintCol(0);
+        }
+    }
 }
 
 Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
@@ -258,15 +282,11 @@ void Client::notifyUserIdle()
 
 void Client::cancelSeenTimers()
 {
-   for (std::map<karere::Id, megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
+   for (std::set<megaHandle>::iterator it = mSeenTimers.begin(); it != mSeenTimers.end(); ++it)
    {
-        cancelTimeout(it->second , mKarereClient->appCtx);
+        cancelTimeout(*it, mKarereClient->appCtx);
    }
    mSeenTimers.clear();
-   for (auto& chat: mChatForChatId)
-   {
-       chat.second->mLastSeenInFlightIdx = CHATD_IDX_INVALID;
-   }
 }
 
 void Client::notifyUserActive()
@@ -283,6 +303,21 @@ void Client::notifyUserActive()
 bool Client::isMessageReceivedConfirmationActive() const
 {
     return mMessageReceivedConfirmation;
+}
+
+::mega::m_time_t Client::getLastMsgTs(Id userid) const
+{
+    std::map<karere::Id, ::mega::m_time_t>::const_iterator it = mLastMsgTs.find(userid);
+    if (it != mLastMsgTs.end())
+    {
+        return it->second;
+    }
+    return 0;
+}
+
+void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
+{
+    mLastMsgTs[userid] = lastMsgTs;
 }
 
 uint8_t Client::richLinkState() const
@@ -874,36 +909,70 @@ void Connection::doConnect()
     }
 }
 
-void Connection::retryPendingConnection(bool disconnect)
+void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 {
-    if (mUrl.isValid())
+    if (mState == kStateNew)
     {
-        if (disconnect)
-        {
-            CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        CHATDS_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        return;
+    }
 
-            setState(kStateDisconnected);
-            abortRetryController();
-            reconnect();
-        }
-        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    if (refreshURL || !mUrl.isValid())
+    {
+        if (mState == kStateFetchingUrl)
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
-
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
-            assert(!mEchoTimer);
-
-            mRetryCtrl->restart();
+            CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            return;
         }
-        else
+        CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+
+        // abort and prevent any further reconnection attempt
+        setState(kStateDisconnected);
+        abortRetryController();
+        cancelTimeout(mConnectTimer, mChatdClient.mKarereClient->appCtx);
+        mConnectTimer = 0;
+
+        // clear existing URL
+        mUrl = Url();
+        setState(kStateFetchingUrl);
+
+        assert(mChatIds.size());
+
+        auto wptr = getDelTracker();
+        mChatdClient.mKarereClient->api.call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
+        .then([this, wptr](ReqResult result)
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
-        }
+            if (wptr.deleted())
+            {
+                CHATD_LOG_DEBUG("Chatd URL request completed, but Connection was deleted");
+                return;
+            }
+
+            mUrl.parse(result->getLink());
+            retryPendingConnection(true);
+        });
+    }
+    else if (disconnect)
+    {
+        CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
+
+        setState(kStateDisconnected);
+        abortRetryController();
+        reconnect();
+    }
+    else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    {
+        CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+
+        assert(!isOnline());
+        assert(!mHeartbeatEnabled);
+        assert(!mEchoTimer);
+
+        mRetryCtrl->restart();
     }
     else
     {
-        CHATDS_LOG_WARNING("No valid URL provided to retry pending connections");
+        CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
     }
 }
 
@@ -941,11 +1010,11 @@ void Client::disconnect()
     }
 }
 
-void Client::retryPendingConnections(bool disconnect)
+void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 {
     for (auto& conn: mConnections)
     {
-        conn.second->retryPendingConnection(disconnect);
+        conn.second->retryPendingConnection(disconnect, refreshURL);
     }
 }
 
@@ -1923,7 +1992,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
 
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler && userid != mChatdClient.mKarereClient->myHandle())
+                if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);                    
@@ -2637,6 +2706,12 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
         return NULL;
     }
 
+    if (mOwnPrivilege == PRIV_NOTPRESENT)
+    {
+        CHATID_LOG_WARNING("msgSubmit: Denying sending message because we don't participate in the chat");
+        return NULL;
+    }
+
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
@@ -3150,9 +3225,6 @@ bool Chat::setMessageSeen(Idx idx)
     if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
         return false;
 
-    if (mLastSeenInFlightIdx != CHATD_IDX_INVALID && idx <= mLastSeenInFlightIdx)
-        return false;
-
     auto& msg = at(idx);
     if (msg.userid == mChatdClient.mMyHandle)
     {
@@ -3162,22 +3234,12 @@ bool Chat::setMessageSeen(Idx idx)
 
     auto wptr = weakHandle();
     karere::Id id = msg.id();
-    auto it = mChatdClient.mSeenTimers.find(mChatId);
-    if (it != mChatdClient.mSeenTimers.end())
-    {
-        assert(mLastSeenInFlightIdx != CHATD_IDX_INVALID);
-        CHATID_LOG_WARNING("setMessageSeen: previous delayed SEEN canceled. Sending a new one...");
-        cancelTimeout(it->second, mChatdClient.mKarereClient->appCtx);
-        mChatdClient.mSeenTimers.erase(it);
-    }
-
-    mLastSeenInFlightIdx = idx;
     megaHandle seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
         if (wptr.deleted())
           return;
 
-        mChatdClient.mSeenTimers.erase(mChatId);
+        mChatdClient.mSeenTimers.erase(seenTimer);
 
         if ((mLastSeenIdx != CHATD_IDX_INVALID) && (idx <= mLastSeenIdx))
             return;
@@ -3207,13 +3269,12 @@ bool Chat::setMessageSeen(Idx idx)
                 CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
             }
         }
-        mLastSeenInFlightIdx = CHATD_IDX_INVALID;
         mLastSeenId = id;
         CALL_DB(setLastSeen, mLastSeenId);
         CALL_LISTENER(onUnreadChanged);
     }, kSeenTimeout, mChatdClient.mKarereClient->appCtx);
 
-    mChatdClient.mSeenTimers.insert(std::pair<karere::Id, megaHandle>(mChatId, seenTimer));
+    mChatdClient.mSeenTimers.insert(seenTimer);
 
     return true;
 }
@@ -4330,6 +4391,13 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto status = getMsgStatus(msg, idx);
     if (isNew)
     {
+        // update in memory the timestamp of the most recent message from this user
+        if (msg.ts > mChatdClient.getLastMsgTs(msg.userid))
+        {
+            mChatdClient.setLastMsgTs(msg.userid, msg.ts);
+            mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid);
+        }
+
         CALL_LISTENER(onRecvNewMessage, idx, msg, status);
     }
     else
@@ -4603,10 +4671,11 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
 
+    CHATID_LOG_DEBUG("Online state change: %s --> %s", chatStateToStr(mOnlineState), chatStateToStr(state));
+
     mOnlineState = state;
-    CHATID_LOG_DEBUG("Online state changed to %s", chatStateToStr(mOnlineState));
     CALL_CRYPTO(onOnlineStateChange, state);
-    CALL_LISTENER(onOnlineStateChange, state);
+    mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
     if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
     {
@@ -4754,17 +4823,10 @@ bool Chat::findLastTextMsg()
 
 void Chat::findAndNotifyLastTextMsg()
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this]() //prevent re-entrancy
-    {
-        if (wptr.deleted())
-            return;
+    if (!findLastTextMsg())
+        return;
 
-        if (!findLastTextMsg())
-            return;
-
-        notifyLastTextMsg();
-    }, mChatdClient.mKarereClient->appCtx);
+    notifyLastTextMsg();
 }
 
 void Chat::sendTypingNotification()

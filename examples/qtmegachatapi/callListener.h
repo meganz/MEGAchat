@@ -14,8 +14,9 @@ class CallListener: public MegaChatVideoListener
         CallGui *mCallGui;
         QTMegaChatVideoListener *megaChatVideoListenerDelegate;
         MegaChatHandle mPeerid;
+        MegaChatHandle mClientid;
     public:
-        CallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatHandle peerid);
+        CallListener(MegaChatApi *megaChatApi, CallGui *callGui, MegaChatHandle peerid, MegaChatHandle clientid);
         QImage * CreateFrame(int width, int height, char *buffer, size_t size);
         static void myImageCleanupHandler(void *info);
         virtual ~CallListener();

@@ -40,7 +40,7 @@ uint8_t kCallDataRinging = 1;
 #else
 
 #include "karereCommon.h" //for AvFlags
-#include <karereId.h>
+#include "../karereId.h"
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
 
@@ -218,6 +218,8 @@ public:
 
     virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
     virtual int64_t getInitialTimeStamp() = 0;
+
+    virtual bool hasBeenNotifiedRinging() const = 0;
 };
 class IGlobalHandler
 {

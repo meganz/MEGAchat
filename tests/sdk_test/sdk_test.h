@@ -54,7 +54,7 @@ private:
 // do-while is used to forze add semicolon at the end of sentence
 #define ASSERT_CHAT_TEST(a, msg) \
     do { \
-        if (!(a)) \
+        if (!(a) && !this->testHasFailed) \
         { \
             throw ChatTestException(__FILE__, __LINE__, msg); \
         } \
@@ -65,6 +65,7 @@ private:
     do { \
         try \
         { \
+            t.testHasFailed = false; \
             LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
             LOG_debug << "Launching test: " << title; \
@@ -78,6 +79,7 @@ private:
         } \
         catch(ChatTestException e) \
         { \
+            t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \
             if (e.msg()) \
             { \
@@ -186,7 +188,7 @@ public:
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
     void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_OfflineMode(unsigned int accountIndex);
+    void TEST_OfflineMode(unsigned int a1, unsigned int a2);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
     void TEST_SendContact(unsigned int a1, unsigned int a2);
@@ -197,7 +199,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
-    void TEST_GroupManualCalls(unsigned int a1, const std::string& chatRoomName);
+    void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -205,6 +207,7 @@ public:
 
     unsigned mOKTests;
     unsigned mFailedTests;
+    bool testHasFailed = false;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
@@ -311,6 +314,7 @@ private:
     bool mVideoRemote[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mLoggedInAllChats[NUM_ACCOUNTS];
 
 #endif
 

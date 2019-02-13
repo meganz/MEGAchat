@@ -412,7 +412,8 @@ enum Opcode
       */
     OP_HANDLELEAVE = 47,
 
-    OP_LAST = OP_HANDLELEAVE
+    OP_LAST = OP_HANDLELEAVE,
+    OP_INVALIDCODE = 0xFF
 };
 
 // privilege levels
@@ -520,7 +521,7 @@ public:
         public:
         karere::Id callid;
         uint8_t termCode = 0;
-        uint32_t duration = 0;
+        uint32_t duration = 0;  // duration of call if established or period of time ringing (if never established: missed/cancelled)
         std::vector<karere::Id> participants;
 
         static CallEndedInfo *fromBuffer(const char *buffer, size_t len)
@@ -889,7 +890,7 @@ public:
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
         write(29, updated);write(31, keyid);write(35, 0); //msglen
     }
-    MsgCommand(size_t reserve): Command(reserve) {} //for loading the buffer
+    MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
     void setId(karere::Id aMsgid) { write(17, aMsgid.val); }

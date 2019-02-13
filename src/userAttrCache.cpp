@@ -2,7 +2,9 @@
 #include "userAttrCache.h"
 #include "chatClient.h"
 #include "db.h"
-#include <codecvt>
+#ifndef _MSC_VER
+#include <codecvt> // deprecated
+#endif
 #include <locale>
 #include <mega/types.h>
 
@@ -24,8 +26,16 @@ Buffer* ecKeyBase64ToBin(const ::mega::MegaRequest& result)
 }
 const char* nonWhitespaceStr(const char* str)
 {
+#ifndef _MSC_VER
+    // codecvt deprecated
     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
     std::u16string u16 = convert.from_bytes(str);
+#else
+    std::string result16;
+    ::mega::MegaApi::utf8ToUtf16(str, &result16);
+    std::u16string u16((char16_t*)result16.data(), result16.size() / 2);
+#endif
+
     for (auto s: u16)
     {
         if (!iswblank(s))

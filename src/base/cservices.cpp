@@ -5,7 +5,17 @@
 #include <unordered_map>
 #include <assert.h>
 #include "cservices-thread.h"
+
+#if defined(_WIN32) && defined(_MSC_VER)
+#include <sys/timeb.h>  
+#else
 #include <sys/time.h>
+#endif
+
+namespace karere
+{
+    std::recursive_mutex timerMutex;
+}
 
 extern "C"
 {
@@ -50,7 +60,6 @@ struct HandleItem
 
 std::unordered_map<megaHandle, HandleItem> gHandleStore;
 megaHandle gHandleCtr = 0;
-std::recursive_mutex timerMutex;
 
 MEGAIO_EXPORT void* services_hstore_get_handle(unsigned short type, megaHandle handle)
 {
@@ -107,8 +116,14 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
 
 int64_t services_get_time_ms()
 {
+#if defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
+#else
     struct timeval tv;
     gettimeofday(&tv, nullptr);
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+#endif
 }
 }

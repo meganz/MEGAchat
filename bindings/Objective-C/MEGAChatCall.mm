@@ -52,7 +52,7 @@ using namespace megachat;
     NSString *remoteVideo = [self hasVideoInitialCall] ? @"ON" : @"OFF";
     NSString *localTermCode = [self isLocalTermCode] ? @"YES" : @"NO";
     NSString *ringing = [self isRinging] ? @"YES" : @"NO";
-    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@, sessions: %@, participants: %@, numParticipants: %ld>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing, [self sessions], self.participants, (long)self.numParticipants];
+    return [NSString stringWithFormat:@"<%@: status=%@, chatId=%@, callId=%@, changes=%ld, duration=%lld, initial ts=%lld, final ts=%lld, local: audio %@ video %@, remote: audio %@ video %@, term code=%@, local term code %@, ringing %@, sessions: %@, participants: %@, numParticipants: %ld>", [self class], status, base64ChatId, base64CallId, self.changes, self.duration, self.initialTimeStamp, self.finalTimeStamp, localAudio, localVideo, remoteAudio, remoteVideo, termCode, localTermCode, ringing, [self sessionsPeerId], self.participants, (long)self.numParticipants];
 }
 
 - (MEGAChatCallStatus)status {
@@ -129,20 +129,28 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getPeerSessionStatusChange() : MEGACHAT_INVALID_HANDLE;
 }
 
-- (MEGAHandleList *)sessions {
-    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getSessions() cMemoryOwn:YES] : nil;
+- (uint64_t)clientSessionStatusChange {
+    return self.megaChatCall ? self.megaChatCall->getClientidSessionStatusChange() : MEGACHAT_INVALID_HANDLE;
+}
+
+- (MEGAHandleList *)sessionsPeerId {
+    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getSessionsPeerid() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)sessionsClientId {
+    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getSessionsClientid() cMemoryOwn:YES] : nil;
 }
 
 - (MEGAHandleList *)participants {
-    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getParticipants() cMemoryOwn:YES] : nil;
+    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getPeeridParticipants() cMemoryOwn:YES] : nil;
 }
 
 - (NSInteger)numParticipants {
     return self.megaChatCall ? self.megaChatCall->getNumParticipants() : 0;
 }
 
-- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId {
-    return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(peerId) cMemoryOwn:NO] : nil;
+- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId {
+    return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(peerId, clientId) cMemoryOwn:NO] : nil;
 }
 
 + (NSString *)stringForStatus:(MEGAChatCallStatus)status {

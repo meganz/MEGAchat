@@ -291,6 +291,36 @@ const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
     return NULL;
 }
 
+bool MegaChatApplication::isStagingEnabled()
+{
+    return useStaging;
+}
+
+void MegaChatApplication::enableStaging(bool enable)
+{
+    if (useStaging == enable)
+    {
+        return;
+    }
+
+    useStaging = enable;
+    if (enable)
+    {
+        mMegaApi->changeApiUrl("https://staging.api.mega.co.nz/");
+    }
+    else
+    {
+        mMegaApi->changeApiUrl("https://g.api.mega.co.nz/");
+    }
+
+    if (mMegaChatApi->getOnlineStatus() != MegaChatApi::DISCONNECTED)
+    {
+        // force a reload upon api-url changes
+        mMegaApi->fastLogin(mSid);
+        mMegaChatApi->refreshUrl();
+    }
+}
+
 const char *MegaChatApplication::sid() const
 {
     return mSid;
@@ -364,7 +394,16 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         case MegaRequest::TYPE_FETCH_NODES:
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                mMegaChatApi->connect();
+                if (!mSid)
+                {
+                    mSid = mMegaApi->dumpSession();
+                    saveSid(mSid);
+                }
+
+                if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
+                {
+                    mMegaChatApi->connect();
+                }
             }
             else
             {
@@ -550,7 +589,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 if(itemController)
                 {
                     ChatWindow *chatWin = itemController->showChatWindow();
-                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
+                    chatWin->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(chatId));
                 }
             }
             break;

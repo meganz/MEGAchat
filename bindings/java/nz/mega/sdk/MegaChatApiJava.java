@@ -104,17 +104,18 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Register a listener to receive video from remote device for an specific chat room and peer
+     * @brief Register a listener to receive video from remote device for an specific chat room and peer
      *
      * You can use MegaChatApi::removeChatRemoteVideoListener to stop receiving events.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param peerid MegaChatHandle that identifies the peer
+     * @param clientid MegaChatHandle that identifies the client
      * @param listener MegaChatVideoListener that will receive remote video
      */
-    public void addChatRemoteVideoListener(long chatid, long peerid, MegaChatVideoListenerInterface listener)
+    public void addChatRemoteVideoListener(long chatid, long peerid, long clientid, MegaChatVideoListenerInterface listener)
     {
-        megaChatApi.addChatRemoteVideoListener(chatid, peerid, createDelegateChatVideoListener(listener, true));
+        megaChatApi.addChatRemoteVideoListener(chatid, peerid, clientid, createDelegateChatVideoListener(listener, true));
     }
 
     /**
@@ -126,7 +127,7 @@ public class MegaChatApiJava {
      * @param peerid MegaChatHandle that identifies the peer (if the listener is remote)
      * @param listener Object that is unregistered
      */
-    public void removeChatVideoListener(long chatid, long peerid, MegaChatVideoListenerInterface listener) {
+    public void removeChatVideoListener(long chatid, long peerid, long clientid, MegaChatVideoListenerInterface listener) {
         ArrayList<DelegateMegaChatVideoListener> listenersToRemove = new ArrayList<DelegateMegaChatVideoListener>();
         synchronized (activeChatVideoListeners) {
             Iterator<DelegateMegaChatVideoListener> it = activeChatVideoListeners.iterator();
@@ -143,7 +144,7 @@ public class MegaChatApiJava {
             DelegateMegaChatVideoListener delegateListener = listenersToRemove.get(i);
             delegateListener.setRemoved();
             if (delegateListener.isRemote()) {
-                megaChatApi.removeChatRemoteVideoListener(chatid, peerid, delegateListener);
+                megaChatApi.removeChatRemoteVideoListener(chatid, peerid, clientid, delegateListener);
             }
             else {
                 megaChatApi.removeChatLocalVideoListener(chatid, delegateListener);
@@ -405,6 +406,32 @@ public class MegaChatApiJava {
     public void retryPendingConnections(boolean disconnect, MegaChatRequestListenerInterface listener){
         megaChatApi.retryPendingConnections(disconnect, createDelegateRequestListener(listener));
     }
+
+    /**
+     * @brief Refresh URLs and establish fresh connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * A disconnect will be forced automatically, followed by a reconnection to the fresh URLs
+     * retrieved from API. This parameter is useful when the URL for the API is changed
+     * via MegaApi::changeApiUrl.
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void refreshUrl(MegaChatRequestListenerInterface listener){
+        megaChatApi.refreshUrl(createDelegateRequestListener(listener));
+    }
+
+    /**
+     * @brief Refresh URLs and establish fresh connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * A disconnect will be forced automatically, followed by a reconnection to the fresh URLs
+     * retrieved from API. This parameter is useful when the URL for the API is changed
+     * via MegaApi::changeApiUrl.
+     */
+    public void refreshUrl(){ megaChatApi.refreshUrl(); }
 
     /**
      * Logout of chat servers invalidating the session
@@ -1192,6 +1219,22 @@ public class MegaChatApiJava {
      */
     public long getMyUserHandle(){
         return megaChatApi.getMyUserHandle();
+    }
+
+
+    /**
+     * @brief Returns the client id handle of the logged in user for a chatroom
+     *
+     * The clientid is not the same for all chatrooms. If \c chatid is invalid, this function
+     * returns 0
+     *
+     * In offline mode (MegaChatApi::INIT_OFFLINE_SESSION), this function returns 0
+     *
+     * @return Own client id handle
+     */
+
+    public long getMyClientidHandle(long chatid){
+        return megaChatApi.getMyClientidHandle(chatid);
     }
 
     /**
@@ -2597,6 +2640,24 @@ public class MegaChatApiJava {
      */
     public boolean areGroupChatCallEnabled(){
         return megaChatApi.areGroupChatCallEnabled();
+    }
+
+    /**
+     * @brief Returns the maximum call participants
+     *
+     * @return Maximum call participants
+     */
+    public int getMaxCallParticipants() {
+        return megaChatApi.getMaxCallParticipants();
+    }
+
+    /**
+     * @brief Returns the maximum video call participants
+     *
+     * @return Maximum video call participants
+     */
+    public int getMaxVideoCallParticipants() {
+        return megaChatApi.getMaxVideoCallParticipants();
     }
 
     public static void setCatchException(boolean enable) {

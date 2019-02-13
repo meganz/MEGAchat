@@ -9,11 +9,12 @@ using namespace std;
 using namespace mega;
 using namespace karere;
 
-CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool local)
+CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, MegaChatHandle clientid, bool local)
     : QWidget(parent), mChatWindow(parent), ui(new Ui::CallGui)
 {
     ui->setupUi(this);
     mPeerid = peerid;
+    mClientid = clientid;
     connect(ui->mHupBtn, SIGNAL(clicked(bool)), this, SLOT(onHangCall(bool)));
     connect(ui->mShowChatBtn, SIGNAL(clicked(bool)), this, SLOT(onChatBtn(bool)));
     connect(ui->mMuteMicChk, SIGNAL(clicked(bool)), this, SLOT(onMuteMic(bool)));
@@ -28,7 +29,8 @@ CallGui::CallGui(ChatWindow *parent, bool video, MegaChatHandle peerid, bool loc
     setAvatar();
     ui->videoRenderer->enableStaticImage();
 
-    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
     {
         ui->videoRenderer->setMirrored(true);
         ui->mFullScreenChk->hide();
@@ -52,7 +54,8 @@ void CallGui::connectPeerCallGui()
 {
     MegaChatCall *auxCall = mChatWindow->mMegaChatApi->getChatCall(mChatWindow->mChatRoom->getChatId());
     setCall(auxCall);
-    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
+    if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+            mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
     {
         localCallListener = new LocalCallListener (mChatWindow->mMegaChatApi, this);
         ui->mAnswBtn->hide();
@@ -65,13 +68,18 @@ void CallGui::connectPeerCallGui()
     }
     else
     {
-        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid);
+        remoteCallListener = new RemoteCallListener (mChatWindow->mMegaChatApi, this, mPeerid, mClientid);
     }
 }
 
-MegaChatHandle CallGui::getPeer()
+MegaChatHandle CallGui::getPeerid()
 {
     return mPeerid;
+}
+
+MegaChatHandle CallGui::getClientid()
+{
+    return mClientid;
 }
 
 void CallGui::onAnswerCallBtn(bool)
@@ -166,7 +174,8 @@ void CallGui::onMuteMic(bool checked)
 
 void CallGui::onMuteCam(bool checked)
 {
-   if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle())
+   if (mPeerid == mChatWindow->mMegaChatApi->getMyUserHandle() &&
+           mClientid == mChatWindow->getMegaChatApi()->getMyClientidHandle(mChatWindow->mChatRoom->getChatId()))
    {
         if (checked)
         {

@@ -202,6 +202,7 @@ class MainWindow :
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
         void onReconnect(bool disconnect);
+        void onUseApiStagingClicked(bool);
 
     signals:
         void esidLogout();

@@ -357,19 +357,24 @@ std::string ChatMessage::managementInfoToString() const
         }
         case megachat::MegaChatMessage::TYPE_CALL_ENDED:
         {
-            ret.append("User ").append(userHandle_64)
-               .append(" start a call with: ");
+            ret.append("User ").append(userHandle_64);
+            ret.append(" called user/s: ");
+
             ::mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
             for (unsigned int i = 0; i < handleList->size(); i++)
             {
                 char *participant_64 = mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
-                ret.append(participant_64).append(" ");
+                ret.append(participant_64).append(", ");
                 delete [] participant_64;
+            }
+            if (handleList->size())
+            {
+                ret = ret.substr(0, ret.size() - 2);
             }
 
             ret.append("\nDuration: ")
                .append(std::to_string(mMessage->getDuration()))
-               .append("secs TermCode: ")
+               .append("s. TermCode: ")
                .append(std::to_string(mMessage->getTermCode()));
             break;
         }
