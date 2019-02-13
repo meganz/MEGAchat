@@ -4953,7 +4953,8 @@ bool Message::parseUrl(const std::string &url)
     }
 
     if (urlToParse.find("mega.co.nz/#!") != std::string::npos || urlToParse.find("mega.co.nz/#F!") != std::string::npos ||
-            urlToParse.find("mega.nz/#!") != std::string::npos || urlToParse.find("mega.nz/#F!") != std::string::npos)
+            urlToParse.find("mega.nz/#!") != std::string::npos || urlToParse.find("mega.nz/#F!") != std::string::npos ||
+            urlToParse.find("mega.nz/chat") != std::string::npos)
     {
         return false;
     }
