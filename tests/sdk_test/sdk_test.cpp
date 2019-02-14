@@ -170,7 +170,13 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
-    ASSERT_CHAT_TEST(waitForResponse(loggedInFlag, 120), "Expired timeout for login to all chats in account '" + mail + "'. (DDOS protection triggered?)");
+
+    // if there are chatrooms in this account, wait to be joined to all of them
+    std::unique_ptr<MegaChatListItemList> items(megaChatApi[accountIndex]->getChatListItems());
+    if (items->size())
+    {
+        ASSERT_CHAT_TEST(waitForResponse(loggedInFlag, 120), "Expired timeout for login to all chats in account '" + mail + "'. (DDOS protection triggered?)");
+    }
 
     return megaApi[accountIndex]->dumpSession();
 }
