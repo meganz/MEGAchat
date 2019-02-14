@@ -379,7 +379,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             auto itCallHandler = mCallHandlers.find(chatid);
             // itCallHandler is created at updatePeerAvState
             assert(itCallHandler != mCallHandlers.end());
-            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()))
+            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()) && !itCallHandler->second->hasBeenNotifiedRinging())
             {
                 handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
             }

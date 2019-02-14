@@ -4532,17 +4532,10 @@ bool Chat::findLastTextMsg()
 
 void Chat::findAndNotifyLastTextMsg()
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this]() //prevent re-entrancy
-    {
-        if (wptr.deleted())
-            return;
+    if (!findLastTextMsg())
+        return;
 
-        if (!findLastTextMsg())
-            return;
-
-        notifyLastTextMsg();
-    }, mChatdClient.mKarereClient->appCtx);
+    notifyLastTextMsg();
 }
 
 void Chat::sendTypingNotification()

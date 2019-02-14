@@ -50,6 +50,10 @@ namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
 
+#ifdef WIN32
+#define strdup _strdup
+#endif
+
 #if (__cplusplus >= 201700L)
     #include <filesystem>
     namespace fs = std::filesystem;
@@ -158,12 +162,12 @@ unique_ptr<m::Console> console;
 
 static const char* prompts[] =
 {
-    "", "MEGAclc> ", "Password:"
+    "", "MEGAclc> ", "Password:", "Pin:"
 };
 
 enum prompttype
 {
-    NOPROMPT, COMMAND, LOGINPASSWORD
+    NOPROMPT, COMMAND, LOGINPASSWORD, PIN
 };
 
 static prompttype prompt = COMMAND;
@@ -521,6 +525,17 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             conlock(cout) << "Loading Account with fetchNodes..." << endl;
             guard.unlock();
             api->fetchNodes();
+            setprompt(NOPROMPT);
+        }
+        else if (e->getErrorCode() == m::MegaError::API_EMFAREQUIRED)
+        {
+            guard.unlock();
+            setprompt(PIN);
+        }
+        else
+        {
+            guard.unlock();
+            setprompt(COMMAND);
         }
         break;
 
@@ -534,6 +549,15 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             setprompt(COMMAND);
         }
         break;
+
+    case m::MegaRequest::TYPE_LOGOUT:
+        if (!check_err("Logout", e))
+        {
+            conlock(cout) << "Error in logout: "<< e->getErrorString() << endl;
+        }
+
+        guard.unlock();
+        setprompt(COMMAND);
 
     default:
         break;
@@ -694,6 +718,7 @@ bool oneOpenRoom(c::MegaChatHandle room)
 
 static bool quit_flag = false;
 static string login;
+static string password;
 
 void exec_login(ac::ACState& s)
 {
@@ -707,7 +732,12 @@ void exec_login(ac::ACState& s)
                 conlock(cout) << "Initiating login attempt..." << endl;
             }
             g_chatApi->init(NULL);
-            g_megaApi->login(s.words[1].s.c_str(), s.words[2].s.c_str());
+            login = s.words[1].s;
+            password = s.words[2].s;
+
+            // Block prompt until the request has finished
+            setprompt(NOPROMPT);
+            g_megaApi->login(login.c_str(), password.c_str());
         }
         else if (s.words.size() == 2 && hasemail)
         {
@@ -743,6 +773,20 @@ void exec_login(ac::ACState& s)
     else
     {
         conlock(cout) << "Already logged in. Please log out first." << endl;
+    }
+}
+
+void exec_logout(ac::ACState& s)
+{
+    unique_ptr<const char[]>session(g_megaApi->dumpSession());
+    if (g_megaApi->isLoggedIn())
+    {
+        setprompt(NOPROMPT);
+        g_megaApi->logout();
+    }
+    else
+    {
+        conlock(cout) << "Not logged in." << endl;
     }
 }
 
@@ -2081,6 +2125,7 @@ ac::ACN autocompleteSyntax()
     unique_ptr<Either> p(new Either("      "));
 
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
+    p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
@@ -2198,13 +2243,26 @@ static void process_line(const char* l)
 {
     switch (prompt)
     {
-    case LOGINPASSWORD:
+    case PIN:
+    {
+        std::string pin = l;
         g_chatApi->init(NULL);
-        g_megaApi->login(login.c_str(), l);
+        g_megaApi->multiFactorAuthLogin(login.c_str(), password.c_str(), !pin.empty() ? pin.c_str() : NULL);
+        {
+            conlock(cout) << "\nLogging in with 2FA..." << endl << flush;
+        }
+        setprompt(NOPROMPT);
+        return;
+    }
+
+    case LOGINPASSWORD:
+        password = l;
+        g_chatApi->init(NULL);
+        g_megaApi->login(login.c_str(), password.c_str());
         {
             conlock(cout) << "\nLogging in..." << endl;
         }
-        setprompt(COMMAND);
+        setprompt(NOPROMPT);
         return;
 
     case COMMAND:

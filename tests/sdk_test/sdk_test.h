@@ -54,7 +54,7 @@ private:
 // do-while is used to forze add semicolon at the end of sentence
 #define ASSERT_CHAT_TEST(a, msg) \
     do { \
-        if (!(a)) \
+        if (!(a) && !this->testHasFailed) \
         { \
             throw ChatTestException(__FILE__, __LINE__, msg); \
         } \
@@ -65,6 +65,7 @@ private:
     do { \
         try \
         { \
+            t.testHasFailed = false; \
             LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
             LOG_debug << "Launching test: " << title; \
@@ -78,6 +79,7 @@ private:
         } \
         catch(ChatTestException e) \
         { \
+            t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \
             if (e.msg()) \
             { \
@@ -204,6 +206,7 @@ public:
 
     unsigned mOKTests;
     unsigned mFailedTests;
+    bool testHasFailed = false;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
