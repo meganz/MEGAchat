@@ -46,6 +46,10 @@ namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
 
+#ifdef WIN32
+#define strdup _strdup
+#endif
+
 #if (__cplusplus >= 201700L)
     #include <filesystem>
     namespace fs = std::filesystem;
@@ -487,7 +491,7 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             api->fetchNodes();
             setprompt(NOPROMPT);
         }
-        else if (e->getErrorCode() == mega::MegaError::API_EMFAREQUIRED)
+        else if (e->getErrorCode() == m::MegaError::API_EMFAREQUIRED)
         {
             guard.unlock();
             setprompt(PIN);
