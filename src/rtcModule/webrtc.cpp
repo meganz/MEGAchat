@@ -2815,7 +2815,8 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 {
     if (mState == Session::kStateTerminating)
     {
-        if (mTermCode == TermCode::kInvalid || (!isTermRetriable(code) && isTermRetriable(mTermCode)))
+        assert(mTermCode != TermCode::kInvalid);
+        if (!isTermRetriable(code) && isTermRetriable(mTermCode))
         {
             mTermCode = code;
         }
@@ -2898,7 +2899,8 @@ void Session::msgSessTerminate(RtMessage& packet)
 
     if (mState == kStateTerminating)
     {
-        if (mTermCode == TermCode::kInvalid || (!isTermRetriable(code) && isTermRetriable(mTermCode)))
+        assert(mTermCode != TermCode::kInvalid);
+        if (!isTermRetriable(code) && isTermRetriable(mTermCode))
         {
             mTermCode = code;
         }
