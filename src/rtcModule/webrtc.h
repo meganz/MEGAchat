@@ -218,6 +218,8 @@ public:
 
     virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
     virtual int64_t getInitialTimeStamp() = 0;
+
+    virtual bool hasBeenNotifiedRinging() const = 0;
 };
 class IGlobalHandler
 {
