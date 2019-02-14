@@ -140,7 +140,7 @@ border: 0px;
           <bool>false</bool>
          </property>
          <property name="styleSheet">
-          <string notr="true">    color: lightgray;
+          <string notr="true">    color: black;
     border: 0px;
     border-radius: 2px;
     background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,

@@ -199,6 +199,7 @@ class MainWindow :
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();
+        void onUseApiStagingClicked(bool);
 
     signals:
         void esidLogout();

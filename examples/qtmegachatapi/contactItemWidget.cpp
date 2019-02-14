@@ -29,7 +29,7 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     }
     delete [] firstname;
 
-    int status = this->mMegaChatApi->getUserOnlineStatus(mUserHandle);
+    int status = mMegaChatApi->getUserOnlineStatus(mUserHandle);
     updateOnlineIndicator(status);
 }
 
@@ -286,6 +286,11 @@ ContactItemWidget::~ContactItemWidget()
 
 void ContactItemWidget::updateOnlineIndicator(int newState)
 {
+    if (newState == megachat::MegaChatApi::STATUS_INVALID)
+    {
+        newState = 0;
+    }
+
     if (newState >= 0 && newState < NINDCOLORS)
     {
         ui->mOnlineIndicator->setStyleSheet(

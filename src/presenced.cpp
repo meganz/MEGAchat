@@ -39,21 +39,32 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-::promise::Promise<void>
-Client::connect(const std::string& url, const Config& config)
+Promise<void> Client::connect(const Config& config)
 {
-    mConfig = config;
-    mUrl.parse(url);
-
-    if (mConnState == kConnNew)
-    {
-        return reconnect();
-    }
-    else    // connect() was already called, reconnection is automatic
+    if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
         PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
         return ::promise::Void();
     }
+
+    assert(!mUrl.isValid());
+
+    mConfig = config;
+    setConnState(kFetchingUrl);
+
+    auto wptr = getDelTracker();
+    return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+    .then([this, wptr](ReqResult result) -> Promise<void>
+    {
+        if (wptr.deleted())
+        {
+            PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+            return ::promise::_Void();
+        }
+
+        mUrl.parse(result->getLink());
+        return reconnect();
+    });
 }
 
 void Client::pushPeers()
@@ -797,35 +808,71 @@ void Client::doConnect()
     }
 }
 
-void Client::retryPendingConnection(bool disconnect)
+void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 {
-    if (mUrl.isValid())
+    if (mConnState == kConnNew)
     {
-        if (disconnect)
-        {
-            PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        PRESENCED_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        return;
+    }
 
-            setConnState(kDisconnected);
-            abortRetryController();
-            reconnect();
-        }
-        else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    if (refreshURL || !mUrl.isValid())
+    {
+        if (mConnState == kFetchingUrl)
         {
-            PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
-
-            assert(!isOnline());
-            assert(!mHeartbeatEnabled);
-
-            mRetryCtrl->restart();
+            PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            return;
         }
-        else
+
+        PRESENCED_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+
+        // abort and prevent any further reconnection attempt
+        setConnState(kDisconnected);
+        abortRetryController();
+        if (mConnectTimer)
         {
-            PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
+            cancelTimeout(mConnectTimer, mKarereClient->appCtx);
+            mConnectTimer = 0;
         }
+
+        // clear existing URL
+        mUrl = Url();
+        setConnState(kFetchingUrl);
+
+        auto wptr = getDelTracker();
+        mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
+        .then([this, wptr](ReqResult result)
+        {
+            if (wptr.deleted())
+            {
+                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                return;
+            }
+
+            mUrl.parse(result->getLink());
+            retryPendingConnection(true);
+        });
+    }
+    else if (disconnect)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
+
+        setConnState(kDisconnected);
+        abortRetryController();
+        reconnect();
+    }
+    else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
+    {
+        PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+
+        assert(!isOnline());
+        assert(!mHeartbeatEnabled);
+
+        mRetryCtrl->restart();
     }
     else
     {
-        PRESENCED_LOG_WARNING("No valid URL provided to retry pending connections");
+        PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
     }
 }
 
@@ -1028,6 +1075,7 @@ bool Client::sendPrefs()
 void Client::configChanged()
 {
     CALL_LISTENER(onPresenceConfigChanged, mConfig, mPrefsAckWait);
+    CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), mConfig.mPresence, mPrefsAckWait);
 }
 
 void Config::fromCode(uint16_t code)
@@ -1114,7 +1162,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_ID(userid, 1);
                 PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
                     ID_CSTR(userid), Presence::toString(pres));
-                CALL_LISTENER(onPresenceChange, userid, pres);
+                updatePeerPresence(userid, pres);
                 break;
             }
             case OP_PREFS:
@@ -1245,9 +1293,9 @@ void Client::setConnState(ConnState newState)
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
         {
-            CALL_LISTENER(onPresenceChange, it->first, Presence::kInvalid);
+            updatePeerPresence(it->first, Presence::kInvalid);
         }
-        CALL_LISTENER(onPresenceChange, mKarereClient->myHandle(), Presence::kInvalid);
+        updatePeerPresence(mKarereClient->myHandle(), Presence::kInvalid);
     }
     else if (mConnState == kConnected)
     {
@@ -1330,5 +1378,21 @@ void Client::removePeer(karere::Id peer, bool force)
     cmd.append<uint64_t>(peer.val);
 
     sendCommand(std::move(cmd));
+}
+
+void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
+{
+    mPeersPresence[peer] = pres;
+    CALL_LISTENER(onPresenceChange, peer, pres);
+}
+
+karere::Presence Client::peerPresence(karere::Id peer) const
+{
+    auto it = mPeersPresence.find(peer);
+    if (it == mPeersPresence.end())
+    {
+        return karere::Presence::kInvalid;
+    }
+    return it->second;
 }
 }

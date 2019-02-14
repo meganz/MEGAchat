@@ -161,7 +161,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
                 if (setCallGui->size() == 0)
                 {
-                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle());
+                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
                 }
                 break;
             }
@@ -171,7 +171,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
                 if (setOfCallGui->size() != 0)
                 {
-                    window->connectPeerCallGui(mMegaChatApi->getMyUserHandle());
+                    window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
                 }
 
                 break;
@@ -188,9 +188,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         {
             CallGui *callGui = *it;
             MegaChatHandle peerid = call->getPeerSessionStatusChange();
-            if (callGui->getPeer() == peerid)
+            MegaChatHandle clientid = call->getClientidSessionStatusChange();
+            if (callGui->getPeerid() == peerid && callGui->getClientid() == clientid)
             {
-                MegaChatSession *session = call->getMegaChatSession(peerid);
+                MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
                 if (session->hasVideo())
                 {
                     callGui->ui->videoRenderer->disableStaticImage();
@@ -209,19 +210,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SESSION_STATUS))
     {
        MegaChatHandle peerid = call->getPeerSessionStatusChange();
-       MegaChatSession *session = call->getMegaChatSession(peerid);
+       MegaChatHandle clientid = call->getClientidSessionStatusChange();
+       MegaChatSession *session = call->getMegaChatSession(peerid, clientid);
        assert(session);
        switch (session->getStatus())
        {
            case MegaChatSession::SESSION_STATUS_IN_PROGRESS:
            {
-               window->createCallGui(call->hasVideoInitialCall(), peerid);
-               window->connectPeerCallGui(peerid);
+               window->createCallGui(call->hasVideoInitialCall(), peerid, clientid);
+               window->connectPeerCallGui(peerid, clientid);
+
                break;
            }
 
            case MegaChatSession::SESSION_STATUS_DESTROYED:
-               window->destroyCallGui(peerid);
+               window->destroyCallGui(peerid, clientid);
                break;
        }
     }
@@ -446,7 +449,7 @@ void MainWindow::on_bSettings_clicked()
 
     menu.addSeparator();
     auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
-    connect(actTwoFactCheck, SIGNAL(clicked(bool)), this, SLOT(onTwoFactorCheck(bool)));
+    connect(actTwoFactCheck, SIGNAL(toggled(bool)), this, SLOT(onTwoFactorCheck(bool)));
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
 
     menu.addSeparator();
@@ -479,6 +482,12 @@ void MainWindow::on_bSettings_clicked()
 
     auto actChatCheckPushNotificationRestriction = menu.addAction("Check chat push notification restriction");
     connect(actChatCheckPushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onChatCheckPushNotificationRestrictionClicked()));
+
+    menu.addSeparator();
+    auto actUseStaging = menu.addAction("Use API staging");
+    connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
+    actUseStaging->setCheckable(true);
+    actUseStaging->setChecked(mApp->isStagingEnabled());
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -1075,4 +1084,9 @@ void MainWindow::onChatCheckPushNotificationRestrictionClicked()
         }
     }
 
+}
+
+void MainWindow::onUseApiStagingClicked(bool enable)
+{
+    mApp->enableStaging(enable);
 }
