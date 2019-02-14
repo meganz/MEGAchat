@@ -2917,7 +2917,7 @@ void Session::msgSessTerminate(RtMessage& packet)
     }
 
     setState(kStateTerminating);
-    destroy(static_cast<TermCode>(code | TermCode::kPeer));
+    destroy(static_cast<TermCode>(mTermCode | TermCode::kPeer));
 }
 
 /** Terminates a session without the signalling terminate handshake.
