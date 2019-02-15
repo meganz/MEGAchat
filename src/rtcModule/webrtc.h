@@ -44,7 +44,7 @@ uint8_t kCallDataRinging = 1;
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
 
-#define CHATSTATS_PORT 1380
+#define CHATSTATS_PORT 0
 
 namespace chatd
 {
