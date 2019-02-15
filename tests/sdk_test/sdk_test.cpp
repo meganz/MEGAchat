@@ -576,11 +576,16 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
             }
             else if (!connRetried && tWaited > (pollingT * 10))
             {
-                for (int i = 0; i < NUM_ACCOUNTS; i++)
+                for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
                 {
                     if (megaApi[i] && megaApi[i]->isLoggedIn())
                     {
                         megaApi[i]->retryPendingConnections();
+                    }
+
+                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    {
+                        megaChatApi[i]->retryPendingConnections();
                     }
                 }
                 connRetried = true;
@@ -865,7 +870,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
     // Update autoway timeout to force to send values to the server
-    int64_t autowayTimeout = 5;
+    int64_t autowayTimeout = 60;
     if (megaChatApi[accountIndex]->getPresenceConfig()->getAutoawayTimeout() == autowayTimeout)
     {
         autowayTimeout ++;
@@ -894,8 +899,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout() + 6);
-    ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
+    sleep(config->getAutoawayTimeout() + 12);   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
 
     // and check the status is away
     ASSERT_CHAT_TEST(mOnlineStatus[accountIndex] == MegaChatApi::STATUS_AWAY,
