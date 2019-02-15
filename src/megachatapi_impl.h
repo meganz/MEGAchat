@@ -591,7 +591,7 @@ private:
     MegaChatCallPrivate *chatCall = NULL;
     bool mHasBeenNotifiedRinging = false;
 
-    rtcModule::IVideoRenderer *localVideoReceiver;
+    rtcModule::IVideoRenderer *localVideoReceiver = NULL;
 };
 
 class MegaChatSessionHandler : public rtcModule::ISessionHandler
