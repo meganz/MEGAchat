@@ -238,11 +238,14 @@ class RemoteLogger: public karere::Logger::ILoggerBackend
 {
 private:
     std::string mAid;
+    std::string mDeviceInfo;
     MyMegaApi& mApi;
 public:
     virtual void log(krLogLevel level, const char* msg, size_t len, unsigned flags);
+    void logError(const char* fmtString, ...);
     RemoteLogger(MyMegaApi& api): ILoggerBackend(krLogLevelError), mApi(api){}
-    void setAnonymousId(std::string &aid) { this->mAid = aid; }
+    void setAnonymousId(const std::string &aid) { this->mAid = aid; }
+    void setDeviceInfo(const std::string &deviceInfo) { this->mDeviceInfo = deviceInfo; }
 };
 
 }

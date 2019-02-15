@@ -81,7 +81,6 @@ protected:
     void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
-    std::string getDeviceInfo() const;
     int calculateNetworkQuality(const stats::Sample *sample);
 
 public:
@@ -287,6 +286,8 @@ public:
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
 //==
+    karere::RemoteLogger *getRemoteLogger();
+    std::string getDeviceInfo();
     virtual ~RtcModule() {}
 protected:
     const char* mStaticIceSever;
@@ -297,6 +298,7 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, ICallHandler *> mCallHandlers;
+    RtcModule &mManager;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -315,6 +317,7 @@ protected:
                       std::string& selected);
 
     void updateConstraints(Resolution resolution);
+    std::shared_ptr<karere::RemoteLogger> mRemoteLogger;
     friend class Call;
     friend class Session;
 public:
@@ -391,10 +394,5 @@ public:
     }
 };
 }
-#define RTCM_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_rtc, fmtString, ##__VA_ARGS__)
-#define RTCM_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtc, fmtString, ##__VA_ARGS__)
-#define RTCM_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_rtc, fmtString, ##__VA_ARGS__)
-#define RTCM_LOG_ERROR(fmtString,...) KARERE_LOG_ERROR(krLogChannel_rtc, fmtString, ##__VA_ARGS__)
-#define RTCM_LOG_EVENT(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtcevent, fmtString, ##__VA_ARGS__)
 
 #endif

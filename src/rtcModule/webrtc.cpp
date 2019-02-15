@@ -72,7 +72,8 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
   mIceServerProvider(client.api, "turn"),
-  mStaticIceSever(iceServers)
+  mStaticIceSever(iceServers),
+  mManager(*this)
 {
     if (!artc::isInitialized())
     {
@@ -85,6 +86,10 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
 
   //preload ice servers to make calls faster
     initInputDevices();
+
+    mRemoteLogger.reset(new RemoteLogger(mKarereClient.api));
+    mRemoteLogger->setAnonymousId(mOwnAnonId.toString());
+    mRemoteLogger->setDeviceInfo(getDeviceInfo());
 }
 
 void RtcModule::init()
@@ -334,7 +339,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     if (userid == chat.client().mKarereClient->myHandle()
         && clientid == chat.connection().clientId())
     {
-        RTCM_LOG_WARNING("Ignoring CALLDATA sent back to sender");
+        RTCM_LOG_ERROR("Ignoring CALLDATA sent back to sender");
         return;
     }
 
@@ -354,7 +359,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     {
         if (itCall->second->id() != callid)
         {
-            RTCM_LOG_WARNING("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
+            RTCM_LOG_ERROR("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
             return;
         }
 
@@ -364,7 +369,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         {
             if (!chat.isGroup())
             {
-                RTCM_LOG_WARNING("Received not-terminating CALLDATA with ringing flag to fasle for 1on1 in state kStateRingIn. "
+                RTCM_LOG_ERROR("Received not-terminating CALLDATA with ringing flag to fasle for 1on1 in state kStateRingIn. "
                                  "The call should have already been taken out of this state by a RTMSG");
             }
 
@@ -580,6 +585,58 @@ void RtcModule::hangupAll(TermCode code)
 
         call->hangup(code);
     }
+}
+
+RemoteLogger *RtcModule::getRemoteLogger()
+{
+    return mRemoteLogger.get();
+}
+
+string RtcModule::getDeviceInfo()
+{
+    // UserAgent Format
+    // MEGA<app>/<version> (platform) Megaclient/<version>
+    std::string userAgent = mKarereClient.api.sdk.getUserAgent();
+
+    std::string androidId = "MEGAAndroid";
+    std::string iosId = "MEGAiOS";
+    std::string testChatId = "MEGAChatTest";
+    std::string syncId = "MEGAsync";
+
+    std::string deviceType = "n";
+    std::string version = "0";
+
+    size_t endTypePosition = std::string::npos;
+    size_t idPosition;
+    if ((idPosition = userAgent.find(androidId)) != std::string::npos)
+    {
+        deviceType = "na";
+        endTypePosition = idPosition + androidId.size() + 1; // remove '/'
+    }
+    else if ((idPosition = userAgent.find(iosId)) != std::string::npos)
+    {
+        deviceType = "ni";
+        endTypePosition = idPosition + iosId.size() + 1;  // remove '/'
+    }
+    else if ((idPosition = userAgent.find(testChatId)) != std::string::npos)
+    {
+        deviceType = "nct";
+    }
+    else if ((idPosition = userAgent.find(syncId)) != std::string::npos)
+    {
+        deviceType = "nsync";
+        endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
+    }
+
+    size_t endVersionPosition = userAgent.find(" (");
+    if (endVersionPosition != std::string::npos &&
+            endTypePosition != std::string::npos &&
+            endVersionPosition > endTypePosition)
+    {
+        version = userAgent.substr(endTypePosition, endVersionPosition - endTypePosition);
+    }
+
+    return deviceType + ":" + version;
 }
 
 void RtcModule::stopCallsTimers(int shard)
@@ -2420,53 +2477,6 @@ webrtc::FakeConstraints* Session::pcConstraints()
     return &mCall.mManager.mPcConstraints;
 }
 
-string Session::getDeviceInfo() const
-{
-    // UserAgent Format
-    // MEGA<app>/<version> (platform) Megaclient/<version>
-    std::string userAgent = mCall.mChat.mChatdClient.mKarereClient->api.sdk.getUserAgent();
-
-    std::string androidId = "MEGAAndroid";
-    std::string iosId = "MEGAiOS";
-    std::string testChatId = "MEGAChatTest";
-    std::string syncId = "MEGAsync";
-
-    std::string deviceType = "n";
-    std::string version = "0";
-
-    size_t endTypePosition = std::string::npos;
-    size_t idPosition;
-    if ((idPosition = userAgent.find(androidId)) != std::string::npos)
-    {
-        deviceType = "na";
-        endTypePosition = idPosition + androidId.size() + 1; // remove '/'
-    }
-    else if ((idPosition = userAgent.find(iosId)) != std::string::npos)
-    {
-        deviceType = "ni";
-        endTypePosition = idPosition + iosId.size() + 1;  // remove '/'
-    }
-    else if ((idPosition = userAgent.find(testChatId)) != std::string::npos)
-    {
-        deviceType = "nct";
-    }
-    else if ((idPosition = userAgent.find(syncId)) != std::string::npos)
-    {
-        deviceType = "nsync";
-        endTypePosition = idPosition + syncId.size() + 1;  // remove '/'
-    }
-
-    size_t endVersionPosition = userAgent.find(" (");
-    if (endVersionPosition != std::string::npos &&
-            endTypePosition != std::string::npos &&
-            endVersionPosition > endTypePosition)
-    {
-        version = userAgent.substr(endTypePosition, endVersionPosition - endTypePosition);
-    }
-
-    return deviceType + ":" + version;
-}
-
 void Session::handleMessage(RtMessage& packet)
 {
     switch (packet.type)
@@ -2497,7 +2507,7 @@ void Session::createRtcConn()
     EndpointId endPoint(mPeer, mPeerClient);
     if (mCall.mIceFails.find(endPoint) != mCall.mIceFails.end())
     {
-        RTCM_LOG_WARNING("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
+        RTCM_LOG_ERROR("Using ALL ICE servers, because ICE to this peer has failed %d times", mCall.mIceFails[endPoint]);
         StaticProvider iceServerStatic(mCall.mManager.mStaticIceSever);
         mCall.mManager.addIceServers(iceServerStatic);
     }
@@ -2821,7 +2831,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 
     if (!msg.empty())
     {
-        SUB_LOG_DEBUG("Terminating due to: %s", msg.c_str());
+        RTCM_LOG_ERROR("Terminating due to: %s", msg.c_str());
     }
     assert(!mTerminatePromise.done());
     setState(kStateTerminating);
@@ -2937,7 +2947,7 @@ void Session::destroy(TermCode code, const std::string& msg)
 
 void Session::submitStats(TermCode termCode, const std::string& errInfo)
 {
-    std::string deviceInformation = getDeviceInfo();
+    std::string deviceInformation = mManager.getDeviceInfo();
 
     stats::StatSessInfo info(mSid, termCode, errInfo, deviceInformation);
     if (mIsJoiner)
