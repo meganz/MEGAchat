@@ -68,13 +68,18 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
 @property (nonatomic, readonly) uint64_t peerSessionStatusChange;
+@property (nonatomic, readonly) uint64_t clientSessionStatusChange;
+
 @property (nonatomic, readonly) NSInteger numParticipants;
-@property (nonatomic, readonly) MEGAHandleList *sessions;
+@property (nonatomic, readonly) MEGAHandleList *sessionsPeerId;
+@property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
+
 @property (nonatomic, readonly) MEGAHandleList *participants;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
-- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId;
+- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId;
+
 - (instancetype)clone;
 
 @end

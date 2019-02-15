@@ -195,6 +195,7 @@ class MainWindow :
         void onTwoFactorCheck(bool);
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
+        void onUseApiStagingClicked(bool);
 
     signals:
         void esidLogout();
