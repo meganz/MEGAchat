@@ -2035,7 +2035,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 
     buf.setDataSize(decLen);
     auto wptr = getDelTracker();
-    return this->chat().crypto()->decryptChatTitle(buf)
+    return chat().crypto()->decryptChatTitle(buf)
     .then([wptr, this](const std::string& title)
     {
         wptr.throwIfDeleted();

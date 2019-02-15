@@ -63,6 +63,7 @@ protected:
     long mAudioPacketLostAverage = 0;
     unsigned int mPreviousStatsSize = 0;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
+    TermCode mTermCode = TermCode::kInvalid;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void sendAv(karere::AvFlags av);

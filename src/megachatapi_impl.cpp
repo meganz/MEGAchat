@@ -4587,7 +4587,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     this->participants = call.participants;
 
     this->termCode = call.termCode;
-    this->ignored = call.ignored;
     this->localTermCode = call.localTermCode;
     this->ringing = call.ringing;
 }
@@ -6798,9 +6797,6 @@ int MegaChatMessagePrivate::convertEndCallTermCodeToUI(const Message::CallEndedI
     int code;
     switch (callEndInfo.termCode)
     {
-        case END_CALL_REASON_CANCELLED:
-            code = END_CALL_REASON_NO_ANSWER;
-            break;
         case END_CALL_REASON_ENDED:;
         case END_CALL_REASON_FAILED:
             if (callEndInfo.duration > 0)
@@ -7043,6 +7039,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 assert(call);
                 chatCall->setCaller(call->caller());
                 state = MegaChatCall::CALL_STATUS_RING_IN;
+                mHasBeenNotifiedRinging = true;
                 break;
             case rtcModule::ICall::kStateJoining:
                 state = MegaChatCall::CALL_STATUS_JOINING;
@@ -7280,6 +7277,11 @@ int64_t MegaChatCallHandler::getInitialTimeStamp()
 {
     assert(chatCall);
     return chatCall->getInitialTimeStamp();
+}
+
+bool MegaChatCallHandler::hasBeenNotifiedRinging() const
+{
+    return mHasBeenNotifiedRinging;
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
@@ -8022,7 +8024,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
                              megaHandle, &key, &attrstring, &fa, sdkFingerprint, INVALID_HANDLE,
-                             NULL, NULL, false, true);
+                             INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
 

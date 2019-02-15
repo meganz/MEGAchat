@@ -2478,6 +2478,12 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
         return NULL;
     }
 
+    if (mOwnPrivilege == PRIV_NOTPRESENT)
+    {
+        CHATID_LOG_WARNING("msgSubmit: Denying sending message because we don't participate in the chat");
+        return NULL;
+    }
+
     // write the new message to the message buffer and mark as in sending state
     auto message = new Message(makeRandomId(), client().myHandle(), time(NULL),
         0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp);
@@ -4526,17 +4532,10 @@ bool Chat::findLastTextMsg()
 
 void Chat::findAndNotifyLastTextMsg()
 {
-    auto wptr = weakHandle();
-    marshallCall([wptr, this]() //prevent re-entrancy
-    {
-        if (wptr.deleted())
-            return;
+    if (!findLastTextMsg())
+        return;
 
-        if (!findLastTextMsg())
-            return;
-
-        notifyLastTextMsg();
-    }, mChatdClient.mKarereClient->appCtx);
+    notifyLastTextMsg();
 }
 
 void Chat::sendTypingNotification()

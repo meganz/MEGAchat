@@ -380,7 +380,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             auto itCallHandler = mCallHandlers.find(chatid);
             // itCallHandler is created at updatePeerAvState
             assert(itCallHandler != mCallHandlers.end());
-            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()))
+            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()) && !itCallHandler->second->hasBeenNotifiedRinging())
             {
                 handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
             }
@@ -2860,10 +2860,20 @@ void Session::asyncDestroy(TermCode code, const std::string& msg)
 Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg)
 {
     if (mState == Session::kStateTerminating)
+    {
+        assert(mTermCode != TermCode::kInvalid);
+        if (!isTermRetriable(code) && isTermRetriable(mTermCode))
+        {
+            mTermCode = code;
+        }
+
         return mTerminatePromise;
+    }
 
     if (mState == kStateDestroyed)
         return ::promise::_Void();
+
+    mTermCode = code;
 
     if (!msg.empty())
     {
@@ -2871,7 +2881,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     }
     assert(!mTerminatePromise.done());
     setState(kStateTerminating);
-    if (!cmd(RTCMD_SESS_TERMINATE, code))
+    if (!cmd(RTCMD_SESS_TERMINATE, mTermCode))
     {
         if (!mTerminatePromise.done())
         {
@@ -2895,11 +2905,11 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
     }, 1000, mManager.mKarereClient.appCtx);
     auto pms = mTerminatePromise;
     return pms
-    .then([wptr, this, code, msg]()
+    .then([wptr, this, msg]()
     {
         if (wptr.deleted())
             return;
-        destroy(code, msg);
+        destroy(mTermCode, msg);
     });
 }
 
@@ -2931,8 +2941,16 @@ void Session::msgSessTerminate(RtMessage& packet)
     assert(packet.payload.dataSize() >= 1);
     cmd(RTCMD_SESS_TERMINATE_ACK);
 
+    TermCode code = static_cast<TermCode>(packet.payload.read<uint8_t>(8));
+
     if (mState == kStateTerminating)
     {
+        assert(mTermCode != TermCode::kInvalid);
+        if (!isTermRetriable(code) && isTermRetriable(mTermCode))
+        {
+            mTermCode = code;
+        }
+
         // handle terminate as if it were an ack - in both cases the peer is terminating
         msgSessTerminateAck(packet);
     }
@@ -2941,9 +2959,13 @@ void Session::msgSessTerminate(RtMessage& packet)
         SUB_LOG_WARNING("Ignoring SESS_TERMINATE for a dead session");
         return;
     }
+    else
+    {
+        mTermCode = code;
+    }
 
     setState(kStateTerminating);
-    destroy(static_cast<TermCode>(packet.payload.read<uint8_t>(8) | TermCode::kPeer));
+    destroy(static_cast<TermCode>(mTermCode | TermCode::kPeer));
 }
 
 /** Terminates a session without the signalling terminate handshake.
@@ -3252,14 +3274,16 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
     Id chatid = buf.read<uint64_t>(1);
     Id userid = buf.read<uint64_t>(9);
     auto clientid = buf.read<uint32_t>(17);
-    auto dataLen = buf.read<uint16_t>(21);
+    auto dataLen = buf.read<uint16_t>(RtMessage::kHdrLen - 2) - 1;
     auto type = buf.read<uint8_t>(23);
     std::string result = Command::opcodeToStr(opcode);
     result.append(": ").append(rtcmdTypeToStr(type));
     result.append(" chatid: ").append(chatid.toString())
           .append(" userid: ").append(userid.toString())
           .append(" clientid: ").append(std::to_string(clientid));
-    StaticBuffer data(buf.buf()+23, dataLen);
+    StaticBuffer data(nullptr, 0);
+    data.assign(buf.readPtr(RtMessage::kPayloadOfs, dataLen), dataLen);
+
     switch (type)
     {
         case RTCMD_CALL_REQ_DECLINE:
@@ -3279,13 +3303,14 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
             .append(" sid: ").append(Id(data.read<uint64_t>(8)).toString())
             .append(" ownAnonId: ").append(Id(data.read<uint64_t>(16)).toString());
             break;
+        case RTCMD_SESS_TERMINATE:
+            result.append(" reason: ").append(termCodeToStr(data.read<uint8_t>(8)));
         case RTCMD_SDP_OFFER:
         case RTCMD_SDP_ANSWER:
         case RTCMD_ICE_CANDIDATE:
-        case RTCMD_SESS_TERMINATE:
         case RTCMD_SESS_TERMINATE_ACK:
         case RTCMD_MUTE:
-            result.append(" sid: ").append(Id(buf.read<uint64_t>(0)).toString());
+            result.append(" sid: ").append(Id(data.read<uint64_t>(0)).toString());
             break;
     }
     return result;
