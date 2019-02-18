@@ -275,6 +275,7 @@ public:
     unsigned char *buffer;
     int width;
     int height;
+    ~MegaChatVideoFrame();
 };
 
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer

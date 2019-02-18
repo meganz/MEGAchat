@@ -5082,12 +5082,14 @@ void* MegaChatVideoReceiver::getImageBuffer(unsigned short width, unsigned short
 
 void MegaChatVideoReceiver::frameComplete(void *userData)
 {
-    chatApi->videoMutex.lock();
-    MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
-    chatApi->fireOnChatVideoData(chatid, peerid, clientid, frame->width, frame->height, (char *)frame->buffer);
-    chatApi->videoMutex.unlock();
-    delete [] frame->buffer;
-    delete frame;
+    if (userData)
+    {
+        chatApi->videoMutex.lock();
+        MegaChatVideoFrame *frame = (MegaChatVideoFrame *)userData;
+        chatApi->fireOnChatVideoData(chatid, peerid, clientid, frame->width, frame->height, (char *)frame->buffer);
+        chatApi->videoMutex.unlock();
+        delete frame;
+    }
 }
 
 void MegaChatVideoReceiver::onVideoAttach()
@@ -8548,7 +8550,6 @@ void MegaChatNodeHistoryHandler::onTruncated(Id id)
     fireOnTruncate(id);
 }
 
-
 void MegaChatNodeHistoryHandler::addMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener)
 {
     nodeHistoryListeners.insert(listener);
@@ -8557,4 +8558,10 @@ void MegaChatNodeHistoryHandler::addMegaNodeHistoryListener(MegaChatNodeHistoryL
 void MegaChatNodeHistoryHandler::removeMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener)
 {
     nodeHistoryListeners.insert(listener);
+}
+
+MegaChatVideoFrame::~MegaChatVideoFrame()
+{
+    delete [] buffer;
+    buffer = NULL;
 }
