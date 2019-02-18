@@ -1061,6 +1061,21 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
 
+    connectToChatd(isInBackground);
+
+    auto wptr = weakHandle();
+    assert(!mHeartbeatTimer);
+    mHeartbeatTimer = karere::setInterval([this, wptr]()
+    {
+        if (wptr.deleted() || !mHeartbeatTimer)
+        {
+            return;
+        }
+
+        heartbeat();
+    }, kHeartbeatTimeout, appCtx);
+
+
     if (anonymousMode())
     {
         // avoid to connect to presenced (no user, no peerstatus)
@@ -1088,9 +1103,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     rtc->init();
 #endif
 
-    connectToChatd(isInBackground);
-
-    auto wptr = weakHandle();
     auto pms = mPresencedClient.connect(presenced::Config(pres))
     .then([this, wptr]()
     {
