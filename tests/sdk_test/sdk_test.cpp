@@ -3266,7 +3266,9 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
     for (int i = 0; i < chats->size() && !chatroomExist; ++i)
     {
         const MegaChatRoom *chat = chats->get(i);
-        if (!chat->isGroup() || !chat->isActive())
+        if (!chat->isGroup() || !chat->isActive()
+                || (chat->isPublic() != publicChat)
+                || (chat->getPeerCount() != peers->size()))
         {
             continue;
         }
