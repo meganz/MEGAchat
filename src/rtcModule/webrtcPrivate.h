@@ -286,7 +286,7 @@ public:
     virtual ICall& startCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler);
     virtual void hangupAll(TermCode reason);
 //==
-    karere::RemoteLogger *getRemoteLogger();
+    karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
     virtual ~RtcModule() {}
 protected:
@@ -317,7 +317,7 @@ protected:
                       std::string& selected);
 
     void updateConstraints(Resolution resolution);
-    std::shared_ptr<karere::RemoteLogger> mRemoteLogger;
+    std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
     friend class Session;
 public:

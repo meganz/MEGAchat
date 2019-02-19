@@ -87,9 +87,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   //preload ice servers to make calls faster
     initInputDevices();
 
-    mRemoteLogger.reset(new RemoteLogger(mKarereClient.api));
-    mRemoteLogger->setAnonymousId(mOwnAnonId.toString());
-    mRemoteLogger->setDeviceInfo(getDeviceInfo());
+    mWebRtcLogger.reset(new WebRtcLogger(mKarereClient.api, mOwnAnonId.toString(), getDeviceInfo()));
 }
 
 void RtcModule::init()
@@ -587,9 +585,9 @@ void RtcModule::hangupAll(TermCode code)
     }
 }
 
-RemoteLogger *RtcModule::getRemoteLogger()
+WebRtcLogger *RtcModule::getWebRtcLogger()
 {
-    return mRemoteLogger.get();
+    return mWebRtcLogger.get();
 }
 
 string RtcModule::getDeviceInfo()

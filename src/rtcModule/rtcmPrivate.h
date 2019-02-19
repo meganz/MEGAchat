@@ -6,9 +6,9 @@
 #define RTCM_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_rtc, fmtString, ##__VA_ARGS__)
 #define RTCM_LOG_ERROR(fmtString, ...) \
     KARERE_LOG_ERROR(krLogChannel_rtc, fmtString, ##__VA_ARGS__); \
-    if (mManager.getRemoteLogger()) \
+    if (mManager.getWebRtcLogger()) \
     { \
-        mManager.getRemoteLogger()->logError(fmtString, ##__VA_ARGS__); \
+        mManager.getWebRtcLogger()->logError(fmtString, ##__VA_ARGS__); \
     }
 #define RTCM_LOG_EVENT(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtcevent, fmtString, ##__VA_ARGS__)
 
