@@ -870,7 +870,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
 
     // Update autoway timeout to force to send values to the server
-    int64_t autowayTimeout = 60;
+    int64_t autowayTimeout = 5;
     if (megaChatApi[accountIndex]->getPresenceConfig()->getAutoawayTimeout() == autowayTimeout)
     {
         autowayTimeout ++;

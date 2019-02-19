@@ -97,7 +97,10 @@ enum: uint8_t
       * C->S
       * After establishing a connection, the client identifies itself with an OPCODE_HELLO,
       * followed by a byte indicating the version of presenced protocol supported and the
-      * client's capabilities: an OR of push-enabled device (0x40) and/or WebRTC capabilities (0x80).
+      * client's capabilities, which is an OR of the following:
+      *     last-green support (0x20)
+      *     push-enabled device (0x40)
+      *     WebRTC capabilities (0x80)
       *
       * <protocolVersion> + <clientCapabilities>
       *
@@ -144,9 +147,15 @@ enum: uint8_t
       * @brief
       * S->C
       * Server sends own user's status (necessary for synchronization between different clients)
-      * and peers status requested by user
+      * and peers status allowed by other peers (including our user in their peerlist of SETPEERS...)
+      * The status is 8 bit little-endian word:
+      *     bits 0-3 (really bits 0 and 1): presence code
+      *     bits 4-7: flags
       *
-      * <status> <peerHandle>
+      * There is currently only one valid flag:
+      *     bit 7 (0x80): specifies whether any of the user's clients supports audio/video calls (see OP_HELLO)
+      *
+      * <status_and_flags> <peerHandle>
       */
     OP_PEERSTATUS = 6,
 
