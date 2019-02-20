@@ -4957,7 +4957,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
             Id oldestMsgid = Id::inval();
             if (msgNode && msgText)
             {
-                oldestMsgid = (msgNode->ts >= msgText->ts) ? msgNode->id() : msgText->id();
+                oldestMsgid = (msgNode->ts <= msgText->ts) ? msgNode->id() : msgText->id();
             }
             else if (msgNode)
             {
