@@ -4797,7 +4797,7 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
 {
     init();
     CALL_DB_FH(getNodeHistoryInfo, mNewestIdx, mOldestIdxInDb);
-    mOldestIdx = (mNewestIdx < 0) ? 0 : mNewestIdx;
+    mOldestIdx = (mNewestIdx < 0) ? 0 : (mNewestIdx + 1);
 }
 
 void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
