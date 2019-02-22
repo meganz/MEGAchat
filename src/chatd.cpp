@@ -4826,6 +4826,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
             mOldestIdx--;
             if (!isLocal)
             {
+                // mOldestIdx can be updated with value in DB
                 CALL_DB_FH(addMsgToNodeHistory, msg, mOldestIdx);
                 mOldestIdxInDb = (mOldestIdx < mOldestIdxInDb) ? mOldestIdx : mOldestIdxInDb;  // avoid update if already in cache
             }
