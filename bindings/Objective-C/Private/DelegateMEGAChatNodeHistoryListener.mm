@@ -18,9 +18,9 @@ void DelegateMEGAChatNodeHistoryListener::onAttachmentLoaded(MegaChatApi *api, M
     if (listener != nil && [listener respondsToSelector:@selector(onAttachmentLoaded:message:)]) {
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatNodeHistoryDelegate>tempListener = this->listener;
-        MegaChatMessage *tempMessage = msg->copy();
+        MegaChatMessage *tempMessage = msg ? msg->copy() : NULL;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [tempListener onAttachmentLoaded:tempMEGAChatSdk message:[[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES]];
+            [tempListener onAttachmentLoaded:tempMEGAChatSdk message:tempMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:tempMessage cMemoryOwn:YES] : nil];
         });
     }
 }
