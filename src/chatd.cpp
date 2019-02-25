@@ -363,6 +363,10 @@ void Chat::connect()
                 return;
             }
 
+            // Obtain end time point for get chat url
+            int shard = connection().shardNo();
+            mChatdClient.mKarereClient->initStatistics()->endUrlStatsByShard(shard);
+
             mConnection.mUrl.parse(result->getLink());
             mConnection.mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
 
@@ -382,6 +386,16 @@ void Chat::connect()
 void Chat::login()
 {
     assert(mConnection.isOnline());
+
+    /** Check if we are connected to all chats for an specific shard. In this case
+    we obtain the end time point for this event **/
+    int shard = connection().shardNo();
+    mChatdClient.mKarereClient->initStatistics()->incrementChatsConnected(shard);
+    if (mChatdClient.mKarereClient->initStatistics()->allChatsConnectedByShard(shard))
+    {
+        mChatdClient.mKarereClient->initStatistics()->endLoginStatsByShard(shard);
+    }
+
     mUserDump.clear();
     setOnlineState(kChatStateJoining);
     // In both cases (join/joinrangehist), don't block history messages being sent to app
@@ -725,6 +739,8 @@ Promise<void> Connection::reconnect()
 
                     if (statusDNS < 0)
                     {
+                        /** Increments DNS connect errors count **/
+                        mChatdClient.mKarereClient->initStatistics()->incrementDnsErrs(shardNo());
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
                     }
                     else
@@ -768,6 +784,7 @@ Promise<void> Connection::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
+                mChatdClient.mKarereClient->initStatistics()->incrementDnsErrs(shardNo());
                 CHATDS_LOG_ERROR("Sync DNS error in chatd. Error code: %d", statusDNS);
                 string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
 
@@ -837,6 +854,8 @@ void Connection::doConnect()
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
+      /** Increments DNS connect errors count **/
+        mChatdClient.mKarereClient->initStatistics()->incrementConnectionErrs(shardNo());
         CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
 
         string oldTargetIp = mTargetIp;
@@ -861,6 +880,9 @@ void Connection::doConnect()
             {
                 return;
             }
+
+            /** Increments Chatd connect errors count **/
+            mChatdClient.mKarereClient->initStatistics()->incrementConnectionErrs(shardNo());
             CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
         }
 
@@ -4389,6 +4411,10 @@ void Chat::setOnlineState(ChatState state)
     if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
     {
         mChatdClient.mKarereClient->setCommitMode(true);
+
+        // TODO: send event with initialization statistics
+        std::string initStats = mChatdClient.mKarereClient->initStatistics()->generateInitStatistics();
+        KR_LOG_DEBUG("INIT_STATS: %s", initStats.c_str());
 
         if (!mChatdClient.mKarereClient->mSyncPromise.done())
         {

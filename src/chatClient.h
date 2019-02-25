@@ -1,6 +1,7 @@
 #ifndef CHATCLIENT_H
 #define CHATCLIENT_H
 
+#include <iomanip>
 #include "karereCommon.h"
 #include "sdkApi.h"
 #include <memory>
@@ -14,6 +15,12 @@
 #include "IGui.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+#include <chrono>
+
+using namespace std::chrono;
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -38,8 +45,10 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
+class InitStatistics;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
+typedef time_point<system_clock> karereTimePoint;
 class ChatRoomList;
 
 /** @brief An abstract class representing a chatd chatroom. It has two
@@ -514,6 +523,187 @@ public:
     /** @endcond */
 };
 
+/** @brief Structure to obtain a time interval related to an event.
+ *  This structure contains a start and end timepoints and
+ *  a time interval between both time points expressed in milliseconds.
+**/
+struct KarereStats
+{
+    /** @brief Time point that represents the start of an event */
+    karereTimePoint t_start;
+
+    /** @brief Time point that represents the end of an event */
+    karereTimePoint t_end;
+
+    /** @brief Represents a time interval between start and end timepoints in milliseconds */
+    duration<double, std::milli> t_elapsed;
+
+    /** @brief Default constructor. Gets the start time point
+        and init end time point to the MAX value */
+    KarereStats():
+        t_start(getTimePoint()),
+        t_end(system_clock::time_point::max()),
+        t_elapsed(0)
+    {
+    }
+
+    /** @brief Returns a system time point */
+    karereTimePoint getTimePoint()
+    {
+        return system_clock::now();
+    }
+
+    /** @brief Obtains the end time point */
+    void endTime()
+    {
+        t_end = getTimePoint();
+    }
+
+    /** @brief Returns a string that represents the time interval between start and end timepoints in milliseconds.
+        We return an empty string if we couldn't obtain the end time point */
+    std::string elapsedTimeToString()
+    {
+        if (t_end == system_clock::time_point::max())
+        {
+            return std::string();
+        }
+
+        std::ostringstream auxStream;
+        t_elapsed = t_end - t_start;
+        auxStream << std::fixed;
+        auxStream << std::setprecision(2);
+        auxStream << t_elapsed.count();
+        return auxStream.str();
+    }
+};
+
+/** @brief Structure to store some statistics about a shard.
+ * This struct contains the following data:
+ *  - Number of chats for a shard
+ *  - Number of connected chats
+ *  - Number of errors while resolving DNS
+ *  - Number of errors while connecting to chatd
+ *  - Elapsed time until get the url for an specific shard
+ *  - Elapsed time until we are conected to chatd for all chats in a shard
+**/
+struct ShardStats
+{
+    /** @brief Number of chats in the account */
+    int numChats;
+
+    /** @brief Number of chats connected to chatd */
+    int numChatsConn;
+
+    /** @brief Number of errors while resolving DNS */
+    int dnsErrs;
+
+    /** @brief Number of errors while connecting to chatd */
+    int connectErrs;
+
+    /** @brief Struct to represents the elapsed time until get the url for an
+        specific shard */
+    KarereStats t_getUrl;
+
+    /** @brief Struct to represents the elapsed time until we are conected to chatd
+        for all chats in a shard */
+    KarereStats t_loginChatd;
+
+    ShardStats ():
+        numChats(0),
+        numChatsConn(0),
+        dnsErrs(0),
+        connectErrs(0),
+        t_getUrl(KarereStats()),
+        t_loginChatd(KarereStats())
+    {}
+
+    /** @brief Obtains the end time point for get the chat url*/
+    void endGetUrl()
+    {
+        t_getUrl.endTime();
+    }
+
+    /** @brief Obtains the end time point for loggin to chatd */
+    void endLoginChatd()
+    {
+        t_loginChatd.endTime();
+    }
+
+    /** @brief Returns the end time point for get chat url in string format */
+    std::string getUrlTime()
+    {
+        return t_getUrl.elapsedTimeToString();
+    }
+
+    /** @brief Returns the end time point for loggin to chatd in string format */
+    std::string getLoginChatdTime()
+    {
+        return t_loginChatd.elapsedTimeToString();
+    }
+};
+
+/** @brief Class to handle initialization statistics of MEGAChat. **/
+class InitStatistics
+{
+    public:
+        /** @brief Different stages in MEGAChat initialization*/
+        enum
+        {
+            kStatsInit              = 0,
+            kStatsLogin             = 1,
+            kStatsFetchNodes        = 2,
+            kStatsQueryDns          = 3,
+            kStatsGetChatUrl        = 4,
+            kStatsConnect           = 5,
+            kStatsLoginChatd        = 6
+        };
+
+        /** @brief Number of nodes in the account*/
+        long long numNodes;
+
+        /** @brief Number of chats in the account*/
+        long numChats;
+
+        /** @brief Number of contacts in the account*/
+        long numContacts;
+
+        /** @brief Maps shard to shard statistics structure **/
+        std::map<uint8_t, ShardStats> shardStatsMap;
+
+        /** @brief Maps stage to stage statistics structure **/
+        std::map<uint8_t, KarereStats> stageStatsMap;
+
+        InitStatistics()
+        {
+            numNodes = 0;
+            numChats = 0;
+            numContacts = 0;
+        }
+
+        /** @brief Setter methods **/
+        void setNumNodes(long long value);
+        void setNumChats(long value);
+        void setNumContacts(long value);
+
+        /** @brief Stage stats methods **/
+        void startStageStats(uint8_t stage, KarereStats stats);
+        void endStageStats(uint8_t stage);
+        std::string stageToString(uint8_t stage);
+
+        /** @brief Shard stats methods **/
+        bool startStatsByShard(uint8_t shard, ShardStats stats);
+        void endLoginStatsByShard(uint8_t shard);
+        void endUrlStatsByShard(uint8_t shard);
+        void incrementChatsConnected(uint8_t shard);
+        void incrementChatsShard(uint8_t shard);
+        void incrementConnectionErrs(uint8_t shard);
+        void incrementDnsErrs(uint8_t shard);
+        bool allChatsConnectedByShard(uint8_t shard);
+
+        /** @brief Generate Json **/
+        std::string generateInitStatistics();
+};
+
 /** @brief The karere Client object. Create an instance to use Karere.
  *
  *  A sequence of how the client has to be initialized:
@@ -667,6 +857,7 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     bool mGroupCallsEnabled = false;
+    std::shared_ptr<InitStatistics> mInitStatistics;
 
 public:
 
@@ -829,6 +1020,8 @@ public:
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
+    std::shared_ptr<InitStatistics> initStatistics();
+
 
 protected:
     void heartbeat();
@@ -876,6 +1069,7 @@ protected:
 
     // MegaRequestListener interface
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
+    virtual void onRequestStart(::mega::MegaApi* apiObj, ::mega::MegaRequest *request);
 
     // presenced listener interface
     virtual void onConnStateChange(presenced::Client::ConnState state);

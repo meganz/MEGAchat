@@ -636,6 +636,16 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         std::shared_ptr<::mega::MegaUserList> contacts(api->getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chats(api->getChatList());
         const char *buf = api->getSequenceNumber();
+
+        std::shared_ptr<InitStatistics>initStatistics = mKarereClient->initStatistics();
+        if (initStatistics)
+        {
+            initStatistics->numChats = chats->size();
+            initStatistics->numContacts = contacts->size();
+            initStatistics->numNodes = api->getNumNodes();
+            initStatistics = nullptr;
+        }
+
         Id scsn(buf, strlen(buf));
         delete [] buf;
 
