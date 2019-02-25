@@ -817,10 +817,10 @@ std::string InitStatistics::generateInitStatistics()
         // Add elapsed time
         rapidjson::Value elapsedValue(rapidjson::kStringType);
         elapsedValue.SetString(elapsedTime.c_str(), elapsedTime.length(), jSonDocument.GetAllocator());
-        jSonStage.AddMember(rapidjson::Value("elp"), elapsedValue, jSonDocument.GetAllocator());
+        jSonStage.AddMember(rapidjson::Value("stgt"), elapsedValue, jSonDocument.GetAllocator());
         stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
     }
-    jSonObject.AddMember(rapidjson::Value("stga"), stageArray, jSonDocument.GetAllocator());
+    jSonObject.AddMember(rapidjson::Value("stgs"), stageArray, jSonDocument.GetAllocator());
 
     // Add statistics by shard
     rapidjson::Document shardArray(rapidjson::kArrayType);
@@ -878,7 +878,7 @@ std::string InitStatistics::generateInitStatistics()
         shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
     }
 
-    jSonObject.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());
+    jSonObject.AddMember(rapidjson::Value("ss"), shardArray, jSonDocument.GetAllocator());
     jSonDocument.PushBack(jSonObject, jSonDocument.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
