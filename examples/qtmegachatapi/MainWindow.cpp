@@ -150,6 +150,17 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         switch (call->getStatus())
         {
+            case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
+            {
+                std::set<CallGui *> *setCallGui = window->getCallGui();
+
+                if (setCallGui->size() == 0)
+                {
+                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
+                }
+
+                break;
+            }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
                 window->hangCall();
@@ -480,6 +491,10 @@ void MainWindow::on_bSettings_clicked()
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
     actUseStaging->setCheckable(true);
     actUseStaging->setChecked(mApp->isStagingEnabled());
+
+    menu.addSeparator();
+    auto actReconnect = menu.addAction("Reconnect");
+    connect(actReconnect, SIGNAL(triggered()), this, SLOT(onReconnectClicked()));
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -1050,4 +1065,9 @@ void MainWindow::onlastGreenVisibleClicked()
 void MainWindow::onUseApiStagingClicked(bool enable)
 {
     mApp->enableStaging(enable);
+}
+
+void MainWindow::onReconnectClicked()
+{
+    mMegaChatApi->retryPendingConnections(true);
 }
