@@ -567,8 +567,8 @@ public:
     virtual void setInitialTimeStamp(int64_t timeStamp);
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
+    virtual rtcModule::ICall *getCall();
 
-    rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:

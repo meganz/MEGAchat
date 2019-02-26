@@ -273,7 +273,7 @@ public:
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress(karere::Id chatid) const;
     virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
-    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
+    virtual void removeCall(karere::Id chatid, bool retry = false);
     virtual void removeCallWithoutParticipants(karere::Id chatid);
     virtual void addCallHandler(karere::Id chatid, ICallHandler *callHandler);
     virtual ICallHandler *findCallHandler(karere::Id chatid);
@@ -289,8 +289,8 @@ public:
 //==
     karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
+    void retryCall(karere::Id chatid, karere::AvFlags av, bool starter = true);
     virtual ~RtcModule() {}
-    void retryCall(karere::Id chatid, karere::AvFlags av);
 protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;

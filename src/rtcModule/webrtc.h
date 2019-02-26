@@ -214,6 +214,7 @@ public:
     virtual void removeAllParticipants() = 0;
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
+    virtual rtcModule::ICall *getCall() = 0;
 
     virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
     virtual int64_t getInitialTimeStamp() = 0;
