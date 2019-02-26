@@ -2963,7 +2963,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
             auto pms = mTerminatePromise;
             pms.resolve();
         }
-    }, 1000, mManager.mKarereClient.appCtx);
+    }, 200, mManager.mKarereClient.appCtx);
     auto pms = mTerminatePromise;
     return pms
     .then([wptr, this, msg]()
