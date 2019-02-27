@@ -579,7 +579,6 @@ void Connection::setState(State state)
 #ifndef KARERE_DISABLE_WEBRTC
             if (mChatdClient.mKarereClient->rtc)
             {
-                CHATDS_LOG_DEBUG("Remove Call on state disconnected");
                 mChatdClient.mKarereClient->rtc->removeCall(chatid, true);
             }
 #endif

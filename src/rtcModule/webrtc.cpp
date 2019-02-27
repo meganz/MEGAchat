@@ -630,7 +630,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
 
                 mRetryCall.erase(it);
             }
-        }, 7000, mKarereClient.appCtx);
+        }, 5000, mKarereClient.appCtx);
     }
     else
     {
@@ -651,7 +651,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             }
 
             mRetryCall.erase(chatid);
-        }, 10000, mKarereClient.appCtx);
+        }, 8000, mKarereClient.appCtx);
     }
 }
 
@@ -850,6 +850,7 @@ void RtcModule::removeCall(Id chatid, bool retry)
             retryCall(chatid, itCall->second->sentAv());
         }
 
+        RTCM_LOG_DEBUG("Remove Call on state disconnected: %s", chatid.toString().c_str());
         pms = itCall->second->destroy(TermCode::kErrPeerOffline, false);
     }
 
