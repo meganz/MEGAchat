@@ -594,11 +594,14 @@ Client::InitState Client::init(const char* sid)
     if (sid)
     {
         initWithDbSession(sid);
+        mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
+
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
             wipeDb(sid);
         }
+        mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
     }
     else
     {
@@ -606,6 +609,24 @@ Client::InitState Client::init(const char* sid)
     }
     api.sdk.addRequestListener(this);
     return mInitState;
+}
+
+void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request)
+{
+    int reqType = request->getType();
+    switch (reqType)
+    {
+        case ::mega::MegaRequest::TYPE_LOGIN:
+        {
+            mInitStatistics->createStageStats(InitStatistics::kStatsLogin);
+            mInitStatistics->stageStartTime(InitStatistics::kStatsLogin);
+        }
+        case ::mega::MegaRequest::TYPE_FETCH_NODES:
+        {
+            mInitStatistics->createStageStats(InitStatistics::kStatsFetchNodes);
+            mInitStatistics->stageStartTime(InitStatistics::kStatsFetchNodes);
+        }
+    }
 }
 
 void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *request, ::mega::MegaError* e)
@@ -620,6 +641,12 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 
     switch (reqType)
     {
+    case ::mega::MegaRequest::TYPE_LOGIN:
+    {
+        mInitStatistics->stageEndTime(InitStatistics::kStatsLogin);
+        break;
+    }
+
     case ::mega::MegaRequest::TYPE_LOGOUT:
     {
         bool loggedOut = ((errorCode == ::mega::MegaError::API_OK || errorCode == ::mega::MegaError::API_ESID)
@@ -653,6 +680,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
+        mInitStatistics->stageEndTime(InitStatistics::kStatsFetchNodes);
+        mInitStatistics->createStageStats(InitStatistics::kStatsPostFetchNodes);
+        mInitStatistics->stageStartTime(InitStatistics::kStatsPostFetchNodes);
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
         std::string scsn;
@@ -854,6 +884,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
+    mInitStatistics->stageEndTime(InitStatistics::kStatsPostFetchNodes);
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
