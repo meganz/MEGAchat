@@ -2,6 +2,7 @@
 	#define LOGGER_SPRINTF_BUF_SIZE 10240
 #endif
 
+#include <iostream>
 #include <stdarg.h>
 #include <string.h>
 #define KRLOGGER_BUILDING //sets DLLIMPEXPs in logger.h to 'export' mode
@@ -192,22 +193,30 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
         return;
     }
 
-    LockGuard lock(mMutex);
-    if (len == (size_t)-1)
-        len = strlen(msg);
-
-    if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
-        mConsoleLogger->logString(level, msg, flags);
-    if ((mFileLogger) && ((flags & krLogNoFile) == 0))
-        mFileLogger->logString(msg, len, flags);
-    if (!mUserLoggers.empty())
+    try
     {
-        for (auto& logger: mUserLoggers)
+        // This try-catch prevents crashes in app in case that mutex can't be adquire.
+        LockGuard lock(mMutex);
+        if (len == (size_t)-1)
+            len = strlen(msg);
+
+        if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
+            mConsoleLogger->logString(level, msg, flags);
+        if ((mFileLogger) && ((flags & krLogNoFile) == 0))
+            mFileLogger->logString(msg, len, flags);
+        if (!mUserLoggers.empty())
         {
-            ILoggerBackend* backend = logger.second;
-            if(level <= backend->maxLogLevel)
-                backend->log(level, msg, len, flags);
+            for (auto& logger: mUserLoggers)
+            {
+                ILoggerBackend* backend = logger.second;
+                if(level <= backend->maxLogLevel)
+                    backend->log(level, msg, len, flags);
+            }
         }
+    }
+    catch (std::system_error &e)
+    {
+        std::cerr << "Failed to log message: " << e.what() << std::endl;
     }
 }
 
