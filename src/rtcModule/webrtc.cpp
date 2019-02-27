@@ -602,18 +602,20 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                 return;
 
             auto it = mRetryCall.find(chatid);
+            karere::AvFlags flags = mRetryCall[chatid];
             if (it != mRetryCall.end())
             {
+                mRetryCall.erase(it);
                 auto itHandler = mCallHandlers.find(chatid);
                 if (itHandler == mCallHandlers.end())
                     return;
 
-                karere::AvFlags flags = mRetryCall[chatid];
                 Chat &chat = mKarereClient.mChatdClient->chats(chatid);
-
                 if (chat.connection().state() <= Connection::State::kStateConnecting)
                 {
                     RTCM_LOG_DEBUG("Can not reconnect, the connection is not established");
+                    delete itHandler->second;
+                    mCallHandlers.erase(itHandler);
                     return;
                 }
 
@@ -627,10 +629,8 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                     RTCM_LOG_DEBUG("Restart a call after reconnection %s", flags.toString().c_str());
                     startCall(chatid, flags, *itHandler->second);
                 }
-
-                mRetryCall.erase(it);
             }
-        }, 5000, mKarereClient.appCtx);
+        }, 10000, mKarereClient.appCtx);
     }
     else
     {
@@ -651,7 +651,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             }
 
             mRetryCall.erase(chatid);
-        }, 8000, mKarereClient.appCtx);
+        }, 15000, mKarereClient.appCtx);
     }
 }
 
@@ -1755,7 +1755,7 @@ void Call::stopIncallPingTimer(bool endCall)
     }
 }
 
-void Call::removeSession(Session& sess, TermCode reason)
+void Call::removeSession(Session& sess, TermCode reason, bool retrySession)
 {
     karere::Id sessionId = sess.mSid;
     karere::Id sessionPeer = sess.mPeer;
@@ -1769,8 +1769,12 @@ void Call::removeSession(Session& sess, TermCode reason)
         return;
     }
 
-    if (!Session::isTermRetriable(reason))
+    if (!Session::isTermRetriable(reason) || (!retrySession && reason == TermCode::kErrIceDisconn))
     {
+        if (reason == TermCode::kErrIceDisconn)
+        {
+            mManager.retryCall(mChat.chatId(), sentAv(), false);
+        }
         destroyIfNoSessionsOrRetries(reason);
         return;
     }
@@ -2961,10 +2965,11 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         if (!mTerminatePromise.done())
         {
             SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
+            mRetry = false;
             auto pms = mTerminatePromise;
             pms.resolve();
         }
-    }, 200, mManager.mKarereClient.appCtx);
+    }, 500, mManager.mKarereClient.appCtx);
     auto pms = mTerminatePromise;
     return pms
     .then([wptr, this, msg]()
@@ -3062,7 +3067,7 @@ void Session::destroy(TermCode code, const std::string& msg)
     setState(kStateDestroyed);
     FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
-    mCall.removeSession(*this, code);
+    mCall.removeSession(*this, code, mRetry);
 }
 
 void Session::submitStats(TermCode termCode, const std::string& errInfo)
