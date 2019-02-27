@@ -14,6 +14,9 @@
 #include "IGui.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -38,6 +41,7 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
+class InitStatistics;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
@@ -667,6 +671,7 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     bool mGroupCallsEnabled = false;
+    std::shared_ptr<InitStatistics> mInitStatistics;
 
 public:
 
@@ -829,6 +834,7 @@ public:
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
+    std::shared_ptr<InitStatistics> initStatistics();
 
 protected:
     void heartbeat();
@@ -875,6 +881,7 @@ protected:
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
 
     // MegaRequestListener interface
+    virtual void onRequestStart(::mega::MegaApi* apiObj, ::mega::MegaRequest *request);
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 
     // presenced listener interface
@@ -887,6 +894,91 @@ protected:
     friend class ChatRoom;
     friend class ChatRoomList;
 };
+
+/** @brief Class to manage initialization statistics of MEGAChat. **/
+class InitStatistics
+{
+    public:
+        struct ShardStats
+        {
+            /** @brief Number of chats of the shard */
+            long numChats;
+
+            /** @brief Number of shard chats that has finished the stage */
+            long numChatsEnd;
+
+            /** @brief Number of the retries for a stage */
+            unsigned int retries;
+
+            /** @brief Elapsed time to finish a stage */
+            mega::dstime shardElapsed;
+
+            ShardStats():
+                numChats(0),
+                numChatsEnd(0),
+                retries(0),
+                shardElapsed(0)
+            {}
+        };
+
+        struct StageStats
+        {
+            mega::dstime stageElapsed;
+            std::map<uint8_t, ShardStats> shardStatsMap;
+            StageStats():
+                stageElapsed(0)
+            {}
+        };
+
+        /** @brief Stages in MEGAChat initialization*/
+        enum
+        {
+            kStatsInit              = 0,
+            kStatsLogin             = 1,
+            kStatsFetchNodes        = 2,
+            kStatsPostFetchNodes    = 3,
+            kStatsGetChatUrl        = 4,
+            kStatsQueryDns          = 5,
+            kStatsConnect           = 6,
+            kStatsLoginChatd        = 7
+        };
+
+        /** @brief Number of nodes in the account */
+        long long int numNodes;
+
+        /** @brief Number of chats in the account */
+        long int numChats;
+
+        /** @brief Number of contacts in the account */
+        long int numContacts;
+
+        /** @brief Flag that indicates if there's any error with cache */
+        bool errCache;
+
+        /** @brief Total elapsed time to finish all stages */
+        mega::dstime totalElapsed;
+
+        /** @brief Maps stage to statistics */
+        std::map<uint8_t, StageStats> stageStatsMap;
+
+        InitStatistics()
+        {
+            numNodes = 0;
+            numChats = 0;
+            numContacts = 0;
+            errCache = false;
+        }
+
+        /** @brief StageStats methods */
+        static mega::dstime currentTime();
+        void createStageStats(uint8_t stage);
+        void stageStartTime(uint8_t stage);
+        void stageEndTime(uint8_t stage);
+
+        /** @brief Generate statistics in JSON */
+        std::string generateInitStatistics();
+};
+
 
 }
 #endif // CHATCLIENT_H

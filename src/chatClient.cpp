@@ -70,7 +70,8 @@ std::string encodeFirstName(const std::string& first);
           app(aApp),
           contactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
-          mPresencedClient(&api, this, *this, caps)
+          mPresencedClient(&api, this, *this, caps),
+          mInitStatistics(std::make_shared<InitStatistics>())
 {
 }
 
@@ -935,6 +936,12 @@ void Client::setConnState(ConnState newState)
     mConnState = newState;
     KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
 }
+
+std::shared_ptr<InitStatistics> Client::initStatistics()
+{
+    return mInitStatistics;
+}
+
 karere::Id Client::getMyHandleFromSdk()
 {
     SdkString uh = api.sdk.getMyUserHandle();
@@ -3002,6 +3009,94 @@ std::string encodeFirstName(const std::string& first)
     {
         result.append(first);
     }
+    return result;
+}
+
+mega::dstime InitStatistics::currentTime()
+{
+    mega::WAIT_CLASS::bumpds();
+    return mega::Waiter::ds;
+}
+
+void InitStatistics::createStageStats(uint8_t stage)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it == stageStatsMap.end())
+    {
+        stageStatsMap.insert(std::pair<uint8_t, StageStats>(stage, StageStats()));
+    }
+}
+
+void InitStatistics::stageStartTime(uint8_t stage)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        StageStats & stagestats = it->second;
+        stagestats.stageElapsed = currentTime();
+    }
+}
+
+
+void InitStatistics::stageEndTime(uint8_t stage)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        StageStats & stagestats = it->second;
+        stagestats.stageElapsed = currentTime() - stagestats.stageElapsed;
+    }
+}
+
+std::string InitStatistics::generateInitStatistics()
+{
+    std::string result;
+    rapidjson::Document jSonDocument(rapidjson::kArrayType);
+    rapidjson::Value jSonObject(rapidjson::kObjectType);
+    rapidjson::Value jsonValue(rapidjson::kNumberType);
+
+    // Add number of nodes
+    jsonValue.SetInt64(numNodes);
+    jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add number of contacts
+    jsonValue.SetInt64(numContacts);
+    jSonObject.AddMember(rapidjson::Value("ncn"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add number of chats
+    jsonValue.SetInt64(numChats);
+    jSonObject.AddMember(rapidjson::Value("nch"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add statistics by stage
+    rapidjson::Document stageArray(rapidjson::kArrayType);
+    std::map<uint8_t, StageStats>::iterator it;
+    for (it = stageStatsMap.begin() ; it != stageStatsMap.end(); it++)
+    {
+        rapidjson::Value jSonStage(rapidjson::kObjectType);
+        uint8_t stage = it->first;
+        StageStats &stageStats = it->second;
+
+        // Add stage
+        rapidjson::Value stageValue(rapidjson::kNumberType);
+        stageValue.SetInt(stage);
+        jSonStage.AddMember(rapidjson::Value("stg"), stageValue, jSonDocument.GetAllocator());
+
+        // Add stage elapsed time
+        rapidjson::Value elapsedValue(rapidjson::kNumberType);
+        elapsedValue.SetInt(stageStats.stageElapsed);
+        jSonStage.AddMember(rapidjson::Value("elapsed"), elapsedValue, jSonDocument.GetAllocator());
+        stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
+    }
+    jSonObject.AddMember(rapidjson::Value("stgs"), stageArray, jSonDocument.GetAllocator());
+
+    jSonDocument.PushBack(jSonObject, jSonDocument.GetAllocator());
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    jSonDocument.Accept(writer);
+    result.assign(buffer.GetString(), buffer.GetSize());
     return result;
 }
 
