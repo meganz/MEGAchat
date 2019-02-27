@@ -971,6 +971,7 @@ class InitStatistics
 
         /** @brief StageStats methods */
         static mega::dstime currentTime();
+        void resetStatistics();
         void createStageStats(uint8_t stage);
         void stageStartTime(uint8_t stage);
         void stageEndTime(uint8_t stage);

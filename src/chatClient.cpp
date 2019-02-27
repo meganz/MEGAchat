@@ -594,6 +594,7 @@ Client::InitState Client::init(const char* sid)
     if (sid)
     {
         initWithDbSession(sid);
+        mInitStatistics->resetStatistics();
         mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
 
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
@@ -618,12 +619,10 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     {
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
-            mInitStatistics->createStageStats(InitStatistics::kStatsLogin);
             mInitStatistics->stageStartTime(InitStatistics::kStatsLogin);
         }
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
-            mInitStatistics->createStageStats(InitStatistics::kStatsFetchNodes);
             mInitStatistics->stageStartTime(InitStatistics::kStatsFetchNodes);
         }
     }
@@ -681,7 +680,6 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
         api.sdk.pauseActionPackets();
         mInitStatistics->stageEndTime(InitStatistics::kStatsFetchNodes);
-        mInitStatistics->createStageStats(InitStatistics::kStatsPostFetchNodes);
         mInitStatistics->stageStartTime(InitStatistics::kStatsPostFetchNodes);
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
@@ -3048,6 +3046,24 @@ mega::dstime InitStatistics::currentTime()
     mega::WAIT_CLASS::bumpds();
     return mega::Waiter::ds;
 }
+
+void InitStatistics::resetStatistics()
+{
+    if (stageStatsMap.size())
+    {
+        stageStatsMap.clear();
+    }
+
+    createStageStats(InitStatistics::kStatsInit);
+    createStageStats(InitStatistics::kStatsLogin);
+    createStageStats(InitStatistics::kStatsFetchNodes);
+    createStageStats(InitStatistics::kStatsPostFetchNodes);
+    createStageStats(InitStatistics::kStatsGetChatUrl);
+    createStageStats(InitStatistics::kStatsQueryDns);
+    createStageStats(InitStatistics::kStatsConnect);
+    createStageStats(InitStatistics::kStatsLoginChatd);
+}
+
 
 void InitStatistics::createStageStats(uint8_t stage)
 {
