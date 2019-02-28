@@ -15,7 +15,7 @@ public:
     void onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError *e);
     
 private:
-    MEGAChatSdk *megaChatSDK;
+    __weak MEGAChatSdk *megaChatSDK;
     id<MEGAChatRequestDelegate>listener;
     bool singleListener;
 };

@@ -8,6 +8,6 @@ public:
     void log(int loglevel, const char *message);
     
 private:
-    MEGAChatSdk *megaChatSDK;
+    __weak MEGAChatSdk *megaChatSDK;
     id<MEGAChatLoggerDelegate> listener;
 };

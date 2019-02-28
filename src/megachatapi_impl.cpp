@@ -5396,7 +5396,7 @@ MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &ses
     auto it = sessions.find(EndpointId(sess.peer(), sess.peerClient()));
     if (it != sessions.end())
     {
-        API_LOG_WARNING("addSession: this peer (id: %s, clientid: %d) already has a session. Removing it...", sess.peer().toString().c_str(), sess.peerClient());
+        API_LOG_WARNING("addSession: this peer (id: %s, clientid: %x) already has a session. Removing it...", sess.peer().toString().c_str(), sess.peerClient());
         delete it->second;
     }
 

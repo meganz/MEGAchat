@@ -2,6 +2,7 @@
 	#define LOGGER_SPRINTF_BUF_SIZE 10240
 #endif
 
+#include <iostream>
 #include <stdarg.h>
 #include <string.h>
 #define KRLOGGER_BUILDING //sets DLLIMPEXPs in logger.h to 'export' mode
@@ -9,6 +10,7 @@
 #include "loggerFile.h"
 #include "loggerConsole.h"
 #include "../stringUtils.h" //needed for parsing the KRLOG env variable
+#include "sdkApi.h"
 
 #ifdef _WIN32
 #if !defined(va_copy) && defined(_MSC_VER)
@@ -191,22 +193,30 @@ void Logger::logString(krLogLevel level, const char* msg, unsigned flags, size_t
         return;
     }
 
-    LockGuard lock(mMutex);
-    if (len == (size_t)-1)
-        len = strlen(msg);
-
-    if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
-        mConsoleLogger->logString(level, msg, flags);
-    if ((mFileLogger) && ((flags & krLogNoFile) == 0))
-        mFileLogger->logString(msg, len, flags);
-    if (!mUserLoggers.empty())
+    try
     {
-        for (auto& logger: mUserLoggers)
+        // This try-catch prevents crashes in app in case that mutex can't be adquire.
+        LockGuard lock(mMutex);
+        if (len == (size_t)-1)
+            len = strlen(msg);
+
+        if (mConsoleLogger && ((flags & krLogNoConsole) == 0))
+            mConsoleLogger->logString(level, msg, flags);
+        if ((mFileLogger) && ((flags & krLogNoFile) == 0))
+            mFileLogger->logString(msg, len, flags);
+        if (!mUserLoggers.empty())
         {
-            ILoggerBackend* backend = logger.second;
-            if(level <= backend->maxLogLevel)
-                backend->log(level, msg, len, flags);
+            for (auto& logger: mUserLoggers)
+            {
+                ILoggerBackend* backend = logger.second;
+                if(level <= backend->maxLogLevel)
+                    backend->log(level, msg, len, flags);
+            }
         }
+    }
+    catch (std::system_error &e)
+    {
+        std::cerr << "Failed to log message: " << e.what() << std::endl;
     }
 }
 
@@ -324,6 +334,50 @@ void Logger::setupFromEnvVar()
         if ((mFlags & krLogDontShowEnvConfig) == 0)
             log("LOGGER", 0, 0, "Channel '%s' -> %s\n", item.first.c_str(), krLogLevelNames[chan->second->logLevel][1]);
     }
+}
+
+void WebRtcLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsigned /*flags*/)
+{
+//WARNING:
+//This is a logger callback, and can be called by worker threads.
+//Also, we must not log from within this callback, because that will cause re-entrancy
+//in the logger.
+//Therefore, we must copy the message and return asap, without doing anything that may
+//log a message.
+
+    if (!msg)
+        return;
+    auto json = std::make_shared<std::string>("{\"data\":\"");
+
+    json->append(replaceOccurrences(std::string(msg, len), "\"", "\\\""))
+            .append("\",\"client\":\"").append(mDeviceInfo).append("\"}");
+    *json = replaceOccurrences(*json, "\n", "\\n");
+    *json = replaceOccurrences(*json, "\t", "\\t");
+    std::string *aid = &mAid;
+    mApi.call(&::mega::MegaApi::sendChatLogs, json->c_str(), aid->c_str(), CHATLOGS_PORT)
+        .fail([](const promise::Error& err)
+        {
+            if (err.type() == ERRTYPE_MEGASDK)
+            {
+                KR_LOG_WARNING("Error %d logging error message to remote server:\n%s",
+                    err.code(), err.what());
+            }
+            return err;
+        });
+}
+
+void WebRtcLogger::logError(const char* fmtString, ...)
+{
+    va_list vaList;
+    va_start(vaList, fmtString);
+    char statBuf[LOGGER_SPRINTF_BUF_SIZE];
+    int length = vsnprintf(statBuf, LOGGER_SPRINTF_BUF_SIZE, fmtString, vaList);
+    if (length)
+    {
+        log(krLogLevelError, statBuf, length, 0);
+    }
+
+    va_end(vaList);
 }
 
 static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
