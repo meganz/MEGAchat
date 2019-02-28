@@ -291,11 +291,19 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i]->addChatCallListener(this);
 #endif
 
-        login(i);
-        bool *flagRequest = &requestFlags[i][MegaRequest::TYPE_KILL_SESSION]; *flagRequest = false;
+        // kill all sessions to ensure no interferences from other tests running in parallel
+        bool *flagLogin = &requestFlags[i][MegaRequest::TYPE_LOGIN]; *flagLogin = false;
+        megaApi[i]->login(mAccounts[i].getEmail().c_str(), mAccounts[i].getPassword().c_str());
+        ASSERT_CHAT_TEST(waitForResponse(flagLogin), "Login failed in SetUp() after " + std::to_string(maxTimeout) + " seconds");
+        ASSERT_CHAT_TEST(!lastError[i], "Login failed in SetUp(). Error: " + std::to_string(lastError[i]));
+        bool *flagKillSessions = &requestFlags[i][MegaRequest::TYPE_KILL_SESSION]; *flagKillSessions = false;
         megaApi[i]->killSession(INVALID_HANDLE);
-        waitForResponse(flagRequest);
-        logout(i);
+        ASSERT_CHAT_TEST(waitForResponse(flagKillSessions), "Kill sessions failed in SetUp() after " + std::to_string(maxTimeout) + " seconds");
+        ASSERT_CHAT_TEST(!lastError[i], "Kill sessions failed in SetUp(). Error: " + std::to_string(lastError[i]));
+        bool *flagLogout = &requestFlags[i][MegaRequest::TYPE_LOGOUT]; *flagLogout = false;
+        megaApi[i]->logout();
+        ASSERT_CHAT_TEST(waitForResponse(flagLogout), "Expired timeout for logout in SetUp()");
+        ASSERT_CHAT_TEST(!lastError[i] || lastError[i] == MegaError::API_ESID, "Logout failed in SetUp(). Error: " + std::to_string(lastError[i]));
 
         for (int j = 0; j < ::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {

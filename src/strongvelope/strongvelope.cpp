@@ -738,7 +738,8 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
         input.write<uint16_t>(0, htons(data->dataSize()));
         input.append(*data);
         assert(input.dataSize() == data->dataSize()+2);
-        auto enclen = key.encrypt(input.ubuf(), input.dataSize(), (unsigned char*)output->writePtr(0, 512), 512);
+        ::mega::PrnGen rng;
+        auto enclen = key.encrypt(rng, input.ubuf(), input.dataSize(), (unsigned char*)output->writePtr(0, 512), 512);
         assert(enclen <= 512);
         output->setDataSize(enclen);
         return output;
