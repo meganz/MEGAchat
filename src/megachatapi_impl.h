@@ -564,6 +564,7 @@ public:
     virtual void setCallId(karere::Id callid);
     virtual void setInitialTimeStamp(int64_t timeStamp);
     virtual int64_t getInitialTimeStamp();
+    virtual bool hasBeenNotifiedRinging() const;
 
     rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
@@ -572,8 +573,9 @@ private:
     MegaChatApiImpl *megaChatApi;
     rtcModule::ICall *call = NULL;
     MegaChatCallPrivate *chatCall = NULL;
+    bool mHasBeenNotifiedRinging = false;
 
-    rtcModule::IVideoRenderer *localVideoReceiver;
+    rtcModule::IVideoRenderer *localVideoReceiver = NULL;
 };
 
 class MegaChatSessionHandler : public rtcModule::ISessionHandler

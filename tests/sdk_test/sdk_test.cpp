@@ -170,7 +170,13 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     megaChatApi[accountIndex]->connect();
     ASSERT_CHAT_TEST(waitForResponse(flagRequestConnect), "Expired timeout for connect request");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error connect to chat. Error: " + std::to_string(lastErrorChat[accountIndex]));
-    ASSERT_CHAT_TEST(waitForResponse(loggedInFlag, 120), "Expired timeout for login to all chats in account '" + mail + "'. (DDOS protection triggered?)");
+
+    // if there are chatrooms in this account, wait to be joined to all of them
+    std::unique_ptr<MegaChatListItemList> items(megaChatApi[accountIndex]->getChatListItems());
+    if (items->size())
+    {
+        ASSERT_CHAT_TEST(waitForResponse(loggedInFlag, 120), "Expired timeout for login to all chats in account '" + mail + "'. (DDOS protection triggered?)");
+    }
 
     return megaApi[accountIndex]->dumpSession();
 }
@@ -570,11 +576,16 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
             }
             else if (!connRetried && tWaited > (pollingT * 10))
             {
-                for (int i = 0; i < NUM_ACCOUNTS; i++)
+                for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
                 {
                     if (megaApi[i] && megaApi[i]->isLoggedIn())
                     {
                         megaApi[i]->retryPendingConnections();
+                    }
+
+                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    {
+                        megaChatApi[i]->retryPendingConnections();
                     }
                 }
                 connRetried = true;
@@ -888,8 +899,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
 
-    sleep(config->getAutoawayTimeout() + 6);
-    ASSERT_CHAT_TEST(waitForResponse(flagStatus), "Online status not received after " + std::to_string(maxTimeout) + " seconds");
+    sleep(config->getAutoawayTimeout() + 12);   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
 
     // and check the status is away
     ASSERT_CHAT_TEST(mOnlineStatus[accountIndex] == MegaChatApi::STATUS_AWAY,
@@ -4107,10 +4117,7 @@ unsigned int TestChatRoomListener::getMegaChatApiIndex(MegaChatApi *api)
         }
     }
 
-    if (apiIndex == -1)
-    {
-        ASSERT_CHAT_TEST(false, "Instance of MegaChatApi not recognized");
-    }
+    assert(apiIndex != -1); // Instance of MegaChatApi not recognized
     return apiIndex;
 }
 

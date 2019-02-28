@@ -44,7 +44,7 @@ uint8_t kCallDataRinging = 1;
 #include <trackDelete.h>
 #include <IRtcCrypto.h>
 
-#define CHATSTATS_PORT 1380
+#define CHATSTATS_PORT 0
 
 namespace chatd
 {
@@ -218,6 +218,8 @@ public:
 
     virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
     virtual int64_t getInitialTimeStamp() = 0;
+
+    virtual bool hasBeenNotifiedRinging() const = 0;
 };
 class IGlobalHandler
 {
