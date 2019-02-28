@@ -121,7 +121,8 @@ class Call: public ICall
         kCallDataEnd                    = 2,
         kCallDataSession                = 3,
         kCallDataMute                   = 4,
-        kCallDataSessionKeepRinging     = 5  // obsolete
+        kCallDataSessionKeepRinging     = 5,  // obsolete
+        kCallDataRestartCall            = 6
     };
 
     enum
@@ -195,6 +196,7 @@ protected:
     void startIncallPingTimer();
     void stopIncallPingTimer(bool endCall = true);
     bool broadcastCallReq();
+    bool callReqReconnection();
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid, uint32_t clientid);
     void sendInCallCommand();
@@ -234,7 +236,8 @@ public:
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
-        kCallSetupTimeout = 35000
+        kCallSetupTimeout = 35000,
+        kReconnectTimeout = 5000
     };
 
     enum Resolution

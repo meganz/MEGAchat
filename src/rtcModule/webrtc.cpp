@@ -342,7 +342,8 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     }
 
     //Compatibility
-    if (state == Call::CallDataState::kCallDataRinging || state == Call::CallDataState::kCallDataSessionKeepRinging)
+    if (state == Call::CallDataState::kCallDataRinging || state == Call::CallDataState::kCallDataSessionKeepRinging
+            || (state == Call::CallDataState::kCallDataRestartCall && mRetryCall.find(chatid) != mRetryCall.end()))
     {
         ringing = true;
     }
@@ -605,7 +606,6 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             karere::AvFlags flags = mRetryCall[chatid];
             if (it != mRetryCall.end())
             {
-                mRetryCall.erase(it);
                 auto itHandler = mCallHandlers.find(chatid);
                 if (itHandler == mCallHandlers.end())
                     return;
@@ -629,6 +629,8 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                     RTCM_LOG_DEBUG("Restart a call after reconnection %s", flags.toString().c_str());
                     startCall(chatid, flags, *itHandler->second);
                 }
+
+                mRetryCall.erase(it);
             }
         }, 10000, mKarereClient.appCtx);
     }
@@ -1715,6 +1717,40 @@ bool Call::broadcastCallReq()
     return true;
 }
 
+bool Call::callReqReconnection()
+{
+    if (mState >= Call::kStateTerminating)
+    {
+        SUB_LOG_WARNING("callReqReconnection: Call terminating/destroyed");
+        return false;
+    }
+    assert(mState == Call::kStateHasLocalStream);
+
+    mIsRingingOut = true;
+    if (!sendCallData(CallDataState::kCallDataRestartCall))
+    {
+        return false;
+    }
+
+    setState(Call::kStateReqSent);
+    startIncallPingTimer();
+    auto wptr = weakHandle();
+    mCallOutTimer = setTimeout([wptr, this]()
+    {
+        if (wptr.deleted())
+            return;
+
+        mIsRingingOut = false;
+
+        if (mState == Call::kStateReqSent)
+        {
+            hangup(TermCode::kAnswerTimeout);
+        }
+
+    }, RtcModule::kReconnectTimeout, mManager.mKarereClient.appCtx);
+    return true;
+}
+
 void Call::startIncallPingTimer()
 {
     assert(!mInCallPingTimer);
@@ -1853,9 +1889,13 @@ bool Call::startOrJoin(AvFlags av)
     {
         return join();
     }
-    else
+    else if (mManager.mRetryCall.find(mChat.chatId()) == mManager.mRetryCall.end())
     {
         return broadcastCallReq();
+    }
+    else
+    {
+        return callReqReconnection();
     }
 }
 template <class... Args>
