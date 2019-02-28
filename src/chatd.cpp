@@ -325,14 +325,15 @@ uint8_t Client::richLinkState() const
     return mRichLinkState;
 }
 
-bool Client::areAllChatsLoggedIn()
+bool Client::areAllChatsLoggedIn(int shard)
 {
     bool allConnected = true;
 
     for (map<Id, shared_ptr<Chat>>::iterator it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
     {
         Chat* chat = it->second.get();
-        if (!chat->isLoggedIn() && !chat->isDisabled())
+        if (!chat->isLoggedIn() && !chat->isDisabled()
+                && (shard == -1 || chat->connection().shardNo() == shard))
         {
             allConnected = false;
             break;
@@ -341,7 +342,14 @@ bool Client::areAllChatsLoggedIn()
 
     if (allConnected)
     {
-        CHATD_LOG_DEBUG("We are logged in to all chats");
+        if (shard == -1)
+        {
+            CHATD_LOG_DEBUG("We are logged in to all chats");
+        }
+        else
+        {
+            CHATD_LOG_DEBUG("We are logged in to all chats for shard %d", shard);
+        }
     }
 
     return allConnected;

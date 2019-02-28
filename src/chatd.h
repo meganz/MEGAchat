@@ -1373,7 +1373,7 @@ public:
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const;
     Chat& chats(karere::Id chatid) const;
     uint8_t richLinkState() const;
-    bool areAllChatsLoggedIn();
+    bool areAllChatsLoggedIn(int shard = -1);
 
     uint8_t keepaliveType();
     void setKeepaliveType(bool isInBackground);
