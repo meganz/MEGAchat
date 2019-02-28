@@ -1109,6 +1109,7 @@ public:
     bool areGroupChatCallEnabled();
     int getMaxCallParticipants();
     int getMaxVideoCallParticipants();
+    bool isClientInACall();
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

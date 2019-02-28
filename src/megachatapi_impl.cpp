@@ -3561,6 +3561,20 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
     return rtcModule::IRtcModule::kMaxCallVideoSenders;
 }
 
+bool MegaChatApiImpl::isClientInACall()
+{
+    sdkMutex.lock();
+    bool activeCall = false;
+    if (mClient && mClient->rtc)
+    {
+        activeCall = mClient->rtc->isCallActive();
+    }
+
+    sdkMutex.unlock();
+
+    return activeCall;
+}
+
 #endif
 
 void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)

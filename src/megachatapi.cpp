@@ -839,6 +839,11 @@ int MegaChatApi::getMaxVideoCallParticipants()
     return pImpl->getMaxVideoCallParticipants();
 }
 
+bool MegaChatApi::isClientInACall()
+{
+    return pImpl->isClientInACall();
+}
+
 void MegaChatApi::addChatCallListener(MegaChatCallListener *listener)
 {
     pImpl->addChatCallListener(listener);

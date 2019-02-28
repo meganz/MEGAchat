@@ -4082,6 +4082,17 @@ public:
      */
     int getMaxVideoCallParticipants();
 
+    /**
+     * @brief Returns true if the client is particpating in a call
+     *
+     * @note Client is participating in a call when it's in following state:
+     * CALL_STATUS_HAS_LOCAL_STREAM, CALL_STATUS_REQUEST_SENT, CALL_STATUS_RING_IN, CALL_STATUS_JOINING,
+     * CALL_STATUS_IN_PROGRESS, CALL_STATUS_TERMINATING_USER_PARTICIPATION,
+     *
+     * @return true if the client has an active call
+     */
+    bool isClientInACall();
+
 #endif
 
     // Listeners
