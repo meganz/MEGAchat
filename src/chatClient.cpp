@@ -3043,8 +3043,9 @@ std::string encodeFirstName(const std::string& first)
 
 mega::dstime InitStatistics::currentTime()
 {
-    mega::WAIT_CLASS::bumpds();
-    return mega::Waiter::ds;
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 
 void InitStatistics::resetStatistics()
