@@ -230,6 +230,12 @@ public:
         TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
+    enum {
+        AUDIO = 0,
+        VIDEO = 1,
+        ALL_FLAGS = 2
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -545,14 +551,19 @@ public:
     virtual mega::MegaHandleList *getClientidParticipants() const;
 
     /**
-     * @brief Get the number of peers participating in the call
+     * @brief Get the number of peers participating in the call with video/audio or all participants
      *
      * In a group call, this function returns the number of active participants,
      * regardless your own user participates or not.
      *
-     * @return Number of active participants in the call
+     * 0 -> with audio (c\ AUDIO)
+     * 1 -> with video (c\ VIDEO)
+     * 2 -> all participants (c\ ALL_FLAGS)
+     *
+     * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
+     * @return Number of active participants in the call with video, audio or all participants
      */
-    virtual int getNumParticipants() const;
+    virtual int getNumParticipants(int audioVideo) const;
 
     /**
      * @brief Returns if call has been ignored

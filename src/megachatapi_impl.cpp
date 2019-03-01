@@ -4750,9 +4750,30 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerid, 
     return NULL;
 }
 
-int MegaChatCallPrivate::getNumParticipants() const
+int MegaChatCallPrivate::getNumParticipants(int audioVideo) const
 {
-    return participants.size();
+    assert(audioVideo == MegaChatCall::AUDIO || audioVideo == MegaChatCall::VIDEO || audioVideo == MegaChatCall::ALL_FLAGS);
+    int numParticipants = 0;
+    if (audioVideo == MegaChatCall::ALL_FLAGS)
+    {
+        numParticipants = participants.size();
+    }
+    else
+    {
+        for (auto it = participants.begin(); it != participants.end(); it ++)
+        {
+            if (audioVideo == MegaChatCall::AUDIO && it->second.audio())
+            {
+                numParticipants++;
+            }
+            else if (audioVideo == MegaChatCall::VIDEO && it->second.video())
+            {
+                numParticipants++;
+            }
+        }
+    }
+
+    return numParticipants;
 }
 
 MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
@@ -4959,14 +4980,7 @@ void MegaChatCallPrivate::sessionUpdated(Id peerid, uint32_t clientid, int chang
 
 int MegaChatCallPrivate::availableAudioSlots()
 {
-    int usedSlots = 0;
-    for (auto it = participants.begin(); it != participants.end(); it++)
-    {
-        if (it->second.audio())
-        {
-            usedSlots++;
-        }
-    }
+    int usedSlots = getNumParticipants(MegaChatCall::AUDIO);
 
     int availableSlots = 0;
     if (usedSlots < rtcModule::IRtcModule::kMaxCallAudioSenders)
@@ -4979,14 +4993,7 @@ int MegaChatCallPrivate::availableAudioSlots()
 
 int MegaChatCallPrivate::availableVideoSlots()
 {
-    int usedSlots = 0;
-    for (auto it = participants.begin(); it != participants.end(); it++)
-    {
-        if (it->second.video())
-        {
-            usedSlots++;
-        }
-    }
+    int usedSlots = getNumParticipants(MegaChatCall::VIDEO);
 
     int availableSlots = 0;
     if (usedSlots < rtcModule::IRtcModule::kMaxCallVideoSenders)
@@ -7215,7 +7222,7 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
 int MegaChatCallHandler::callParticipants()
 {
     assert(chatCall);
-    return chatCall ? chatCall->getNumParticipants(): 0;
+    return chatCall ? chatCall->getNumParticipants(MegaChatCall::ALL_FLAGS): 0;
 }
 
 bool MegaChatCallHandler::isParticipating(Id userid)
