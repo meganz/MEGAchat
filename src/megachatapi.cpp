@@ -804,9 +804,9 @@ int MegaChatApi::getNumCalls()
     return pImpl->getNumCalls();
 }
 
-MegaHandleList *MegaChatApi::getChatCalls()
+MegaHandleList *MegaChatApi::getChatCalls(int callState)
 {
-    return pImpl->getChatCalls();
+    return pImpl->getChatCalls(callState);
 }
 
 MegaHandleList *MegaChatApi::getChatCallsIds()

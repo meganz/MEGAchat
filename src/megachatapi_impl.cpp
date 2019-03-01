@@ -3450,7 +3450,7 @@ int MegaChatApiImpl::getNumCalls()
     return numCalls;
 }
 
-MegaHandleList *MegaChatApiImpl::getChatCalls()
+MegaHandleList *MegaChatApiImpl::getChatCalls(int callState)
 {
     MegaHandleListPrivate *callList = new MegaHandleListPrivate();
 
@@ -3460,7 +3460,11 @@ MegaHandleList *MegaChatApiImpl::getChatCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            callList->addMegaHandle(chatids[i]);
+            MegaChatCallHandler *callHandler = static_cast<MegaChatCallHandler *>(mClient->rtc->findCallHandler(chatids[i]));
+            if (callHandler && (callState == -1 || callHandler->getMegaChatCall()->getStatus() == callState))
+            {
+                callList->addMegaHandle(chatids[i]);
+            }
         }
     }
 

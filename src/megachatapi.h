@@ -4015,13 +4015,16 @@ public:
     int getNumCalls();
 
     /**
-     * @brief Get a list with the ids of chatrooms where there are active calls
+     * @brief Get a list with the ids of chatrooms where there are active calls and their state is \c callState
+     *
+     * If \c callState is -1 then returns all calls regardless their state
      *
      * You take the ownership of the returned value.
      *
+     * @param state of calls that you want receive, -1 for all
      * @return A list of handles with the ids of chatrooms where there are active calls
      */
-    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCalls(int callState = -1);
 
     /**
      * @brief Get a list with the ids of active calls
