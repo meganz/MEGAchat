@@ -2193,13 +2193,13 @@ AvFlags Call::muteUnmute(AvFlags av)
     }
 
     mLocalPlayer->enableVideo(av.video());
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
+
+    sendCallData(CallDataState::kCallDataMute);
     for (auto& item: mSessions)
     {
         item.second->sendAv(av);
     }
-
-    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
-    sendCallData(CallDataState::kCallDataMute);
 
     return av;
 }
