@@ -594,18 +594,21 @@ Client::InitState Client::init(const char* sid)
     if (sid)
     {
         initWithDbSession(sid);
-        mInitStatistics->resetStatistics();
+        mInitStatistics->resetInitStatistics();
         mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
 
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
             wipeDb(sid);
+            mInitStatistics->statsInitState = InitStatistics::kInitInvalidCache;
         }
+        mInitStatistics->statsInitState = InitStatistics::kInitSession;
         mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
     }
     else
     {
+        mInitStatistics->statsInitState = InitStatistics::kInitInvalidSession;
         setInitState(kInitWaitingNewSession);
     }
     api.sdk.addRequestListener(this);
@@ -3048,21 +3051,27 @@ mega::dstime InitStatistics::currentTime()
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 
-void InitStatistics::resetStatistics()
+void InitStatistics::resetInitStatistics()
 {
+    numNodes = 0;
+    numChats = 0;
+    numContacts = 0;
+    totalElapsed = 0;
+    statsInitState = kInitInvalidSession;
+
     if (stageStatsMap.size())
     {
         stageStatsMap.clear();
     }
 
-    createStageStats(InitStatistics::kStatsInit);
-    createStageStats(InitStatistics::kStatsLogin);
-    createStageStats(InitStatistics::kStatsFetchNodes);
-    createStageStats(InitStatistics::kStatsPostFetchNodes);
-    createStageStats(InitStatistics::kStatsGetChatUrl);
-    createStageStats(InitStatistics::kStatsQueryDns);
-    createStageStats(InitStatistics::kStatsConnect);
-    createStageStats(InitStatistics::kStatsLoginChatd);
+    createStageStats(kStatsInit);
+    createStageStats(kStatsLogin);
+    createStageStats(kStatsFetchNodes);
+    createStageStats(kStatsPostFetchNodes);
+    createStageStats(kStatsGetChatUrl);
+    createStageStats(kStatsQueryDns);
+    createStageStats(kStatsConnect);
+    createStageStats(kStatsLoginChatd);
 }
 
 

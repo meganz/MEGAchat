@@ -901,12 +901,6 @@ class InitStatistics
     public:
         struct ShardStats
         {
-            /** @brief Number of chats of the shard */
-            long numChats;
-
-            /** @brief Number of shard chats that has finished the stage */
-            long numChatsEnd;
-
             /** @brief Number of the retries for a stage */
             unsigned int retries;
 
@@ -914,8 +908,6 @@ class InitStatistics
             mega::dstime shardElapsed;
 
             ShardStats():
-                numChats(0),
-                numChatsEnd(0),
                 retries(0),
                 shardElapsed(0)
             {}
@@ -928,6 +920,13 @@ class InitStatistics
             StageStats():
                 stageElapsed(0)
             {}
+        };
+
+        enum
+        {
+            kInitInvalidSession      = 0,
+            kInitSession             = 1,
+            kInitInvalidCache        = 2,
         };
 
         /** @brief Stages in MEGAChat initialization*/
@@ -953,7 +952,7 @@ class InitStatistics
         long int numContacts;
 
         /** @brief Flag that indicates if there's any error with cache */
-        bool errCache;
+        uint8_t statsInitState;
 
         /** @brief Total elapsed time to finish all stages */
         mega::dstime totalElapsed;
@@ -966,12 +965,12 @@ class InitStatistics
             numNodes = 0;
             numChats = 0;
             numContacts = 0;
-            errCache = false;
+            statsInitState = kInitInvalidSession;
         }
 
         /** @brief StageStats methods */
         static mega::dstime currentTime();
-        void resetStatistics();
+        void resetInitStatistics();
         void createStageStats(uint8_t stage);
         void stageStartTime(uint8_t stage);
         void stageEndTime(uint8_t stage);
