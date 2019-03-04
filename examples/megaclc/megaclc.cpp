@@ -1975,7 +1975,7 @@ string loadfile(const string& filename)
     f.seekg(0, std::ios::end);
     filedata.resize(unsigned(f.tellg()));
     f.seekg(0, std::ios::beg);
-    f.read(filedata.data(), filedata.size());
+    f.read((char*)filedata.data(), filedata.size());
     return filedata;
 }
 
