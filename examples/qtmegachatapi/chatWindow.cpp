@@ -1066,9 +1066,17 @@ void ChatWindow::deleteCallGui()
     setChatTittle(mChatRoom->getTitle());
     ui->mTextChatWidget->show();
     ui->mTitlebar->show();
-    ui->mTitlebar->setStyleSheet("background-color: #C1EFFF");
     ui->mTextChatWidget->setStyleSheet("background-color: #FFFFFF");
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
+
+    if (mChatRoom->isPublic())
+    {
+        ui->mTitlebar->setStyleSheet("background-color:#C4F2C9");
+    }
+    else
+    {
+        ui->mTitlebar->setStyleSheet("background-color:#C1EFFF");
+    }
 }
 
 void ChatWindow::getCallPos(int index, int &row, int &col)
