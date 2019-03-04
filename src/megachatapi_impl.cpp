@@ -5018,6 +5018,8 @@ bool MegaChatCallPrivate::addOrUpdateParticipant(Id userid, uint32_t clientid, A
     }
     else    // existing participant --> just update flags
     {
+        changed |= MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS;
+        notify = true;
         it->second = flags;
     }
 
