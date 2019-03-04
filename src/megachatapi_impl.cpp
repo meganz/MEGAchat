@@ -970,15 +970,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (type == 1 && chatid != MEGACHAT_INVALID_HANDLE) // if iOS specifies a chatid, check it's valid
             {
                 ChatRoom *room = findChatRoom(chatid);
-                if (!room)
-                {
-                    megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
-                    fireOnChatRequestFinish(request, megaChatError);
-                    return;
-                }
-                else if (room->isArchived()) // don't want to generate notifications for archived chats
+                if (room && room->isArchived()) // don't want to generate notifications for archived chats
                 {
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
                     fireOnChatRequestFinish(request, megaChatError);
@@ -1042,7 +1034,18 @@ void MegaChatApiImpl::sendPendingRequests()
                     request->setMegaHandleList(chatids);    // always a valid list, even if empty
                     delete chatids;
                 }
-                //else    // iOS
+                else    // iOS
+                {
+                    MegaChatHandle chatid = request->getChatHandle();
+                    ChatRoom *room = findChatRoom(chatid);
+                    if (!room)
+                    {
+                        megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
+
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    }
+                }
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
