@@ -3158,6 +3158,69 @@ void InitStatistics::incrementShardRetries(uint8_t stage, uint8_t shard)
         }
     }
 }
+
+void InitStatistics::handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard)
+{
+    switch (newState)
+    {
+        case chatd::Connection::State::kStateFetchingUrl :
+            //GET start ts for GetChatURL
+            createShardStats(InitStatistics::kStatsGetChatUrl, shard);
+            shardStartTime(InitStatistics::kStatsGetChatUrl, shard);
+
+            //Increments GetChatURL retries
+            if (oldState == chatd::Connection::State::kStateDisconnected)
+            {
+                incrementShardRetries(InitStatistics::kStatsGetChatUrl, shard);
+            }
+            break;
+
+        case chatd::Connection::State::kStateResolving :
+            //GET end ts for GetChatURL
+            shardEndTime(InitStatistics::kStatsGetChatUrl, shard);
+
+            //GET start ts for QueryDns
+            createShardStats(InitStatistics::kStatsQueryDns, shard);
+            shardStartTime(InitStatistics::kStatsQueryDns, shard);
+
+            /* TODO every iteration has two transitions between kStateDisconnected and kStateResolving.
+               We must adjust the final retries value to the half */
+            if (oldState == chatd::Connection::State::kStateDisconnected)
+            {
+                incrementShardRetries(InitStatistics::kStatsQueryDns, shard);
+            }
+            break;
+
+        case chatd::Connection::State::kStateConnecting :
+            //GET end ts for QueryDns
+            shardEndTime(InitStatistics::kStatsQueryDns, shard);
+
+            //GET start ts for connect
+            createShardStats(InitStatistics::kStatsConnect, shard);
+            shardStartTime(InitStatistics::kStatsConnect, shard);
+            break;
+
+
+        case chatd::Connection::State::kStateConnected :
+             //GET end ts for connect
+             shardEndTime(InitStatistics::kStatsConnect, shard);
+
+             //GET start ts for login chatd
+             createShardStats(InitStatistics::kStatsLoginChatd, shard);
+             shardStartTime(InitStatistics::kStatsLoginChatd, shard);
+             break;
+
+         case chatd::Connection::State::kStateDisconnected :
+             //Increments connect retries
+             if (oldState == chatd::Connection::State::kStateConnecting)
+             {
+                 incrementShardRetries(InitStatistics::kStatsConnect, shard);
+             }
+             break;
+    }
+
+}
+
 void InitStatistics::createStageStats(uint8_t stage)
 {
     std::map<uint8_t, StageStats>::iterator it;

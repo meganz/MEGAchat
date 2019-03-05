@@ -989,6 +989,7 @@ class InitStatistics
         void shardStartTime(uint8_t stage, uint8_t shard);
         void shardEndTime(uint8_t stage, uint8_t shard);
         void incrementShardRetries(uint8_t stage, uint8_t shard);
+        void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
         InitStatistics::ShardStats *getShardStats(uint8_t stage, uint8_t shard);
 
         /** @brief Generate statistics in JSON */
