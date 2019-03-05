@@ -50,6 +50,12 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeAudioLevel = 0x100
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
+    MEGAChatCallConfigurationWithAudio = 0,
+    MEGAChatCallConfigurationWithVideo = 1,
+    MEGAChatCallConfigurationAll = 2,
+};
+
 @interface MEGAChatCall : NSObject
 
 @property (nonatomic, readonly) MEGAChatCallStatus status;
@@ -77,6 +83,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly) MEGAHandleList *participants;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
+
+- (NSInteger)numParticipantsWithCallConfiguration:(MEGAChatCallConfiguration)callConfiguration;
 
 - (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId;
 
