@@ -3074,7 +3074,90 @@ void InitStatistics::resetInitStatistics()
     createStageStats(kStatsLoginChatd);
 }
 
+void InitStatistics::createShardStats(uint8_t stage, uint8_t shard)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        if (!getShardStats(stage, shard))
+        {
+            StageStats & stagestats = it->second;
+            stagestats.shardStatsMap.insert(std::pair<uint8_t, ShardStats>(shard, ShardStats()));
+        }
+    }
+}
 
+InitStatistics::ShardStats *InitStatistics::getShardStats(uint8_t stage, uint8_t shard)
+{
+    InitStatistics::ShardStats *stats = NULL;
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        StageStats & stagestats = it->second;
+        std::map<uint8_t, ShardStats>::iterator auxit;
+        auxit = stagestats.shardStatsMap.find(shard);
+
+        if (auxit != stagestats.shardStatsMap.end())
+        {
+            stats = &(auxit->second);
+        }
+    }
+
+    return stats;
+}
+
+void InitStatistics::shardStartTime(uint8_t stage, uint8_t shard)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        ShardStats *shardStats = getShardStats(stage, shard);
+        if (shardStats)
+        {
+            shardStats->currentElapsed = currentTime();
+        }
+    }
+}
+
+void InitStatistics::shardEndTime(uint8_t stage, uint8_t shard)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        ShardStats *shardStats = getShardStats(stage, shard);
+
+        //This prevents to capture a new end ts if a start ts has not been captured
+        if (shardStats->currentElapsed == 0)
+        {
+            return;
+        }
+
+        if (shardStats)
+        {
+            shardStats->currentElapsed = currentTime() - shardStats->currentElapsed;
+            shardStats->lastElapsed = shardStats->currentElapsed;
+            shardStats->currentElapsed = 0;
+        }
+    }
+}
+
+void InitStatistics::incrementShardRetries(uint8_t stage, uint8_t shard)
+{
+    std::map<uint8_t, StageStats>::iterator it;
+    it = stageStatsMap.find(stage);
+    if (it != stageStatsMap.end())
+    {
+        ShardStats *shardStats = getShardStats(stage, shard);
+        if (shardStats)
+        {
+            shardStats->retries++;
+        }
+    }
+}
 void InitStatistics::createStageStats(uint8_t stage)
 {
     std::map<uint8_t, StageStats>::iterator it;
@@ -3108,6 +3191,16 @@ void InitStatistics::stageEndTime(uint8_t stage)
     }
 }
 
+bool InitStatistics::initStatsFinished()
+{
+    return statsFinished;
+}
+
+void InitStatistics::setStatsFinished()
+{
+    statsFinished = true;
+}
+
 std::string InitStatistics::generateInitStatistics()
 {
     std::string result;
@@ -3135,6 +3228,37 @@ std::string InitStatistics::generateInitStatistics()
         rapidjson::Value jSonStage(rapidjson::kObjectType);
         uint8_t stage = it->first;
         StageStats &stageStats = it->second;
+        rapidjson::Document shardArray(rapidjson::kArrayType);
+
+        // Add statistics by shard
+        if (stageStats.shardStatsMap.size())
+        {
+            rapidjson::Value jSonShard(rapidjson::kObjectType);
+            std::map<uint8_t, ShardStats>::iterator auxit;
+            for (auxit = stageStats.shardStatsMap.begin(); auxit != stageStats.shardStatsMap.end(); auxit++)
+            {
+                rapidjson::Value jSonShard(rapidjson::kObjectType);
+                uint8_t shard = auxit->first;
+                ShardStats &shardStats = auxit->second;
+
+                // Add stage
+                rapidjson::Value shardValue(rapidjson::kNumberType);
+                shardValue.SetInt(shard);
+                jSonShard.AddMember(rapidjson::Value("sh"), shardValue, jSonDocument.GetAllocator());
+
+                // Add stage elapsed time
+                rapidjson::Value shardElapsedValue(rapidjson::kNumberType);
+                shardElapsedValue.SetInt(shardStats.lastElapsed);
+                jSonShard.AddMember(rapidjson::Value("elap"), shardElapsedValue, jSonDocument.GetAllocator());
+                stageStats.stageElapsed += shardStats.lastElapsed;
+
+                // Add stage retries
+                rapidjson::Value retriesValue(rapidjson::kNumberType);
+                retriesValue.SetInt(shardStats.retries);
+                jSonShard.AddMember(rapidjson::Value("ret"), retriesValue, jSonDocument.GetAllocator());
+                shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
+            }
+        }
 
         // Add stage
         rapidjson::Value stageValue(rapidjson::kNumberType);
@@ -3144,9 +3268,17 @@ std::string InitStatistics::generateInitStatistics()
         // Add stage elapsed time
         rapidjson::Value elapsedValue(rapidjson::kNumberType);
         elapsedValue.SetInt(stageStats.stageElapsed);
-        jSonStage.AddMember(rapidjson::Value("elapsed"), elapsedValue, jSonDocument.GetAllocator());
+        jSonStage.AddMember(rapidjson::Value("elap"), elapsedValue, jSonDocument.GetAllocator());
+
+        jSonStage.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());
         stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
+
+        totalElapsed += stageStats.stageElapsed;
     }
+
+    // Add total elapsed
+    jsonValue.SetInt64(totalElapsed);
+    jSonObject.AddMember(rapidjson::Value("telap"), jsonValue, jSonDocument.GetAllocator());
     jSonObject.AddMember(rapidjson::Value("stgs"), stageArray, jSonDocument.GetAllocator());
 
     jSonDocument.PushBack(jSonObject, jSonDocument.GetAllocator());
@@ -3156,5 +3288,4 @@ std::string InitStatistics::generateInitStatistics()
     result.assign(buffer.GetString(), buffer.GetSize());
     return result;
 }
-
 }

@@ -901,15 +901,19 @@ class InitStatistics
     public:
         struct ShardStats
         {
-            /** @brief Number of the retries for a stage */
-            unsigned int retries;
+            /** @brief Last elapsed time */
+            mega::dstime lastElapsed;
 
-            /** @brief Elapsed time to finish a stage */
-            mega::dstime shardElapsed;
+            /** @brief Current elapsed time to finish a stage */
+            mega::dstime currentElapsed;
+
+            /** @brief Number of the retries */
+            unsigned int retries;
 
             ShardStats():
                 retries(0),
-                shardElapsed(0)
+                currentElapsed(0),
+                lastElapsed(0)
             {}
         };
 
@@ -957,6 +961,8 @@ class InitStatistics
         /** @brief Total elapsed time to finish all stages */
         mega::dstime totalElapsed;
 
+        bool statsFinished;
+
         /** @brief Maps stage to statistics */
         std::map<uint8_t, StageStats> stageStatsMap;
 
@@ -965,6 +971,7 @@ class InitStatistics
             numNodes = 0;
             numChats = 0;
             numContacts = 0;
+            statsFinished = false;
             statsInitState = kInitInvalidSession;
         }
 
@@ -974,6 +981,15 @@ class InitStatistics
         void createStageStats(uint8_t stage);
         void stageStartTime(uint8_t stage);
         void stageEndTime(uint8_t stage);
+        void setStatsFinished();
+        bool initStatsFinished();
+
+        /** @brief ShardStats methods */
+        void createShardStats(uint8_t stage, uint8_t shard);
+        void shardStartTime(uint8_t stage, uint8_t shard);
+        void shardEndTime(uint8_t stage, uint8_t shard);
+        void incrementShardRetries(uint8_t stage, uint8_t shard);
+        InitStatistics::ShardStats *getShardStats(uint8_t stage, uint8_t shard);
 
         /** @brief Generate statistics in JSON */
         std::string generateInitStatistics();
