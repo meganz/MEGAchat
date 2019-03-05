@@ -4402,19 +4402,31 @@ void Chat::setOnlineState(ChatState state)
     CALL_CRYPTO(onOnlineStateChange, state);
     mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
-    if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
+    if (state == kChatStateOnline())
     {
-        mChatdClient.mKarereClient->setCommitMode(true);
-
-        if (!mChatdClient.mKarereClient->mSyncPromise.done())
+        if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            CHATID_LOG_DEBUG("Pending pushReceived is completed now");
-            if (mChatdClient.mKarereClient->mSyncTimer)
+            mChatdClient.mKarereClient->initStatistics()->shardEndTime(InitStatistics::kStatsLoginChatd, shardNo());
+        }
+
+        if (mChatdClient.areAllChatsLoggedIn())
+        {
+            // Set global statistics as finished and generate JSON
+            mChatdClient.mKarereClient->initStatistics()->setStatsFinished();
+            CHATD_LOG_DEBUG("MEGAchat init stats: %s", mChatdClient.mKarereClient->initStatistics()->generateInitStatistics().c_str());
+
+            mChatdClient.mKarereClient->setCommitMode(true);
+
+            if (!mChatdClient.mKarereClient->mSyncPromise.done())
             {
-                cancelTimeout(mChatdClient.mKarereClient->mSyncTimer, mChatdClient.mKarereClient->appCtx);
-                mChatdClient.mKarereClient->mSyncTimer = 0;
+                CHATID_LOG_DEBUG("Pending pushReceived is completed now");
+                if (mChatdClient.mKarereClient->mSyncTimer)
+                {
+                    cancelTimeout(mChatdClient.mKarereClient->mSyncTimer, mChatdClient.mKarereClient->appCtx);
+                    mChatdClient.mKarereClient->mSyncTimer = 0;
+                }
+                mChatdClient.mKarereClient->mSyncPromise.resolve();
             }
-            mChatdClient.mKarereClient->mSyncPromise.resolve();
         }
     }
 }
