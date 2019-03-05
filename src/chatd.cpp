@@ -523,6 +523,7 @@ void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
 
 void Connection::setState(State state)
 {
+    State oldState = mState;
     if (mState == state)
     {
         CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
@@ -533,6 +534,13 @@ void Connection::setState(State state)
         CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
         mState = state;
     }
+
+    std::shared_ptr<InitStatistics> initStats = mChatdClient.mKarereClient->initStatistics();
+    if (initStats && !initStats->initStatsFinished())
+    {
+       initStats->handleShardStats(oldState, state, shardNo());
+    }
+    initStats = nullptr;
 
     if (mState == kStateDisconnected)
     {
