@@ -1105,8 +1105,6 @@ public:
     mega::MegaHandleList *getChatCalls();
     mega::MegaHandleList *getChatCallsIds();
     bool hasCallInChatRoom(MegaChatHandle chatid);
-    void enableGroupChatCalls(bool enable);
-    bool areGroupChatCallEnabled();
     int getMaxCallParticipants();
     int getMaxVideoCallParticipants();
 #endif

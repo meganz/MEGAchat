@@ -3518,39 +3518,6 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::enableGroupChatCalls(bool enable)
-{
-    sdkMutex.lock();
-    if (mClient)
-    {
-        mClient->enableGroupCalls(enable);
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatApiImpl::enableGroupChatCalls - Client is not initialized");
-        assert(false);
-    }
-    sdkMutex.unlock();
-}
-
-bool MegaChatApiImpl::areGroupChatCallEnabled()
-{
-    sdkMutex.lock();
-    bool enabledGroupCalls = false;
-    if (mClient)
-    {
-        enabledGroupCalls = mClient->areGroupCallsEnabled();
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatApiImpl::areGroupChatCallEnabled - Client is not initialized");
-    }
-
-    sdkMutex.unlock();
-
-    return enabledGroupCalls;
-}
-
 int MegaChatApiImpl::getMaxCallParticipants()
 {
     return rtcModule::IRtcModule::kMaxCallReceivers;

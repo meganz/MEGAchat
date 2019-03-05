@@ -666,7 +666,6 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
-    bool mGroupCallsEnabled = false;
 
 public:
 
@@ -826,8 +825,6 @@ public:
     void dumpContactList(::mega::MegaUserList& clist);
 
     bool isChatRoomOpened(Id chatid);
-    bool areGroupCallsEnabled();
-    void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
 
 protected:

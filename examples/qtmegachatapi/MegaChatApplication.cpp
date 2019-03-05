@@ -94,7 +94,6 @@ void MegaChatApplication::init()
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
-        mMegaChatApi->enableGroupChatCalls(true);
         mMegaApi->fastLogin(mSid);
     }
 }
@@ -115,7 +114,6 @@ void MegaChatApplication::onLoginClicked()
     {
         int initState = mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
-        mMegaChatApi->enableGroupChatCalls(true);
     }
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
