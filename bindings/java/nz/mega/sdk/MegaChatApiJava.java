@@ -2253,16 +2253,28 @@ public class MegaChatApiJava {
         return megaChatApi.getNumCalls();
     }
 
-    /**
-     * Get MegaChatHandle list that contains chatrooms identifier where there is an active call
-     *
-     * You take the ownership of the returned value
-     *
-     * @return A list of handles with chatroom identifier where there is an active call
-     */
+
+
     public MegaHandleList getChatCalls(){
-        return megaChatApi.getChatCalls();
+        return megaChatApi.getChatCalls(-1);
     }
+
+
+    /**
+     * @brief Get a list with the ids of chatrooms where there are active calls and their state is \c callState
+     *
+     * If \c callState is -1 then returns all calls regardless their state
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param callState that you want receive, -1 for all
+     * @return A list of handles with the ids of chatrooms where there are active calls
+     */
+
+    public MegaHandleList getChatCalls(int callState) {
+        return megaChatApi.getChatCalls(callState);
+    }
+
 
     /**
      * Get a list with the ids of active calls
