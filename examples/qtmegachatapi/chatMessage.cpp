@@ -764,20 +764,28 @@ void ChatMessage::onNodePlay(mega::MegaNode *node)
 {
     mega::MegaNode *resultNode = node;
 
-    //Autorize node with PH if we are in preview mode
-    if (mChatWindow->mChatRoom->isPreview())
-    {
-        const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
-        resultNode = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
-        delete [] cauth;
-    }
-
     //Start an HTTP proxy server
     if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
     {
         mChatWindow->mMegaApi->httpServerStart();
     }
 
-    //Start streaming
-    mChatWindow->mMegaApi->startStreaming(resultNode, (int64_t)0, resultNode->getSize(), mChatWindow->megaTransferListenerDelegate);
+    //Autorize node with PH if we are in preview mode
+    if (mChatWindow->mChatRoom->isPreview())
+    {
+        const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
+        resultNode = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
+        delete [] cauth;
+
+        char *aux = mChatWindow->mMegaApi->httpServerGetLocalLink(resultNode);
+        if (aux)
+        {
+             QMessageBox::information(nullptr, tr("Node Url"), tr(aux));
+             delete [] aux;
+        }
+        else
+        {
+            QMessageBox::information(nullptr, tr("ERROR"), tr("ERROR"));
+        }
+    }
 }

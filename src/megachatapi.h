@@ -3407,9 +3407,9 @@ public:
     void setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Invalidates the currect public handle
+     * @brief Invalidates the current public handle
      *
-     * This function invalidates the currect public handle.
+     * This function invalidates the current public handle.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CHAT_LINK_HANDLE
      * Valid data in the MegaChatRequest object received on callbacks:
