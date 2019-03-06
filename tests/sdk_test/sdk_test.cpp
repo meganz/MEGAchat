@@ -2556,7 +2556,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     char *secondarySession = login(a2);
 
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
     }
