@@ -4406,14 +4406,22 @@ void Chat::setOnlineState(ChatState state)
     {
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            mChatdClient.mKarereClient->initStatistics()->shardEndTime(InitStatistics::kStatsLoginChatd, connection().shardNo());
+            std::shared_ptr<InitStatistics> initStats = mChatdClient.mKarereClient->initStatistics();
+            if (initStats && !initStats->initStatsFinished())
+            {
+                initStats->shardEndTime(InitStatistics::kStatsLoginChatd, connection().shardNo());
+            }
         }
 
         if (mChatdClient.areAllChatsLoggedIn())
         {
-            // Set global statistics as finished and generate JSON
-            mChatdClient.mKarereClient->initStatistics()->setStatsFinished();
-            CHATD_LOG_DEBUG("MEGAchat init stats: %s", mChatdClient.mKarereClient->initStatistics()->generateInitStatistics().c_str());
+            std::shared_ptr<InitStatistics> initStats = mChatdClient.mKarereClient->initStatistics();
+            if (initStats && !initStats->initStatsFinished())
+            {
+                // Set global statistics as finished and generate JSON
+                initStats->setStatsFinished();
+                CHATD_LOG_DEBUG("MEGAchat init stats: %s", initStats->generateInitStatistics().c_str());
+            }
 
             mChatdClient.mKarereClient->setCommitMode(true);
 

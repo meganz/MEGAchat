@@ -640,7 +640,7 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         delete [] buf;
 
         std::shared_ptr<InitStatistics>initStatistics = mKarereClient->initStatistics();
-        if (initStatistics)
+        if (initStatistics && !initStatistics->initStatsFinished())
         {
             initStatistics->numChats = chats->size();
             initStatistics->numContacts = contacts->size();

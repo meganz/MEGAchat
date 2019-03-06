@@ -629,11 +629,17 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     {
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
-            mInitStatistics->stageStartTime(InitStatistics::kStatsLogin);
+            if (mInitStatistics && !mInitStatistics->statsFinished)
+            {
+                mInitStatistics->stageStartTime(InitStatistics::kStatsLogin);
+            }
         }
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
-            mInitStatistics->stageStartTime(InitStatistics::kStatsFetchNodes);
+            if (mInitStatistics && !mInitStatistics->statsFinished)
+            {
+                mInitStatistics->stageStartTime(InitStatistics::kStatsFetchNodes);
+            }
         }
     }
 }
@@ -652,7 +658,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGIN:
     {
-        mInitStatistics->stageEndTime(InitStatistics::kStatsLogin);
+        if (mInitStatistics && !mInitStatistics->statsFinished)
+        {
+            mInitStatistics->stageEndTime(InitStatistics::kStatsLogin);
+        }
         break;
     }
 
@@ -689,8 +698,11 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
-        mInitStatistics->stageEndTime(InitStatistics::kStatsFetchNodes);
-        mInitStatistics->stageStartTime(InitStatistics::kStatsPostFetchNodes);
+        if (mInitStatistics && !mInitStatistics->statsFinished)
+        {
+            mInitStatistics->stageEndTime(InitStatistics::kStatsFetchNodes);
+            mInitStatistics->stageStartTime(InitStatistics::kStatsPostFetchNodes);
+        }
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
         std::string scsn;
@@ -892,7 +904,10 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
-    mInitStatistics->stageEndTime(InitStatistics::kStatsPostFetchNodes);
+    if (mInitStatistics && !mInitStatistics->statsFinished)
+    {
+        mInitStatistics->stageEndTime(InitStatistics::kStatsPostFetchNodes);
+    }
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
