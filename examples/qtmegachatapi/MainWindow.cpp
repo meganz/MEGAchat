@@ -455,7 +455,7 @@ void MainWindow::on_bSettings_clicked()
     auto actPubChat = menu.addAction(tr("Create public chat"));
     connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true);});
 
-    auto actPreviewChat = menu.addAction(tr("Preview public chat"));
+    auto actPreviewChat = menu.addAction(tr("Open chat preview"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
 
     auto actCheckLink = menu.addAction(tr("Check chat-link"));

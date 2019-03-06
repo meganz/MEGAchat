@@ -649,7 +649,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                     {
                         if(e->getErrorCode() != MegaChatError::ERROR_OK)
                         {
-                            QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link ").append(e->getErrorString()));
+                            QMessageBox::critical(nullptr, tr("Remove chat link"), tr("Error removing the chat link: ").append(e->getErrorString()));
                         }
                         else
                         {
@@ -668,13 +668,9 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                             {
                                 msg.setText("The chat link has been generated successfully");
                             }
-                            else if (e->getErrorCode() == MegaChatError::ERROR_ARGS)
-                            {
-                                QMessageBox::warning(nullptr, tr("Create chat link"), tr("You need to set a chat title before"));
-                            }
                             else
                             {
-                                QMessageBox::critical(nullptr, tr("Create chat link"), tr("Error exporting chat link ").append(e->getErrorString()));
+                                QMessageBox::critical(nullptr, tr("Create chat link"), tr("Error exporting chat link: ").append(e->getErrorString()));
                             }
                         }
                         else
@@ -689,7 +685,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                             }
                             else
                             {
-                                QMessageBox::critical(nullptr, tr("Query chat link"), tr("Error querying chat link ").append(e->getErrorString()));
+                                QMessageBox::critical(nullptr, tr("Query chat link"), tr("Error querying chat link: ").append(e->getErrorString()));
                             }
                         }
 
@@ -719,28 +715,35 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 //Check chat link
                 if (checkChatLink)
                 {
-                    int numPeers = request->getNumber();
-                    const char *title = request->getText();
-                    const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
-
-                    QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
-                            .arg(QString::fromStdString(request->getLink()))
-                            .arg(QString::fromStdString(chatHandle_64))
-                            .arg(QString(title))
-                            .arg(QString::fromStdString(std::to_string(numPeers)));
-
-                    QMessageBox msgBox;
-                    msgBox.setWindowTitle("Check chat link");
-                    msgBox.setText(line);
-                    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-                    msgBox.setDefaultButton(QMessageBox::Cancel);
-                    int ret = msgBox.exec();
-                    if (ret == QMessageBox::Ok)
+                    if (e->getErrorCode() == MegaChatError::ERROR_OK)
                     {
-                        this->mMegaChatApi->openChatPreview(request->getLink());
-                    }
+                        int numPeers = request->getNumber();
+                        const char *title = request->getText();
+                        const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
 
-                    delete [] chatHandle_64;
+                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
+                                .arg(QString::fromStdString(request->getLink()))
+                                .arg(QString::fromStdString(chatHandle_64))
+                                .arg(QString(title))
+                                .arg(QString::fromStdString(std::to_string(numPeers)));
+
+                        QMessageBox msgBox;
+                        msgBox.setWindowTitle("Check chat link");
+                        msgBox.setText(line);
+                        msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+                        msgBox.setDefaultButton(QMessageBox::Cancel);
+                        int ret = msgBox.exec();
+                        if (ret == QMessageBox::Ok)
+                        {
+                            this->mMegaChatApi->openChatPreview(request->getLink());
+                        }
+
+                        delete [] chatHandle_64;
+                    }
+                    else
+                    {
+                        QMessageBox::critical(nullptr, tr("Check chat link"), tr("Error checking a chat-link: ").append(e->getErrorString()));
+                    }
                 }
                 else //Load chat link
                 {
@@ -797,11 +800,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             {
                 if(e->getErrorCode() != MegaChatError::ERROR_OK)
                 {
-                    QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat to private mode ").append(e->getErrorString()));
+                    QMessageBox::critical(nullptr, tr("Close chat link"), tr("Error setting chat into private mode: ").append(e->getErrorString()));
                 }
                 else
                 {
-                    QMessageBox::information(nullptr, tr("Close chat link"), tr("The chat has been converted to private"));
+                    QMessageBox::information(nullptr, tr("Close chat link"), tr("The chat has been converted into private mode"));
                 }
                 break;
             }
@@ -832,7 +835,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 else
                 {
-                    QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link ").append(e->getErrorString()));
+                    QMessageBox::critical(nullptr, tr("Join chat link"), tr("Error joining chat link: ").append(e->getErrorString()));
                 }
                 break;
             }
