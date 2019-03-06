@@ -1066,7 +1066,7 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     char *secondarySession = login(a2);
 
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
-    if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
+    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
     }
@@ -2569,13 +2569,12 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaChatHandle uh1 = megaChatApi[a1]->getMyUserHandle();
-    MegaChatHandle uh2 = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh2 == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
-        uh2 = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
     }
+    delete user;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
@@ -2795,7 +2794,6 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     secondarySession = NULL;
     delete [] secondarySession2;
     secondarySession2 = NULL;
-
 }
 
 /**
@@ -2828,11 +2826,12 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaChatHandle uh2 = megaChatApi[a1]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
-    if (uh2 == MEGACHAT_INVALID_HANDLE)
+    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
     }
+    delete user;
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
     ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
