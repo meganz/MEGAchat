@@ -539,8 +539,8 @@ void Connection::setState(State state)
     if (initStats && !initStats->initStatsFinished())
     {
        initStats->handleShardStats(oldState, state, shardNo());
+       initStats = nullptr;
     }
-    initStats = nullptr;
 
     if (mState == kStateDisconnected)
     {
@@ -4410,6 +4410,7 @@ void Chat::setOnlineState(ChatState state)
             if (initStats && !initStats->initStatsFinished())
             {
                 initStats->shardEndTime(InitStatistics::kStatsLoginChatd, connection().shardNo());
+                initStats = nullptr;
             }
         }
 
@@ -4421,6 +4422,8 @@ void Chat::setOnlineState(ChatState state)
                 // Set global statistics as finished and generate JSON
                 initStats->setStatsFinished();
                 CHATD_LOG_DEBUG("MEGAchat init stats: %s", initStats->generateInitStatistics().c_str());
+                initStats = nullptr;
+                mChatdClient.mKarereClient->clearStatistics();
             }
 
             mChatdClient.mKarereClient->setCommitMode(true);

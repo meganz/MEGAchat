@@ -835,6 +835,7 @@ public:
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
     std::shared_ptr<InitStatistics> initStatistics();
+    void clearStatistics();
 
 protected:
     void heartbeat();
@@ -966,14 +967,8 @@ class InitStatistics
         /** @brief Maps stage to statistics */
         std::map<uint8_t, StageStats> stageStatsMap;
 
-        InitStatistics()
-        {
-            numNodes = 0;
-            numChats = 0;
-            numContacts = 0;
-            statsFinished = false;
-            initState = kInitInvalidSession;
-        }
+        InitStatistics();
+        ~InitStatistics();
 
         /** @brief StageStats methods */
         static mega::dstime currentTime();

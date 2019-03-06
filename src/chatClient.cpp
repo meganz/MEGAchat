@@ -991,6 +991,14 @@ void Client::setConnState(ConnState newState)
     KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
 }
 
+void Client::clearStatistics()
+{
+    if (mInitStatistics)
+    {
+        mInitStatistics.reset();
+    }
+}
+
 std::shared_ptr<InitStatistics> Client::initStatistics()
 {
     return mInitStatistics;
@@ -1215,6 +1223,7 @@ void Client::terminate(bool deleteDb)
         rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
 #endif
 
+    clearStatistics();
     if (mConnState != kDisconnected)
     {
         setConnState(kDisconnected);
@@ -3064,6 +3073,25 @@ std::string encodeFirstName(const std::string& first)
         result.append(first);
     }
     return result;
+}
+
+InitStatistics::InitStatistics()
+{
+    numNodes = 0;
+    numChats = 0;
+    numContacts = 0;
+    statsFinished = false;
+    initState = kInitInvalidSession;
+}
+
+InitStatistics::~InitStatistics()
+{
+    if (stageStatsMap.size())
+    {
+        stageStatsMap.clear();
+    }
+
+    KR_LOG_INFO("MEGAchat initialization statistics destroyed");
 }
 
 mega::dstime InitStatistics::currentTime()
