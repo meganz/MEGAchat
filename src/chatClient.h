@@ -956,7 +956,7 @@ class InitStatistics
         long int numContacts;
 
         /** @brief Flag that indicates if there's any error with cache */
-        uint8_t statsInitState;
+        uint8_t initState;
 
         /** @brief Total elapsed time to finish all stages */
         mega::dstime totalElapsed;
@@ -972,7 +972,7 @@ class InitStatistics
             numChats = 0;
             numContacts = 0;
             statsFinished = false;
-            statsInitState = kInitInvalidSession;
+            initState = kInitInvalidSession;
         }
 
         /** @brief StageStats methods */
@@ -982,6 +982,7 @@ class InitStatistics
         void stageStartTime(uint8_t stage);
         void stageEndTime(uint8_t stage);
         void setStatsFinished();
+        void setInitState(Client::InitState state);
         bool initStatsFinished();
 
         /** @brief ShardStats methods */

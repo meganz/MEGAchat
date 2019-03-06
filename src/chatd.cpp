@@ -4402,11 +4402,11 @@ void Chat::setOnlineState(ChatState state)
     CALL_CRYPTO(onOnlineStateChange, state);
     mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
-    if (state == kChatStateOnline())
+    if (state == kChatStateOnline)
     {
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            mChatdClient.mKarereClient->initStatistics()->shardEndTime(InitStatistics::kStatsLoginChatd, shardNo());
+            mChatdClient.mKarereClient->initStatistics()->shardEndTime(InitStatistics::kStatsLoginChatd, connection().shardNo());
         }
 
         if (mChatdClient.areAllChatsLoggedIn())

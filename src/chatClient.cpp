@@ -591,26 +591,33 @@ Client::InitState Client::init(const char* sid)
         return kInitErrAlready;
     }
 
+    if (mInitStatistics)
+    {
+        mInitStatistics->resetInitStatistics();
+        mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
+    }
+
     if (sid)
     {
         initWithDbSession(sid);
-        mInitStatistics->resetInitStatistics();
-        mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
 
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
             wipeDb(sid);
-            mInitStatistics->statsInitState = InitStatistics::kInitInvalidCache;
         }
-        mInitStatistics->statsInitState = InitStatistics::kInitSession;
-        mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
     }
     else
     {
-        mInitStatistics->statsInitState = InitStatistics::kInitInvalidSession;
         setInitState(kInitWaitingNewSession);
     }
+
+    if (mInitStatistics)
+    {
+        mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
+        mInitStatistics->setInitState(mInitState);
+    }
+
     api.sdk.addRequestListener(this);
     return mInitState;
 }
@@ -3057,7 +3064,7 @@ void InitStatistics::resetInitStatistics()
     numChats = 0;
     numContacts = 0;
     totalElapsed = 0;
-    statsInitState = kInitInvalidSession;
+    initState = kInitInvalidSession;
 
     if (stageStatsMap.size())
     {
@@ -3251,6 +3258,26 @@ void InitStatistics::stageEndTime(uint8_t stage)
     {
         StageStats & stagestats = it->second;
         stagestats.stageElapsed = currentTime() - stagestats.stageElapsed;
+    }
+}
+
+void InitStatistics::setInitState(Client::InitState state)
+{
+    switch (state)
+    {
+        case  Client::kInitErrNoCache:
+        case  Client::kInitErrCorruptCache:
+            initState = kInitInvalidCache;
+            break;
+
+        case  Client::kInitHasOfflineSession:
+            initState = kInitSession;
+            break;
+
+        case  Client::kInitWaitingNewSession:
+            initState = kInitInvalidSession;
+            statsFinished = true;
+            break;
     }
 }
 
