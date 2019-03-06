@@ -5099,7 +5099,7 @@ FilteredHistory::FilteredHistory(DbInterface &db, Chat &chat)
 {
     init();
     CALL_DB_FH(getNodeHistoryInfo, mNewestIdx, mOldestIdxInDb);
-    mOldestIdx = (mNewestIdx < 0) ? 0 : mNewestIdx;
+    mOldestIdx = (mNewestIdx < 0) ? 0 : (mNewestIdx + 1);
 }
 
 void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
@@ -5128,6 +5128,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
             mOldestIdx--;
             if (!isLocal)
             {
+                // mOldestIdx can be updated with value in DB
                 CALL_DB_FH(addMsgToNodeHistory, msg, mOldestIdx);
                 mOldestIdxInDb = (mOldestIdx < mOldestIdxInDb) ? mOldestIdx : mOldestIdxInDb;  // avoid update if already in cache
             }
@@ -5259,7 +5260,7 @@ HistSource FilteredHistory::getHistory(uint32_t count)
             Id oldestMsgid = Id::inval();
             if (msgNode && msgText)
             {
-                oldestMsgid = (msgNode->ts >= msgText->ts) ? msgNode->id() : msgText->id();
+                oldestMsgid = (msgNode->ts <= msgText->ts) ? msgNode->id() : msgText->id();
             }
             else if (msgNode)
             {

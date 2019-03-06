@@ -1522,7 +1522,7 @@ public:
 
     //  <<<--- Management of the FILTERED HISTORY --->>>
 
-    virtual void addMsgToNodeHistory(const Message& msg, Idx idx) = 0;
+    virtual void addMsgToNodeHistory(const Message &msg, Idx &idx) = 0;
     virtual void deleteMsgFromNodeHistory(const Message& msg) = 0;
     virtual void truncateNodeHistory(karere::Id id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;

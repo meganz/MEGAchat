@@ -434,12 +434,17 @@ public:
         setHaveAllHistory(false);
     }
 
-    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx idx)
+    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx &idx)
     {
-        if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
+        chatd::Idx idxOnDb = getIdxOfMsgid(msg.id(), "node_history");
+        if (idxOnDb == CHATD_IDX_INVALID)
         {
             addMessage(msg, idx, "node_history");
             assertAffectedRowCount(1, "addMsgToNodeHistory");
+        }
+        else
+        {
+            idx = idxOnDb;
         }
     }
 
