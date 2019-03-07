@@ -4187,6 +4187,9 @@ public:
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
      *
+     * The request will fail with MegaChatError::ERROR_ACCESS when the chatroom is
+     * in preview mode.
+     *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it.
      *
