@@ -74,8 +74,7 @@ Client::Client(::mega::MegaApi& sdk, WebsocketsIO *websocketsIO, IApp& aApp, con
           app(aApp),
           contactList(new ContactList(*this)),
           chats(new ChatRoomList(*this)),
-          mPresencedClient(&api, this, *this, caps),
-          mInitStatistics(std::make_shared<InitStatistics>())
+          mPresencedClient(&api, this, *this, caps)
 {
 }
 
@@ -764,14 +763,14 @@ Client::InitState Client::init(const char* sid)
         return kInitErrAlready;
     }
 
-    if (mInitStatistics)
-    {
-        mInitStatistics->resetInitStatistics();
-        mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
-    }
+    clearStatistics();
 
     if (sid)
     {
+        mInitStatistics = std::make_shared<InitStatistics>();
+        mInitStatistics->resetInitStatistics();
+        mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
+
         initWithDbSession(sid);
 
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
@@ -779,16 +778,15 @@ Client::InitState Client::init(const char* sid)
         {
             wipeDb(sid);
         }
+        if (mInitStatistics)
+        {
+            mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
+            mInitStatistics->setInitState(mInitState);
+        }
     }
     else
     {
         setInitState(kInitWaitingNewSession);
-    }
-
-    if (mInitStatistics)
-    {
-        mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
-        mInitStatistics->setInitState(mInitState);
     }
 
     api.sdk.addRequestListener(this);
@@ -802,14 +800,14 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     {
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
-            if (mInitStatistics && !mInitStatistics->statsFinished)
+            if (mInitStatistics)
             {
                 mInitStatistics->stageStartTime(InitStatistics::kStatsLogin);
             }
         }
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
-            if (mInitStatistics && !mInitStatistics->statsFinished)
+            if (mInitStatistics)
             {
                 mInitStatistics->stageStartTime(InitStatistics::kStatsFetchNodes);
             }
@@ -831,7 +829,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGIN:
     {
-        if (mInitStatistics && !mInitStatistics->statsFinished)
+        if (mInitStatistics)
         {
             mInitStatistics->stageEndTime(InitStatistics::kStatsLogin);
         }
@@ -871,7 +869,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
-        if (mInitStatistics && !mInitStatistics->statsFinished)
+        if (mInitStatistics)
         {
             mInitStatistics->stageEndTime(InitStatistics::kStatsFetchNodes);
             mInitStatistics->stageStartTime(InitStatistics::kStatsPostFetchNodes);
@@ -1075,7 +1073,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
-    if (mInitStatistics && !mInitStatistics->statsFinished)
+    if (mInitStatistics)
     {
         mInitStatistics->stageEndTime(InitStatistics::kStatsPostFetchNodes);
     }
@@ -3744,7 +3742,6 @@ InitStatistics::InitStatistics()
     numNodes = 0;
     numChats = 0;
     numContacts = 0;
-    statsFinished = false;
     initState = kInitInvalidSession;
 }
 
@@ -3980,22 +3977,7 @@ void InitStatistics::setInitState(Client::InitState state)
         case  Client::kInitHasOfflineSession:
             initState = kInitSession;
             break;
-
-        case  Client::kInitWaitingNewSession:
-            initState = kInitInvalidSession;
-            statsFinished = true;
-            break;
     }
-}
-
-bool InitStatistics::initStatsFinished()
-{
-    return statsFinished;
-}
-
-void InitStatistics::setStatsFinished()
-{
-    statsFinished = true;
 }
 
 std::string InitStatistics::generateInitStatistics()

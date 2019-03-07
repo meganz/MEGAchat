@@ -1036,8 +1036,6 @@ class InitStatistics
         /** @brief Total elapsed time to finish all stages */
         mega::dstime totalElapsed;
 
-        bool statsFinished;
-
         /** @brief Maps stage to statistics */
         std::map<uint8_t, StageStats> stageStatsMap;
 
@@ -1050,9 +1048,7 @@ class InitStatistics
         void createStageStats(uint8_t stage);
         void stageStartTime(uint8_t stage);
         void stageEndTime(uint8_t stage);
-        void setStatsFinished();
         void setInitState(Client::InitState state);
-        bool initStatsFinished();
 
         /** @brief ShardStats methods */
         void createShardStats(uint8_t stage, uint8_t shard);
