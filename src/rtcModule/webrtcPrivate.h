@@ -283,6 +283,7 @@ public:
     virtual ICallHandler *findCallHandler(karere::Id chatid);
     virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
+    virtual void abortCallRetry(karere::Id chatid);
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);

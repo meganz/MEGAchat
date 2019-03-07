@@ -341,7 +341,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    //Compatibility
+    //Compatibility && reconnection
     if (state == Call::CallDataState::kCallDataRinging || state == Call::CallDataState::kCallDataSessionKeepRinging
             || (state == Call::CallDataState::kCallDataRestartCall && mRetryCall.find(chatid) != mRetryCall.end()))
     {
@@ -594,6 +594,10 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
 
     mRetryCall[chatid] = av;
 
+    auto itHandler = mCallHandlers.find(chatid);
+    assert(itHandler != mCallHandlers.end());
+    itHandler->second->onReconnectingState();
+
     if (starter)
     {
         auto wptr = weakHandle();
@@ -603,9 +607,9 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                 return;
 
             auto it = mRetryCall.find(chatid);
-            karere::AvFlags flags = mRetryCall[chatid];
             if (it != mRetryCall.end())
             {
+                karere::AvFlags flags = mRetryCall[chatid];
                 auto itHandler = mCallHandlers.find(chatid);
                 if (itHandler == mCallHandlers.end())
                     return;
@@ -639,7 +643,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
         auto wptr = weakHandle();
         setTimeout([this, wptr, chatid]()
         {
-            if (wptr.deleted())
+            if (wptr.deleted() || mRetryCall.find(chatid) == mRetryCall.end())
                 return;
 
             auto itHandler = mCallHandlers.find(chatid);
@@ -928,6 +932,12 @@ std::vector<Id> RtcModule::chatsWithCall() const
     }
 
     return chats;
+}
+
+void RtcModule::abortCallRetry(Id chatid)
+{
+    mRetryCall.erase(chatid);
+    removeCallWithoutParticipants(chatid);
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)
@@ -1726,7 +1736,7 @@ bool Call::callReqReconnection()
     }
     assert(mState == Call::kStateHasLocalStream);
 
-    mIsRingingOut = true;
+    mIsRingingOut = false;
     if (!sendCallData(CallDataState::kCallDataRestartCall))
     {
         return false;

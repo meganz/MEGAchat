@@ -220,6 +220,8 @@ public:
     virtual int64_t getInitialTimeStamp() = 0;
 
     virtual bool hasBeenNotifiedRinging() const = 0;
+
+    virtual void onReconnectingState() = 0;
 };
 class IGlobalHandler
 {
@@ -423,6 +425,7 @@ public:
     virtual ICallHandler* findCallHandler(karere::Id chatid) = 0;
     virtual int numCalls() const = 0;
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
+    virtual void abortCallRetry(karere::Id chatid) = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);
