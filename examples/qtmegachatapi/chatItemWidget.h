@@ -18,11 +18,11 @@ class ChatItemWidget : public QWidget
         void unshowAsHidden();
         void showAsHidden();
         void contextMenuEvent(QContextMenuEvent *event);
-        void setChatHandle(const megachat::MegaChatHandle &mChatId);
         megachat::MegaChatHandle getChatId() const;
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
         virtual void onUnreadCountChanged(int count);
+        virtual void onPreviewersCountChanged(int count);
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author);
         virtual void onlineIndicatorUpdate(int newState);
@@ -36,14 +36,23 @@ class ChatItemWidget : public QWidget
         ::megachat::MegaChatApi *mMegaChatApi;
         ::mega::MegaApi *mMegaApi;
         QListWidgetItem *mListWidgetItem;
+
+    protected:
         MainWindow *mMainWin;
         std::string mLastMsgAuthor;
 
     protected slots:
         void leaveGroupChat();
         void setTitle();
+        void onPrintChatInfo();
         void truncateChat();
+        void queryChatLink();
+        void createChatLink();
+        void setPublicChatToPrivate();
+        void closeChatPreview();
+        void removeChatLink();
         void archiveChat(bool checked);
+        void autojoinChatLink();
 
     friend class MainWindow;
     friend class ContactItemWidget;

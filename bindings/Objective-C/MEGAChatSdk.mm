@@ -73,6 +73,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->init((sid != nil) ? [sid UTF8String] : NULL);
 }
 
+- (MEGAChatInit)initAnonymous {
+    return (MEGAChatInit) self.megaChatApi->initAnonymous();
+}
+
 - (MEGAChatInit)initState {
     return (MEGAChatInit) self.megaChatApi->getInitState();
 }
@@ -556,12 +560,60 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->createChat(group, peers ? [peers getCPtr] : NULL);
 }
 
+- (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->createChat(group, peers ? [peers getCPtr] : NULL, title ? [title UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(NSString *)title {
+    self.megaChatApi->createChat(group, peers ? [peers getCPtr] : NULL, title ? [title UTF8String] : NULL);
+}
+
+- (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->createPublicChat(peers ? [peers getCPtr] : NULL, title ? [title UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title {
+    self.megaChatApi->createPublicChat(peers ? [peers getCPtr] : NULL, title ? [title UTF8String] : NULL);
+}
+
+- (void)queryChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->queryChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)queryChatLink:(uint64_t)chatId {
+    self.megaChatApi->queryChatLink(chatId);
+}
+
+- (void)createChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->createChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)createChatLink:(uint64_t)chatId {
+    self.megaChatApi->createChatLink(chatId);
+}
+
 - (void)inviteToChat:(uint64_t)chatId user:(uint64_t)userHandle privilege:(NSInteger)privilege delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->inviteToChat(chatId, userHandle, (int)privilege, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)inviteToChat:(uint64_t)chatId user:(uint64_t)userHandle privilege:(NSInteger)privilege {
     self.megaChatApi->inviteToChat(chatId, userHandle, (int)privilege);
+}
+
+- (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->autojoinPublicChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)autojoinPublicChat:(uint64_t)chatId {
+    self.megaChatApi->autojoinPublicChat(chatId);
+}
+
+- (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->autorejoinPublicChat(chatId, publicHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle {
+    self.megaChatApi->autorejoinPublicChat(chatId, publicHandle);
 }
 
 - (void)removeFromChat:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -612,6 +664,38 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->setChatTitle(chatId, title ? [title UTF8String] : NULL);
 }
 
+- (void)openChatPreview:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->openChatPreview(link ? [link.absoluteString UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)openChatPreview:(NSURL *)link {
+    self.megaChatApi->openChatPreview(link ? [link.absoluteString UTF8String] : NULL);
+}
+
+- (void)checkChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->checkChatLink(link ? [link.absoluteString UTF8String] : NULL, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)checkChatLink:(NSURL *)link {
+    self.megaChatApi->checkChatLink(link ? [link.absoluteString UTF8String] : NULL);
+}
+
+- (void)setPublicChatToPrivate:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->setPublicChatToPrivate(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setPublicChatToPrivate:(uint64_t)chatId {
+    self.megaChatApi->setPublicChatToPrivate(chatId);
+}
+
+-(void)removeChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->removeChatLink(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+-(void)removeChatLink:(uint64_t)chatId {
+    self.megaChatApi->removeChatLink(chatId);
+}
+
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate {
     self.megaChatApi->archiveChat(chatId, archive, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
@@ -632,6 +716,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
             break;
         }
     }
+}
+
+- (void)closeChatPreview:(uint64_t)chatId {
+    self.megaChatApi->closeChatPreview(chatId);
 }
 
 - (MEGAChatSource)loadMessagesForChat:(uint64_t)chatId count:(NSInteger)count {

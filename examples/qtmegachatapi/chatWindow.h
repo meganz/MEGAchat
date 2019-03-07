@@ -55,6 +55,9 @@ class ChatWindow : public QDialog,
         void deleteChatMessage(megachat::MegaChatMessage *msg);
         void createMembersMenu(QMenu& menu);
         void createSettingsMenu(QMenu& menu);
+        void updatePreviewers(unsigned int numPrev);
+        void enableWindowControls(bool enable);
+        void previewUpdate(MegaChatRoom *auxRoom = NULL);
         void createAttachMenu(QMenu& menu);
         void truncateChatUI();
         void connectPeerCallGui(MegaChatHandle peerid, MegaChatHandle clientid);
@@ -68,7 +71,9 @@ class ChatWindow : public QDialog,
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
-        void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* e);
+        void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
+        void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
+        bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
 
@@ -86,12 +91,12 @@ class ChatWindow : public QDialog,
         megachat::MegaChatApi *mMegaChatApi;
         ::mega::MegaApi *mMegaApi;
         megachat::MegaChatRoom *mChatRoom;
-        ChatItemWidget *mChatItemWidget;
         MegaLoggerApplication *mLogger;
         megachat::QTMegaChatRoomListener *megaChatRoomListenerDelegate;
         ::mega::QTMegaTransferListener *megaTransferListenerDelegate;
         std::map<megachat::MegaChatHandle, ChatMessage *> mMsgsWidgetsMap;
         std::string mChatTitle;
+        bool mPreview;
         int nSending;
         int loadedMessages;
         int nManualSending;
@@ -104,7 +109,7 @@ class ChatWindow : public QDialog,
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
 
-    private slots:
+    protected slots:
         void onMsgListRequestHistory();
         void onMemberSetPriv();
         void onMemberRemove();
@@ -112,12 +117,21 @@ class ChatWindow : public QDialog,
         void onMemberAdd();
         void onTruncateChat();
         void onMembersBtn(bool);
+        void onLeaveGroupChat();
+        void onChangeTitle();
+        void onQueryChatLink();
+        void onCreateChatLink();
+        void onRemoveChatLink();
+        void onSetPublicChatToPrivate();
+        void onUnarchiveChat();
+        void onArchiveChat();
         void onShowAttachments(bool active);
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
+        void on_mSettingsBtn_clicked();
         void onAttachNode(bool isVoiceClip);
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -128,8 +142,8 @@ class ChatWindow : public QDialog,
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
+        void onAutojoinChatLink();
 #endif
-        void on_mSettingsBtn_clicked();
 
     friend class CallGui;
     friend class ChatMessage;

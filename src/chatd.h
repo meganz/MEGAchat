@@ -222,6 +222,10 @@ public:
     /** @brief We have been excluded from this chatroom */
     virtual void onExcludedFromChat() {}
 
+    /** Chat mode has changed
+     */
+    virtual void onChatModeChanged(bool /*mode*/) {}
+
     /** @brief We have rejoined the room
      */
     virtual void onRejoinedChat() {}
@@ -302,6 +306,11 @@ public:
      * @brief Called when a chat is going to reload its history after the server rejects JOINRANGEHIST
      */
     virtual void onHistoryReloaded(){}
+
+    /**
+     * @brief Called when the number of previewers in a public chat has changed
+     */
+    virtual void onPreviewersUpdate(){}
 };
 
 class FilteredHistoryHandler
@@ -737,13 +746,13 @@ protected:
     Idx mLastReceivedIdx = CHATD_IDX_INVALID;
     karere::Id mLastSeenId;
     Idx mLastSeenIdx = CHATD_IDX_INVALID;
+    Idx mLastSeenInFlightIdx = CHATD_IDX_INVALID;
     Idx mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     karere::Id mLastIdReceivedFromServer;
     Listener* mListener;
     ChatState mOnlineState = kChatStateOffline;
     Priv mOwnPrivilege = PRIV_INVALID;
     karere::SetOfIds mUsers;
-    karere::SetOfIds mUserDump; ///< The initial dump of JOINs goes here, then after join is complete, mUsers is set to this in one step
     /// db-supplied initial range, that we use until we see the message with mOldestKnownMsgId
     /// Before that happens, missing messages are supposed to be in the database and
     /// incrementally fetched from there as needed. After we see the mOldestKnownMsgId,
@@ -803,6 +812,7 @@ protected:
     uint32_t mLastMsgTs;
     bool mIsGroup;
     std::set<karere::Id> mMsgsToUpdateWithRichLink;
+    uint32_t mNumPreviewers = 0;
     /** Indicates the type of fetchs in-flight */
     std::queue <FetchType> mFetchRequest;
     /** Num of node-attachment messages requested to server */
@@ -836,6 +846,7 @@ protected:
     bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(karere::Id userid, Priv priv);
     void onUserLeave(karere::Id userid);
+    void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void loadAndProcessUnsent();
     void initialFetchHistory(karere::Id serverNewest);
@@ -853,7 +864,10 @@ protected:
     karere::Id makeRandomId();
     void login();
     void join();
+    void handlejoin();
+    void handleleave();
     void joinRangeHist(const ChatDbInfo& dbInfo);
+    void handlejoinRangeHist(const ChatDbInfo& dbInfo);
     void onDisconnect();
     void onHistDone(); //called upont receipt of HISTDONE from server
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
@@ -899,7 +913,7 @@ public:
     bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
     bool isDisabled() const { return mIsDisabled; }
     bool isFirstJoin() const { return mIsFirstJoin; }
-    void disable(bool state) { mIsDisabled = state; }
+    void disable(bool state);
     /** The index of the oldest decrypted message in the RAM history buffer.
      * This will be greater than lownum() if there are not-yet-decrypted messages
      * at the start of the buffer, i.e. when more history has been fetched, but
@@ -923,7 +937,7 @@ public:
       * connect(), after which it initiates or uses an existing connection to
       * chatd
       */
-    void connect();
+    void connect(const char *url = NULL);
 
     /** @brief The online state of the chatroom */
     ChatState onlineState() const { return mOnlineState; }
@@ -1258,8 +1272,14 @@ public:
     Idx lastIdxReceivedFromServer() const;
     karere::Id lastIdReceivedFromServer() const;
     bool isGroup() const;
+    bool isPublic() const;
+    uint32_t getNumPreviewers() const;
     void clearHistory();
     void sendSync();
+    void setPublicHandle(uint64_t ph);
+    uint64_t getPublicHandle() const;
+    bool previewMode();
+    void rejoin();
 
     /** Fetch \c count node-attachment messages from server, starting at \c oldestMsgid */
     void requestNodeHistoryFromServer(karere::Id oldestMsgid, uint32_t count);
@@ -1281,6 +1301,7 @@ protected:
     void continueEncryptNextPending();
     void onMsgUpdated(Message* msg);
     void onJoinRejected();
+    void onHandleJoinRejected();
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void onKeyReject();
     void onHistReject();
@@ -1372,6 +1393,7 @@ public:
     const karere::Id myHandle() const;
     std::shared_ptr<Chat> chatFromId(karere::Id chatid) const;
     Chat& chats(karere::Id chatid) const;
+    karere::Id chatidFromPh(karere::Id ph);
     uint8_t richLinkState() const;
     bool areAllChatsLoggedIn(int shard = -1);
 
@@ -1501,7 +1523,7 @@ public:
 
     //  <<<--- Management of the FILTERED HISTORY --->>>
 
-    virtual void addMsgToNodeHistory(const Message& msg, Idx idx) = 0;
+    virtual void addMsgToNodeHistory(const Message &msg, Idx &idx) = 0;
     virtual void deleteMsgFromNodeHistory(const Message& msg) = 0;
     virtual void truncateNodeHistory(karere::Id id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
@@ -1516,6 +1538,10 @@ public:
     virtual void setLastSeen(karere::Id msgid) = 0;
     virtual void setLastReceived(karere::Id msgid) = 0;
 
+    virtual void setChatVar (const char *name, bool value) = 0;
+    virtual bool chatVar (const char *name) = 0;
+    virtual bool removeChatVar (const char *name) = 0;
+
     virtual Idx getOldestIdx() = 0;
     virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
@@ -1523,8 +1549,6 @@ public:
     virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
 
     virtual void setHaveAllHistory(bool haveAllHistory) = 0;
-    virtual bool haveAllHistory() = 0;
-
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
 

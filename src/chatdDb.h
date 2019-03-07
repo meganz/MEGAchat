@@ -362,6 +362,7 @@ public:
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
     }
+
     virtual void setHaveAllHistory(bool haveAllHistory)
     {
         mDb.query(
@@ -376,6 +377,7 @@ public:
         stmt << mChat.chatId();
         return stmt.step();
     }
+
     virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
     {
         SqliteStmt stmt(mDb,
@@ -397,18 +399,52 @@ public:
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
     }
 
+    //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
+    virtual void setChatVar(const char *name, bool value)
+    {
+        mDb.query(
+            "insert or replace into chat_vars(chatid, name, value) "
+            "values(?, ?, ?)", mChat.chatId(), name, value ? 1 : 0);
+        assertAffectedRowCount(1);
+    }
+
+    //Returns if chat var related to a chat exists
+    virtual bool chatVar(const char *name)
+    {
+        SqliteStmt stmt(mDb,
+            "select value from chat_vars where chatid=? and name=? and value='1'");
+        stmt << mChat.chatId()
+             << name;
+        return stmt.step();
+    }
+
+    //Remove a chat var related to a chat
+    virtual bool removeChatVar(const char *name)
+    {
+        SqliteStmt stmt(mDb,
+            "delete from chat_vars where chatid = ? and name = ?");
+        stmt << mChat.chatId()
+             << name;
+        return stmt.step();
+    }
+
     virtual void clearHistory()
     {
         mDb.query("delete from history where chatid = ?", mChat.chatId());
         setHaveAllHistory(false);
     }
 
-    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx idx)
+    virtual void addMsgToNodeHistory(const chatd::Message& msg, chatd::Idx &idx)
     {
-        if (getIdxOfMsgid(msg.id(), "node_history") == CHATD_IDX_INVALID)
+        chatd::Idx idxOnDb = getIdxOfMsgid(msg.id(), "node_history");
+        if (idxOnDb == CHATD_IDX_INVALID)
         {
             addMessage(msg, idx, "node_history");
             assertAffectedRowCount(1, "addMsgToNodeHistory");
+        }
+        else
+        {
+            idx = idxOnDb;
         }
     }
 

@@ -16,7 +16,7 @@ public:
     void onHistoryReloaded(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
     
 private:
-    MEGAChatSdk *megaChatSDK;
+    __weak MEGAChatSdk *megaChatSDK;
     id<MEGAChatRoomDelegate>listener;
     bool singleListener;
 };

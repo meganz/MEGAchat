@@ -11,7 +11,7 @@ public:
     void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
     
 private:
-    MEGAChatSdk *megaChatSdk;
+    __weak MEGAChatSdk *megaChatSdk;
     id<MEGAChatCallDelegate>listener;
     bool singleListener;
 };

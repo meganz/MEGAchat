@@ -12,6 +12,7 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
 #ifndef KARERE_DISABLE_WEBRTC
     mCallGui = NULL;
 #endif
+    mPreview = false;
     loadedMessages = 0;
     loadedAttachments = 0;
     mScrollToBottomAttachments = true;
@@ -45,6 +46,20 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
         ui->mVideoCallBtn->hide();
     #endif
 
+    if (mChatRoom->isPublic())
+    {
+        updatePreviewers(mChatRoom->getNumPreviewers());
+        if(mChatRoom->isPreview())
+        {
+            mPreview = true;
+            this->ui->mTitlebar->setStyleSheet("background-color:#ffe4af");
+        }
+        else
+        {
+            this->ui->mTitlebar->setStyleSheet("background-color:#c4f2c9");
+        }
+    }
+
     if (!mChatRoom->isGroup())
         ui->mMembersBtn->hide();
     else
@@ -60,10 +75,7 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
 
     if (!mChatRoom->isActive())
     {
-        ui->mMessageEdit->setEnabled(false);
-        ui->mMessageEdit->blockSignals(true);
-        ui->mMsgSendBtn->setEnabled(false);
-        ui->mMembersBtn->hide();
+        enableWindowControls(false);
     }
 
     QDialog::show();
@@ -97,6 +109,16 @@ void ChatWindow::setChatTittle(const char *title)
     .append(" [")
     .append(mChatRoom->privToString(mChatRoom->getOwnPrivilege()))
     .append("]");
+
+    if(mChatRoom->isPreview())
+    {
+        chatTitle.append("        <PREVIEW>");
+    }
+
+    if(mChatRoom->isArchived())
+    {
+        chatTitle.append("        <AR>");
+    }
     ui->mTitleLabel->setText(chatTitle);
 }
 
@@ -111,6 +133,8 @@ void ChatWindow::openChatRoom()
 
 ChatWindow::~ChatWindow()
 {
+    delete mFrameAttachments;
+
     ChatListItemController *itemController = mMainWin->getChatControllerById(mChatRoom->getChatId());
     if(itemController)
     {
@@ -158,31 +182,89 @@ void ChatWindow::moveManualSendingToSending(megachat::MegaChatMessage *msg)
 
 void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoom *chat)
 {
-    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
+    delete mChatRoom;
+    mChatRoom = chat->copy();
+
+    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
     {
-        ui->mMessageEdit->setEnabled(false);
-        ui->mMessageEdit->blockSignals(true);
-        ui->mMsgSendBtn->setEnabled(false);
-        ui->mMembersBtn->hide();
+        if (!mPreview)
+        {
+            enableWindowControls(mChatRoom->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RO);
+            setChatTittle(mChatRoom->getTitle());
+        }
+        else
+        {
+            previewUpdate();
+        }
     }
 
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
+    if ((chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CLOSED))
+        || (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_TITLE))
+        || (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_ARCHIVE)))
     {
-       delete mChatRoom;
-       this->mChatRoom = chat->copy();
-       this->setChatTittle(mChatRoom->getTitle());
+       setChatTittle(mChatRoom->getTitle());
     }
 
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_PARTICIPANTS)
-            || chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_ARCHIVE))
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
+    {
+       ui->mTitlebar->setStyleSheet("background-color:#c1efff");
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
+    {
+       updatePreviewers(chat->getNumPreviewers());
+    }
+}
+
+void ChatWindow::previewUpdate(MegaChatRoom *auxRoom)
+{
+    if (auxRoom)
     {
         delete mChatRoom;
-        this->mChatRoom = chat->copy();
+        mChatRoom = auxRoom;
     }
 
-    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OWN_PRIV))
+    if (mPreview && !mChatRoom->isPreview())
     {
-        setChatTittle(NULL);
+        mPreview = false;
+
+        if (mChatRoom->isPublic())
+        {
+            ui->mTitlebar->setStyleSheet("background-color:#c4f2c9");
+        }
+        else
+        {
+            ui->mTitlebar->setStyleSheet("background-color:#c1efff");
+        }
+    }
+
+    enableWindowControls(!mChatRoom->isPreview());
+    setChatTittle(mChatRoom->getTitle());
+}
+
+void ChatWindow::enableWindowControls(bool enable)
+{
+    ui->mMessageEdit->setEnabled(enable);
+    ui->mMessageEdit->blockSignals(!enable);
+    ui->mMsgSendBtn->setEnabled(enable);
+    enable ?ui->mMembersBtn->show() :ui->mMembersBtn->hide();
+}
+
+void ChatWindow::updatePreviewers(unsigned int numPrev)
+{
+    if (numPrev == 0)
+    {
+        ui->mPreviewers->setToolTip("");
+        ui->mPreviewers->hide();
+    }
+    else
+    {
+        ui->mPreviewers->setText(QString::number(numPrev));
+        ui->mPreviewers->show();
+        QString text = NULL;
+        text.append("Number of previewers: ")
+        .append(std::to_string(numPrev).c_str());
+        ui->mPreviewers->setToolTip(text);
     }
 }
 
@@ -207,7 +289,7 @@ void ChatWindow::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMess
                 megachat::MegaChatMessage *auxMsg = msg->copy();
                 addMsgWidget(auxMsg, loadedMessages);
 
-                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle())
+                if(msg->getUserHandle() != mMegaChatApi->getMyUserHandle() && !mChatRoom->isPreview())
                 {
                     mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
                 }
@@ -543,8 +625,11 @@ QListWidgetItem* ChatWindow::addMsgWidget(megachat::MegaChatMessage *msg, int in
     ui->mMessageList->setItemWidget(item, widget);
     ui->mMessageList->scrollToBottom();
 
-    if (!widget->isMine() && msg->getStatus() == megachat::MegaChatMessage::STATUS_NOT_SEEN)
+    if (!widget->isMine() && msg->getStatus() == megachat::MegaChatMessage::STATUS_NOT_SEEN
+            && !mChatRoom->isPreview())
+    {
         mMegaChatApi->setMessageSeen(mChatRoom->getChatId(), msg->getMsgId());
+    }
 
     return item;
 }
@@ -625,8 +710,14 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         int privilege;
         if(i == mChatRoom->getPeerCount())
         {
+            //If chat is in preview mode our own user is not member
+            if (mChatRoom->isPreview())
+            {
+                continue;
+            }
+
             privilege = mChatRoom->getOwnPrivilege();
-            userhandle = mMegaApi->getMyUserHandle();
+            userhandle = QVariant((qulonglong)mMegaChatApi->getMyUserHandle());
             title.append(" Me [")
                     .append(QString::fromStdString(mChatRoom->statusToString(mMegaChatApi->getOnlineStatus())))
                     .append("]");
@@ -706,15 +797,18 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
 void ChatWindow::createSettingsMenu(QMenu& menu)
 {
+    //Leave
+    auto leave = menu.addAction("Leave chat");
+    connect(leave, SIGNAL(triggered()), this, SLOT(onLeaveGroupChat()));
+
     //Truncate
-    auto truncate = menu.addAction("Truncate history");
+    auto truncate = menu.addAction("Truncate chat");
     connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
 
     //Set topic
     auto title = menu.addAction("Set title");
     connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
 
-    //Archive
     auto actArchive = menu.addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
     actArchive->setCheckable(true);
@@ -728,30 +822,88 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
+    //Create chat link
+    auto createChatLink = clMenu->addAction("Create chat link");
+    connect(createChatLink, SIGNAL(triggered()), this, SLOT(onCreateChatLink()));
+
     //Query chat link
     auto queryChatLink = clMenu->addAction("Query chat link");
     connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
-
-    //Export chat link
-    auto exportChatLink = clMenu->addAction("Export chat link");
-    connect(exportChatLink, SIGNAL(triggered()), this, SLOT(onExportChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
 
     //Remove chat link
     auto removeChatLink = clMenu->addAction("Remove chat link");
     connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
 
     //Auto-join chat link
-    auto joinChatLink = clMenu->addAction("Join chat link");
-    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto autojoinPublicChat = clMenu->addAction("Join chat link");
+    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(onAutojoinChatLink()));
 
-    //Close chat link
-    auto closeChatLink = clMenu->addAction("Close chat link");
-    connect(closeChatLink, SIGNAL(triggered()), this, SLOT(onCloseChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
+    //Set private mode
+    auto setPublicChatToPrivate = clMenu->addAction("Set private mode");
+    connect(setPublicChatToPrivate, SIGNAL(triggered()), this, SLOT(onSetPublicChatToPrivate()));
+}
+
+void ChatWindow::onQueryChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->queryChatLink(mChatRoom->getChatId());
+    }
+}
+
+void ChatWindow::onCreateChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->createChatLink(mChatRoom->getChatId());
+    }
+}
+void ChatWindow::onRemoveChatLink()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->removeChatLink(mChatRoom->getChatId());
+    }
+}
+
+void ChatWindow::onSetPublicChatToPrivate()
+{
+    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->setPublicChatToPrivate(mChatRoom->getChatId());
+    }
+}
+
+void ChatWindow::onUnarchiveChat()
+{
+    mMegaChatApi->archiveChat(mChatRoom->getChatId(), false);
+}
+
+void ChatWindow::onArchiveChat()
+{
+    mMegaChatApi->archiveChat(mChatRoom->getChatId(), true);
+}
+
+
+void ChatWindow::onChangeTitle()
+{
+    std::string title;
+    QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
+    if (!qTitle.isNull())
+    {
+        title = qTitle.toStdString();
+        if (title.empty())
+        {
+            QMessageBox::warning(this, tr("Set chat title"), tr("You can't set an empty title"));
+            return;
+        }
+        this->mMegaChatApi->setChatTitle(mChatRoom->getChatId(), title.c_str());
+    }
+}
+
+void ChatWindow::onLeaveGroupChat()
+{
+    this->mMegaChatApi->leaveChat(mChatRoom->getChatId());
 }
 
 void ChatWindow::onTruncateChat()
@@ -807,7 +959,7 @@ void ChatWindow::onMemberSetPriv()
       QVariant uHandle = action->property("userHandle");
       megachat::MegaChatHandle userhandle = uHandle.toLongLong();
       megachat::MegaChatHandle chatId = mChatRoom->getChatId();
-      this->mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);}
+      mMegaChatApi->updateChatPermissions(chatId, userhandle, privilege);}
 
 void ChatWindow::onMsgListRequestHistory()
 {
@@ -914,9 +1066,21 @@ void ChatWindow::deleteCallGui()
     setChatTittle(mChatRoom->getTitle());
     ui->mTextChatWidget->show();
     ui->mTitlebar->show();
-    ui->mTitlebar->setStyleSheet("background-color: #C1EFFF");
     ui->mTextChatWidget->setStyleSheet("background-color: #FFFFFF");
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
+
+    if (mChatRoom->isPreview())
+    {
+        ui->mTitlebar->setStyleSheet("background-color:#FFE4AF");
+    }
+    else if(mChatRoom->isPublic())
+    {
+        ui->mTitlebar->setStyleSheet("background-color:#C4F2C9");
+    }
+    else
+    {
+        ui->mTitlebar->setStyleSheet("background-color:#C1EFFF");
+    }
 }
 
 void ChatWindow::getCallPos(int index, int &row, int &col)
@@ -1011,6 +1175,15 @@ void ChatWindow::hangCall()
 }
 #endif
 
+void ChatWindow::onAutojoinChatLink()
+{
+    auto ret = QMessageBox::question(this, tr("Join chat link"), tr("Do you want to join to this chat?"));
+    if (ret != QMessageBox::Yes)
+        return;
+
+    this->mMegaChatApi->autojoinPublicChat(this->mChatRoom->getChatId());
+}
+
 void ChatWindow::on_mSettingsBtn_clicked()
 {
     QMenu menu(this);
@@ -1059,6 +1232,9 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     if (node.isEmpty())
        return;
 
+    QStringList nodeParsed = node.split( "/" );
+    QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
+    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
     mUploadDlg = new QMessageBox;
     mUploadDlg->setWindowTitle((tr("Uploading file...")));
     mUploadDlg->setIcon(QMessageBox::Warning);
@@ -1067,8 +1243,6 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     mUploadDlg->setModal(true);
     mUploadDlg->show();
     connect(mUploadDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelTransfer(QAbstractButton*)));
-
-    ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
 
     if (isVoiceClip)
     {
@@ -1151,6 +1325,16 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
             QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
         }
     }
+}
+
+void ChatWindow::onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer)
+{
+
+}
+
+bool ChatWindow::onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size)
+{
+
 }
 
 MegaChatApi *ChatWindow::getMegaChatApi()
