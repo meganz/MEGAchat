@@ -152,6 +152,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         {
             case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
             {
+                window->enableCallReconnect(false);
                 std::set<CallGui *> *setCallGui = window->getCallGui();
 
                 if (setCallGui->size() == 0)
@@ -168,6 +169,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
             case megachat::MegaChatCall::CALL_STATUS_RING_IN:
             {
+                window->enableCallReconnect(false);
                 std::set<CallGui *> *setCallGui = window->getCallGui();
 
                 if (setCallGui->size() == 0)
@@ -178,6 +180,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
+                window->enableCallReconnect(false);
                 std::set<CallGui *> *setOfCallGui = window->getCallGui();
 
                 if (setOfCallGui->size() != 0)
@@ -185,6 +188,17 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
                 }
 
+                break;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
+            {
+                window->hangCall();
+                window->enableCallReconnect(true);
+                break;
+            }
+            default:
+            {
+                window->enableCallReconnect(false);
                 break;
             }
         }

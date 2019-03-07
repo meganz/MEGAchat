@@ -71,6 +71,7 @@ class ChatWindow : public QDialog,
         void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* e);
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
+        void enableCallReconnect(bool enable);
 
 #ifndef KARERE_DISABLE_WEBRTC
         std::set<CallGui *> *getCallGui();
@@ -103,6 +104,7 @@ class ChatWindow : public QDialog,
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
+        QMessageBox *mReconnectingDlg = NULL;
 
     private slots:
         void onMsgListRequestHistory();
@@ -116,6 +118,7 @@ class ChatWindow : public QDialog,
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
+        void on_mCancelReconnection(QAbstractButton *);
         void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
         void onAttachNode(bool isVoiceClip);
