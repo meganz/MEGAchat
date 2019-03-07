@@ -44,13 +44,15 @@ using namespace megachat;
     NSString *changes      = [MEGAChatRoom stringForChangeType:self.changes];
     NSString *active       = self.isActive ? @"YES" : @"NO";
     NSString *group        = self.isGroup ? @"YES" : @"NO";
+    NSString *publicChat   = self.isPublicChat ? @"YES" : @"NO";
+    NSString *preview      = self.preview ? @"YES" : @"NO";
     NSString *base64ChatId = [MEGASdk base64HandleForUserHandle:self.chatId];
 #ifdef DEBUG
-    return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@>",
-            [self class], base64ChatId, self.title, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active];
+    return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@ public chat=%@, preview=%@>",
+            [self class], base64ChatId, self.title, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active, publicChat, preview];
 #else
-    return [NSString stringWithFormat:@"<%@: chatId=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@>",
-            [self class], base64ChatId, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active];
+    return [NSString stringWithFormat:@"<%@: chatId=%@, own privilege=%@, peer count=%lu, group=%@, changes=%@, unread=%ld, user typing=%llu, active=%@, public chat=%@, preview=%@>",
+            [self class], base64ChatId, ownPrivilege, (unsigned long)self.peerCount, group, changes, (long)self.unreadCount, self.userTypingHandle, active, publicChat, preview];
 #endif
 
 }
@@ -69,6 +71,24 @@ using namespace megachat;
 
 - (BOOL)isGroup {
     return self.megaChatRoom ? self.megaChatRoom->isGroup() : NO;
+}
+
+- (BOOL)isPublicChat {
+    return self.megaChatRoom ? self.megaChatRoom->isPublic() : NO;
+}
+
+- (BOOL)isPreview {
+    return self.megaChatRoom ? self.megaChatRoom->isPreview() : NO;
+}
+
+- (NSString *)authorizationToken {
+    const char *val = self.megaChatRoom->getAuthorizationToken();
+    if (!val) return nil;
+    
+    NSString *ret = [[NSString alloc] initWithUTF8String:val];
+    
+    delete [] val;
+    return ret;
 }
 
 - (NSString *)title {
@@ -99,6 +119,10 @@ using namespace megachat;
 
 - (BOOL)isArchived {
     return self.megaChatRoom ? self.megaChatRoom->isArchived() : NO;
+}
+
+- (NSUInteger)previewersCount {
+    return self.megaChatRoom ? self.megaChatRoom->getNumPreviewers() : 0;
 }
 
 - (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {
@@ -200,6 +224,15 @@ using namespace megachat;
             break;
         case MEGAChatRoomChangeTypeArchive:
             result = @"Archived";
+            break;
+        case MEGAChatRoomChangeTypeCall:
+            result = @"Call";
+            break;
+        case MEGAChatRoomChangeTypeChatMode:
+            result = @"Chat mode";
+            break;
+        case MEGAChatRoomChangeTypeUpdatePreviewers:
+            result = @"Update previewers";
             break;
             
         default:

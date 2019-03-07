@@ -357,15 +357,16 @@ bool UserAttrCache::removeCb(Handle h)
 }
 
 UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
-            void* userp, UserAttrReqCbFunc cb, bool oneShot)
+            void* userp, UserAttrReqCbFunc cb, bool oneShot, uint64_t ph)
 {
-    UserAttrPair key(userHandle, type);
+    UserAttrPair key(userHandle, type, ph);
     auto it = find(key);
     if (it != end())
     {
-        auto& item = *it->second;
         if (cb)
-        { // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
+        {
+            auto& item = *it->second;
+            // Maybe not optimal to store each cb pointer, as these pointers would be mostly only a few, with different userp-s
             if (item.pending != kCacheFetchNewPending)
             {
                 // we have something in the cache, call the cb
@@ -397,7 +398,7 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
 
 void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
-    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE))
+    if (!mIsLoggedIn && !(key.attrType & USER_ATTR_FLAG_COMPOSITE) && !mClient.anonymousMode())
         return;
     switch (key.attrType)
     {
@@ -418,8 +419,13 @@ void UserAttrCache::fetchAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheIte
 void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item)
 {
     auto wptr = weakHandle();
-    mClient.api.call(&::mega::MegaApi::getUserAttribute,
-        key.user.toString().c_str(), (int)key.attrType)
+
+    // We need to create an aux var to store ph in heap instead of stack in order to avoid stack-use-after-scope
+    std::string auxPh = key.mPh.toString(Id::CHATLINKHANDLE);
+    const char *ph = key.mPh.isValid() ? auxPh.c_str() : NULL;
+
+    mClient.api.call(&::mega::MegaApi::getChatUserAttribute,
+        key.user.toString().c_str(), (int)key.attrType, ph)
     .then([wptr, this, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();
@@ -571,8 +577,8 @@ void UserAttrCache::onLogOut()
     mIsLoggedIn = false;
 }
 
-::promise::Promise<Buffer*>
-UserAttrCache::getAttr(uint64_t user, unsigned attrType)
+promise::Promise<Buffer*>
+UserAttrCache::getAttr(uint64_t user, unsigned attrType, uint64_t ph)
 {
     auto pms = new Promise<Buffer*>;
     auto ret = *pms;
@@ -584,7 +590,7 @@ UserAttrCache::getAttr(uint64_t user, unsigned attrType)
         else
             p->reject("User attribute fetch failed");
         delete p;
-    }, true);
+    }, true, ph);
     return ret;
 }
 
