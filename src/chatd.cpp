@@ -575,7 +575,7 @@ void Connection::setState(State state)
         mState = state;
     }
 
-    std::shared_ptr<InitStatistics> initStats = mChatdClient.mKarereClient->initStatistics();
+    std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
     if (initStats)
     {
        initStats->handleShardStats(oldState, state, shardNo());
@@ -782,6 +782,12 @@ Promise<void> Connection::reconnect()
 
                     if (statusDNS < 0)
                     {
+                        std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
+                        if (initStats)
+                        {
+                            initStats->incrementRetries(MegaChatStatistics::kStatsQueryDns, shardNo());
+                        }
+
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
                     }
                     else
@@ -4697,21 +4703,21 @@ void Chat::setOnlineState(ChatState state)
     {
         if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            std::shared_ptr<InitStatistics> initStats = mChatdClient.mKarereClient->initStatistics();
+            std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
             if (initStats)
             {
-                initStats->shardEndTime(InitStatistics::kStatsLoginChatd, connection().shardNo());
+                initStats->shardEnd(MegaChatStatistics::kStatsLoginChatd, connection().shardNo());
                 initStats = nullptr;
             }
         }
 
         if (mChatdClient.areAllChatsLoggedIn())
         {
-            std::shared_ptr<InitStatistics> initStats = mChatdClient.mKarereClient->initStatistics();
+            std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
             if (initStats)
             {
                 // Set global statistics as finished and generate JSON
-                CHATD_LOG_DEBUG("MEGAchat init stats: %s", initStats->generateInitStatistics().c_str());
+                CHATD_LOG_DEBUG("MEGAchat init stats: %s", initStats->statisticsToString().c_str());
                 initStats = nullptr;
                 mChatdClient.mKarereClient->clearStatistics();
             }

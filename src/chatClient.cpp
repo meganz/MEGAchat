@@ -767,9 +767,9 @@ Client::InitState Client::init(const char* sid)
 
     if (sid)
     {
-        mInitStatistics = std::make_shared<InitStatistics>();
-        mInitStatistics->resetInitStatistics();
-        mInitStatistics->stageStartTime(InitStatistics::kStatsInit);
+        mStatistics = std::make_shared<MegaChatStatistics>();
+        mStatistics->reset();
+        mStatistics->stageStart(MegaChatStatistics::kStatsInit);
 
         initWithDbSession(sid);
 
@@ -778,10 +778,10 @@ Client::InitState Client::init(const char* sid)
         {
             wipeDb(sid);
         }
-        if (mInitStatistics)
+        if (mStatistics)
         {
-            mInitStatistics->stageEndTime(InitStatistics::kStatsInit);
-            mInitStatistics->setInitState(mInitState);
+            mStatistics->stageEnd(MegaChatStatistics::kStatsInit);
+            mStatistics->setInitState(mInitState);
         }
     }
     else
@@ -800,16 +800,16 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     {
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
-            if (mInitStatistics)
+            if (mStatistics)
             {
-                mInitStatistics->stageStartTime(InitStatistics::kStatsLogin);
+                mStatistics->stageStart(MegaChatStatistics::kStatsLogin);
             }
         }
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
-            if (mInitStatistics)
+            if (mStatistics)
             {
-                mInitStatistics->stageStartTime(InitStatistics::kStatsFetchNodes);
+                mStatistics->stageStart(MegaChatStatistics::kStatsFetchNodes);
             }
         }
     }
@@ -829,9 +829,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGIN:
     {
-        if (mInitStatistics)
+        if (mStatistics)
         {
-            mInitStatistics->stageEndTime(InitStatistics::kStatsLogin);
+            mStatistics->stageEnd(MegaChatStatistics::kStatsLogin);
         }
         break;
     }
@@ -869,10 +869,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
-        if (mInitStatistics)
+        if (mStatistics)
         {
-            mInitStatistics->stageEndTime(InitStatistics::kStatsFetchNodes);
-            mInitStatistics->stageStartTime(InitStatistics::kStatsPostFetchNodes);
+            mStatistics->stageEnd(MegaChatStatistics::kStatsFetchNodes);
+            mStatistics->stageStart(MegaChatStatistics::kStatsPostFetchNodes);
         }
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
@@ -1073,9 +1073,9 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
-    if (mInitStatistics)
+    if (mStatistics)
     {
-        mInitStatistics->stageEndTime(InitStatistics::kStatsPostFetchNodes);
+        mStatistics->stageEnd(MegaChatStatistics::kStatsPostFetchNodes);
     }
 
     if (anonymousMode())
@@ -1184,15 +1184,15 @@ void Client::setConnState(ConnState newState)
 
 void Client::clearStatistics()
 {
-    if (mInitStatistics)
+    if (mStatistics)
     {
-        mInitStatistics.reset();
+        mStatistics.reset();
     }
 }
 
-std::shared_ptr<InitStatistics> Client::initStatistics()
+std::shared_ptr<MegaChatStatistics> Client::megachatStatistics()
 {
-    return mInitStatistics;
+    return mStatistics;
 }
 
 karere::Id Client::getMyHandleFromSdk()
@@ -3737,80 +3737,81 @@ std::string encodeFirstName(const std::string& first)
     return result;
 }
 
-InitStatistics::InitStatistics()
+MegaChatStatistics::MegaChatStatistics()
 {
-    numNodes = 0;
-    numChats = 0;
-    numContacts = 0;
-    initState = kInitInvalidSession;
+    mNumNodes = 0;
+    mNumChats = 0;
+    mNumContacts = 0;
+    mInitState = kInitInvalidSession;
+    KR_LOG_INFO("MEGAchat initialization statistics created");
 }
 
-InitStatistics::~InitStatistics()
+MegaChatStatistics::~MegaChatStatistics()
 {
-    if (stageStatsMap.size())
+    if (mStageStats.size())
     {
-        stageStatsMap.clear();
+        mStageStats.clear();
     }
 
     KR_LOG_INFO("MEGAchat initialization statistics destroyed");
 }
 
-mega::dstime InitStatistics::currentTime()
+mega::dstime MegaChatStatistics::currentTime()
 {
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 
-void InitStatistics::resetInitStatistics()
+void MegaChatStatistics::reset()
 {
-    numNodes = 0;
-    numChats = 0;
-    numContacts = 0;
-    totalElapsed = 0;
-    initState = kInitInvalidSession;
+    mNumNodes = 0;
+    mNumChats = 0;
+    mNumContacts = 0;
+    mTotalElapsed = 0;
+    mInitState = kInitInvalidSession;
 
-    if (stageStatsMap.size())
+    if (mStageStats.size())
     {
-        stageStatsMap.clear();
+        mStageStats.clear();
     }
 
-    createStageStats(kStatsInit);
-    createStageStats(kStatsLogin);
-    createStageStats(kStatsFetchNodes);
-    createStageStats(kStatsPostFetchNodes);
-    createStageStats(kStatsGetChatUrl);
-    createStageStats(kStatsQueryDns);
-    createStageStats(kStatsConnect);
-    createStageStats(kStatsLoginChatd);
+    addStage(kStatsInit);
+    addStage(kStatsLogin);
+    addStage(kStatsFetchNodes);
+    addStage(kStatsPostFetchNodes);
+    addStage(kStatsFetchChatUrl);
+    addStage(kStatsQueryDns);
+    addStage(kStatsConnect);
+    addStage(kStatsLoginChatd);
 }
 
-void InitStatistics::createShardStats(uint8_t stage, uint8_t shard)
+void MegaChatStatistics::addShard(uint8_t stage, uint8_t shard)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        if (!getShardStats(stage, shard))
+        if (!getShard(stage, shard))
         {
-            StageStats & stagestats = it->second;
-            stagestats.shardStatsMap.insert(std::pair<uint8_t, ShardStats>(shard, ShardStats()));
+            Stage & stagestats = it->second;
+            stagestats.mShardStats.insert(std::pair<uint8_t, Shard>(shard, Shard()));
         }
     }
 }
 
-InitStatistics::ShardStats *InitStatistics::getShardStats(uint8_t stage, uint8_t shard)
+MegaChatStatistics::Shard *MegaChatStatistics::getShard(uint8_t stage, uint8_t shard)
 {
-    InitStatistics::ShardStats *stats = NULL;
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    MegaChatStatistics::Shard *stats = NULL;
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        StageStats & stagestats = it->second;
-        std::map<uint8_t, ShardStats>::iterator auxit;
-        auxit = stagestats.shardStatsMap.find(shard);
+        Stage & stagestats = it->second;
+        std::map<uint8_t, Shard>::iterator auxit;
+        auxit = stagestats.mShardStats.find(shard);
 
-        if (auxit != stagestats.shardStatsMap.end())
+        if (auxit != stagestats.mShardStats.end())
         {
             stats = &(auxit->second);
         }
@@ -3819,168 +3820,161 @@ InitStatistics::ShardStats *InitStatistics::getShardStats(uint8_t stage, uint8_t
     return stats;
 }
 
-void InitStatistics::shardStartTime(uint8_t stage, uint8_t shard)
+void MegaChatStatistics::shardStart(uint8_t stage, uint8_t shard)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        ShardStats *shardStats = getShardStats(stage, shard);
+        Shard *shardStats = getShard(stage, shard);
         if (shardStats)
         {
-            shardStats->currentElapsed = currentTime();
+            shardStats->mCurrentElapsed = currentTime();
         }
     }
 }
 
-void InitStatistics::shardEndTime(uint8_t stage, uint8_t shard)
+void MegaChatStatistics::shardEnd(uint8_t stage, uint8_t shard)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        ShardStats *shardStats = getShardStats(stage, shard);
+        Shard *shardStats = getShard(stage, shard);
 
         //This prevents to capture a new end ts if a start ts has not been captured
-        if (shardStats->currentElapsed == 0)
+        if (shardStats->mCurrentElapsed == 0)
         {
             return;
         }
 
         if (shardStats)
         {
-            shardStats->currentElapsed = currentTime() - shardStats->currentElapsed;
-            shardStats->lastElapsed = shardStats->currentElapsed;
-            shardStats->currentElapsed = 0;
+            shardStats->mCurrentElapsed = currentTime() - shardStats->mCurrentElapsed;
+            shardStats->mlastElapsed = shardStats->mCurrentElapsed;
+            shardStats->mCurrentElapsed = 0;
         }
     }
 }
 
-void InitStatistics::incrementShardRetries(uint8_t stage, uint8_t shard)
+void MegaChatStatistics::incrementRetries(uint8_t stage, uint8_t shard)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        ShardStats *shardStats = getShardStats(stage, shard);
+        Shard *shardStats = getShard(stage, shard);
         if (shardStats)
         {
-            shardStats->retries++;
+            shardStats->mRetries++;
         }
     }
 }
 
-void InitStatistics::handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard)
+void MegaChatStatistics::handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard)
 {
     switch (newState)
     {
         case chatd::Connection::State::kStateFetchingUrl :
             //GET start ts for GetChatURL
-            createShardStats(InitStatistics::kStatsGetChatUrl, shard);
-            shardStartTime(InitStatistics::kStatsGetChatUrl, shard);
-
-            //Increments GetChatURL retries
-            if (oldState == chatd::Connection::State::kStateDisconnected)
-            {
-                incrementShardRetries(InitStatistics::kStatsGetChatUrl, shard);
-            }
+            addShard(MegaChatStatistics::kStatsFetchChatUrl, shard);
+            shardStart(MegaChatStatistics::kStatsFetchChatUrl, shard);
             break;
 
         case chatd::Connection::State::kStateResolving :
             //GET end ts for GetChatURL
-            shardEndTime(InitStatistics::kStatsGetChatUrl, shard);
+            shardEnd(MegaChatStatistics::kStatsFetchChatUrl, shard);
 
             //GET start ts for QueryDns
-            createShardStats(InitStatistics::kStatsQueryDns, shard);
-            shardStartTime(InitStatistics::kStatsQueryDns, shard);
-
-            /* TODO every iteration has two transitions between kStateDisconnected and kStateResolving.
-               We must adjust the final retries value to the half */
-            if (oldState == chatd::Connection::State::kStateDisconnected)
-            {
-                incrementShardRetries(InitStatistics::kStatsQueryDns, shard);
-            }
+            addShard(MegaChatStatistics::kStatsQueryDns, shard);
+            shardStart(MegaChatStatistics::kStatsQueryDns, shard);
             break;
 
         case chatd::Connection::State::kStateConnecting :
             //GET end ts for QueryDns
-            shardEndTime(InitStatistics::kStatsQueryDns, shard);
+            shardEnd(MegaChatStatistics::kStatsQueryDns, shard);
 
             //GET start ts for connect
-            createShardStats(InitStatistics::kStatsConnect, shard);
-            shardStartTime(InitStatistics::kStatsConnect, shard);
+            addShard(MegaChatStatistics::kStatsConnect, shard);
+            shardStart(MegaChatStatistics::kStatsConnect, shard);
             break;
-
 
         case chatd::Connection::State::kStateConnected :
              //GET end ts for connect
-             shardEndTime(InitStatistics::kStatsConnect, shard);
+             shardEnd(MegaChatStatistics::kStatsConnect, shard);
 
              //GET start ts for login chatd
-             createShardStats(InitStatistics::kStatsLoginChatd, shard);
-             shardStartTime(InitStatistics::kStatsLoginChatd, shard);
+             addShard(MegaChatStatistics::kStatsLoginChatd, shard);
+             shardStart(MegaChatStatistics::kStatsLoginChatd, shard);
              break;
 
-         case chatd::Connection::State::kStateDisconnected :
-             //Increments connect retries
-             if (oldState == chatd::Connection::State::kStateConnecting)
-             {
-                 incrementShardRetries(InitStatistics::kStatsConnect, shard);
-             }
-             break;
+        case chatd::Connection::State::kStateDisconnected :
+            //Increments connect retries
+            switch (oldState)
+            {
+                case chatd::Connection::State::kStateFetchingUrl :
+                    incrementRetries(MegaChatStatistics::kStatsFetchChatUrl, shard);
+                    break;
+                case chatd::Connection::State::kStateConnecting :
+                    incrementRetries(MegaChatStatistics::kStatsConnect, shard);
+                    break;
+                case chatd::Connection::State::kStateConnected :
+                    incrementRetries(MegaChatStatistics::kStatsLoginChatd, shard);
+                    break;
+            }
+            break;
     }
-
 }
 
-void InitStatistics::createStageStats(uint8_t stage)
+void MegaChatStatistics::addStage(uint8_t stage)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it == stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it == mStageStats.end())
     {
-        stageStatsMap.insert(std::pair<uint8_t, StageStats>(stage, StageStats()));
+        mStageStats.insert(std::pair<uint8_t, Stage>(stage, Stage()));
     }
 }
 
-void InitStatistics::stageStartTime(uint8_t stage)
+void MegaChatStatistics::stageStart(uint8_t stage)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        StageStats & stagestats = it->second;
-        stagestats.stageElapsed = currentTime();
+        Stage & stagestats = it->second;
+        stagestats.mStageElapsed = currentTime();
     }
 }
 
 
-void InitStatistics::stageEndTime(uint8_t stage)
+void MegaChatStatistics::stageEnd(uint8_t stage)
 {
-    std::map<uint8_t, StageStats>::iterator it;
-    it = stageStatsMap.find(stage);
-    if (it != stageStatsMap.end())
+    std::map<uint8_t, Stage>::iterator it;
+    it = mStageStats.find(stage);
+    if (it != mStageStats.end())
     {
-        StageStats & stagestats = it->second;
-        stagestats.stageElapsed = currentTime() - stagestats.stageElapsed;
+        Stage & stagestats = it->second;
+        stagestats.mStageElapsed = currentTime() - stagestats.mStageElapsed;
     }
 }
 
-void InitStatistics::setInitState(Client::InitState state)
+void MegaChatStatistics::setInitState(Client::InitState state)
 {
     switch (state)
     {
         case  Client::kInitErrNoCache:
         case  Client::kInitErrCorruptCache:
-            initState = kInitInvalidCache;
+            mInitState = kInitInvalidCache;
             break;
 
         case  Client::kInitHasOfflineSession:
-            initState = kInitSession;
+            mInitState = kInitSession;
             break;
     }
 }
 
-std::string InitStatistics::generateInitStatistics()
+std::string MegaChatStatistics::statisticsToString()
 {
     std::string result;
     rapidjson::Document jSonDocument(rapidjson::kArrayType);
@@ -3988,37 +3982,37 @@ std::string InitStatistics::generateInitStatistics()
     rapidjson::Value jsonValue(rapidjson::kNumberType);
 
     // Add number of nodes
-    jsonValue.SetInt64(numNodes);
+    jsonValue.SetInt64(mNumNodes);
     jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of contacts
-    jsonValue.SetInt64(numContacts);
+    jsonValue.SetInt64(mNumContacts);
     jSonObject.AddMember(rapidjson::Value("ncn"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of chats
-    jsonValue.SetInt64(numChats);
+    jsonValue.SetInt64(mNumChats);
     jSonObject.AddMember(rapidjson::Value("nch"), jsonValue, jSonDocument.GetAllocator());
 
     // Add statistics by stage
     rapidjson::Document stageArray(rapidjson::kArrayType);
-    std::map<uint8_t, StageStats>::iterator it;
-    for (it = stageStatsMap.begin() ; it != stageStatsMap.end(); it++)
+    std::map<uint8_t, Stage>::iterator it;
+    for (it = mStageStats.begin() ; it != mStageStats.end(); it++)
     {
         rapidjson::Value jSonStage(rapidjson::kObjectType);
         uint8_t stage = it->first;
-        StageStats &stageStats = it->second;
+        Stage &stageStats = it->second;
         rapidjson::Document shardArray(rapidjson::kArrayType);
 
         // Add statistics by shard
-        if (stageStats.shardStatsMap.size())
+        if (stageStats.mShardStats.size())
         {
             rapidjson::Value jSonShard(rapidjson::kObjectType);
-            std::map<uint8_t, ShardStats>::iterator auxit;
-            for (auxit = stageStats.shardStatsMap.begin(); auxit != stageStats.shardStatsMap.end(); auxit++)
+            std::map<uint8_t, Shard>::iterator auxit;
+            for (auxit = stageStats.mShardStats.begin(); auxit != stageStats.mShardStats.end(); auxit++)
             {
                 rapidjson::Value jSonShard(rapidjson::kObjectType);
                 uint8_t shard = auxit->first;
-                ShardStats &shardStats = auxit->second;
+                Shard &shardStats = auxit->second;
 
                 // Add stage
                 rapidjson::Value shardValue(rapidjson::kNumberType);
@@ -4027,13 +4021,13 @@ std::string InitStatistics::generateInitStatistics()
 
                 // Add stage elapsed time
                 rapidjson::Value shardElapsedValue(rapidjson::kNumberType);
-                shardElapsedValue.SetInt(shardStats.lastElapsed);
+                shardElapsedValue.SetInt(shardStats.mlastElapsed);
                 jSonShard.AddMember(rapidjson::Value("elap"), shardElapsedValue, jSonDocument.GetAllocator());
-                stageStats.stageElapsed += shardStats.lastElapsed;
+                stageStats.mStageElapsed += shardStats.mlastElapsed;
 
                 // Add stage retries
                 rapidjson::Value retriesValue(rapidjson::kNumberType);
-                retriesValue.SetInt(shardStats.retries);
+                retriesValue.SetInt(shardStats.mRetries);
                 jSonShard.AddMember(rapidjson::Value("ret"), retriesValue, jSonDocument.GetAllocator());
                 shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
             }
@@ -4046,17 +4040,17 @@ std::string InitStatistics::generateInitStatistics()
 
         // Add stage elapsed time
         rapidjson::Value elapsedValue(rapidjson::kNumberType);
-        elapsedValue.SetInt(stageStats.stageElapsed);
+        elapsedValue.SetInt(stageStats.mStageElapsed);
         jSonStage.AddMember(rapidjson::Value("elap"), elapsedValue, jSonDocument.GetAllocator());
 
         jSonStage.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());
         stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
 
-        totalElapsed += stageStats.stageElapsed;
+        mTotalElapsed += stageStats.mStageElapsed;
     }
 
     // Add total elapsed
-    jsonValue.SetInt64(totalElapsed);
+    jsonValue.SetInt64(mTotalElapsed);
     jSonObject.AddMember(rapidjson::Value("telap"), jsonValue, jSonDocument.GetAllocator());
     jSonObject.AddMember(rapidjson::Value("stgs"), stageArray, jSonDocument.GetAllocator());
 

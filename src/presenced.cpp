@@ -639,12 +639,12 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         Id scsn(buf, strlen(buf));
         delete [] buf;
 
-        std::shared_ptr<InitStatistics>initStatistics = mKarereClient->initStatistics();
+        std::shared_ptr<MegaChatStatistics>initStatistics = mKarereClient->megachatStatistics();
         if (initStatistics)
         {
-            initStatistics->numChats = chats->size();
-            initStatistics->numContacts = contacts->size();
-            initStatistics->numNodes = api->getNumNodes();
+            initStatistics->mNumChats = chats->size();
+            initStatistics->mNumContacts = contacts->size();
+            initStatistics->mNumNodes = api->getNumNodes();
             initStatistics = nullptr;
         }
 
