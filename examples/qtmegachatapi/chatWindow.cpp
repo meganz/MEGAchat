@@ -1069,7 +1069,11 @@ void ChatWindow::deleteCallGui()
     ui->mTextChatWidget->setStyleSheet("background-color: #FFFFFF");
     ui->mCentralWidget->setStyleSheet("background-color: #FFFFFF");
 
-    if (mChatRoom->isPublic())
+    if (mChatRoom->isPreview())
+    {
+        ui->mTitlebar->setStyleSheet("background-color:#FFE4AF");
+    }
+    else if(mChatRoom->isPublic())
     {
         ui->mTitlebar->setStyleSheet("background-color:#C4F2C9");
     }

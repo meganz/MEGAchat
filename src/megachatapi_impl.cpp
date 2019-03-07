@@ -1420,6 +1420,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (chatroom->previewMode())
+            {
+                API_LOG_ERROR("Start call - Chatroom is in preview mode");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (!chatroom->chat().connection().clientId())
             {
                 API_LOG_ERROR("Start call - Refusing start/join a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
