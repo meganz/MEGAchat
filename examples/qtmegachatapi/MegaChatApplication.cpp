@@ -581,6 +581,20 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
             if (e->getErrorCode() != MegaChatError::ERROR_OK)
               {
                 QMessageBox::critical(nullptr, tr("Call"), tr("Error in call: ").append(e->getErrorString()));
+                megachat::MegaChatHandle chatId = request->getChatHandle();
+                ChatListItemController *itemController = mMainWin->getChatControllerById(chatId);
+                if (itemController)
+                {
+                    ChatItemWidget *widget = itemController->getWidget();
+                    if (widget)
+                    {
+                        ChatWindow *chatWin= itemController->showChatWindow();
+                        if(chatWin)
+                        {
+                            chatWin->hangCall();
+                        }
+                    }
+                }
               }
             else
             {
