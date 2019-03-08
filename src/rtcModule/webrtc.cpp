@@ -2276,7 +2276,10 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
             {
                 marshallCall([sess, this]()
                 {
-                    mManager.retryCall(mChat.chatId(), sentAv(), false);
+                    if (!mChat.isGroup())
+                    {
+                        mManager.retryCall(mChat.chatId(), sentAv(), false);
+                    }
                     sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
                 }, mManager.mKarereClient.appCtx);
                 return;
