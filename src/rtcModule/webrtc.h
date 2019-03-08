@@ -287,7 +287,8 @@ public:
         kStateJoining,      // < Joining a call
         kStateInProgress,
         kStateTerminating, // < Call is waiting for sessions to terminate
-        kStateDestroyed    // < Call object is not valid anymore
+        kStateDestroyed,   // < Call object is not valid anymore
+        kStateUserNotPresent    // The call object doesn't exist but there are a call active in the chatroom, IcallHandler follow living
     };
     static const char* stateToStr(uint8_t state);
     const char* stateStr() const { return stateToStr(mState); }

@@ -7922,6 +7922,7 @@ bool MegaChatCallHandler::hasBeenNotifiedRinging() const
 void MegaChatCallHandler::onReconnectingState()
 {
     assert(chatCall);
+    API_LOG_INFO("Reconnecting call. ChatId: %s", ID_CSTR(call->chat().chatId()));
     chatCall->setStatus(MegaChatCall::CALL_STATUS_RECONNECTING);
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }

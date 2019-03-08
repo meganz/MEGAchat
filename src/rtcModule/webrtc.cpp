@@ -938,6 +938,11 @@ void RtcModule::abortCallRetry(Id chatid)
 {
     mRetryCall.erase(chatid);
     removeCallWithoutParticipants(chatid);
+    auto itHandler = mCallHandlers.find(chatid);
+    if (itHandler != mCallHandlers.end())
+    {
+        itHandler->second->onStateChange(Call::kStateUserNotPresent);
+    }
 }
 
 void RtcModule::onKickedFromChatRoom(Id chatid)
@@ -3247,6 +3252,7 @@ const char* ICall::stateToStr(uint8_t state)
         RET_ENUM_NAME(kStateInProgress);
         RET_ENUM_NAME(kStateTerminating);
         RET_ENUM_NAME(kStateDestroyed);
+        RET_ENUM_NAME(kStateUserNotPresent);
         default: return "(invalid call state)";
     }
 }
