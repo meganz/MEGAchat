@@ -600,26 +600,31 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
 
     if (starter)
     {
+        struct Ctx
+        {
+            int count = 0;
+            megaHandle timerHandle;
+        };
+        auto ctx = std::make_shared<Ctx>();
+
         auto wptr = weakHandle();
-        setTimeout([this, wptr, chatid]()
+        ctx->timerHandle = setInterval([this, wptr, chatid, ctx]()
         {
             if (wptr.deleted())
                 return;
 
+            ctx->count++;
             auto it = mRetryCall.find(chatid);
-            if (it != mRetryCall.end())
+            auto itHandler = mCallHandlers.find(chatid);
+            if (it != mRetryCall.end() && ctx->count < kNumCallRetries)
             {
                 karere::AvFlags flags = mRetryCall[chatid];
-                auto itHandler = mCallHandlers.find(chatid);
                 if (itHandler == mCallHandlers.end())
                     return;
 
                 Chat &chat = mKarereClient.mChatdClient->chats(chatid);
                 if (chat.connection().state() <= Connection::State::kStateConnecting)
                 {
-                    RTCM_LOG_DEBUG("Can not reconnect, the connection is not established");
-                    delete itHandler->second;
-                    mCallHandlers.erase(itHandler);
                     return;
                 }
 
@@ -628,19 +633,43 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                     RTCM_LOG_DEBUG("Join a call after reconnection %s", flags.toString().c_str());
                     joinCall(chatid, flags, *itHandler->second, itHandler->second->getCallId());
                     mRetryCall.erase(it);
+                    cancelInterval(ctx->timerHandle, mKarereClient.appCtx);
                 }
                 else if (!chat.isGroup())
                 {
                     RTCM_LOG_DEBUG("Restart a call after reconnection %s", flags.toString().c_str());
                     startCall(chatid, flags, *itHandler->second);
                     mRetryCall.erase(it);
+                    cancelInterval(ctx->timerHandle, mKarereClient.appCtx);
                 }
                 else
                 {
                     abortCallRetry(chatid);
+                    cancelInterval(ctx->timerHandle, mKarereClient.appCtx);
                 }
             }
-        }, 10000, mKarereClient.appCtx);
+            else
+            {
+                if(it != mRetryCall.end())
+                {
+                    mRetryCall.erase(chatid);
+                }
+
+                if (ctx->count == kNumCallRetries)
+                {
+                    Chat &chat = mKarereClient.mChatdClient->chats(chatid);
+                    if (chat.connection().state() <= Connection::State::kStateConnecting)
+                    {
+                        RTCM_LOG_DEBUG("Connection has not been established and retry number for reconnection has been exceeded");
+                        delete itHandler->second;
+                        mCallHandlers.erase(itHandler);
+                        return;
+                    }
+                }
+
+                cancelInterval(ctx->timerHandle, mKarereClient.appCtx);
+            }
+        }, kRetryCallTimeoutActive, mKarereClient.appCtx);
     }
     else
     {
@@ -661,7 +690,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             }
 
             mRetryCall.erase(chatid);
-        }, 15000, mKarereClient.appCtx);
+        }, kRetryCallTimeoutPasive, mKarereClient.appCtx);
     }
 }
 

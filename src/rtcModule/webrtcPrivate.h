@@ -237,7 +237,9 @@ public:
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
-        kReconnectTimeout = 5000
+        kReconnectTimeout = 5000,
+        kRetryCallTimeoutActive = 2000,
+        kRetryCallTimeoutPasive = 15000,
     };
 
     enum Resolution
@@ -246,6 +248,11 @@ public:
         low,
         vga,
         notDefined
+    };
+
+    enum
+    {
+        kNumCallRetries = 5
     };
 
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
