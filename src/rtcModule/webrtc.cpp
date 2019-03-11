@@ -627,14 +627,18 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                 {
                     RTCM_LOG_DEBUG("Join a call after reconnection %s", flags.toString().c_str());
                     joinCall(chatid, flags, *itHandler->second, itHandler->second->getCallId());
+                    mRetryCall.erase(it);
                 }
-                else
+                else if (!chat.isGroup())
                 {
                     RTCM_LOG_DEBUG("Restart a call after reconnection %s", flags.toString().c_str());
                     startCall(chatid, flags, *itHandler->second);
+                    mRetryCall.erase(it);
                 }
-
-                mRetryCall.erase(it);
+                else
+                {
+                    abortCallRetry(chatid);
+                }
             }
         }, 10000, mKarereClient.appCtx);
     }
@@ -2281,10 +2285,6 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
             {
                 marshallCall([sess, this]()
                 {
-                    if (!mChat.isGroup())
-                    {
-                        mManager.retryCall(mChat.chatId(), sentAv(), false);
-                    }
                     sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
                 }, mManager.mKarereClient.appCtx);
                 return;
@@ -2293,7 +2293,6 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
 
         if (mSessRetries.find(EndpointId(userid, clientid)) != mSessRetries.end())
         {
-            mManager.retryCall(mChat.chatId(), sentAv(), false);
             cancelSessionRetryTimer(userid, clientid);
             destroyIfNoSessionsOrRetries(TermCode::kErrPeerOffline);
         }
