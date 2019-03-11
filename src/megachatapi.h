@@ -233,7 +233,7 @@ public:
     enum {
         AUDIO = 0,
         VIDEO = 1,
-        ALL_FLAGS = 2
+        ANY_FLAGS = 2
     };
 
     virtual ~MegaChatCall();
@@ -551,17 +551,17 @@ public:
     virtual mega::MegaHandleList *getClientidParticipants() const;
 
     /**
-     * @brief Get the number of peers participating in the call with video/audio or all participants
+     * @brief Get the number of peers participating in the call
      *
      * In a group call, this function returns the number of active participants,
      * regardless your own user participates or not.
      *
      * 0 -> with audio (c\ AUDIO)
      * 1 -> with video (c\ VIDEO)
-     * 2 -> all participants (c\ ALL_FLAGS)
+     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAGS)
      *
      * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
-     * @return Number of active participants in the call with video, audio or all participants
+     * @return Number of active participants in the call
      */
     virtual int getNumParticipants(int audioVideo) const;
 
@@ -4026,13 +4026,14 @@ public:
     int getNumCalls();
 
     /**
-     * @brief Get a list with the ids of chatrooms where there are active calls and their state is \c callState
+     * @brief Get a list with the ids of chatrooms where there are active calls
      *
-     * If \c callState is -1 then returns all calls regardless their state
+     * The list of ids can be retrieved for calls in one specific state by setting
+     * the parameter \c callState. If state is -1, it returns all calls regardless their state.
      *
      * You take the ownership of the returned value.
      *
-     * @param state of calls that you want receive, -1 for all
+     * @param state of calls that you want receive, -1 to consider all states
      * @return A list of handles with the ids of chatrooms where there are active calls
      */
     mega::MegaHandleList *getChatCalls(int callState = -1);

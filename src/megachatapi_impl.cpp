@@ -4752,9 +4752,9 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerid, 
 
 int MegaChatCallPrivate::getNumParticipants(int audioVideo) const
 {
-    assert(audioVideo == MegaChatCall::AUDIO || audioVideo == MegaChatCall::VIDEO || audioVideo == MegaChatCall::ALL_FLAGS);
+    assert(audioVideo == MegaChatCall::AUDIO || audioVideo == MegaChatCall::VIDEO || audioVideo == MegaChatCall::ANY_FLAGS);
     int numParticipants = 0;
-    if (audioVideo == MegaChatCall::ALL_FLAGS)
+    if (audioVideo == MegaChatCall::ANY_FLAGS)
     {
         numParticipants = participants.size();
     }
@@ -7224,7 +7224,7 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
 int MegaChatCallHandler::callParticipants()
 {
     assert(chatCall);
-    return chatCall ? chatCall->getNumParticipants(MegaChatCall::ALL_FLAGS): 0;
+    return chatCall ? chatCall->getNumParticipants(MegaChatCall::ANY_FLAGS): 0;
 }
 
 bool MegaChatCallHandler::isParticipating(Id userid)
