@@ -22,6 +22,8 @@ namespace strongvelope { class ProtocolHandler; }
 struct sqlite3;
 class Buffer;
 
+#define ID_CSTR(id) Id(id).toString().c_str()
+
 namespace karere
 {
 namespace rh { class IRetryController; }
@@ -62,12 +64,15 @@ protected:
     chatd::Priv mOwnPriv;
     chatd::Chat* mChat = nullptr;
     bool mIsInitializing = true;
-    uint32_t mCreationTs;
+    int64_t mCreationTs;
     bool mIsArchived;
-    std::string mTitleString;
+    std::string mTitleString;   // decrypted `ct` or title from member-names
+    bool mHasTitle;             // only true if chat has custom topic (`ct`)
     void notifyTitleChanged();
+    void notifyChatModeChanged();
     void switchListenerToApp();
-    void createChatdChat(const karere::SetOfIds& initialUsers); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+    void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
+            std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
@@ -77,18 +82,29 @@ protected:
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
 
 public:
+    virtual bool previewMode() const { return false; }
+    virtual bool publicChat() const { return false; }
+    virtual uint64_t getPublicHandle() const { return Id::inval(); }
+    virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     /** @endcond PRIVATE */
 
     /** @brief The text that will be displayed on the chat list for that chat */
-    virtual const char *titleString() const = 0;
+    virtual const std::string &titleString() const  { return mTitleString; }
+
+    /** @brief Returns whether the chatroom has a title set. If not, then
+      * its title string will be composed from the first names of the room members.
+      * This method will return false for PeerChatRoom, only GroupChatRoom are
+      * capable to have a custom title.
+      */
+    virtual bool hasTitle() const { return mHasTitle; }
 
     /** @brief Connects to the chatd chatroom */
-    virtual void connect() = 0;
+    virtual void connect(const char *url = NULL) = 0;
 
     ChatRoom(ChatRoomList& parent, const uint64_t& chatid, bool isGroup,
-             unsigned char shard, chatd::Priv ownPriv, uint32_t ts, bool isArchived,
+             unsigned char shard, chatd::Priv ownPriv, int64_t ts, bool isArchived,
              const std::string& aTitle=std::string());
 
     virtual ~ChatRoom(){}
@@ -189,6 +205,7 @@ public:
     virtual void onMessageEdited(const chatd::Message& msg, chatd::Idx idx);
     virtual void onMessageStatusChange(chatd::Idx idx, chatd::Message::Status newStatus, const chatd::Message& msg);
     virtual void onUnreadChanged();
+    virtual void onPreviewersUpdate();
 
     //IApp::IChatHandler implementation
     virtual void onArchivedChanged(bool archived);
@@ -218,14 +235,14 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
             unsigned char shard, chatd::Priv ownPriv, const uint64_t& peer,
-            chatd::Priv peerPriv, uint32_t ts, bool aIsArchived);
+            chatd::Priv peerPriv, int64_t ts, bool aIsArchived);
     PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& room);
     ~PeerChatRoom();
 
@@ -240,15 +257,6 @@ public:
      * @note Returns nullptr when the 1on1 chat is with a user who canceled the account
      */
     Contact *contact() const { return mContact; }
-
-    /** @brief The screen name of the peer */
-    virtual const char *titleString() const;
-
-    /** @brief Returns a string <fistname length><fistname><lastname>. It has binary layout
-      * First byte indicate first name length
-      */
-    const std::string& completeTitleString() const;
-
 
     /** @brief The screen email address of the peer */
     virtual const std::string& email() const { return mEmail; }
@@ -282,6 +290,7 @@ public:
         std::string mEmail;
         void subscribeForNameChanges();
         promise::Promise<void> mNameResolved;
+
     public:
         Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv);
         ~Member();
@@ -298,7 +307,6 @@ public:
         chatd::Priv priv() const { return mPriv; }
 
         promise::Promise<void> nameResolved() const;
-
         friend class GroupChatRoom;
     };
     /**
@@ -306,12 +314,15 @@ public:
     typedef std::map<uint64_t, Member*> MemberMap;
 
     /** @cond PRIVATE */
-    protected:
+protected:
     MemberMap mPeers;
-    bool mHasTitle;
-    std::string mEncryptedTitle; //holds the encrypted title until we create the strongvelope module
+    std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
+
+    int mNumPeers = 0; //Only for public chats in preview mode
+
+    void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -323,19 +334,29 @@ public:
     virtual IApp::IChatListItem* roomGui() { return mRoomGui; }
     void deleteSelf(); ///< Deletes the room from db and then immediately destroys itself (i.e. delete this)
     void makeTitleFromMemberNames();
-    void initWithChatd();
+    void updateTitleInDb(const std::string &title, int isEncrypted);
+    void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void setRemoved();
-    virtual void connect();
+    virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
+    void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
 
     friend class ChatRoomList;
     friend class Member;
     friend class Client;
+
     GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat);
+
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
-                  unsigned char aShard, chatd::Priv aOwnPriv, uint32_t ts,
-                  bool aIsArchived, const std::string& title);
+                unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
+                bool aIsArchived, const std::string& title, int isTitleEncrypted, bool publicChat, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted);
+
+    GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
+                unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
+                bool aIsArchived, const std::string& title,
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl);
     ~GroupChatRoom();
+
 public:
 //chatd::Listener
     virtual void onUserJoin(Id userid, chatd::Priv priv);
@@ -346,13 +367,6 @@ public:
     /** @brief Returns the map of the users in the chatroom, except our own user */
     const MemberMap& peers() const { return mPeers; }
 
-    /** @brief Returns whether the group chatroom has a title set. If not, then
-      * its title string will be composed from the first names of the room members
-      */
-    bool hasTitle() const { return mHasTitle; }
-
-    /** @brief The title of the chatroom */
-    virtual const char *titleString() const { return mTitleString.c_str(); }
 
     /** @brief Removes the specifid user from the chatroom. You must have
      * operator privileges to do that.
@@ -391,8 +405,24 @@ public:
      */
     promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
 
+    /** TODO
+     *
+     */
+    promise::Promise<void> autojoinPublicChat(uint64_t ph);
+
     virtual promise::Promise<void> requesGrantAccessToNodes(mega::MegaNodeList *nodes);
     virtual promise::Promise<void> requestRevokeAccessToNode(mega::MegaNode *node);
+    virtual void enablePreview(uint64_t ph);
+    virtual bool publicChat() const;
+    virtual uint64_t getPublicHandle() const;
+    virtual unsigned int getNumPreviewers() const;
+
+    virtual bool previewMode() const;
+
+    promise::Promise<std::shared_ptr<std::string>> unifiedKey();
+
+    int getNumPeers() const;
+    void handleTitleChange(const std::string &title, bool saveToDb = false);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -406,10 +436,11 @@ public:
     Client& mKarereClient;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
-    void removeRoom(GroupChatRoom& room);
+    void removeRoomPreview(Id chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
+    void previewCleanup(karere::Id chatid);
     void onChatsUpdate(mega::MegaTextChatList& chats);
 /** @endcond PRIVATE */
 };
@@ -536,6 +567,10 @@ class Client: public ::mega::MegaGlobalListener,
 {
 public:
     enum ConnState { kDisconnected = 0, kConnecting, kConnected };
+
+public:
+    enum { kInitErrorType = 0x9e9a1417 }; //should resemble 'megainit'
+
     enum InitState: uint8_t
     {
         /** The client has just been created. \c init() has not been called yet */
@@ -555,6 +590,9 @@ public:
          * It has to be explicitly connected via \c connect()
          */
         kInitHasOnlineSession,
+
+        /** \c Karere has sucessfully initialized in anonymous mode */
+        kInitAnonymousMode,
 
         /** Client has disconnected and terminated */
         kInitTerminated,
@@ -606,7 +644,7 @@ public:
     /** @brief Convenience aliases for the \c force flag in \c setPresence() */
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
-    std::string mAppDir;        // must be before db member because it's used during the init of db member
+    std::string mAppDir;
     WebsocketsIO *websocketIO;  // network-layer interface
     void *appCtx;               // app's context
     MyMegaApi api;              // MegaApi's instance
@@ -642,8 +680,7 @@ public:
     promise::Promise<void> mSyncPromise;
 
 protected:
-
-    Id mMyHandle = Id::null(); //mega::UNDEF
+    Id mMyHandle = Id::inval(); //mega::UNDEF
     std::string mMyName = std::string("\0", 1);
     std::string mMyEmail;
     uint64_t mMyIdentity = 0; // seed for CLIENTID
@@ -705,6 +742,8 @@ public:
      */
     void initWithDbSession(const char* sid);
 
+    InitState initWithAnonymousSession();
+
     /**
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
@@ -712,6 +751,39 @@ public:
     promise::Promise<void> initWithNewSession(const char* sid, const std::string& scsn,
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
+
+    /**
+     * @brief This function returns basic information about a public chat, to be able to open it in preview mode.
+     * The information returned by this function includes: the chatid, the connection url, the encrypted title,
+     * and the number of participants.
+     *
+     * @return The chatid, the connection url, the encrypted title, and the number of participants.
+     */
+    promise::Promise<ReqResult> openChatPreview(uint64_t publicHandle);
+
+    /**
+     * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
+     * to avoid that openChatPreview creates the chat room
+     */
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
+
+    /**
+     * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
+     * @return The decrypted title of the chat
+     */
+    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle);
+
+    /** @brief This function invalidates the current public handle and set the chat mode to private
+     */
+    promise::Promise<void> setPublicChatToPrivate(karere::Id chatid);
+
+    /** @brief This function creates a public handle if not exists
+     */
+    promise::Promise<uint64_t> getPublicHandle(karere::Id chatid, bool createifmissing);
+
+    /** @brief This function invalidates the current public handle
+     */
+    promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
@@ -809,7 +881,7 @@ public:
      * the participants.
      */
     promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers);
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, const char *title = NULL);
     void setCommitMode(bool commitEach);
     void saveDb();  // forces a commit
 
@@ -825,6 +897,7 @@ public:
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
 
+    bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
@@ -852,7 +925,8 @@ protected:
     void loadContactListFromApi();
     void loadContactListFromApi(::mega::MegaUserList& contactList);
 
-    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid);
+    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
+            std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
     void connectToChatd(bool isInBackground);

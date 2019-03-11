@@ -260,6 +260,18 @@ using namespace megachat;
         case MEGAChatMessageTypeCallEnded:
             result = @"Call ended";
             break;
+        case MEGAChatMessageTypeCallStarted:
+            result = @"Call started";
+            break;
+        case MEGAChatMessageTypePublicHandleCreate:
+            result = @"Public handle create";
+            break;
+        case MEGAChatMessageTypePublicHandleDelete:
+            result = @"Public handle delete";
+            break;
+        case MEGAChatMessageTypeSetPrivateMode:
+            result = @"Set private mode";
+            break;
         case MEGAChatMessageTypeAttachment:
             result = @"Attachment";
             break;
@@ -275,7 +287,6 @@ using namespace megachat;
         case MEGAChatMessageTypeVoiceClip:
             result = @"Voice clip";
             break;
-
         default:
             result = @"Default";
             break;
