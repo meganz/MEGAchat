@@ -5498,8 +5498,12 @@ bool MegaChatCallPrivate::addOrUpdateParticipant(Id userid, uint32_t clientid, A
     }
     else    // existing participant --> just update flags
     {
-        changed |= MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS;
-        notify = true;
+        if (sessions.find(endPointId) != sessions.end())    // Only notify if we have a session with that peer (we are participating in the call)
+        {
+            changed |= MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS;
+            notify = true;
+        }
+
         it->second = flags;
     }
 
