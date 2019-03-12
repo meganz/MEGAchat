@@ -2119,6 +2119,89 @@ void exec_getfingerprint(ac::ACState& s)
     }
 }
 
+bool extractflag(const string& flag, vector<ac::ACState::quoted_word>& words)
+{
+    for (auto i = words.begin(); i != words.end(); ++i)
+    {
+        if (i->s == flag)
+        {
+            words.erase(i);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool extractflagparam(const string& flag, string& param, vector<ac::ACState::quoted_word>& words)
+{
+    for (auto i = words.begin(); i != words.end(); ++i)
+    {
+        if (i->s == flag)
+        {
+            auto j = i;
+            ++j;
+            if (j != words.end())
+            {
+                param = j->s;
+                words.erase(i, ++j);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+
+void exec_createthumbnail(ac::ACState& s)
+{
+    string parallelcount;
+    bool tempmegaapi = extractflag("-tempmegaapi", s.words);
+    bool parallel = extractflagparam("-parallel", parallelcount, s.words);
+
+    if (!parallel)
+    {
+        parallelcount = "1";
+    }
+
+    vector<unique_ptr<thread>> ts;
+
+    // investigate thumbnal generation memory usage after reports of memory leaks in iOS
+    for (int i = atoi(parallelcount.c_str()); i--; )
+    {
+        string path1 = s.words[1].s;
+        string path2 = s.words[2].s + "-" + to_string(i);
+
+        ts.emplace_back(new thread([path1, path2, tempmegaapi]() {
+            bool done = false;
+
+            if (tempmegaapi)
+            {
+                ::mega::MegaApi megaApi("temp");
+                done = megaApi.createThumbnail(path1.c_str(), path2.c_str());
+            }
+            else
+            {
+                done = g_megaApi->createThumbnail(path1.c_str(), path2.c_str());
+            }
+            conlock(cout) << (done ? "succeeded" : "failed") << endl;
+        }));
+    }
+
+    for (int i = atoi(parallelcount.c_str()); i--; )
+    {
+        ts[i]->join();
+    }
+}
+
+void exec_testAllocation(ac::ACState& s)
+{
+    bool success = g_megaApi->testAllocation(unsigned(atoi(s.words[1].s.c_str())), size_t(atoll(s.words[2].s.c_str())));
+    conlock(cout) << (success ? "succeeded" : "failed") << endl;
+}
+
+
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -2234,6 +2317,8 @@ ac::ACN autocompleteSyntax()
         sequence(text("remote"), param("remotefile")),
         sequence(text("original"), param("remotefile")))));
 
+    p->Add(exec_createthumbnail, sequence(text("createthumbnail"), opt(flag("-tempmegaapi")), opt(sequence(flag("-parallel"), param("count"))), localFSFile(), localFSFile()));
+    p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     return p;
 }
 
