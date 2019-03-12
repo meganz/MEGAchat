@@ -146,7 +146,7 @@ using namespace megachat;
 }
 
 - (NSInteger)numParticipants {
-    return self.megaChatCall ? self.megaChatCall->getNumParticipants(MEGAChatCallConfigurationAll) : 0;
+    return self.megaChatCall ? self.megaChatCall->getNumParticipants(MEGAChatCallConfigurationAnyFlag) : 0;
 }
 
 - (NSInteger)numParticipantsWithCallConfiguration:(MEGAChatCallConfiguration)callConfiguration {

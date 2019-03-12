@@ -233,7 +233,7 @@ public:
     enum {
         AUDIO = 0,
         VIDEO = 1,
-        ANY_FLAGS = 2
+        ANY_FLAG = 2
     };
 
     virtual ~MegaChatCall();
@@ -558,7 +558,7 @@ public:
      *
      * 0 -> with audio (c\ AUDIO)
      * 1 -> with video (c\ VIDEO)
-     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAGS)
+     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAG)
      *
      * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
      * @return Number of active participants in the call

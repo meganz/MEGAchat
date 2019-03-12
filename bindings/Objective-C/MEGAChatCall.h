@@ -53,7 +53,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
     MEGAChatCallConfigurationWithAudio = 0,
     MEGAChatCallConfigurationWithVideo = 1,
-    MEGAChatCallConfigurationAll = 2,
+    MEGAChatCallConfigurationAnyFlag = 2,
 };
 
 @interface MEGAChatCall : NSObject
