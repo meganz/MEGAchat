@@ -25,6 +25,7 @@
 #include <iomanip>
 #include <fstream>
 #include <mutex>
+#include <thread>
 
 #define USE_VARARGS
 #define PREFER_STDARG
