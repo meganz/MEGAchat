@@ -43,7 +43,7 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
-class MegaChatStatistics;
+class InitStats;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
@@ -708,7 +708,7 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     bool mGroupCallsEnabled = false;
-    std::shared_ptr<MegaChatStatistics> mStatistics;
+    std::shared_ptr<InitStats> mInitStats;
 
 public:
 
@@ -907,10 +907,8 @@ public:
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
-    std::shared_ptr<MegaChatStatistics> megachatStatistics();
-    void clearStatistics();
-    void sendStatistics();
-    void resetStatistics();
+    std::shared_ptr<InitStats> initStats();
+    void sendStats();
 
 protected:
     void heartbeat();
@@ -972,9 +970,9 @@ protected:
     friend class ChatRoomList;
 };
 
-/** @brief Class to manage initialization statistics of MEGAChat.
- * This class will measure the initialization times of every stage in
- * MEGAchat initialization, in order to improve the performance.
+/** @brief Class to manage initialization statistics of Karere.
+ * This class will measure the initialization times of every stage
+ * in order to improve the performance.
  *
  * The stages included in this class are:
  *      Init
@@ -990,7 +988,7 @@ protected:
  * The following stages are divided by shards to improve the precision of the statistics:
  * (GetChatUrl, QueryDns, Connect to chatd, All chats logged in)
 **/
-class MegaChatStatistics
+class InitStats
 {
     protected:
         struct StageStats;
@@ -1049,63 +1047,56 @@ class MegaChatStatistics
         mega::dstime mTotalElapsed;
 
     public:
-        /** @brief Init states in MEGAChat initialization */
+        /** @brief Init states in init stats */
         enum
         {
-            kInitInvalidSession      = 0,
-            kInitSession             = 1,
-            kInitInvalidCache        = 2,
+            kInitNewSession      = 0,
+            kInitResumeSession   = 1,
+            kInitInvalidCache    = 2
         };
 
-        /** @brief Stages in MEGAChat initialization */
+        /** @brief Stages in initialization */
         enum
         {
             kStatsInit              = 0,
             kStatsLogin             = 1,
             kStatsFetchNodes        = 2,
             kStatsPostFetchNodes    = 3,
-            kStatsReconnect         = 4,
-            kStatsFetchChatUrl      = 5,
-            kStatsQueryDns          = 6,
-            kStatsConnect           = 7,
-            kStatsLoginChatd        = 8
+            kStatsConnection        = 4
         };
 
-        MegaChatStatistics();
-        ~MegaChatStatistics();
+
+        /** @brief Stages in init stats */
+        enum
+        {
+            kStatsFetchChatUrl      = 0,
+            kStatsQueryDns          = 1,
+            kStatsConnect           = 2,
+            kStatsLoginChatd        = 3
+        };
+
+        InitStats();
+        ~InitStats();
 
         /** @brief Setter methods **/
         void setNumNodes(long long numNodes);
         void setNumContacts(long numContacts);
-        void setTotalElapsed(const mega::dstime &totalElapsed);
         void setNumChats(long numChats);
-
-        /** @brief Calculate the total elapsed time for MEGAchat initialization **/
-        void totalElapsed();
-
-        /** @brief Calcule the reconnection stage elapsed time: (TotalElapsed - Init - Login - FetchNodes - PostFetchNodes ) **/
-        void relapsed();
 
         /** @brief  Returns a string with the associated tag to the stage **/
         std::string getStageTag(uint8_t stage);
 
-        /** @brief  Returns a string associated to the init state **/
-        std::string initStateToString();
+        /** @brief  Returns a string with the associated tag to the stage **/
+        std::string getShardStageTag(uint8_t stage);
 
-        /** @brief Reset and initialize MEGAchat statistics */
-        void reset();
-
-        /** @brief Returns a string that contains MEGAChat statistics in JSON format */
-        std::string statisticsToString();
+        /** @brief Returns a string that contains init stats in JSON format */
+        std::string statsToString();
 
 
-        /** @brief Stages Methods **/
+        /**  Stages Methods **/
 
         /** @brief Returns the current time of the clock in milliseconds */
         static mega::dstime currentTime();
-
-        /** @brief Add a stage to the stages map */
-        void addStage(uint8_t stage);
 
         /** @brief Obtain initial ts for a stage */
         void stageStart(uint8_t stage);
@@ -1117,13 +1108,7 @@ class MegaChatStatistics
         void setInitState(Client::InitState state);
 
 
-        /** @brief Shard Stages Methods **/
-
-        /** @brief Add a shard stage to the sharded stages map */
-        void addShardedStage(uint8_t stage);
-
-        /** @brief Add a shard to the sharded stages map */
-        void addShard(uint8_t stage, uint8_t shard);
+        /**  Shard Stages Methods **/
 
         /** @brief Obtain initial ts for a shard */
         void shardStart(uint8_t stage, uint8_t shard);
@@ -1136,7 +1121,7 @@ class MegaChatStatistics
 
         /** @brief Returns a pointer to Shard type if there's an entry in the sharded stages map,
          *  otherwise returns NULL */
-        MegaChatStatistics::ShardStats *getShard(uint8_t stage, uint8_t shard);
+        InitStats::ShardStats *getShard(uint8_t stage, uint8_t shard);
 
         /** @brief This function handle the shard stats according to connections states transitions, getting
          *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage */

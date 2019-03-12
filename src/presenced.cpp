@@ -639,15 +639,6 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         Id scsn(buf, strlen(buf));
         delete [] buf;
 
-        std::shared_ptr<MegaChatStatistics>initStatistics = mKarereClient->megachatStatistics();
-        if (initStatistics)
-        {
-            initStatistics->setNumChats(chats->size());
-            initStatistics->setNumContacts(contacts->size());
-            initStatistics->setNumNodes(api->getNumNodes());
-            initStatistics = nullptr;
-        }
-
         // reset current status (for the full reload once logged in already)
         mLastScsn = karere::Id::inval();
         mCurrentPeers.clear();
