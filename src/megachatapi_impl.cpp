@@ -1583,7 +1583,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 rtcModule::ICall *call = handler->getCall();
                 if (!call)
                 {
-                    API_LOG_ERROR("There isn't an internal call, abort call retry");
+                    API_LOG_DEBUG("There isn't an internal call, abort call retry");
                     mClient->rtc->abortCallRetry(chatid);
 
                     break;
@@ -7575,14 +7575,6 @@ void LoggerHandler::log(krLogLevel level, const char *msg, size_t /*len*/, unsig
 MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
 {
     this->megaChatApi = megaChatApi;
-    call = NULL;
-    localVideoReceiver = NULL;
-    chatCall = NULL;
-}
-
-MegaChatCallHandler::MegaChatCallHandler(const MegaChatCallHandler &callHandler)
-{
-    megaChatApi = callHandler.megaChatApi;
     call = NULL;
     localVideoReceiver = NULL;
     chatCall = NULL;

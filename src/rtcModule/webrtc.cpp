@@ -2312,7 +2312,7 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
             auto sess = item.second;
             if (sess->mPeer == userid && sess->mPeerClient == clientid)
             {
-                marshallCall([sess, this]()
+                marshallCall([sess]()
                 {
                     sess->terminateAndDestroy(static_cast<TermCode>(TermCode::kErrPeerOffline | TermCode::kPeer));
                 }, mManager.mKarereClient.appCtx);

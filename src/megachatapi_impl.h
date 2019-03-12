@@ -561,7 +561,6 @@ class MegaChatCallHandler : public rtcModule::ICallHandler
 {
 public:
     MegaChatCallHandler(MegaChatApiImpl *megaChatApi);
-    MegaChatCallHandler(const MegaChatCallHandler& callHandler);
     virtual ~MegaChatCallHandler();
     virtual void setCall(rtcModule::ICall* call);
     virtual void onStateChange(uint8_t newState);
