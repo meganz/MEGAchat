@@ -54,7 +54,7 @@ using namespace megachat;
     return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, changes=%@, last message=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@, public chat=%@, preview=%@>",
             [self class], base64ChatId, self.title, changes, self.lastMessage, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active, publicChat, preview];
 #else
-    return [NSString stringWithFormat:@"<%@: chatId=%@, changes=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@, public chat=%@, preview=%@>",>",
+    return [NSString stringWithFormat:@"<%@: chatId=%@, changes=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@, public chat=%@, preview=%@>",
             [self class], base64ChatId, changes, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active, publicChat, preview];
 #endif
 

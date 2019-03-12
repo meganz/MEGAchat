@@ -3905,7 +3905,7 @@ int MegaChatApiImpl::getNumCalls()
     return numCalls;
 }
 
-MegaHandleList *MegaChatApiImpl::getChatCalls()
+MegaHandleList *MegaChatApiImpl::getChatCalls(int callState)
 {
     MegaHandleListPrivate *callList = new MegaHandleListPrivate();
 
@@ -3915,7 +3915,11 @@ MegaHandleList *MegaChatApiImpl::getChatCalls()
         std::vector<karere::Id> chatids = mClient->rtc->chatsWithCall();
         for (unsigned int i = 0; i < chatids.size(); i++)
         {
-            callList->addMegaHandle(chatids[i]);
+            MegaChatCallHandler *callHandler = static_cast<MegaChatCallHandler *>(mClient->rtc->findCallHandler(chatids[i]));
+            if (callHandler && (callState == -1 || callHandler->getMegaChatCall()->getStatus() == callState))
+            {
+                callList->addMegaHandle(chatids[i]);
+            }
         }
     }
 
@@ -5226,9 +5230,30 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle peerid, 
     return NULL;
 }
 
-int MegaChatCallPrivate::getNumParticipants() const
+int MegaChatCallPrivate::getNumParticipants(int audioVideo) const
 {
-    return participants.size();
+    assert(audioVideo == MegaChatCall::AUDIO || audioVideo == MegaChatCall::VIDEO || audioVideo == MegaChatCall::ANY_FLAG);
+    int numParticipants = 0;
+    if (audioVideo == MegaChatCall::ANY_FLAG)
+    {
+        numParticipants = participants.size();
+    }
+    else
+    {
+        for (auto it = participants.begin(); it != participants.end(); it ++)
+        {
+            if (audioVideo == MegaChatCall::AUDIO && it->second.audio())
+            {
+                numParticipants++;
+            }
+            else if (audioVideo == MegaChatCall::VIDEO && it->second.video())
+            {
+                numParticipants++;
+            }
+        }
+    }
+
+    return numParticipants;
 }
 
 MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
@@ -5435,14 +5460,7 @@ void MegaChatCallPrivate::sessionUpdated(Id peerid, uint32_t clientid, int chang
 
 int MegaChatCallPrivate::availableAudioSlots()
 {
-    int usedSlots = 0;
-    for (auto it = participants.begin(); it != participants.end(); it++)
-    {
-        if (it->second.audio())
-        {
-            usedSlots++;
-        }
-    }
+    int usedSlots = getNumParticipants(MegaChatCall::AUDIO);
 
     int availableSlots = 0;
     if (usedSlots < rtcModule::IRtcModule::kMaxCallAudioSenders)
@@ -5455,14 +5473,7 @@ int MegaChatCallPrivate::availableAudioSlots()
 
 int MegaChatCallPrivate::availableVideoSlots()
 {
-    int usedSlots = 0;
-    for (auto it = participants.begin(); it != participants.end(); it++)
-    {
-        if (it->second.video())
-        {
-            usedSlots++;
-        }
-    }
+    int usedSlots = getNumParticipants(MegaChatCall::VIDEO);
 
     int availableSlots = 0;
     if (usedSlots < rtcModule::IRtcModule::kMaxCallVideoSenders)
@@ -5487,6 +5498,12 @@ bool MegaChatCallPrivate::addOrUpdateParticipant(Id userid, uint32_t clientid, A
     }
     else    // existing participant --> just update flags
     {
+        if (sessions.find(endPointId) != sessions.end())    // Only notify if we have a session with that peer (we are participating in the call)
+        {
+            changed |= MegaChatCall::CHANGE_TYPE_REMOTE_AVFLAGS;
+            notify = true;
+        }
+
         it->second = flags;
     }
 
@@ -7822,7 +7839,7 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
 int MegaChatCallHandler::callParticipants()
 {
     assert(chatCall);
-    return chatCall ? chatCall->getNumParticipants(): 0;
+    return chatCall ? chatCall->getNumParticipants(MegaChatCall::ANY_FLAG): 0;
 }
 
 bool MegaChatCallHandler::isParticipating(Id userid)

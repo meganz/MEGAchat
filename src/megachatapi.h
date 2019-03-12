@@ -230,6 +230,12 @@ public:
         TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
+    enum {
+        AUDIO = 0,
+        VIDEO = 1,
+        ANY_FLAG = 2
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -550,9 +556,14 @@ public:
      * In a group call, this function returns the number of active participants,
      * regardless your own user participates or not.
      *
+     * 0 -> with audio (c\ AUDIO)
+     * 1 -> with video (c\ VIDEO)
+     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAG)
+     *
+     * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
      * @return Number of active participants in the call
      */
-    virtual int getNumParticipants() const;
+    virtual int getNumParticipants(int audioVideo) const;
 
     /**
      * @brief Returns if call has been ignored
@@ -564,7 +575,7 @@ public:
     /**
      * @brief Returns if call is incoming
      *
-     * @return Ture if incoming call, false if outgoing
+     * @return True if incoming call, false if outgoing
      */
     virtual bool isIncoming() const;
 
@@ -4372,11 +4383,15 @@ public:
     /**
      * @brief Get a list with the ids of chatrooms where there are active calls
      *
+     * The list of ids can be retrieved for calls in one specific state by setting
+     * the parameter \c callState. If state is -1, it returns all calls regardless their state.
+     *
      * You take the ownership of the returned value.
      *
+     * @param state of calls that you want receive, -1 to consider all states
      * @return A list of handles with the ids of chatrooms where there are active calls
      */
-    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCalls(int callState = -1);
 
     /**
      * @brief Get a list with the ids of active calls
