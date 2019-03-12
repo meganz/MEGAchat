@@ -736,6 +736,14 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);
             }
 
+            //GET start ts for QueryDns
+            std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
+            if (initStats)
+            {
+                initStats->addShard(MegaChatStatistics::kStatsQueryDns, shardNo());
+                initStats->shardStart(MegaChatStatistics::kStatsQueryDns, shardNo());
+                initStats = nullptr;
+            }
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, mUrl.host.c_str(),
                          [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
@@ -786,6 +794,7 @@ Promise<void> Connection::reconnect()
                         if (initStats)
                         {
                             initStats->incrementRetries(MegaChatStatistics::kStatsQueryDns, shardNo());
+                            initStats = nullptr;
                         }
 
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Error code: %d", statusDNS);
@@ -804,6 +813,14 @@ Promise<void> Connection::reconnect()
                 {
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
 
+                    //GET end ts for QueryDns
+                    std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
+                    if (initStats)
+                    {
+                        initStats->shardEnd(MegaChatStatistics::kStatsQueryDns, shardNo());
+                        initStats = nullptr;
+                    }
+
                     mDNScache.set(mUrl.host,
                                   ipsv4.size() ? ipsv4.at(0) : "",
                                   ipsv6.size() ? ipsv6.at(0) : "");
@@ -817,6 +834,14 @@ Promise<void> Connection::reconnect()
                 }
                 else
                 {
+                    //GET end ts for QueryDns
+                    std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
+                    if (initStats)
+                    {
+                        initStats->shardEnd(MegaChatStatistics::kStatsQueryDns, shardNo());
+                        initStats = nullptr;
+                    }
+
                     // update DNS cache
                     bool ret = mDNScache.set(mUrl.host,
                                   ipsv4.size() ? ipsv4.at(0) : "",
@@ -4713,15 +4738,7 @@ void Chat::setOnlineState(ChatState state)
 
         if (mChatdClient.areAllChatsLoggedIn())
         {
-            std::shared_ptr<MegaChatStatistics> initStats = mChatdClient.mKarereClient->megachatStatistics();
-            if (initStats)
-            {
-                // Set global statistics as finished and generate JSON
-                CHATD_LOG_DEBUG("MEGAchat init stats: %s", initStats->statisticsToString().c_str());
-                initStats = nullptr;
-                mChatdClient.mKarereClient->clearStatistics();
-            }
-
+            mChatdClient.mKarereClient->sendStatistics();
             mChatdClient.mKarereClient->setCommitMode(true);
 
             if (!mChatdClient.mKarereClient->mSyncPromise.done())

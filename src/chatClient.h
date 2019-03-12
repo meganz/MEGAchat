@@ -909,6 +909,8 @@ public:
     void updateAndNotifyLastGreen(Id userid);
     std::shared_ptr<MegaChatStatistics> megachatStatistics();
     void clearStatistics();
+    void sendStatistics();
+    void resetStatistics();
 
 protected:
     void heartbeat();
@@ -972,13 +974,14 @@ protected:
 
 /** @brief Class to manage initialization statistics of MEGAChat.
  * This class will measure the initialization times of every stage in
- * MEGAchat initialization in order to improve the performance.
+ * MEGAchat initialization, in order to improve the performance.
  *
  * The stages included in this class are:
  *      Init
  *      Login
  *      Fetch nodes
  *      Post fetch nodes (From the end of fetch nodes until start of connect)
+ *      Reconnect
  *      GetChatUrl
  *      QueryDns
  *      Connect to chatd
@@ -989,57 +992,46 @@ protected:
 **/
 class MegaChatStatistics
 {
-    public:
-        struct Shard
-        {
-            /** @brief Last elapsed time */
-            mega::dstime mlastElapsed;
+    protected:
+        struct StageStats;
+        struct ShardStats;
+        typedef std::map<uint8_t, StageStats> StageMap;
+        typedef std::map<uint8_t, ShardStats> ShardMap;
+        typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
 
-            /** @brief Current elapsed time to finish a stage */
-            mega::dstime mCurrentElapsed;
+        struct StageStats
+        {
+            /** @brief Stage elapsed time */
+            mega::dstime elapsed;
+
+            StageStats():
+                elapsed(0)
+            {}
+        };
+
+        struct ShardStats: StageStats
+        {
+            /** @brief Max elapsed time */
+            mega::dstime maxElapsed;
+
+            /** @brief Aux elapsed time */
+            mega::dstime auxElap;
 
             /** @brief Number of retries */
             unsigned int mRetries;
 
-            Shard():
+            ShardStats():
                 mRetries(0),
-                mCurrentElapsed(0),
-                mlastElapsed(0)
+                auxElap(0),
+                maxElapsed(0)
             {}
         };
 
-        struct Stage
-        {
-            /** @brief Stage elapsed time */
-            mega::dstime mStageElapsed;
+        /** @brief Maps stage to statistics */
+        StageMap mStageStats;
 
-            /** @brief Maps shard to statistics */
-            std::map<uint8_t, Shard> mShardStats;
-
-            Stage():
-                mStageElapsed(0)
-            {}
-        };
-
-        enum
-        {
-            kInitInvalidSession      = 0,
-            kInitSession             = 1,
-            kInitInvalidCache        = 2,
-        };
-
-        /** @brief Stages in MEGAChat initialization*/
-        enum
-        {
-            kStatsInit              = 0,
-            kStatsLogin             = 1,
-            kStatsFetchNodes        = 2,
-            kStatsPostFetchNodes    = 3,
-            kStatsFetchChatUrl      = 4,
-            kStatsQueryDns          = 5,
-            kStatsConnect           = 6,
-            kStatsLoginChatd        = 7
-        };
+        /** @brief Maps shard to statistics */
+        StageShardMap mStageShardStats;
 
         /** @brief Number of nodes in the account */
         long long int mNumNodes;
@@ -1056,17 +1048,58 @@ class MegaChatStatistics
         /** @brief Total elapsed time to finish all stages */
         mega::dstime mTotalElapsed;
 
-        /** @brief Maps stage to statistics */
-        std::map<uint8_t, Stage> mStageStats;
+    public:
+        /** @brief Init states in MEGAChat initialization */
+        enum
+        {
+            kInitInvalidSession      = 0,
+            kInitSession             = 1,
+            kInitInvalidCache        = 2,
+        };
+
+        /** @brief Stages in MEGAChat initialization */
+        enum
+        {
+            kStatsInit              = 0,
+            kStatsLogin             = 1,
+            kStatsFetchNodes        = 2,
+            kStatsPostFetchNodes    = 3,
+            kStatsReconnect         = 4,
+            kStatsFetchChatUrl      = 5,
+            kStatsQueryDns          = 6,
+            kStatsConnect           = 7,
+            kStatsLoginChatd        = 8
+        };
 
         MegaChatStatistics();
         ~MegaChatStatistics();
+
+        /** @brief Setter methods **/
+        void setNumNodes(long long numNodes);
+        void setNumContacts(long numContacts);
+        void setTotalElapsed(const mega::dstime &totalElapsed);
+        void setNumChats(long numChats);
+
+        /** @brief Calculate the total elapsed time for MEGAchat initialization **/
+        void totalElapsed();
+
+        /** @brief Calcule the reconnection stage elapsed time: (TotalElapsed - Init - Login - FetchNodes - PostFetchNodes ) **/
+        void relapsed();
+
+        /** @brief  Returns a string with the associated tag to the stage **/
+        std::string getStageTag(uint8_t stage);
+
+        /** @brief  Returns a string associated to the init state **/
+        std::string initStateToString();
 
         /** @brief Reset and initialize MEGAchat statistics */
         void reset();
 
         /** @brief Returns a string that contains MEGAChat statistics in JSON format */
         std::string statisticsToString();
+
+
+        /** @brief Stages Methods **/
 
         /** @brief Returns the current time of the clock in milliseconds */
         static mega::dstime currentTime();
@@ -1083,7 +1116,13 @@ class MegaChatStatistics
         /** @brief Set the init state */
         void setInitState(Client::InitState state);
 
-        /** @brief Add a shard to the shards map */
+
+        /** @brief Shard Stages Methods **/
+
+        /** @brief Add a shard stage to the sharded stages map */
+        void addShardedStage(uint8_t stage);
+
+        /** @brief Add a shard to the sharded stages map */
         void addShard(uint8_t stage, uint8_t shard);
 
         /** @brief Obtain initial ts for a shard */
@@ -1095,13 +1134,12 @@ class MegaChatStatistics
         /** @brief Increments the number of retries for a shard */
         void incrementRetries(uint8_t stage, uint8_t shard);
 
-        /** @brief Returns a pointer to Shard type if there's an entry in the shard map,
+        /** @brief Returns a pointer to Shard type if there's an entry in the sharded stages map,
          *  otherwise returns NULL */
-        MegaChatStatistics::Shard *getShard(uint8_t stage, uint8_t shard);
+        MegaChatStatistics::ShardStats *getShard(uint8_t stage, uint8_t shard);
 
-
-        /** @brief This function handle the shard stats according to connections states transitions getting
-         *  the start or end ts for a shard in a stage or increments the number of retries */
+        /** @brief This function handle the shard stats according to connections states transitions, getting
+         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage */
         void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
 };
 

@@ -642,9 +642,9 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         std::shared_ptr<MegaChatStatistics>initStatistics = mKarereClient->megachatStatistics();
         if (initStatistics)
         {
-            initStatistics->mNumChats = chats->size();
-            initStatistics->mNumContacts = contacts->size();
-            initStatistics->mNumNodes = api->getNumNodes();
+            initStatistics->setNumChats(chats->size());
+            initStatistics->setNumContacts(contacts->size());
+            initStatistics->setNumNodes(api->getNumNodes());
             initStatistics = nullptr;
         }
 
