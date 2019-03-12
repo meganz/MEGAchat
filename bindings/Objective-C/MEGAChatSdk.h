@@ -51,6 +51,7 @@ typedef NS_ENUM (NSInteger, MEGAChatInit) {
     MEGAChatInitWaitingNewSession = 1,
     MEGAChatInitOfflineSession    = 2,
     MEGAChatInitOnlineSession     = 3,
+    MEGAChatInitAnonymous         = 4,
     MEGAChatInitNoCache           = 7
 };
 
@@ -82,6 +83,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (instancetype)init:(MEGASdk *)megaSDK;
 
 - (MEGAChatInit)initKarereWithSid:(NSString *)sid;
+- (MEGAChatInit)initAnonymous;
 
 - (MEGAChatInit)initState;
 
@@ -177,10 +179,24 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers;
+- (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(NSString *)title;
+
+- (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(NSString *)title;
+- (void)queryChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)queryChatLink:(uint64_t)chatId;
+- (void)createChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)createChatLink:(uint64_t)chatId;
 
 - (void)inviteToChat:(uint64_t)chatId user:(uint64_t)userHandle privilege:(NSInteger)privilege
             delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)inviteToChat:(uint64_t)chatId user:(uint64_t)userHandle privilege:(NSInteger)privilege;
+
+- (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)autojoinPublicChat:(uint64_t)chatId;
+- (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle;
 
 - (void)removeFromChat:(uint64_t)chatId userHandle:(uint64_t)userHandle
               delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -202,12 +218,26 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setChatTitle:(uint64_t)chatId title:(NSString *)title;
 
+- (void)openChatPreview:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)openChatPreview:(NSURL *)link;
+
+- (void)checkChatLink:(NSURL *)link delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)checkChatLink:(NSURL *)link;
+
+- (void)setPublicChatToPrivate:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setPublicChatToPrivate:(uint64_t)chatId;
+
+- (void)removeChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)removeChatLink:(uint64_t)chatId;
+
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)archiveChat:(uint64_t)chatId archive:(BOOL)archive;
 
 - (BOOL)openChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)closeChatRoom:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
+
+- (void)closeChatPreview:(uint64_t)chatId;
 
 - (MEGAChatSource)loadMessagesForChat:(uint64_t)chatId count:(NSInteger)count;
 - (BOOL)isFullHistoryLoadedForChat:(uint64_t)chatId;
@@ -273,7 +303,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
-- (MEGAHandleList *)chatCalls;
+- (MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState;
 - (MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
 - (void)enableGroupChatCalls:(BOOL)enable;

@@ -16,6 +16,7 @@ QTMegaChatEvent::QTMegaChatEvent(MegaChatApi *megaChatApi, Type type) : QEvent(t
     buffer = NULL;
     inProgress = false;
     status = 0;
+    call = NULL;
 }
 
 QTMegaChatEvent::~QTMegaChatEvent()
@@ -27,6 +28,7 @@ QTMegaChatEvent::~QTMegaChatEvent()
     delete config;
     delete chat;
     delete msg;
+    delete call;
 }
 
 MegaChatApi *QTMegaChatEvent::getMegaChatApi()

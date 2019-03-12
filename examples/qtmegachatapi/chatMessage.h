@@ -57,7 +57,7 @@ protected:
         void onMessageDelAction();
         void onMessageEditAction();
         void onMessageRemoveLinkAction();
-        void onNodeDownload(::mega::MegaNode *node);
+        void onNodeDownloadOrImport(mega::MegaNode *node, bool import);
         void onNodePlay(::mega::MegaNode *node);
         void on_bSettings_clicked();
         void onCopyHandle();

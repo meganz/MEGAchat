@@ -77,3 +77,18 @@ void LoginDialog::on_ePassword_textChanged(const QString &)
 {
     onType();
 }
+
+void LoginDialog::on_bAnonymousText_clicked()
+{
+    anonymousLogin();
+}
+
+void LoginDialog::on_bAnonymous_clicked()
+{
+    anonymousLogin();
+}
+
+void LoginDialog::anonymousLogin()
+{
+    emit onPreviewClicked();
+}

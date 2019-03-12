@@ -139,12 +139,18 @@ class MainWindow :
             You take the ownership of the returned list*/
         std::list<Chat> *getLocalChatListItemsByStatus(int status);
 
+        char *askChatTitle();
         std::string getAuthCode();
         void setNContacts(int nContacts);
         void createSettingsMenu();
         void createFactorMenu(bool factorEnabled);
         void updateContactFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
         void updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname);
+        void updateToolTipMyInfo();
+        void removeListeners();
+        void openChatPreview(bool create);
+        void closeChatPreview(megachat::MegaChatHandle chatId);
+        void activeControls(bool active);
         bool eventFilter(QObject *obj, QEvent *event);
 
         void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
@@ -162,11 +168,11 @@ class MainWindow :
         MegaLoggerApplication *mLogger;
         Ui::MainWindow *ui;
         bool mShowArchived = false;
-        int activeChats;
-        int archivedChats;
-        int inactiveChats;
-        int nContacts;
-        bool allowOrder = false;
+        int mActiveChats;
+        int mArchivedChats;
+        int mInactiveChats;
+        int mNContacts;
+        bool mAllowOrder = false;
         bool mNeedReorder = false;
         QMenu *onlineStatus;
         ChatSettings *mChatSettings;
@@ -187,22 +193,24 @@ class MainWindow :
         void on_bSettings_clicked();
         void on_bOnlineStatus_clicked();
         void onAddContact();
-        void onAddChatGroup();
+        void onAddChatRoom(bool isGroup, bool isPublic);
         void onWebRTCsetting();
         void setOnlineStatus();
         void onShowArchivedChats();
-        void onAddGroupChat();
         void onTwoFactorGetCode();
         void onTwoFactorDisable();
-        void onTwoFactorCheck(bool);
+        void onTwoFactorCheck();
+        void onPrintMyInfo();
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();
+        void onReconnect(bool disconnect);
         void onUseApiStagingClicked(bool);
 
     signals:
         void esidLogout();
+        void onAnonymousLogout();
 
      friend class ChatItemWidget;
      friend class ContactItemWidget;

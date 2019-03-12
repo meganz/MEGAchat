@@ -84,6 +84,7 @@ karere::Id RtcCrypto::anonymizeId(karere::Id userid)
 
 void RtcCrypto::random(char* buf, size_t size)
 {
-    ::mega::PrnGen::genblock((unsigned char*)buf, size);
+    ::mega::PrnGen rng;
+    rng.genblock((unsigned char*)buf, size);
 }
 }

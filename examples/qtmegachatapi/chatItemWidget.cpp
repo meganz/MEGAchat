@@ -20,6 +20,7 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
     ui->setupUi(this);
     int unreadCount = item->getUnreadCount();
     onUnreadCountChanged(unreadCount);
+    onPreviewersCountChanged(item->getNumPreviewers());
 
     QString text = NULL;
     if (item->isArchived())
@@ -59,7 +60,23 @@ ChatItemWidget::ChatItemWidget(QWidget *parent, megachat::MegaChatApi *megaChatA
     }
     else
     {
-        ui->mAvatar->setText("G");
+        if(item->isPublic())
+        {
+            if (!item->isPreview())
+            {
+                ui->mAvatar->setText("P");
+                ui->mAvatar->setStyleSheet("color: #43B63D");
+            }
+            else
+            {
+                ui->mAvatar->setText("V");
+                ui->mAvatar->setStyleSheet("color: #FF0C14");
+            }
+        }
+        else
+        {
+             ui->mAvatar->setText("G");
+        }
     }
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
@@ -77,6 +94,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     const char *lastMessageId_64 = "----------";
     const char *auxLastMessageId_64 = mMainWin->mMegaApi->userHandleToBase64(lastMessageId);
     const char *chatId_64 = mMainWin->mMegaApi->userHandleToBase64(mChatId);
+    std::string chatId_Bin = std::to_string(mChatId);
 
     megachat::MegaChatHandle lastMessageSender = item->getLastMessageSender();
     if (lastMessageSender == megachat::MEGACHAT_INVALID_HANDLE)
@@ -232,8 +250,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     {
         const char *peerEmail = chatRoom->getPeerEmail(0);
         const char *peerHandle_64 = mMainWin->mMegaApi->userHandleToBase64(item->getPeerHandle());
-        text.append(tr("1on1 Chat room:"))
+        text.append(tr("1on1 Chat room handle B64:"))
             .append(QString::fromStdString(chatId_64))
+            .append(tr("\n1on1 Chat room handle Bin:"))
+            .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nEmail: "))
             .append(QString::fromStdString(peerEmail))
             .append(tr("\nUser handle: ")).append(QString::fromStdString(peerHandle_64))
@@ -247,8 +267,10 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
     else
     {
         int ownPrivilege = chatRoom->getOwnPrivilege();
-        text.append(tr("Group chat room: "))
+        text.append(tr("Group chat room handle B64: "))
             .append(QString::fromStdString(chatId_64)
+            .append(tr("\nGroup chat room handle Bin: "))
+            .append(QString::fromStdString(chatId_Bin))
             .append(tr("\nOwn privilege: "))
             .append(QString(chatRoom->privToString(ownPrivilege)))
             .append(tr("\nOther participants:")));
@@ -331,6 +353,13 @@ void ChatItemWidget::onUnreadCountChanged(int count)
     ui->mUnreadIndicator->adjustSize();
 }
 
+void ChatItemWidget::onPreviewersCountChanged(int count)
+{
+    ui->mPreviewersIndicator->setText(QString::number(count));
+    ui->mPreviewersIndicator->setVisible(count != 0);
+    ui->mPreviewersIndicator->adjustSize();
+}
+
 void ChatItemWidget::onTitleChanged(const std::string& title)
 {
     QString text = QString::fromStdString(title);
@@ -383,15 +412,12 @@ megachat::MegaChatHandle ChatItemWidget::getChatId() const
     return mChatId;
 }
 
-void ChatItemWidget::setChatHandle(const megachat::MegaChatHandle &chatId)
-{
-    mChatId = chatId;
-}
-
 void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
+    auto actPrintChat = menu.addAction(tr("Print chat info"));
+    connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
     auto actLeave = menu.addAction(tr("Leave group chat"));
     connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
@@ -409,43 +435,91 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
+    auto actExportLink = clMenu->addAction(tr("Create chat link"));
+    connect(actExportLink, SIGNAL(triggered()), this, SLOT(createChatLink()));
+
     auto actQueryLink = clMenu->addAction(tr("Query chat link"));
     connect(actQueryLink, SIGNAL(triggered()), this, SLOT(queryChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
-
-    auto actExportLink = clMenu->addAction(tr("Export chat link"));
-    connect(actExportLink, SIGNAL(triggered()), this, SLOT(exportChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
 
     auto actRemoveLink = clMenu->addAction(tr("Remove chat link"));
     connect(actRemoveLink, SIGNAL(triggered()), this, SLOT(removeChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
 
-    auto joinChatLink = clMenu->addAction("Join chat link");
-    connect(joinChatLink, SIGNAL(triggered()), this, SLOT(on_mJoinBtn_clicked()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto actAutojoinPublicChat = clMenu->addAction(tr("Join chat link"));
+    connect(actAutojoinPublicChat, SIGNAL(triggered()), this, SLOT(autojoinChatLink()));
 
-    auto actClosePreview = clMenu->addAction(tr("Close preview"));
-    connect(actClosePreview, SIGNAL(triggered()), this, SLOT(closePreview()));
-    // TODO: connect to slot in chat-links branch once merged
+    auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
+    connect(actcloseChatPreview, SIGNAL(triggered()), this, SLOT(closeChatPreview()));
 
-    menu.addSeparator();
-    auto actSetPrivate = clMenu->addAction(tr("Set chat private"));
-    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(closeChatLink()));
-    // TODO: connect to slot in chat-links branch once merged
+    clMenu->addSeparator();
+    auto actSetPrivate = clMenu->addAction(tr("Set private mode"));
+    connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(setPublicChatToPrivate()));
 
+    clMenu->addSeparator();
     auto actCopy = menu.addAction(tr("Copy to clipboard chatid"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
-
 
     delete chatRoom;
     menu.exec(event->globalPos());
     menu.deleteLater();
 }
 
+void ChatItemWidget::onPrintChatInfo()
+{
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(this->toolTip());
+    msg.exec();
+}
+
 void ChatItemWidget::truncateChat()
 {
     this->mMegaChatApi->clearChatHistory(mChatId);
+}
+
+void ChatItemWidget::queryChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->queryChatLink(mChatId);
+    }
+}
+
+void ChatItemWidget::createChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->createChatLink(mChatId);
+    }
+}
+
+void ChatItemWidget::setPublicChatToPrivate()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->setPublicChatToPrivate(mChatId);
+    }
+}
+
+void ChatItemWidget::closeChatPreview()
+{
+    mMainWin->closeChatPreview(mChatId);
+}
+
+void ChatItemWidget::removeChatLink()
+{
+    if (mChatId != MEGACHAT_INVALID_HANDLE)
+    {
+        mMegaChatApi->removeChatLink(mChatId);
+    }
+}
+
+void ChatItemWidget::autojoinChatLink()
+{
+    auto ret = QMessageBox::question(this, tr("Join chat link"), tr("Do you want to join to this chat?"));
+    if (ret != QMessageBox::Yes)
+        return;
+
+    this->mMegaChatApi->autojoinPublicChat(mChatId);
 }
 
 void ChatItemWidget::archiveChat(bool checked)

@@ -83,6 +83,9 @@ public:
         /** @brief Called when the chat is un/archived */
         virtual void onChatArchived(bool /*archived*/) {}
 
+        /** @brief Called when the number of previewers in a public chat has changed */
+        virtual void onPreviewersCountUpdate(uint32_t /*numPrev*/) {}
+
         /** @brief Returns an optionally associated user data pointer */
         void* userp = nullptr;
     };
@@ -137,12 +140,17 @@ public:
          */
         virtual void onLastTsUpdated(uint32_t /*ts*/) {}
 
-        /** @brief Called when the connection state to the chatroom shard changes.
-         */
+        /** @brief Called when the connection state to the chatroom shard changes. */
         virtual void onChatOnlineState(const chatd::ChatState /*state*/) {}
+
+        /** @brief Called when the chat mode changes to private. */
+        virtual void onChatModeChanged(bool mode) = 0;
 
         /** @brief Called when the chat is un/archived */
         virtual void onChatArchived(bool /*archived*/) {}
+
+        /** @brief Called when the number of previewers in a public chat has changed */
+        virtual void onPreviewersCountUpdate(uint32_t /*numPrev*/) {}
     };
 
     /**
