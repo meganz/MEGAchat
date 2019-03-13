@@ -119,7 +119,9 @@ Client::Client(karere::Client *aKarereClient) :
     mApi(&aKarereClient->api),
     mKarereClient(aKarereClient)
 {
-    mRichPrevAttrCbHandle = mKarereClient->userAttrCache().getAttr(mMyHandle, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
+    if (mKarereClient->anonymousMode())
+    {
+        mRichPrevAttrCbHandle = mKarereClient->userAttrCache().getAttr(mMyHandle, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
        [](::Buffer *buf, void* userp)
        {
             Client *client = static_cast<Client*>(userp);
@@ -167,6 +169,7 @@ Client::Client(karere::Client *aKarereClient) :
                 break;
             }
        });
+    }
 
     // initialize the most recent message for each user
     SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");

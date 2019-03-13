@@ -20,7 +20,6 @@ public:
     virtual void mac(const std::string& data, const SdpKey& key, SdpKey& output);
     virtual void decryptKeyFrom(karere::Id peer, const SdpKey& data, SdpKey& output);
     virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output);
-    virtual promise::Promise<void> waitForPeerKeys(karere::Id peer);
     virtual karere::Id anonymizeId(karere::Id userid);
     virtual void random(char* buf, size_t len);
 };

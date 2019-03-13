@@ -3262,8 +3262,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
     mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_FULLNAME, this,
-        [](Buffer* buf, void* userp)
+        user, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
         if (buf && !buf->empty())
@@ -3289,20 +3288,22 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
     });
 
-    mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_EMAIL, this,
-        [](Buffer* buf, void* userp)
+    if (!mRoom.parent.mKarereClient.anonymousMode())
     {
-        auto self = static_cast<Member*>(userp);
-        if (buf && !buf->empty())
+        mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
+            user, USER_ATTR_EMAIL, this, [](Buffer* buf, void* userp)
         {
-            self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
+            auto self = static_cast<Member*>(userp);
+            if (buf && !buf->empty())
             {
-                self->mRoom.makeTitleFromMemberNames();
+                self->mEmail.assign(buf->buf(), buf->dataSize());
+                if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
+                {
+                    self->mRoom.makeTitleFromMemberNames();
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 GroupChatRoom::Member::~Member()
