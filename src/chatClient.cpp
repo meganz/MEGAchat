@@ -591,6 +591,7 @@ Client::InitState Client::initWithAnonymousSession()
     mMyHandle = Id::null(); // anonymous mode should use ownHandle set to all zeros
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
+    mSessionReadyPromise.resolve();
 
     return mInitState;
 }
@@ -1025,11 +1026,6 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 
     assert(mConnState == kDisconnected);
 
-    if (anonymousMode())
-    {
-        return doConnect(pres, isInBackground);
-    }
-
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
@@ -1085,8 +1081,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         setConnState(kConnected);
         return ::promise::_Void();
     }
-
-    assert(mSessionReadyPromise.succeeded());
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
