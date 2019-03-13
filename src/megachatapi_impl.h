@@ -216,7 +216,7 @@ public:
     virtual MegaChatHandle getPeerSessionStatusChange() const;
     virtual MegaChatHandle getClientidSessionStatusChange() const;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle peerid, MegaChatHandle clientid);
-    virtual int getNumParticipants() const;
+    virtual int getNumParticipants(int audioVideo) const;
     virtual mega::MegaHandleList *getPeeridParticipants() const;
     virtual mega::MegaHandleList *getClientidParticipants() const;
     virtual bool isIgnored() const;
@@ -1139,7 +1139,7 @@ public:
     void setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
     int getNumCalls();
-    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCalls(int callState = -1);
     mega::MegaHandleList *getChatCallsIds();
     bool hasCallInChatRoom(MegaChatHandle chatid);
     void enableGroupChatCalls(bool enable);

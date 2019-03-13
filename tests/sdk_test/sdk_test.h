@@ -311,7 +311,6 @@ private:
     megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
     bool mPeerIsRinging[NUM_ACCOUNTS];
     bool mVideoLocal[NUM_ACCOUNTS];
-    bool mVideoRemote[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mLoggedInAllChats[NUM_ACCOUNTS];
