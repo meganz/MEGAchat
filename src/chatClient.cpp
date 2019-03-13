@@ -1055,7 +1055,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
 
     setConnState(kConnecting);
-    assert(mSessionReadyPromise.succeeded());
+    assert(mSessionReadyPromise.succeeded() || anonymousMode());
     assert(mUserAttrCache);
 
     // notify user-attr cache
