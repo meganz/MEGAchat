@@ -3124,7 +3124,12 @@ void Chat::onLastReceived(Id msgid)
 
 void Chat::setPublicHandle(uint64_t ph)
 {
-   crypto()->setPublicHandle(ph);
+    crypto()->setPublicHandle(ph);
+
+    if (Id(ph).isValid())
+    {
+        mOwnPrivilege = PRIV_RDONLY;
+    }
 }
 
 uint64_t Chat::getPublicHandle() const
