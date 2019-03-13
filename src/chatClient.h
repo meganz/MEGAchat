@@ -633,7 +633,8 @@ class InitStats
         {
             kInitNewSession      = 0,
             kInitResumeSession   = 1,
-            kInitInvalidCache    = 2
+            kInitInvalidCache    = 2,
+            kInitAnonymous       = 3
         };
 
         /** @brief Stages in initialization */
@@ -680,6 +681,9 @@ class InitStats
 
         /** @brief Returns the current time of the clock in milliseconds */
         static mega::dstime currentTime();
+
+        /** @brief Reset the elapsed time for a stage */
+        void resetStage(uint8_t stage);
 
         /** @brief Obtain initial ts for a stage */
         void stageStart(uint8_t stage);

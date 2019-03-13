@@ -585,6 +585,8 @@ Client::InitState Client::initWithAnonymousSession()
         return kInitErrAlready;
     }
 
+    mInitStats.stageStart(InitStats::kStatsInit);
+
     setInitState(kInitAnonymousMode);
     mSid.clear();
     createDb();
@@ -592,6 +594,9 @@ Client::InitState Client::initWithAnonymousSession()
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
     mSessionReadyPromise.resolve();
+
+    mInitStats.stageEnd(InitStats::kStatsInit);
+    mInitStats.setInitState(mInitState);
 
     return mInitState;
 }
@@ -764,7 +769,6 @@ Client::InitState Client::init(const char* sid)
         return kInitErrAlready;
     }
 
-    mInitStats = InitStats();
     mInitStats.stageStart(InitStats::kStatsInit);
 
     if (sid)
@@ -1165,6 +1169,13 @@ void Client::sendStats()
     if (mInitStats.isFinished())
     {
         return;
+    }
+
+    if (anonymousMode())
+    {
+        mInitStats.resetStage(InitStats::kStatsLogin);
+        mInitStats.resetStage(InitStats::kStatsFetchNodes);
+        mInitStats.resetStage(InitStats::kStatsPostFetchNodes);
     }
 
     mInitStats.setNumNodes(api.sdk.getNumNodes());
@@ -3890,6 +3901,16 @@ void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Conne
     }
 }
 
+void InitStats::resetStage(uint8_t stage)
+{
+    if (mFinished)
+    {
+        return;
+    }
+
+    mStageStats[(uint8_t)stage].elapsed = 0;
+}
+
 void InitStats::stageStart(uint8_t stage)
 {
     if (mFinished)
@@ -3899,7 +3920,6 @@ void InitStats::stageStart(uint8_t stage)
 
     mStageStats[(uint8_t)stage].elapsed = currentTime();
 }
-
 
 void InitStats::stageEnd(uint8_t stage)
 {
@@ -3931,6 +3951,10 @@ void InitStats::setInitState(uint8_t state)
 
         case  Client::kInitWaitingNewSession:
             mInitState = kInitNewSession;
+            break;
+
+        case  Client::kInitAnonymousMode:
+            mInitState = kInitAnonymous;
             break;
     }
 }
