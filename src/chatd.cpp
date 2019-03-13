@@ -4741,11 +4741,10 @@ void Chat::setOnlineState(ChatState state)
             if (initStats)
             {
                 initStats->stageEnd(InitStats::kStatsConnection);
+                mChatdClient.mKarereClient->sendStats();
             }
 
-            mChatdClient.mKarereClient->sendStats();
             mChatdClient.mKarereClient->setCommitMode(true);
-
             if (!mChatdClient.mKarereClient->mSyncPromise.done())
             {
                 CHATID_LOG_DEBUG("Pending pushReceived is completed now");

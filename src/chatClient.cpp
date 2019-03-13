@@ -1104,7 +1104,10 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
-    mInitStats->stageStart(InitStats::kStatsConnection);
+    if (mInitStats)
+    {
+        mInitStats->stageStart(InitStats::kStatsConnection);
+    }
 
     setConnState(kConnecting);
     assert(mSessionReadyPromise.succeeded());
@@ -3913,6 +3916,81 @@ std::string InitStats::statsToString()
     rapidjson::Value jSonObject(rapidjson::kObjectType);
     rapidjson::Value jsonValue(rapidjson::kNumberType);
 
+    // Generate stages array
+    rapidjson::Document stageArray(rapidjson::kArrayType);
+    std::map<uint8_t, StageStats>::iterator itStages;
+    for (itStages = mStageStats.begin() ; itStages != mStageStats.end(); itStages++)
+    {
+        rapidjson::Value jSonStage(rapidjson::kObjectType);
+        uint8_t stage = itStages->first;
+        StageStats &stageStats = itStages->second;
+
+        // Add stage
+        jsonValue.SetInt64(stage);
+        jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
+
+        std::string tag = getStageTag(stage);
+        rapidjson::Value stageTag(rapidjson::kStringType);
+        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
+        jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
+
+        // Add stage elapsed time
+        mTotalElapsed += stageStats.elapsed;
+        jsonValue.SetInt64(stageStats.elapsed);
+        jSonStage.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
+        stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
+    }
+
+    // Generate sharded stages array
+    rapidjson::Value shardStagesArray(rapidjson::kArrayType);
+    StageShardMap::iterator itshstgs;
+    for (itshstgs = this->mStageShardStats.begin(); itshstgs != mStageShardStats.end(); itshstgs++)
+    {
+        rapidjson::Value jSonStage(rapidjson::kObjectType);
+        rapidjson::Document shardArray(rapidjson::kArrayType);
+        uint8_t stage = itshstgs->first;
+
+        ShardMap *shardMap = &(itshstgs->second);
+        if (shardMap)
+        {
+            ShardMap::iterator itShard;
+            for (itShard = shardMap->begin(); itShard != shardMap->end(); itShard++)
+            {
+                rapidjson::Value jSonShard(rapidjson::kObjectType);
+                uint8_t shard = itShard->first;
+                ShardStats &shardStats = itShard->second;
+
+                // Add stage
+                jsonValue.SetInt(shard);
+                jSonShard.AddMember(rapidjson::Value("sh"), jsonValue, jSonDocument.GetAllocator());
+
+                // Add stage elapsed time
+                jsonValue.SetInt(shardStats.elapsed);
+                jSonShard.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
+
+                // Add stage elapsed time
+                jsonValue.SetInt(shardStats.maxElapsed);
+                jSonShard.AddMember(rapidjson::Value("max"), jsonValue, jSonDocument.GetAllocator());
+
+                // Add stage retries
+                jsonValue.SetInt(shardStats.mRetries);
+                jSonShard.AddMember(rapidjson::Value("ret"), jsonValue, jSonDocument.GetAllocator());
+                shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
+            }
+        }
+
+        jsonValue.SetInt(stage);
+        jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
+
+        std::string tag = getShardStageTag(stage);
+        rapidjson::Value stageTag(rapidjson::kStringType);
+        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
+        jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
+
+        jSonStage.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());
+        shardStagesArray.PushBack(jSonStage, jSonDocument.GetAllocator());
+    }
+
     // Add number of nodes
     jsonValue.SetInt64(mNumNodes);
     jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
@@ -3929,97 +4007,15 @@ std::string InitStats::statsToString()
     jsonValue.SetInt64(mInitState);
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
 
-    // Add statistics by stage
-    rapidjson::Document stageArray(rapidjson::kArrayType);
-    std::map<uint8_t, StageStats>::iterator it;
-    for (it = mStageStats.begin() ; it != mStageStats.end(); it++)
-    {
-        rapidjson::Value jSonStage(rapidjson::kObjectType);
-        uint8_t stage = it->first;
-        StageStats &stageStats = it->second;
-        rapidjson::Document shardArray(rapidjson::kArrayType);
-
-        // Add stage
-        rapidjson::Value stageValue(rapidjson::kNumberType);
-        stageValue.SetInt(stage);
-        jSonStage.AddMember(rapidjson::Value("stg"), stageValue, jSonDocument.GetAllocator());
-
-        std::string tag = getStageTag(stage);
-        rapidjson::Value stageTag(rapidjson::kStringType);
-        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
-        jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
-
-        // Add stage elapsed time
-        mTotalElapsed += stageStats.elapsed;
-        rapidjson::Value elapsedValue(rapidjson::kNumberType);
-        elapsedValue.SetInt(stageStats.elapsed);
-        jSonStage.AddMember(rapidjson::Value("elap"), elapsedValue, jSonDocument.GetAllocator());
-        stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
-    }
-
-    rapidjson::Value jsonShardedStages(rapidjson::kArrayType);
-    StageShardMap::iterator ittres;
-    for (ittres = this->mStageShardStats.begin() ; ittres != mStageShardStats.end(); ittres++)
-    {
-        rapidjson::Value jSonStage(rapidjson::kObjectType);
-        rapidjson::Document shardArray(rapidjson::kArrayType);
-        uint8_t stage = ittres->first;
-
-        ShardMap *shardMap = &(ittres->second);
-        if (shardMap)
-        {
-            ShardMap::iterator auxit;
-            for (auxit = shardMap->begin(); auxit != shardMap->end(); auxit++)
-            {
-                rapidjson::Value jSonShard(rapidjson::kObjectType);
-                uint8_t shard = auxit->first;
-                ShardStats &shardStats = auxit->second;
-
-                // Add stage
-                rapidjson::Value shardValue(rapidjson::kNumberType);
-                shardValue.SetInt(shard);
-                jSonShard.AddMember(rapidjson::Value("sh"), shardValue, jSonDocument.GetAllocator());
-
-                // Add stage elapsed time
-                rapidjson::Value shardElapsedValue(rapidjson::kNumberType);
-                shardElapsedValue.SetInt(shardStats.elapsed);
-                jSonShard.AddMember(rapidjson::Value("elap"), shardElapsedValue, jSonDocument.GetAllocator());
-
-                // Add stage elapsed time
-                rapidjson::Value shardMaxElapsedValue(rapidjson::kNumberType);
-                shardMaxElapsedValue.SetInt(shardStats.maxElapsed);
-                jSonShard.AddMember(rapidjson::Value("max"), shardMaxElapsedValue, jSonDocument.GetAllocator());
-
-                // Add stage retries
-                rapidjson::Value retriesValue(rapidjson::kNumberType);
-                retriesValue.SetInt(shardStats.mRetries);
-                jSonShard.AddMember(rapidjson::Value("ret"), retriesValue, jSonDocument.GetAllocator());
-                shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
-            }
-        }
-
-        rapidjson::Value shardStage(rapidjson::kNumberType);
-        shardStage.SetInt(stage);
-        jSonStage.AddMember(rapidjson::Value("stg"), shardStage, jSonDocument.GetAllocator());
-
-        std::string tag = this->getShardStageTag(stage);
-        rapidjson::Value stageTag(rapidjson::kStringType);
-        stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
-        jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
-        jSonStage.AddMember(rapidjson::Value("sa"), shardArray, jSonDocument.GetAllocator());
-
-        jsonShardedStages.PushBack(jSonStage, jSonDocument.GetAllocator());
-
-    }
-
-
     // Add total elapsed
     jsonValue.SetInt64(mTotalElapsed);
     jSonObject.AddMember(rapidjson::Value("telap"), jsonValue, jSonDocument.GetAllocator());
 
+    // Add stages array
     jSonObject.AddMember(rapidjson::Value("stgs"), stageArray, jSonDocument.GetAllocator());
 
-    jSonObject.AddMember(rapidjson::Value("shstgs"), jsonShardedStages, jSonDocument.GetAllocator());
+    // Add sharded stages array
+    jSonObject.AddMember(rapidjson::Value("shstgs"), shardStagesArray, jSonDocument.GetAllocator());
 
     jSonDocument.PushBack(jSonObject, jSonDocument.GetAllocator());
     rapidjson::StringBuffer buffer;
