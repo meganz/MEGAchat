@@ -763,8 +763,8 @@ Client::InitState Client::init(const char* sid)
         return kInitErrAlready;
     }
 
-    mInitStats = std::make_shared<InitStats>();
-    mInitStats->stageStart(InitStats::kStatsInit);
+    mInitStats = InitStats();
+    mInitStats.stageStart(InitStats::kStatsInit);
 
     if (sid)
     {
@@ -781,11 +781,10 @@ Client::InitState Client::init(const char* sid)
         setInitState(kInitWaitingNewSession);
     }
 
-    if (mInitStats)
-    {
-        mInitStats->stageEnd(InitStats::kStatsInit);
-        mInitStats->setInitState(mInitState);
-    }
+
+    mInitStats.stageEnd(InitStats::kStatsInit);
+    mInitStats.setInitState(mInitState);
+
 
     api.sdk.addRequestListener(this);
     return mInitState;
@@ -798,17 +797,11 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
     {
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
-            if (mInitStats)
-            {
-                mInitStats->stageStart(InitStats::kStatsLogin);
-            }
+            mInitStats.stageStart(InitStats::kStatsLogin);
         }
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
-            if (mInitStats)
-            {
-                mInitStats->stageStart(InitStats::kStatsFetchNodes);
-            }
+            mInitStats.stageStart(InitStats::kStatsFetchNodes);
         }
     }
 }
@@ -827,10 +820,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGIN:
     {
-        if (mInitStats)
-        {
-            mInitStats->stageEnd(InitStats::kStatsLogin);
-        }
+        mInitStats.stageEnd(InitStats::kStatsLogin);
         break;
     }
 
@@ -867,11 +857,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     case ::mega::MegaRequest::TYPE_FETCH_NODES:
     {
         api.sdk.pauseActionPackets();
-        if (mInitStats)
-        {
-            mInitStats->stageEnd(InitStats::kStatsFetchNodes);
-            mInitStats->stageStart(InitStats::kStatsPostFetchNodes);
-        }
+        mInitStats.stageEnd(InitStats::kStatsFetchNodes);
+        mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
+
         auto state = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
         std::string scsn;
@@ -1071,10 +1059,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
-    if (mInitStats)
-    {
-        mInitStats->stageEnd(InitStats::kStatsPostFetchNodes);
-    }
+    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
 
     if (anonymousMode())
     {
@@ -1104,10 +1089,8 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
-    if (mInitStats)
-    {
-        mInitStats->stageStart(InitStats::kStatsConnection);
-    }
+    mInitStats.stageStart(InitStats::kStatsConnection);
+
 
     setConnState(kConnecting);
     assert(mSessionReadyPromise.succeeded());
@@ -1185,15 +1168,20 @@ void Client::setConnState(ConnState newState)
 
 void Client::sendStats()
 {
-    assert(mInitStats);
-    mInitStats->setNumNodes(api.sdk.getNumNodes());
-    mInitStats->setNumChats(chats->size());
-    mInitStats->setNumContacts(contactList->size());
-    KR_LOG_DEBUG("Init stats: %s", mInitStats->statsToString().c_str());
-    mInitStats.reset();
+    if (mInitStats.isFinished())
+    {
+        return;
+    }
+
+    mInitStats.setNumNodes(api.sdk.getNumNodes());
+    mInitStats.setNumChats(chats->size());
+    mInitStats.setNumContacts(contactList->size());
+    KR_LOG_DEBUG("Init stats: %s", mInitStats.statsToString().c_str());
+    mInitStats.setFinished(true);
+    mInitStats.clearStats();
 }
 
-std::shared_ptr<InitStats> Client::initStats()
+InitStats& Client::initStats()
 {
     return mInitStats;
 }
@@ -3743,17 +3731,42 @@ std::string encodeFirstName(const std::string& first)
 
 void InitStats::setNumNodes(long long numNodes)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mNumNodes = numNodes;
 }
 
 void InitStats::setNumContacts(long numContacts)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mNumContacts = numContacts;
 }
 
 void InitStats::setNumChats(long numChats)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mNumChats = numChats;
+}
+
+bool InitStats::isFinished() const
+{
+    return mFinished;
+}
+
+void InitStats::setFinished(bool finished)
+{
+    mFinished = finished;
 }
 
 InitStats::InitStats()
@@ -3762,18 +3775,27 @@ InitStats::InitStats()
     mNumChats = 0;
     mNumContacts = 0;
     mTotalElapsed = 0;
+    mFinished = false;
     mInitState = kInitNewSession;
-    KR_LOG_INFO("Init statistics created");
+    KR_LOG_INFO("Init stats created");
+}
+
+void InitStats::clearStats()
+{
+    mNumNodes = 0;
+    mNumChats = 0;
+    mNumContacts = 0;
+    mTotalElapsed = 0;
+    mInitState = kInitNewSession;
+    mStageStats.clear();
+    mStageShardStats.clear();
 }
 
 InitStats::~InitStats()
 {
-    if (mStageStats.size())
-    {
-        mStageStats.clear();
-    }
-
-    KR_LOG_INFO("Init statistics destroyed");
+    mStageStats.clear();
+    mStageShardStats.clear();
+    KR_LOG_INFO("Init stats destroyed");
 }
 
 mega::dstime InitStats::currentTime()
@@ -3785,11 +3807,21 @@ mega::dstime InitStats::currentTime()
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mStageShardStats[stage][shard].auxElap = currentTime();
 }
 
 void InitStats::shardEnd(uint8_t stage, uint8_t shard)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     InitStats::ShardStats *shardStats = &mStageShardStats[stage][shard];
     if (shardStats->auxElap)
     {
@@ -3806,11 +3838,21 @@ void InitStats::shardEnd(uint8_t stage, uint8_t shard)
 
 void InitStats::incrementRetries(uint8_t stage, uint8_t shard)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mStageShardStats[stage][shard].mRetries++;
 }
 
 void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     switch (newState)
     {
         case chatd::Connection::State::kStateFetchingUrl :
@@ -3856,17 +3898,32 @@ void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Conne
 
 void InitStats::stageStart(uint8_t stage)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mStageStats[(uint8_t)stage].elapsed = currentTime();
 }
 
 
 void InitStats::stageEnd(uint8_t stage)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     mStageStats[stage].elapsed = currentTime() - mStageStats[stage].elapsed;
 }
 
-void InitStats::setInitState(Client::InitState state)
+void InitStats::setInitState(uint8_t state)
 {
+    if (mFinished)
+    {
+        return;
+    }
+
     switch (state)
     {
         case  Client::kInitErrNoCache:

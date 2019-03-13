@@ -43,7 +43,6 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
-class InitStats;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 class ChatRoomList;
@@ -549,6 +548,170 @@ public:
     /** @endcond */
 };
 
+/** @brief Class to manage init stats of Karere.
+ * This class will measure the initialization times of every stage
+ * in order to improve the performance.
+ *
+ * The stages included in this class are:
+ *      Init
+ *      Login
+ *      Fetch nodes
+ *      Post fetch nodes (From the end of fetch nodes until start of connect)
+ *      Reconnect
+ *      GetChatUrl
+ *      QueryDns
+ *      Connect to chatd
+ *      All chats logged in
+ *
+ * The following stages are divided by shards to improve the precision of the statistics:
+ * (GetChatUrl, QueryDns, Connect to chatd, All chats logged in)
+**/
+class InitStats
+{
+    protected:
+        struct StageStats;
+        struct ShardStats;
+        typedef std::map<uint8_t, StageStats> StageMap;
+        typedef std::map<uint8_t, ShardStats> ShardMap;
+        typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
+
+        struct StageStats
+        {
+            /** @brief Stage elapsed time */
+            mega::dstime elapsed;
+
+            StageStats():
+                elapsed(0)
+            {}
+        };
+
+        struct ShardStats: StageStats
+        {
+            /** @brief Max elapsed time */
+            mega::dstime maxElapsed;
+
+            /** @brief Aux elapsed time */
+            mega::dstime auxElap;
+
+            /** @brief Number of retries */
+            unsigned int mRetries;
+
+            ShardStats():
+                mRetries(0),
+                auxElap(0),
+                maxElapsed(0)
+            {}
+        };
+
+        /** @brief Maps stages to statistics */
+        StageMap mStageStats;
+
+        /** @brief Maps sharded stages to statistics */
+        StageShardMap mStageShardStats;
+
+        /** @brief Number of nodes in the account */
+        long long int mNumNodes;
+
+        /** @brief Number of chats in the account */
+        long int mNumChats;
+
+        /** @brief Number of contacts in the account */
+        long int mNumContacts;
+
+        /** @brief Flag that indicates whether the stats have already been sent */
+        bool mFinished;
+
+        /** @brief Indicates the init state with cache */
+        uint8_t mInitState;
+
+        /** @brief Total elapsed time to finish all stages */
+        mega::dstime mTotalElapsed;
+
+    public:
+        /** @brief Init states in init stats */
+        enum
+        {
+            kInitNewSession      = 0,
+            kInitResumeSession   = 1,
+            kInitInvalidCache    = 2
+        };
+
+        /** @brief Stages in initialization */
+        enum
+        {
+            kStatsInit              = 0,
+            kStatsLogin             = 1,
+            kStatsFetchNodes        = 2,
+            kStatsPostFetchNodes    = 3,
+            kStatsConnection        = 4
+        };
+
+
+        /** @brief Stages in init stats */
+        enum
+        {
+            kStatsFetchChatUrl      = 0,
+            kStatsQueryDns          = 1,
+            kStatsConnect           = 2,
+            kStatsLoginChatd        = 3
+        };
+
+        InitStats();
+        ~InitStats();
+
+        void clearStats();
+        void setNumNodes(long long numNodes);
+        void setNumContacts(long numContacts);
+        void setNumChats(long numChats);
+        void setFinished(bool finished);
+        bool isFinished() const;
+
+        /** @brief  Returns a string with the associated tag to the stage **/
+        std::string getStageTag(uint8_t stage);
+
+        /** @brief  Returns a string with the associated tag to the stage **/
+        std::string getShardStageTag(uint8_t stage);
+
+        /** @brief Returns a string that contains init stats in JSON format */
+        std::string statsToString();
+
+
+        /**  Stages Methods **/
+
+        /** @brief Returns the current time of the clock in milliseconds */
+        static mega::dstime currentTime();
+
+        /** @brief Obtain initial ts for a stage */
+        void stageStart(uint8_t stage);
+
+        /** @brief Obtain end ts for a stage */
+        void stageEnd(uint8_t stage);
+
+        /** @brief Set the init state */
+        void setInitState(uint8_t state);
+
+
+        /**  Shard Stages Methods **/
+
+        /** @brief Obtain initial ts for a shard */
+        void shardStart(uint8_t stage, uint8_t shard);
+
+        /** @brief Obtain end ts for a shard */
+        void shardEnd(uint8_t stage, uint8_t shard);
+
+        /** @brief Increments the number of retries for a shard */
+        void incrementRetries(uint8_t stage, uint8_t shard);
+
+        /** @brief Returns a pointer to Shard type if there's an entry in the sharded stages map,
+         *  otherwise returns NULL */
+        InitStats::ShardStats *getShard(uint8_t stage, uint8_t shard);
+
+        /** @brief This function handle the shard stats according to connections states transitions, getting
+         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage */
+        void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
+
+};
+
 /** @brief The karere Client object. Create an instance to use Karere.
  *
  *  A sequence of how the client has to be initialized:
@@ -708,7 +871,7 @@ protected:
 
     megaHandle mHeartbeatTimer = 0;
     bool mGroupCallsEnabled = false;
-    std::shared_ptr<InitStats> mInitStats;
+    InitStats mInitStats;
 
 public:
 
@@ -907,7 +1070,7 @@ public:
     bool areGroupCallsEnabled();
     void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
-    std::shared_ptr<InitStats> initStats();
+    InitStats &initStats();
     void sendStats();
 
 protected:
@@ -970,163 +1133,7 @@ protected:
     friend class ChatRoomList;
 };
 
-/** @brief Class to manage initialization statistics of Karere.
- * This class will measure the initialization times of every stage
- * in order to improve the performance.
- *
- * The stages included in this class are:
- *      Init
- *      Login
- *      Fetch nodes
- *      Post fetch nodes (From the end of fetch nodes until start of connect)
- *      Reconnect
- *      GetChatUrl
- *      QueryDns
- *      Connect to chatd
- *      All chats logged in
- *
- * The following stages are divided by shards to improve the precision of the statistics:
- * (GetChatUrl, QueryDns, Connect to chatd, All chats logged in)
-**/
-class InitStats
-{
-    protected:
-        struct StageStats;
-        struct ShardStats;
-        typedef std::map<uint8_t, StageStats> StageMap;
-        typedef std::map<uint8_t, ShardStats> ShardMap;
-        typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
 
-        struct StageStats
-        {
-            /** @brief Stage elapsed time */
-            mega::dstime elapsed;
-
-            StageStats():
-                elapsed(0)
-            {}
-        };
-
-        struct ShardStats: StageStats
-        {
-            /** @brief Max elapsed time */
-            mega::dstime maxElapsed;
-
-            /** @brief Aux elapsed time */
-            mega::dstime auxElap;
-
-            /** @brief Number of retries */
-            unsigned int mRetries;
-
-            ShardStats():
-                mRetries(0),
-                auxElap(0),
-                maxElapsed(0)
-            {}
-        };
-
-        /** @brief Maps stage to statistics */
-        StageMap mStageStats;
-
-        /** @brief Maps shard to statistics */
-        StageShardMap mStageShardStats;
-
-        /** @brief Number of nodes in the account */
-        long long int mNumNodes;
-
-        /** @brief Number of chats in the account */
-        long int mNumChats;
-
-        /** @brief Number of contacts in the account */
-        long int mNumContacts;
-
-        /** @brief Indicates the init state with cache */
-        uint8_t mInitState;
-
-        /** @brief Total elapsed time to finish all stages */
-        mega::dstime mTotalElapsed;
-
-    public:
-        /** @brief Init states in init stats */
-        enum
-        {
-            kInitNewSession      = 0,
-            kInitResumeSession   = 1,
-            kInitInvalidCache    = 2
-        };
-
-        /** @brief Stages in initialization */
-        enum
-        {
-            kStatsInit              = 0,
-            kStatsLogin             = 1,
-            kStatsFetchNodes        = 2,
-            kStatsPostFetchNodes    = 3,
-            kStatsConnection        = 4
-        };
-
-
-        /** @brief Stages in init stats */
-        enum
-        {
-            kStatsFetchChatUrl      = 0,
-            kStatsQueryDns          = 1,
-            kStatsConnect           = 2,
-            kStatsLoginChatd        = 3
-        };
-
-        InitStats();
-        ~InitStats();
-
-        /** @brief Setter methods **/
-        void setNumNodes(long long numNodes);
-        void setNumContacts(long numContacts);
-        void setNumChats(long numChats);
-
-        /** @brief  Returns a string with the associated tag to the stage **/
-        std::string getStageTag(uint8_t stage);
-
-        /** @brief  Returns a string with the associated tag to the stage **/
-        std::string getShardStageTag(uint8_t stage);
-
-        /** @brief Returns a string that contains init stats in JSON format */
-        std::string statsToString();
-
-
-        /**  Stages Methods **/
-
-        /** @brief Returns the current time of the clock in milliseconds */
-        static mega::dstime currentTime();
-
-        /** @brief Obtain initial ts for a stage */
-        void stageStart(uint8_t stage);
-
-        /** @brief Obtain end ts for a stage */
-        void stageEnd(uint8_t stage);
-
-        /** @brief Set the init state */
-        void setInitState(Client::InitState state);
-
-
-        /**  Shard Stages Methods **/
-
-        /** @brief Obtain initial ts for a shard */
-        void shardStart(uint8_t stage, uint8_t shard);
-
-        /** @brief Obtain end ts for a shard */
-        void shardEnd(uint8_t stage, uint8_t shard);
-
-        /** @brief Increments the number of retries for a shard */
-        void incrementRetries(uint8_t stage, uint8_t shard);
-
-        /** @brief Returns a pointer to Shard type if there's an entry in the sharded stages map,
-         *  otherwise returns NULL */
-        InitStats::ShardStats *getShard(uint8_t stage, uint8_t shard);
-
-        /** @brief This function handle the shard stats according to connections states transitions, getting
-         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage */
-        void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
-};
 
 
 }
