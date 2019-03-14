@@ -1508,7 +1508,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     {
         if (wptr.deleted())
         {
-            return promise::Error("Title decrypted successfully, but instance was removed");
+            return promise::Error("Title encrypted successfully, but instance was removed");
         }
 
         std::string enctitleB64;
