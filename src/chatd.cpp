@@ -119,7 +119,7 @@ Client::Client(karere::Client *aKarereClient) :
     mApi(&aKarereClient->api),
     mKarereClient(aKarereClient)
 {
-    if (mKarereClient->anonymousMode())
+    if (!mKarereClient->anonymousMode())
     {
         mRichPrevAttrCbHandle = mKarereClient->userAttrCache().getAttr(mMyHandle, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
        [](::Buffer *buf, void* userp)
