@@ -552,19 +552,63 @@ public:
  * This class will measure the initialization times of every stage
  * in order to improve the performance.
  *
- * The stages included in this class are:
+ * The main stages included in this class are:
  *      Init
  *      Login
  *      Fetch nodes
  *      Post fetch nodes (From the end of fetch nodes until start of connect)
- *      Reconnect
+ *      Connection
+ *
+ * The Connection stage is subdivided in the following stages with stats per shard:
  *      GetChatUrl
  *      QueryDns
  *      Connect to chatd
  *      All chats logged in
  *
- * The following stages are divided by shards to improve the precision of the statistics:
- * (GetChatUrl, QueryDns, Connect to chatd, All chats logged in)
+ * To obtain a string with the stats in JSON you have to call statsToString. The structure of the JSON is:
+ * [
+ * {
+ *  "nn":14,		// Number of nodes
+ *  "ncn":2,		// Number of contacts
+ *  "nch":17,		// Number of chats
+ *  "sid":1,		// Init state {InitNewSession = 0, InitResumeSession = 1, InitInvalidCache = 2, InitAnonymous =3}
+ *  "telap":1240,	// Total elapsed time
+ *  "stgs":			// Array with main stages
+ *  [
+ *  	{
+ *  	"stg":0,		// Stage number
+ *  	"tag":"Init",	// Stage tag
+ *  	"elap":16		// Stage elapsed time
+ *  	},
+ *  	{
+ *  	...
+ *  	}
+ *  ]
+ *  "shstgs":		// Array with stages divided by shard
+ *  [
+ *  	{
+ *  	"stg":0,				// Stage number
+ *  	"tag":"Fetch chat url",	// Stage tag
+ *  	"sa":					// Sub array with stats
+ *  		[
+ *  			{
+ *  			"sh":0,             // Shard number
+ *  			"elap":222,         // Shard elapsed time
+ *  			"max":222,          // Shard max elapsed time
+ *  			"ret":0             // Number of retries
+ *  			}
+ *  			{
+ *  			...
+ *  			}
+ *  		]
+ *  	},
+ *  	{
+ *  	...
+ *  	}
+ *  ]
+ *  }
+ *  ]
+ *
 **/
 class InitStats
 {
@@ -706,14 +750,12 @@ class InitStats
         /** @brief Increments the number of retries for a shard */
         void incrementRetries(uint8_t stage, uint8_t shard);
 
-        /** @brief Returns a pointer to Shard type if there's an entry in the sharded stages map,
-         *  otherwise returns NULL */
-        InitStats::ShardStats *getShard(uint8_t stage, uint8_t shard);
-
         /** @brief This function handle the shard stats according to connections states transitions, getting
-         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage */
+         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage
+         *
+         *  @note In kStatsQueryDns the figures are recorded when DNS are resolved successfully and they are stored in DNS cache.
+        */
         void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
-
 };
 
 /** @brief The karere Client object. Create an instance to use Karere.

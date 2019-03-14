@@ -1183,7 +1183,6 @@ void Client::sendStats()
     mInitStats.setNumContacts(contactList->size());
     KR_LOG_DEBUG("Init stats: %s", mInitStats.statsToString().c_str());
     mInitStats.setFinished(true);
-    mInitStats.clearStats();
 }
 
 InitStats& Client::initStats()
@@ -3736,31 +3735,16 @@ std::string encodeFirstName(const std::string& first)
 
 void InitStats::setNumNodes(long long numNodes)
 {
-    if (mFinished)
-    {
-        return;
-    }
-
     mNumNodes = numNodes;
 }
 
 void InitStats::setNumContacts(long numContacts)
 {
-    if (mFinished)
-    {
-        return;
-    }
-
     mNumContacts = numContacts;
 }
 
 void InitStats::setNumChats(long numChats)
 {
-    if (mFinished)
-    {
-        return;
-    }
-
     mNumChats = numChats;
 }
 
@@ -3772,6 +3756,7 @@ bool InitStats::isFinished() const
 void InitStats::setFinished(bool finished)
 {
     mFinished = finished;
+    clearStats();
 }
 
 InitStats::InitStats()
@@ -3903,11 +3888,6 @@ void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Conne
 
 void InitStats::resetStage(uint8_t stage)
 {
-    if (mFinished)
-    {
-        return;
-    }
-
     mStageStats[(uint8_t)stage].elapsed = 0;
 }
 
