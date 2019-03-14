@@ -1182,7 +1182,7 @@ void Client::sendStats()
     mInitStats.setNumChats(chats->size());
     mInitStats.setNumContacts(contactList->size());
     KR_LOG_DEBUG("Init stats: %s", mInitStats.statsToString().c_str());
-    mInitStats.setFinished(true);
+    mInitStats.onCompleted();
 }
 
 InitStats& Client::initStats()
@@ -3753,24 +3753,21 @@ bool InitStats::isFinished() const
     return mFinished;
 }
 
-void InitStats::setFinished(bool finished)
+void InitStats::onCompleted()
 {
-    mFinished = finished;
-    clearStats();
+    assert(!mFinished);
+    init();
+    mFinished = true;
 }
 
 InitStats::InitStats()
 {
-    mNumNodes = 0;
-    mNumChats = 0;
-    mNumContacts = 0;
-    mTotalElapsed = 0;
+    init();
     mFinished = false;
-    mInitState = kInitNewSession;
     KR_LOG_INFO("Init stats created");
 }
 
-void InitStats::clearStats()
+void InitStats::init()
 {
     mNumNodes = 0;
     mNumChats = 0;

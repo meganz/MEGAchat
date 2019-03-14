@@ -704,11 +704,11 @@ class InitStats
         InitStats();
         ~InitStats();
 
-        void clearStats();
+        void init();
         void setNumNodes(long long numNodes);
         void setNumContacts(long numContacts);
         void setNumChats(long numChats);
-        void setFinished(bool finished);
+        void onCompleted();
         bool isFinished() const;
 
         /** @brief  Returns a string with the associated tag to the stage **/
