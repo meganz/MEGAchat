@@ -1504,8 +1504,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
     {
+        if (wptr.deleted())
+        {
+            return promise::Error("Title decrypted successfully, but instance was removed");
+        }
+
         std::string enctitleB64;
         if (!encTitle->empty())
         {
