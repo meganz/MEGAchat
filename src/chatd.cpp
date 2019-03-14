@@ -1873,15 +1873,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
-                    auto& chat = mChatdClient.chats(chatid);
-                    if (!chat.isGroup())
-                    {
-                        mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
-                    }
-                    else
-                    {
-                        CHATDS_LOG_DEBUG("Skip command");
-                    }
+                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
                 }
 #endif
                 break;
