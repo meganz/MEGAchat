@@ -1498,8 +1498,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
     {
+        if (wptr.deleted())
+        {
+            return promise::Error("Title encrypted successfully, but instance was removed");
+        }
+
         std::string enctitleB64;
         if (!encTitle->empty())
         {
@@ -3256,8 +3261,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
     mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_FULLNAME, this,
-        [](Buffer* buf, void* userp)
+        user, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
         if (buf && !buf->empty())
@@ -3283,20 +3287,22 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
     });
 
-    mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_EMAIL, this,
-        [](Buffer* buf, void* userp)
+    if (!mRoom.parent.mKarereClient.anonymousMode())
     {
-        auto self = static_cast<Member*>(userp);
-        if (buf && !buf->empty())
+        mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
+            user, USER_ATTR_EMAIL, this, [](Buffer* buf, void* userp)
         {
-            self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
+            auto self = static_cast<Member*>(userp);
+            if (buf && !buf->empty())
             {
-                self->mRoom.makeTitleFromMemberNames();
+                self->mEmail.assign(buf->buf(), buf->dataSize());
+                if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
+                {
+                    self->mRoom.makeTitleFromMemberNames();
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 GroupChatRoom::Member::~Member()
