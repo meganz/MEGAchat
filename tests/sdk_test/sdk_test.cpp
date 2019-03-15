@@ -1473,9 +1473,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     char *sessionPrimary = login(a1);
 
     // Init anonymous in secondary account
-    bool *flagAttrReceived = &requestFlags[a2][MegaRequest::TYPE_GET_ATTR_USER]; *flagAttrReceived = false;
     initState[a2] = megaChatApi[a2]->initAnonymous();
-    ASSERT_CHAT_TEST(waitForResponse(flagAttrReceived), "Timeout expired init in anonymous mode");
     ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
     char *sessionAnonymous = megaApi[a2]->dumpSession();
 
