@@ -1959,12 +1959,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 auto& chat = mChatdClient.chats(chatid);
-                // TODO: remove this block once the groucalls are fully supported by clients
-                if ((chat.isGroup() && !mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                {
-                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring INCALL command");
-                    break;
-                }
                 chat.onInCall(userid, clientid);
                 break;
             }
@@ -1976,12 +1970,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 auto& chat = mChatdClient.chats(chatid);
-                // TODO: remove this block once the groucalls are fully supported by clients
-                if ((chat.isGroup() && !mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                {
-                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring ENDCALL command");
-                    break;
-                }
                 chat.onEndCall(userid, clientid);
                 break;
             }
@@ -1998,13 +1986,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
-                    auto& chat = mChatdClient.chats(chatid);                    
-                    // TODO: remove this block once the groucalls are fully supported by clients
-                    if ((chat.isGroup() && !mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                    {
-                        CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring CALLDATA command");
-                        break;
-                    }
+                    auto& chat = mChatdClient.chats(chatid);
                     mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
 #else
@@ -2102,15 +2084,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
-                    auto& chat = mChatdClient.chats(chatid);
-                    if (!chat.isGroup() || (chat.isGroup() && mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                    {
-                        mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
-                    }
-                    else
-                    {
-                        CHATDS_LOG_DEBUG("Skip command");
-                    }
+                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
                 }
 #endif
                 break;

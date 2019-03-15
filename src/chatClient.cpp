@@ -489,16 +489,6 @@ bool Client::isChatRoomOpened(Id chatid)
     return false;
 }
 
-bool Client::areGroupCallsEnabled()
-{
-    return mGroupCallsEnabled;
-}
-
-void Client::enableGroupCalls(bool enable)
-{
-    mGroupCallsEnabled = enable;
-}
-
 void Client::saveDb()
 {
     try

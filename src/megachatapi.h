@@ -4424,6 +4424,7 @@ public:
      * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
      *
      * @param enable True for enable group calls. False to disable them.
+     * @deprecated Groupcalls are always enabled, this function has no effect.
      */
     void enableGroupChatCalls(bool enable);
 
@@ -4436,6 +4437,7 @@ public:
      * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
      *
      * @return True if group calls are enabled. Otherwise, false.
+     * @deprecated Groupcalls are always enabled
      */
     bool areGroupChatCallEnabled();
 
