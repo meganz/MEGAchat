@@ -3165,8 +3165,9 @@ public:
      * must have a valid public handle.
      *
      * This function must be called only after calling:
-     *  - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_ACCESS (You are trying to
-     *  preview a public chat wich you were part of, so you have to rejoin it)
+     * - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_EXIST for a chatroom where
+     * your own privilege is MegaChatRoom::PRIV_RM (You are trying to preview a public chat which
+     * you were part of, so you have to rejoin it)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -4423,6 +4424,7 @@ public:
      * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
      *
      * @param enable True for enable group calls. False to disable them.
+     * @deprecated Groupcalls are always enabled, this function has no effect.
      */
     void enableGroupChatCalls(bool enable);
 
@@ -4435,6 +4437,7 @@ public:
      * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
      *
      * @return True if group calls are enabled. Otherwise, false.
+     * @deprecated Groupcalls are always enabled
      */
     bool areGroupChatCallEnabled();
 
