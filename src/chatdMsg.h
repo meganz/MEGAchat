@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <buffer.h>
+#include <memory>
 #include "karereId.h"
 
 enum
@@ -200,6 +201,7 @@ enum Opcode
     /**
       * @brief
       * S->C: Signal the final <keyid> for a newly allocated key.
+      * After a HIST, a keyid=0 is received.
       * Receive: <chatid> <keyxid> <keyid>
       */
     OP_NEWKEYID = 18,
@@ -332,7 +334,26 @@ enum Opcode
     OP_DELREACTION = 34,
 
     /**
-      * @brief <chatid>
+      * @brief
+      * C->S: Subscribe to events for this chat in preview mode. Client has no existing message buffer.
+      * Send: <public_handle.6> <userid.8> <user_priv>.
+      *
+      * @note chatd indicates users in this chat and their privilege level as well as privilege via the
+      * standard OP_JOIN.
+      */
+    OP_HANDLEJOIN = 36,
+
+    /**
+      * @brief
+      * C->S: Subscribe to events for this chat in preview mode, indicating the existing message range
+      *    (msgid0 is the oldest, msgid1 the newest). Responds with all messages newer
+      *    than msgid1 (if any) as NEWMSG, followed by a HISTDONE.
+      * Send: <public_handle.6> <msgid0> <msgid1>
+      */
+    OP_HANDLEJOINRANGEHIST = 37,
+
+    /**
+      ** @brief <chatid>
       *
       * C->S: ping server to ensure client is up to date for the specified chatid
       * S->C: response to the ping initiated by client
@@ -370,7 +391,28 @@ enum Opcode
       */
     OP_NODEHIST = 45,
 
-    OP_LAST = OP_NODEHIST,
+    /**
+      ** @brief <chatid> <count>
+      *
+      * S->C: inform about any change in the number of users in preview mode in a chat.
+      * It is sent after any change in the number of previewers or when the chat link
+      * has been invalidated.
+      *
+      * Receive <chatid> <count>
+      */
+    OP_NUMBYHANDLE = 46,
+
+    /**
+      ** @brief <public_handle.6> <userid> <user_priv>
+      *
+      * C->S: inform chatd that user has left the preview in order to update
+      * the number of previewers.
+      *
+      * Send: <public_handle.6> <userid.8> <user_priv.1>
+      */
+    OP_HANDLELEAVE = 47,
+
+    OP_LAST = OP_HANDLELEAVE,
     OP_INVALIDCODE = 0xFF
 };
 
@@ -390,23 +432,26 @@ class Message: public Buffer
 public:
     enum Type: uint8_t
     {
-        kMsgInvalid           = 0x00,
-        kMsgNormal            = 0x01,
-        kMsgManagementLowest  = 0x02,
-        kMsgAlterParticipants = 0x02,
-        kMsgTruncate          = 0x03,
-        kMsgPrivChange        = 0x04,
-        kMsgChatTitle         = 0x05,
-        kMsgCallEnd           = 0x06,
-        kMsgCallStarted       = 0x07,
-        kMsgManagementHighest = 0x07,
-        kMsgOffset            = 0x55,   // Offset between old message types and new message types
-        kMsgUserFirst         = 0x65,
-        kMsgAttachment        = 0x65,   // kMsgNormal's subtype = 0x10
-        kMsgRevokeAttachment  = 0x66,   // kMsgNormal's subtype = 0x11
-        kMsgContact           = 0x67,   // kMsgNormal's subtype = 0x12
-        kMsgContainsMeta      = 0x68,   // kMsgNormal's subtype = 0x13
-        kMsgVoiceClip         = 0x69    // kMsgNormal's subtype = 0x14
+        kMsgInvalid             = 0x00,
+        kMsgNormal              = 0x01,
+        kMsgManagementLowest    = 0x02,
+        kMsgAlterParticipants   = 0x02,
+        kMsgTruncate            = 0x03,
+        kMsgPrivChange          = 0x04,
+        kMsgChatTitle           = 0x05,
+        kMsgCallEnd             = 0x06,
+        kMsgCallStarted         = 0x07,
+        kMsgPublicHandleCreate  = 0x08,
+        kMsgPublicHandleDelete  = 0x09,
+        kMsgSetPrivateMode      = 0x0A,
+        kMsgManagementHighest   = 0x0A,
+        kMsgOffset              = 0x55,   // Offset between old message types and new message types
+        kMsgUserFirst           = 0x65,
+        kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
+        kMsgRevokeAttachment    = 0x66,   // kMsgNormal's subtype = 0x11
+        kMsgContact             = 0x67,   // kMsgNormal's subtype = 0x12
+        kMsgContainsMeta        = 0x68,   // kMsgNormal's subtype = 0x13
+        kMsgVoiceClip           = 0x69    // kMsgNormal's subtype = 0x14
     };
 
     enum ContainsMetaSubType: uint8_t
@@ -785,6 +830,35 @@ public:
         append<uint64_t>(userid.val).append<uint16_t>(keylen);
         append(keydata, keylen);
     }
+
+    std::shared_ptr<Buffer> getKeyByUserId (karere::Id userId)
+    {
+        karere::Id receiver;
+        const char *pos = buf() + 17;
+        const char *end = buf() + dataSize();
+
+        //Pick the version of the unified key encrypted for us
+        while (pos < end)
+        {
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos+=8;
+            uint16_t keylen = *(uint16_t*)(pos);
+            pos+=2;
+            if (receiver == userId)
+                break;
+            pos+=keylen;
+        }
+
+        if (pos >= end)
+            throw std::runtime_error("Error getting a version of the encryption key encrypted to us");
+        if (end-pos < 16)
+            throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
+
+        auto buf = std::make_shared<Buffer>(16);
+        buf->assign(pos, 16);
+        return buf;
+    }
+
     bool hasKeys() const { return dataSize() > 17; }
     uint32_t keybloblen() const { return read<uint32_t>(13); }
     StaticBuffer keyblob() const

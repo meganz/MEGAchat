@@ -44,16 +44,18 @@ using namespace megachat;
     NSString *changes      = [MEGAChatListItem stringForChangeType:self.changes];
     NSString *active       = self.isActive ? @"YES" : @"NO";
     NSString *group        = self.isGroup ? @"YES" : @"NO";
+    NSString *publicChat   = self.isPublicChat ? @"YES" : @"NO";
+    NSString *preview      = self.preview ? @"YES" : @"NO";
     NSString *ownPrivilege = [MEGAChatListItem stringForOwnPrivilege:self.ownPrivilege];
     NSString *type         = [MEGAChatListItem stringForMessageType:self.lastMessageType];
     NSString *base64ChatId = [MEGASdk base64HandleForUserHandle:self.chatId];
     
 #ifdef DEBUG
-    return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, changes=%@, last message=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@>",
-            [self class], base64ChatId, self.title, changes, self.lastMessage, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active];
+    return [NSString stringWithFormat:@"<%@: chatId=%@, title=%@, changes=%@, last message=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@, public chat=%@, preview=%@>",
+            [self class], base64ChatId, self.title, changes, self.lastMessage, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active, publicChat, preview];
 #else
-    return [NSString stringWithFormat:@"<%@: chatId=%@, changes=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@>",
-            [self class], base64ChatId, changes, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active];
+    return [NSString stringWithFormat:@"<%@: chatId=%@, changes=%@, last date=%@, last type=%@, own privilege=%@, unread=%ld, group=%@, active=%@, public chat=%@, preview=%@>",
+            [self class], base64ChatId, changes, self.lastMessageDate, type, ownPrivilege, (long)self.unreadCount, group, active, publicChat, preview];
 #endif
 
     
@@ -85,12 +87,24 @@ using namespace megachat;
     return self.megaChatListItem ? self.megaChatListItem->isGroup() : NO;
 }
 
+- (BOOL)isPublicChat {
+    return self.megaChatListItem ? self.megaChatListItem->isPublic() : NO;
+}
+
+- (BOOL)isPreview {
+    return self.megaChatListItem ? self.megaChatListItem->isPreview() : NO;
+}
+
 - (uint64_t)peerHandle {
     return self.megaChatListItem ? self.megaChatListItem->getPeerHandle() : MEGACHAT_INVALID_HANDLE;
 }
 
 - (BOOL)isActive {
     return self.megaChatListItem ? self.megaChatListItem->isActive() : NO;
+}
+
+- (NSUInteger)previewersCount {
+    return self.megaChatListItem ? self.megaChatListItem->getNumPreviewers() : 0;
 }
 
 - (NSString *)lastMessage {
@@ -156,6 +170,15 @@ using namespace megachat;
             break;
         case MEGAChatListItemChangeTypeArchived:
             result = @"Archived";
+            break;
+        case MEGAChatListItemChangeTypeCall:
+            result = @"Call";
+            break;
+        case MEGAChatListItemChangeTypeChatMode:
+            result = @"Chat mode";
+            break;
+        case MEGAChatListItemChangeTypeUpdatePreviewers:
+            result = @"Update previewers";
             break;
             
         default:

@@ -92,6 +92,10 @@ using namespace megachat;
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
+- (NSURL *)link {
+    return self.megaChatRequest ? [NSURL URLWithString:[NSString stringWithUTF8String:self.megaChatRequest->getLink()]] : nil;
+}
+
 - (MEGAChatMessage *)chatMessage {
     return self.megaChatRequest->getMegaChatMessage() ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatRequest->getMegaChatMessage()->copy() cMemoryOwn:YES] : nil;
 }

@@ -10,8 +10,8 @@ ChatListItemController::ChatListItemController(megachat::MegaChatListItem *item,
 
 ChatListItemController::~ChatListItemController()
 {
-    delete mChatWindow;
-    delete mWidget;
+    mChatWindow->deleteLater();
+    mWidget->deleteLater();
     delete mItem;
 }
 
@@ -39,7 +39,7 @@ void ChatListItemController::addOrUpdateChatWindow(ChatWindow *chatWindow)
 {
     if (mChatWindow)
     {
-        delete mChatWindow;
+        mChatWindow->deleteLater();
     }
 
     mChatWindow = chatWindow;
@@ -54,7 +54,7 @@ void ChatListItemController::addOrUpdateWidget(ChatItemWidget *widget)
 {
     if (mWidget)
     {
-        delete mWidget;
+        mWidget->deleteLater();
     }
     mWidget = widget;
 }
@@ -95,7 +95,7 @@ ContactListItemController::ContactListItemController(mega::MegaUser *item, Conta
 
 ContactListItemController::~ContactListItemController()
 {
-    delete mWidget;
+    mWidget->deleteLater();
     delete mItem;
 }
 
@@ -118,7 +118,7 @@ void ContactListItemController::addOrUpdateWidget(ContactItemWidget *widget)
 {
     if (mWidget)
     {
-        delete mWidget;
+        mWidget->deleteLater();
     }
 
     mWidget = widget;

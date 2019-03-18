@@ -2193,13 +2193,13 @@ AvFlags Call::muteUnmute(AvFlags av)
     }
 
     mLocalPlayer->enableVideo(av.video());
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
+
+    sendCallData(CallDataState::kCallDataMute);
     for (auto& item: mSessions)
     {
         item.second->sendAv(av);
     }
-
-    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
-    sendCallData(CallDataState::kCallDataMute);
 
     return av;
 }
@@ -3200,6 +3200,8 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kAppTerminating);
         RET_ENUM_NAME(kCallerGone);
         RET_ENUM_NAME(kBusy);
+        RET_ENUM_NAME(kNotFinished);
+        RET_ENUM_NAME(kDestroyByCallCollision);
         RET_ENUM_NAME(kNormalHangupLast);
         RET_ENUM_NAME(kErrApiTimeout);
         RET_ENUM_NAME(kErrFprVerifFailed);
@@ -3217,8 +3219,10 @@ const char* termCodeToStr(uint8_t code)
         RET_ENUM_NAME(kErrSessRetryTimeout);
         RET_ENUM_NAME(kErrAlready);
         RET_ENUM_NAME(kErrNotSupported);
+        RET_ENUM_NAME(kErrCallSetupTimeout);
+        RET_ENUM_NAME(kErrKickedFromChat);
+        RET_ENUM_NAME(kErrIceTimeout);
         RET_ENUM_NAME(kInvalid);
-        RET_ENUM_NAME(kNotFinished);
         default: return "(invalid term code)";
     }
 }
@@ -3246,13 +3250,15 @@ std::string rtmsgCommandToString(const StaticBuffer& buf)
     Id chatid = buf.read<uint64_t>(1);
     Id userid = buf.read<uint64_t>(9);
     auto clientid = buf.read<uint32_t>(17);
+    std::stringstream stream;
+    stream << std::hex << clientid;
     auto dataLen = buf.read<uint16_t>(RtMessage::kHdrLen - 2) - 1;
     auto type = buf.read<uint8_t>(23);
     std::string result = Command::opcodeToStr(opcode);
     result.append(": ").append(rtcmdTypeToStr(type));
     result.append(" chatid: ").append(chatid.toString())
           .append(" userid: ").append(userid.toString())
-          .append(" clientid: ").append(std::to_string(clientid));
+          .append(" clientid: ").append(stream.str());
     StaticBuffer data(nullptr, 0);
     data.assign(buf.readPtr(RtMessage::kPayloadOfs, dataLen), dataLen);
 
