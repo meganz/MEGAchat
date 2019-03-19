@@ -645,6 +645,11 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
         mContacts.clear();
         mChatMembers.clear();
 
+        if (!mKarereClient->mNodesCurrentPromise.done())
+        {
+            mKarereClient->mNodesCurrentPromise.resolve();
+        }
+
         auto wptr = weakHandle();
         marshallCall([wptr, this, contacts, chats, scsn]()
         {

@@ -978,83 +978,97 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
             }
 
-            mClient->pushReceived(chatid)
-            .then([this, request]()
+            promise::Promise<void> pms;
+            ChatRoom *room = findChatRoom(chatid);
+            if (!room)
             {
-                int type = request->getParamType();
-                if (type == 0)  // Android
+                pms = mClient->mNodesCurrentPromise;
+            }
+            else
+            {
+                pms.resolve();
+            }
+
+            pms.then([this, request, chatid]()
+            {
+                mClient->pushReceived(chatid)
+                .then([this, request]()
                 {
-                    // for Android, we prepare a list of msgids for every chatid that are candidates for
-                    // notifications. Android doesn't really know why they received a push, so the previous
-                    // notifications are cleanup and the new set of messages are notified
-
-                    MegaHandleList *chatids = MegaHandleList::createInstance();
-
-                    // for each chatroom, load all unread messages)
-                    for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+                    int type = request->getParamType();
+                    if (type == 0)  // Android
                     {
-                        // don't want to generate notifications for archived chats
-                        if (it->second->isArchived())
-                            continue;
+                        // for Android, we prepare a list of msgids for every chatid that are candidates for
+                        // notifications. Android doesn't really know why they received a push, so the previous
+                        // notifications are cleanup and the new set of messages are notified
 
-                        MegaHandleList *msgids = MegaHandleList::createInstance();
+                        MegaHandleList *chatids = MegaHandleList::createInstance();
 
-                        MegaChatHandle chatid = it->first;
-                        const Chat &chat = it->second->chat();
-                        Idx lastSeenIdx = chat.lastSeenIdx();
-
-                        // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
-                        Idx first = chat.lownum();
-                        if (lastSeenIdx != CHATD_IDX_INVALID        // message is known locally
-                                && chat.findOrNull(lastSeenIdx))    // message is loaded in RAM
+                        // for each chatroom, load all unread messages)
+                        for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                         {
-                            first = lastSeenIdx + 1;
-                        }
-                        Idx last = chat.highnum();
-                        int maxCount = 6;   // do not notify more than 6 messages per chat
-                        for (Idx i = last; (i >= first && maxCount > 0); i--)
-                        {
-                            auto& msg = chat.at(i);
-                            if (msg.isValidUnread(mClient->myHandle()))
+                            // don't want to generate notifications for archived chats
+                            if (it->second->isArchived())
+                                continue;
+
+                            MegaHandleList *msgids = MegaHandleList::createInstance();
+
+                            MegaChatHandle chatid = it->first;
+                            const Chat &chat = it->second->chat();
+                            Idx lastSeenIdx = chat.lastSeenIdx();
+
+                            // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
+                            Idx first = chat.lownum();
+                            if (lastSeenIdx != CHATD_IDX_INVALID        // message is known locally
+                                    && chat.findOrNull(lastSeenIdx))    // message is loaded in RAM
                             {
-                                maxCount--;
-                                msgids->addMegaHandle(msg.id());
+                                first = lastSeenIdx + 1;
                             }
+                            Idx last = chat.highnum();
+                            int maxCount = 6;   // do not notify more than 6 messages per chat
+                            for (Idx i = last; (i >= first && maxCount > 0); i--)
+                            {
+                                auto& msg = chat.at(i);
+                                if (msg.isValidUnread(mClient->myHandle()))
+                                {
+                                    maxCount--;
+                                    msgids->addMegaHandle(msg.id());
+                                }
+                            }
+
+                            if (msgids->size())
+                            {
+                                chatids->addMegaHandle(chatid);
+                                request->setMegaHandleListByChat(chatid, msgids);
+                            }
+
+                            delete msgids;
                         }
 
-                        if (msgids->size())
-                        {
-                            chatids->addMegaHandle(chatid);
-                            request->setMegaHandleListByChat(chatid, msgids);
-                        }
-
-                        delete msgids;
+                        request->setMegaHandleList(chatids);    // always a valid list, even if empty
+                        delete chatids;
                     }
-
-                    request->setMegaHandleList(chatids);    // always a valid list, even if empty
-                    delete chatids;
-                }
-                else    // iOS
-                {
-                    MegaChatHandle chatid = request->getChatHandle();
-                    ChatRoom *room = findChatRoom(chatid);
-                    if (!room)
+                    else    // iOS
                     {
-                        megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
+                        MegaChatHandle chatid = request->getChatHandle();
+                        ChatRoom *room = findChatRoom(chatid);
+                        if (!room)
+                        {
+                            megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
 
-                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
-                        fireOnChatRequestFinish(request, megaChatError);
+                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        }
                     }
-                }
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([this, request](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Failed to retrieve current state");
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                    fireOnChatRequestFinish(request, megaChatError);
+                })
+                .fail([this, request](const ::promise::Error& err)
+                {
+                    API_LOG_ERROR("Failed to retrieve current state");
+                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
             });
             break;
         }

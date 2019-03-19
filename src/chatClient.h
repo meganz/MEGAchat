@@ -641,6 +641,9 @@ public:
     // resolved only when up to date
     promise::Promise<void> mSyncPromise;
 
+    // resolved when EVENT_NODES_CURRENT event is received
+    promise::Promise<void> mNodesCurrentPromise;
+
 protected:
 
     Id mMyHandle = Id::null(); //mega::UNDEF
