@@ -1326,7 +1326,8 @@ void MegaChatApiImpl::sendPendingRequests()
 
             promise::Promise<void> pms;
             ChatRoom *room = findChatRoom(chatid);
-            if (!room)
+            // Adjust condition when Android notifications receives chatid
+            if (!room && type == 1)
             {
                 pms = mClient->mNodesCurrentPromise;
             }
