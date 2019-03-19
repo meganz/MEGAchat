@@ -9124,6 +9124,10 @@ void MegaChatNodeHistoryHandler::onLoaded(Message *msg, Idx idx)
     MegaChatMessagePrivate *message = NULL;
     if (msg)
     {
+        if (msg->isDeleted())
+        {
+            return;
+        }
         message = new MegaChatMessagePrivate(*msg, Message::Status::kServerReceived, idx);
     }
 
