@@ -507,49 +507,62 @@ void Client::saveDb()
 
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
-    // if already sent SYNCs or we are not logged in right now...
-    if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+    promise::Promise<void> pms;
+    if (chatid.isValid() && (chats->find(chatid) == chats->end()))
     {
-        return mSyncPromise;
-        // promise will resolve once logged in for all chats or after receive all SYNCs back
-    }
-
-    auto wptr = weakHandle();
-    mSyncPromise = Promise<void>();
-    mSyncCount = 0;
-    mSyncTimer = karere::setTimeout([this, wptr]()
-    {
-        if (wptr.deleted())
-          return;
-
-        assert(mSyncCount != 0);
-        mSyncTimer = 0;
-        mSyncCount = -1;
-
-        mChatdClient->retryPendingConnections(true);
-
-    }, chatd::kSyncTimeout, appCtx);
-
-    if (chatid.isValid())
-    {
-        ChatRoom *chat = chats->at(chatid);
-        mSyncCount++;
-        chat->sendSync();
+        pms = mNodesCurrentPromise;
     }
     else
     {
-        for (auto& item: *chats)
-        {
-            ChatRoom *chat = item.second;
-            if (!chat->chat().isDisabled())
-            {
-                mSyncCount++;
-                chat->sendSync();
-            }
-        }
+        pms.resolve();
     }
 
-    return mSyncPromise;
+    pms.then([this, chatid]()
+    {
+        // if already sent SYNCs or we are not logged in right now...
+        if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        {
+            return mSyncPromise;
+            // promise will resolve once logged in for all chats or after receive all SYNCs back
+        }
+
+        auto wptr = weakHandle();
+        mSyncPromise = Promise<void>();
+        mSyncCount = 0;
+        mSyncTimer = karere::setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+              return;
+
+            assert(mSyncCount != 0);
+            mSyncTimer = 0;
+            mSyncCount = -1;
+
+            mChatdClient->retryPendingConnections(true);
+
+        }, chatd::kSyncTimeout, appCtx);
+
+        if (chatid.isValid())
+        {
+            ChatRoom *chat = chats->at(chatid);
+            mSyncCount++;
+            chat->sendSync();
+        }
+        else
+        {
+            for (auto& item: *chats)
+            {
+                ChatRoom *chat = item.second;
+                if (!chat->chat().isDisabled())
+                {
+                    mSyncCount++;
+                    chat->sendSync();
+                }
+            }
+        }
+
+        return mSyncPromise;
+    });
 }
 
 void Client::loadContactListFromApi()
