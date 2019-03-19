@@ -83,7 +83,12 @@ public:
         mCommitEach = commitEach;
         if (commitEach)
         {
+            // there was an open transaction --> commit
             commitTransaction();
+        }
+        else if (!mHasOpenTransaction)
+        {
+            beginTransaction();
         }
     }
     void setCommitInterval(uint16_t sec) { mCommitInterval = sec; }
@@ -111,19 +116,11 @@ public:
     {
         if (mCommitEach)
             return;
-        commitTransaction();
-        beginTransaction();
-    }
-    bool rollback()
-    {
-        if (mCommitEach)
-            return false;
-        // the rollback may fail - in case of some critical errors, sqlite automatically
-        // does a rollback. In such cases, we should ignore the error returned by
-        // rollback, it's harmless
-        sqlite3_exec(mDb, "ROLLBACK", nullptr, nullptr, nullptr);
-        beginTransaction();
-        return true;
+
+        if (commitTransaction())
+        {
+            beginTransaction();
+        }
     }
     bool timedCommit()
     {
@@ -300,24 +297,5 @@ inline int SqliteDb::step(SqliteStmt& stmt)
     }
     return ret;
 }
-
-class SqliteTransaction
-{
-protected:
-    SqliteDb* mDb;
-public:
-    SqliteTransaction(SqliteDb& db): mDb(&db) { mDb->commit(); }
-    void commit()
-    {
-        assert(mDb);
-        mDb->commit();
-        mDb = nullptr;
-    }
-    ~SqliteTransaction()
-    {
-        if (mDb)
-            mDb->rollback();
-    }
-};
 
 #endif

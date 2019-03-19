@@ -129,12 +129,34 @@ public:
     virtual void randomBytes(void* buf, size_t bufsize) const = 0;
 
     virtual promise::Promise<std::shared_ptr<Buffer>>
-    encryptChatTitle(const std::string& data, uint64_t extraUser=0) = 0;
+    encryptChatTitle(const std::string& data, uint64_t extraUser = 0, bool encryptAsPrivate = false) = 0;
+
+    virtual promise::Promise<chatd::KeyCommand*>
+    encryptUnifiedKeyForAllParticipants(uint64_t extraUser=0) = 0;
 
     virtual promise::Promise<std::string>
-    decryptChatTitle(const Buffer& data) = 0;
+    decryptChatTitleFromApi(const Buffer& data) = 0;
+
+    virtual promise::Promise<std::string>
+    encryptUnifiedKeyToUser(karere::Id user) = 0;
+
+    virtual promise::Promise<std::string>
+    decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) = 0;
+
+    virtual promise::Promise<std::shared_ptr<std::string> > getUnifiedKey() = 0;
+
+    virtual bool previewMode() = 0;
+
+    /** Returns true if chat is in public/open mode */
+    virtual bool isPublicChat() = 0;
+
+    virtual void setPrivateChatMode() = 0;
 
     virtual void onHistoryReload() = 0;
+
+    virtual uint64_t getPublicHandle() const = 0;
+
+    virtual void setPublicHandle(const uint64_t ph) = 0;
 
     /**
      * @brief The crypto module is destroyed when that chatid is left or the client is destroyed

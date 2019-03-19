@@ -1320,6 +1320,12 @@ void Client::setConnState(ConnState newState)
 }
 void Client::addPeer(karere::Id peer)
 {
+    if (mKarereClient->anonymousMode())
+    {
+        PRESENCED_LOG_WARNING("Not sending ADDPEERS in anonymous mode");
+        return;
+    }
+
     if (isExContact(peer))
     {
         PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
@@ -1344,6 +1350,12 @@ void Client::addPeer(karere::Id peer)
 
 void Client::removePeer(karere::Id peer, bool force)
 {
+    if (mKarereClient->anonymousMode())
+    {
+        PRESENCED_LOG_WARNING("Not sending DELPEERS in anonymous mode");
+        return;
+    }
+
     assert(mLastScsn.isValid());
 
     auto it = mCurrentPeers.find(peer);
@@ -1361,7 +1373,7 @@ void Client::removePeer(karere::Id peer, bool force)
         }
         else
         {
-            PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", peer.toString().c_str());
+            PRESENCED_LOG_DEBUG("removePeer: Forcing delete of peer %s with refcount > 0", ID_CSTR(peer));
         }
     }
     else //refcount reched zero
