@@ -289,7 +289,7 @@ public:
 //==
     karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
-    virtual ~RtcModule() {}
+    virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;
