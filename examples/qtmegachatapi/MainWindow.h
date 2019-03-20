@@ -202,7 +202,7 @@ class MainWindow :
         void on_mLogout_clicked();
         void onlastGreenVisibleClicked();
         void onReconnect(bool disconnect);
-        void onPushReceived();
+        void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
 
     signals:

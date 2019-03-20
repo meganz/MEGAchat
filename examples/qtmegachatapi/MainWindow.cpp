@@ -502,8 +502,11 @@ void MainWindow::on_bSettings_clicked()
     auto actRetryPendingConn = othersMenu->addAction(tr("Retry pending connections"));
     connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
 
-    auto actPushReceived = othersMenu->addAction(tr("Push received"));
-    connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived();});
+    auto actPushAndReceived = othersMenu->addAction(tr("Push received (Android)"));
+    connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
+
+    auto actPushReceived = othersMenu->addAction(tr("Push received (iOS)"));
+    connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived(1);});
 
     auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
@@ -521,17 +524,24 @@ void MainWindow::onReconnect(bool disconnect)
     mMegaChatApi->retryPendingConnections(disconnect);
 }
 
-void MainWindow::onPushReceived()
+void MainWindow::onPushReceived(unsigned int type)
 {
-    std::string aux = mApp->getText();
-    if (!aux.size())
-        return;
+    if (!type)
+    {
+        mMegaChatApi->pushReceived(false);
+    }
+    else
+    {
+        std::string aux = mApp->getText();
+        if (!aux.size())
+            return;
 
-    MegaChatHandle chatid = (aux.size() > 1)
-            ? mMegaApi->base64ToUserHandle(aux.c_str())
-            : MEGACHAT_INVALID_HANDLE;
+        MegaChatHandle chatid = (aux.size() > 1)
+                ? mMegaApi->base64ToUserHandle(aux.c_str())
+                : MEGACHAT_INVALID_HANDLE;
 
-     mMegaChatApi->pushReceived(false, chatid);
+        mMegaChatApi->pushReceived(false, chatid);
+    }
 }
 
 void MainWindow::openChatPreview(bool create)
