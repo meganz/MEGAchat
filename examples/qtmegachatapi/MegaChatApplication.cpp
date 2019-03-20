@@ -105,23 +105,23 @@ void MegaChatApplication::login()
    mLoginDialog->show();
 }
 
-std::string MegaChatApplication::getChatLink()
+std::string MegaChatApplication::getText()
 {
     bool ok;
-    std::string link;
-    QString qLink;
+    std::string text;
+    QString qText;
 
     while (1)
     {
-        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
-                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
+        qText = QInputDialog::getText((QWidget *)0, tr("MEGAchat"),
+                tr("Enter the text"), QLineEdit::Normal, "", &ok);
 
         if (ok)
         {
-            link = qLink.toStdString();
-            if (link.size() > 1)
+            text = qText.toStdString();
+            if (text.size() > 0)
             {
-                return link;
+                return text;
             }
         }
         else
@@ -133,7 +133,10 @@ std::string MegaChatApplication::getChatLink()
 
 void MegaChatApplication::onPreviewClicked()
 {
-    std::string chatLink = getChatLink();
+    std::string chatLink = getText();
+    if (!chatLink.size())
+        return;
+
     if (!initAnonymous(chatLink))
     {
         mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
