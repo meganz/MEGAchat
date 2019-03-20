@@ -1390,6 +1390,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                         fireOnChatRequestFinish(request, megaChatError);
+                        return;
                     }
                 }
 

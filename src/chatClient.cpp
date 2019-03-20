@@ -517,7 +517,7 @@ promise::Promise<void> Client::pushReceived(Id chatid)
         pms.resolve();
     }
 
-    pms.then([this, chatid]()
+    return pms.then([this, chatid]()
     {
         // if already sent SYNCs or we are not logged in right now...
         if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
