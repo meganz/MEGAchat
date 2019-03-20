@@ -647,6 +647,12 @@ string RtcModule::getDeviceInfo()
     return deviceType + ":" + version;
 }
 
+RtcModule::~RtcModule()
+{
+    mCalls.clear();
+    mWebRtcLogger.reset();
+}
+
 void RtcModule::stopCallsTimers(int shard)
 {
     for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
