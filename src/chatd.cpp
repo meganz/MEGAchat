@@ -952,6 +952,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             }
 
             mUrl.parse(result->getLink());
+            mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
             retryPendingConnection(true);
         });
     }
