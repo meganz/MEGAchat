@@ -3600,6 +3600,8 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         if (msg->keyid == localKeyid)
         {
             msg->keyid = keyid;
+            delete item.keyCmd;
+            item.keyCmd = NULL;
             count++;
         }
     }
