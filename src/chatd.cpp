@@ -3497,6 +3497,10 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     // add message to history
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
+    if (msg->type == Message::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(*msg, true, false);
+    }
     CALL_DB(addMsgToHistory, *msg, idx);
 
     assert(msg->backRefId);
@@ -3564,11 +3568,6 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    if (msg->type == Message::kMsgAttachment)
-    {
-        mAttachmentNodes->addMessage(*msg, true, false);
-    }
-
     return idx;
 }
 
@@ -3601,6 +3600,8 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         if (msg->keyid == localKeyid)
         {
             msg->keyid = keyid;
+            delete item.keyCmd;
+            item.keyCmd = NULL;
             count++;
         }
     }
@@ -4352,6 +4353,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
 
         verifyMsgOrder(msg, idx);
+        if (msg.type == Message::Type::kMsgAttachment)
+        {
+            mAttachmentNodes->addMessage(msg, isNew, false);
+        }
         CALL_DB(addMsgToHistory, msg, idx);
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
@@ -4421,11 +4426,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
           //onLastTextMessageUpdated() with it
             notifyLastTextMsg();
         }
-    }
-
-    if (msg.type == Message::Type::kMsgAttachment)
-    {
-        mAttachmentNodes->addMessage(msg, isNew, false);
     }
 }
 
