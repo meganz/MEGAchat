@@ -1089,11 +1089,6 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
     // else --> it's important to not clear the message, so future executions can
     // retry to decode it in case the new type is supported
 
-    if (previewMode())
-    {
-        prefetchAnonymousAttributes(msg->userid);
-    }
-
     switch(parsedMsg->type)
     {
         case Message::kMsgAlterParticipants:
@@ -1140,11 +1135,16 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
     }
 }
 
-void ProtocolHandler::prefetchAnonymousAttributes(karere::Id userId)
+void ProtocolHandler::fetchUserKeys(karere::Id userid)
 {
-    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
-    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_FIRSTNAME, nullptr, nullptr, false, mPh);
-    mUserAttrCache.getAttr(userId, ::mega::MegaApi::USER_ATTR_LASTNAME, nullptr, nullptr, false, mPh);
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, mPh);
+
+    if (!previewMode())
+    {
+        // preload keys for the new participant
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+    }
 }
 
 //We should have already received and decrypted the key in advance
@@ -1180,12 +1180,6 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
             return promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
                                   " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
-        }
-
-        if (previewMode())
-        {
-            //Get sender attributes
-            prefetchAnonymousAttributes(message->userid);
         }
 
         // Get keyid
@@ -1742,17 +1736,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
 void ProtocolHandler::onUserJoin(Id userid)
 {
-    if (previewMode())
-    {
-        prefetchAnonymousAttributes(userid);
-    }
-    else
-    {
-        // preload keys for the new participant
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
-    }
+    fetchUserKeys(userid);
 }
 
 void ProtocolHandler::onUserLeave(Id /*userid*/)
@@ -1771,19 +1755,9 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     assert(users);
     mParticipants = users;
 
-    //pre-fetch user attributes
     for (auto userid: *users)
     {
-        if (previewMode())
-        {
-            prefetchAnonymousAttributes(userid);
-        }
-        else
-        {
-            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-            mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-            mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
-        }
+        fetchUserKeys(userid);
     }
 }
 
