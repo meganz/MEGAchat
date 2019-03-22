@@ -2709,7 +2709,11 @@ void Session::updateAvFlags(AvFlags flags)
 {
     auto oldAv = mPeerAv;
     mPeerAv = flags;
-    mRemotePlayer->enableVideo(mPeerAv.video());
+    if (mRemotePlayer)
+    {
+        mRemotePlayer->enableVideo(mPeerAv.video());
+    }
+
     FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 
