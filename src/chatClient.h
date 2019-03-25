@@ -679,9 +679,6 @@ public:
     // resolved only when up to date
     promise::Promise<void> mSyncPromise;
 
-    // resolved when EVENT_NODES_CURRENT event is received
-    promise::Promise<void> mNodesCurrentPromise;
-
 protected:
     Id mMyHandle = Id::inval(); //mega::UNDEF
     std::string mMyName = std::string("\0", 1);
@@ -893,6 +890,8 @@ public:
     /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
+    /** @brief Catch up with API for pending actionpackets*/
+    ApiPromise catchup();
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 

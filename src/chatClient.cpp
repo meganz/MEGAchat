@@ -505,20 +505,32 @@ void Client::saveDb()
     }
 }
 
+ApiPromise Client::catchup()
+{
+    return api.call(&::mega::MegaApi::catchup);
+}
+
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
-    promise::Promise<void> pms;
+    ApiPromise pms;
     if (chatid.isValid() && (chats->find(chatid) == chats->end()))
     {
-        pms = mNodesCurrentPromise;
+        /*  If chatid is unknown, we have to wait until we have received
+            all pending actionpackets (Catching up with API).*/
+        pms = catchup();
     }
     else
     {
-        pms.resolve();
+        pms = ApiPromise();
+        pms.resolve(nullptr);
     }
 
-    return pms.then([this, chatid]()
+    auto wptr = weakHandle();
+    return pms.then([this, chatid, wptr](ReqResult result) -> promise::Promise<void>
     {
+        if (wptr.deleted())
+            return promise::Error("Up to date with API, but instance was removed");
+
         // if already sent SYNCs or we are not logged in right now...
         if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
         {
@@ -526,7 +538,6 @@ promise::Promise<void> Client::pushReceived(Id chatid)
             // promise will resolve once logged in for all chats or after receive all SYNCs back
         }
 
-        auto wptr = weakHandle();
         mSyncPromise = Promise<void>();
         mSyncCount = 0;
         mSyncTimer = karere::setTimeout([this, wptr]()
