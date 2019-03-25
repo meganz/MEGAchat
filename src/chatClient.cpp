@@ -505,14 +505,14 @@ void Client::saveDb()
     }
 }
 
-ApiPromise Client::catchup()
+promise::Promise<void> Client::catchup()
 {
-    return api.call(&::mega::MegaApi::catchup);
+    return api.callIgnoreResult(&::mega::MegaApi::catchup);
 }
 
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
-    ApiPromise pms;
+    promise::Promise<void> pms;
     if (chatid.isValid() && (chats->find(chatid) == chats->end()))
     {
         /*  If chatid is unknown, we have to wait until we have received
@@ -521,12 +521,12 @@ promise::Promise<void> Client::pushReceived(Id chatid)
     }
     else
     {
-        pms = ApiPromise();
-        pms.resolve(nullptr);
+        pms = Promise<void>();
+        pms.resolve();
     }
 
     auto wptr = weakHandle();
-    return pms.then([this, chatid, wptr](ReqResult result) -> promise::Promise<void>
+    return pms.then([this, chatid, wptr]() -> promise::Promise<void>
     {
         if (wptr.deleted())
             return promise::Error("Up to date with API, but instance was removed");

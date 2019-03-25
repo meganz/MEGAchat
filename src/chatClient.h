@@ -891,7 +891,7 @@ public:
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
     /** @brief Catch up with API for pending actionpackets*/
-    ApiPromise catchup();
+    promise::Promise<void> catchup();
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 

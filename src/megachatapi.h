@@ -1521,7 +1521,7 @@ public:
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
-        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT,
+        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CATCHUP,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2480,6 +2480,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Catch up with API for pending actionpackets
+     *
+     * When onRequestFinish is called with MegaChatError::ERROR_OK, the SDK is guaranteed to be
+     * up to date (as for the time this function is called).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CATCHUP
+     *
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void catchup(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Signal there is some user activity

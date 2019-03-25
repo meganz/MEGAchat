@@ -200,6 +200,7 @@ class MainWindow :
         void onTwoFactorCheck();
         void onPrintMyInfo();
         void on_mLogout_clicked();
+        void onCatchUp();
         void onlastGreenVisibleClicked();
         void onReconnect(bool disconnect);
         void onPushReceived(unsigned int type);

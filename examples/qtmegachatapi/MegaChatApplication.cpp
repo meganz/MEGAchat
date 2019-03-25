@@ -854,6 +854,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
-
+            case MegaChatRequest::TYPE_CATCHUP:
+            {
+                if(e->getErrorCode() == MegaChatError::ERROR_OK)
+                {
+                    QMessageBox::information(nullptr, tr("Catch up"), tr("We are up to date with API: ").append(e->getErrorString()));
+                }
+                break;
+            }
     }
 }
