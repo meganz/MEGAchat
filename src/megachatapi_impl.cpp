@@ -6476,7 +6476,7 @@ const char *MegaChatRoomPrivate::getAuthorizationToken() const
 {
     if (mAuthToken.isValid())
     {
-        return strdup(mAuthToken.toString(Id::CHATLINKHANDLE).c_str());
+        return MegaApi::strdup(mAuthToken.toString(Id::CHATLINKHANDLE).c_str());
     }
 
     return NULL;
