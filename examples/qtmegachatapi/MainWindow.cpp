@@ -525,6 +525,7 @@ void MainWindow::on_bSettings_clicked()
 void MainWindow::onReconnect(bool disconnect)
 {
     mMegaChatApi->retryPendingConnections(disconnect);
+    mMegaApi->retryPendingConnections(disconnect);
 }
 
 void MainWindow::onPushReceived(unsigned int type)
