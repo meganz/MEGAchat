@@ -1046,8 +1046,8 @@ public:
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
     int getBackgroundStatus();
 
-    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
-    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
+    void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getContactEmail(MegaChatHandle userhandle);
     MegaChatHandle getUserHandleByEmail(const char *email);

@@ -1909,6 +1909,7 @@ void GroupChatRoom::initWithChatd(bool isPublic, std::shared_ptr<std::string> un
     }
 
     createChatdChat(users, isPublic, unifiedKey, isUnifiedKeyEncrypted, ph);
+    mChadChatInitialized = true;
 }
 
 void GroupChatRoom::connect(const char *url)
@@ -3275,7 +3276,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.makeTitleFromMemberNames();
         }
-    });
+    }, false, mRoom.mChadChatInitialized ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
 
     if (!mRoom.parent.mKarereClient.anonymousMode())
     {

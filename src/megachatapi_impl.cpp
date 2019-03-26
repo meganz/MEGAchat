@@ -1081,8 +1081,15 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
         {
             MegaChatHandle uh = request->getUserHandle();
+            const char* publicHandle = request->getLink();
+            MegaChatHandle ph = INVALID_HANDLE;
+            if (publicHandle)
+            {
+                size_t b64len = strlen(publicHandle);
+                base64urldecode(publicHandle, b64len, &ph, sizeof(ph));
+            }
 
-            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME)
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME, ph)
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1102,8 +1109,15 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_GET_LASTNAME:
         {
             MegaChatHandle uh = request->getUserHandle();
+            const char* publicHandle = request->getLink();
+            MegaChatHandle ph = INVALID_HANDLE;
+            if (publicHandle)
+            {
+                size_t b64len = strlen(publicHandle);
+                base64urldecode(publicHandle, b64len, &ph, sizeof(ph));
+            }
 
-            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME)
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME, ph)
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2525,18 +2539,20 @@ int MegaChatApiImpl::getBackgroundStatus()
     return status;
 }
 
-void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_FIRSTNAME, listener);
     request->setUserHandle(userhandle);
+    request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_LASTNAME, listener);
     request->setUserHandle(userhandle);
+    request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
 }
