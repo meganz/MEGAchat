@@ -2625,7 +2625,7 @@ public:
      * - MegaChatRequest::getText - Returns the firstname of the user
      *
      * @param userhandle Handle of the user whose name is requested.
-     * @param authorizationToken Authorization token for the chatroom or NULL if chatroom doesn't have authorization token
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
@@ -2646,7 +2646,7 @@ public:
      * - MegaChatRequest::getText - Returns the lastname of the user
      *
      * @param userhandle Handle of the user whose name is requested.
-     * @param authorizationToken Authorization token for the chatroom or NULL if chatroom doesn't have authorization token
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
     void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);

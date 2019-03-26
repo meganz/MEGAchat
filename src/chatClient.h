@@ -319,7 +319,6 @@ protected:
     std::string mEncryptedTitle; //holds the last encrypted title (the "ct" from API)
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
-    bool mChadChatInitialized = false;
 
     int mNumPeers = 0; //Only for public chats in preview mode
 
@@ -341,6 +340,7 @@ protected:
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
+    bool isChatdChatInitialized();
 
     friend class ChatRoomList;
     friend class Member;
