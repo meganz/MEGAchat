@@ -1506,7 +1506,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, sdkPeers, enctitleB64](chatd::KeyCommand *keyCmd) -> ApiPromise
+            .then([wptr, this, crypto, sdkPeers, enctitleB64](chatd::KeyCommand *keyCmd) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
