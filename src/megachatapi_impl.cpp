@@ -2809,7 +2809,7 @@ int MegaChatApiImpl::getUnreadChats()
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
             ChatRoom *room = it->second;
-            if (!room->isArchived() && room->chat().unreadMsgCount())
+            if (!room->isArchived() && !room->previewMode() && room->chat().unreadMsgCount())
             {
                 count++;
             }
