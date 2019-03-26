@@ -120,7 +120,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         else
         {
             const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
-            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender, NULL)))
             {
                 mLastMsgAuthor.assign(msgAuthor);
             }

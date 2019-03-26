@@ -42,7 +42,7 @@ class MegaChatApplication : public QApplication,
         virtual void onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
-        const char *getFirstname(megachat::MegaChatHandle uh);
+        const char *getFirstname(megachat::MegaChatHandle uh, const char *authorizationToken);
 
         bool isStagingEnabled();
         void enableStaging(bool enable);

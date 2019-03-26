@@ -262,7 +262,7 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     delete [] msgid;
 }
 
-const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
+const char *MegaChatApplication::getFirstname(MegaChatHandle uh, const char *authorizationToken)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {
@@ -282,7 +282,7 @@ const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
 
     if (!mFirstnameFetching[uh])
     {
-        mMegaChatApi->getUserFirstname(uh);
+        mMegaChatApi->getUserFirstname(uh, authorizationToken);
         mFirstnameFetching[uh] = true;
     }
 
