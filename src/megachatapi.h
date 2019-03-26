@@ -2882,7 +2882,8 @@ public:
     /**
      * @brief Return the number of chatrooms with unread messages
      *
-     * Archived chatrooms with unread messages are not considered.
+     * Archived chatrooms or chatrooms in preview mode with unread messages
+     * are not considered.
      *
      * @return The number of chatrooms with unread messages
      */
