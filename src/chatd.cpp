@@ -1480,15 +1480,15 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             return kHistSourceNotLoggedIn;
         }
 
+        if (!isLoggedIn())
+            return kHistSourceNotLoggedIn;
+
         if (mServerFetchState & kHistOldFlag)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: Need more history, and server history fetch is already in progress, will get next messages from there");
         }
         else
         {
-            if (!isLoggedIn())
-                return kHistSourceNotLoggedIn;
-
             auto wptr = weakHandle();
             marshallCall([wptr, this, count]()
             {
