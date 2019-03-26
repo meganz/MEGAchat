@@ -1064,7 +1064,6 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     }
 
     assert(mConnState == kDisconnected);
-    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
 
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
@@ -1089,6 +1088,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
     mInitStats.stageStart(InitStats::kStatsConnection);
 
 
