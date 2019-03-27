@@ -185,7 +185,7 @@ UserAttrCache::~UserAttrCache()
 
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 {
-    if (key.mPh.inval())  // Don't insert elements in attribute cache at preview mode
+    if (key.mPh.isValid())  // Don't insert elements in attribute cache at preview mode
     {
         return;
     }
@@ -198,7 +198,7 @@ void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
 {
-    if (key.mPh.inval())  // Don't insert elements in attribute cache at preview mode
+    if (key.mPh.isValid())  // Don't insert elements in attribute cache at preview mode
     {
         return;
     }
