@@ -916,7 +916,6 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
-    bool mGroupCallsEnabled = false;
     InitStats mInitStats;
 
 public:
@@ -1113,8 +1112,6 @@ public:
 
     bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
-    bool areGroupCallsEnabled();
-    void enableGroupCalls(bool enable);
     void updateAndNotifyLastGreen(Id userid);
     InitStats &initStats();
     void sendStats();
