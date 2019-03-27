@@ -302,7 +302,7 @@ public:
     karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
     void retryCall(karere::Id chatid, karere::AvFlags av, bool starter = true);
-    virtual ~RtcModule() {}
+    virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;

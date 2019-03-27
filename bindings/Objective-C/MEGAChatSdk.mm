@@ -979,8 +979,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi->getNumCalls();
 }
 
-- (MEGAHandleList *)chatCalls {
-    return self.megaChatApi ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatApi->getChatCalls() cMemoryOwn:YES] : nil;
+- (MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState {
+    return self.megaChatApi ? [MEGAHandleList.alloc initWithMegaHandleList:self.megaChatApi->getChatCalls(callState) cMemoryOwn:YES] : nil;
 }
 
 - (MEGAHandleList *)chatCallsIds {

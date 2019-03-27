@@ -732,8 +732,9 @@ public class MegaChatApiJava {
      * must have a valid public handle.
      *
      * This function must be called only after calling:
-     *  - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_ACCESS (You are trying to
-     *  preview a public chat wich you were part of, so you have to rejoin it)
+     * - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_EXIST for a chatroom where
+     * your own privilege is MegaChatRoom::PRIV_RM (You are trying to preview a public chat which
+     * you were part of, so you have to rejoin it)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -2624,16 +2625,28 @@ public class MegaChatApiJava {
         return megaChatApi.getNumCalls();
     }
 
-    /**
-     * Get MegaChatHandle list that contains chatrooms identifier where there is an active call
-     *
-     * You take the ownership of the returned value
-     *
-     * @return A list of handles with chatroom identifier where there is an active call
-     */
+
+
     public MegaHandleList getChatCalls(){
-        return megaChatApi.getChatCalls();
+        return megaChatApi.getChatCalls(-1);
     }
+
+
+    /**
+     * @brief Get a list with the ids of chatrooms where there are active calls and their state is \c callState
+     *
+     * If \c callState is -1 then returns all calls regardless their state
+     *
+     * You take the ownership of the returned value.
+     *
+     * @param callState that you want receive, -1 for all
+     * @return A list of handles with the ids of chatrooms where there are active calls
+     */
+
+    public MegaHandleList getChatCalls(int callState) {
+        return megaChatApi.getChatCalls(callState);
+    }
+
 
     /**
      * Get a list with the ids of active calls

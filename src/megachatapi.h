@@ -231,6 +231,12 @@ public:
         TERM_CODE_ERROR             = 21    /// Notify any error type
     };
 
+    enum {
+        AUDIO = 0,
+        VIDEO = 1,
+        ANY_FLAG = 2
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -551,9 +557,14 @@ public:
      * In a group call, this function returns the number of active participants,
      * regardless your own user participates or not.
      *
+     * 0 -> with audio (c\ AUDIO)
+     * 1 -> with video (c\ VIDEO)
+     * 2 -> with any combination of audio/video, both or none (c\ ANY_FLAG)
+     *
+     * @param audioVideo indicate if it returns the number of all participants or only those have audio or video active
      * @return Number of active participants in the call
      */
-    virtual int getNumParticipants() const;
+    virtual int getNumParticipants(int audioVideo) const;
 
     /**
      * @brief Returns if call has been ignored
@@ -565,7 +576,7 @@ public:
     /**
      * @brief Returns if call is incoming
      *
-     * @return Ture if incoming call, false if outgoing
+     * @return True if incoming call, false if outgoing
      */
     virtual bool isIncoming() const;
 
@@ -2872,7 +2883,8 @@ public:
     /**
      * @brief Return the number of chatrooms with unread messages
      *
-     * Archived chatrooms with unread messages are not considered.
+     * Archived chatrooms or chatrooms in preview mode with unread messages
+     * are not considered.
      *
      * @return The number of chatrooms with unread messages
      */
@@ -3155,8 +3167,9 @@ public:
      * must have a valid public handle.
      *
      * This function must be called only after calling:
-     *  - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_ACCESS (You are trying to
-     *  preview a public chat wich you were part of, so you have to rejoin it)
+     * - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_EXIST for a chatroom where
+     * your own privilege is MegaChatRoom::PRIV_RM (You are trying to preview a public chat which
+     * you were part of, so you have to rejoin it)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -4373,11 +4386,15 @@ public:
     /**
      * @brief Get a list with the ids of chatrooms where there are active calls
      *
+     * The list of ids can be retrieved for calls in one specific state by setting
+     * the parameter \c callState. If state is -1, it returns all calls regardless their state.
+     *
      * You take the ownership of the returned value.
      *
+     * @param state of calls that you want receive, -1 to consider all states
      * @return A list of handles with the ids of chatrooms where there are active calls
      */
-    mega::MegaHandleList *getChatCalls();
+    mega::MegaHandleList *getChatCalls(int callState = -1);
 
     /**
      * @brief Get a list with the ids of active calls
@@ -4409,6 +4426,7 @@ public:
      * This method should be called after MegaChatApi::init. A MegaChatApi::logout resets its value.
      *
      * @param enable True for enable group calls. False to disable them.
+     * @deprecated Groupcalls are always enabled, this function has no effect.
      */
     void enableGroupChatCalls(bool enable);
 
@@ -4421,6 +4439,7 @@ public:
      * By default, groupcalls are disabled. A MegaChatApi::logout resets its value.
      *
      * @return True if group calls are enabled. Otherwise, false.
+     * @deprecated Groupcalls are always enabled
      */
     bool areGroupChatCallEnabled();
 

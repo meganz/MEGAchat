@@ -119,7 +119,9 @@ Client::Client(karere::Client *aKarereClient) :
     mApi(&aKarereClient->api),
     mKarereClient(aKarereClient)
 {
-    mRichPrevAttrCbHandle = mKarereClient->userAttrCache().getAttr(mMyHandle, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
+    if (!mKarereClient->anonymousMode())
+    {
+        mRichPrevAttrCbHandle = mKarereClient->userAttrCache().getAttr(mMyHandle, ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS, this,
        [](::Buffer *buf, void* userp)
        {
             Client *client = static_cast<Client*>(userp);
@@ -167,6 +169,7 @@ Client::Client(karere::Client *aKarereClient) :
                 break;
             }
        });
+    }
 
     // initialize the most recent message for each user
     SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");
@@ -949,6 +952,7 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
             }
 
             mUrl.parse(result->getLink());
+            mUrl.path.append("/").append(std::to_string(Client::chatdVersion));
             retryPendingConnection(true);
         });
     }
@@ -1476,15 +1480,15 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             return kHistSourceNotLoggedIn;
         }
 
+        if (!isLoggedIn())
+            return kHistSourceNotLoggedIn;
+
         if (mServerFetchState & kHistOldFlag)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: Need more history, and server history fetch is already in progress, will get next messages from there");
         }
         else
         {
-            if (!isLoggedIn())
-                return kHistSourceNotLoggedIn;
-
             auto wptr = weakHandle();
             marshallCall([wptr, this, count]()
             {
@@ -1956,12 +1960,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 auto& chat = mChatdClient.chats(chatid);
-                // TODO: remove this block once the groucalls are fully supported by clients
-                if ((chat.isGroup() && !mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                {
-                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring INCALL command");
-                    break;
-                }
                 chat.onInCall(userid, clientid);
                 break;
             }
@@ -1973,12 +1971,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
                 auto& chat = mChatdClient.chats(chatid);
-                // TODO: remove this block once the groucalls are fully supported by clients
-                if ((chat.isGroup() && !mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                {
-                    CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring ENDCALL command");
-                    break;
-                }
                 chat.onEndCall(userid, clientid);
                 break;
             }
@@ -1995,13 +1987,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 if (mChatdClient.mRtcHandler)
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
-                    auto& chat = mChatdClient.chats(chatid);                    
-                    // TODO: remove this block once the groucalls are fully supported by clients
-                    if ((chat.isGroup() && !mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                    {
-                        CHATDS_LOG_DEBUG("Groupcalls are disabled, ignoring CALLDATA command");
-                        break;
-                    }
+                    auto& chat = mChatdClient.chats(chatid);
                     mChatdClient.mRtcHandler->handleCallData(chat, chatid, userid, clientid, cmd);
                 }
 #else
@@ -2099,15 +2085,7 @@ void Connection::execCommand(const StaticBuffer& buf)
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mRtcHandler)
                 {
-                    auto& chat = mChatdClient.chats(chatid);
-                    if (!chat.isGroup() || (chat.isGroup() && mChatdClient.mKarereClient->areGroupCallsEnabled()))
-                    {
-                        mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
-                    }
-                    else
-                    {
-                        CHATDS_LOG_DEBUG("Skip command");
-                    }
+                    mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
                 }
 #endif
                 break;
@@ -3124,7 +3102,12 @@ void Chat::onLastReceived(Id msgid)
 
 void Chat::setPublicHandle(uint64_t ph)
 {
-   crypto()->setPublicHandle(ph);
+    crypto()->setPublicHandle(ph);
+
+    if (Id(ph).isValid())
+    {
+        mOwnPrivilege = PRIV_RDONLY;
+    }
 }
 
 uint64_t Chat::getPublicHandle() const
@@ -3514,6 +3497,10 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
     // add message to history
     push_forward(msg);
     auto idx = mIdToIndexMap[msgid] = highnum();
+    if (msg->type == Message::kMsgAttachment)
+    {
+        mAttachmentNodes->addMessage(*msg, true, false);
+    }
     CALL_DB(addMsgToHistory, *msg, idx);
 
     assert(msg->backRefId);
@@ -3581,11 +3568,6 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid)
         }
     }
 
-    if (msg->type == Message::kMsgAttachment)
-    {
-        mAttachmentNodes->addMessage(*msg, true, false);
-    }
-
     return idx;
 }
 
@@ -3618,6 +3600,8 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
         if (msg->keyid == localKeyid)
         {
             msg->keyid = keyid;
+            delete item.keyCmd;
+            item.keyCmd = NULL;
             count++;
         }
     }
@@ -4369,6 +4353,10 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         }
 
         verifyMsgOrder(msg, idx);
+        if (msg.type == Message::Type::kMsgAttachment)
+        {
+            mAttachmentNodes->addMessage(msg, isNew, false);
+        }
         CALL_DB(addMsgToHistory, msg, idx);
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
@@ -4438,11 +4426,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
           //onLastTextMessageUpdated() with it
             notifyLastTextMsg();
         }
-    }
-
-    if (msg.type == Message::Type::kMsgAttachment)
-    {
-        mAttachmentNodes->addMessage(msg, isNew, false);
     }
 }
 

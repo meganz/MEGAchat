@@ -303,7 +303,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 - (MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
 @property (nonatomic, readonly) NSInteger numCalls;
-- (MEGAHandleList *)chatCalls;
+- (MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState;
 - (MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
 - (void)enableGroupChatCalls:(BOOL)enable;

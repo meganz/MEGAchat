@@ -212,7 +212,7 @@ MegaHandleList *MegaChatCall::getClientidParticipants() const
     return NULL;
 }
 
-int MegaChatCall::getNumParticipants() const
+int MegaChatCall::getNumParticipants(int audioVideo) const
 {
     return 0;
 }
@@ -864,9 +864,9 @@ int MegaChatApi::getNumCalls()
     return pImpl->getNumCalls();
 }
 
-MegaHandleList *MegaChatApi::getChatCalls()
+MegaHandleList *MegaChatApi::getChatCalls(int callState)
 {
-    return pImpl->getChatCalls();
+    return pImpl->getChatCalls(callState);
 }
 
 MegaHandleList *MegaChatApi::getChatCallsIds()
@@ -879,14 +879,14 @@ bool MegaChatApi::hasCallInChatRoom(MegaChatHandle chatid)
     return pImpl->hasCallInChatRoom(chatid);
 }
 
-void MegaChatApi::enableGroupChatCalls(bool enable)
+void MegaChatApi::enableGroupChatCalls(bool /*enable*/)
 {
-    pImpl->enableGroupChatCalls(enable);
+
 }
 
 bool MegaChatApi::areGroupChatCallEnabled()
 {
-    return pImpl->areGroupChatCallEnabled();
+    return true;
 }
 
 int MegaChatApi::getMaxCallParticipants()

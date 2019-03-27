@@ -756,6 +756,12 @@ string RtcModule::getDeviceInfo()
     return deviceType + ":" + version;
 }
 
+RtcModule::~RtcModule()
+{
+    mCalls.clear();
+    mWebRtcLogger.reset();
+}
+
 void RtcModule::stopCallsTimers(int shard)
 {
     for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
@@ -2371,13 +2377,13 @@ AvFlags Call::muteUnmute(AvFlags av)
     }
 
     mLocalPlayer->enableVideo(av.video());
+    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
+
+    sendCallData(CallDataState::kCallDataMute);
     for (auto& item: mSessions)
     {
         item.second->sendAv(av);
     }
-
-    manager().updatePeerAvState(mChat.chatId(), mId, mChat.client().mKarereClient->myHandle(), mChat.connection().clientId(), av);
-    sendCallData(CallDataState::kCallDataMute);
 
     return av;
 }
@@ -2884,8 +2890,9 @@ void Session::updateAvFlags(AvFlags flags)
     if (mRemotePlayer)
     {
         mRemotePlayer->enableVideo(mPeerAv.video());
-        FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
     }
+
+    FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 
 //end of event handlers
