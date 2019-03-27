@@ -43,7 +43,7 @@ endif()
 
 if (WIN32)
     ImportVcpkgLibrary(websockets         "${Mega3rdPartyDir}/libwebsockets/build32debug/include" "${Mega3rdPartyDir}/libwebsockets/build32debug/lib/Debug/websockets_static.lib" "${Mega3rdPartyDir}/build32release/lib/websockets.lib")
-    ImportVcpkgLibrary(libuv              "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
+    ImportVcpkgLibrary(uv                 "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
 
     if (USE_WEBRTC)
         # additional directories used in this project, after the main one incluced by the MEGA SDK
@@ -54,7 +54,7 @@ endif(WIN32)
 
 add_definitions( -DUSE_LIBWEBSOCKETS )
 
-ImportHeaderLibrary(rapidjson    "${Mega3rdPartyDir}")
+ImportHeaderLibrary(rapidjson    "${KarereDir}/third-party")
  
 set (SRCS 
     ${KarereDir}/src/karereCommon.cpp
