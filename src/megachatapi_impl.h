@@ -31,8 +31,9 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
-#ifndef KARERE_DISABLE_WEBRTC
 #include "rtcModule/webrtc.h"
+
+#ifndef KARERE_DISABLE_WEBRTC
 #include <IVideoRenderer.h>
 #endif
 
