@@ -61,7 +61,6 @@ void CallGui::connectPeerCallGui()
         ui->mAnswBtn->hide();
         if (!mVideo)
         {
-            mChatWindow->mMegaChatApi->disableVideo(mChatWindow->mChatRoom->getChatId());
             setAvatar();
             ui->videoRenderer->enableStaticImage();
         }
@@ -84,7 +83,7 @@ MegaChatHandle CallGui::getClientid()
 
 void CallGui::onAnswerCallBtn(bool)
 {
-    mChatWindow->mMegaChatApi->answerChatCall(mChatWindow->mChatRoom->getChatId(), true);
+    mChatWindow->mMegaChatApi->answerChatCall(mChatWindow->mChatRoom->getChatId(), mVideo);
 }
 
 void CallGui::drawPeerAvatar(QImage &image)

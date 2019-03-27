@@ -2809,7 +2809,7 @@ int MegaChatApiImpl::getUnreadChats()
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
         {
             ChatRoom *room = it->second;
-            if (!room->isArchived() && room->chat().unreadMsgCount())
+            if (!room->isArchived() && !room->previewMode() && room->chat().unreadMsgCount())
             {
                 count++;
             }
@@ -3975,39 +3975,6 @@ void MegaChatApiImpl::addChatCallListener(MegaChatCallListener *listener)
     sdkMutex.lock();
     callListeners.insert(listener);
     sdkMutex.unlock();
-}
-
-void MegaChatApiImpl::enableGroupChatCalls(bool enable)
-{
-    sdkMutex.lock();
-    if (mClient)
-    {
-        mClient->enableGroupCalls(enable);
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatApiImpl::enableGroupChatCalls - Client is not initialized");
-        assert(false);
-    }
-    sdkMutex.unlock();
-}
-
-bool MegaChatApiImpl::areGroupChatCallEnabled()
-{
-    sdkMutex.lock();
-    bool enabledGroupCalls = false;
-    if (mClient)
-    {
-        enabledGroupCalls = mClient->areGroupCallsEnabled();
-    }
-    else
-    {
-        API_LOG_ERROR("MegaChatApiImpl::areGroupChatCallEnabled - Client is not initialized");
-    }
-
-    sdkMutex.unlock();
-
-    return enabledGroupCalls;
 }
 
 int MegaChatApiImpl::getMaxCallParticipants()
@@ -9165,6 +9132,10 @@ void MegaChatNodeHistoryHandler::onLoaded(Message *msg, Idx idx)
     MegaChatMessagePrivate *message = NULL;
     if (msg)
     {
+        if (msg->isDeleted())
+        {
+            return;
+        }
         message = new MegaChatMessagePrivate(*msg, Message::Status::kServerReceived, idx);
     }
 

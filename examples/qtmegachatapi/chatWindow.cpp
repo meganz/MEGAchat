@@ -175,7 +175,7 @@ void ChatWindow::onMsgSendBtn()
     }
     else
     {
-        QMessageBox::warning(nullptr, tr("Send message"), tr("The maximun length has been exceeded"));
+        QMessageBox::warning(nullptr, tr("Send message"), tr("Failed to send the message. Too long? Not enough privileges?"));
     }
 }
 

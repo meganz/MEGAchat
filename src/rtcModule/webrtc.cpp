@@ -647,6 +647,12 @@ string RtcModule::getDeviceInfo()
     return deviceType + ":" + version;
 }
 
+RtcModule::~RtcModule()
+{
+    mCalls.clear();
+    mWebRtcLogger.reset();
+}
+
 void RtcModule::stopCallsTimers(int shard)
 {
     for (auto callIt = mCalls.begin(); callIt != mCalls.end();)
@@ -2703,7 +2709,11 @@ void Session::updateAvFlags(AvFlags flags)
 {
     auto oldAv = mPeerAv;
     mPeerAv = flags;
-    mRemotePlayer->enableVideo(mPeerAv.video());
+    if (mRemotePlayer)
+    {
+        mRemotePlayer->enableVideo(mPeerAv.video());
+    }
+
     FIRE_EVENT(SESS, onPeerMute, mPeerAv, oldAv);
 }
 

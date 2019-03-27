@@ -489,16 +489,6 @@ bool Client::isChatRoomOpened(Id chatid)
     return false;
 }
 
-bool Client::areGroupCallsEnabled()
-{
-    return mGroupCallsEnabled;
-}
-
-void Client::enableGroupCalls(bool enable)
-{
-    mGroupCallsEnabled = enable;
-}
-
 void Client::saveDb()
 {
     try
@@ -591,6 +581,7 @@ Client::InitState Client::initWithAnonymousSession()
     mMyHandle = Id::null(); // anonymous mode should use ownHandle set to all zeros
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
+    mSessionReadyPromise.resolve();
 
     return mInitState;
 }
@@ -1025,11 +1016,6 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 
     assert(mConnState == kDisconnected);
 
-    if (anonymousMode())
-    {
-        return doConnect(pres, isInBackground);
-    }
-
     auto sessDone = mSessionReadyPromise.done();    // wait for fetchnodes completion
     switch (sessDone)
     {
@@ -1085,8 +1071,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
         setConnState(kConnected);
         return ::promise::_Void();
     }
-
-    assert(mSessionReadyPromise.succeeded());
 
     mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
     [](Buffer* buf, void* userp)
@@ -1504,8 +1488,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle)
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
     {
+        if (wptr.deleted())
+        {
+            return promise::Error("Title encrypted successfully, but instance was removed");
+        }
+
         std::string enctitleB64;
         if (!encTitle->empty())
         {
@@ -1517,7 +1506,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         if (publicchat)
         {
             createChatPromise = crypto->encryptUnifiedKeyForAllParticipants()
-            .then([wptr, this, sdkPeers, enctitleB64](chatd::KeyCommand *keyCmd) -> ApiPromise
+            .then([wptr, this, crypto, sdkPeers, enctitleB64](chatd::KeyCommand *keyCmd) -> ApiPromise
             {
                 mega::MegaStringMap *userKeyMap;
                 userKeyMap = mega::MegaStringMap::createInstance();
@@ -3262,8 +3251,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
 : mRoom(aRoom), mHandle(user), mPriv(aPriv), mName("\0", 1)
 {
     mNameAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_FULLNAME, this,
-        [](Buffer* buf, void* userp)
+        user, USER_ATTR_FULLNAME, this, [](Buffer* buf, void* userp)
     {
         auto self = static_cast<Member*>(userp);
         if (buf && !buf->empty())
@@ -3289,20 +3277,22 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         }
     });
 
-    mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
-        user, USER_ATTR_EMAIL, this,
-        [](Buffer* buf, void* userp)
+    if (!mRoom.parent.mKarereClient.anonymousMode())
     {
-        auto self = static_cast<Member*>(userp);
-        if (buf && !buf->empty())
+        mEmailAttrCbHandle = mRoom.parent.mKarereClient.userAttrCache().getAttr(
+            user, USER_ATTR_EMAIL, this, [](Buffer* buf, void* userp)
         {
-            self->mEmail.assign(buf->buf(), buf->dataSize());
-            if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
+            auto self = static_cast<Member*>(userp);
+            if (buf && !buf->empty())
             {
-                self->mRoom.makeTitleFromMemberNames();
+                self->mEmail.assign(buf->buf(), buf->dataSize());
+                if (self->mName.size() <= 1 && self->mRoom.memberNamesResolved().done() && !self->mRoom.mHasTitle)
+                {
+                    self->mRoom.makeTitleFromMemberNames();
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 GroupChatRoom::Member::~Member()

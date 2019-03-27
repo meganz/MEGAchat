@@ -109,7 +109,9 @@ public:
 
     virtual int updateSendingItemsKeyid(chatd::KeyId localkeyid, chatd::KeyId keyid)
     {
-        mDb.query("update sending set keyid = ? where keyid = ? and chatid = ?", keyid, localkeyid, mChat.chatId());
+        mDb.query("update sending set keyid = ?, key_cmd = ? where keyid = ? and chatid = ?",
+                  keyid, StaticBuffer(nullptr, 0), localkeyid, mChat.chatId());
+
         return sqlite3_changes(mDb);
     }
 
