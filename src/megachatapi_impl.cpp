@@ -828,7 +828,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (pos == string::npos
                 || pos != 8
-                || (parsedLink.size() - pos - 1) != 22)
+                || (parsedLink.size() - pos - 1) < 22)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -841,7 +841,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             //Parse unified key (Last 16 Bytes)
             string unifiedKey; // it's 16 bytes in binary, 22 in B64url
-            string keystr = parsedLink.substr(pos + 1);
+            string keystr = parsedLink.substr(pos + 1, 22);
             Base64::atob(keystr, unifiedKey);
 
             //Check that ph and uk have right size
