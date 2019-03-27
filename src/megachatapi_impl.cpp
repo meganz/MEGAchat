@@ -811,7 +811,15 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            //link format: https://mega.nz/chat/<public-handle>#<chat-key>
+            /* link formats accepted:
+                https://mega.nz/chat/<public-handle>#<chat-key>
+                https://mega.nz/chat/<public-handle>#<chat-key>/
+            */
+            if (parsedLink.back() == '/')
+            {
+                parsedLink = parsedLink.substr(0, parsedLink.size() -1);
+            }
+
             string separator = "chat/";
             size_t pos = parsedLink.find(separator);
             if (pos == string::npos)
