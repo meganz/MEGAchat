@@ -229,12 +229,19 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
-void Client::sendKeepalive()
+bool Client::sendKeepalive()
 {
+    bool ret = true;
     for (auto& conn: mConnections)
     {
-        conn.second->sendKeepalive(mKeepaliveType);
+        if (conn.second->sendKeepalive(mKeepaliveType) == false)
+        {
+            // if keepalive for any connection fails, return failure
+            ret = false;
+        }
     }
+
+    return ret;
 }
 
 void Client::sendEcho()
@@ -274,13 +281,14 @@ Chat &Client::chats(Id chatid) const
     return *it->second;
 }
 
-void Client::notifyUserIdle()
+bool Client::notifyUserIdle()
 {
     if (mKeepaliveType == OP_KEEPALIVEAWAY)
-        return;
+        return true;
+
     mKeepaliveType = OP_KEEPALIVEAWAY;
     cancelSeenTimers();
-    sendKeepalive();
+    return sendKeepalive();
 }
 
 void Client::cancelSeenTimers()
@@ -292,15 +300,15 @@ void Client::cancelSeenTimers()
    mSeenTimers.clear();
 }
 
-void Client::notifyUserActive()
+bool Client::notifyUserActive()
 {
     if (mKeepaliveType == OP_KEEPALIVE)
-        return;
+        return true;
 
     sendEcho();
 
     mKeepaliveType = OP_KEEPALIVE;
-    sendKeepalive();
+    return sendKeepalive();
 }
 
 bool Client::isMessageReceivedConfirmationActive() const

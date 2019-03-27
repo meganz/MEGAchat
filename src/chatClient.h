@@ -847,11 +847,12 @@ public:
     /** @brief Call this when the app goes into background, so that it notifies
      * the servers to enable PUSH notifications
      */
-    void notifyUserIdle();
+    bool notifyUserIdle();
+
     /** @brief Call this when the app goes into foreground, so that push notifications
      * are disabled
      */
-    void notifyUserActive();
+    bool notifyUserActive();
 
     void startKeepalivePings();
 

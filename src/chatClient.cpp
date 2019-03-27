@@ -1304,19 +1304,23 @@ void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 
 }
 
-void Client::notifyUserIdle()
+bool Client::notifyUserIdle()
 {
     if (mChatdClient)
     {
-        mChatdClient->notifyUserIdle();
+        return mChatdClient->notifyUserIdle();
     }
+
+    return false;
 }
-void Client::notifyUserActive()
+bool Client::notifyUserActive()
 {
     if (mChatdClient)
     {
-        mChatdClient->notifyUserActive();
+        return mChatdClient->notifyUserActive();
     }
+
+    return false;
 }
 
 void Client::terminate(bool deleteDb)

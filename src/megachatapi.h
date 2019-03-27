@@ -2586,9 +2586,15 @@ public:
      * background. The app should define its status in order to receive notifications
      * from server when the app is in background.
      *
-     * This function doesn't have any effect until MEGAchat is fully initialized. It means that
+     * This function doesn't have any effect until MEGAchat is fully initialized (meaning that
      * MegaChatApi::getInitState returns the value MegaChatApi::INIT_OFFLINE_SESSION or
-     * MegaChatApi::INIT_ONLINE_SESSION.
+     * MegaChatApi::INIT_ONLINE_SESSION).
+     *
+     * If MEGAchat is currently not connected to chatd, the request will fail with a
+     * MegaChatError::ERROR_ACCESS. If that case, when transitioning from foreground to
+     * background, the app should wait for being reconnected (@see MegaChatListener::onChatConnectionStateUpdate)
+     * in order to ensure the server is aware of the new status of the app, specially in iOS where
+     * the OS may kill the connection.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_BACKGROUND_STATUS
      * Valid data in the MegaChatRequest object received on callbacks:

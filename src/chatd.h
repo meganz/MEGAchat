@@ -1361,7 +1361,7 @@ protected:
 
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
-    void sendKeepalive();
+    bool sendKeepalive();
     void sendEcho();
 
 public:
@@ -1412,8 +1412,8 @@ public:
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
     void heartbeat();
 
-    void notifyUserIdle();
-    void notifyUserActive();
+    bool notifyUserIdle();
+    bool notifyUserActive();
 
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);

@@ -1297,15 +1297,16 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_BACKGROUND_STATUS:
         {
             bool background = request->getFlag();
+            bool ret;
             if (background)
             {
-                mClient->notifyUserIdle();
+                ret = mClient->notifyUserIdle();
             }
             else
             {
-                mClient->notifyUserActive();
+                ret = mClient->notifyUserActive();
             }
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(ret ? MegaChatError::ERROR_OK : MegaChatError::ERROR_ACCESS);
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }            
