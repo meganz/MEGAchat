@@ -1137,7 +1137,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 
 void ProtocolHandler::fetchUserKeys(karere::Id userid)
 {
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, mPh);
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
 
     if (!previewMode())
     {

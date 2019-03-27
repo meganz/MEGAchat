@@ -449,7 +449,7 @@ void ChatMessage::setAuthor(const char *author)
         megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
         const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
         const char *autorizationToken = chatRoom->getAuthorizationToken();
-        if (msgAuthor)
+        if (msgAuthor && strlen(msgAuthor) > 0)
         {
             ui->mAuthorDisplay->setText(tr(msgAuthor));
         }

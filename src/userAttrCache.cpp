@@ -185,6 +185,11 @@ UserAttrCache::~UserAttrCache()
 
 void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 {
+    if (key.mPh.inval())  // Don't insert elements in attribute cache at preview mode
+    {
+        return;
+    }
+
     mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,?)",
         key.user.val, key.attrType, data);
@@ -193,6 +198,11 @@ void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
 {
+    if (key.mPh.inval())  // Don't insert elements in attribute cache at preview mode
+    {
+        return;
+    }
+
     mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
         key.user, key.attrType);
@@ -467,9 +477,10 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         std::string firstname;
         std::string lastname;
     };
+
     auto ctx = std::make_shared<Context>();
     auto wptr = weakHandle();
-    auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME)
+    auto pms1 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_FIRSTNAME, key.mPh)
     .then([ctx](Buffer* data)
     {
         if (!data->empty())
@@ -480,7 +491,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
         return _Void();
     });
 
-    auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME)
+    auto pms2 = getAttr(key.user, ::mega::MegaApi::USER_ATTR_LASTNAME, key.mPh)
     .then([ctx](Buffer* data)
     {
         if (!data->empty())
