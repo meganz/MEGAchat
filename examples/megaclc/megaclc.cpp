@@ -138,14 +138,14 @@ string ch_s(c::MegaChatHandle h)
     return (h == 0 || h == c::MEGACHAT_INVALID_HANDLE) ? "<Null>" : k::Id(h).toString();
 }
 
-bool check_err(const char* opName, m::MegaError* e)
+bool check_err(const string& opName, m::MegaError* e)
 {
     bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
     conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
     return success;
 }
 
-bool check_err(const char* opName, c::MegaChatError* e)
+bool check_err(const string& opName, c::MegaChatError* e)
 {
     bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
     conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
@@ -1663,6 +1663,11 @@ public:
     std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
     std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
 
+    OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
+        :onRequestFinishFunc(f)
+    {
+    }
+
     void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
     {
         if (onRequestStartFunc) onRequestStartFunc(api, request);
@@ -1710,6 +1715,25 @@ void exec_apiurl(ac::ACState& s)
             g_chatApi->refreshUrl();
             delete [] session;
         }
+    }
+}
+
+
+void exec_catchup(ac::ACState& s)
+{
+    int count = s.words.size() > 1 ? atoi(s.words[1].s.c_str()) : 1;
+
+    for (int i = 0; i < count; ++i)
+    {
+        static int next_catchup_id = 0;
+        int id = next_catchup_id++;
+
+        g_megaApi->catchup(new OneShotRequestListener([id](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("catchup " + to_string(id), e);
+            }));
+
+        conlock(cout) << "catchup " << id << " requested" << endl;
     }
 }
 
@@ -1811,7 +1835,8 @@ ac::ACN autocompleteSyntax()
 
     // sdk level commands (intermediate layer of megacli commands)
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
-    
+    p->Add(exec_catchup, sequence(text("catchup"), opt(wholenumber(3))));
+
     return p;
 }
 
