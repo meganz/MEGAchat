@@ -1082,7 +1082,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle uh = request->getUserHandle();
             const char* publicHandle = request->getLink();
-            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle).val : MEGACHAT_INVALID_HANDLE;
+            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
             mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME, ph)
             .then([request, this](Buffer *data)
@@ -1105,7 +1105,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             MegaChatHandle uh = request->getUserHandle();
             const char* publicHandle = request->getLink();
-            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle).val : MEGACHAT_INVALID_HANDLE;
+            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
             mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME, ph)
             .then([request, this](Buffer *data)

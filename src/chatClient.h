@@ -80,6 +80,7 @@ protected:
     void onMessageTimestamp(uint32_t ts);
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
+    bool isChatdChatInitialized();
 
 public:
     virtual bool previewMode() const { return false; }
@@ -340,7 +341,6 @@ protected:
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
-    bool isChatdChatInitialized();
 
     friend class ChatRoomList;
     friend class Member;

@@ -2618,7 +2618,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_GET_FIRSTNAME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle - Returns the handle of the user
-     * - MegaChatRequest::getLink - Returns the authorization token
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -2639,7 +2640,8 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_GET_LASTNAME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle - Returns the handle of the user
-     * - MegaChatRequest::getLink - Returns the authorization token
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
