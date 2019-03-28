@@ -339,6 +339,30 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
+            // Avoid any callback about chatrooms, since they are destroyed
+            MegaChatHandle chatid;
+            MegaChatRoomHandler *roomHandler;
+            for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
+            {
+                chatid = it->first;
+                roomHandler = it->second;
+                it++;
+
+                closeChatRoom(chatid, NULL);
+            }
+            assert(chatRoomHandler.empty());
+
+            MegaChatNodeHistoryHandler *nodeHistoryHandler;
+            for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
+            {
+                chatid = it->first;
+                nodeHistoryHandler = it->second;
+                it++;
+
+                closeNodeHistory(chatid, NULL);
+            }
+            assert(nodeHistoryHandlers.empty());
+
             bool deleteDb = request->getFlag();
             terminating = true;
             mClient->terminate(deleteDb);
@@ -352,19 +376,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
                 terminating = false;
-
-                for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
-                {
-                    delete it->second;
-                }
-                chatRoomHandler.clear();
-
-                for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
-                {
-                    delete it->second;
-                }
-                nodeHistoryHandlers.clear();
-
 #ifndef KARERE_DISABLE_WEBRTC
                 cleanCallHandlerMap();
 #endif
