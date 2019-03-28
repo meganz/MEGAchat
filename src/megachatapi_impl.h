@@ -932,6 +932,7 @@ private:
 
     mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
     void cleanCallHandlerMap();
+    void cleanChatHandlers();
 #endif
 
     static int convertInitState(int state);

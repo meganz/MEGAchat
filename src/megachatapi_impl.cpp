@@ -70,24 +70,9 @@ MegaChatApiImpl::~MegaChatApiImpl()
     requestQueue.push(request);
     waiter->notify();
     thread.join();
-
     delete request;
-    for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
-    {
-        delete *it;
-    }
-    for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
-    {
-        delete *it;
-    }
-    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
-    {
-        delete it->second;
-    }
-    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
-    {
-        delete it->second;
-    }
+    // Avoid any callbacks about chatrooms since they are destroyed
+    cleanChatHandlers();
 
     // TODO: destruction of waiter hangs forever or may cause crashes
     //delete waiter;
@@ -339,30 +324,8 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            // Avoid any callback about chatrooms, since they are destroyed
-            MegaChatHandle chatid;
-            MegaChatRoomHandler *roomHandler;
-            for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
-            {
-                chatid = it->first;
-                roomHandler = it->second;
-                it++;
-
-                closeChatRoom(chatid, NULL);
-            }
-            assert(chatRoomHandler.empty());
-
-            MegaChatNodeHistoryHandler *nodeHistoryHandler;
-            for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
-            {
-                chatid = it->first;
-                nodeHistoryHandler = it->second;
-                it++;
-
-                closeNodeHistory(chatid, NULL);
-            }
-            assert(nodeHistoryHandlers.empty());
-
+            // Avoid any callbacks about chatrooms since they are destroyed
+            cleanChatHandlers();
             bool deleteDb = request->getFlag();
             terminating = true;
             mClient->terminate(deleteDb);
@@ -4237,6 +4200,57 @@ void MegaChatApiImpl::cleanCallHandlerMap()
             mClient->rtc->removeCall(chatids[i]);
         }
     }
+
+    sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::cleanChatHandlers()
+{
+    sdkMutex.lock();
+
+    MegaChatHandle chatid;
+    MegaChatRoomHandler *roomHandler;
+    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
+    {
+        chatid = it->first;
+        roomHandler = it->second;
+        it++;
+
+        closeChatRoom(chatid, NULL);
+    }
+    assert(chatRoomHandler.empty());
+
+    MegaChatNodeHistoryHandler *nodeHistoryHandler;
+    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
+    {
+        chatid = it->first;
+        nodeHistoryHandler = it->second;
+        it++;
+
+        closeNodeHistory(chatid, NULL);
+    }
+    assert(nodeHistoryHandlers.empty());
+
+    set<MegaChatGroupListItemHandler *>::iterator itGroup = chatGroupListItemHandler.begin();
+    while (itGroup != chatGroupListItemHandler.end())
+    {
+        IGroupChatListItem *itemHandler = (*itGroup);
+        delete (itemHandler);
+        chatGroupListItemHandler.erase(itGroup);
+        itGroup++;
+    }
+    assert(chatGroupListItemHandler.empty());
+
+
+    set<MegaChatPeerListItemHandler *>::iterator itPeer = chatPeerListItemHandler.begin();
+    while (itPeer != chatPeerListItemHandler.end())
+    {
+        IPeerChatListItem *itemHandler = (*itPeer);
+        delete (itemHandler);
+        chatPeerListItemHandler.erase(itPeer);
+        itPeer++;
+    }
+    assert(chatPeerListItemHandler.empty());
 
     sdkMutex.unlock();
 }
