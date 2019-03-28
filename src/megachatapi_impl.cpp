@@ -71,8 +71,6 @@ MegaChatApiImpl::~MegaChatApiImpl()
     waiter->notify();
     thread.join();
     delete request;
-    // Avoid any callbacks about chatrooms since they are destroyed
-    cleanChatHandlers();
 
     // TODO: destruction of waiter hangs forever or may cause crashes
     //delete waiter;
@@ -324,8 +322,6 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_LOGOUT:
         {
-            // Avoid any callbacks about chatrooms since they are destroyed
-            cleanChatHandlers();
             bool deleteDb = request->getFlag();
             terminating = true;
             mClient->terminate(deleteDb);
@@ -339,9 +335,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
                 terminating = false;
-#ifndef KARERE_DISABLE_WEBRTC
-                cleanCallHandlerMap();
-#endif
             }, this);
 
             break;
@@ -4231,26 +4224,21 @@ void MegaChatApiImpl::cleanChatHandlers()
     }
     assert(nodeHistoryHandlers.empty());
 
-    set<MegaChatGroupListItemHandler *>::iterator itGroup = chatGroupListItemHandler.begin();
-    while (itGroup != chatGroupListItemHandler.end())
+    for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
     {
-        IGroupChatListItem *itemHandler = (*itGroup);
-        delete (itemHandler);
-        chatGroupListItemHandler.erase(itGroup);
-        itGroup++;
+        delete *it;
     }
-    assert(chatGroupListItemHandler.empty());
+    chatPeerListItemHandler.clear();
 
-
-    set<MegaChatPeerListItemHandler *>::iterator itPeer = chatPeerListItemHandler.begin();
-    while (itPeer != chatPeerListItemHandler.end())
+    for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
     {
-        IPeerChatListItem *itemHandler = (*itPeer);
-        delete (itemHandler);
-        chatPeerListItemHandler.erase(itPeer);
-        itPeer++;
+        delete *it;
     }
-    assert(chatPeerListItemHandler.empty());
+    chatGroupListItemHandler.clear();
+
+#ifndef KARERE_DISABLE_WEBRTC
+    cleanCallHandlerMap();
+#endif
 
     sdkMutex.unlock();
 }
@@ -4298,6 +4286,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
             state == MegaChatApi::INIT_NO_CACHE)
     {
         fireOnChatInitStateUpdate(state);
+    }
+
+    if (newState == karere::Client::kInitTerminated)
+    {
+        cleanChatHandlers();
     }
 }
 
