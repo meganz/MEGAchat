@@ -1000,7 +1000,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (room->ownPriv() != Priv::PRIV_OPER)
+            // anyone can retrieve an existing link, but only operator can create/delete it
+            int ownPriv = room->ownPriv();
+            if ((ownPriv == Priv::PRIV_NOTPRESENT)
+                 || ((del || createifmissing) && ownPriv != Priv::PRIV_OPER))
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
