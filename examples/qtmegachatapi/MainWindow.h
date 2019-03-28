@@ -203,6 +203,7 @@ class MainWindow :
         void onlastGreenVisibleClicked();
         void onReconnect(bool disconnect);
         void onUseApiStagingClicked(bool);
+        void onBackgroundStatusClicked(bool status);
 
     signals:
         void esidLogout();
