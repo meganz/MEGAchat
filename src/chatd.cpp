@@ -229,19 +229,39 @@ Chat& Client::createChat(Id chatid, int shardNo, const std::string& url,
     mChatForChatId.emplace(chatid, std::shared_ptr<Chat>(chat));
     return *chat;
 }
-bool Client::sendKeepalive()
+
+promise::Promise<void> Client::sendKeepalive()
 {
-    bool ret = true;
-    for (auto& conn: mConnections)
+    if (mKeepalivePromise.done())
     {
-        if (conn.second->sendKeepalive(mKeepaliveType) == false)
-        {
-            // if keepalive for any connection fails, return failure
-            ret = false;
-        }
+        assert(mKeepaliveCount == 0);   // TODO: prevent concurrent calls to sendKeepAlive()
+
+        mKeepaliveCount = 0;
+        mKeepaliveSent = true;
+        mKeepalivePromise = Promise<void>();
     }
 
-    return ret;
+    for (auto& conn: mConnections)
+    {
+        mKeepaliveCount++;
+        conn.second->sendKeepalive()
+        .then([this]()
+        {
+            onKeepaliveSent();
+        })
+        .fail([this](const ::promise::Error&)
+        {
+            mKeepaliveSent = false;
+            onKeepaliveSent();
+        });
+    }
+
+    if (mKeepaliveCount == 0)
+    {
+        mKeepalivePromise.resolve();
+    }
+
+    return mKeepalivePromise;
 }
 
 void Client::sendEcho()
@@ -258,6 +278,22 @@ void Client::sendEcho()
 void Client::setKeepaliveType(bool isInBackground)
 {
     mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
+}
+
+void Client::onKeepaliveSent()
+{
+    mKeepaliveCount--;
+    if (mKeepaliveCount == 0)
+    {
+        if (mKeepaliveSent)
+        {
+            mKeepalivePromise.resolve();
+        }
+        else
+        {
+            mKeepalivePromise.reject("Failed to send some keepalives");
+        }
+    }
 }
 
 uint8_t Client::keepaliveType()
@@ -281,13 +317,28 @@ Chat &Client::chats(Id chatid) const
     return *it->second;
 }
 
-bool Client::notifyUserIdle()
+promise::Promise<void> Client::notifyUserStatus(bool background)
 {
-    if (mKeepaliveType == OP_KEEPALIVEAWAY)
-        return true;
+    if (background)
+    {
+        if (mKeepaliveType == OP_KEEPALIVEAWAY)
+        {
+            return promise::_Void();
+        }
 
-    mKeepaliveType = OP_KEEPALIVEAWAY;
-    cancelSeenTimers();
+        cancelSeenTimers(); // avoid to update SEEN pointer when entering background
+    }
+    else    // foreground
+    {
+        if (mKeepaliveType == OP_KEEPALIVE)
+        {
+            return promise::_Void();
+        }
+
+        sendEcho(); // ping to detect dead sockets when returning to foreground
+    }
+
+    mKeepaliveType = background ? OP_KEEPALIVEAWAY: OP_KEEPALIVE;
     return sendKeepalive();
 }
 
@@ -298,17 +349,6 @@ void Client::cancelSeenTimers()
         cancelTimeout(*it, mKarereClient->appCtx);
    }
    mSeenTimers.clear();
-}
-
-bool Client::notifyUserActive()
-{
-    if (mKeepaliveType == OP_KEEPALIVE)
-        return true;
-
-    sendEcho();
-
-    mKeepaliveType = OP_KEEPALIVE;
-    return sendKeepalive();
 }
 
 bool Client::isMessageReceivedConfirmationActive() const
@@ -503,10 +543,12 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     }
 }
 
-bool Connection::sendKeepalive(uint8_t opcode)
+promise::Promise<void> Connection::sendKeepalive()
 {
+    uint8_t opcode = mChatdClient.keepaliveType();
     CHATDS_LOG_DEBUG("send %s", Command::opcodeToStr(opcode));
-    return sendBuf(Command(opcode));
+    sendBuf(Command(opcode));
+    return mSendPromise;
 }
 
 void Connection::sendEcho()
@@ -641,6 +683,10 @@ void Connection::setState(State state)
             mChatdClient.mRtcHandler->stopCallsTimers(mShardNo);
         }
 #endif
+        if (!mSendPromise.done())
+        {
+            mSendPromise.reject("Failed to send. Socket was closed");
+        }
     }
     else if (mState == kStateConnected)
     {
@@ -842,7 +888,7 @@ Promise<void> Connection::reconnect()
                 sendCommand(Command(OP_CLIENTID)+mChatdClient.mKarereClient->myIdentity());
                 mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
                 mHeartbeatEnabled = true;
-                sendKeepalive(mChatdClient.mKeepaliveType);
+                sendKeepalive();
                 rejoinExistingChats();
             });
         }, wptr, mChatdClient.mKarereClient->appCtx, nullptr, 0, 0, KARERE_RECONNECT_DELAY_MAX, KARERE_RECONNECT_DELAY_INITIAL));
@@ -1043,8 +1089,20 @@ bool Connection::sendBuf(Buffer&& buf)
     if (!isOnline())
         return false;
 
+    // if several data are written to the output buffer to be sent all together, wait for all of them
+    if (mSendPromise.done())
+    {
+        mSendPromise = Promise<void>();
+    }
+
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
     buf.free();
+
+    if (!rc)
+    {
+        mSendPromise.reject("Failed to send data. Socket is not ready");
+    }
+
     return rc;
 }
 
@@ -1717,6 +1775,12 @@ void Connection::wsHandleMsgCb(char *data, size_t len)
     execCommand(StaticBuffer(data, len));
 }
 
+void Connection::wsSendMsgCb(const char *, size_t)
+{
+    assert(!mSendPromise.done());
+    mSendPromise.resolve();
+}
+
 // inbound command processing
 // multiple commands can appear as one WebSocket frame, but commands never cross frame boundaries
 // CHECK: is this assumption correct on all browsers and under all circumstances?
@@ -1741,7 +1805,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_KEEPALIVE:
             {
                 CHATDS_LOG_DEBUG("recv KEEPALIVE");
-                sendKeepalive(mChatdClient.mKeepaliveType);
+                sendKeepalive();
                 break;
             }
             case OP_BROADCAST:
