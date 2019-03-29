@@ -4199,8 +4199,6 @@ void MegaChatApiImpl::cleanCallHandlerMap()
 
 void MegaChatApiImpl::cleanChatHandlers()
 {
-    sdkMutex.lock();
-
     MegaChatHandle chatid;
     MegaChatRoomHandler *roomHandler;
     for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
@@ -4239,8 +4237,6 @@ void MegaChatApiImpl::cleanChatHandlers()
 #ifndef KARERE_DISABLE_WEBRTC
     cleanCallHandlerMap();
 #endif
-
-    sdkMutex.unlock();
 }
 
 MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)
