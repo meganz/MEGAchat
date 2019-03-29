@@ -621,7 +621,7 @@ private:
 
 class MegaChatErrorPrivate :
         public MegaChatError,
-        private promise::Error
+        private ::promise::Error
 {
 public:
 
