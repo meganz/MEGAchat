@@ -237,26 +237,28 @@ promise::Promise<void> Client::sendKeepalive()
         assert(mKeepaliveCount == 0);   // TODO: prevent concurrent calls to sendKeepAlive()
 
         mKeepaliveCount = 0;
-        mKeepaliveSent = true;
+        mKeepaliveFailed = false;
         mKeepalivePromise = Promise<void>();
     }
 
-    for (auto& conn: mConnections)
+    if (mConnections.size())
     {
-        mKeepaliveCount++;
-        conn.second->sendKeepalive()
-        .then([this]()
+        mKeepaliveCount += mConnections.size();
+        for (auto& conn: mConnections)
         {
-            onKeepaliveSent();
-        })
-        .fail([this](const ::promise::Error&)
-        {
-            mKeepaliveSent = false;
-            onKeepaliveSent();
-        });
+            conn.second->sendKeepalive()
+            .then([this]()
+            {
+                onKeepaliveSent();
+            })
+            .fail([this](const ::promise::Error&)
+            {
+                mKeepaliveFailed = true;
+                onKeepaliveSent();
+            });
+        }
     }
-
-    if (mKeepaliveCount == 0)
+    else    // in case user has no chats, there's no connections active --> all done
     {
         mKeepalivePromise.resolve();
     }
@@ -285,13 +287,13 @@ void Client::onKeepaliveSent()
     mKeepaliveCount--;
     if (mKeepaliveCount == 0)
     {
-        if (mKeepaliveSent)
+        if (mKeepaliveFailed)
         {
-            mKeepalivePromise.resolve();
+            mKeepalivePromise.reject("Failed to send some keepalives");
         }
         else
         {
-            mKeepalivePromise.reject("Failed to send some keepalives");
+            mKeepalivePromise.resolve();
         }
     }
 }

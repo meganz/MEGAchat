@@ -1365,7 +1365,7 @@ protected:
 
     uint8_t mKeepaliveType = OP_KEEPALIVE;
     int mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
-    bool mKeepaliveSent = false;                // false if any pending keepalive failed to send
+    bool mKeepaliveFailed = false;              // true means any pending keepalive failed to send
     promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
     void onKeepaliveSent();
 
