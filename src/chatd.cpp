@@ -1095,6 +1095,10 @@ bool Connection::sendBuf(Buffer&& buf)
     if (mSendPromise.done())
     {
         mSendPromise = Promise<void>();
+        mSendPromise.fail([this](const promise::Error& err)
+        {
+           CHATDS_LOG_ERROR("Failed to send data. Error: %s", err.what());
+        });
     }
 
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
@@ -1102,7 +1106,7 @@ bool Connection::sendBuf(Buffer&& buf)
 
     if (!rc)
     {
-        mSendPromise.reject("Failed to send data. Socket is not ready");
+        mSendPromise.reject("Socket is not ready");
     }
 
     return rc;
