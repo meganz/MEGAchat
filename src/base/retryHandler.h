@@ -86,7 +86,7 @@ inline static void callFuncIfNotNull(std::nullptr_t){}
  * if the retry handler gives up. That output promise has the same value type as the
  * promise returned by the function. When the function succeeds, the output promise is
  * resolved with the value returned by the function. When the retry handler gives up,
- * it rejects the output promise with the promise::Error object returned by the last
+ * it rejects the output promise with the ::promise::Error object returned by the last
  * (failed) call of the function.
  */
 template<class Func, class CancelFunc=void*>
@@ -335,7 +335,7 @@ protected:
                 assert(attempt == mCurrentAttemptId); //if we are in a next attempt, cancelTimer() should have been called and this callback should never fire
                 mTimer = 0;
 
-                static const promise::Error timeoutError("timeout", promise::kErrTimeout, promise::kErrorTypeGeneric);
+                static const ::promise::Error timeoutError("timeout", promise::kErrTimeout, promise::kErrorTypeGeneric);
                 if (!std::is_same<CancelFunc, std::nullptr_t>::value)
                 {
                     auto id = mCurrentAttemptId;
@@ -354,7 +354,7 @@ protected:
         RETRY_LOG("Starting attempt %zu...", mCurrentAttemptNo);
         auto pms = mFunc(mCurrentAttemptNo, wptr);
         attachThenHandler(pms, attempt);
-        pms.fail([this, attempt](const promise::Error& err)
+        pms.fail([this, attempt](const ::promise::Error& err)
         {
             if (attempt != mCurrentAttemptId)//we are already in another attempt and this callback is from the old attempt, ignore it
             {
@@ -367,7 +367,7 @@ protected:
             return err;
         });
     }
-    bool schedNextRetry(const promise::Error& err)
+    bool schedNextRetry(const ::promise::Error& err)
     {
         assert(mTimer == 0);
         if (mRestart)
@@ -491,13 +491,13 @@ auto performWithTimeout(CB&& cb, unsigned timeout, CCB&& cancelCb=nullptr)
     {
         if (pms.done())
             return;
-        pms.reject(promise::Error("Operation timed out", 1, 1));
+        pms.reject(::promise::Error("Operation timed out", 1, 1));
         rh::callFuncIfNotNull(cancelCb);
     }, timeout);
 
     auto retpms = cb();
     _timeoutAttachThenHandler(retpms, pms);
-    retpms.fail([pms](const promise::Error& err) mutable
+    retpms.fail([pms](const ::promise::Error& err) mutable
     {
         if (!pms.done())
             pms.reject(err);

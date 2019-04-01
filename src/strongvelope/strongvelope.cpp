@@ -602,7 +602,7 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
                 auxBuf.append(*unifiedKey);
                 mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
             })
-            .fail([this, wptr, bufunifiedkey](const promise::Error& err)
+            .fail([this, wptr, bufunifiedkey](const ::promise::Error& err)
             {
 
                 STRONGVELOPE_LOG_ERROR("Failed to decrypt unified-key. Error: %s", err.what());
@@ -771,7 +771,7 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padSt
             return it->second;
 
         if (pubKey->empty())
-            return promise::Error("Empty Cu25519 chat key for user "+userid.toString());
+            return ::promise::Error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
         sharedSecret.setDataSize(crypto_scalarmult_BYTES);
         auto ignore = crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
@@ -804,7 +804,7 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
     {
         wptr.throwIfDeleted();
         if (mForceRsa)
-            return promise::Error("Test: Forcing RSA");
+            return ::promise::Error("Test: Forcing RSA");
 
         assert(symkey->dataSize() == SVCRYPTO_KEY_SIZE);
         auto result = std::make_shared<Buffer>((size_t)AES::BLOCKSIZE);
@@ -812,13 +812,13 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
         aesECBEncrypt(*sendKey, *symkey, *result);
         return result;
     })
-    .fail([wptr, this, toUser, sendKey](const promise::Error& err)
+    .fail([wptr, this, toUser, sendKey](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_DEBUG("Can't use EC encryption for user %s (error '%s'), falling back to RSA", toUser.toString().c_str(), err.what());
         return rsaEncryptTo(std::static_pointer_cast<StaticBuffer>(sendKey), toUser);
     })
-    .fail([toUser, wptr, this](const promise::Error& err)
+    .fail([toUser, wptr, this](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_ERROR("No public encryption key (RSA or x25519) available for %s", toUser.toString().c_str());
@@ -837,7 +837,7 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
         ::mega::AsymmCipher key;
         auto ret = key.setkey(::mega::AsymmCipher::PUBKEY, rsapub->ubuf(), rsapub->dataSize());
         if (!ret)
-            return promise::Error("Error parsing fetched public RSA key of user "+toUser.toString(), EINVAL, SVCRYPTO_ERRTYPE);
+            return ::promise::Error("Error parsing fetched public RSA key of user "+toUser.toString(), EINVAL, SVCRYPTO_ERRTYPE);
 
         auto output = std::make_shared<Buffer>(512);
         Buffer input;
@@ -1047,7 +1047,7 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
                 return std::make_pair(msgCmd, (KeyCommand*)nullptr);
             }
         }
-        return promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
+        return ::promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
     }
     else    // confirmed keyid
     {
@@ -1135,7 +1135,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         }
 
         default:
-            return promise::Error("Unknown management message type "+
+            return ::promise::Error("Unknown management message type "+
                 std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);
     }
 }
@@ -1177,7 +1177,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // check tampering of management messages
         if (message->userid == karere::Id::COMMANDER())
         {
-            return promise::Error("Invalid message. type: "+std::to_string(message->type)+
+            return ::promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
                                   " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
         }
@@ -1237,17 +1237,17 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         {
             if (wptr.deleted())
             {
-                return promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                return ::promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
             }
 
             if (cacheVersion != mCacheVersion)
             {
-                return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                return ::promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
             }
 
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
-                return promise::Error("Signature invalid for message "+
+                return ::promise::Error("Signature invalid for message "+
                                       message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
@@ -1265,7 +1265,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
     catch(std::runtime_error& e)
     {
         // ParsedMessage ctor throws if unexpected format, unknown/missing TLVs, etc.
-        return promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
+        return ::promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
     }
 }
 
@@ -1273,7 +1273,7 @@ Promise<void>
 ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg)
 {
     if (parsedMsg->encryptedKey.empty())
-        return promise::Error("legacyExtractKeys: No encrypted keys found in parsed message", EPROTO, SVCRYPTO_ERRTYPE);
+        return ::promise::Error("legacyExtractKeys: No encrypted keys found in parsed message", EPROTO, SVCRYPTO_ERRTYPE);
 
     auto& key1 = mKeys[UserKeyId(parsedMsg->sender, parsedMsg->keyId)];
     if (!key1.key)
@@ -1340,7 +1340,7 @@ void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
         //attached to it will be notified first
         addDecryptedKey(ukid, key);
     });
-    pms.fail([this, wptr, ukid](const promise::Error& err)
+    pms.fail([this, wptr, ukid](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_ERROR("Removing key entry for key %u - decryptKey() failed with error '%s'", ukid.keyid, err.what());
@@ -1403,7 +1403,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
         }
         else
         {
-            return promise::Error("Key with id "+std::to_string(ukid.keyid)+
+            return ::promise::Error("Key with id "+std::to_string(ukid.keyid)+
             " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
         }
     }
@@ -1665,7 +1665,7 @@ ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
             delete retMsg;
             return ret;
         })
-        .fail([wptr, this](const promise::Error& err)
+        .fail([wptr, this](const ::promise::Error& err)
         {
             wptr.throwIfDeleted();
             STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. Error: ", err.what());
@@ -1674,7 +1674,7 @@ ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
     }
     catch(std::exception& e)
     {
-        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
+        return ::promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
     }
 }
 
@@ -1729,7 +1729,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
         if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
         {
-            throw promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
+            throw ::promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
         }
 
         symmetricDecrypt(*key, *msg);

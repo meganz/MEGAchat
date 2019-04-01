@@ -85,7 +85,7 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-           mPromise.reject(promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
+           mPromise.reject(::promise::Error(error, kCreateSdpFailed, ERRTYPE_RTC));
            Release();
         , this, error);
     }
@@ -132,7 +132,7 @@ public:
     virtual void OnFailure(const std::string& error)
     {
         RTCM_DO_CALLBACK(
-             mPromise.reject(promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
+             mPromise.reject(::promise::Error(error, kSetSdpDescriptionFailed, ERRTYPE_RTC));
              Release();
         , this, error);
     }
