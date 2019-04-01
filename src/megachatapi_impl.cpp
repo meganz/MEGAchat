@@ -4979,7 +4979,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     changed = 0;
     peerId = 0;
     clientid = 0;
-    callerId = call.caller() ? call.caller().val : MEGACHAT_INVALID_HANDLE;
+    callerId = !call.isCaller() ? call.caller().val : MEGACHAT_INVALID_HANDLE;
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 

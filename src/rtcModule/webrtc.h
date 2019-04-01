@@ -300,7 +300,7 @@ protected:
     bool mIsGroup;
     bool mIsJoiner;
     ICallHandler* mHandler;
-    karere::Id mCallerUser;
+    karere::Id mCallerUser = karere::Id::inval();
     uint32_t mCallerClient;
     TermCode mTermCode;
     ICall(RtcModule& rtcModule, chatd::Chat& chat,
