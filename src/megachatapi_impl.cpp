@@ -72,6 +72,15 @@ MegaChatApiImpl::~MegaChatApiImpl()
     thread.join();
     delete request;
 
+    for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
+    {
+        delete *it;
+    }
+    for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
+    {
+        delete *it;
+    }
+
     // TODO: destruction of waiter hangs forever or may cause crashes
     //delete waiter;
 
@@ -4224,18 +4233,6 @@ void MegaChatApiImpl::cleanChatHandlers()
         closeNodeHistory(chatid, NULL);
     }
     assert(nodeHistoryHandlers.empty());
-
-    for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
-    {
-        delete *it;
-    }
-    chatPeerListItemHandler.clear();
-
-    for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
-    {
-        delete *it;
-    }
-    chatGroupListItemHandler.clear();
 
 #ifndef KARERE_DISABLE_WEBRTC
     cleanCallHandlerMap();
