@@ -239,7 +239,7 @@ public:
         kCallSetupTimeout = 35000,
         kReconnectTimeout = 5000,
         kRetryCallTimeoutActive = 2000,
-        kRetryCallTimeoutPasive = 15000,
+        kRetryCallTimeoutPasive = 25000,
     };
 
     enum Resolution
@@ -252,7 +252,7 @@ public:
 
     enum
     {
-        kNumCallRetries = 5
+        kNumCallRetries = 20
     };
 
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
