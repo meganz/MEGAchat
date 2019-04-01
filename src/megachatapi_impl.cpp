@@ -560,7 +560,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error joining user to public group chat: %s", err.what());
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
@@ -877,7 +877,7 @@ void MegaChatApiImpl::sendPendingRequests()
                        }
                    }
                 })
-                .fail([request, this](const promise::Error& err)
+                .fail([request, this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error decrypting chat title: %s", err.what());
 
@@ -885,7 +885,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     fireOnChatRequestFinish(request, megaChatError);
                 });
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error loading chat link: %s", err.what());
 
@@ -928,7 +928,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -967,7 +967,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (room->ownPriv() != Priv::PRIV_OPER)
+            // anyone can retrieve an existing link, but only operator can create/delete it
+            int ownPriv = room->ownPriv();
+            if ((ownPriv == Priv::PRIV_NOTPRESENT)
+                 || ((del || createifmissing) && ownPriv != Priv::PRIV_OPER))
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
@@ -980,7 +983,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            promise::Promise<uint64_t> pms;
+            ::promise::Promise<uint64_t> pms;
             if (del)
             {
                 pms = mClient->deleteChatLink(chatid);
@@ -1027,7 +1030,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     }
                     fireOnChatRequestFinish(request, megaChatError);
                 })
-                .fail([request, this] (const promise::Error &err)
+                .fail([request, this] (const ::promise::Error &err)
                 {
                     API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
 
@@ -1036,7 +1039,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 });
 
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Failed to query/create/delete chat-link: %s", err.what());
 

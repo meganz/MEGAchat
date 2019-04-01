@@ -49,7 +49,7 @@ struct State: public StateBase<I,C,X,F>
     void nextIter()
     {
         this->mFunc(*this)
-        .fail([this](const promise::Error& err)
+        .fail([this](const ::promise::Error& err)
         {
             this->mOutput.reject(err);
             delete this;
@@ -82,7 +82,7 @@ struct State<I,C,X,F,void>: public StateBase<I,C,X,F>
     void nextIter()
     {
         this->mFunc(*this)
-        .fail([this](const promise::Error& err)
+        .fail([this](const ::promise::Error& err)
         {
             this->mOutput.reject(err);
             delete this;

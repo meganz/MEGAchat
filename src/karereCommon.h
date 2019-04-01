@@ -214,7 +214,7 @@ static inline int64_t timestampMs() { return services_get_time_ms(); }
     {                                                 \
         const char* what = e.what();                  \
         if (!what) what = "(no exception message)";   \
-        return promise::Error(what, type);            \
+        return ::promise::Error(what, type);            \
     }
 
 /** @endcond PRIVATE */
