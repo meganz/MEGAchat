@@ -336,6 +336,7 @@ protected:
     void makeTitleFromMemberNames();
     void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
+    void setPreviewClosed();
     void setRemoved();
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
