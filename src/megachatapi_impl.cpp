@@ -70,8 +70,8 @@ MegaChatApiImpl::~MegaChatApiImpl()
     requestQueue.push(request);
     waiter->notify();
     thread.join();
-
     delete request;
+
     for (auto it = chatPeerListItemHandler.begin(); it != chatPeerListItemHandler.end(); it++)
     {
         delete *it;
@@ -79,14 +79,6 @@ MegaChatApiImpl::~MegaChatApiImpl()
     for (auto it = chatGroupListItemHandler.begin(); it != chatGroupListItemHandler.end(); it++)
     {
         delete *it;
-    }
-    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
-    {
-        delete it->second;
-    }
-    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
-    {
-        delete it->second;
     }
 
     // TODO: destruction of waiter hangs forever or may cause crashes
@@ -340,6 +332,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
+            cleanChatHandlers();
             terminating = true;
             mClient->terminate(deleteDb);
 
@@ -352,22 +345,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 delete mClient;
                 mClient = NULL;
                 terminating = false;
-
-                for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end(); it++)
-                {
-                    delete it->second;
-                }
-                chatRoomHandler.clear();
-
-                for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end(); it++)
-                {
-                    delete it->second;
-                }
-                nodeHistoryHandlers.clear();
-
-#ifndef KARERE_DISABLE_WEBRTC
-                cleanCallHandlerMap();
-#endif
             }, this);
 
             break;
@@ -376,6 +353,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
+                cleanChatHandlers();
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
@@ -4237,6 +4215,32 @@ void MegaChatApiImpl::cleanCallHandlerMap()
     }
 
     sdkMutex.unlock();
+}
+
+void MegaChatApiImpl::cleanChatHandlers()
+{
+    MegaChatHandle chatid;
+    for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
+    {
+        chatid = it->first;
+        it++;
+
+        closeChatRoom(chatid, NULL);
+    }
+    assert(chatRoomHandler.empty());
+
+    for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
+    {
+        chatid = it->first;
+        it++;
+
+        closeNodeHistory(chatid, NULL);
+    }
+    assert(nodeHistoryHandlers.empty());
+
+#ifndef KARERE_DISABLE_WEBRTC
+    cleanCallHandlerMap();
+#endif
 }
 
 MegaChatCallHandler *MegaChatApiImpl::findChatCallHandler(MegaChatHandle chatid)

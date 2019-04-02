@@ -1321,15 +1321,16 @@ void Client::notifyUserActive()
 
 void Client::terminate(bool deleteDb)
 {
+#ifndef KARERE_DISABLE_WEBRTC
+    if (rtc)
+        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
+#endif
+
     setInitState(kInitTerminated);
 
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
 
-#ifndef KARERE_DISABLE_WEBRTC
-    if (rtc)
-        rtc->hangupAll(rtcModule::TermCode::kAppTerminating);
-#endif
 
     // pre-destroy chatrooms in preview mode (cleanup from DB + send HANDLELEAVE)
     // Otherwise, DB will be already closed when the GroupChatRoom dtor is called
