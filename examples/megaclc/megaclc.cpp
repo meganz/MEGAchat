@@ -874,7 +874,7 @@ void exec_getuserfirstname(ac::ACState& s)
         }
     });
 
-    g_chatApi->getUserFirstname(userhandle, &g_chatListener);
+    g_chatApi->getUserFirstname(userhandle, NULL, &g_chatListener);
 }
 
 
@@ -890,7 +890,7 @@ void exec_getuserlastname(ac::ACState& s)
         }
     });
 
-    g_chatApi->getUserLastname(userhandle, &g_chatListener);
+    g_chatApi->getUserLastname(userhandle, NULL, &g_chatListener);
 }
 
 void exec_getuseremail(ac::ACState& s)

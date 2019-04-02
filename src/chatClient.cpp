@@ -1616,6 +1616,11 @@ ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle 
     return parent.mKarereClient.api.call(&::mega::MegaApi::removeAccessInChat, chatid(), node, userHandle);
 }
 
+bool ChatRoom::isChatdChatInitialized()
+{
+    return mChat;
+}
+
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool isPublic,
         std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph)
 {
@@ -3275,7 +3280,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.makeTitleFromMemberNames();
         }
-    });
+    }, false, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
 
     if (!mRoom.parent.mKarereClient.anonymousMode())
     {

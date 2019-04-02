@@ -1151,8 +1151,8 @@ public class MegaChatApiJava {
      * @param userhandle Handle of the user whose name is requested.
      * @param listener MegaChatRequestListener to track this request
      */
-    public void getUserFirstname(long userhandle, MegaChatRequestListenerInterface listener){
-        megaChatApi.getUserFirstname(userhandle, createDelegateRequestListener(listener));
+    public void getUserFirstname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserFirstname(userhandle, cauth, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1173,8 +1173,8 @@ public class MegaChatApiJava {
      * @param userhandle Handle of the user whose name is requested.
      * @param listener MegaChatRequestListener to track this request
      */
-    public void getUserLastname(long userhandle, MegaChatRequestListenerInterface listener){
-        megaChatApi.getUserLastname(userhandle, createDelegateRequestListener(listener));
+    public void getUserLastname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserLastname(userhandle, cauth, createDelegateRequestListener(listener));
     }
 
     /**

@@ -22,7 +22,7 @@ ContactItemWidget::ContactItemWidget(QWidget *parent, MainWindow *mainWin, megac
     ui->mName->setText(contactEmail);
     ui->mAvatar->setText(QString(text[0].toUpper()));
 
-    const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle());
+    const char *firstname = mMainWin->mApp->getFirstname(contact->getHandle(), NULL);
     if (firstname)
     {
         updateTitle(firstname);

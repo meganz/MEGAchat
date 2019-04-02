@@ -1016,7 +1016,7 @@ void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfi
 
 void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle userhandle, int lastGreen)
 {
-    const char *firstname = mApp->getFirstname(userhandle);
+    const char *firstname = mApp->getFirstname(userhandle, NULL);
     if (!firstname)
     {
         firstname = mMegaApi->userHandleToBase64(userhandle);
