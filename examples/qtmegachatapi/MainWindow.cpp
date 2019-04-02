@@ -692,15 +692,6 @@ void MainWindow::closeChatPreview(megachat::MegaChatHandle chatId)
         }
 
         mMegaChatApi->closeChatPreview(chatId);
-        ChatWindow * auxWindow = itemController->getChatWindow();
-        if(auxWindow)
-        {
-            auxWindow->deleteLater();
-        }
-
-        delete itemController;
-        mChatControllers.erase(it);
-        reorderAppChatList();
     }
 }
 
@@ -759,6 +750,21 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         return;
     }
 
+    if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED))
+    {
+        ChatWindow * auxWindow = itemController->getChatWindow();
+        if(auxWindow)
+        {
+            auxWindow->deleteLater();
+        }
+
+        mChatControllers.erase(itemController->getItemId());
+        delete itemController;
+        reorderAppChatList();
+        return;
+    }
+
+
     // If we don't need to reorder and chatItemwidget is rendered
     // we need to update the widget because non order actions requires
     // a live update of widget
@@ -816,7 +822,7 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT)
-         || newItem->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE)
+         || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE)
          || (newItem->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)         
          || ((oldPriv == megachat::MegaChatRoom::PRIV_RM)
              &&(newItem->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RM)))

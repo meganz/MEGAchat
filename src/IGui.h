@@ -124,6 +124,9 @@ public:
          */
         virtual void onRejoinedChat() {}
 
+        /** @brief We have manually closed a chat preview */
+        virtual void onPreviewClosed() {}
+
         /** @brief The last message in the history sequence has changed.
          * This means that either a new message has been received, or the last
          * message of existing history was just fetched (this is the first message

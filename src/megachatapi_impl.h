@@ -368,6 +368,7 @@ public:
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setNumPreviewers(unsigned int numPrev);
+    void setPreviewClosed();
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
@@ -404,8 +405,7 @@ public:
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
     virtual void onPreviewersCountUpdate(uint32_t numPrev);
-
-    virtual const karere::ChatRoom& getChatRoom() const;
+    virtual void onPreviewClosed();
 
 protected:
     MegaChatApiImpl &chatApi;

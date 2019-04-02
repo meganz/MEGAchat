@@ -2365,9 +2365,17 @@ void ChatRoomList::removeRoomPreview(Id chatid)
         }
 
         GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
+        groupchat->notifyPreviewClosed();
         erase(it);
         delete groupchat;
     },mKarereClient.appCtx);
+}
+
+void GroupChatRoom::notifyPreviewClosed()
+{
+    auto listItem = roomGui();
+    if (listItem)
+        listItem->onPreviewClosed();
 }
 
 void GroupChatRoom::setRemoved()

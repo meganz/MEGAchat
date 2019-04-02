@@ -6568,7 +6568,7 @@ void MegaChatRoomPrivate::setClosed()
 void MegaChatRoomPrivate::setChatMode(bool mode)
 {
     this->mPublicChat = mode;
-    this->changed |= MegaChatListItem::CHANGE_TYPE_CHAT_MODE;
+    this->changed |= MegaChatRoom::CHANGE_TYPE_CHAT_MODE;
 }
 
 void MegaChatRoomPrivate::setArchived(bool archived)
@@ -6649,9 +6649,12 @@ void MegaChatListItemHandler::onPreviewersCountUpdate(uint32_t numPrev)
     chatApi.fireOnChatListItemUpdate(item);
 }
 
-const ChatRoom &MegaChatListItemHandler::getChatRoom() const
+void MegaChatListItemHandler::onPreviewClosed()
 {
-    return mRoom;
+    MegaChatListItemPrivate *item = new MegaChatListItemPrivate(mRoom);
+    item->setPreviewClosed();
+
+    chatApi.fireOnChatListItemUpdate(item);
 }
 
 MegaChatPeerListPrivate::MegaChatPeerListPrivate()
@@ -6987,6 +6990,11 @@ void MegaChatListItemPrivate::setNumPreviewers(unsigned int numPrev)
 {
     this->mNumPreviewers = numPrev;
     this->changed |= MegaChatListItem::CHANGE_TYPE_UPDATE_PREVIEWERS;
+}
+
+void MegaChatListItemPrivate::setPreviewClosed()
+{
+    this->changed |= MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED;
 }
 
 void MegaChatListItemPrivate::setMembersUpdated()

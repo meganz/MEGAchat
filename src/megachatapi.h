@@ -3501,6 +3501,9 @@ public:
      * It automatically disconnect to this chat, remove all internal data related, and make
      * a cache cleanup in order to clean all the related records.
      *
+     * Additionally, MegaChatListener::onChatListItemUpdate will be called with an item
+     * returning true for the type of change CHANGE_TYPE_PREVIEW_CLOSED
+     *
      * @param chatid MegaChatHandle that identifies the chat room
      */
     void closeChatPreview(MegaChatHandle chatid);
@@ -4733,7 +4736,8 @@ public:
         CHANGE_TYPE_ARCHIVE             = 0x100, /// Archived or unarchived
         CHANGE_TYPE_CALL                = 0x200, /// There's a new call or a call has finished
         CHANGE_TYPE_CHAT_MODE           = 0x400, /// User has set chat mode to private
-        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800  /// The number of previewers has changed
+        CHANGE_TYPE_UPDATE_PREVIEWERS   = 0x800, /// The number of previewers has changed
+        CHANGE_TYPE_PREVIEW_CLOSED      = 0x1600 /// The chat preview has been closed
     };
 
     virtual ~MegaChatListItem() {}
@@ -5252,6 +5256,10 @@ public:
      *  - Last message: the last relevant message in the chatroom
      *  - Last timestamp: the last date of any activity in the chatroom
      *  - Archived: when the chat becomes archived/unarchived
+     *  - Calls: when there is a new call or a call has finished
+     *  - Chat mode: when an user has set chat mode to private
+     *  - Previewers: when the number of previewers has changed
+     *  - Preview closed: when the chat preview has been closed
      *
      * The SDK retains the ownership of the MegaChatListItem in the second parameter.
      * The MegaChatListItem object will be valid until this function returns. If you
@@ -5356,7 +5364,9 @@ public:
      *
      * The changes can include: a user join/leaves the chatroom, a user changes its name,
      * the unread messages count has changed, the online state of the connection to the
-     * chat server has changed, the chat becomes archived/unarchived.
+     * chat server has changed, the chat becomes archived/unarchived, there is a new call
+     * or a call has finished, the chat has been changed into private mode, the number of
+     * previewers has changed, the user has started/stopped typing.
      *
      * @param api MegaChatApi connected to the account
      * @param chat MegaChatRoom that contains the updates relatives to the chat

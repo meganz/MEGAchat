@@ -12,7 +12,8 @@ typedef NS_ENUM (NSInteger, MEGAChatListItemChangeType) {
     MEGAChatListItemChangeTypeArchived         = 0x100,
     MEGAChatListItemChangeTypeCall             = 0x200,
     MEGAChatListItemChangeTypeChatMode         = 0x400,
-    MEGAChatListItemChangeTypeUpdatePreviewers = 0x800
+    MEGAChatListItemChangeTypeUpdatePreviewers = 0x800,
+    MEGAChatListItemChangeTypePreviewClosed    = 0x1600
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatMessageType);
