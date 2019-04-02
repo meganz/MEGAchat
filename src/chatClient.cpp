@@ -508,10 +508,13 @@ void Client::saveDb()
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
     promise::Promise<void> pms;
-    if (chatid.isValid() && (chats->find(chatid) == chats->end()))
+    ChatRoomList::const_iterator it = chats->find(chatid);
+    ChatRoom *room = (it != chats->end()) ? it->second : NULL;
+    if (!room || room->isArchived())
     {
-        /*  If chatid is unknown, we have to wait until we have received
-            all pending actionpackets (Catching up with API).*/
+        // room unknown or archived --> need to catchup wiht API to receive pending
+        // actionpackets that may notify about a new chat or an existing chat being
+        // unarchived (don't want notifications for archived)
         pms = api.callIgnoreResult(&::mega::MegaApi::catchup);
     }
     else
