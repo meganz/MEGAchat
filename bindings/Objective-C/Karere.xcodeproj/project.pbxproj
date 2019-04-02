@@ -538,7 +538,7 @@
 		A838B1EE1E96850700875D96 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0930;
+				LastUpgradeCheck = 1020;
 				TargetAttributes = {
 					A838B1F71E96855400875D96 = {
 						CreatedOnToolsVersion = 8.3;
@@ -549,10 +549,9 @@
 			};
 			buildConfigurationList = A838B1F11E96850700875D96 /* Build configuration list for PBXProject "Karere" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 			);
 			mainGroup = A838B1ED1E96850700875D96;
 			productRefGroup = A838B1F91E96855400875D96 /* Products */;
