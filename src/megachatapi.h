@@ -2618,15 +2618,18 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_GET_FIRSTNAME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the firstname of the user
      *
      * @param userhandle Handle of the user whose name is requested.
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the current lastname of the user
@@ -2637,15 +2640,18 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_GET_LASTNAME
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getLink - Returns the authorization token. Previewers of chatlinks are not allowed
+     * to retrieve user attributes like firstname or lastname, unless they provide a valid authorization token.
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getText - Returns the lastname of the user
      *
      * @param userhandle Handle of the user whose name is requested.
+     * @param authorizationToken This value can be obtained with MegaChatRoom::getAuthorizationToken
      * @param listener MegaChatRequestListener to track this request
      */
-    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Returns the current email address of the contact

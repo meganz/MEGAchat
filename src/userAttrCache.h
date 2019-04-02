@@ -64,7 +64,9 @@ struct UserAttrPair
     Id mPh; // only valid in anonymous preview mode to retrieve user-attributes without valid session
     bool operator<(const UserAttrPair& other) const
     {
-        if (user == other.user)
+        if (user == other.user && attrType == other.attrType)
+            return mPh < other.mPh;
+        else if (user == other.user)
             return attrType < other.attrType;
         else
             return user < other.user;

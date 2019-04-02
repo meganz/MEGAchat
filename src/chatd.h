@@ -777,7 +777,7 @@ protected:
     // last text message stuff
     LastTextMsgState mLastTextMsg;
     // crypto stuff
-    ICrypto* mCrypto;
+    ICrypto* mCrypto = NULL;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
      * Once encryption is finished, this flag is cleared, and all queued unencrypted

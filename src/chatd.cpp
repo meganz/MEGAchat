@@ -1616,7 +1616,7 @@ Chat::Chat(Connection& conn, Id chatid, Listener* listener,
     {
         // disable the chat if decryption of unified key fails
         mCrypto->getUnifiedKey()
-        .fail([this] (const promise::Error &err)
+        .fail([this] (const ::promise::Error &err)
         {
             CHATID_LOG_ERROR("Unified key not available, disabling chatroom. Error: %s", err.what());
             disable(true);

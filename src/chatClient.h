@@ -83,6 +83,7 @@ protected:
     void onMessageTimestamp(uint32_t ts);
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
+    bool isChatdChatInitialized();
 
 public:
     virtual bool previewMode() const { return false; }

@@ -378,7 +378,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
             delete auxCrypto;
             return title;
         })
-        .fail([wptr, this, chatId, auxCrypto](const promise::Error& err)
+        .fail([wptr, this, chatId, auxCrypto](const ::promise::Error& err)
         {
             wptr.throwIfDeleted();
             KR_LOG_ERROR("Error decrypting chat title for chat link preview %s:\n%s", ID_CSTR(chatId), err.what());
@@ -391,7 +391,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
         std::string err("Failed to base64-decode chat title for chat ");
         err.append(ID_CSTR(chatId)).append(": ");
         KR_LOG_ERROR("%s", err.c_str());
-        return promise::Error(err);
+        return ::promise::Error(err);
     }
 }
 
@@ -894,7 +894,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 std::unique_ptr<char[]> sid(api.sdk.dumpSession());
                 assert(sid);
                 initWithNewSession(sid.get(), scsn, contactList, chatList)
-                .fail([this](const promise::Error& err)
+                .fail([this](const ::promise::Error& err)
                 {
                     mSessionReadyPromise.reject(err);
                     api.sdk.resumeActionPackets();
@@ -1139,7 +1139,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 
         setConnState(kConnected);
     })
-    .fail([this](const promise::Error& err)
+    .fail([this](const ::promise::Error& err)
     {
         setConnState(kDisconnected);
         return err;
@@ -1259,19 +1259,19 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
         auto keys = result->getMegaStringMap();
         auto cu25519 = keys->get("prCu255");
         if (!cu25519)
-            return promise::Error("prCu255 private key missing in keyring from API");
+            return ::promise::Error("prCu255 private key missing in keyring from API");
         auto ed25519 = keys->get("prEd255");
         if (!ed25519)
-            return promise::Error("prEd255 private key missing in keyring from API");
+            return ::promise::Error("prEd255 private key missing in keyring from API");
 
         auto b64len = strlen(cu25519);
         if (b64len != 43)
-            return promise::Error("prCu255 base64 key length is not 43 bytes");
+            return ::promise::Error("prCu255 base64 key length is not 43 bytes");
         base64urldecode(cu25519, b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
 
         b64len = strlen(ed25519);
         if (b64len != 43)
-            return promise::Error("prEd255 base64 key length is not 43 bytes");
+            return ::promise::Error("prEd255 base64 key length is not 43 bytes");
         base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
         return api.call(&mega::MegaApi::getUserData);
     })
@@ -1279,11 +1279,11 @@ promise::Promise<void> Client::loadOwnKeysFromApi()
     {
         auto pubrsa = result->getPassword();
         if (!pubrsa)
-            return promise::Error("No public RSA key in getUserData API response");
+            return ::promise::Error("No public RSA key in getUserData API response");
         mMyPubRsaLen = base64urldecode(pubrsa, strlen(pubrsa), mMyPubRsa, sizeof(mMyPubRsa));
         auto privrsa = result->getPrivateKey();
         if (!privrsa)
-            return promise::Error("No private RSA key in getUserData API response");
+            return ::promise::Error("No private RSA key in getUserData API response");
         mMyPrivRsaLen = base64urldecode(privrsa, strlen(privrsa), mMyPrivRsa, sizeof(mMyPrivRsa));
         // write to db
         db.query("insert or replace into vars(name, value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
@@ -1463,13 +1463,13 @@ promise::Promise<void> Client::setPresence(Presence pres)
     {
         std::string err = "setPresence: tried to change online state to the current configured state (";
         err.append(pres.toString()).append(")");
-        return promise::Error(err, kErrorArgs);
+        return ::promise::Error(err, kErrorArgs);
     }
 
     bool ret = mPresencedClient.setPresence(pres);
     if (!ret)
     {
-        return promise::Error("setPresence: not connected", kErrorAccess);
+        return ::promise::Error("setPresence: not connected", kErrorAccess);
     }
 
     return promise::_Void();
@@ -1560,7 +1560,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
     {
         if (wptr.deleted())
         {
-            return promise::Error("Title encrypted successfully, but instance was removed");
+            return ::promise::Error("Title encrypted successfully, but instance was removed");
         }
 
         std::string enctitleB64;
@@ -1626,15 +1626,15 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         .then([this, wptr](ReqResult result) -> Promise<karere::Id>
         {
             if (wptr.deleted())
-                return promise::Error("Chat created successfully, but instance was removed");
+                return ::promise::Error("Chat created successfully, but instance was removed");
 
             auto& list = *result->getMegaTextChatList();
             if (list.size() != 1)
-                return promise::Error("Empty chat list returned from API");
+                return ::promise::Error("Empty chat list returned from API");
 
             auto room = chats->addRoom(*list.get(0));
             if (!room || !room->isGroup())
-                return promise::Error("API created incorrect group");
+                return ::promise::Error("API created incorrect group");
 
             room->connect();
             return karere::Id(room->chatid());
@@ -1682,6 +1682,11 @@ ApiPromise ChatRoom::requestGrantAccess(mega::MegaNode *node, mega::MegaHandle u
 ApiPromise ChatRoom::requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle)
 {
     return parent.mKarereClient.api.call(&::mega::MegaApi::removeAccessInChat, chatid(), node, userHandle);
+}
+
+bool ChatRoom::isChatdChatInitialized()
+{
+    return mChat;
 }
 
 strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool isPublic,
@@ -2508,7 +2513,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
         makeTitleFromMemberNames();
 
-        return promise::Error(e.what());
+        return ::promise::Error(e.what());
     }
 
     auto wptr = getDelTracker();
@@ -2520,7 +2525,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
         // Update title (also in cache) and notify that has changed
         handleTitleChange(title, true);
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
 
@@ -2648,7 +2653,7 @@ promise::Promise<void> GroupChatRoom::leave()
     auto wptr = getDelTracker();
 
     return parent.mKarereClient.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, mega::INVALID_HANDLE)
-    .fail([](const promise::Error& err) -> Promise<void>
+    .fail([](const ::promise::Error& err) -> Promise<void>
     {
         if (err.code() == ::mega::MegaError::API_EARGS) //room does not actually exist on API, ignore room and remove it locally
             return promise::_Void();
@@ -3176,7 +3181,7 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
             case strongvelope::kEncrypted:
                 mEncryptedTitle = title;
                 decryptTitle()
-                .fail([this](const promise::Error& e)
+                .fail([this](const ::promise::Error& e)
                 {
                     KR_LOG_ERROR("GroupChatRoom: failed to decrypt title for chat %s: %s", ID_CSTR(mChatid), e.what());
                 });
@@ -3282,7 +3287,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
             updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
 
             decryptTitle()
-            .fail([](const promise::Error& err)
+            .fail([](const ::promise::Error& err)
             {
                 KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
             });
@@ -3343,7 +3348,7 @@ GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd:
         {
             self->mRoom.makeTitleFromMemberNames();
         }
-    });
+    }, false, mRoom.isChatdChatInitialized() ? mRoom.chat().getPublicHandle() : karere::Id::inval().val);
 
     if (!mRoom.parent.mKarereClient.anonymousMode())
     {
@@ -3509,12 +3514,12 @@ promise::Promise<void> ContactList::removeContactFromServer(uint64_t userid)
 {
     auto it = find(userid);
     if (it == end())
-        return promise::Error("User "+karere::Id(userid).toString()+" not in contactlist");
+        return ::promise::Error("User "+karere::Id(userid).toString()+" not in contactlist");
 
     auto& api = client.api;
     std::unique_ptr<mega::MegaUser> user(api.sdk.getContact(it->second->email().c_str()));
     if (!user)
-        return promise::Error("Could not get user object from email");
+        return ::promise::Error("Could not get user object from email");
     //we don't remove it, we just set visibility to HIDDEN
     return api.callIgnoreResult(&::mega::MegaApi::removeContact, user.get());
 }
@@ -3630,10 +3635,10 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     {
         auto& list = *result->getMegaTextChatList();
         if (list.size() < 1)
-            return promise::Error("Empty chat list returned from API");
+            return ::promise::Error("Empty chat list returned from API");
         auto room = mClist.client.chats->addRoom(*list.get(0));
         if (!room)
-            return promise::Error("API created an incorrect 1on1 room");
+            return ::promise::Error("API created an incorrect 1on1 room");
         room->connect();
         return room;
     });

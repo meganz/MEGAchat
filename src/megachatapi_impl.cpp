@@ -593,7 +593,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error joining user to public group chat: %s", err.what());
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
@@ -828,7 +828,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (pos == string::npos
                 || pos != 8
-                || (parsedLink.size() - pos - 1) != 22)
+                || (parsedLink.size() - pos - 1) < 22)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
@@ -837,11 +837,11 @@ void MegaChatApiImpl::sendPendingRequests()
             //Parse public handle (First 8 Bytes)
             string phstr = parsedLink.substr(0, pos);   // 6 bytes in binary, 8 in B64url
             MegaChatHandle ph = 0;
-            Base64::atob(phstr.data(), (byte*)&ph, MegaClient::CHATLINKHANDLE);
+            Base64::atob(phstr.data(), (::mega::byte*)&ph, MegaClient::CHATLINKHANDLE);
 
             //Parse unified key (Last 16 Bytes)
             string unifiedKey; // it's 16 bytes in binary, 22 in B64url
-            string keystr = parsedLink.substr(pos + 1);
+            string keystr = parsedLink.substr(pos + 1, 22);
             Base64::atob(keystr, unifiedKey);
 
             //Check that ph and uk have right size
@@ -910,7 +910,7 @@ void MegaChatApiImpl::sendPendingRequests()
                        }
                    }
                 })
-                .fail([request, this](const promise::Error& err)
+                .fail([request, this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error decrypting chat title: %s", err.what());
 
@@ -918,7 +918,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     fireOnChatRequestFinish(request, megaChatError);
                 });
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Error loading chat link: %s", err.what());
 
@@ -961,7 +961,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
@@ -1000,7 +1000,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (room->ownPriv() != Priv::PRIV_OPER)
+            // anyone can retrieve an existing link, but only operator can create/delete it
+            int ownPriv = room->ownPriv();
+            if ((ownPriv == Priv::PRIV_NOTPRESENT)
+                 || ((del || createifmissing) && ownPriv != Priv::PRIV_OPER))
             {
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
@@ -1013,7 +1016,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            promise::Promise<uint64_t> pms;
+            ::promise::Promise<uint64_t> pms;
             if (del)
             {
                 pms = mClient->deleteChatLink(chatid);
@@ -1060,7 +1063,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     }
                     fireOnChatRequestFinish(request, megaChatError);
                 })
-                .fail([request, this] (const promise::Error &err)
+                .fail([request, this] (const ::promise::Error &err)
                 {
                     API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
 
@@ -1069,7 +1072,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 });
 
             })
-            .fail([request, this](const promise::Error& err)
+            .fail([request, this](const ::promise::Error& err)
             {
                 API_LOG_ERROR("Failed to query/create/delete chat-link: %s", err.what());
 
@@ -1081,8 +1084,10 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_GET_FIRSTNAME:
         {
             MegaChatHandle uh = request->getUserHandle();
+            const char* publicHandle = request->getLink();
+            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
-            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME)
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME, ph)
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1102,8 +1107,10 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_GET_LASTNAME:
         {
             MegaChatHandle uh = request->getUserHandle();
+            const char* publicHandle = request->getLink();
+            MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
-            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME)
+            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME, ph)
             .then([request, this](Buffer *data)
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2525,18 +2532,20 @@ int MegaChatApiImpl::getBackgroundStatus()
     return status;
 }
 
-void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+void MegaChatApiImpl::getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_FIRSTNAME, listener);
     request->setUserHandle(userhandle);
+    request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
 }
 
-void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+void MegaChatApiImpl::getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_GET_LASTNAME, listener);
     request->setUserHandle(userhandle);
+    request->setLink(authorizationToken);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6460,7 +6469,7 @@ const char *MegaChatRoomPrivate::getAuthorizationToken() const
 {
     if (mAuthToken.isValid())
     {
-        return strdup(mAuthToken.toString(Id::CHATLINKHANDLE).c_str());
+        return MegaApi::strdup(mAuthToken.toString(Id::CHATLINKHANDLE).c_str());
     }
 
     return NULL;
