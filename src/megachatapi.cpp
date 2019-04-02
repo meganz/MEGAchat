@@ -612,11 +612,6 @@ void MegaChatApi::archiveChat(MegaChatHandle chatid, bool archive, MegaChatReque
     pImpl->archiveChat(chatid, archive, listener);
 }
 
-void MegaChatApi::catchup(MegaChatRequestListener *listener)
-{
-    pImpl->catchup(listener);
-}
-
 bool MegaChatApi::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener)
 {
     return pImpl->openChatRoom(chatid, listener);

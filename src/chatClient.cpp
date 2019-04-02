@@ -505,11 +505,6 @@ void Client::saveDb()
     }
 }
 
-promise::Promise<void> Client::catchup()
-{
-    return api.callIgnoreResult(&::mega::MegaApi::catchup);
-}
-
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
     promise::Promise<void> pms;
@@ -517,7 +512,7 @@ promise::Promise<void> Client::pushReceived(Id chatid)
     {
         /*  If chatid is unknown, we have to wait until we have received
             all pending actionpackets (Catching up with API).*/
-        pms = catchup();
+        pms = api.callIgnoreResult(&::mega::MegaApi::catchup);
     }
     else
     {

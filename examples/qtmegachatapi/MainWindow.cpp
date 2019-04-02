@@ -508,7 +508,7 @@ void MainWindow::on_bSettings_clicked()
     auto actPushReceived = othersMenu->addAction(tr("Push received (iOS)"));
     connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived(1);});
 
-    auto actCatchUp = othersMenu->addAction(tr("Catch-Up"));
+    auto actCatchUp = othersMenu->addAction(tr("Catch-Up with API"));
     connect(actCatchUp, SIGNAL(triggered()), this, SLOT(onCatchUp()));
 
     auto actUseStaging = othersMenu->addAction("Use API staging");
@@ -1224,7 +1224,7 @@ void MainWindow::on_mLogout_clicked()
 
 void MainWindow::onCatchUp()
 {
-    mMegaChatApi->catchup();
+    mMegaApi->catchup();
 }
 
 void MainWindow::onlastGreenVisibleClicked()

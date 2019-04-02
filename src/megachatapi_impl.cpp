@@ -1718,16 +1718,6 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_CATCHUP:
-        {
-            mClient->catchup()
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            });
-            break;
-        }
         default:
         {
             errorCode = MegaChatError::ERROR_UNKNOWN;
@@ -3073,13 +3063,6 @@ void MegaChatApiImpl::setPublicChatToPrivate(MegaChatHandle chatid, MegaChatRequ
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRIVATE_MODE, listener);
     request->setChatHandle(chatid);
-    requestQueue.push(request);
-    waiter->notify();
-}
-
-void MegaChatApiImpl::catchup(MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CATCHUP, listener);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4657,7 +4640,6 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_AUTOJOIN_PUBLIC_CHAT: return "TYPE_AUTOJOIN_PUBLIC_CHAT";
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
-        case TYPE_CATCHUP: return "TYPE_CATCHUP";
     }
     return "UNKNOWN";
 }

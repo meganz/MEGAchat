@@ -854,9 +854,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
-            case MegaChatRequest::TYPE_CATCHUP:
-            {
-                break;
-            }
+    default:
+        break;
     }
 }

@@ -1041,7 +1041,6 @@ public:
     void requestLastGreen(MegaChatHandle userid, MegaChatRequestListener *listener = NULL);
     MegaChatPresenceConfig *getPresenceConfig();
     bool isSignalActivityRequired();
-    void catchup(MegaChatRequestListener *listener = NULL);
 
     int getUserOnlineStatus(MegaChatHandle userhandle);
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
