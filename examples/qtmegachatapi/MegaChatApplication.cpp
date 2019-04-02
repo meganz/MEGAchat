@@ -105,7 +105,7 @@ void MegaChatApplication::login()
    mLoginDialog->show();
 }
 
-std::string MegaChatApplication::getText()
+std::string MegaChatApplication::getText(std::string title)
 {
     bool ok;
     std::string text;
@@ -114,7 +114,7 @@ std::string MegaChatApplication::getText()
     while (1)
     {
         qText = QInputDialog::getText((QWidget *)0, tr("MEGAchat"),
-                tr("Enter the text"), QLineEdit::Normal, "", &ok);
+                title.c_str(), QLineEdit::Normal, "", &ok);
 
         if (ok)
         {
@@ -133,7 +133,7 @@ std::string MegaChatApplication::getText()
 
 void MegaChatApplication::onPreviewClicked()
 {
-    std::string chatLink = getText();
+    std::string chatLink = getText("Enter chat link:");
     if (!chatLink.size())
         return;
 

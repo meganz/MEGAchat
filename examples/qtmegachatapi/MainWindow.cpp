@@ -536,7 +536,7 @@ void MainWindow::onPushReceived(unsigned int type)
     }
     else
     {
-        std::string aux = mApp->getText();
+        std::string aux = mApp->getText("Enter chatid (B64)");
         if (!aux.size())
             return;
 
