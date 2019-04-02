@@ -1297,28 +1297,11 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_PUSH_RECEIVED:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            int type = request->getParamType();
-            if (type == 1 && chatid != MEGACHAT_INVALID_HANDLE) // if iOS specifies a chatid, check it's valid
-            {
-                ChatRoom *room = findChatRoom(chatid);
-                if (!room)
-                {
-                    megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
-                    fireOnChatRequestFinish(request, megaChatError);
-                    return;
-                }
-                else if (room->isArchived()) // don't want to generate notifications for archived chats
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-                    fireOnChatRequestFinish(request, megaChatError);
-                    return;
-                }
-            }
+            ChatRoom *room = findChatRoom(chatid);
+            bool wasArchived = (room && room->isArchived());
 
             mClient->pushReceived(chatid)
-            .then([this, request]()
+            .then([this, request, wasArchived]()
             {
                 int type = request->getParamType();
                 if (type == 0)  // Android
@@ -1373,7 +1356,28 @@ void MegaChatApiImpl::sendPendingRequests()
                     request->setMegaHandleList(chatids);    // always a valid list, even if empty
                     delete chatids;
                 }
-                //else    // iOS
+                else    // iOS
+                {
+                    MegaChatHandle chatid = request->getChatHandle();
+                    ChatRoom *room = findChatRoom(chatid);
+                    if (!room)
+                    {
+                        megaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
+
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                        fireOnChatRequestFinish(request, megaChatError);
+                        return;
+                    }
+                    else if (wasArchived && room->isArchived())    // don't want to generate notifications for archived chats
+                    {
+                        megaApi->sendEvent(99009, "PUSH received for archived chatid");
+
+                        // since a PUSH could be received before the actionpacket updating flags (
+                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+                        fireOnChatRequestFinish(request, megaChatError);
+                        return;
+                    }
+                }
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);

@@ -892,6 +892,7 @@ public:
     /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
+    /** @brief Catch up with API for pending actionpackets*/
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 

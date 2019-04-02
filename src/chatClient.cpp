@@ -507,49 +507,71 @@ void Client::saveDb()
 
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
-    // if already sent SYNCs or we are not logged in right now...
-    if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+    promise::Promise<void> pms;
+    ChatRoomList::const_iterator it = chats->find(chatid);
+    ChatRoom *room = (it != chats->end()) ? it->second : NULL;
+    if (!room || room->isArchived())
     {
-        return mSyncPromise;
-        // promise will resolve once logged in for all chats or after receive all SYNCs back
-    }
-
-    auto wptr = weakHandle();
-    mSyncPromise = Promise<void>();
-    mSyncCount = 0;
-    mSyncTimer = karere::setTimeout([this, wptr]()
-    {
-        if (wptr.deleted())
-          return;
-
-        assert(mSyncCount != 0);
-        mSyncTimer = 0;
-        mSyncCount = -1;
-
-        mChatdClient->retryPendingConnections(true);
-
-    }, chatd::kSyncTimeout, appCtx);
-
-    if (chatid.isValid())
-    {
-        ChatRoom *chat = chats->at(chatid);
-        mSyncCount++;
-        chat->sendSync();
+        // room unknown or archived --> need to catchup wiht API to receive pending
+        // actionpackets that may notify about a new chat or an existing chat being
+        // unarchived (don't want notifications for archived)
+        pms = api.callIgnoreResult(&::mega::MegaApi::catchup);
     }
     else
     {
-        for (auto& item: *chats)
-        {
-            ChatRoom *chat = item.second;
-            if (!chat->chat().isDisabled())
-            {
-                mSyncCount++;
-                chat->sendSync();
-            }
-        }
+        pms = Promise<void>();
+        pms.resolve();
     }
 
-    return mSyncPromise;
+    auto wptr = weakHandle();
+    return pms.then([this, chatid, wptr]() -> promise::Promise<void>
+    {
+        if (wptr.deleted())
+            return promise::Error("Up to date with API, but instance was removed");
+
+        // if already sent SYNCs or we are not logged in right now...
+        if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        {
+            return mSyncPromise;
+            // promise will resolve once logged in for all chats or after receive all SYNCs back
+        }
+
+        mSyncPromise = Promise<void>();
+        mSyncCount = 0;
+        mSyncTimer = karere::setTimeout([this, wptr]()
+        {
+            if (wptr.deleted())
+              return;
+
+            assert(mSyncCount != 0);
+            mSyncTimer = 0;
+            mSyncCount = -1;
+
+            mChatdClient->retryPendingConnections(true);
+
+        }, chatd::kSyncTimeout, appCtx);
+
+        if (chatid.isValid())
+        {
+            ChatRoom *chat = chats->at(chatid);
+            mSyncCount++;
+            chat->sendSync();
+        }
+        else
+        {
+            for (auto& item: *chats)
+            {
+                ChatRoom *chat = item.second;
+                if (!chat->chat().isDisabled())
+                {
+                    mSyncCount++;
+                    chat->sendSync();
+                }
+            }
+        }
+
+        return mSyncPromise;
+    });
 }
 
 void Client::loadContactListFromApi()
