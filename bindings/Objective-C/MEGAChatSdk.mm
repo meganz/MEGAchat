@@ -520,20 +520,20 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->getUserEmail(userHandle);
 }
 
-- (void)userFirstnameByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->getUserFirstname(userHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)userFirstnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->getUserFirstname(userHandle, authorizationToken.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)userFirstnameByUserHandle:(uint64_t)userHandle {
-    self.megaChatApi->getUserFirstname(userHandle);
+- (void)userFirstnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken {
+    self.megaChatApi->getUserFirstname(userHandle, authorizationToken.UTF8String);
 }
 
-- (void)userLastnameByUserHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
-    self.megaChatApi->getUserLastname(userHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)userLastnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken delegate:(id<MEGAChatRequestDelegate>)delegate {
+    self.megaChatApi->getUserLastname(userHandle, authorizationToken.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)userLastnameByUserHandle:(uint64_t)userHandle {
-    self.megaChatApi->getUserLastname(userHandle);
+- (void)userLastnameByUserHandle:(uint64_t)userHandle authorizationToken:(NSString *)authorizationToken {
+    self.megaChatApi->getUserLastname(userHandle, authorizationToken.UTF8String);
 }
 
 - (NSString *)contacEmailByHandle:(uint64_t)userHandle {
