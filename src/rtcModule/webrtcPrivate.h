@@ -237,7 +237,7 @@ public:
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
-        kReconnectTimeout = 5000,
+        kReconnectTimeout = 15000,
         kRetryCallTimeoutActive = 2000,
         kRetryCallTimeoutPasive = 30000
     };

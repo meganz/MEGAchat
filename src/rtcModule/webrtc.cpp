@@ -623,7 +623,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                     return;
 
                 Chat &chat = mKarereClient.mChatdClient->chats(chatid);
-                if (chat.onlineState() <= ChatState::kChatStateOnline)
+                if (chat.onlineState() < ChatState::kChatStateOnline)
                 {
                     return;
                 }
@@ -658,7 +658,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                 if (ctx->count == kNumCallRetries)
                 {
                     Chat &chat = mKarereClient.mChatdClient->chats(chatid);
-                    if (chat.onlineState() <= ChatState::kChatStateOnline)
+                    if (chat.onlineState() < ChatState::kChatStateOnline)
                     {
                         RTCM_LOG_DEBUG("Connection has not been established and retry number for reconnection has been exceeded");
                         delete itHandler->second;
