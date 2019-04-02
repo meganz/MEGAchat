@@ -332,6 +332,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_LOGOUT:
         {
             bool deleteDb = request->getFlag();
+            cleanChatHandlers();
             terminating = true;
             mClient->terminate(deleteDb);
 
@@ -352,6 +353,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             if (mClient && !terminating)
             {
+                cleanChatHandlers();
                 mClient->terminate();
                 API_LOG_INFO("Chat engine closed!");
 
@@ -4212,22 +4214,18 @@ void MegaChatApiImpl::cleanCallHandlerMap()
 void MegaChatApiImpl::cleanChatHandlers()
 {
     MegaChatHandle chatid;
-    MegaChatRoomHandler *roomHandler;
     for (auto it = chatRoomHandler.begin(); it != chatRoomHandler.end();)
     {
         chatid = it->first;
-        roomHandler = it->second;
         it++;
 
         closeChatRoom(chatid, NULL);
     }
     assert(chatRoomHandler.empty());
 
-    MegaChatNodeHistoryHandler *nodeHistoryHandler;
     for (auto it = nodeHistoryHandlers.begin(); it != nodeHistoryHandlers.end();)
     {
         chatid = it->first;
-        nodeHistoryHandler = it->second;
         it++;
 
         closeNodeHistory(chatid, NULL);
@@ -4282,11 +4280,6 @@ void MegaChatApiImpl::onInitStateChange(int newState)
             state == MegaChatApi::INIT_NO_CACHE)
     {
         fireOnChatInitStateUpdate(state);
-    }
-
-    if (newState == karere::Client::kInitTerminated)
-    {
-        cleanChatHandlers();
     }
 }
 
