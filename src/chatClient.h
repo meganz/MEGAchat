@@ -17,6 +17,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include "stringUtils.h"
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -1176,9 +1177,5 @@ protected:
     friend class ChatRoom;
     friend class ChatRoomList;
 };
-
-
-
-
 }
 #endif // CHATCLIENT_H

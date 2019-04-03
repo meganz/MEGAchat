@@ -576,7 +576,6 @@ Client::InitState Client::initWithAnonymousSession()
     }
 
     mInitStats.stageStart(InitStats::kStatsInit);
-
     setInitState(kInitAnonymousMode);
     mSid.clear();
     createDb();
@@ -584,10 +583,8 @@ Client::InitState Client::initWithAnonymousSession()
     mUserAttrCache.reset(new UserAttrCache(*this));
     mChatdClient.reset(new chatd::Client(this));
     mSessionReadyPromise.resolve();
-
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
-
     return mInitState;
 }
 
@@ -776,11 +773,8 @@ Client::InitState Client::init(const char* sid)
         setInitState(kInitWaitingNewSession);
     }
 
-
     mInitStats.stageEnd(InitStats::kStatsInit);
     mInitStats.setInitState(mInitState);
-
-
     api.sdk.addRequestListener(this);
     return mInitState;
 }
@@ -793,10 +787,16 @@ void Client::onRequestStart(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *re
         case ::mega::MegaRequest::TYPE_LOGIN:
         {
             mInitStats.stageStart(InitStats::kStatsLogin);
+            break;
         }
         case ::mega::MegaRequest::TYPE_FETCH_NODES:
         {
             mInitStats.stageStart(InitStats::kStatsFetchNodes);
+            break;
+        }
+        default:    // no action to be taken for other type of requests
+        {
+            break;
         }
     }
 }
@@ -1081,7 +1081,6 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
     mInitStats.stageStart(InitStats::kStatsConnection);
 
-
     setConnState(kConnecting);
     assert(mSessionReadyPromise.succeeded());
     assert(mUserAttrCache);
@@ -1171,7 +1170,10 @@ void Client::sendStats()
     mInitStats.setNumNodes(api.sdk.getNumNodes());
     mInitStats.setNumChats(chats->size());
     mInitStats.setNumContacts(contactList->size());
-    KR_LOG_DEBUG("Init stats: %s", mInitStats.statsToString().c_str());
+    std::string stats = mInitStats.statsToString();
+    assert(!stats.empty());
+    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, stats.c_str());
+    KR_LOG_DEBUG("Init stats: %s", stats.c_str());
     mInitStats.onCompleted();
 }
 
@@ -3972,7 +3974,7 @@ std::string InitStats::statsToString()
     // Generate stages array
     rapidjson::Document stageArray(rapidjson::kArrayType);
     std::map<uint8_t, StageStats>::iterator itStages;
-    for (itStages = mStageStats.begin() ; itStages != mStageStats.end(); itStages++)
+    for (itStages = mStageStats.begin(); itStages != mStageStats.end(); itStages++)
     {
         rapidjson::Value jSonStage(rapidjson::kObjectType);
         uint8_t stage = itStages->first;
@@ -4075,6 +4077,6 @@ std::string InitStats::statsToString()
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     jSonDocument.Accept(writer);
     result.assign(buffer.GetString(), buffer.GetSize());
-    return result;
+    return jsonUnescape(result);
 }
 }
