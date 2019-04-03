@@ -26,7 +26,6 @@ class MegaChatApplication : public QApplication,
         virtual ~MegaChatApplication();
         void init();
         void login();
-        void logout();
         void configureLogs();
         bool initAnonymous(std::string chatlink);
         std::string getText(std::string title);
