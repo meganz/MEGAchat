@@ -103,6 +103,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->terminating = false;
     this->waiter = new MegaChatWaiter();
     this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, megaApi, this);
+    this->reqtag = 0;
 
     //Start blocking thread
     threadExit = 0;
