@@ -359,8 +359,29 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     {
         if (itCall->second->id() != callid)
         {
-            RTCM_LOG_ERROR("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
-            return;
+            if (itCall->second->state() < Call::kStateTerminating && state != Call::CallDataState::kCallDataRestartCall)
+            {
+                RTCM_LOG_ERROR("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
+                return;
+            }
+            else
+            {
+                RTCM_LOG_DEBUG("Force to remove call when we receive a new reconnection");
+                removeCall(*(itCall->second));
+                updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
+                if (ringing)
+                {
+                    auto itCallHandler = mCallHandlers.find(chatid);
+                    // itCallHandler is created at updatePeerAvState
+                    assert(itCallHandler != mCallHandlers.end());
+                    if (mRetryCall.find(chatid) != mRetryCall.end())
+                    {
+                        handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+                    }
+                }
+
+                return;
+            }
         }
 
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
@@ -2283,17 +2304,20 @@ void Call::hangup(TermCode reason)
     // in any state, we just have to send CALL_TERMINATE and that's all
     destroy(reason, true);
 }
+
 Call::~Call()
 {
     if (mState != Call::kStateDestroyed)
     {
-        stopIncallPingTimer();
+        bool retryCallActive = (mManager.mRetryCall.find(mChat.chatId()) != mManager.mRetryCall.end());
+        stopIncallPingTimer(!retryCallActive);
         if (mDestroySessionTimer)
         {
             cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
             mDestroySessionTimer = 0;
         }
 
+        clearCallOutTimer();
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);

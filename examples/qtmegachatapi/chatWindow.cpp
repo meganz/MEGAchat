@@ -1238,8 +1238,8 @@ void ChatWindow::enableCallReconnect(bool enable)
             mReconnectingDlg->setText(tr("Please, wait.\nReconnection in progress."));
             mReconnectingDlg->setStandardButtons(QMessageBox::Cancel);
             mReconnectingDlg->setModal(true);
-            mReconnectingDlg->show();
             connect(mReconnectingDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelReconnection(QAbstractButton*)));
+            mReconnectingDlg->show();
         }
     }
     else if (mReconnectingDlg)
