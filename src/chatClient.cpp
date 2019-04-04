@@ -344,6 +344,15 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
     }
 }
 
+promise::Promise<void> Client::notifyUserStatus(bool background)
+{
+    if (mChatdClient)
+    {
+        return mChatdClient->notifyUserStatus(background);
+    }
+    return promise::Error("Chatd client not initialized yet");
+}
+
 promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 {
     auto wptr = weakHandle();
@@ -1324,21 +1333,6 @@ void Client::updateAndNotifyLastGreen(Id userid)
 void Client::onConnStateChange(presenced::Client::ConnState /*state*/)
 {
 
-}
-
-void Client::notifyUserIdle()
-{
-    if (mChatdClient)
-    {
-        mChatdClient->notifyUserIdle();
-    }
-}
-void Client::notifyUserActive()
-{
-    if (mChatdClient)
-    {
-        mChatdClient->notifyUserActive();
-    }
 }
 
 void Client::terminate(bool deleteDb)

@@ -516,6 +516,12 @@ void MainWindow::on_bSettings_clicked()
     actUseStaging->setCheckable(true);
     actUseStaging->setChecked(mApp->isStagingEnabled());
 
+    menu.addSeparator();
+    auto actBackground = menu.addAction("Background status");
+    connect(actBackground, SIGNAL(toggled(bool)), this, SLOT(onBackgroundStatusClicked(bool)));
+    actBackground->setCheckable(true);
+    actBackground->setChecked(mMegaChatApi->getBackgroundStatus());
+
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
     pos.setY(pos.y() + ui->bSettings->height());
@@ -1243,4 +1249,9 @@ void MainWindow::onlastGreenVisibleClicked()
 void MainWindow::onUseApiStagingClicked(bool enable)
 {
     mApp->enableStaging(enable);
+}
+
+void MainWindow::onBackgroundStatusClicked(bool status)
+{
+    mMegaChatApi->setBackgroundStatus(status);
 }

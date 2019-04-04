@@ -1283,16 +1283,17 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_SET_BACKGROUND_STATUS:
         {
             bool background = request->getFlag();
-            if (background)
+            mClient->notifyUserStatus(background)
+            .then([this, request]()
             {
-                mClient->notifyUserIdle();
-            }
-            else
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                fireOnChatRequestFinish(request, megaChatError);
+            })
+            .fail([this, request](const ::promise::Error& err)
             {
-                mClient->notifyUserActive();
-            }
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
+                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
             break;
         }            
         case MegaChatRequest::TYPE_PUSH_RECEIVED:

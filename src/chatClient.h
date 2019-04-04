@@ -843,14 +843,11 @@ public:
      */
     promise::Promise<void> loginSdkAndInit(const char* sid);
 
-    /** @brief Call this when the app goes into background, so that it notifies
-     * the servers to enable PUSH notifications
+    /** @brief Call this when the app changes the status: foreground <-> background,
+     * so that PUSH notifications are triggered correctly (enabled in background,
+     * disabled in foreground).
      */
-    void notifyUserIdle();
-    /** @brief Call this when the app goes into foreground, so that push notifications
-     * are disabled
-     */
-    void notifyUserActive();
+    promise::Promise<void> notifyUserStatus(bool background);
 
     void startKeepalivePings();
 

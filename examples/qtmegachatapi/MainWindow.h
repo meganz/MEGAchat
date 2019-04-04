@@ -205,6 +205,7 @@ class MainWindow :
         void onReconnect(bool disconnect);
         void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
+        void onBackgroundStatusClicked(bool status);
 
     signals:
         void esidLogout();
