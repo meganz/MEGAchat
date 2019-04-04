@@ -350,9 +350,9 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle);
 }
 
-void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
+void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts)
 {
-    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, numPeers, url);
+    GroupChatRoom *room = new GroupChatRoom(*chats, chatId, shard, chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, url);
     chats->emplace(chatId, room);
     room->connect(url.c_str());
 }
@@ -1798,8 +1798,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     std::vector<promise::Promise<void>> promises;
     if (peers)
     {
-        mNumPeers = peers->size();
-        for (int i = 0; i < mNumPeers; i++)
+        int numPeers = peers->size();
+        for (int i = 0; i < numPeers; i++)
         {
             auto handle = peers->getPeerHandle(i);
             assert(handle != parent.mKarereClient.myHandle());
@@ -1894,9 +1894,9 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, std::string aUrl)
 :ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title),
-  mRoomGui(nullptr), mNumPeers(aNumPeers)
+  mRoomGui(nullptr)
 {
     initWithChatd(true, unifiedKey, 0, publicHandle); // strongvelope only needs the public handle in preview mode (to fetch user attributes via `mcuga`)
     mChat->setPublicHandle(publicHandle);   // chatd always need to know the public handle in preview mode (to send HANDLEJOIN)
@@ -3049,12 +3049,6 @@ promise::Promise<std::shared_ptr<std::string>> GroupChatRoom::unifiedKey()
 {
     return mChat->crypto()->getUnifiedKey();
 }
-
-int GroupChatRoom::getNumPeers() const
-{
-    return mNumPeers;
-}
-
 // return true if new peer or peer removed. Updates peer privileges as well
 bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {

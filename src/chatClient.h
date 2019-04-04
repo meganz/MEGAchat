@@ -321,8 +321,6 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
-    int mNumPeers = 0; //Only for public chats in preview mode
-
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
@@ -356,7 +354,7 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, std::string aUrl);
     ~GroupChatRoom();
 
 public:
@@ -423,7 +421,6 @@ public:
 
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
-    int getNumPeers() const;
     void handleTitleChange(const std::string &title, bool saveToDb = false);
 };
 
@@ -766,7 +763,7 @@ public:
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
      * to avoid that openChatPreview creates the chat room
      */
-    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
