@@ -46,6 +46,10 @@ namespace ac = m::autocomplete;
 namespace c = ::megachat;
 namespace k = ::karere;
 
+#ifdef WIN32
+#define strdup _strdup
+#endif
+
 #if (__cplusplus >= 201700L)
     #include <filesystem>
     namespace fs = std::filesystem;
@@ -134,14 +138,14 @@ string ch_s(c::MegaChatHandle h)
     return (h == 0 || h == c::MEGACHAT_INVALID_HANDLE) ? "<Null>" : k::Id(h).toString();
 }
 
-bool check_err(const char* opName, m::MegaError* e)
+bool check_err(const string& opName, m::MegaError* e)
 {
     bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
     conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
     return success;
 }
 
-bool check_err(const char* opName, c::MegaChatError* e)
+bool check_err(const string& opName, c::MegaChatError* e)
 {
     bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
     conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
@@ -153,12 +157,12 @@ unique_ptr<m::Console> console;
 
 static const char* prompts[] =
 {
-    "", "MEGAclc> ", "Password:"
+    "", "MEGAclc> ", "Password:", "Pin:"
 };
 
 enum prompttype
 {
-    NOPROMPT, COMMAND, LOGINPASSWORD
+    NOPROMPT, COMMAND, LOGINPASSWORD, PIN
 };
 
 static prompttype prompt = COMMAND;
@@ -486,6 +490,17 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             conlock(cout) << "Loading Account with fetchNodes..." << endl;
             guard.unlock();
             api->fetchNodes();
+            setprompt(NOPROMPT);
+        }
+        else if (e->getErrorCode() == m::MegaError::API_EMFAREQUIRED)
+        {
+            guard.unlock();
+            setprompt(PIN);
+        }
+        else
+        {
+            guard.unlock();
+            setprompt(COMMAND);
         }
         break;
 
@@ -495,8 +510,19 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             conlock(cout) << "Connecting to chat servers" << endl;
             guard.unlock();
             g_chatApi->connect(&g_chatListener);
+
+            setprompt(COMMAND);
         }
         break;
+
+    case m::MegaRequest::TYPE_LOGOUT:
+        if (!check_err("Logout", e))
+        {
+            conlock(cout) << "Error in logout: "<< e->getErrorString() << endl;
+        }
+
+        guard.unlock();
+        setprompt(COMMAND);
 
     default:
         break;
@@ -657,6 +683,7 @@ bool oneOpenRoom(c::MegaChatHandle room)
 
 static bool quit_flag = false;
 static string login;
+static string password;
 
 void exec_login(ac::ACState& s)
 {
@@ -670,7 +697,12 @@ void exec_login(ac::ACState& s)
                 conlock(cout) << "Initiating login attempt..." << endl;
             }
             g_chatApi->init(NULL);
-            g_megaApi->login(s.words[1].s.c_str(), s.words[2].s.c_str());
+            login = s.words[1].s;
+            password = s.words[2].s;
+
+            // Block prompt until the request has finished
+            setprompt(NOPROMPT);
+            g_megaApi->login(login.c_str(), password.c_str());
         }
         else if (s.words.size() == 2 && hasemail)
         {
@@ -706,6 +738,20 @@ void exec_login(ac::ACState& s)
     else
     {
         conlock(cout) << "Already logged in. Please log out first." << endl;
+    }
+}
+
+void exec_logout(ac::ACState& s)
+{
+    unique_ptr<const char[]>session(g_megaApi->dumpSession());
+    if (g_megaApi->isLoggedIn())
+    {
+        setprompt(NOPROMPT);
+        g_megaApi->logout();
+    }
+    else
+    {
+        conlock(cout) << "Not logged in." << endl;
     }
 }
 
@@ -829,7 +875,7 @@ void exec_getuserfirstname(ac::ACState& s)
         }
     });
 
-    g_chatApi->getUserFirstname(userhandle, &g_chatListener);
+    g_chatApi->getUserFirstname(userhandle, NULL, &g_chatListener);
 }
 
 
@@ -845,7 +891,7 @@ void exec_getuserlastname(ac::ACState& s)
         }
     });
 
-    g_chatApi->getUserLastname(userhandle, &g_chatListener);
+    g_chatApi->getUserLastname(userhandle, NULL, &g_chatListener);
 }
 
 void exec_getuseremail(ac::ACState& s)
@@ -1618,6 +1664,15 @@ public:
     std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
     std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
 
+    OneShotRequestListener()
+    {
+    }
+
+    OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
+        :onRequestFinishFunc(f)
+    {
+    }
+
     void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
     {
         if (onRequestStartFunc) onRequestStartFunc(api, request);
@@ -1686,19 +1741,34 @@ void exec_apiurl(ac::ACState& s)
         g_megaApi->changeApiUrl(s.words[1].s.c_str(), s.words.size() > 2 && s.words[2].s == "true");
         if (g_megaApi->isLoggedIn())
         {
-            conlock(cout) << "Re-fetching nodes due to change of APIURL" << endl;
+            conlock(cout) << "Refreshing local cache due to change of APIURL" << endl;
 
             setprompt(NOPROMPT);
 
-            auto listener = new OneShotRequestListener;
-            listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *, m::MegaError* e) 
-            {
-                conlock(cout) << "Fetchnodes finished: " << e->getErrorString() << endl;
-                setprompt(COMMAND);
-            };
-
-            g_megaApi->fetchNodes(listener);
+            const char *session = g_megaApi->dumpSession();
+            g_megaApi->fastLogin(session);
+            g_chatApi->refreshUrl();
+            delete [] session;
         }
+    }
+}
+
+
+void exec_catchup(ac::ACState& s)
+{
+    int count = s.words.size() > 1 ? atoi(s.words[1].s.c_str()) : 1;
+
+    for (int i = 0; i < count; ++i)
+    {
+        static int next_catchup_id = 0;
+        int id = next_catchup_id++;
+
+        g_megaApi->catchup(new OneShotRequestListener([id](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("catchup " + to_string(id), e);
+            }));
+
+        conlock(cout) << "catchup " << id << " requested" << endl;
     }
 }
 
@@ -1794,6 +1864,7 @@ ac::ACN autocompleteSyntax()
     unique_ptr<Either> p(new Either("      "));
 
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
+    p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
@@ -1883,6 +1954,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_quit,       sequence(text("exit")));
 
     // sdk level commands (intermediate layer of megacli commands)
+    p->Add(exec_catchup, sequence(text("catchup"), opt(wholenumber(3))));
     p->Add(exec_smsverify, sequence(text("smsverify"), either(sequence(text("send"), param("phoneNumber"), opt(text("to"))), sequence(text("code"), param("code")), text("allowed"), text("phone"))));
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
     p->Add(exec_getaccountachievements, sequence(text("getaccountachievements")));
@@ -1897,13 +1969,26 @@ static void process_line(const char* l)
 {
     switch (prompt)
     {
-    case LOGINPASSWORD:
+    case PIN:
+    {
+        std::string pin = l;
         g_chatApi->init(NULL);
-        g_megaApi->login(login.c_str(), l);
+        g_megaApi->multiFactorAuthLogin(login.c_str(), password.c_str(), !pin.empty() ? pin.c_str() : NULL);
+        {
+            conlock(cout) << "\nLogging in with 2FA..." << endl << flush;
+        }
+        setprompt(NOPROMPT);
+        return;
+    }
+
+    case LOGINPASSWORD:
+        password = l;
+        g_chatApi->init(NULL);
+        g_megaApi->login(login.c_str(), password.c_str());
         {
             conlock(cout) << "\nLogging in..." << endl;
         }
-        setprompt(COMMAND);
+        setprompt(NOPROMPT);
         return;
 
     case COMMAND:

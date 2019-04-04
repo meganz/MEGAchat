@@ -50,6 +50,12 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeAudioLevel = 0x100
 };
 
+typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
+    MEGAChatCallConfigurationWithAudio = 0,
+    MEGAChatCallConfigurationWithVideo = 1,
+    MEGAChatCallConfigurationAnyFlag = 2,
+};
+
 @interface MEGAChatCall : NSObject
 
 @property (nonatomic, readonly) MEGAChatCallStatus status;
@@ -68,13 +74,20 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
 @property (nonatomic, readonly, getter=isLocalTermCode) BOOL localTermCode;
 @property (nonatomic, readonly, getter=isRinging) BOOL ringing;
 @property (nonatomic, readonly) uint64_t peerSessionStatusChange;
+@property (nonatomic, readonly) uint64_t clientSessionStatusChange;
+
 @property (nonatomic, readonly) NSInteger numParticipants;
-@property (nonatomic, readonly) MEGAHandleList *sessions;
+@property (nonatomic, readonly) MEGAHandleList *sessionsPeerId;
+@property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
+
 @property (nonatomic, readonly) MEGAHandleList *participants;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
-- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId;
+- (NSInteger)numParticipantsWithCallConfiguration:(MEGAChatCallConfiguration)callConfiguration;
+
+- (MEGAChatSession *)sessionForPeer:(uint64_t)peerId clientId:(uint64_t)clientId;
+
 - (instancetype)clone;
 
 @end

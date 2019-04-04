@@ -1,8 +1,6 @@
 #ifndef IAPP_H
 #define IAPP_H
-#ifndef KARERE_DISABLE_WEBRTC
-    #include <webrtc.h>
-#endif
+#include "rtcModule/webrtc.h"
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -83,6 +81,9 @@ public:
         /** @brief Called when the chat is un/archived */
         virtual void onChatArchived(bool /*archived*/) {}
 
+        /** @brief Called when the number of previewers in a public chat has changed */
+        virtual void onPreviewersCountUpdate(uint32_t /*numPrev*/) {}
+
         /** @brief Returns an optionally associated user data pointer */
         void* userp = nullptr;
     };
@@ -123,6 +124,9 @@ public:
          */
         virtual void onRejoinedChat() {}
 
+        /** @brief We have manually closed a chat preview */
+        virtual void onPreviewClosed() {}
+
         /** @brief The last message in the history sequence has changed.
          * This means that either a new message has been received, or the last
          * message of existing history was just fetched (this is the first message
@@ -137,12 +141,17 @@ public:
          */
         virtual void onLastTsUpdated(uint32_t /*ts*/) {}
 
-        /** @brief Called when the connection state to the chatroom shard changes.
-         */
+        /** @brief Called when the connection state to the chatroom shard changes. */
         virtual void onChatOnlineState(const chatd::ChatState /*state*/) {}
+
+        /** @brief Called when the chat mode changes to private. */
+        virtual void onChatModeChanged(bool mode) = 0;
 
         /** @brief Called when the chat is un/archived */
         virtual void onChatArchived(bool /*archived*/) {}
+
+        /** @brief Called when the number of previewers in a public chat has changed */
+        virtual void onPreviewersCountUpdate(uint32_t /*numPrev*/) {}
     };
 
     /**

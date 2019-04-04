@@ -54,7 +54,7 @@ private:
 // do-while is used to forze add semicolon at the end of sentence
 #define ASSERT_CHAT_TEST(a, msg) \
     do { \
-        if (!(a)) \
+        if (!(a) && !this->testHasFailed) \
         { \
             throw ChatTestException(__FILE__, __LINE__, msg); \
         } \
@@ -65,6 +65,7 @@ private:
     do { \
         try \
         { \
+            t.testHasFailed = false; \
             LOG_debug << "Initializing test environment: " << title; \
             t.SetUp(); \
             LOG_debug << "Launching test: " << title; \
@@ -78,6 +79,7 @@ private:
         } \
         catch(ChatTestException e) \
         { \
+            t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \
             if (e.msg()) \
             { \
@@ -185,14 +187,15 @@ public:
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
     void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_OfflineMode(unsigned int accountIndex);
+    void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
+    void TEST_OfflineMode(unsigned int a1, unsigned int a2);
     void TEST_ClearHistory(unsigned int a1, unsigned int a2);
     void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
     void TEST_SendContact(unsigned int a1, unsigned int a2);
     void TEST_Attachment(unsigned int a1, unsigned int a2);
     void TEST_LastMessage(unsigned int a1, unsigned int a2);
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
-    void TEST_ChangeMyOwnName(unsigned int a1);    
+    void TEST_ChangeMyOwnName(unsigned int a1);
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
@@ -204,12 +207,13 @@ public:
 
     unsigned mOKTests;
     unsigned mFailedTests;
+    bool testHasFailed = false;
 
 private:
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, bool create = true);
+                                              megachat::MegaChatPeerList *peers, bool create = true, bool publicChat = false, const char *title = NULL);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -263,7 +267,7 @@ private:
 
     megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
     megachat::MegaChatRoom *chatroom[NUM_ACCOUNTS];
-    megachat::MegaChatListItem *chatListItem[NUM_ACCOUNTS];
+    std::string chatLinks[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
@@ -307,9 +311,9 @@ private:
     megachat::MegaChatHandle mCallIdRequestSent[NUM_ACCOUNTS];
     bool mPeerIsRinging[NUM_ACCOUNTS];
     bool mVideoLocal[NUM_ACCOUNTS];
-    bool mVideoRemote[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mLoggedInAllChats[NUM_ACCOUNTS];
 
 #endif
 
@@ -391,6 +395,7 @@ public:
     bool userTyping[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
     bool archiveUpdated[NUM_ACCOUNTS];
+    bool previewsUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     virtual void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat);
@@ -403,5 +408,3 @@ private:
 };
 
 #endif // CHATTEST_H
-
-

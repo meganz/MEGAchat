@@ -1,15 +1,18 @@
 #import <Foundation/Foundation.h>
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomChangeType) {
-    MEGAChatRoomChangeTypeStatus         = 0x01,
-    MEGAChatRoomChangeTypeUnreadCount    = 0x02,
-    MEGAChatRoomChangeTypeParticipants   = 0x04,
-    MEGAChatRoomChangeTypeTitle          = 0x08,
-    MEGAChatRoomChangeTypeUserTyping     = 0x10,
-    MEGAChatRoomChangeTypeClosed         = 0x20,
-    MEGAChatRoomChangeTypeOwnPriv        = 0x40,
-    MEGAChatRoomChangeTypeUserStopTyping = 0x80,
-    MEGAChatRoomChangeTypeArchive = 0x100
+    MEGAChatRoomChangeTypeStatus           = 0x01,
+    MEGAChatRoomChangeTypeUnreadCount      = 0x02,
+    MEGAChatRoomChangeTypeParticipants     = 0x04,
+    MEGAChatRoomChangeTypeTitle            = 0x08,
+    MEGAChatRoomChangeTypeUserTyping       = 0x10,
+    MEGAChatRoomChangeTypeClosed           = 0x20,
+    MEGAChatRoomChangeTypeOwnPriv          = 0x40,
+    MEGAChatRoomChangeTypeUserStopTyping   = 0x80,
+    MEGAChatRoomChangeTypeArchive          = 0x100,
+    MEGAChatRoomChangeTypeCall             = 0x200,
+    MEGAChatRoomChangeTypeChatMode         = 0x400,
+    MEGAChatRoomChangeTypeUpdatePreviewers = 0x800
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
@@ -33,6 +36,9 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) MEGAChatRoomPrivilege ownPrivilege;
 @property (readonly, nonatomic) NSUInteger peerCount;
 @property (readonly, nonatomic, getter=isGroup) BOOL group;
+@property (readonly, nonatomic, getter=isPublicChat) BOOL publicChat;
+@property (readonly, nonatomic, getter=isPreview) BOOL preview;
+@property (readonly, nonatomic) NSString *authorizationToken;
 @property (readonly, nonatomic) NSString *title;
 @property (readonly, nonatomic, getter=hasCustomTitle) BOOL customTitle;
 @property (readonly, nonatomic) MEGAChatRoomChangeType changes;
@@ -40,6 +46,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic) uint64_t userTypingHandle;
 @property (readonly, nonatomic, getter=isActive) BOOL active;
 @property (readonly, nonatomic, getter=isArchived) BOOL archived;
+@property (readonly, nonatomic) NSUInteger previewersCount;
 
 
 - (instancetype)clone;

@@ -116,7 +116,7 @@ void ParsedMessage::symmetricDecrypt(const StaticBuffer& key, Message& outMsg)
         outMsg.clear();
         return;
     }
-    Id chatid = mProtoHandler.chatid;
+    Id chatid = mProtoHandler.chatid;   // for the log below
     STRONGVELOPE_LOG_DEBUG("Decrypting msg %s", outMsg.id().toString().c_str());
     Key<32> derivedNonce;
     // deriveNonceSecret() needs at least 32 bytes output buffer
@@ -195,7 +195,7 @@ bool ParsedMessage::verifySignature(const StaticBuffer& pubKey, const SendKey& s
                 messageStr.dataSize(), pubKey.ubuf()) == 0);
     }
 
-    assert(sendKey.dataSize() == 16);
+    assert(sendKey.dataSize() == SVCRYPTO_KEY_SIZE);
     Buffer messageStr(SVCRYPTO_SIG.size()+sendKey.dataSize()+signedContent.dataSize()+2);
 
     messageStr.append(SVCRYPTO_SIG.c_str(), SVCRYPTO_SIG.size())
@@ -411,6 +411,11 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 payload.assign(binaryMessage.buf()+record.dataOffset, record.dataLen);
                 break;
             }
+            case TLV_TYPE_OPENMODE:
+            {
+                openmode = true;
+                break;
+            }
             default:
                 throw std::runtime_error("Unknown TLV record type "+std::to_string(record.type)+" in message "+binaryMessage.id().toString());
         }
@@ -509,14 +514,38 @@ void ParsedMessage::parsePayload(const StaticBuffer &data, Message &msg)
     }
 }
 
+bool ProtocolHandler::isPublicChat()
+{
+    return (mChatMode == CHAT_MODE_PUBLIC);
+}
+
+void ProtocolHandler::setPrivateChatMode()
+{
+    assert(isPublicChat());
+
+    mChatMode = CHAT_MODE_PRIVATE;
+    mPh = karere::Id::inval();
+    resetSendKey();
+}
+
+uint64_t ProtocolHandler::getPublicHandle() const
+{
+    return mPh.val;
+}
+
+void ProtocolHandler::setPublicHandle(const uint64_t ph)
+{
+    mPh = Id(ph);
+}
+
 ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
-    const StaticBuffer& privCu25519,
-    const StaticBuffer& privEd25519,
-    const StaticBuffer& privRsa,
-    karere::UserAttrCache& userAttrCache, SqliteDb &db, Id aChatId, void *ctx)
+    const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
+    const StaticBuffer& privRsa,karere::UserAttrCache& userAttrCache,
+    SqliteDb &db, Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
+    int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
- myPrivEd25519(privEd25519), myPrivRsaKey(privRsa),
- mUserAttrCache(userAttrCache), mDb(db), chatid(aChatId)
+  myPrivEd25519(privEd25519), myPrivRsaKey(privRsa), mUserAttrCache(userAttrCache),
+  mDb(db), chatid(aChatId), mPh(ph)
 {
     getPubKeyFromPrivKey(myPrivEd25519, kKeyTypeEd25519, myPubEd25519);
     loadKeysFromDb();
@@ -526,6 +555,72 @@ ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
     {
         mForceRsa = true;
         STRONGVELOPE_LOG_WARNING("KRCHAT_FORCE_RSA env var detected, will force RSA for key encryption");
+    }
+
+    if (isPublic)
+    {
+        mChatMode = CHAT_MODE_PUBLIC;
+        assert(unifiedKey && !unifiedKey->empty());
+    }
+    else
+    {
+        mChatMode = CHAT_MODE_PRIVATE;
+    }
+
+    if (unifiedKey && !unifiedKey->empty()) // also for private mode if chat was public before
+    {
+        if (isUnifiedKeyEncrypted == kDecrypted) // from chat-link, creation's API request or cache
+        {
+            mUnifiedKey.reset(new UnifiedKey(unifiedKey->data(), unifiedKey->size()));
+            mUnifiedKeyDecrypted.resolve(mUnifiedKey);
+        }
+        else if (isUnifiedKeyEncrypted == kEncrypted)    // from API or cache (not decrypted yet)
+        {
+            assert(unifiedKey->size() == strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE);
+
+            //Parse invitor handle (First 8 Bytes)
+            uint64_t invitorHandle;
+            memcpy(&invitorHandle, unifiedKey->data(), sizeof invitorHandle);
+
+            //Parse unified key (Last 16 Bytes)
+            auto bufunifiedkey = std::make_shared<Buffer>();
+            bufunifiedkey->assign(unifiedKey->data() + sizeof invitorHandle, SVCRYPTO_KEY_SIZE);
+            auto wptr = getDelTracker();
+
+            //Decrypt unifiedkey
+            mUnifiedKeyDecrypted = decryptKey(bufunifiedkey, invitorHandle, invitorHandle);
+            mUnifiedKeyDecrypted.then([this, wptr](std::shared_ptr<UnifiedKey> unifiedKey)
+            {
+                if (wptr.deleted())
+                    return;
+
+                mUnifiedKey = unifiedKey;
+
+                // Save Unified key decrypted
+                Buffer auxBuf;
+                auxBuf.write(0, (uint8_t)kDecrypted);  // prefix to indicate it's decrypted
+                auxBuf.append(*unifiedKey);
+                mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
+            })
+            .fail([this, wptr, bufunifiedkey](const ::promise::Error& err)
+            {
+
+                STRONGVELOPE_LOG_ERROR("Failed to decrypt unified-key. Error: %s", err.what());
+
+                // Update Unified key
+                Buffer auxBuf;
+                auxBuf.write(0, (uint8_t)kUndecryptable);  // prefix to indicate it's undecryptable
+                auxBuf.append(*bufunifiedkey);
+                mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
+                return err;
+            });
+        }
+        else
+        {
+            assert(isUnifiedKeyEncrypted == kUndecryptable);
+            STRONGVELOPE_LOG_WARNING("Undecryptable unified-key");
+            mUnifiedKeyDecrypted.reject("Undecryptable unified-key");
+        }
     }
 }
 
@@ -593,8 +688,8 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
 
             if (receiver == mOwnHandle)
             {
-                encryptedKey = std::make_shared<Buffer>(16);
-                encryptedKey->assign(pos, 16);
+                encryptedKey = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+                encryptedKey->assign(pos, SVCRYPTO_KEY_SIZE);
                 break;
             }
 
@@ -641,7 +736,7 @@ void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
     tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(encryptedMessage.ciphertext, false));
 
     // prepare TLV for signature: <signature>
-    Key<64> signature;
+    Signature signature;
     signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, SVCRYPTO_MSGTYPE_FOLLOWUP,
                 encryptedMessage.key, signature);
     TlvWriter sigTlv;
@@ -676,7 +771,7 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padSt
             return it->second;
 
         if (pubKey->empty())
-            return promise::Error("Empty Cu25519 chat key for user "+userid.toString());
+            return ::promise::Error("Empty Cu25519 chat key for user "+userid.toString());
         Key<crypto_scalarmult_BYTES> sharedSecret;
         sharedSecret.setDataSize(crypto_scalarmult_BYTES);
         auto ignore = crypto_scalarmult(sharedSecret.ubuf(), myPrivCu25519.ubuf(), pubKey->ubuf());
@@ -685,6 +780,18 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padSt
         deriveSharedKey(sharedSecret, *result, padString);
         mSymmKeyCache.emplace(userid, result);
         return result;
+    });
+}
+
+promise::Promise<std::string>
+ProtocolHandler::encryptUnifiedKeyToUser(karere::Id user)
+{
+    return encryptKeyTo(mUnifiedKey, user)
+    .then([user](const std::shared_ptr<Buffer>& encryptedKey)
+    {
+        assert(encryptedKey && !encryptedKey->empty());
+        std::string auxKey (encryptedKey->buf(), encryptedKey->dataSize());
+        return auxKey;
     });
 }
 
@@ -697,7 +804,7 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
     {
         wptr.throwIfDeleted();
         if (mForceRsa)
-            return promise::Error("Test: Forcing RSA");
+            return ::promise::Error("Test: Forcing RSA");
 
         assert(symkey->dataSize() == SVCRYPTO_KEY_SIZE);
         auto result = std::make_shared<Buffer>((size_t)AES::BLOCKSIZE);
@@ -705,13 +812,13 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::I
         aesECBEncrypt(*sendKey, *symkey, *result);
         return result;
     })
-    .fail([wptr, this, toUser, sendKey](const promise::Error& err)
+    .fail([wptr, this, toUser, sendKey](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_DEBUG("Can't use EC encryption for user %s (error '%s'), falling back to RSA", toUser.toString().c_str(), err.what());
         return rsaEncryptTo(std::static_pointer_cast<StaticBuffer>(sendKey), toUser);
     })
-    .fail([toUser, wptr, this](const promise::Error& err)
+    .fail([toUser, wptr, this](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_ERROR("No public encryption key (RSA or x25519) available for %s", toUser.toString().c_str());
@@ -730,7 +837,7 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
         ::mega::AsymmCipher key;
         auto ret = key.setkey(::mega::AsymmCipher::PUBKEY, rsapub->ubuf(), rsapub->dataSize());
         if (!ret)
-            return promise::Error("Error parsing fetched public RSA key of user "+toUser.toString(), EINVAL, SVCRYPTO_ERRTYPE);
+            return ::promise::Error("Error parsing fetched public RSA key of user "+toUser.toString(), EINVAL, SVCRYPTO_ERRTYPE);
 
         auto output = std::make_shared<Buffer>(512);
         Buffer input;
@@ -738,7 +845,8 @@ ProtocolHandler::rsaEncryptTo(const std::shared_ptr<StaticBuffer>& data, Id toUs
         input.write<uint16_t>(0, htons(data->dataSize()));
         input.append(*data);
         assert(input.dataSize() == data->dataSize()+2);
-        auto enclen = key.encrypt(input.ubuf(), input.dataSize(), (unsigned char*)output->writePtr(0, 512), 512);
+        ::mega::PrnGen rng;
+        auto enclen = key.encrypt(rng, input.ubuf(), input.dataSize(), (unsigned char*)output->writePtr(0, 512), 512);
         assert(enclen <= 512);
         output->setDataSize(enclen);
         return output;
@@ -783,6 +891,19 @@ ProtocolHandler::legacyDecryptKeys(const std::shared_ptr<ParsedMessage>& parsedM
     }
 }
 
+promise::Promise<std::string>
+ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver)
+{
+    auto wptr = weakHandle();
+    return decryptKey(key, sender, receiver)
+    .then([this, wptr](const std::shared_ptr<SendKey>& key)
+    {
+        wptr.throwIfDeleted();
+        std::string keybuff(key->buf(), SVCRYPTO_KEY_SIZE);
+        return keybuff;
+    });
+}
+
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver)
 {
@@ -818,6 +939,29 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
     }
 }
 
+Buffer* ProtocolHandler::createUnifiedKey()
+{
+    Buffer *unifiedKey = new Buffer(SVCRYPTO_KEY_SIZE);
+    randombytes_buf(unifiedKey->ubuf(), SVCRYPTO_KEY_SIZE);
+    unifiedKey->setDataSize(SVCRYPTO_KEY_SIZE);
+
+    return unifiedKey;
+}
+
+promise::Promise<std::shared_ptr<std::string> > ProtocolHandler::getUnifiedKey()
+{
+    return mUnifiedKeyDecrypted
+    .then([](std::shared_ptr<UnifiedKey> unifiedKey)
+    {
+        return std::make_shared<std::string>(std::string(unifiedKey->buf(), unifiedKey->size()));
+    });
+}
+
+bool ProtocolHandler::previewMode()
+{
+    return mPh.isValid();
+}
+
 void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
 {
     assert(!myPrivRsaKey.empty());
@@ -835,13 +979,31 @@ void ProtocolHandler::rsaDecrypt(const StaticBuffer& data, Buffer& output)
     output.setDataSize(actualLen);
 }
 
+
+//If publicchat encrypt with unifiedkey
 promise::Promise<std::pair<MsgCommand*, KeyCommand*>>
 ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand* msgCmd)
 {
+    auto wptr = weakHandle();
+
     // if keyid has not been assigned yet...
     if (msg->keyid == CHATD_KEYID_INVALID)
     {
+        if (isPublicChat())
+        {
+            // all messages in public chats are encrypted to the unified-key and use keyid=0
+            return mUnifiedKeyDecrypted.then([this, wptr, msg, msgCmd](std::shared_ptr<UnifiedKey> unifiedkey) mutable
+            {
+                wptr.throwIfDeleted();
+                // msg->keyid = CHATD_KEYID_INVALID; --> already that value
+                // msgCmd->setKeyId(CHATD_KEYID_INVALID); --> already that value
+                msgEncryptWithKey(*msg, *msgCmd, *unifiedkey);
+                return std::make_pair(msgCmd, (KeyCommand*)nullptr);
+            });
+        }
+
         assert(msgCmd->opcode() == OP_NEWMSG || msgCmd->opcode() == OP_NEWNODEMSG);
+
         // MSGUPDXs are created with keyid=INVALID, but as soon as the precedent NEWMSG
         // is encrypted, their corresponding MSGUPDX in the sending queue get their keyid
         // updated to the keyid used for the original NEWMSG
@@ -856,7 +1018,6 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
         }
         else
         {
-            auto wptr = weakHandle();
             return createNewKey(recipients)
             .then([this, wptr, msg, msgCmd](std::pair<KeyCommand*, std::shared_ptr<SendKey>> result) mutable
             {
@@ -886,13 +1047,12 @@ ProtocolHandler::msgEncrypt(Message* msg, const SetOfIds &recipients, MsgCommand
                 return std::make_pair(msgCmd, (KeyCommand*)nullptr);
             }
         }
-        return promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
+        return ::promise::Error("Unconfirmed key for edit of msg "+msg->id().toString()+" not found.", EINVAL, SVCRYPTO_ENOKEY);
     }
     else    // confirmed keyid
     {
         assert(msgCmd->opcode() != OP_NEWMSG && msgCmd->opcode() != OP_NEWNODEMSG);  // new messages, at this stage, have an invalid keyid
 
-        auto wptr = weakHandle();
         return getKey(UserKeyId(mOwnHandle, msg->keyid))
         .then([this, wptr, msg, msgCmd](const std::shared_ptr<SendKey>& key)
         {
@@ -912,31 +1072,6 @@ Message* ProtocolHandler::legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>&
     return msg;
 }
 
-promise::Promise<std::string>
-ProtocolHandler::decryptChatTitle(const Buffer& data)
-{
-    try
-    {
-        Buffer copy(data.dataSize());
-        copy.copyFrom(data);
-        auto msg = std::make_shared<chatd::Message>(
-            karere::Id::null(), karere::Id::null(), 0, 0, std::move(copy));
-
-        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
-        return parsedMsg->decryptChatTitle(msg.get(), false)
-        // warning: parsedMsg must be kept alive when .then() is executed, so we
-        // capture the shared pointer to it. Msg also must be kept alive, as
-        // the promise returns it
-        .then([msg, parsedMsg](Message* retMsg)
-        {
-            return std::string(retMsg->buf(), retMsg->dataSize());
-        });
-    }
-    catch(std::exception& e)
-    {
-        return promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
-    }
-}
 
 void ProtocolHandler::onHistoryReload()
 {
@@ -986,12 +1121,31 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
         }
+        case Message::kMsgSetPrivateMode:
+        case Message::kMsgPublicHandleCreate:
+        case Message::kMsgPublicHandleDelete:
+        {
+            msg->setEncrypted(Message::kNotEncrypted);
+            return msg;
+        }
+
         default:
-            return promise::Error("Unknown management message type "+
+            return ::promise::Error("Unknown management message type "+
                 std::to_string(parsedMsg->type), EINVAL, SVCRYPTO_ENOTYPE);
     }
 }
 
+void ProtocolHandler::fetchUserKeys(karere::Id userid)
+{
+    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
+
+    if (!previewMode())
+    {
+        // preload keys for the new participant
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+    }
+}
 
 //We should have already received and decrypted the key in advance
 //(which is also async). This will have fetched the public Cu25519 key of
@@ -1021,9 +1175,9 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         }
 
         // check tampering of management messages
-        if (message->keyid == 0 || message->userid == karere::Id::COMMANDER())
+        if (message->userid == karere::Id::COMMANDER())
         {
-            return promise::Error("Invalid message. type: "+std::to_string(message->type)+
+            return ::promise::Error("Invalid message. type: "+std::to_string(message->type)+
                                   " userid: "+message->userid.toString()+
                                   " keyid: "+std::to_string(message->keyid), EINVAL, SVCRYPTO_EMALFORMED);
         }
@@ -1048,15 +1202,23 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         };
         auto ctx = std::make_shared<Context>();
 
-        auto symPms = getKey(UserKeyId(message->userid, keyid), isLegacy)
-        .then([ctx](const std::shared_ptr<SendKey>& key)
+        promise::Promise<std::shared_ptr<SendKey>> symPms;
+        if (keyid == CHATD_KEYID_INVALID)   // message was posted while open mode
+        {
+            symPms = mUnifiedKeyDecrypted;
+        }
+        else    // message was posted with key-rotation enabled (closed mode)
+        {
+            symPms = getKey(UserKeyId(message->userid, keyid), isLegacy);
+        }        
+        symPms.then([ctx](const std::shared_ptr<SendKey>& key)
         {
             ctx->sendKey = key;
         });
 
         // Get signing key
-        auto edPms = mUserAttrCache.getAttr(parsedMsg->sender,
-            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY)
+        promise::Promise<void> edPms = mUserAttrCache.getAttr(parsedMsg->sender,
+            ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, mPh)
         .then([ctx](Buffer* key)
         {
             ctx->edKey.assign(key->buf(), key->dataSize());
@@ -1069,17 +1231,17 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         {
             if (wptr.deleted())
             {
-                return promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                return ::promise::Error("msgDecrypt: strongvelop deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
             }
 
             if (cacheVersion != mCacheVersion)
             {
-                return promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                return ::promise::Error("msgDecrypt: history was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
             }
 
             if (!parsedMsg->verifySignature(ctx->edKey, *ctx->sendKey))
             {
-                return promise::Error("Signature invalid for message "+
+                return ::promise::Error("Signature invalid for message "+
                                       message->id().toString(), EINVAL, SVCRYPTO_ESIGNATURE);
             }
 
@@ -1090,13 +1252,14 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
             // Decrypt message payload.
             parsedMsg->symmetricDecrypt(*ctx->sendKey, *message);
+
             return message;
         });
     }
     catch(std::runtime_error& e)
     {
         // ParsedMessage ctor throws if unexpected format, unknown/missing TLVs, etc.
-        return promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
+        return ::promise::Error(e.what(), EINVAL, SVCRYPTO_EMALFORMED);
     }
 }
 
@@ -1104,7 +1267,7 @@ Promise<void>
 ProtocolHandler::legacyExtractKeys(const std::shared_ptr<ParsedMessage>& parsedMsg)
 {
     if (parsedMsg->encryptedKey.empty())
-        return promise::Error("legacyExtractKeys: No encrypted keys found in parsed message", EPROTO, SVCRYPTO_ERRTYPE);
+        return ::promise::Error("legacyExtractKeys: No encrypted keys found in parsed message", EPROTO, SVCRYPTO_ERRTYPE);
 
     auto& key1 = mKeys[UserKeyId(parsedMsg->sender, parsedMsg->keyId)];
     if (!key1.key)
@@ -1171,7 +1334,7 @@ void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
         //attached to it will be notified first
         addDecryptedKey(ukid, key);
     });
-    pms.fail([this, wptr, ukid](const promise::Error& err)
+    pms.fail([this, wptr, ukid](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         STRONGVELOPE_LOG_ERROR("Removing key entry for key %u - decryptKey() failed with error '%s'", ukid.keyid, err.what());
@@ -1234,7 +1397,7 @@ ProtocolHandler::getKey(UserKeyId ukid, bool legacy)
         }
         else
         {
-            return promise::Error("Key with id "+std::to_string(ukid.keyid)+
+            return ::promise::Error("Key with id "+std::to_string(ukid.keyid)+
             " from user "+ukid.user.toString()+" not found", EINVAL, SVCRYPTO_ENOKEY);
         }
     }
@@ -1319,10 +1482,17 @@ void ProtocolHandler::onKeyRejected()
 promise::Promise<std::pair<KeyCommand*, std::shared_ptr<SendKey>>>
 ProtocolHandler::createNewKey(const SetOfIds &recipients)
 {
-    mCurrentKey.reset(new SendKey);
-    mCurrentKey->setDataSize(AES::BLOCKSIZE);
-    randombytes_buf(mCurrentKey->ubuf(), AES::BLOCKSIZE);
+    // Assemble the output for all recipients.
+    promise::Promise<std::shared_ptr<SendKey>> pms;
+    assert(!isPublicChat());
 
+    std::shared_ptr<SendKey> key;
+    key.reset(new SendKey);
+    key->setDataSize(AES::BLOCKSIZE);
+    randombytes_buf(key->ubuf(), AES::BLOCKSIZE);
+    pms = promise::Promise<std::shared_ptr<SendKey>>();
+
+    mCurrentKey = key;
     mCurrentKeyId = createLocalKeyId();
     mCurrentKeyParticipants = recipients;
 
@@ -1331,6 +1501,7 @@ ProtocolHandler::createNewKey(const SetOfIds &recipients)
 
     // Assemble the output for all recipients.
     return encryptKeyToAllParticipants(mCurrentKey, mCurrentKeyParticipants, mCurrentKeyId);
+
 }
 
 KeyId ProtocolHandler::createLocalKeyId()
@@ -1372,16 +1543,78 @@ ProtocolHandler::encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key
 }
 
 promise::Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
+ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser, bool encryptAsPrivate)
 {
-    auto key = std::make_shared<SendKey>();
-    randombytes_buf(key->buf(), key->bufSize());
-    assert(!key->empty());
-    auto blob = std::make_shared<Buffer>(512);
-    blob->clear();
-    blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
-    blob->append<uint8_t>(Message::kMsgChatTitle);
+    SetOfIds participants;
+    bool createNewKey = !isPublicChat() || encryptAsPrivate;
+    promise::Promise<std::shared_ptr<SendKey>> pms;
+    if (createNewKey)
+    {
+        std::shared_ptr<SendKey> key;
+        key = std::make_shared<SendKey>();
+        randombytes_buf(key->buf(), key->bufSize());
+        pms.resolve(key);
 
+        participants = *mParticipants;
+        if (extraUser)
+        {
+            participants.insert(extraUser);
+        }
+    }
+    else    // open-mode/public-chat
+    {
+        pms = mUnifiedKeyDecrypted;
+    }
+
+    auto wptr = weakHandle();
+    return pms.then([wptr, this, participants, data, createNewKey](std::shared_ptr<SendKey> key)
+    {
+        wptr.throwIfDeleted();
+        assert(!key->empty());
+
+        return encryptKeyToAllParticipants(key, participants)
+        .then([this, wptr, data, createNewKey](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+        {
+            wptr.throwIfDeleted();
+
+            auto& key = result.second;
+            chatd::Message msg(0, mOwnHandle, 0, 0, Buffer(data.c_str(), data.size()));
+            msg.backRefId = chatd::Chat::generateRefId(this);
+            EncryptedMessage enc(msg, *key);
+
+            chatd::KeyCommand& keyCmd = *result.first;
+            assert(keyCmd.dataSize() >= 17);
+
+            TlvWriter tlv;
+            tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
+            tlv.addRecord(TLV_TYPE_NONCE, enc.nonce);
+            tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
+            tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
+            if (!createNewKey)
+            {
+                tlv.addRecord(TLV_TYPE_OPENMODE, true);
+            }
+
+            Signature signature;
+            signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
+                enc.key, signature);
+            TlvWriter sigTlv;
+            sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
+
+            auto blob = std::make_shared<Buffer>(512);
+            blob->clear();
+            blob->append<uint8_t>(SVCRYPTO_PROTOCOL_VERSION);
+            blob->append<uint8_t>(Message::kMsgChatTitle);
+            blob->append(sigTlv);
+            blob->append(tlv);
+            return blob;
+        });
+    });
+}
+
+promise::Promise<chatd::KeyCommand*>
+ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
+{
     SetOfIds participants = *mParticipants;
     if (extraUser)
     {
@@ -1389,82 +1622,121 @@ ProtocolHandler::encryptChatTitle(const std::string& data, uint64_t extraUser)
     }
 
     auto wptr = weakHandle();
-    return encryptKeyToAllParticipants(key, participants)
-    .then([this, wptr, blob, data](const std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>& result)
+    return mUnifiedKeyDecrypted.then([wptr, this, participants](std::shared_ptr<UnifiedKey> key)
     {
+        assert(!key->empty());
         wptr.throwIfDeleted();
-        auto& key = result.second;
-        chatd::Message msg(0, mOwnHandle, 0, 0, Buffer(data.c_str(), data.size()));
-        msg.backRefId = chatd::Chat::generateRefId(this);
-        EncryptedMessage enc(msg, *key);
+        assert(!key->empty());
 
-        chatd::KeyCommand& keyCmd = *result.first;
-        assert(keyCmd.dataSize() >= 17);
-        TlvWriter tlv;
-        tlv.addRecord(TLV_TYPE_INVITOR, mOwnHandle.val);
-        tlv.addRecord(TLV_TYPE_NONCE, enc.nonce);
-        tlv.addRecord(TLV_TYPE_KEYBLOB, StaticBuffer(keyCmd.buf()+17, keyCmd.dataSize()-17));
-        tlv.addRecord(TLV_TYPE_PAYLOAD, StaticBuffer(enc.ciphertext, false));
-        Key<64> signature;
-        signMessage(tlv, SVCRYPTO_PROTOCOL_VERSION, Message::kMsgChatTitle,
-            enc.key, signature);
-        TlvWriter sigTlv;
-        sigTlv.addRecord(TLV_TYPE_SIGNATURE, signature);
-        blob->append(sigTlv);
-        blob->append(tlv);
-        return blob;
+        return encryptKeyToAllParticipants(key, participants)
+        .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
+        {
+            wptr.throwIfDeleted();
+            chatd::KeyCommand *keyCmd = result.first;
+            assert(keyCmd->dataSize() >= 17);
+            return keyCmd;
+        });
     });
+}
+
+promise::Promise<std::string>
+ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
+{
+    try
+    {
+        auto wptr = weakHandle();
+        Buffer copy(data.dataSize());
+        copy.copyFrom(data);
+        auto msg = new Message(Id::null(), Id::null(), 0, 0, std::move(copy));
+        auto parsedMsg = std::make_shared<ParsedMessage>(*msg, *this);
+        return parsedMsg->decryptChatTitle(msg, false)
+        .then([wptr, this, parsedMsg](Message *retMsg)
+        //We need to capture the message in order to keep it alive until the promise has been resolved
+        {
+            wptr.throwIfDeleted();
+            STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from API");
+            std::string ret(retMsg->buf(), retMsg->dataSize());
+            delete retMsg;
+            return ret;
+        })
+        .fail([wptr, this](const ::promise::Error& err)
+        {
+            wptr.throwIfDeleted();
+            STRONGVELOPE_LOG_ERROR("Can't decrypt chat title from API. Error: ", err.what());
+            return err;
+        });
+    }
+    catch(std::exception& e)
+    {
+        return ::promise::Error(e.what(), EPROTO, SVCRYPTO_ERRTYPE);
+    }
 }
 
 promise::Promise<chatd::Message*>
 ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
-    const char* pos = encryptedKey.buf();
-    const char* end = encryptedKey.buf()+encryptedKey.dataSize();
-    karere::Id receiver;
-
-    //pick the version that is encrypted for us
-    while (pos < end)
+    promise::Promise<std::shared_ptr<SendKey>> pms;
+    if (openmode)  // chat-title was created in open-mode --> decrypt using unfied-key
     {
-        receiver = Buffer::alignSafeRead<uint64_t>(pos);
-        pos+=8;
-        uint16_t keylen = *(uint16_t*)(pos);
-        pos+=2;
-        if (receiver == mProtoHandler.ownHandle())
-            break;
-        pos+=keylen;
+        pms = mProtoHandler.unifiedKey();
+    }
+    else    // chat-title was created in closed-mode --> look for the key encrypted to us
+    {
+        //pick the version that is encrypted for us
+        karere::Id receiver;
+        const char* pos = encryptedKey.buf();
+        const char* end = pos + encryptedKey.dataSize();
+        while (pos < end)
+        {
+            receiver = Buffer::alignSafeRead<uint64_t>(pos);
+            pos += sizeof(uint64_t);
+
+            uint16_t keylen = *(uint16_t*)(pos);
+            pos += sizeof(uint16_t);
+
+            if (receiver == mProtoHandler.ownHandle())
+            {
+                break;
+            }
+            pos += keylen;
+        }
+
+        if (pos >= end)
+            throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
+
+        if (end-pos < SVCRYPTO_KEY_SIZE)
+            throw std::runtime_error("Unexpected key entry length - must be 16 bytes, but is "+std::to_string(end-pos)+" bytes");
+
+        auto buf = std::make_shared<Buffer>(SVCRYPTO_KEY_SIZE);
+        buf->assign(pos, SVCRYPTO_KEY_SIZE);
+
+        pms = mProtoHandler.decryptKey(buf, sender, receiver);
     }
 
-    if (pos >= end)
-        throw std::runtime_error("Error getting a version of the encryption key encrypted for us");
-    if (end-pos < 16)
-        throw std::runtime_error("Unexpected key entry length - must be 26 bytes, but is "+std::to_string(end-pos)+" bytes");
-    auto buf = std::make_shared<Buffer>(16);
-    buf->assign(pos, 16);
     auto wptr = weakHandle();
     unsigned int cacheVersion = mProtoHandler.getCacheVersion();
-    return mProtoHandler.decryptKey(buf, sender, receiver)
+
+    return pms
     .then([this, wptr, msg, cacheVersion, msgCanBeDeleted](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
 
         if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
         {
-            throw promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
+            throw ::promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
         }
 
         symmetricDecrypt(*key, *msg);
         msg->setEncrypted(Message::kNotEncrypted);
+        Id chatid = mProtoHandler.chatid;
+        STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully (private chat).");
         return msg;
     });
 }
 
 void ProtocolHandler::onUserJoin(Id userid)
 {
-    // preload keys for the new participant
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-    mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+    fetchUserKeys(userid);
 }
 
 void ProtocolHandler::onUserLeave(Id /*userid*/)
@@ -1483,12 +1755,9 @@ void ProtocolHandler::setUsers(karere::SetOfIds* users)
     assert(users);
     mParticipants = users;
 
-    //pre-fetch user attributes
     for (auto userid: *users)
     {
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, USER_ATTR_RSA_PUBKEY, nullptr, nullptr);
+        fetchUserKeys(userid);
     }
 }
 

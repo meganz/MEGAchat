@@ -49,8 +49,9 @@ ChatMessage::~ChatMessage()
 void ChatMessage::updateToolTip()
 {
     QString tooltip;
-
     megachat::MegaChatHandle msgId;
+    std::string msgIdBin;
+
     int status = mMessage->getStatus();
     switch (status)
     {
@@ -65,12 +66,15 @@ void ChatMessage::updateToolTip()
     default:
         tooltip.append(tr("msgId: "));
         msgId = mMessage->getMsgId();
+        msgIdBin = std::to_string(mMessage->getMsgId());
         break;
     }
 
     const char *auxMsgId_64 = mChatWindow->mMegaApi->userHandleToBase64(msgId);
     const char *auxUserId_64 = mChatWindow->mMegaApi->userHandleToBase64(mMessage->getUserHandle());
     tooltip.append(QString::fromStdString(auxMsgId_64))
+            .append(tr("\nMsg handle bin: "))
+            .append(msgIdBin.c_str())
             .append(tr("\ntype: "))
             .append(QString::fromStdString(std::to_string(mMessage->getType())))
             .append(tr("\nuserid: "))
@@ -346,29 +350,31 @@ std::string ChatMessage::managementInfoToString() const
         }
         case megachat::MegaChatMessage::TYPE_CHAT_TITLE:
         {
-            megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
             ret.append("User ").append(userHandle_64)
                .append(" set chat title to '")
-               .append(chatRoom->getTitle())+='\'';
-            delete chatRoom;
+               .append(mMessage->getContent())+='\'';
             break;
         }
         case megachat::MegaChatMessage::TYPE_CALL_ENDED:
         {
-            ret.append("User ").append(userHandle_64)
-               .append(" start a call with: ");
+            ret.append("User ").append(userHandle_64);
+            ret.append(" called user/s: ");
 
             ::mega::MegaHandleList *handleList = mMessage->getMegaHandleList();
             for (unsigned int i = 0; i < handleList->size(); i++)
             {
-                char *participant_64 = this->mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
-                ret.append(participant_64).append(" ");
+                char *participant_64 = mChatWindow->mMegaApi->userHandleToBase64(handleList->get(i));
+                ret.append(participant_64).append(", ");
                 delete [] participant_64;
+            }
+            if (handleList->size())
+            {
+                ret = ret.substr(0, ret.size() - 2);
             }
 
             ret.append("\nDuration: ")
                .append(std::to_string(mMessage->getDuration()))
-               .append("secs TermCode: ")
+               .append("s. TermCode: ")
                .append(std::to_string(mMessage->getTermCode()));
             break;
         }
@@ -378,10 +384,30 @@ std::string ChatMessage::managementInfoToString() const
                .append(" has started a call");
             break;
         }
+        case megachat::MegaChatMessage::TYPE_PUBLIC_HANDLE_CREATE:
+        {
+            ret.append("User ").append(userHandle_64)
+               .append(" created a public handle ");
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_PUBLIC_HANDLE_DELETE:
+        {
+            ret.append("User ").append(userHandle_64)
+                    .append(" removed a public handle ");
+            break;
+        }
+        case megachat::MegaChatMessage::TYPE_SET_PRIVATE_MODE:
+        {
+            ret.append("User ").append(userHandle_64)
+                    .append(" converted chat into private mode ");
+            break;
+        }
         default:
+        {
             ret.append("Management message with unknown type: ")
                .append(std::to_string(mMessage->getType()));
             break;
+        }
     }
     delete [] userHandle_64;
     delete [] actionHandle_64;
@@ -422,11 +448,12 @@ void ChatMessage::setAuthor(const char *author)
     {
         megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
         const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
-        if (msgAuthor)
+        const char *autorizationToken = chatRoom->getAuthorizationToken();
+        if (msgAuthor && strlen(msgAuthor) > 0)
         {
             ui->mAuthorDisplay->setText(tr(msgAuthor));
         }
-        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh)))
+        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken)))
         {
             ui->mAuthorDisplay->setText(tr(msgAuthor));
             delete [] msgAuthor;
@@ -436,6 +463,7 @@ void ChatMessage::setAuthor(const char *author)
             ui->mAuthorDisplay->setText(tr("Loading firstname..."));
         }
         delete chatRoom;
+        delete []autorizationToken;
     }
 }
 
@@ -645,8 +673,15 @@ void ChatMessage::on_bSettings_clicked()
                 QString text("Download \"");
                 text.append(node->getName()).append("\"");
                 auto actDownload = menu.addAction(tr(text.toStdString().c_str()));
-                connect(actDownload,  &QAction::triggered, this, [this, node]{ onNodeDownload(node); });
+                connect(actDownload,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownloadOrImport(nodeList->get(i), false);});
 
+                text.clear();
+                text.append("Import \"");
+                text.append(nodeList->get(i)->getName()).append("\" to cloud drive");
+                auto actImport = menu.addAction(tr(text.toStdString().c_str()));
+                connect(actImport,  &QAction::triggered, this, [this, nodeList, i]{onNodeDownloadOrImport(nodeList->get(i), true);});
+
+                text.clear();
                 text = "Stream \"";
                 text.append(node->getName()).append("\"");
                 auto actStream = menu.addAction(tr(text.toStdString().c_str()));
@@ -678,53 +713,81 @@ void ChatMessage::on_bSettings_clicked()
     menu.exec(mapToGlobal(pos));
 }
 
-void ChatMessage::onNodeDownload(::mega::MegaNode *node)
+void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
 {
-    std::string target(mChatWindow->mMegaChatApi->getAppDir());
-    target.append("/").append(node->getName());
+    mega::MegaNode *resultNode = node;
+
+    //Autorize node with PH if we are in preview mode
+    if (mChatWindow->mChatRoom->isPreview())
+    {
+        const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
+        resultNode = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
+        delete [] cauth;
+    }
 
     QMessageBox msgBoxAns;
-    std::string message("Node will be saved in "+target+".\nDo you want to continue?");
-    msgBoxAns.setText(message.c_str());
-    msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
-    if (msgBoxAns.exec() == QMessageBox::Ok)
+    if(import)
     {
-        mChatWindow->mMegaApi->startDownload(node, target.c_str());
+        mega::MegaNode *parent= mChatWindow->mMegaApi->getRootNode();
+        if (parent)
+        {
+            std::string message("Node will be imported to the cloud drive");
+            msgBoxAns.setText(message.c_str());
+            msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+            if (msgBoxAns.exec() == QMessageBox::Ok)
+            {
+                mChatWindow->mMegaApi->copyNode(resultNode, parent);
+            }
+            delete parent;
+        }
+        else
+        {
+            std::string message("Node cannot be imported in anonymous mode");
+            msgBoxAns.setText(message.c_str());
+            msgBoxAns.setStandardButtons(QMessageBox::Ok);
+            msgBoxAns.exec();
+        }
+    }
+    else
+    {
+        std::string target(mChatWindow->mMegaChatApi->getAppDir());
+        target.append("/").append(node->getName());
+        std::string message("Node will be saved in "+target+".\nDo you want to continue?");
+        msgBoxAns.setText(message.c_str());
+        msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+        if (msgBoxAns.exec() == QMessageBox::Ok)
+        {
+            mChatWindow->mMegaApi->startDownload(resultNode, target.c_str());
+        }
     }
 }
 
 void ChatMessage::onNodePlay(mega::MegaNode *node)
 {
+    mega::MegaNode *resultNode = node;
+
+    //Start an HTTP proxy server
     if (mChatWindow->mMegaApi->httpServerIsRunning() == 0)
     {
         mChatWindow->mMegaApi->httpServerStart();
     }
-    const char *localUrl = mChatWindow->mMegaApi->httpServerGetLocalLink(node);
 
-    if (localUrl)
+    //Autorize node with PH if we are in preview mode
+    if (mChatWindow->mChatRoom->isPreview())
     {
-        QClipboard *clipboard = QApplication::clipboard();
-        QString clipUrl(localUrl);
-        QMessageBox msg;
-        msg.setText("URL for streaming the file: \""+QString(node->getName())+"\"");
-        msg.setIcon(QMessageBox::Information);
-        msg.setDetailedText(clipUrl);
-        msg.addButton(tr("Ok"), QMessageBox::ActionRole);
+        const char *cauth = mChatWindow->mChatRoom->getAuthorizationToken();
+        resultNode = mChatWindow->mMegaApi->authorizeChatNode(node, cauth);
+        delete [] cauth;
 
-        QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
-        copyButton->disconnect();
-        connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(clipUrl);});
-
-        foreach (QAbstractButton *button, msg.buttons())
+        char *aux = mChatWindow->mMegaApi->httpServerGetLocalLink(resultNode);
+        if (aux)
         {
-            if (msg.buttonRole(button) == QMessageBox::ActionRole)
-            {
-                button->click();
-                break;
-            }
+             QMessageBox::information(nullptr, tr("Node Url"), tr(aux));
+             delete [] aux;
         }
-        msg.setStyleSheet("width: 150px;");
-        msg.exec();
-        delete localUrl;
+        else
+        {
+            QMessageBox::information(nullptr, tr("ERROR"), tr("ERROR"));
+        }
     }
 }

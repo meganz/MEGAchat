@@ -64,18 +64,6 @@ void RtcCrypto::decryptKeyFrom(karere::Id peer, const SdpKey& data, SdpKey& outp
     ECB_Mode<AES>::Decryption dec(aesKey.ubuf(), aesKey.dataSize());
     dec.ProcessData(output.data, data.data, sizeof(data.data));
 }
-//strongvelope should already have initiated preloading of keys, but we may need
-//to wait
-::promise::Promise<void> RtcCrypto::waitForPeerKeys(karere::Id peer)
-{
-    return mClient.userAttrCache().getAttr(peer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY)
-    .then([](Buffer*) {})
-    .fail([this, peer](const ::promise::Error& err)
-    {
-        KR_LOG_ERROR("Error fetching CU25519 pubkey for user %s: %s", peer.toString().c_str(), err.what());
-        return err;
-    });
-}
 
 karere::Id RtcCrypto::anonymizeId(karere::Id userid)
 {
@@ -84,6 +72,7 @@ karere::Id RtcCrypto::anonymizeId(karere::Id userid)
 
 void RtcCrypto::random(char* buf, size_t size)
 {
-    ::mega::PrnGen::genblock((unsigned char*)buf, size);
+    ::mega::PrnGen rng;
+    rng.genblock((unsigned char*)buf, size);
 }
 }

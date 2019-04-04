@@ -13,6 +13,7 @@
 
 #define MAX_RETRIES 5
 class MegaLoggerApplication;
+class LoginDialog;
 
 class MegaChatApplication : public QApplication,
     public ::mega::MegaListener,
@@ -27,12 +28,12 @@ class MegaChatApplication : public QApplication,
         void login();
         void logout();
         void configureLogs();
-
+        bool initAnonymous(std::string chatlink);
+        std::string getText(std::string title);
         const char *readSid();
         const char *sid() const;
         void saveSid(const char *sid);
         void removeSid();
-
         LoginDialog *loginDialog() const;
         void resetLoginDialog();
 
@@ -41,7 +42,10 @@ class MegaChatApplication : public QApplication,
         virtual void onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
-        const char *getFirstname(megachat::MegaChatHandle uh);
+        const char *getFirstname(megachat::MegaChatHandle uh, const char *authorizationToken);
+
+        bool isStagingEnabled();
+        void enableStaging(bool enable);
 
     protected:
         const char *mSid;
@@ -58,9 +62,12 @@ class MegaChatApplication : public QApplication,
     private:
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
+        bool useStaging = false;
 
     public slots:
+        void onAnonymousLogout();
         void onLoginClicked();
+        void onPreviewClicked();
 
 };
 #endif // MEGACHATAPPLICATION_H
