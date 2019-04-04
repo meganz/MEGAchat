@@ -196,11 +196,6 @@ void MegaChatApplication::onLoginClicked()
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
 }
 
-void MegaChatApplication::logout()
-{
-    mMegaApi->logout();
-}
-
 const char *MegaChatApplication::readSid()
 {
     char buf[256];

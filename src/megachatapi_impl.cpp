@@ -1371,7 +1371,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     }
                     else if (wasArchived && room->isArchived())    // don't want to generate notifications for archived chats
                     {
-                        megaApi->sendEvent(99009, "PUSH received for archived chatid");
+                        megaApi->sendEvent(99009, "PUSH received for archived chatid (and still archived)");
 
                         // since a PUSH could be received before the actionpacket updating flags (
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
