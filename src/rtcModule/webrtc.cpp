@@ -3146,14 +3146,7 @@ void Session::destroy(TermCode code, const std::string& msg)
 
     submitStats(code, msg);
 
-    if (mRtcConn)
-    {
-        if (mRtcConn->signaling_state() != webrtc::PeerConnectionInterface::kClosed)
-        {
-            mRtcConn->Close();
-        }
-        mRtcConn.release();
-    }
+    removeRtcConnection();
 
     mRemotePlayer.reset();
     FIRE_EVENT(SESS, onRemoteStreamRemoved);
@@ -3243,6 +3236,7 @@ void Session::msgMute(RtMessage& packet)
 
 Session::~Session()
 {
+    removeRtcConnection();
     SUB_LOG_DEBUG("Destroyed");
 }
 
@@ -3594,6 +3588,19 @@ int Session::calculateNetworkQuality(const stats::Sample *sample)
 
     SUB_LOG_WARNING("Don't have any key stat param to estimate network quality from");
     return kNetworkQualityDefault;
+}
+
+void Session::removeRtcConnection()
+{
+    if (mRtcConn)
+    {
+        if (mRtcConn->signaling_state() != webrtc::PeerConnectionInterface::kClosed)
+        {
+            mRtcConn->Close();
+        }
+        mRtcConn.release();
+    }
+
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)

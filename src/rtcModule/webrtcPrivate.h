@@ -84,6 +84,7 @@ protected:
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
     int calculateNetworkQuality(const stats::Sample *sample);
+    void removeRtcConnection();
 
 public:
     RtcModule& mManager;
