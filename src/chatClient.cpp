@@ -761,7 +761,6 @@ Client::InitState Client::init(const char* sid)
     if (sid)
     {
         initWithDbSession(sid);
-
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
@@ -1155,7 +1154,7 @@ void Client::setConnState(ConnState newState)
 
 void Client::sendStats()
 {
-    if (mInitStats.isFinished())
+    if (mInitStats.isCompleted())
     {
         return;
     }
@@ -1170,10 +1169,11 @@ void Client::sendStats()
     mInitStats.setNumNodes(api.sdk.getNumNodes());
     mInitStats.setNumChats(chats->size());
     mInitStats.setNumContacts(contactList->size());
-    std::string stats = mInitStats.statsToString();
-    assert(!stats.empty());
-    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, stats.c_str());
+
+    std::string stats = mInitStats.toJson();
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
+    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
+
     mInitStats.onCompleted();
 }
 
@@ -3751,41 +3751,15 @@ void InitStats::setNumChats(long numChats)
     mNumChats = numChats;
 }
 
-bool InitStats::isFinished() const
+bool InitStats::isCompleted() const
 {
-    return mFinished;
+    return mCompleted;
 }
 
 void InitStats::onCompleted()
 {
-    assert(!mFinished);
-    init();
-    mFinished = true;
-}
-
-InitStats::InitStats()
-{
-    init();
-    mFinished = false;
-    KR_LOG_INFO("Init stats created");
-}
-
-void InitStats::init()
-{
-    mNumNodes = 0;
-    mNumChats = 0;
-    mNumContacts = 0;
-    mTotalElapsed = 0;
-    mInitState = kInitNewSession;
-    mStageStats.clear();
-    mStageShardStats.clear();
-}
-
-InitStats::~InitStats()
-{
-    mStageStats.clear();
-    mStageShardStats.clear();
-    KR_LOG_INFO("Init stats destroyed");
+    assert(!mCompleted);
+    mCompleted = true;
 }
 
 mega::dstime InitStats::currentTime()
@@ -3797,38 +3771,38 @@ mega::dstime InitStats::currentTime()
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
 
-    mStageShardStats[stage][shard].auxElap = currentTime();
+    mStageShardStats[stage][shard].tsStart = currentTime();
 }
 
 void InitStats::shardEnd(uint8_t stage, uint8_t shard)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
 
     InitStats::ShardStats *shardStats = &mStageShardStats[stage][shard];
-    if (shardStats->auxElap)
+    if (shardStats->tsStart)    // if starting ts not recorded --> discard
     {
-        shardStats->elapsed = currentTime() - shardStats->auxElap;
+        shardStats->elapsed = currentTime() - shardStats->tsStart;
 
         if (shardStats->elapsed > shardStats->maxElapsed)
         {
             shardStats->maxElapsed = shardStats->elapsed;
         }
 
-        shardStats->auxElap = 0;
+        shardStats->tsStart = 0;
     }
 }
 
 void InitStats::incrementRetries(uint8_t stage, uint8_t shard)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
@@ -3838,82 +3812,82 @@ void InitStats::incrementRetries(uint8_t stage, uint8_t shard)
 
 void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
 
     switch (newState)
     {
-        case chatd::Connection::State::kStateFetchingUrl :
-            //GET start ts for GetChatURL
+        case chatd::Connection::State::kStateFetchingUrl:
             shardStart(InitStats::kStatsFetchChatUrl, shard);
             break;
 
-        case chatd::Connection::State::kStateResolving :
-            //GET end ts for GetChatURL
+        case chatd::Connection::State::kStateResolving:
             shardEnd(InitStats::kStatsFetchChatUrl, shard);
             break;
 
-        case chatd::Connection::State::kStateConnecting :
-            //GET start ts for connect
+        case chatd::Connection::State::kStateConnecting:
             shardStart(InitStats::kStatsConnect, shard);
             break;
 
-        case chatd::Connection::State::kStateConnected :
-             //GET end ts for connect
+        case chatd::Connection::State::kStateConnected:
              shardEnd(InitStats::kStatsConnect, shard);
-
-             //GET start ts for login chatd
              shardStart(InitStats::kStatsLoginChatd, shard);
              break;
 
-        case chatd::Connection::State::kStateDisconnected :
-            //Increments connect retries
+        case chatd::Connection::State::kStateDisconnected:  //Increments connection retries
             switch (oldState)
             {
-                case chatd::Connection::State::kStateFetchingUrl :
+                case chatd::Connection::State::kStateFetchingUrl:
                     incrementRetries(InitStats::kStatsFetchChatUrl, shard);
                     break;
-                case chatd::Connection::State::kStateConnecting :
+                case chatd::Connection::State::kStateConnecting:
                     incrementRetries(InitStats::kStatsConnect, shard);
                     break;
-                case chatd::Connection::State::kStateConnected :
+                case chatd::Connection::State::kStateConnected:
                     incrementRetries(InitStats::kStatsLoginChatd, shard);
+                    break;
+                default:
                     break;
             }
             break;
+
+        default:
+            break;
+
     }
 }
 
 void InitStats::resetStage(uint8_t stage)
 {
-    mStageStats[(uint8_t)stage].elapsed = 0;
+    mStageStats[stage] = 0;
 }
 
 void InitStats::stageStart(uint8_t stage)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
 
-    mStageStats[(uint8_t)stage].elapsed = currentTime();
+    mStageStats[stage] = currentTime();
 }
 
 void InitStats::stageEnd(uint8_t stage)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
 
-    mStageStats[stage].elapsed = currentTime() - mStageStats[stage].elapsed;
+    assert(mStageStats[stage]);
+    mStageStats[stage] = currentTime() - mStageStats[stage];
 }
 
 void InitStats::setInitState(uint8_t state)
 {
-    if (mFinished)
+    if (mCompleted)
     {
         return;
     }
@@ -3936,10 +3910,13 @@ void InitStats::setInitState(uint8_t state)
         case  Client::kInitAnonymousMode:
             mInitState = kInitAnonymous;
             break;
+
+        default:
+            break;
     }
 }
 
-std::string InitStats::getStageTag(uint8_t stage)
+std::string InitStats::stageToString(uint8_t stage)
 {
     switch(stage)
     {
@@ -3952,7 +3929,7 @@ std::string InitStats::getStageTag(uint8_t stage)
     }
 }
 
-std::string InitStats::getShardStageTag(uint8_t stage)
+std::string InitStats::shardStageToString(uint8_t stage)
 {
     switch(stage)
     {
@@ -3964,34 +3941,34 @@ std::string InitStats::getShardStageTag(uint8_t stage)
     }
 }
 
-std::string InitStats::statsToString()
+std::string InitStats::toJson()
 {
     std::string result;
+    mega::dstime totalElapsed; //Total elapsed time to finish all stages
     rapidjson::Document jSonDocument(rapidjson::kArrayType);
     rapidjson::Value jSonObject(rapidjson::kObjectType);
     rapidjson::Value jsonValue(rapidjson::kNumberType);
 
     // Generate stages array
     rapidjson::Document stageArray(rapidjson::kArrayType);
-    std::map<uint8_t, StageStats>::iterator itStages;
-    for (itStages = mStageStats.begin(); itStages != mStageStats.end(); itStages++)
+    for (StageMap::const_iterator itStages = mStageStats.begin(); itStages != mStageStats.end(); itStages++)
     {
         rapidjson::Value jSonStage(rapidjson::kObjectType);
         uint8_t stage = itStages->first;
-        StageStats &stageStats = itStages->second;
+        mega::dstime elapsed = itStages->second;
 
         // Add stage
         jsonValue.SetInt64(stage);
         jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
 
-        std::string tag = getStageTag(stage);
+        std::string tag = stageToString(stage);
         rapidjson::Value stageTag(rapidjson::kStringType);
         stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
         jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
 
         // Add stage elapsed time
-        mTotalElapsed += stageStats.elapsed;
-        jsonValue.SetInt64(stageStats.elapsed);
+        totalElapsed += elapsed;
+        jsonValue.SetInt64(elapsed);
         jSonStage.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
         stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
     }
@@ -4037,7 +4014,7 @@ std::string InitStats::statsToString()
         jsonValue.SetInt(stage);
         jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
 
-        std::string tag = getShardStageTag(stage);
+        std::string tag = shardStageToString(stage);
         rapidjson::Value stageTag(rapidjson::kStringType);
         stageTag.SetString(tag.c_str(), tag.length(), jSonDocument.GetAllocator());
         jSonStage.AddMember(rapidjson::Value("tag"), stageTag, jSonDocument.GetAllocator());
@@ -4063,7 +4040,7 @@ std::string InitStats::statsToString()
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
 
     // Add total elapsed
-    jsonValue.SetInt64(mTotalElapsed);
+    jsonValue.SetInt64(totalElapsed);
     jSonObject.AddMember(rapidjson::Value("telap"), jsonValue, jSonDocument.GetAllocator());
 
     // Add stages array
@@ -4077,6 +4054,7 @@ std::string InitStats::statsToString()
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     jSonDocument.Accept(writer);
     result.assign(buffer.GetString(), buffer.GetSize());
-    return jsonUnescape(result);
+    return result;
 }
+
 }

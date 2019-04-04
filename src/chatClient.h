@@ -614,65 +614,6 @@ public:
 **/
 class InitStats
 {
-    protected:
-        struct StageStats;
-        struct ShardStats;
-        typedef std::map<uint8_t, StageStats> StageMap;
-        typedef std::map<uint8_t, ShardStats> ShardMap;
-        typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
-
-        struct StageStats
-        {
-            /** @brief Stage elapsed time */
-            mega::dstime elapsed;
-
-            StageStats():
-                elapsed(0)
-            {}
-        };
-
-        struct ShardStats: StageStats
-        {
-            /** @brief Max elapsed time */
-            mega::dstime maxElapsed;
-
-            /** @brief Aux elapsed time */
-            mega::dstime auxElap;
-
-            /** @brief Number of retries */
-            unsigned int mRetries;
-
-            ShardStats():
-                mRetries(0),
-                auxElap(0),
-                maxElapsed(0)
-            {}
-        };
-
-        /** @brief Maps stages to statistics */
-        StageMap mStageStats;
-
-        /** @brief Maps sharded stages to statistics */
-        StageShardMap mStageShardStats;
-
-        /** @brief Number of nodes in the account */
-        long long int mNumNodes;
-
-        /** @brief Number of chats in the account */
-        long int mNumChats;
-
-        /** @brief Number of contacts in the account */
-        long int mNumContacts;
-
-        /** @brief Flag that indicates whether the stats have already been sent */
-        bool mFinished;
-
-        /** @brief Indicates the init state with cache */
-        uint8_t mInitState;
-
-        /** @brief Total elapsed time to finish all stages */
-        mega::dstime mTotalElapsed;
-
     public:
         /** @brief Init states in init stats */
         enum
@@ -683,7 +624,7 @@ class InitStats
             kInitAnonymous       = 3
         };
 
-        /** @brief Stages in initialization */
+        /** @brief Main stages */
         enum
         {
             kStatsInit              = 0,
@@ -694,7 +635,7 @@ class InitStats
         };
 
 
-        /** @brief Stages in init stats */
+        /** @brief Stages per shard */
         enum
         {
             kStatsFetchChatUrl      = 0,
@@ -703,30 +644,17 @@ class InitStats
             kStatsLoginChatd        = 3
         };
 
-        InitStats();
-        ~InitStats();
-
-        void init();
         void setNumNodes(long long numNodes);
         void setNumContacts(long numContacts);
         void setNumChats(long numChats);
         void onCompleted();
-        bool isFinished() const;
-
-        /** @brief  Returns a string with the associated tag to the stage **/
-        std::string getStageTag(uint8_t stage);
-
-        /** @brief  Returns a string with the associated tag to the stage **/
-        std::string getShardStageTag(uint8_t stage);
+        bool isCompleted() const;
 
         /** @brief Returns a string that contains init stats in JSON format */
-        std::string statsToString();
+        std::string toJson();
 
 
-        /**  Stages Methods **/
-
-        /** @brief Returns the current time of the clock in milliseconds */
-        static mega::dstime currentTime();
+        /*  Stages Methods */
 
         /** @brief Reset the elapsed time for a stage */
         void resetStage(uint8_t stage);
@@ -741,7 +669,7 @@ class InitStats
         void setInitState(uint8_t state);
 
 
-        /**  Shard Stages Methods **/
+        /*  Shard Stages Methods */
 
         /** @brief Obtain initial ts for a shard */
         void shardStart(uint8_t stage, uint8_t shard);
@@ -758,6 +686,61 @@ class InitStats
          *  @note In kStatsQueryDns the figures are recorded when DNS are resolved successfully and they are stored in DNS cache.
         */
         void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
+
+private:
+
+    struct ShardStats
+    {
+        /** @brief Elapsed time */
+        mega::dstime elapsed = 0;
+
+        /** @brief Max elapsed time */
+        mega::dstime maxElapsed = 0;
+
+        /** @brief Starting time */
+        mega::dstime tsStart = 0;
+
+        /** @brief Number of retries */
+        unsigned int mRetries = 0;
+    };
+
+    typedef std::map<uint8_t, mega::dstime> StageMap;   // maps stage to elapsed time (first it stores tsStart)
+    typedef std::map<uint8_t, ShardStats> ShardMap;
+    typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
+
+
+    /** @brief Maps stages to statistics */
+    StageMap mStageStats;
+
+    /** @brief Maps sharded stages to statistics */
+    StageShardMap mStageShardStats;
+
+    /** @brief Number of nodes in the account */
+    long long int mNumNodes = 0;
+
+    /** @brief Number of chats in the account */
+    long int mNumChats = 0;
+
+    /** @brief Number of contacts in the account */
+    long int mNumContacts = 0;
+
+    /** @brief Flag that indicates whether the stats have already been sent */
+    bool mCompleted = false;
+
+    /* Auxiliar methods */
+
+    /** @brief Indicates the init state with cache */
+    uint8_t mInitState = kInitNewSession;
+
+    /** @brief Returns the current time of the clock in milliseconds */
+    static mega::dstime currentTime();
+
+    /** @brief  Returns a string with the associated tag to the stage **/
+    std::string stageToString(uint8_t stage);
+
+    /** @brief  Returns a string with the associated tag to the stage **/
+    std::string shardStageToString(uint8_t stage);
+
 };
 
 /** @brief The karere Client object. Create an instance to use Karere.
