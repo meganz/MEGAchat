@@ -1892,12 +1892,8 @@ void Call::removeSession(Session& sess, TermCode reason, bool retrySession)
         return;
     }
 
-    if (!Session::isTermRetriable(reason) || (!retrySession && reason == TermCode::kErrIceDisconn))
+    if (!Session::isTermRetriable(reason))
     {
-        if (reason == TermCode::kErrIceDisconn)
-        {
-            mManager.retryCall(mChat.chatId(), sentAv(), false);
-        }
         destroyIfNoSessionsOrRetries(reason);
         return;
     }
