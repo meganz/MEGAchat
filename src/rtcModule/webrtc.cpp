@@ -674,7 +674,12 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
     else
     {
         auto wptr = weakHandle();
-        setTimeout([this, wptr, chatid]()
+        if (mRetryTimerHandle)
+        {
+            cancelTimeout(mRetryTimerHandle, mKarereClient.appCtx);
+        }
+
+        mRetryTimerHandle = setTimeout([this, wptr, chatid]()
         {
             if (wptr.deleted() || mRetryCall.find(chatid) == mRetryCall.end())
                 return;
@@ -690,6 +695,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             }
 
             mRetryCall.erase(chatid);
+            mRetryTimerHandle = 0;
         }, kRetryCallTimeoutPasive, mKarereClient.appCtx);
     }
 }
@@ -1096,6 +1102,12 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         answerAutomatic = true;
         avFlags = itReconnectionCall->second;
         mRetryCall.erase(itReconnectionCall);
+        if (mRetryTimerHandle)
+        {
+            cancelTimeout(mRetryTimerHandle, mKarereClient.appCtx);
+            mRetryTimerHandle = 0;
+            RTCM_LOG_DEBUG("handleCallDataRequest: Stop retry call timer");
+        }
     }
 
     auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, chat.isGroup(),
