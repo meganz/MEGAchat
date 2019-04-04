@@ -1404,7 +1404,8 @@ public:
     Chat& chats(karere::Id chatid) const;
     karere::Id chatidFromPh(karere::Id ph);
     uint8_t richLinkState() const;
-    bool areAllChatsLoggedIn();
+    bool areAllChatsLoggedIn(int shard = -1);
+
     uint8_t keepaliveType();
     void setKeepaliveType(bool isInBackground);
 

@@ -378,14 +378,15 @@ uint8_t Client::richLinkState() const
     return mRichLinkState;
 }
 
-bool Client::areAllChatsLoggedIn()
+bool Client::areAllChatsLoggedIn(int shard)
 {
     bool allConnected = true;
 
     for (map<Id, shared_ptr<Chat>>::iterator it = mChatForChatId.begin(); it != mChatForChatId.end(); it++)
     {
         Chat* chat = it->second.get();
-        if (!chat->isLoggedIn() && !chat->isDisabled())
+        if (!chat->isLoggedIn() && !chat->isDisabled()
+                && (shard == -1 || chat->connection().shardNo() == shard))
         {
             allConnected = false;
             break;
@@ -394,7 +395,14 @@ bool Client::areAllChatsLoggedIn()
 
     if (allConnected)
     {
-        CHATD_LOG_DEBUG("We are logged in to all chats");
+        if (shard == -1)
+        {
+            CHATD_LOG_DEBUG("We are logged in to all chats");
+        }
+        else
+        {
+            CHATD_LOG_DEBUG("We are logged in to all chats for shard %d", shard);
+        }
     }
 
     return allConnected;
@@ -610,6 +618,7 @@ void Connection::sendCallReqDeclineNoSupport(Id chatid, Id callid)
 
 void Connection::setState(State state)
 {
+    State oldState = mState;
     if (mState == state)
     {
         CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
@@ -620,6 +629,8 @@ void Connection::setState(State state)
         CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
         mState = state;
     }
+
+    mChatdClient.mKarereClient->initStats().handleShardStats(oldState, state, shardNo());
 
     if (mState == kStateDisconnected)
     {
@@ -779,6 +790,9 @@ Promise<void> Connection::reconnect()
                     chat.setOnlineState(kChatStateConnecting);
             }
 
+            //GET start ts for QueryDns
+            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, shardNo());
+
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, mUrl.host.c_str(),
                          [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, std::vector<std::string> &ipsv4, std::vector<std::string> &ipsv6)
@@ -832,6 +846,8 @@ Promise<void> Connection::reconnect()
                         CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
                     }
 
+                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
+
                     assert(!isOnline());
                     onSocketClose(0, 0, "Async DNS error (chatd)");
                     return;
@@ -840,6 +856,9 @@ Promise<void> Connection::reconnect()
                 if (!cachedIPs) // connect() required initial DNS lookup
                 {
                     CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+
+                    //GET end ts for QueryDns
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
 
                     mDNScache.set(mUrl.host,
                                   ipsv4.size() ? ipsv4.at(0) : "",
@@ -854,6 +873,9 @@ Promise<void> Connection::reconnect()
                 }
                 else
                 {
+                    //GET end ts for QueryDns
+                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, shardNo());
+
                     // update DNS cache
                     bool ret = mDNScache.set(mUrl.host,
                                   ipsv4.size() ? ipsv4.at(0) : "",
@@ -868,8 +890,10 @@ Promise<void> Connection::reconnect()
             // immediate error at wsResolveDNS()
             if (statusDNS < 0)
             {
-                CHATDS_LOG_ERROR("Sync DNS error in chatd. Error code: %d", statusDNS);
-                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo);
+                string errStr = "Sync DNS error in chatd for shard "+std::to_string(mShardNo)+". Error code: "+std::to_string(statusDNS);
+                CHATDS_LOG_ERROR("%s", errStr.c_str());
+
+                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, shardNo());
 
                 assert(!mConnectPromise.done());
                 mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
@@ -4738,19 +4762,30 @@ void Chat::setOnlineState(ChatState state)
     CALL_CRYPTO(onOnlineStateChange, state);
     mListener->onOnlineStateChange(state);  // avoid log message, we already have the one above
 
-    if (state == kChatStateOnline && mChatdClient.areAllChatsLoggedIn())
+    if (state == kChatStateOnline)
     {
-        mChatdClient.mKarereClient->setCommitMode(true);  // write immediately (no transactions)
-
-        if (!mChatdClient.mKarereClient->mSyncPromise.done())
+        if (mChatdClient.areAllChatsLoggedIn(connection().shardNo()))
         {
-            CHATID_LOG_DEBUG("Pending pushReceived is completed now");
-            if (mChatdClient.mKarereClient->mSyncTimer)
+            mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsLoginChatd, connection().shardNo());
+        }
+
+        if (mChatdClient.areAllChatsLoggedIn())
+        {
+            InitStats& initStats = mChatdClient.mKarereClient->initStats();
+            initStats.stageEnd(InitStats::kStatsConnection);
+            mChatdClient.mKarereClient->sendStats();
+
+            mChatdClient.mKarereClient->setCommitMode(true);
+            if (!mChatdClient.mKarereClient->mSyncPromise.done())
             {
-                cancelTimeout(mChatdClient.mKarereClient->mSyncTimer, mChatdClient.mKarereClient->appCtx);
-                mChatdClient.mKarereClient->mSyncTimer = 0;
+                CHATID_LOG_DEBUG("Pending pushReceived is completed now");
+                if (mChatdClient.mKarereClient->mSyncTimer)
+                {
+                    cancelTimeout(mChatdClient.mKarereClient->mSyncTimer, mChatdClient.mKarereClient->appCtx);
+                    mChatdClient.mKarereClient->mSyncTimer = 0;
+                }
+                mChatdClient.mKarereClient->mSyncPromise.resolve();
             }
-            mChatdClient.mKarereClient->mSyncPromise.resolve();
         }
     }
 }
