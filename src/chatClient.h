@@ -727,10 +727,11 @@ private:
     /** @brief Flag that indicates whether the stats have already been sent */
     bool mCompleted = false;
 
-    /* Auxiliar methods */
-
     /** @brief Indicates the init state with cache */
     uint8_t mInitState = kInitNewSession;
+
+
+    /* Auxiliar methods */
 
     /** @brief Returns the current time of the clock in milliseconds */
     static mega::dstime currentTime();

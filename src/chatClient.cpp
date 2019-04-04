@@ -3760,6 +3760,10 @@ void InitStats::onCompleted()
 {
     assert(!mCompleted);
     mCompleted = true;
+
+    // clear maps to free some memory
+    mStageShardStats.clear();
+    mStageStats.clear();
 }
 
 mega::dstime InitStats::currentTime()
