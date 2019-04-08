@@ -310,6 +310,13 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
         RtMessage packet(chat, msg);
         auto it = mCalls.find(packet.chatid);
         Call *call = NULL;
+        if (it != mCalls.end() && it->second->state() >= Call::kStateTerminating && packet.type == RTCMD_JOIN)
+        {
+            RTCM_LOG_DEBUG("Force to remove call when we receive a new reconnection");
+            removeCall(*(it->second));
+            it = mCalls.end();
+        }
+
         if (it == mCalls.end())
         {
             karere::Id chatid = chat.chatId();
