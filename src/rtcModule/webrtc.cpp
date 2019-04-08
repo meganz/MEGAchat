@@ -331,7 +331,7 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
                 itCallHandler->second->setCall(call);
                 std::string errors;
                 call->getLocalStream(itRetryCall->second.first, errors);
-                call->setState(Call::kStateReconnecting);
+                call->setState(Call::kStateStartingAfterReconnection);
                 call->startIncallPingTimer();
                 if (mRetryTimerHandle)
                 {
@@ -1549,7 +1549,7 @@ void Call::msgJoin(RtMessage& packet)
         destroy(TermCode::kAnsElsewhere, false);
     }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress ||
-             mState == Call::kStateReqSent || mState == Call::kStateReconnecting)
+             mState == Call::kStateReqSent || mState == Call::kStateStartingAfterReconnection)
     {
         packet.callid = packet.payload.read<uint64_t>(0);
         assert(packet.callid);
@@ -1563,7 +1563,7 @@ void Call::msgJoin(RtMessage& packet)
             }
         }
 
-        if (mState == Call::kStateReqSent || mState == Call::kStateReconnecting)
+        if (mState == Call::kStateReqSent || mState == Call::kStateStartingAfterReconnection)
         {
             setState(Call::kStateInProgress);
             monitorCallSetupTimeout();
@@ -3315,7 +3315,7 @@ const char* ICall::stateToStr(uint8_t state)
         RET_ENUM_NAME(kStateTerminating);
         RET_ENUM_NAME(kStateDestroyed);
         RET_ENUM_NAME(kStateUserNotPresent);
-        RET_ENUM_NAME(kStateReconnecting);
+        RET_ENUM_NAME(kStateStartingAfterReconnection);
         default: return "(invalid call state)";
     }
 }
@@ -3359,13 +3359,13 @@ const StateDesc Call::sStateDesc = {
     {
         { kStateReqSent, kStateHasLocalStream, kStateTerminating }, //for kStateInitial
         { kStateJoining, kStateReqSent, kStateTerminating,
-          kStateReconnecting },                              //for kStateHasLocalStream
+          kStateStartingAfterReconnection },                              //for kStateHasLocalStream
         { kStateInProgress, kStateTerminating },             //for kStateReqSent
         { kStateHasLocalStream, kStateInProgress,            //for kStateRingIn
           kStateTerminating },
         { kStateInProgress, kStateTerminating },             //for kStateJoining
         { kStateTerminating },                               //for kStateInProgress,
-        { kStateInProgress, kStateTerminating },             //for kStateReconnecting
+        { kStateInProgress, kStateTerminating },             //for kStateStartingAfterReconnection
         { kStateDestroyed },                                 //for kStateTerminating,
         {}                                                   //for kStateDestroyed
     },
