@@ -167,9 +167,13 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         switch (call->getStatus())
         {
+            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
+            {
+                window->hangCall();
+                window->enableCallReconnect(true);
+            }
             case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
             {
-                window->enableCallReconnect(false);
                 std::set<CallGui *> *setCallGui = window->getCallGui();
 
                 if (setCallGui->size() == 0)
@@ -207,10 +211,15 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
                 break;
             }
-            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
+            case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
             {
                 window->hangCall();
-                window->enableCallReconnect(true);
+                break;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            {
+                window->hangCall();
+                window->enableCallReconnect(false);
                 break;
             }
             default:

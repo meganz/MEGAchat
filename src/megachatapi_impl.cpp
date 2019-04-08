@@ -7635,6 +7635,15 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 chatCall->setIsRinging(false);
                 state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
                 break;
+            case rtcModule::ICall::kStateReconnecting:
+                if (state == MegaChatCall::CALL_STATUS_RECONNECTING)
+                {
+                    return;
+                }
+
+                chatCall->setIsRinging(false);
+                state = MegaChatCall::CALL_STATUS_RECONNECTING;
+                break;
             case rtcModule::ICall::kStateTerminating:
             {
                 chatCall->setIsRinging(false);

@@ -123,7 +123,6 @@ class Call: public ICall
         kCallDataSession                = 3,
         kCallDataMute                   = 4,
         kCallDataSessionKeepRinging     = 5,  // obsolete
-        kCallDataRestartCall            = 6
     };
 
     enum
@@ -197,7 +196,6 @@ protected:
     void startIncallPingTimer();
     void stopIncallPingTimer(bool endCall = true);
     bool broadcastCallReq();
-    bool callReqReconnection();
     bool join(karere::Id userid=0);
     bool rejoin(karere::Id userid, uint32_t clientid);
     void sendInCallCommand();
@@ -213,7 +211,7 @@ public:
     chatd::Chat& chat() const { return mChat; }
     Call(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
-        karere::Id callerUser, uint32_t callerClient);
+        karere::Id callerUser, uint32_t callerClient, bool retryCall = false);
     ~Call();
     virtual karere::AvFlags sentAv() const;
     virtual void hangup(TermCode reason=TermCode::kInvalid);
@@ -238,7 +236,6 @@ public:
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
-        kReconnectTimeout = 15000,
         kRetryCallTimeoutActive = 2000,
         kRetryCallTimeoutPasive = 30000
     };
@@ -313,7 +310,7 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, ICallHandler *> mCallHandlers;
-    std::map<karere::Id, karere::AvFlags> mRetryCall;
+    std::map<karere::Id, std::pair<karere::AvFlags, bool>> mRetryCall;
     RtcModule &mManager;
     megaHandle mRetryTimerHandle = 0;
     IRtcCrypto& crypto() const { return *mCrypto; }

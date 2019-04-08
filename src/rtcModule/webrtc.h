@@ -286,6 +286,7 @@ public:
         kStateRingIn,       // < Call request received, ringing
         kStateJoining,      // < Joining a call
         kStateInProgress,
+        kStateReconnecting,
         kStateTerminating, // < Call is waiting for sessions to terminate
         kStateDestroyed,   // < Call object is not valid anymore
         kStateUserNotPresent    // The call object doesn't exist but there are a call active in the chatroom, IcallHandler follow living
