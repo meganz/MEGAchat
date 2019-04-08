@@ -64,7 +64,6 @@ protected:
     unsigned int mPreviousStatsSize = 0;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     TermCode mTermCode = TermCode::kInvalid;
-    bool mRetry = true;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void sendAv(karere::AvFlags av);
@@ -180,7 +179,7 @@ protected:
     void clearCallOutTimer();
     void notifyCallStarting(Session& sess);
     void notifySessionConnected(Session& sess);
-    void removeSession(Session& sess, TermCode reason, bool retrySession = true);
+    void removeSession(Session& sess, TermCode reason);
     //onRemoteStreamAdded -> onMediaStart() event from player -> onMediaRecv() -> addVideo()
     void onRemoteStreamAdded(artc::tspMediaStream stream);
     void onRemoteStreamRemoved(artc::tspMediaStream);

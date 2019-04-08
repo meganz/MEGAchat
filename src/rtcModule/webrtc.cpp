@@ -397,11 +397,8 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     {
         if (itCall->second->id() != callid)
         {
-            if (itCall->second->state() < Call::kStateTerminating)
-            {
-                RTCM_LOG_ERROR("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
-                return;
-            }
+            RTCM_LOG_ERROR("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
+            return;
         }
 
         updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
@@ -426,7 +423,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             // itCallHandler is created at updatePeerAvState
             assert(itCallHandler != mCallHandlers.end());
             if (!itCallHandler->second->isParticipating(mKarereClient.myHandle())
-                    && (!itCallHandler->second->hasBeenNotifiedRinging() || mRetryCall.find(chatid) != mRetryCall.end()))
+                    && (!itCallHandler->second->hasBeenNotifiedRinging()))
             {
                 handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
             }
@@ -1854,7 +1851,7 @@ void Call::stopIncallPingTimer(bool endCall)
     }
 }
 
-void Call::removeSession(Session& sess, TermCode reason, bool retrySession)
+void Call::removeSession(Session& sess, TermCode reason)
 {
     karere::Id sessionId = sess.mSid;
     karere::Id sessionPeer = sess.mPeer;
@@ -3095,7 +3092,6 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         if (!mTerminatePromise.done())
         {
             SUB_LOG_WARNING("Terminate ack didn't arrive withing timeout, destroying session anyway");
-            mRetry = false;
             auto pms = mTerminatePromise;
             pms.resolve();
         }
@@ -3190,7 +3186,7 @@ void Session::destroy(TermCode code, const std::string& msg)
     setState(kStateDestroyed);
     FIRE_EVENT(SESS, onSessDestroy, static_cast<TermCode>(code & (~TermCode::kPeer)),
         !!(code & TermCode::kPeer), msg);
-    mCall.removeSession(*this, code, mRetry);
+    mCall.removeSession(*this, code);
 }
 
 void Session::submitStats(TermCode termCode, const std::string& errInfo)
