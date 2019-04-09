@@ -10,6 +10,7 @@ class ContactItemWidget;
 class ListItemController
 {
     public:
+        virtual ~ListItemController() {}
         virtual megachat::MegaChatHandle getItemId() const = 0;
 
     protected:
@@ -21,7 +22,7 @@ class ChatListItemController :
 {
     public:
         ChatListItemController(megachat::MegaChatListItem *item, ChatItemWidget *widget = nullptr, ChatWindow *chatWindow = nullptr);
-        ~ChatListItemController();
+        virtual ~ChatListItemController();
         ChatItemWidget *getWidget() const;
         megachat::MegaChatListItem *getItem() const;
         megachat::MegaChatHandle getItemId() const;
@@ -42,7 +43,7 @@ class ContactListItemController:
 {
     public:
         ContactListItemController(mega::MegaUser *item, ContactItemWidget *widget = nullptr);
-        ~ContactListItemController();
+        virtual ~ContactListItemController();
         ContactItemWidget *getWidget() const;
         mega::MegaUser *getItem() const;
         megachat::MegaChatHandle getItemId() const;

@@ -22,7 +22,7 @@ set (USE_WEBRTC 1 CACHE TYPE BOOL)
 set (UNCHECKED_ITERATORS 0 CACHE TYPE BOOL)  # to use libwebrtc on windows with checked iterators turned off in the debug VC++ runtime, modify your stl headers first to disable that, and then build it
 
 #specify where 3rd party libraries are available
-set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdParty_chat"  CACHE TYPE STRING)
+set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party"  CACHE TYPE STRING)
 set(KarereDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
 message("CONFIG: ${CONFIG}")
@@ -31,12 +31,6 @@ IF (build_64_bit)
     set(WebRtcDir "${Mega3rdPartyDir}/libwebrtc/build64debug") 
 ELSE()
     set(WebRtcDir "${Mega3rdPartyDir}/libwebrtc/build32debug")    #todo: figure out if we can have debug/release at the same path
-ENDIF()
-
-IF (USE_WEBRTC)
-   set(KARERE_DISABLE_WEBRTC 0)
-ELSE()
-   set(KARERE_DISABLE_WEBRTC 1)
 ENDIF()
 
 # this line points to the MEGA SDK repo that you want to build MEGAChat against
@@ -49,7 +43,7 @@ endif()
 
 if (WIN32)
     ImportVcpkgLibrary(websockets         "${Mega3rdPartyDir}/libwebsockets/build32debug/include" "${Mega3rdPartyDir}/libwebsockets/build32debug/lib/Debug/websockets_static.lib" "${Mega3rdPartyDir}/build32release/lib/websockets.lib")
-    ImportVcpkgLibrary(libuv              "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
+    ImportVcpkgLibrary(uv                 "${vcpkg_dir}/include" "${vcpkg_dir}/debug/lib/libuv.lib" "${vcpkg_dir}/lib/libuv.lib")
 
     if (USE_WEBRTC)
         # additional directories used in this project, after the main one incluced by the MEGA SDK
@@ -60,7 +54,7 @@ endif(WIN32)
 
 add_definitions( -DUSE_LIBWEBSOCKETS )
 
-ImportHeaderLibrary(rapidjson    "${Mega3rdPartyDir}/rapidjson/include")
+ImportHeaderLibrary(rapidjson    "${KarereDir}/third-party")
  
 set (SRCS 
     ${KarereDir}/src/karereCommon.cpp
@@ -98,15 +92,15 @@ add_library(karere ${SRCS} ${KarereDir}/src/base/cservices.cpp )
 target_include_directories(karere PRIVATE ${KarereDir}/src/base rapidjson)
 target_include_directories(karere PUBLIC ${KarereDir}/src )
 target_include_directories(karere PUBLIC $<${USE_WEBRTC}:${KarereDir}/src/rtcModule>  )
-target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<${KARERE_DISABLE_WEBRTC}:KARERE_DISABLE_WEBRTC> ) 
-target_link_libraries(karere PUBLIC Mega sqlite3 rapidjson websockets libuv $<${USE_WEBRTC}:webrtc> )
+target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC> )
+target_link_libraries(karere PUBLIC Mega sqlite3 rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
 if (WIN32)
 target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
 endif()
 
 add_executable(megaclc ${KarereDir}/examples/megaclc/megaclc.cpp)
 target_link_libraries(megaclc PUBLIC karere)
-target_compile_definitions(megaclc PRIVATE MEGA_FULL_STATIC $<${KARERE_DISABLE_WEBRTC}:KARERE_DISABLE_WEBRTC>)
+target_compile_definitions(megaclc PRIVATE MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC>)
 if (NOT NO_READLINE)
     target_link_libraries(megaclc PUBLIC readline dl pthread)
 endif (NOT NO_READLINE)

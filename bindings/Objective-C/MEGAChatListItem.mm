@@ -180,6 +180,9 @@ using namespace megachat;
         case MEGAChatListItemChangeTypeUpdatePreviewers:
             result = @"Update previewers";
             break;
+        case MEGAChatListItemChangeTypePreviewClosed:
+            result = @"Preview closed";
+            break;
             
         default:
             result = @"Default";

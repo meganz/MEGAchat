@@ -94,6 +94,7 @@ public:
     virtual void wsConnectCb() = 0;
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len) = 0;
     virtual void wsHandleMsgCb(char *data, size_t len) = 0;
+    virtual void wsSendMsgCb(const char *data, size_t len) = 0;
 };
 
 
@@ -110,6 +111,7 @@ public:
     void wsConnectCb();
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     void wsHandleMsgCb(char *data, size_t len);
+    void wsSendMsgCb(const char *data, size_t len);
     
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
     virtual void wsDisconnect(bool immediate) = 0;
