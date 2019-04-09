@@ -7701,7 +7701,8 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
         {
             if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
                                     || (reason != rtcModule::TermCode::kErrPeerOffline
-                                        && reason != rtcModule::TermCode::kErrIceDisconn))
+                                        && reason != rtcModule::TermCode::kErrIceDisconn
+                                        && reason != rtcModule::TermCode::kErrReconnectionInProgress))
             {
                 chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
                 megaChatApi->fireOnChatCallUpdate(chatCall);

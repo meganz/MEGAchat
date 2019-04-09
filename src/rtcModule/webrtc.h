@@ -125,8 +125,9 @@ enum TermCode: uint8_t
     kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
     kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
     kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
-    kErrorLast = 40,            // < Last enum indicating call termination due to error
-    kLast = 40,                 // < Last call terminate enum value
+    kErrReconnectionInProgress= 41,        // < destroy the call but there is a reconnection in progress
+    kErrorLast = 41,            // < Last enum indicating call termination due to error
+    kLast = 41,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
                                 // < not at our side
     kInvalid = 0x7f

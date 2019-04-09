@@ -323,6 +323,7 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
             auto itRetryCall = mRetryCall.find(chatid);
             if (packet.type == RTCMD_JOIN && itRetryCall != mRetryCall.end() && !itRetryCall->second.second)
             {
+                RTCM_LOG_DEBUG("Create a new call after receive a JOIN");
                 auto itCallHandler = mCallHandlers.find(chatid);
                 assert(itCallHandler != mCallHandlers.end());
                 karere::Id callid = itCallHandler->second->getCallId();
@@ -341,8 +342,6 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
                     mRetryTimerHandle.erase(itRetryTimerHandle);
                     RTCM_LOG_DEBUG("Stop retry timer at pasive mode");
                 }
-
-                RTCM_LOG_DEBUG("Create a new call after receive a JOIN");
             }
             else
             {
@@ -684,7 +683,6 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
                     return;
                 }
 
-                RTCM_LOG_DEBUG("Send JOINCALL");
                 joinCall(chatid, flags, *itHandler->second, itHandler->second->getCallId());
                 mRetryCall.erase(it);
                 cancelInterval(ctx->timerHandle, mKarereClient.appCtx);
@@ -692,7 +690,6 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             }
             else
             {
-                RTCM_LOG_DEBUG("Stop Retry call");
                 mRetryCall.erase(chatid);
 
                 if (ctx->count == kNumCallRetries)
@@ -1741,7 +1738,8 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         }
 
         assert(mSessions.empty());
-        stopIncallPingTimer();
+        bool retryCallActive = (mManager.mRetryCall.find(mChat.chatId()) != mManager.mRetryCall.end());
+        stopIncallPingTimer(!retryCallActive);
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -2300,7 +2298,14 @@ Call::~Call()
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);
-        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        TermCode terminationCode = TermCode::kErrInternal;
+        if (retryCallActive)
+        {
+            terminationCode = TermCode::kErrReconnectionInProgress;
+        }
+
+        FIRE_EVENT(CALL, onDestroy, terminationCode, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
 
