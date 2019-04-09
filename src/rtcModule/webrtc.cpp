@@ -3154,6 +3154,8 @@ void Session::msgSessTerminate(RtMessage& packet)
 
         // handle terminate as if it were an ack - in both cases the peer is terminating
         msgSessTerminateAck(packet);
+        // mTerminate promise is resolved and session object is destroyed when promise is resolved (terminateAndDestroy)
+        return;
     }
     else if (mState == kStateDestroyed)
     {
