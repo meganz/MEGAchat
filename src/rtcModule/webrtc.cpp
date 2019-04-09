@@ -333,11 +333,12 @@ void RtcModule::handleMessage(chatd::Chat& chat, const StaticBuffer& msg)
                 call->getLocalStream(itRetryCall->second.first, errors);
                 call->setState(Call::kStateStartingAfterReconnection);
                 call->startIncallPingTimer();
-                if (mRetryTimerHandle)
+                auto itRetryTimerHandle = mRetryTimerHandle.find(chatid);
+                if (itRetryTimerHandle != mRetryTimerHandle.end())
                 {
                     mRetryCall.erase(chatid);
-                    cancelTimeout(mRetryTimerHandle, mKarereClient.appCtx);
-                    mRetryTimerHandle = 0;
+                    cancelTimeout(itRetryTimerHandle->second, mKarereClient.appCtx);
+                    mRetryTimerHandle.erase(itRetryTimerHandle);
                     RTCM_LOG_DEBUG("Stop retry timer at pasive mode");
                 }
 
@@ -633,9 +634,10 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
         if (starter && !itRetryCall->second.second)
         {
             RTCM_LOG_DEBUG("Stop reconnection call in pasive mode and launch in active");
-            assert(!mRetryTimerHandle);
-            cancelTimeout(mRetryTimerHandle, mKarereClient.appCtx);
-            mRetryTimerHandle = 0;
+            auto itRetryTimerHandle = mRetryTimerHandle.find(chatid);
+            assert(itRetryTimerHandle != mRetryTimerHandle.end());
+            cancelTimeout(itRetryTimerHandle->second, mKarereClient.appCtx);
+            mRetryTimerHandle.erase(itRetryTimerHandle);
 
         }
         else
@@ -713,13 +715,14 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
     {
         RTCM_LOG_DEBUG("Launch reconnection call at pasive mode");
 
-        auto wptr = weakHandle();
-        if (mRetryTimerHandle)
+        auto itRetryTimerHandle = mRetryTimerHandle.find(chatid);
+        if (itRetryTimerHandle != mRetryTimerHandle.end())
         {
-            cancelTimeout(mRetryTimerHandle, mKarereClient.appCtx);
+            cancelTimeout(itRetryTimerHandle->second, mKarereClient.appCtx);
         }
 
-        mRetryTimerHandle = setTimeout([this, wptr, chatid]()
+        auto wptr = weakHandle();
+        mRetryTimerHandle[chatid] = setTimeout([this, wptr, chatid]()
         {
             if (wptr.deleted() || mRetryCall.find(chatid) == mRetryCall.end())
                 return;
@@ -735,7 +738,7 @@ void RtcModule::retryCall(Id chatid, AvFlags av, bool starter)
             }
 
             mRetryCall.erase(chatid);
-            mRetryTimerHandle = 0;
+            mRetryTimerHandle.erase(chatid);
         }, kRetryCallTimeoutPasive, mKarereClient.appCtx);
     }
 }

@@ -311,7 +311,7 @@ protected:
     std::map<karere::Id, ICallHandler *> mCallHandlers;
     std::map<karere::Id, std::pair<karere::AvFlags, bool>> mRetryCall;
     RtcModule &mManager;
-    megaHandle mRetryTimerHandle = 0;
+    std::map<karere::Id, megaHandle> mRetryTimerHandle;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
