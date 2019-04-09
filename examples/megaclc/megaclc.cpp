@@ -1700,6 +1700,10 @@ public:
     std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
     std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
 
+    OneShotRequestListener()
+    {
+    }
+
     OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
         :onRequestFinishFunc(f)
     {
