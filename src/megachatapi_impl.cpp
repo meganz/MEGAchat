@@ -7639,9 +7639,8 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
             {
                 chatCall->setIsRinging(false);
                 rtcModule::TermCode termCode = static_cast<rtcModule::TermCode>(call->termCode() & ~rtcModule::TermCode::kPeer);
-                if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
-                        || (termCode != rtcModule::TermCode::kErrPeerOffline
-                            && termCode != rtcModule::TermCode::kErrIceDisconn))
+                state = chatCall->getStatus();
+                if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
                 {
                     state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                     chatCall->setTermCode(call->termCode());
@@ -7650,10 +7649,6 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                                  karere::Id(chatCall->getId()).toString().c_str(),
                                  rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                                  chatCall->isLocalTermCode(), chatCall->getDuration());
-                }
-                else
-                {
-                    state = MegaChatCall::CALL_STATUS_RECONNECTING;
                 }
             }
                 break;
@@ -7701,7 +7696,6 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
         {
             if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
                                     || (reason != rtcModule::TermCode::kErrPeerOffline
-                                        && reason != rtcModule::TermCode::kErrIceDisconn
                                         && reason != rtcModule::TermCode::kErrReconnectionInProgress))
             {
                 chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);

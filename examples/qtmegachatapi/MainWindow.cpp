@@ -190,7 +190,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
             case megachat::MegaChatCall::CALL_STATUS_RING_IN:
             {
-                window->enableCallReconnect(false);
                 std::set<CallGui *> *setCallGui = window->getCallGui();
 
                 if (setCallGui->size() == 0)
@@ -224,7 +223,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
             default:
             {
-                window->enableCallReconnect(false);
                 break;
             }
         }
