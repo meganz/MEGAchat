@@ -9,6 +9,7 @@
 #ifdef _WIN32
     #include <winsock2.h>
     #include <direct.h>
+    #include <sys/timeb.h>  
     #define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
@@ -3787,9 +3788,15 @@ void InitStats::onCompleted()
 
 mega::dstime InitStats::currentTime()
 {
+#if defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
+#else
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
 }
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
@@ -3967,7 +3974,7 @@ std::string InitStats::shardStageToString(uint8_t stage)
 std::string InitStats::toJson()
 {
     std::string result;
-    mega::dstime totalElapsed; //Total elapsed time to finish all stages
+    mega::dstime totalElapsed = 0; //Total elapsed time to finish all stages.
     rapidjson::Document jSonDocument(rapidjson::kArrayType);
     rapidjson::Value jSonObject(rapidjson::kObjectType);
     rapidjson::Value jsonValue(rapidjson::kNumberType);
