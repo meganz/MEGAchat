@@ -917,6 +917,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
+                mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
@@ -934,6 +935,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 {
                     setInitState(kInitHasOnlineSession);
                     mSessionReadyPromise.resolve();
+                    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
                 });
             }
@@ -1108,7 +1110,6 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
-    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
     mInitStats.stageStart(InitStats::kStatsConnection);
 
     setConnState(kConnecting);
