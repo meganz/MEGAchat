@@ -26,10 +26,9 @@ class MegaChatApplication : public QApplication,
         virtual ~MegaChatApplication();
         void init();
         void login();
-        void logout();
         void configureLogs();
         bool initAnonymous(std::string chatlink);
-        std::string getChatLink();
+        std::string getText(std::string title);
         const char *readSid();
         const char *sid() const;
         void saveSid(const char *sid);
@@ -42,7 +41,7 @@ class MegaChatApplication : public QApplication,
         virtual void onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *userList);
         virtual void onChatNotification(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatMessage *msg);
 
-        const char *getFirstname(megachat::MegaChatHandle uh);
+        const char *getFirstname(megachat::MegaChatHandle uh, const char *authorizationToken);
 
         bool isStagingEnabled();
         void enableStaging(bool enable);

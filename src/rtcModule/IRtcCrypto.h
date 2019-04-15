@@ -40,9 +40,6 @@ public:
      **/
     virtual void encryptKeyTo(karere::Id peer, const SdpKey& data, SdpKey& output) = 0;
 
-    /** @brief Fetches the specified peer's public CU25519 key */
-    virtual promise::Promise<void> waitForPeerKeys(karere::Id peer) = 0;
-
     /** @brief
      * Used to anonymize the user in submitting call statistics.
      * @obsolete We stop using anonymized ids since chatd already knows the actual user is.

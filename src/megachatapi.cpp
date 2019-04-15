@@ -402,14 +402,14 @@ int MegaChatApi::getBackgroundStatus()
     return pImpl->getBackgroundStatus();
 }
 
-void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+void MegaChatApi::getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
-    pImpl->getUserFirstname(userhandle, listener);
+    pImpl->getUserFirstname(userhandle, authorizationToken, listener);
 }
 
-void MegaChatApi::getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener)
+void MegaChatApi::getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener)
 {
-    pImpl->getUserLastname(userhandle, listener);
+    pImpl->getUserLastname(userhandle, authorizationToken, listener);
 }
 
 void MegaChatApi::getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener)
@@ -879,14 +879,14 @@ bool MegaChatApi::hasCallInChatRoom(MegaChatHandle chatid)
     return pImpl->hasCallInChatRoom(chatid);
 }
 
-void MegaChatApi::enableGroupChatCalls(bool enable)
+void MegaChatApi::enableGroupChatCalls(bool /*enable*/)
 {
-    pImpl->enableGroupChatCalls(enable);
+
 }
 
 bool MegaChatApi::areGroupChatCallEnabled()
 {
-    return pImpl->areGroupChatCallEnabled();
+    return true;
 }
 
 int MegaChatApi::getMaxCallParticipants()

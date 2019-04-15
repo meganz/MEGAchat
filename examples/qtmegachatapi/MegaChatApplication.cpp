@@ -93,7 +93,6 @@ void MegaChatApplication::init()
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
-        mMegaChatApi->enableGroupChatCalls(true);
         mMegaApi->fastLogin(mSid);
     }
 }
@@ -106,23 +105,23 @@ void MegaChatApplication::login()
    mLoginDialog->show();
 }
 
-std::string MegaChatApplication::getChatLink()
+std::string MegaChatApplication::getText(std::string title)
 {
     bool ok;
-    std::string link;
-    QString qLink;
+    std::string text;
+    QString qText;
 
     while (1)
     {
-        qLink = QInputDialog::getText((QWidget *)0, tr("Anonymous preview mode"),
-                tr("Enter the chat link"), QLineEdit::Normal, "", &ok);
+        qText = QInputDialog::getText((QWidget *)0, tr("MEGAchat"),
+                title.c_str(), QLineEdit::Normal, "", &ok);
 
         if (ok)
         {
-            link = qLink.toStdString();
-            if (link.size() > 1)
+            text = qText.toStdString();
+            if (text.size() > 0)
             {
-                return link;
+                return text;
             }
         }
         else
@@ -134,7 +133,10 @@ std::string MegaChatApplication::getChatLink()
 
 void MegaChatApplication::onPreviewClicked()
 {
-    std::string chatLink = getChatLink();
+    std::string chatLink = getText("Enter chat link:");
+    if (!chatLink.size())
+        return;
+
     if (!initAnonymous(chatLink))
     {
         mLoginDialog->setState(LoginDialog::LoginStage::badCredentials);
@@ -190,14 +192,8 @@ void MegaChatApplication::onLoginClicked()
     {
         int initState = mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
-        mMegaChatApi->enableGroupChatCalls(true);
     }
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
-}
-
-void MegaChatApplication::logout()
-{
-    mMegaApi->logout();
 }
 
 const char *MegaChatApplication::readSid()
@@ -264,7 +260,7 @@ void MegaChatApplication::onChatNotification(MegaChatApi *, MegaChatHandle chati
     delete [] msgid;
 }
 
-const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
+const char *MegaChatApplication::getFirstname(MegaChatHandle uh, const char *authorizationToken)
 {
     if (uh == mMegaChatApi->getMyUserHandle())
     {
@@ -284,7 +280,7 @@ const char *MegaChatApplication::getFirstname(MegaChatHandle uh)
 
     if (!mFirstnameFetching[uh])
     {
-        mMegaChatApi->getUserFirstname(uh);
+        mMegaChatApi->getUserFirstname(uh, authorizationToken);
         mFirstnameFetching[uh] = true;
     }
 
@@ -853,6 +849,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 }
                 break;
             }
-
+    default:
+        break;
     }
 }

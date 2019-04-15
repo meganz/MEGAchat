@@ -436,54 +436,46 @@ void MainWindow::on_bSettings_clicked()
     QMenu menu(this);
 
     menu.setAttribute(Qt::WA_DeleteOnClose);
-    auto actArchived = menu.addAction(tr("Show archived chats"));
+
+
+    // Chats
+    QMenu *chatMenu = menu.addMenu("Chats");
+    auto actPeerChat = chatMenu->addAction(tr("Create 1on1 chat"));
+    connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false,false);});
+
+    auto actGroupChat = chatMenu->addAction(tr("Create group chat"));
+    connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false);});
+
+    auto actPubChat = chatMenu->addAction(tr("Create public chat"));
+    connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true);});
+
+    auto actPreviewChat = chatMenu->addAction(tr("Open chat preview"));
+    connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
+
+    auto actCheckLink = chatMenu->addAction(tr("Check chat-link"));
+    connect(actCheckLink,  &QAction::triggered, this, [this] {openChatPreview(false);});
+
+    auto actArchived = chatMenu->addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
     actArchived->setCheckable(true);
     actArchived->setChecked(mShowArchived);
 
-    menu.addSeparator();
-
-    auto addAction = menu.addAction(tr("Add user to contacts"));
+    // Contacts
+    QMenu *contactsMenu = menu.addMenu("Contacts");
+    auto addAction = contactsMenu->addAction(tr("Add user to contacts"));
     connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
 
-    auto actPeerChat = menu.addAction(tr("Create 1on1 chat"));
-    connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false,false);});
+    // Settings
+    QMenu *settingsMenu = menu.addMenu("Settings");
+    auto actWebRTC = settingsMenu->addAction(tr("Set audio/video input devices"));
+    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
 
-    auto actGroupChat = menu.addAction(tr("Create group chat"));
-    connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false);});
-
-    auto actPubChat = menu.addAction(tr("Create public chat"));
-    connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true);});
-
-    auto actPreviewChat = menu.addAction(tr("Open chat preview"));
-    connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
-
-    auto actCheckLink = menu.addAction(tr("Check chat-link"));
-    connect(actCheckLink,  &QAction::triggered, this, [this] {openChatPreview(false);});
-
-    menu.addSeparator();
-    auto actForceReconnect = menu.addAction(tr("Force reconnect"));
-    connect(actForceReconnect,  &QAction::triggered, this, [this] {onReconnect(true);});
-
-    auto actRetryPendingConn = menu.addAction(tr("Retry pending connections"));
-    connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
-
-    menu.addSeparator();
-    auto actTwoFactCheck = menu.addAction(tr("Enable/Disable 2FA"));
+    auto actTwoFactCheck = settingsMenu->addAction(tr("Enable/Disable 2FA"));
     connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
 
-    menu.addSeparator();
-    auto actWebRTC = menu.addAction(tr("Set audio/video input devices"));
-    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
-
-    menu.addSeparator();
-    auto actPrintMyInfo = menu.addAction(tr("Print my info"));
-    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
-
-    menu.addSeparator();
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    auto actlastGreenVisible = menu.addAction("Enable/Disable Last-Green");
+    auto actlastGreenVisible = settingsMenu->addAction("Enable/Disable Last-Green");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
 
     if (presenceConfig)
@@ -497,11 +489,38 @@ void MainWindow::on_bSettings_clicked()
     }
     delete presenceConfig;
 
-    menu.addSeparator();
-    auto actUseStaging = menu.addAction("Use API staging");
+
+    // Other options
+    QMenu *othersMenu = menu.addMenu("Others");
+
+    auto actPrintMyInfo = othersMenu->addAction(tr("Print my info"));
+    connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
+
+    auto actForceReconnect = othersMenu->addAction(tr("Force reconnect"));
+    connect(actForceReconnect,  &QAction::triggered, this, [this] {onReconnect(true);});
+
+    auto actRetryPendingConn = othersMenu->addAction(tr("Retry pending connections"));
+    connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
+
+    auto actPushAndReceived = othersMenu->addAction(tr("Push received (Android)"));
+    connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
+
+    auto actPushReceived = othersMenu->addAction(tr("Push received (iOS)"));
+    connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived(1);});
+
+    auto actCatchUp = othersMenu->addAction(tr("Catch-Up with API"));
+    connect(actCatchUp, SIGNAL(triggered()), this, SLOT(onCatchUp()));
+
+    auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
     actUseStaging->setCheckable(true);
     actUseStaging->setChecked(mApp->isStagingEnabled());
+
+    menu.addSeparator();
+    auto actBackground = menu.addAction("Background status");
+    connect(actBackground, SIGNAL(toggled(bool)), this, SLOT(onBackgroundStatusClicked(bool)));
+    actBackground->setCheckable(true);
+    actBackground->setChecked(mMegaChatApi->getBackgroundStatus());
 
     QPoint pos = ui->bSettings->pos();
     pos.setX(pos.x() + ui->bSettings->width());
@@ -512,6 +531,27 @@ void MainWindow::on_bSettings_clicked()
 void MainWindow::onReconnect(bool disconnect)
 {
     mMegaChatApi->retryPendingConnections(disconnect);
+    mMegaApi->retryPendingConnections(disconnect);
+}
+
+void MainWindow::onPushReceived(unsigned int type)
+{
+    if (!type)
+    {
+        mMegaChatApi->pushReceived(false);
+    }
+    else
+    {
+        std::string aux = mApp->getText("Enter chatid (B64)");
+        if (!aux.size())
+            return;
+
+        MegaChatHandle chatid = (aux.size() > 1)
+                ? mMegaApi->base64ToUserHandle(aux.c_str())
+                : MEGACHAT_INVALID_HANDLE;
+
+        mMegaChatApi->pushReceived(false, chatid);
+    }
 }
 
 void MainWindow::openChatPreview(bool create)
@@ -692,15 +732,6 @@ void MainWindow::closeChatPreview(megachat::MegaChatHandle chatId)
         }
 
         mMegaChatApi->closeChatPreview(chatId);
-        ChatWindow * auxWindow = itemController->getChatWindow();
-        if(auxWindow)
-        {
-            auxWindow->deleteLater();
-        }
-
-        delete itemController;
-        mChatControllers.erase(it);
-        reorderAppChatList();
     }
 }
 
@@ -759,6 +790,21 @@ void MainWindow::onChatListItemUpdate(MegaChatApi *, MegaChatListItem *item)
         return;
     }
 
+    if (item->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED))
+    {
+        ChatWindow * auxWindow = itemController->getChatWindow();
+        if(auxWindow)
+        {
+            auxWindow->deleteLater();
+        }
+
+        mChatControllers.erase(itemController->getItemId());
+        delete itemController;
+        reorderAppChatList();
+        return;
+    }
+
+
     // If we don't need to reorder and chatItemwidget is rendered
     // we need to update the widget because non order actions requires
     // a live update of widget
@@ -816,7 +862,7 @@ bool MainWindow::needReorder(MegaChatListItem *newItem, int oldPriv)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_LAST_TS)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_ARCHIVE)
          || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_UNREAD_COUNT)
-         || newItem->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_CHAT_MODE)
+         || newItem->hasChanged(megachat::MegaChatListItem::CHANGE_TYPE_CHAT_MODE)
          || (newItem->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)         
          || ((oldPriv == megachat::MegaChatRoom::PRIV_RM)
              &&(newItem->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RM)))
@@ -1016,7 +1062,7 @@ void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfi
 
 void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle userhandle, int lastGreen)
 {
-    const char *firstname = mApp->getFirstname(userhandle);
+    const char *firstname = mApp->getFirstname(userhandle, NULL);
     if (!firstname)
     {
         firstname = mMegaApi->userHandleToBase64(userhandle);
@@ -1188,6 +1234,11 @@ void MainWindow::on_mLogout_clicked()
     }    
 }
 
+void MainWindow::onCatchUp()
+{
+    mMegaApi->catchup();
+}
+
 void MainWindow::onlastGreenVisibleClicked()
 {
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
@@ -1198,4 +1249,9 @@ void MainWindow::onlastGreenVisibleClicked()
 void MainWindow::onUseApiStagingClicked(bool enable)
 {
     mApp->enableStaging(enable);
+}
+
+void MainWindow::onBackgroundStatusClicked(bool status)
+{
+    mMegaChatApi->setBackgroundStatus(status);
 }

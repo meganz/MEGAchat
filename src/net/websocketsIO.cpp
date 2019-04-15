@@ -75,6 +75,13 @@ void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
     client->wsHandleMsgCb(data, len);
 }
 
+void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
+{
+    ScopedLock lock(this->mutex);
+    WEBSOCKETS_LOG_DEBUG("Sent %d bytes", len);
+    client->wsSendMsgCb(data, len);
+}
+
 WebsocketsClient::WebsocketsClient()
 {
     ctx = NULL;

@@ -732,8 +732,9 @@ public class MegaChatApiJava {
      * must have a valid public handle.
      *
      * This function must be called only after calling:
-     *  - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_ACCESS (You are trying to
-     *  preview a public chat wich you were part of, so you have to rejoin it)
+     * - MegaChatApi::openChatPreview and receive MegaChatError::ERROR_EXIST for a chatroom where
+     * your own privilege is MegaChatRoom::PRIV_RM (You are trying to preview a public chat which
+     * you were part of, so you have to rejoin it)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1150,8 +1151,8 @@ public class MegaChatApiJava {
      * @param userhandle Handle of the user whose name is requested.
      * @param listener MegaChatRequestListener to track this request
      */
-    public void getUserFirstname(long userhandle, MegaChatRequestListenerInterface listener){
-        megaChatApi.getUserFirstname(userhandle, createDelegateRequestListener(listener));
+    public void getUserFirstname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserFirstname(userhandle, cauth, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1172,8 +1173,8 @@ public class MegaChatApiJava {
      * @param userhandle Handle of the user whose name is requested.
      * @param listener MegaChatRequestListener to track this request
      */
-    public void getUserLastname(long userhandle, MegaChatRequestListenerInterface listener){
-        megaChatApi.getUserLastname(userhandle, createDelegateRequestListener(listener));
+    public void getUserLastname(long userhandle, String cauth, MegaChatRequestListenerInterface listener){
+        megaChatApi.getUserLastname(userhandle, cauth, createDelegateRequestListener(listener));
     }
 
     /**
