@@ -9,6 +9,7 @@
 #ifdef _WIN32
     #include <winsock2.h>
     #include <direct.h>
+    #include <sys/timeb.h>  
     #define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
@@ -3776,9 +3777,15 @@ std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t n
 
 mega::dstime InitStats::currentTime()
 {
+#if defined(_WIN32) && defined(_MSC_VER)
+    struct __timeb64 tb;
+    _ftime64(&tb);
+    return (tb.time * 1000) + (tb.millitm);
+#else
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
 }
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
