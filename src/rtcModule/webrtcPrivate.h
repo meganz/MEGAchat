@@ -167,6 +167,7 @@ protected:
     void msgCallReqDecline(RtMessage& packet);
     void msgCallReqCancel(RtMessage& packet);
     void msgSdpOffer(RtMessage& packet);
+    void msgTerminate(RtMessage& packet);
     void handleReject(RtMessage& packet);
     void handleBusy(RtMessage& packet);
     void getLocalStream(karere::AvFlags av, std::string& errors);
@@ -203,6 +204,7 @@ protected:
     uint8_t convertTermCodeToCallDataCode();
     bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
     void monitorCallSetupTimeout();
+    bool hasSessionWithUser(karere::Id userId);
     friend class RtcModule;
     friend class Session;
 public:

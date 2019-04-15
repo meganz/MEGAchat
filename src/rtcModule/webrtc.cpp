@@ -1056,7 +1056,9 @@ void Call::handleMessage(RtMessage& packet)
     switch (packet.type)
     {
         case RTCMD_CALL_TERMINATE:
-            // This message can be received from old clients. It can be ignored
+            // It's only used in case of two clients from same user answer in 1to1
+            // chatroom and one of both is finished by the caller
+            msgTerminate(packet);
             return;
         case RTCMD_SESSION:
             msgSession(packet);
@@ -1230,6 +1232,18 @@ void Call::msgSdpOffer(RtMessage& packet)
     sess->veryfySdpOfferSendAnswer();
 }
 
+void Call::msgTerminate(RtMessage &packet)
+{
+    TermCode code = static_cast<TermCode>(packet.payload.read<uint8_t>(8));
+    if (code != TermCode::kAnsElsewhere && mState != Call::kStateJoining)
+    {
+        SUB_LOG_ERROR("Unexpected RTCMD_CALL_TERMINATE with invalid termCode or state");
+        return;
+    }
+
+    destroy(static_cast<TermCode>(code| TermCode::kPeer), false);
+}
+
 void Call::handleReject(RtMessage& packet)
 {
     if (packet.callid != mId)
@@ -1375,6 +1389,17 @@ void Call::msgJoin(RtMessage& packet)
         // keep ringing), this client does not start ringing again
         mHandler->addParticipant(packet.userid, packet.clientid, karere::AvFlags());
         destroy(TermCode::kAnsElsewhere, false);
+    }
+    else if (!packet.chat.isGroup() && hasSessionWithUser(packet.userid))
+    {
+        mManager.cmdEndpoint(RTCMD_CALL_TERMINATE, packet, mId, TermCode::kAnsElsewhere);
+        SUB_LOG_WARNING("Ignore a JOIN from our in 1to1 chatroom, we have a session or have sent a session request");
+        return;
+    }
+    else if (packet.userid == mManager.mKarereClient.myHandle() && !packet.chat.isGroup())
+    {
+        SUB_LOG_WARNING("Ignore a JOIN from our own user in 1to1 chatroom");
+        return;
     }
     else if (mState == Call::kStateJoining || mState == Call::kStateInProgress || mState == Call::kStateReqSent)
     {
@@ -1551,9 +1576,10 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         if (wptr.deleted())
             return;
 
-        if (code == TermCode::kAnsElsewhere || code == TermCode::kErrAlready || code == TermCode::kAnswerTimeout)
+        TermCode codeWithOutPeer = static_cast<TermCode>(code & ~TermCode::kPeer);
+        if (codeWithOutPeer == TermCode::kAnsElsewhere || codeWithOutPeer == TermCode::kErrAlready || codeWithOutPeer == TermCode::kAnswerTimeout)
         {
-            SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere or kErrAlready");
+            SUB_LOG_DEBUG("Not posting termination CALLDATA because term code is kAnsElsewhere, kErrAlready or kAnswerTimeout");
         }
         else if (mPredestroyState == kStateRingIn)
         {
@@ -2016,6 +2042,27 @@ void Call::monitorCallSetupTimeout()
     }, RtcModule::kCallSetupTimeout, mManager.mKarereClient.appCtx);
 }
 
+bool Call::hasSessionWithUser(Id userId)
+{
+    for (auto itSession = mSessions.begin(); itSession != mSessions.end(); itSession++)
+    {
+        if (itSession->second->peer() == userId)
+        {
+            return true;
+        }
+    }
+
+    for (auto itSentSession = mSentSessions.begin(); itSentSession != mSentSessions.end(); itSentSession++)
+    {
+        if (itSentSession->first.userid == userId)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool Call::answer(AvFlags av)
 {
     if (mState != Call::kStateRingIn)
@@ -2157,6 +2204,19 @@ void Call::onClientLeftCall(Id userid, uint32_t clientid)
     }
     else if (mState >= kStateInProgress)
     {
+        if (userid == mManager.mKarereClient.myHandle())
+        {
+            SUB_LOG_DEBUG("Discard ENDCALL received for ourselves but with other client in 1to1 chatroom");
+            return;
+        }
+
+        EndpointId pointId(userid, clientid);
+        bool hasSessionWihtOtherClient = (mSentSessions.find(pointId) == mSentSessions.end());
+        if (hasSessionWihtOtherClient)
+        {
+            SUB_LOG_DEBUG("Discard ENDCALL received for other client from the peer that we have session");
+            return;
+        }
         destroy(TermCode::kErrPeerOffline, userid == mChat.client().mKarereClient->myHandle());
     }
 }
