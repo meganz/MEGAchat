@@ -642,20 +642,11 @@ class InitStats
             kStatsLoginChatd        = 3
         };
 
-        void setNumNodes(long long numNodes);
-        void setNumContacts(long numContacts);
-        void setNumChats(long numChats);
-        void onCompleted();
+        std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
-
-        /** @brief Returns a string that contains init stats in JSON format */
-        std::string toJson();
 
 
         /*  Stages Methods */
-
-        /** @brief Reset the elapsed time for a stage */
-        void resetStage(uint8_t stage);
 
         /** @brief Obtain initial ts for a stage */
         void stageStart(uint8_t stage);
@@ -739,6 +730,9 @@ private:
 
     /** @brief  Returns a string with the associated tag to the stage **/
     std::string shardStageToString(uint8_t stage);
+
+    /** @brief Returns a string that contains init stats in JSON format */
+    std::string toJson();
 
 };
 

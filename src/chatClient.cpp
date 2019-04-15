@@ -918,6 +918,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 checkSyncWithSdkDb(scsn, *contactList, *chatList);
                 setInitState(kInitHasOnlineSession);
                 mSessionReadyPromise.resolve();
+                mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                 api.sdk.resumeActionPackets();
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
@@ -935,6 +936,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 {
                     setInitState(kInitHasOnlineSession);
                     mSessionReadyPromise.resolve();
+                    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
                 });
             }
@@ -1109,7 +1111,6 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
 promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
-    mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
     mInitStats.stageStart(InitStats::kStatsConnection);
 
     setConnState(kConnecting);
@@ -1191,22 +1192,9 @@ void Client::sendStats()
         return;
     }
 
-    if (anonymousMode())
-    {
-        mInitStats.resetStage(InitStats::kStatsLogin);
-        mInitStats.resetStage(InitStats::kStatsFetchNodes);
-        mInitStats.resetStage(InitStats::kStatsPostFetchNodes);
-    }
-
-    mInitStats.setNumNodes(api.sdk.getNumNodes());
-    mInitStats.setNumChats(chats->size());
-    mInitStats.setNumContacts(contactList->size());
-
-    std::string stats = mInitStats.toJson();
+    std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), contactList->size());
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
     api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
-
-    mInitStats.onCompleted();
 }
 
 InitStats& Client::initStats()
@@ -3754,36 +3742,37 @@ std::string encodeFirstName(const std::string& first)
     return result;
 }
 
-// Init Stats metods
-
-void InitStats::setNumNodes(long long numNodes)
-{
-    mNumNodes = numNodes;
-}
-
-void InitStats::setNumContacts(long numContacts)
-{
-    mNumContacts = numContacts;
-}
-
-void InitStats::setNumChats(long numChats)
-{
-    mNumChats = numChats;
-}
+// Init Stats methods
 
 bool InitStats::isCompleted() const
 {
     return mCompleted;
 }
 
-void InitStats::onCompleted()
+std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t numContacts)
 {
     assert(!mCompleted);
     mCompleted = true;
 
+    if (mInitState == kInitAnonymous)
+    {
+        // these stages don't occur in anonymous mode
+        mStageStats[kStatsLogin] = 0;
+        mStageStats[kStatsFetchNodes] = 0;
+        mStageStats[kStatsPostFetchNodes] = 0;
+    }
+
+    mNumNodes = numNodes;
+    mNumChats = numChats;
+    mNumContacts = numContacts;
+
+    std::string json = toJson();
+
     // clear maps to free some memory
     mStageShardStats.clear();
     mStageStats.clear();
+
+    return json;
 }
 
 mega::dstime InitStats::currentTime()
@@ -3889,11 +3878,6 @@ void InitStats::handleShardStats(chatd::Connection::State oldState, chatd::Conne
     }
 }
 
-void InitStats::resetStage(uint8_t stage)
-{
-    mStageStats[stage] = 0;
-}
-
 void InitStats::stageStart(uint8_t stage)
 {
     if (mCompleted)
@@ -3974,7 +3958,7 @@ std::string InitStats::shardStageToString(uint8_t stage)
 std::string InitStats::toJson()
 {
     std::string result;
-    mega::dstime totalElapsed = 0; //Total elapsed time to finish all stages.
+    mega::dstime totalElapsed = 0; //Total elapsed time to finish all stages
     rapidjson::Document jSonDocument(rapidjson::kArrayType);
     rapidjson::Value jSonObject(rapidjson::kObjectType);
     rapidjson::Value jsonValue(rapidjson::kNumberType);
