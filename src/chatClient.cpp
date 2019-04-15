@@ -3787,9 +3787,17 @@ void InitStats::onCompleted()
 
 mega::dstime InitStats::currentTime()
 {
+#ifdef _POSIX_TIMERS
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    struct timeval now;
+    now.tv_usec;
+#else
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return (now.tv_sec * 1000 + now.tv_usec / 1000);
+#endif
 }
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
