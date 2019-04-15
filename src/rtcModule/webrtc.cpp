@@ -1056,9 +1056,7 @@ void Call::handleMessage(RtMessage& packet)
     switch (packet.type)
     {
         case RTCMD_CALL_TERMINATE:
-            // It's only used in case of two clients from same user answer in 1to1
-            // chatroom and one of both is finished by the caller
-            msgTerminate(packet);
+            // This message can be received from old clients. It can be ignored
             return;
         case RTCMD_SESSION:
             msgSession(packet);
@@ -1392,7 +1390,7 @@ void Call::msgJoin(RtMessage& packet)
     }
     else if (!packet.chat.isGroup() && hasSessionWithUser(packet.userid))
     {
-        mManager.cmdEndpoint(RTCMD_CALL_TERMINATE, packet, mId, TermCode::kAnsElsewhere);
+        mManager.cmdEndpoint(RTCMD_CALL_REQ_CANCEL, packet, mId, TermCode::kAnsElsewhere);
         SUB_LOG_WARNING("Ignore a JOIN from our in 1to1 chatroom, we have a session or have sent a session request");
         return;
     }
