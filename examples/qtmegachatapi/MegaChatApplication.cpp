@@ -338,6 +338,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     switch (request->getType())
     {
         case MegaRequest::TYPE_LOGIN:
+        {
             if (e->getErrorCode() == MegaError::API_EMFAREQUIRED)
             {
                 std::string auxcode = mMainWin->getAuthCode();
@@ -387,7 +388,9 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 }
             }
             break;
+        }
         case MegaRequest::TYPE_FETCH_NODES:
+        {
             if (e->getErrorCode() == MegaError::API_OK)
             {
                 if (!mSid)
@@ -407,24 +410,29 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 init();
             }
             break;
+        }
         case MegaRequest::TYPE_REMOVE_CONTACT:
+        {
             if (e->getErrorCode() != MegaError::API_OK)
                 QMessageBox::critical(nullptr, tr("Remove contact"), tr("Error removing contact: ").append(e->getErrorString()));
             break;
-
+        }
         case MegaRequest::TYPE_INVITE_CONTACT:
+        {
             if (e->getErrorCode() != MegaError::API_OK)
                 QMessageBox::critical(nullptr, tr("Invite contact"), tr("Error inviting contact: ").append(e->getErrorString()));
             break;
-
+        }
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_CHECK:
+        {
             if (e->getErrorCode() == MegaError::API_OK)
             {
                 this->mMainWin->createFactorMenu(request->getFlag());
             }
             break;
-
+        }
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_GET:
+        {
             if (e->getErrorCode() == MegaError::API_OK)
             {
                 QClipboard *clipboard = QApplication::clipboard();
@@ -447,8 +455,9 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 }
             }
             break;
-
+        }
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
+        {
             QString text;
             if (request->getFlag())
             {
@@ -467,6 +476,69 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             {
                 QMessageBox::critical(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
+            break;
+        }
+        case MegaRequest::TYPE_GET_ATTR_USER:
+        {
+            const char *aux = mMegaApi->userAttributeToLongName(request->getParamType());
+            QString attribute(aux);
+            attribute.append(": ");
+            if (e->getErrorCode() == MegaError::API_OK)
+            {
+                switch (request->getParamType())
+                {
+                    case MegaApi::USER_ATTR_MY_CHAT_FILES_FOLDER:
+                    case MegaApi::USER_ATTR_CAMERA_UPLOAD_FOLDER:
+                    {
+                        const char *nodeHandle_64 = mMegaApi->handleToBase64(request->getNodeHandle());
+                        attribute.append(nodeHandle_64);
+                        delete [] nodeHandle_64;
+                        QMessageBox::information(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+            else
+            {
+                attribute.append(e->getErrorString());
+                QMessageBox::critical(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
+            }
+            delete [] aux;
+            break;
+        }
+        case MegaRequest::TYPE_SET_ATTR_USER:
+        {
+            const char *aux = mMegaApi->userAttributeToLongName(request->getParamType());
+            QString attribute(aux);
+            attribute.append(": ");
+            if (e->getErrorCode() == MegaError::API_OK)
+            {
+                switch (request->getParamType())
+                {
+                    case MegaApi::USER_ATTR_MY_CHAT_FILES_FOLDER:
+                    case MegaApi::USER_ATTR_CAMERA_UPLOAD_FOLDER:
+                    {
+                        const char *nodeHandle_64 = mMegaApi->handleToBase64(request->getNodeHandle());
+                        attribute.append(nodeHandle_64);
+                        delete [] nodeHandle_64;
+                        QMessageBox::information(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+            else
+            {
+                attribute.append(e->getErrorString());
+                QMessageBox::critical(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
+            }
+            delete [] aux;
+            break;
+        }
+        default:
             break;
     }
 }

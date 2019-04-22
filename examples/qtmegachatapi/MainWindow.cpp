@@ -474,6 +474,19 @@ void MainWindow::on_bSettings_clicked()
     connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
 
+    QMenu *attrMenu = settingsMenu->addMenu("User attributes");
+    auto actgetCam = attrMenu->addAction(tr("Get chat files folder"));
+    connect(actgetCam, SIGNAL(triggered()), this, SLOT(onGetChatFilesFolder()));
+
+    auto actSetCff = attrMenu->addAction(tr("Set chat files folder"));
+    connect(actSetCff, SIGNAL(triggered()), this, SLOT(onSetChatFilesFolder()));
+
+    auto actgetCff = attrMenu->addAction(tr("Get camera upload folder"));
+    connect(actgetCff, SIGNAL(triggered()), this, SLOT(onGetCameraUploadFolder()));
+
+    auto actSetCam = attrMenu->addAction(tr("Set camera upload folder"));
+    connect(actSetCam, SIGNAL(triggered()), this, SLOT(onSetCameraUploadFolder()));
+
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     auto actlastGreenVisible = settingsMenu->addAction("Enable/Disable Last-Green");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
@@ -492,7 +505,6 @@ void MainWindow::on_bSettings_clicked()
 
     // Other options
     QMenu *othersMenu = menu.addMenu("Others");
-
     auto actPrintMyInfo = othersMenu->addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
@@ -502,10 +514,11 @@ void MainWindow::on_bSettings_clicked()
     auto actRetryPendingConn = othersMenu->addAction(tr("Retry pending connections"));
     connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
 
-    auto actPushAndReceived = othersMenu->addAction(tr("Push received (Android)"));
+    QMenu *pushMenu = othersMenu->addMenu("Push received");
+    auto actPushAndReceived = pushMenu->addAction(tr("Android"));
     connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
 
-    auto actPushReceived = othersMenu->addAction(tr("Push received (iOS)"));
+    auto actPushReceived = pushMenu->addAction(tr("iOS"));
     connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived(1);});
 
     auto actCatchUp = othersMenu->addAction(tr("Catch-Up with API"));
@@ -1237,6 +1250,36 @@ void MainWindow::on_mLogout_clicked()
 void MainWindow::onCatchUp()
 {
     mMegaApi->catchup();
+}
+
+void MainWindow::onSetChatFilesFolder()
+{
+    std::string aux = mApp->getText("Enter nodehandle (B64)");
+    MegaChatHandle nodehandle = (aux.size() > 1)
+            ? mMegaApi->base64ToUserHandle(aux.c_str())
+            : MEGACHAT_INVALID_HANDLE;
+
+    mMegaApi->setMyChatFilesFolder(nodehandle);
+}
+
+void MainWindow::onGetChatFilesFolder()
+{
+    mMegaApi->getMyChatFilesFolder();
+}
+
+void MainWindow::onSetCameraUploadFolder()
+{
+    std::string aux = mApp->getText("Enter nodehandle (B64)");
+    MegaChatHandle nodehandle = (aux.size() > 1)
+            ? mMegaApi->base64ToUserHandle(aux.c_str())
+            : MEGACHAT_INVALID_HANDLE;
+
+    mMegaApi->setCameraUploadsFolder(nodehandle);
+}
+
+void MainWindow::onGetCameraUploadFolder()
+{
+    mMegaApi->getCameraUploadsFolder();
 }
 
 void MainWindow::onlastGreenVisibleClicked()

@@ -201,6 +201,10 @@ class MainWindow :
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onCatchUp();
+        void onSetChatFilesFolder();
+        void onGetChatFilesFolder();
+        void onSetCameraUploadFolder();
+        void onGetCameraUploadFolder();
         void onlastGreenVisibleClicked();
         void onReconnect(bool disconnect);
         void onPushReceived(unsigned int type);
