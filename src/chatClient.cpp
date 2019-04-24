@@ -3783,7 +3783,7 @@ mega::dstime InitStats::currentTime()
     return (tb.time * 1000) + (tb.millitm);
 #else
     timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    mega::m_clock_getmonotonictime(&ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 #endif
 }
