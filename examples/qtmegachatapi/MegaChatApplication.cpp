@@ -480,60 +480,49 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         }
         case MegaRequest::TYPE_GET_ATTR_USER:
         {
-            const char *aux = mMegaApi->userAttributeToLongName(request->getParamType());
-            QString attribute(aux);
-            attribute.append(": ");
-            if (e->getErrorCode() == MegaError::API_OK)
+            switch (request->getParamType())
             {
-                switch (request->getParamType())
+                case MegaApi::USER_ATTR_MY_CHAT_FILES_FOLDER:
+                case MegaApi::USER_ATTR_CAMERA_UPLOADS_FOLDER:
                 {
-                    case MegaApi::USER_ATTR_MY_CHAT_FILES_FOLDER:
-                    case MegaApi::USER_ATTR_CAMERA_UPLOAD_FOLDER:
+                    const char *aux = mMegaApi->userAttributeToLongName(request->getParamType());
+                    QString message(aux);
+                    message.append(": ");
+                    if (e->getErrorCode() == MegaError::API_OK)
                     {
                         const char *nodeHandle_64 = mMegaApi->handleToBase64(request->getNodeHandle());
-                        attribute.append(nodeHandle_64);
+                        message.append(nodeHandle_64);
                         delete [] nodeHandle_64;
-                        QMessageBox::information(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
-                        break;
+                        QMessageBox::information(nullptr, tr("User attribute"), tr(message.toStdString().c_str()));
                     }
-                    default:
-                        break;
+                    else
+                    {
+                        message.append(e->getErrorString());
+                        QMessageBox::critical(nullptr, tr("User attribute"), tr(message.toStdString().c_str()));
+                    }
+                    delete [] aux;
+                    break;
                 }
+                default:
+                    break;
             }
-            else
-            {
-                attribute.append(e->getErrorString());
-                QMessageBox::critical(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
-            }
-            delete [] aux;
             break;
         }
         case MegaRequest::TYPE_SET_ATTR_USER:
         {
             const char *aux = mMegaApi->userAttributeToLongName(request->getParamType());
-            QString attribute(aux);
-            attribute.append(": ");
+            QString message(aux);
+            message.append(": ");
+
             if (e->getErrorCode() == MegaError::API_OK)
             {
-                switch (request->getParamType())
-                {
-                    case MegaApi::USER_ATTR_MY_CHAT_FILES_FOLDER:
-                    case MegaApi::USER_ATTR_CAMERA_UPLOAD_FOLDER:
-                    {
-                        const char *nodeHandle_64 = mMegaApi->handleToBase64(request->getNodeHandle());
-                        attribute.append(nodeHandle_64);
-                        delete [] nodeHandle_64;
-                        QMessageBox::information(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
-                        break;
-                    }
-                    default:
-                        break;
-                }
+                message.append("has been modified successfully");
+                QMessageBox::information(nullptr, tr("User attribute"), tr(message.toStdString().c_str()));
             }
             else
             {
-                attribute.append(e->getErrorString());
-                QMessageBox::critical(nullptr, tr("User attribute"), tr(attribute.toStdString().c_str()));
+                message.append(e->getErrorString());
+                QMessageBox::critical(nullptr, tr("User attribute"), tr(message.toStdString().c_str()));
             }
             delete [] aux;
             break;

@@ -482,10 +482,10 @@ void MainWindow::on_bSettings_clicked()
     connect(actSetCff, SIGNAL(triggered()), this, SLOT(onSetChatFilesFolder()));
 
     auto actgetCff = attrMenu->addAction(tr("Get camera upload folder"));
-    connect(actgetCff, SIGNAL(triggered()), this, SLOT(onGetCameraUploadFolder()));
+    connect(actgetCff, SIGNAL(triggered()), this, SLOT(onGetCameraUploadsFolder()));
 
     auto actSetCam = attrMenu->addAction(tr("Set camera upload folder"));
-    connect(actSetCam, SIGNAL(triggered()), this, SLOT(onSetCameraUploadFolder()));
+    connect(actSetCam, SIGNAL(triggered()), this, SLOT(onSetCameraUploadsFolder()));
 
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     auto actlastGreenVisible = settingsMenu->addAction("Enable/Disable Last-Green");
@@ -1267,7 +1267,7 @@ void MainWindow::onGetChatFilesFolder()
     mMegaApi->getMyChatFilesFolder();
 }
 
-void MainWindow::onSetCameraUploadFolder()
+void MainWindow::onSetCameraUploadsFolder()
 {
     std::string aux = mApp->getText("Enter nodehandle (B64)");
     MegaChatHandle nodehandle = (aux.size() > 1)
@@ -1277,7 +1277,7 @@ void MainWindow::onSetCameraUploadFolder()
     mMegaApi->setCameraUploadsFolder(nodehandle);
 }
 
-void MainWindow::onGetCameraUploadFolder()
+void MainWindow::onGetCameraUploadsFolder()
 {
     mMegaApi->getCameraUploadsFolder();
 }

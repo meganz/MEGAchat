@@ -203,8 +203,8 @@ class MainWindow :
         void onCatchUp();
         void onSetChatFilesFolder();
         void onGetChatFilesFolder();
-        void onSetCameraUploadFolder();
-        void onGetCameraUploadFolder();
+        void onSetCameraUploadsFolder();
+        void onGetCameraUploadsFolder();
         void onlastGreenVisibleClicked();
         void onReconnect(bool disconnect);
         void onPushReceived(unsigned int type);
