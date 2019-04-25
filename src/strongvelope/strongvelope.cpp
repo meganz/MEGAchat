@@ -1654,7 +1654,7 @@ ProtocolHandler::decryptChatTitleFromApi(const Buffer& data)
         //We need to capture the message in order to keep it alive until the promise has been resolved
         {
             wptr.throwIfDeleted();
-            STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully from API");
+            STRONGVELOPE_LOG_DEBUG("Title decrypted successfully from API");
             std::string ret(retMsg->buf(), retMsg->dataSize());
             delete retMsg;
             return ret;
@@ -1729,7 +1729,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         symmetricDecrypt(*key, *msg);
         msg->setEncrypted(Message::kNotEncrypted);
         Id chatid = mProtoHandler.chatid;
-        STRONGVELOPE_LOG_DEBUG("Title decrypted succesfully (private chat).");
+        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully (private chat).");
         return msg;
     });
 }
