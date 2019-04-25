@@ -160,6 +160,7 @@ protected:
     bool mNotSupportedAnswer = false;
     bool mIsRingingOut = false;
     bool mHadRingAck = false;
+    bool mRecovered = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgSession(RtMessage& packet);
@@ -210,7 +211,7 @@ public:
     chatd::Chat& chat() const { return mChat; }
     Call(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
-        karere::Id callerUser, uint32_t callerClient, bool retryCall = false);
+        karere::Id callerUser, uint32_t callerClient, bool callRecovered = false);
     ~Call();
     virtual karere::AvFlags sentAv() const;
     virtual void hangup(TermCode reason=TermCode::kInvalid);
@@ -236,7 +237,7 @@ public:
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
         kRetryCallTimeoutActive = 2000,
-        kRetryCallTimeoutPasive = 30000
+        kRetryCallTimeout = 30000
     };
 
     enum Resolution
@@ -270,6 +271,7 @@ public:
     virtual void handleCallTime(karere::Id chatid, uint32_t duration);
     virtual void onKickedFromChatRoom(karere::Id chatid);
     virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid);
+    virtual void retryCalls(int shardNo);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
@@ -298,7 +300,7 @@ public:
 //==
     karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
-    void retryCall(karere::Id chatid, karere::AvFlags av, bool starter = true);
+    void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool starter = true);
     virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
@@ -311,7 +313,7 @@ protected:
     std::map<karere::Id, ICallHandler *> mCallHandlers;
     std::map<karere::Id, std::pair<karere::AvFlags, bool>> mRetryCall;
     RtcModule &mManager;
-    std::map<karere::Id, megaHandle> mRetryTimerHandle;
+    std::map<karere::Id, megaHandle> mRetryCallTimers;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);

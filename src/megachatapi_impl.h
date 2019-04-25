@@ -582,7 +582,7 @@ public:
     virtual void setInitialTimeStamp(int64_t timeStamp);
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
-    virtual void onReconnectingState();
+    virtual void onReconnectingState(bool start);
     virtual rtcModule::ICall *getCall();
 
     MegaChatCallPrivate *getMegaChatCall();

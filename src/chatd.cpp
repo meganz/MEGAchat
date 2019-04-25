@@ -2035,6 +2035,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                if (mChatdClient.mRtcHandler)
+                {
+                    mChatdClient.mRtcHandler->retryCalls(mShardNo);
+                }
                 break;
             }
             case OP_ECHO:

@@ -342,6 +342,7 @@ public:
     virtual void handleCallTime(karere::Id /*chatid*/, uint32_t /*duration*/) = 0;
     virtual void onKickedFromChatRoom(karere::Id chatid) = 0;
     virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid) = 0;
+    virtual void retryCalls(int shard) = 0;
 };
 /** @brief userid + clientid map key class */
 struct EndpointId

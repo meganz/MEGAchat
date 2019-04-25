@@ -213,6 +213,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
             {
                 window->hangCall();
+                window->enableCallReconnect(false);
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_DESTROYED:

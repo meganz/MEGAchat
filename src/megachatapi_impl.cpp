@@ -7638,22 +7638,14 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
             case rtcModule::ICall::kStateTerminating:
             {
                 chatCall->setIsRinging(false);
-                rtcModule::TermCode termCode = static_cast<rtcModule::TermCode>(call->termCode() & ~rtcModule::TermCode::kPeer);
-                state = chatCall->getStatus();
-                if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
-                {
-                    state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
-                    chatCall->setTermCode(call->termCode());
-                    API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
-                                 karere::Id(chatCall->getChatid()).toString().c_str(),
-                                 karere::Id(chatCall->getId()).toString().c_str(),
-                                 rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
-                                 chatCall->isLocalTermCode(), chatCall->getDuration());
-                }
+                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
+                chatCall->setTermCode(call->termCode());
+                API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
+                             karere::Id(chatCall->getChatid()).toString().c_str(),
+                             karere::Id(chatCall->getId()).toString().c_str(),
+                             rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
+                             chatCall->isLocalTermCode(), chatCall->getDuration());
             }
-                break;
-            case rtcModule::ICall::kStateStartingAfterReconnection:
-                return;
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 return;
@@ -7892,11 +7884,11 @@ bool MegaChatCallHandler::hasBeenNotifiedRinging() const
     return mHasBeenNotifiedRinging;
 }
 
-void MegaChatCallHandler::onReconnectingState()
+void MegaChatCallHandler::onReconnectingState(bool start)
 {
     assert(chatCall);
-    API_LOG_INFO("Reconnecting call. ChatId: %s", ID_CSTR(call->chat().chatId()));
-    chatCall->setStatus(MegaChatCall::CALL_STATUS_RECONNECTING);
+    API_LOG_INFO("Reconnecting call. ChatId: %s  - %s", ID_CSTR(chatCall->getChatid()), start ? "Start" : "Finish");
+    chatCall->setStatus(start ? MegaChatCall::CALL_STATUS_RECONNECTING : MegaChatCall::CALL_STATUS_IN_PROGRESS);
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
