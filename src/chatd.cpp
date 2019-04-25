@@ -241,18 +241,25 @@ promise::Promise<void> Client::sendKeepalive()
         mKeepalivePromise = Promise<void>();
     }
 
+    auto wptr = weakHandle();
     if (mConnections.size())
     {
         mKeepaliveCount += mConnections.size();
         for (auto& conn: mConnections)
         {
             conn.second->sendKeepalive()
-            .then([this]()
+            .then([this, wptr]()
             {
+                if (wptr.deleted())
+                    return;
+
                 onKeepaliveSent();
             })
-            .fail([this](const ::promise::Error&)
+            .fail([this, wptr](const ::promise::Error&)
             {
+                if (wptr.deleted())
+                    return;
+
                 mKeepaliveFailed = true;
                 onKeepaliveSent();
             });
@@ -1119,8 +1126,12 @@ bool Connection::sendBuf(Buffer&& buf)
     if (mSendPromise.done())
     {
         mSendPromise = Promise<void>();
-        mSendPromise.fail([this](const promise::Error& err)
+        auto wptr = weakHandle();
+        mSendPromise.fail([this, wptr](const promise::Error& err)
         {
+            if (wptr.deleted())
+                return;
+
            CHATDS_LOG_ERROR("Failed to send data. Error: %s", err.what());
         });
     }
