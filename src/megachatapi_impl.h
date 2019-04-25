@@ -572,7 +572,6 @@ public:
     virtual void onRingOut(karere::Id peer);
     virtual void onCallStarting();
     virtual void onCallStarted();
-    virtual ICallHandler* copy();
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid);
     virtual int callParticipants();

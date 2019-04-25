@@ -207,6 +207,18 @@ void RtcModule::updateConstraints(RtcModule::Resolution resolution)
     }
 }
 
+void RtcModule::removeCallRetry(karere::Id chatid)
+{
+    auto retryCalltimerIt = mRetryCallTimers.find(chatid);
+    if (retryCalltimerIt != mRetryCallTimers.end())
+    {
+        cancelTimeout(retryCalltimerIt->second, mKarereClient.appCtx);
+        mRetryCallTimers.erase(retryCalltimerIt);
+    }
+
+    mRetryCall.erase(chatid);
+}
+
 bool RtcModule::selectAudioInDevice(const string &devname)
 {
     return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
@@ -341,7 +353,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
         return;
     }
 
-    //Compatibility && reconnection
+    //Compatibility
     if (state == Call::CallDataState::kCallDataRinging || state == Call::CallDataState::kCallDataSessionKeepRinging)
     {
         ringing = true;
@@ -383,8 +395,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
             auto itCallHandler = mCallHandlers.find(chatid);
             // itCallHandler is created at updatePeerAvState
             assert(itCallHandler != mCallHandlers.end());
-            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle())
-                    && (!itCallHandler->second->hasBeenNotifiedRinging()))
+            if (!itCallHandler->second->isParticipating(mKarereClient.myHandle()) && !itCallHandler->second->hasBeenNotifiedRinging())
             {
                 handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
             }
@@ -916,14 +927,12 @@ std::vector<Id> RtcModule::chatsWithCall() const
 
 void RtcModule::abortCallRetry(Id chatid)
 {
-    mRetryCall.erase(chatid);
-    cancelTimeout(mRetryCallTimers[chatid], mKarereClient.appCtx);
-    mRetryCallTimers.erase(chatid);
+    removeCallRetry(chatid);
     removeCallWithoutParticipants(chatid);
     auto itHandler = mCallHandlers.find(chatid);
     if (itHandler != mCallHandlers.end())
     {
-        itHandler->second->onStateChange(Call::kStateUserNotPresent);
+        itHandler->second->onReconnectingState(false);
     }
 }
 
@@ -961,7 +970,7 @@ void RtcModule::onKickedFromChatRoom(Id chatid)
             callHandlerIt->second->removeAllParticipants();
         }
 
-        mRetryCall.erase(chatid);
+        removeCallRetry(chatid);
         removeCallWithoutParticipants(chatid);
     }
 
@@ -983,17 +992,15 @@ void RtcModule::retryCalls(int shardNo)
     for (auto it = mRetryCall.begin(); it != mRetryCall.end();)
     {
         Chat &chat = mKarereClient.mChatdClient->chats(it->first);
-        karere::Id chatid = chat.chatId();
-        auto itHandler = mCallHandlers.find(chatid);
-        karere::AvFlags flags = it->second.first;
         if (chat.connection().shardNo() == shardNo)
         {
-            itHandler->second->onReconnectingState(false);
+            karere::Id chatid = chat.chatId();
+            auto itHandler = mCallHandlers.find(chatid);
+            karere::AvFlags flags = it->second.first;
             joinCall(chatid, flags, *itHandler->second, itHandler->second->getCallId());
+            // It isn't neccesary call onReconnectingState(false) because internal call manage the states
             it++;
-            mRetryCall.erase(chatid);
-            cancelTimeout(mRetryCallTimers[chatid], mKarereClient.appCtx);
-            mRetryCallTimers.erase(chatid);
+            removeCallRetry(chatid);
         }
         else
         {
@@ -1677,8 +1684,7 @@ Promise<void> Call::destroy(TermCode code, bool weTerminate, const string& msg)
         }
 
         assert(mSessions.empty());
-        bool retryCallActive = (mManager.mRetryCall.find(mChat.chatId()) != mManager.mRetryCall.end());
-        stopIncallPingTimer(!retryCallActive);
+        stopIncallPingTimer();
         setState(Call::kStateDestroyed);
         FIRE_EVENT(CALL, onDestroy, static_cast<TermCode>(code & ~TermCode::kPeer),
             !!(code & 0x80), msg);// jscs:ignore disallowImplicitTypeConversion
@@ -2080,7 +2086,7 @@ uint8_t Call::convertTermCodeToCallDataCode()
         }
 
         case kCallReqCancel:
-            //assert(mPredestroyState == kStateReqSent);
+            assert(mPredestroyState == kStateReqSent);
             codeToChatd = kCallDataReasonCancelled;
             break;
 
@@ -2254,8 +2260,7 @@ Call::~Call()
 {
     if (mState != Call::kStateDestroyed)
     {
-        bool retryCallActive = (mManager.mRetryCall.find(mChat.chatId()) != mManager.mRetryCall.end());
-        stopIncallPingTimer(!retryCallActive);
+        stopIncallPingTimer();
         if (mDestroySessionTimer)
         {
             cancelInterval(mDestroySessionTimer, mManager.mKarereClient.appCtx);
@@ -2266,13 +2271,7 @@ Call::~Call()
         mLocalPlayer.reset();
         mLocalStream.reset();
         setState(Call::kStateDestroyed);
-        TermCode terminationCode = TermCode::kErrInternal;
-        if (retryCallActive)
-        {
-            terminationCode = TermCode::kErrReconnectionInProgress;
-        }
-
-        FIRE_EVENT(CALL, onDestroy, terminationCode, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
+        FIRE_EVENT(CALL, onDestroy, TermCode::kErrInternal, false, "Callback from Call::dtor");// jscs:ignore disallowImplicitTypeConversion
 
         SUB_LOG_DEBUG("Forced call to onDestroy from call dtor");
     }
@@ -2932,7 +2931,6 @@ Promise<void> Session::sendOffer()
              return;
         }
 
-        SUB_LOG_DEBUG("Send offer");
         SdpKey encKey;
         mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
         SdpKey hash;
@@ -3300,7 +3298,6 @@ const char* ICall::stateToStr(uint8_t state)
         RET_ENUM_NAME(kStateInProgress);
         RET_ENUM_NAME(kStateTerminating);
         RET_ENUM_NAME(kStateDestroyed);
-        RET_ENUM_NAME(kStateUserNotPresent);
         default: return "(invalid call state)";
     }
 }
@@ -3343,7 +3340,7 @@ void StateDesc::assertStateChange(uint8_t oldState, uint8_t newState) const
 const StateDesc Call::sStateDesc = {
     {
         { kStateReqSent, kStateHasLocalStream, kStateTerminating }, //for kStateInitial
-        { kStateJoining, kStateReqSent, kStateTerminating },        //for kStateHasLocalStream
+        { kStateJoining, kStateReqSent, kStateTerminating }, //for kStateHasLocalStream
         { kStateInProgress, kStateTerminating },             //for kStateReqSent
         { kStateHasLocalStream, kStateInProgress,            //for kStateRingIn
           kStateTerminating },

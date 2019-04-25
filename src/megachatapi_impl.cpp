@@ -7714,8 +7714,7 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
         else
         {
             if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
-                                    || (reason != rtcModule::TermCode::kErrPeerOffline
-                                        && reason != rtcModule::TermCode::kErrReconnectionInProgress))
+                    || reason != rtcModule::TermCode::kErrPeerOffline)
             {
                 chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
                 megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7884,13 +7883,6 @@ void MegaChatCallHandler::setCallId(karere::Id callid)
     }
 }
 
-rtcModule::ICallHandler *MegaChatCallHandler::copy()
-{
-    MegaChatCallHandler *callHandler = new MegaChatCallHandler(*this);
-
-    return callHandler;
-}
-
 void MegaChatCallHandler::setInitialTimeStamp(int64_t timeStamp)
 {
     assert(chatCall);
@@ -7915,7 +7907,15 @@ void MegaChatCallHandler::onReconnectingState(bool start)
 {
     assert(chatCall);
     API_LOG_INFO("Reconnecting call. ChatId: %s  - %s", ID_CSTR(chatCall->getChatid()), start ? "Start" : "Finish");
-    chatCall->setStatus(start ? MegaChatCall::CALL_STATUS_RECONNECTING : MegaChatCall::CALL_STATUS_IN_PROGRESS);
+    if (start)
+    {
+        chatCall->setStatus(MegaChatCall::CALL_STATUS_RECONNECTING);
+    }
+    else
+    {
+        chatCall->setStatus(call ? MegaChatCall::CALL_STATUS_IN_PROGRESS : MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
+    }
+
     megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 

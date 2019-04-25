@@ -236,7 +236,6 @@ public:
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
-        kRetryCallTimeoutActive = 2000,
         kRetryCallTimeout = 30000
     };
 
@@ -246,11 +245,6 @@ public:
         low,
         vga,
         notDefined
-    };
-
-    enum
-    {
-        kNumCallRetries = 15
     };
 
     RtcModule(karere::Client& client, IGlobalHandler& handler, IRtcCrypto* crypto,
@@ -332,6 +326,7 @@ protected:
                       std::string& selected);
 
     void updateConstraints(Resolution resolution);
+    void removeCallRetry(karere::Id chatid);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
     friend class Session;
