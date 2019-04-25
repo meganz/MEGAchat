@@ -355,7 +355,7 @@ void WebRtcLogger::log(krLogLevel /*level*/, const char* msg, size_t len, unsign
     *json = replaceOccurrences(*json, "\t", "\\t");
     std::string *aid = &mAid;
     mApi.call(&::mega::MegaApi::sendChatLogs, json->c_str(), aid->c_str(), CHATLOGS_PORT)
-        .fail([](const promise::Error& err)
+        .fail([](const ::promise::Error& err)
         {
             if (err.type() == ERRTYPE_MEGASDK)
             {

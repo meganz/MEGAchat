@@ -409,11 +409,7 @@ protected:
     chatd::Message* legacyMsgDecrypt(const std::shared_ptr<ParsedMessage>& parsedMsg,
         chatd::Message* msg, const SendKey& key);
 
-
-    /**
-     * @brief Load public attributes when we are in preview mode.
-     */
-    void prefetchAnonymousAttributes(karere::Id userId);
+    void fetchUserKeys(karere::Id userid);
 
 // legacy RSA encryption methods
     promise::Promise<std::shared_ptr<Buffer>>

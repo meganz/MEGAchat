@@ -2730,20 +2730,20 @@ void Session::veryfySdpOfferSendAnswer()
     }
     auto wptr = weakHandle();
     mRtcConn.setRemoteDescription(sdp)
-    .fail([this](const promise::Error& err)
+    .fail([this](const ::promise::Error& err)
     {
-        return promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
+        return ::promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
     })
     .then([this, wptr]() -> Promise<webrtc::SessionDescriptionInterface*>
     {
         if (wptr.deleted() || (mState > Session::kStateInProgress))
-            return promise::Error("Session killed");
+            return ::promise::Error("Session killed");
         return mRtcConn.createAnswer(pcConstraints());
     })
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted() || (mState > Session::kStateInProgress))
-            return promise::Error("Session killed");
+            return ::promise::Error("Session killed");
 
         sdp->ToString(&mOwnSdpAnswer);
         return mRtcConn.setLocalDescription(sdp);
@@ -2764,7 +2764,7 @@ void Session::veryfySdpOfferSendAnswer()
             mOwnSdpAnswer
         );
     })
-    .fail([wptr, this](const promise::Error& err)
+    .fail([wptr, this](const ::promise::Error& err)
     {
         if (wptr.deleted())
             return;

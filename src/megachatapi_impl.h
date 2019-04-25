@@ -31,8 +31,9 @@
 #include <megaapi.h>
 #include <megaapi_impl.h>
 
-#ifndef KARERE_DISABLE_WEBRTC
 #include "rtcModule/webrtc.h"
+
+#ifndef KARERE_DISABLE_WEBRTC
 #include <IVideoRenderer.h>
 #endif
 
@@ -367,6 +368,7 @@ public:
     void setTitle(const std::string &title);
     void setUnreadCount(int count);
     void setNumPreviewers(unsigned int numPrev);
+    void setPreviewClosed();
     void setMembersUpdated();
     void setClosed();
     void setLastTimestamp(int64_t ts);
@@ -403,8 +405,7 @@ public:
     virtual void onChatModeChanged(bool mode);
     virtual void onChatArchived(bool archived);
     virtual void onPreviewersCountUpdate(uint32_t numPrev);
-
-    virtual const karere::ChatRoom& getChatRoom() const;
+    virtual void onPreviewClosed();
 
 protected:
     MegaChatApiImpl &chatApi;
@@ -622,7 +623,7 @@ private:
 
 class MegaChatErrorPrivate :
         public MegaChatError,
-        private promise::Error
+        private ::promise::Error
 {
 public:
 
@@ -933,6 +934,7 @@ private:
 
     mega::MegaStringList *getChatInDevices(const std::vector<std::string> &devicesVector);
     void cleanCallHandlerMap();
+    void cleanChatHandlers();
 #endif
 
     static int convertInitState(int state);
@@ -1048,8 +1050,8 @@ public:
     void setBackgroundStatus(bool background, MegaChatRequestListener *listener = NULL);
     int getBackgroundStatus();
 
-    void getUserFirstname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
-    void getUserLastname(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
+    void getUserFirstname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
+    void getUserLastname(MegaChatHandle userhandle, const char *authorizationToken, MegaChatRequestListener *listener = NULL);
     void getUserEmail(MegaChatHandle userhandle, MegaChatRequestListener *listener = NULL);
     char *getContactEmail(MegaChatHandle userhandle);
     MegaChatHandle getUserHandleByEmail(const char *email);

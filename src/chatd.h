@@ -455,11 +455,15 @@ protected:
 
     /** Handler of the timeout for the connection establishment */
     megaHandle mConnectTimer = 0;
-    
+
+    /** This promise is resolved when output data is written to the sockets */
+    promise::Promise<void> mSendPromise;
+
     // ---- callbacks called from libwebsocketsIO ----
     virtual void wsConnectCb();
     virtual void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);
     virtual void wsHandleMsgCb(char *data, size_t len);
+    virtual void wsSendMsgCb(const char *data, size_t len);
 
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
@@ -474,7 +478,7 @@ protected:
     void hist(karere::Id chatid, long count);
     bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
-    bool sendKeepalive(uint8_t opcode);
+    promise::Promise<void> sendKeepalive();
     void sendEcho();
     void sendCallReqDeclineNoSupport(karere::Id chatid, karere::Id callid);
     friend class Client;
@@ -778,7 +782,7 @@ protected:
     // last text message stuff
     LastTextMsgState mLastTextMsg;
     // crypto stuff
-    ICrypto* mCrypto;
+    ICrypto* mCrypto = NULL;
     /** If crypto can't decrypt immediately, we set this flag and only the plaintext
      * path of further messages to be sent is written to db, without calling encrypt().
      * Once encryption is finished, this flag is cleared, and all queued unencrypted
@@ -1332,7 +1336,7 @@ public:
 //===
 };
 
-class Client
+class Client : public karere::DeleteTrackable
 {
 protected:
     karere::Id mMyHandle;
@@ -1360,9 +1364,15 @@ protected:
     // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
+    uint8_t mKeepaliveType = OP_KEEPALIVE;
+    int mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
+    bool mKeepaliveFailed = false;              // true means any pending keepalive failed to send
+    promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
+    void onKeepaliveSent();
+
     bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
     void msgConfirm(karere::Id msgxid, karere::Id msgid);
-    void sendKeepalive();
+    promise::Promise<void> sendKeepalive();
     void sendEcho();
 
 public:
@@ -1387,8 +1397,7 @@ public:
 
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
-    IRtcHandler* mRtcHandler = nullptr;
-    uint8_t mKeepaliveType = OP_KEEPALIVE;
+    IRtcHandler *mRtcHandler = nullptr;
 
     /* --- getters --- */
     const karere::Id myHandle() const;
@@ -1396,7 +1405,8 @@ public:
     Chat& chats(karere::Id chatid) const;
     karere::Id chatidFromPh(karere::Id ph);
     uint8_t richLinkState() const;
-    bool areAllChatsLoggedIn();
+    bool areAllChatsLoggedIn(int shard = -1);
+
     uint8_t keepaliveType();
     void setKeepaliveType(bool isInBackground);
 
@@ -1413,8 +1423,7 @@ public:
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
     void heartbeat();
 
-    void notifyUserIdle();
-    void notifyUserActive();
+    promise::Promise<void> notifyUserStatus(bool background);
 
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);

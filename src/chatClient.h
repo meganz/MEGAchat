@@ -14,6 +14,10 @@
 #include "IGui.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+#include "stringUtils.h"
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
@@ -80,6 +84,7 @@ protected:
     void onMessageTimestamp(uint32_t ts);
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
+    bool isChatdChatInitialized();
 
 public:
     virtual bool previewMode() const { return false; }
@@ -320,8 +325,6 @@ protected:
     IApp::IGroupChatListItem* mRoomGui;
     promise::Promise<void> mMemberNamesResolved;
 
-    int mNumPeers = 0; //Only for public chats in preview mode
-
     void setChatPrivateMode();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
@@ -336,6 +339,7 @@ protected:
     void makeTitleFromMemberNames();
     void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
+    void notifyPreviewClosed();
     void setRemoved();
     virtual void connect(const char *url = NULL);
     promise::Promise<void> memberNamesResolved() const;
@@ -354,7 +358,7 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, int aNumPeers, std::string aUrl);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, std::string aUrl);
     ~GroupChatRoom();
 
 public:
@@ -421,7 +425,6 @@ public:
 
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
-    int getNumPeers() const;
     void handleTitleChange(const std::string &title, bool saveToDb = false);
 };
 
@@ -543,6 +546,194 @@ public:
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
     /** @endcond */
+};
+
+/** @brief Class to manage init stats of Karere.
+ * This class will measure the initialization times of every stage
+ * in order to improve the performance.
+ *
+ * The main stages included in this class are:
+ *      Init
+ *      Login
+ *      Fetch nodes
+ *      Post fetch nodes (From the end of fetch nodes until start of connect)
+ *      Connection
+ *
+ * The Connection stage is subdivided in the following stages with stats per shard:
+ *      GetChatUrl
+ *      QueryDns
+ *      Connect to chatd
+ *      All chats logged in
+ *
+ * To obtain a string with the stats in JSON you have to call statsToString. The structure of the JSON is:
+ * [
+ * {
+ *  "nn":14,		// Number of nodes
+ *  "ncn":2,		// Number of contacts
+ *  "nch":17,		// Number of chats
+ *  "sid":1,		// Init state {InitNewSession = 0, InitResumeSession = 1, InitInvalidCache = 2, InitAnonymous =3}
+ *  "telap":1240,	// Total elapsed time
+ *  "stgs":			// Array with main stages
+ *  [
+ *  	{
+ *  	"stg":0,		// Stage number
+ *  	"tag":"Init",	// Stage tag
+ *  	"elap":16		// Stage elapsed time
+ *  	},
+ *  	{
+ *  	...
+ *  	}
+ *  ]
+ *  "shstgs":		// Array with stages divided by shard
+ *  [
+ *  	{
+ *  	"stg":0,				// Stage number
+ *  	"tag":"Fetch chat url",	// Stage tag
+ *  	"sa":					// Sub array with stats
+ *  		[
+ *  			{
+ *  			"sh":0,             // Shard number
+ *  			"elap":222,         // Shard elapsed time
+ *  			"max":222,          // Shard max elapsed time
+ *  			"ret":0             // Number of retries
+ *  			}
+ *  			{
+ *  			...
+ *  			}
+ *  		]
+ *  	},
+ *  	{
+ *  	...
+ *  	}
+ *  ]
+ *  }
+ *  ]
+ *
+**/
+class InitStats
+{
+    public:
+        /** @brief Init states in init stats */
+        enum
+        {
+            kInitNewSession      = 0,
+            kInitResumeSession   = 1,
+            kInitInvalidCache    = 2,
+            kInitAnonymous       = 3
+        };
+
+        /** @brief Main stages */
+        enum
+        {
+            kStatsInit              = 0,
+            kStatsLogin             = 1,
+            kStatsFetchNodes        = 2,
+            kStatsPostFetchNodes    = 3,
+            kStatsConnection        = 4
+        };
+
+
+        /** @brief Stages per shard */
+        enum
+        {
+            kStatsFetchChatUrl      = 0,
+            kStatsQueryDns          = 1,
+            kStatsConnect           = 2,
+            kStatsLoginChatd        = 3
+        };
+
+        std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
+        bool isCompleted() const;
+
+
+        /*  Stages Methods */
+
+        /** @brief Obtain initial ts for a stage */
+        void stageStart(uint8_t stage);
+
+        /** @brief Obtain end ts for a stage */
+        void stageEnd(uint8_t stage);
+
+        /** @brief Set the init state */
+        void setInitState(uint8_t state);
+
+
+        /*  Shard Stages Methods */
+
+        /** @brief Obtain initial ts for a shard */
+        void shardStart(uint8_t stage, uint8_t shard);
+
+        /** @brief Obtain end ts for a shard */
+        void shardEnd(uint8_t stage, uint8_t shard);
+
+        /** @brief Increments the number of retries for a shard */
+        void incrementRetries(uint8_t stage, uint8_t shard);
+
+        /** @brief This function handle the shard stats according to connections states transitions, getting
+         *  the start or end ts for a shard in a stage or increments the number of retries in case of error in the stage
+         *
+         *  @note In kStatsQueryDns the figures are recorded when DNS are resolved successfully and they are stored in DNS cache.
+        */
+        void handleShardStats(chatd::Connection::State oldState, chatd::Connection::State newState, uint8_t shard);
+
+private:
+
+    struct ShardStats
+    {
+        /** @brief Elapsed time */
+        mega::dstime elapsed = 0;
+
+        /** @brief Max elapsed time */
+        mega::dstime maxElapsed = 0;
+
+        /** @brief Starting time */
+        mega::dstime tsStart = 0;
+
+        /** @brief Number of retries */
+        unsigned int mRetries = 0;
+    };
+
+    typedef std::map<uint8_t, mega::dstime> StageMap;   // maps stage to elapsed time (first it stores tsStart)
+    typedef std::map<uint8_t, ShardStats> ShardMap;
+    typedef std::map<uint8_t, std::map<uint8_t, ShardStats>> StageShardMap;
+
+
+    /** @brief Maps stages to statistics */
+    StageMap mStageStats;
+
+    /** @brief Maps sharded stages to statistics */
+    StageShardMap mStageShardStats;
+
+    /** @brief Number of nodes in the account */
+    long long int mNumNodes = 0;
+
+    /** @brief Number of chats in the account */
+    long int mNumChats = 0;
+
+    /** @brief Number of contacts in the account */
+    long int mNumContacts = 0;
+
+    /** @brief Flag that indicates whether the stats have already been sent */
+    bool mCompleted = false;
+
+    /** @brief Indicates the init state with cache */
+    uint8_t mInitState = kInitNewSession;
+
+
+    /* Auxiliar methods */
+
+    /** @brief Returns the current time of the clock in milliseconds */
+    static mega::dstime currentTime();
+
+    /** @brief  Returns a string with the associated tag to the stage **/
+    std::string stageToString(uint8_t stage);
+
+    /** @brief  Returns a string with the associated tag to the stage **/
+    std::string shardStageToString(uint8_t stage);
+
+    /** @brief Returns a string that contains init stats in JSON format */
+    std::string toJson();
+
 };
 
 /** @brief The karere Client object. Create an instance to use Karere.
@@ -703,6 +894,7 @@ protected:
     std::string mPresencedUrl;
 
     megaHandle mHeartbeatTimer = 0;
+    InitStats mInitStats;
 
 public:
 
@@ -764,7 +956,7 @@ public:
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
      * to avoid that openChatPreview creates the chat room
      */
-    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, int numPeers, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
@@ -844,14 +1036,11 @@ public:
      */
     promise::Promise<void> loginSdkAndInit(const char* sid);
 
-    /** @brief Call this when the app goes into background, so that it notifies
-     * the servers to enable PUSH notifications
+    /** @brief Call this when the app changes the status: foreground <-> background,
+     * so that PUSH notifications are triggered correctly (enabled in background,
+     * disabled in foreground).
      */
-    void notifyUserIdle();
-    /** @brief Call this when the app goes into foreground, so that push notifications
-     * are disabled
-     */
-    void notifyUserActive();
+    promise::Promise<void> notifyUserStatus(bool background);
 
     void startKeepalivePings();
 
@@ -890,6 +1079,7 @@ public:
     /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
     bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
 
+    /** @brief Catch up with API for pending actionpackets*/
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(karere::Id chatid); // called upon SYNC reception
 
@@ -899,6 +1089,8 @@ public:
     bool anonymousMode() const;
     bool isChatRoomOpened(Id chatid);
     void updateAndNotifyLastGreen(Id userid);
+    InitStats &initStats();
+    void sendStats();
 
 protected:
     void heartbeat();
@@ -946,6 +1138,7 @@ protected:
     virtual void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event);
 
     // MegaRequestListener interface
+    virtual void onRequestStart(::mega::MegaApi* apiObj, ::mega::MegaRequest *request);
     virtual void onRequestFinish(::mega::MegaApi* apiObj, ::mega::MegaRequest *request, ::mega::MegaError* e);
 
     // presenced listener interface
@@ -958,6 +1151,5 @@ protected:
     friend class ChatRoom;
     friend class ChatRoomList;
 };
-
 }
 #endif // CHATCLIENT_H
