@@ -368,6 +368,14 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     auto itCall = mCalls.find(chatid);
     if (itCall != mCalls.end())
     {
+        if (itCall->second->state() == Call::kStateReqSent && state == Call::CallDataState::kCallDataRinging)
+        {
+            RTCM_LOG_DEBUG("Call collision resolution. Receive a CALLDATA(kCallDataRinging) with different callid in state kStateReqSent");
+            updatePeerAvState(chatid, callid, userid, clientid, avFlagsRemote);
+            handleCallDataRequest(chat, userid, clientid, callid, avFlagsRemote);
+            return;
+        }
+
         if (itCall->second->id() != callid)
         {
             RTCM_LOG_ERROR("Ignoring CALLDATA because its callid is different than the call that we have in that chatroom");
@@ -1056,7 +1064,8 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
         {
             itHandler->second->removeParticipant(userid, clientid);
         }
-        existingCall->hangup();
+
+        existingCall->destroy(TermCode::kErrAlready, false);
     }
     else if (chat.isGroup() && itCallHandler != mCallHandlers.end() && itCallHandler->second->isParticipating(myHandle))
     {
@@ -1066,7 +1075,7 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     }
 
     auto ret = mCalls.emplace(chatid, std::make_shared<Call>(*this, chat, callid, chat.isGroup(),
-                                                             true, nullptr, userid, clientid));
+                                                             true, nullptr, userid, clientid, answerAutomatic));
     assert(ret.second);
     auto& call = ret.first->second;
     call->mHandler = mHandler.onIncomingCall(*call, avFlagsRemote);
