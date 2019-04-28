@@ -1335,7 +1335,7 @@ public:
 //===
 };
 
-class Client
+class Client : public karere::DeleteTrackable
 {
 protected:
     karere::Id mMyHandle;

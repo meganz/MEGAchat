@@ -211,6 +211,7 @@ static void setprompt(prompttype p)
 }
 
 // readline callback - exit if EOF, add to history unless password
+#if !defined(WIN32) || !defined(NO_READLINE)
 static void store_line(char* l)
 {
     if (!l)
@@ -228,6 +229,7 @@ static void store_line(char* l)
 
     line = l;
 }
+#endif
 
 struct CLCListener : public c::MegaChatListener
 {
@@ -2231,6 +2233,52 @@ void exec_testAllocation(ac::ACState& s)
 
 
 
+void exec_recentactions(ac::ACState& s)
+{
+    unique_ptr<m::MegaRecentActionBucketList> ra;
+
+    if (s.words.size() == 3)
+    {
+        ra.reset(g_megaApi->getRecentActions(atoi(s.words[1].s.c_str()), atoi(s.words[2].s.c_str())));
+    }
+    else
+    {
+        ra.reset(g_megaApi->getRecentActions());
+    }
+    
+    auto l = conlock(cout);
+    for (int b = 0; b < ra->size(); ++b)
+    {
+        m::MegaRecentActionBucket* bucket = ra->get(b);
+
+        int64_t ts = bucket->getTimestamp();
+        const char* em = bucket->getUserEmail();
+        m::MegaHandle ph = bucket->getParentHandle();
+        bool isupdate = bucket->isUpdate();
+        bool ismedia = bucket->isMedia();
+        const m::MegaNodeList* nodes = bucket->getNodes();
+        
+        cout << "Bucket " << ts << " email " << (em ? em : "NULL") << " parent " << ph << (isupdate ? " update" : "") << (ismedia ? " media" : " files") << " count: " << nodes->size() << endl;
+
+        for (int i = 0; i < nodes->size(); ++i)
+        {
+            cout << "    ";
+            unique_ptr<char[]> path(g_megaApi->getNodePath(nodes->get(i)));
+            unique_ptr<char[]> handleStr(nodes->get(i)->getBase64Handle());
+            if (path)
+            {
+                cout << path.get();
+            }
+            else
+            {
+                cout << "Path unknown but node name is: " << nodes->get(i)->getName();
+            }
+            cout << " size: " << nodes->get(i)->getSize() << " handle: " << (handleStr ? handleStr.get() : "(NULL)") << endl;
+        }
+    }
+}
+
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -2329,6 +2377,8 @@ ac::ACN autocompleteSyntax()
     // sdk level commands (intermediate layer of megacli commands)
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
     p->Add(exec_catchup, sequence(text("catchup"), opt(wholenumber(3))));
+
+    p->Add(exec_recentactions, sequence(text("recentactions"), opt(sequence(param("days"), param("nodecount")))));
 
 
     p->Add(exec_backgroundupload, sequence(text("backgroundupload"), either(
