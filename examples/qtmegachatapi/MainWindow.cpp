@@ -1242,19 +1242,19 @@ void MainWindow::setAccountType(int type)
         case (MegaAccountDetails::ACCOUNT_TYPE_BUSINESS):
         {
             ui->bAccountType->setText("B");
-            bool isMaster = mMegaApi->isMaster();
+            bool isMaster = mMegaApi->isMasterBusinessAccount();
             isMaster ? color.append("color:#0000FF"): color.append("color:#3683D1");
             text.append("\nAccount type: BUSINESS");
 
             switch (mMegaApi->getBusinessStatus())
             {
-                case -1:
+                case mega::BUSINESS_STATUS_EXPIRED:
                     text.append("\nStatus: Expired");
                     break;
-                case 1:
+                case mega::BUSINESS_STATUS_ACTIVE:
                     text.append("\nStatus: Active");
                     break;
-                case 2:
+                case mega::BUSINESS_STATUS_GRACE_PERIOD:
                     text.append("\nStatus: Grace period");
                     break;
                 default:
