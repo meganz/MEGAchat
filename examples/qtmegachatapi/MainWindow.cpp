@@ -1198,6 +1198,78 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
     return chatList;
 }
 
+void MainWindow::setAccountType(int type)
+{
+    QString text;
+    QString color;
+    switch (type)
+    {
+        case (MegaAccountDetails::ACCOUNT_TYPE_FREE):
+        {
+            ui->bAccountType->setText("F");
+            color.append("color:#00FF00");
+            text.append("\nAccount type: FREE");
+            break;
+        }
+        case (MegaAccountDetails::ACCOUNT_TYPE_LITE):
+        {
+            ui->bAccountType->setText("L");
+            color.append("color:#FCAE28");
+            text.append("\nAccount type: PRO LITE");
+            break;
+        }
+        case (MegaAccountDetails::ACCOUNT_TYPE_PROI):
+        {
+            ui->bAccountType->setText("PI");
+            color.append("color:#FF0000");
+            text.append("\nAccount type: PRO I");
+            break;
+        }
+        case (MegaAccountDetails::ACCOUNT_TYPE_PROII):
+        {
+            ui->bAccountType->setText("PII");
+            color.append("color:#FF0000");
+            text.append("\nAccount type: PRO II");
+            break;
+        }
+        case (MegaAccountDetails::ACCOUNT_TYPE_PROIII):
+        {
+            ui->bAccountType->setText("PIII");
+            color.append("color:#FF0000");
+            text.append("\nAccount type: PRO III");
+            break;
+        }
+        case (MegaAccountDetails::ACCOUNT_TYPE_BUSINESS):
+        {
+            ui->bAccountType->setText("B");
+            bool isMaster = mMegaApi->isMaster();
+            isMaster ? color.append("color:#0000FF"): color.append("color:#3683D1");
+            text.append("\nAccount type: BUSINESS");
+
+            switch (mMegaApi->getBusinessStatus())
+            {
+                case -1:
+                    text.append("\nStatus: Expired");
+                    break;
+                case 1:
+                    text.append("\nStatus: Active");
+                    break;
+                case 2:
+                    text.append("\nStatus: Grace period");
+                    break;
+                default:
+                    break;
+            }
+            isMaster ?text.append("\nUser type: Master") :text.append("\nUser type: Sub User");
+            break;
+        }
+        default:
+            break;
+    }
+
+    ui->bAccountType->setStyleSheet(color);
+    ui->bAccountType->setToolTip(text);
+}
 
 void MainWindow::updateContactFirstname(MegaChatHandle contactHandle, const char *firstname)
 {

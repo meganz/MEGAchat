@@ -449,6 +449,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
 
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
+        {
             QString text;
             if (request->getFlag())
             {
@@ -468,6 +469,16 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QMessageBox::critical(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
             break;
+        }
+        case MegaRequest::TYPE_ACCOUNT_DETAILS:
+        {
+            MegaAccountDetails *accountDetails = request->getMegaAccountDetails();
+            mMainWin->setAccountType(accountDetails->getProLevel());
+            delete accountDetails;
+            break;
+         }
+        default:
+            break;
     }
 }
 
@@ -486,6 +497,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaUserList *contactList = mMegaApi->getContacts();
                 mMainWin->addOrUpdateContactControllersItems(contactList);
                 mMainWin->reorderAppContactList();
+                mMegaApi->getAccountDetails();
                 delete contactList;
             }
             break;
