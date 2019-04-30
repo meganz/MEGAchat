@@ -138,7 +138,7 @@ class MainWindow :
             You take the ownership of the returned list*/
         std::list<Chat> *getLocalChatListItemsByStatus(int status);
 
-        void setAccountType(int type);
+        void setAccountType();
         char *askChatTitle();
         std::string getAuthCode();
         void setNContacts(int nContacts);

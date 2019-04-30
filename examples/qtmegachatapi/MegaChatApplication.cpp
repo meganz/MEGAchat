@@ -470,13 +470,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             }
             break;
         }
-        case MegaRequest::TYPE_ACCOUNT_DETAILS:
-        {
-            MegaAccountDetails *accountDetails = request->getMegaAccountDetails();
-            mMainWin->setAccountType(accountDetails->getProLevel());
-            delete accountDetails;
-            break;
-         }
         default:
             break;
     }
@@ -497,7 +490,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaUserList *contactList = mMegaApi->getContacts();
                 mMainWin->addOrUpdateContactControllersItems(contactList);
                 mMainWin->reorderAppContactList();
-                mMegaApi->getAccountDetails();
+                mMainWin->setAccountType();
                 delete contactList;
             }
             break;

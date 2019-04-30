@@ -1198,11 +1198,11 @@ std::list<Chat> *MainWindow::getLocalChatListItemsByStatus(int status)
     return chatList;
 }
 
-void MainWindow::setAccountType(int type)
+void MainWindow::setAccountType()
 {
     QString text;
     QString color;
-    switch (type)
+    switch (mMegaApi->getProLevel())
     {
         case (MegaAccountDetails::ACCOUNT_TYPE_FREE):
         {
