@@ -706,6 +706,10 @@ void Connection::setState(State state)
         if (!mSendPromise.done())
         {
             mSendPromise.reject("Failed to send. Socket was closed");
+            mSendPromise.fail([](const ::promise::Error& err)
+            {
+                // avoid unhandled promise error
+            });
         }
     }
     else if (mState == kStateConnected)
