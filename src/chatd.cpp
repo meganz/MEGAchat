@@ -4518,7 +4518,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             handleTruncate(msg, idx);
         }
-        return;
     }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
@@ -4844,6 +4843,9 @@ uint8_t Chat::lastTextMessage(LastTextMsg*& msg)
     if (mLastTextMsg.isValid()) // findLastTextMsg() may have found it locally
     {
         msg = &mLastTextMsg;
+        Message *lastMsg = findOrNull(mLastTextMsg.idx());
+        assert(lastMsg);
+        mLastMsgTs = lastMsg->ts;
         return LastTextMsgState::kHave;
     }
 
