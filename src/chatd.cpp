@@ -3927,6 +3927,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (msg->type == Message::kMsgTruncate)
             {
                 histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+                histmsg.keyid = msg->keyid;
             }
 
             if (idx > mNextHistFetchIdx)
