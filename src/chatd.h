@@ -881,8 +881,6 @@ protected:
     void findAndNotifyLastTextMsg();
     void notifyLastTextMsg();
     void onMsgTimestamp(uint32_t ts); //support for newest-message-timestamp
-    void onInCall(karere::Id userid, uint32_t clientid);
-    void onEndCall(karere::Id userid, uint32_t clientid);
     void initChat();
     void requestRichLink(Message &message);
     void requestPendingRichLinks();
