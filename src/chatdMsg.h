@@ -65,6 +65,9 @@ enum Opcode
       *
       * S->C: A different connection has added a message to the chat.
       * Receive: <chatid> <userid> <msgid> <ts_send> <ts_update> <keyid> <msglen> <msg>
+      *
+      * Note that timestamps up to one hour in the past are accepted (anything in the future or
+      * older will be set to current time)
       */
     OP_NEWMSG = 3,
 

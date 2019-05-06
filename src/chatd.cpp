@@ -506,7 +506,8 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo)
 : mChatdClient(chatdClient), mShardNo(shardNo),
-  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache)
+  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
+  mSendPromise(promise::_Void())
 {}
 
 void Connection::wsConnectCb()
