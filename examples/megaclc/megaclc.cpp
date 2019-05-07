@@ -682,39 +682,6 @@ bool oneOpenRoom(c::MegaChatHandle room)
 }
 
 
-bool extractflag(const string& flag, vector<ac::ACState::quoted_word>& words)
-{
-    for (auto i = words.begin(); i != words.end(); ++i)
-    {
-        if (i->s == flag)
-        {
-            words.erase(i);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool extractflagparam(const string& flag, string& param, vector<ac::ACState::quoted_word>& words)
-{
-    for (auto i = words.begin(); i != words.end(); ++i)
-    {
-        if (i->s == flag)
-        {
-            auto j = i;
-            ++j;
-            if (j != words.end())
-            {
-                param = j->s;
-                words.erase(i, ++j);
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-
 static bool quit_flag = false;
 static string login;
 static string password;
@@ -1818,23 +1785,6 @@ void exec_recentactions(ac::ACState& s)
     }
 }
 
-void exec_getspecificaccountdetails(ac::ACState& s)
-{
-    bool storage = extractflag("storage", s.words);
-    bool transfer = extractflag("transfer", s.words);
-    bool pro = extractflag("pro", s.words);
-
-    if (!storage && !transfer && !pro)
-    {
-        storage = transfer = pro = true;
-    }
-
-    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
-            {
-                check_err("getSpecificAccountDetails", e);
-            }));
-}
-
 
 ac::ACN autocompleteSyntax()
 {
@@ -1936,7 +1886,6 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_catchup, sequence(text("catchup"), opt(wholenumber(3))));
 
     p->Add(exec_recentactions, sequence(text("recentactions"), opt(sequence(param("days"), param("nodecount")))));
-    p->Add(exec_getspecificaccountdetails, sequence(text("getspecificaccountdetails"), repeat(either(flag("-storage"), flag("-transfer"), flag("-pro")))));
 
     return p;
 }
