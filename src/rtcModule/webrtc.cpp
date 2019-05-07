@@ -1457,7 +1457,8 @@ Promise<void> Call::waitAllSessionsTerminated(TermCode code, const std::string& 
 
     for (auto& item: mSessions)
     {
-        item.second->setState(Session::kStateTerminating);
+        if (item.second->mState < Session::kStateTerminating)
+            item.second->setState(Session::kStateTerminating);
     }
     auto wptr = weakHandle();
 
