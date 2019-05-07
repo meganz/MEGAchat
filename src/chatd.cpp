@@ -506,7 +506,8 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo)
 : mChatdClient(chatdClient), mShardNo(shardNo),
-  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache)
+  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
+  mSendPromise(promise::_Void())
 {}
 
 void Connection::wsConnectCb()
@@ -2816,15 +2817,14 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
+    int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
+    postMsgToSending(opcode, msg, recipients);
+
     // last text msg stuff
     if (msg->isValidLastMessage())
     {
         onLastTextMsgUpdated(*msg);
-        onMsgTimestamp(msg->ts);
     }
-
-    int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(opcode, msg, recipients);
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -3918,6 +3918,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (msg->type == Message::kMsgTruncate)
             {
                 histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+                histmsg.keyid = msg->keyid;
             }
 
             if (idx > mNextHistFetchIdx)
@@ -3947,7 +3948,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             {
                 handleTruncate(*msg, idx);
             }
-            else if (mLastTextMsg.idx() == idx) //last text msg stuff
+
+            if (mLastTextMsg.idx() == idx) //last text msg stuff
             {
                 //our last text message was edited
                 if (histmsg.isValidLastMessage()) //same message, but with updated contents
@@ -4066,9 +4068,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
-
-    CALL_LISTENER(onUnreadChanged);
-    findAndNotifyLastTextMsg();
 
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
     // (if no more attachments in history buffer, node-history will be fully cleared)
@@ -4509,7 +4508,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             handleTruncate(msg, idx);
         }
-        return;
     }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
@@ -4597,20 +4595,6 @@ bool Chat::msgNodeHistIncoming(Message *msg)
     }
 
     return false;
-}
-
-void Chat::onMsgTimestamp(uint32_t ts)
-{
-    if (ts == mLastMsgTs)
-        return;
-
-    if (ts < mLastMsgTs)
-    {
-        CHATID_LOG_WARNING("onMsgTimestamp: moving last-ts to an older ts (last-msg was deleted or history was truncated)");
-    }
-
-    mLastMsgTs = ts;
-    CALL_LISTENER(onLastMessageTsUpdated, ts);
 }
 
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
@@ -4800,7 +4784,9 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     assert(!msg.empty() || msg.isManagementMessage());
     assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
+    mLastMsgTs = msg.ts;
     notifyLastTextMsg();
+
 }
 
 void Chat::notifyLastTextMsg()
@@ -4811,10 +4797,11 @@ void Chat::notifyLastTextMsg()
     // upon deletion of lastMessage and/or truncate, need to find the new suitable
     // lastMessage through the history. In that case, we need to notify also the
     // message's timestamp to reorder the list of chats
-    Message *lastMsg = findOrNull(mLastTextMsg.idx());
-    if (lastMsg)
+    // there is an actual last-message in the history (sending or already confirmed
+    if (findOrNull(mLastTextMsg.idx())              // message is confirmed
+            || getMsgByXid(mLastTextMsg.xid()))     // message is sending
     {
-        onMsgTimestamp(lastMsg->ts);
+        CALL_LISTENER(onLastMessageTsUpdated, mLastMsgTs);
     }
 }
 
@@ -4853,6 +4840,7 @@ bool Chat::findLastTextMsg()
             if (msg.isValidLastMessage())
             {
                 mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
+                mLastMsgTs = msg.ts;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
                 return true;
             }
@@ -4868,12 +4856,13 @@ bool Chat::findLastTextMsg()
             if (msg.isValidLastMessage())
             {
                 mLastTextMsg.assign(msg, i);
+                mLastMsgTs = msg.ts;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
                 return true;
             }
         }
         //check in db
-        CALL_DB(getLastTextMessage, lownum()-1, mLastTextMsg);
+        CALL_DB(getLastTextMessage, lownum()-1, mLastTextMsg, mLastMsgTs);
         if (mLastTextMsg.isValid())
         {
             CHATID_LOG_DEBUG("lastTextMessage: Text message found in DB");
