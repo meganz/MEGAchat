@@ -277,6 +277,14 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
+            {
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
