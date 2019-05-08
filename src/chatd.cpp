@@ -241,18 +241,25 @@ promise::Promise<void> Client::sendKeepalive()
         mKeepalivePromise = Promise<void>();
     }
 
+    auto wptr = weakHandle();
     if (mConnections.size())
     {
         mKeepaliveCount += mConnections.size();
         for (auto& conn: mConnections)
         {
             conn.second->sendKeepalive()
-            .then([this]()
+            .then([this, wptr]()
             {
+                if (wptr.deleted())
+                    return;
+
                 onKeepaliveSent();
             })
-            .fail([this](const ::promise::Error&)
+            .fail([this, wptr](const ::promise::Error&)
             {
+                if (wptr.deleted())
+                    return;
+
                 mKeepaliveFailed = true;
                 onKeepaliveSent();
             });
@@ -499,7 +506,8 @@ void Chat::login()
 
 Connection::Connection(Client& chatdClient, int shardNo)
 : mChatdClient(chatdClient), mShardNo(shardNo),
-  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache)
+  mDNScache(mChatdClient.mKarereClient->websocketIO->mDnsCache),
+  mSendPromise(promise::_Void())
 {}
 
 void Connection::wsConnectCb()
@@ -683,7 +691,7 @@ void Connection::setState(State state)
 
             // remove calls (if any)
 #ifndef KARERE_DISABLE_WEBRTC
-            if (mChatdClient.mKarereClient->rtc)
+            if (mChatdClient.mKarereClient->rtc  && !chat.previewMode())
             {
                 mChatdClient.mKarereClient->rtc->removeCall(chatid);
             }
@@ -1119,8 +1127,12 @@ bool Connection::sendBuf(Buffer&& buf)
     if (mSendPromise.done())
     {
         mSendPromise = Promise<void>();
-        mSendPromise.fail([this](const promise::Error& err)
+        auto wptr = weakHandle();
+        mSendPromise.fail([this, wptr](const promise::Error& err)
         {
+            if (wptr.deleted())
+                return;
+
            CHATDS_LOG_ERROR("Failed to send data. Error: %s", err.what());
         });
     }
@@ -2061,8 +2073,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-                auto& chat = mChatdClient.chats(chatid);
-                chat.onInCall(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
+                Chat& chat = mChatdClient.chats(chatid);
+                if (mChatdClient.mRtcHandler && !chat.previewMode())
+                {
+                    mChatdClient.mRtcHandler->handleInCall(chatid, userid, clientid);
+                }
+#endif
                 break;
             }
             case OP_ENDCALL:
@@ -2072,8 +2089,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 CHATDS_LOG_DEBUG("%s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
-                auto& chat = mChatdClient.chats(chatid);
-                chat.onEndCall(userid, clientid);
+#ifndef KARERE_DISABLE_WEBRTC
+                Chat& chat = mChatdClient.chats(chatid);
+                if (mChatdClient.mRtcHandler && !chat.previewMode())
+                {
+                    mChatdClient.mRtcHandler->onClientLeftCall(chatid, userid, clientid);
+                }
+#endif
                 break;
             }
             case OP_CALLDATA:
@@ -2086,7 +2108,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
 
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler)
+                Chat &chat = mChatdClient.chats(chatid);
+                if (mChatdClient.mRtcHandler && !chat.previewMode())
                 {
                     StaticBuffer cmd(buf.buf() + 23, payloadLen);
                     auto& chat = mChatdClient.chats(chatid);
@@ -2119,10 +2142,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_16(payloadLen, 20);
                 pos += payloadLen; //skip the payload
 #ifndef KARERE_DISABLE_WEBRTC
-                auto& chat = mChatdClient.chats(chatid);
+                Chat& chat = mChatdClient.chats(chatid);
                 StaticBuffer cmd(buf.buf() + cmdstart, 23 + payloadLen);
                 CHATDS_LOG_DEBUG("%s: recv %s", ID_CSTR(chatid), ::rtcModule::rtmsgCommandToString(cmd).c_str());
-                if (mChatdClient.mRtcHandler)
+                if (mChatdClient.mRtcHandler && !chat.previewMode())
                 {
                     mChatdClient.mRtcHandler->handleMessage(chat, cmd);
                 }
@@ -2185,7 +2208,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(duration, 8);
                 CHATDS_LOG_DEBUG("%s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
 #ifndef KARERE_DISABLE_WEBRTC
-                if (mChatdClient.mRtcHandler)
+                Chat &chat = mChatdClient.chats(chatid);
+                if (mChatdClient.mRtcHandler  && !chat.previewMode())
                 {
                     mChatdClient.mRtcHandler->handleCallTime(chatid, duration);
                 }
@@ -2520,27 +2544,6 @@ uint64_t Chat::generateRefId(const ICrypto* aCrypto)
     aCrypto->randomBytes(&rand, sizeof(rand));
     return (ts & 0x0000000000ffffff) | (rand << 40);
 }
-void Chat::onInCall(karere::Id userid, uint32_t clientid)
-{
-#ifndef KARERE_DISABLE_WEBRTC
-    assert(mChatdClient.mRtcHandler);
-    if (mChatdClient.mRtcHandler)
-    {
-        mChatdClient.mRtcHandler->handleInCall(mChatId, userid, clientid);
-    }
-#endif
-}
-
-void Chat::onEndCall(karere::Id userid, uint32_t clientid)
-{
-#ifndef KARERE_DISABLE_WEBRTC
-    assert(mChatdClient.mRtcHandler);
-    if (mChatdClient.mRtcHandler)
-    {
-        mChatdClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
-    }
-#endif
-}
 
 void Chat::initChat()
 {
@@ -2814,15 +2817,14 @@ void Chat::msgSubmit(Message* msg, SetOfIds recipients)
     assert(msg->isSending());
     assert(msg->keyid == CHATD_KEYID_INVALID);
 
+    int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
+    postMsgToSending(opcode, msg, recipients);
+
     // last text msg stuff
     if (msg->isValidLastMessage())
     {
         onLastTextMsgUpdated(*msg);
-        onMsgTimestamp(msg->ts);
     }
-
-    int opcode = (msg->type == Message::Type::kMsgAttachment) ? OP_NEWNODEMSG : OP_NEWMSG;
-    postMsgToSending(opcode, msg, recipients);
 }
 
 void Chat::createMsgBackRefs(Chat::OutputQueue::iterator msgit)
@@ -3916,6 +3918,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             if (msg->type == Message::kMsgTruncate)
             {
                 histmsg.ts = msg->ts;   // truncates update the `ts` instead of `update`
+                histmsg.keyid = msg->keyid;
             }
 
             if (idx > mNextHistFetchIdx)
@@ -3945,7 +3948,8 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             {
                 handleTruncate(*msg, idx);
             }
-            else if (mLastTextMsg.idx() == idx) //last text msg stuff
+
+            if (mLastTextMsg.idx() == idx) //last text msg stuff
             {
                 //our last text message was edited
                 if (histmsg.isValidLastMessage()) //same message, but with updated contents
@@ -4064,9 +4068,6 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
     mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
-
-    CALL_LISTENER(onUnreadChanged);
-    findAndNotifyLastTextMsg();
 
     // Find an attachment newer than truncate (lownum) in order to truncate node-history
     // (if no more attachments in history buffer, node-history will be fully cleared)
@@ -4507,7 +4508,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         {
             handleTruncate(msg, idx);
         }
-        return;
     }
 
     if (isNew || (mLastSeenIdx == CHATD_IDX_INVALID))
@@ -4597,20 +4597,6 @@ bool Chat::msgNodeHistIncoming(Message *msg)
     return false;
 }
 
-void Chat::onMsgTimestamp(uint32_t ts)
-{
-    if (ts == mLastMsgTs)
-        return;
-
-    if (ts < mLastMsgTs)
-    {
-        CHATID_LOG_WARNING("onMsgTimestamp: moving last-ts to an older ts (last-msg was deleted or history was truncated)");
-    }
-
-    mLastMsgTs = ts;
-    CALL_LISTENER(onLastMessageTsUpdated, ts);
-}
-
 void Chat::verifyMsgOrder(const Message& msg, Idx idx)
 {
     for (auto refid: msg.backRefs)
@@ -4686,7 +4672,7 @@ void Chat::onUserLeave(Id userid)
         }
         mUsers.clear();
 
-        if (mChatdClient.mRtcHandler)
+        if (mChatdClient.mRtcHandler && !previewMode())
         {
             mChatdClient.mRtcHandler->onKickedFromChatRoom(mChatId);
         }
@@ -4697,14 +4683,14 @@ void Chat::onUserLeave(Id userid)
         CALL_CRYPTO(onUserLeave, userid);
         CALL_LISTENER(onUserLeave, userid);
 
-        if (mChatdClient.mRtcHandler)
+        if (mChatdClient.mRtcHandler && !previewMode())
         {
             // the call will usually be terminated by the kicked user, but just in case
             // the client doesn't do it properly, we notify the user left the call
             uint32_t clientid = mChatdClient.mRtcHandler->clientidFromPeer(mChatId, userid);
             if (clientid)
             {
-                onEndCall(userid, clientid);
+                mChatdClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
             }
         }
     }
@@ -4799,7 +4785,9 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
     assert(!msg.empty() || msg.isManagementMessage());
     assert(msg.type != Message::kMsgRevokeAttachment);
     mLastTextMsg.assign(msg, idx);
+    mLastMsgTs = msg.ts;
     notifyLastTextMsg();
+
 }
 
 void Chat::notifyLastTextMsg()
@@ -4810,10 +4798,11 @@ void Chat::notifyLastTextMsg()
     // upon deletion of lastMessage and/or truncate, need to find the new suitable
     // lastMessage through the history. In that case, we need to notify also the
     // message's timestamp to reorder the list of chats
-    Message *lastMsg = findOrNull(mLastTextMsg.idx());
-    if (lastMsg)
+    // there is an actual last-message in the history (sending or already confirmed
+    if (findOrNull(mLastTextMsg.idx())              // message is confirmed
+            || getMsgByXid(mLastTextMsg.xid()))     // message is sending
     {
-        onMsgTimestamp(lastMsg->ts);
+        CALL_LISTENER(onLastMessageTsUpdated, mLastMsgTs);
     }
 }
 
@@ -4852,6 +4841,7 @@ bool Chat::findLastTextMsg()
             if (msg.isValidLastMessage())
             {
                 mLastTextMsg.assign(msg, CHATD_IDX_INVALID);
+                mLastMsgTs = msg.ts;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in send queue");
                 return true;
             }
@@ -4867,12 +4857,13 @@ bool Chat::findLastTextMsg()
             if (msg.isValidLastMessage())
             {
                 mLastTextMsg.assign(msg, i);
+                mLastMsgTs = msg.ts;
                 CHATID_LOG_DEBUG("lastTextMessage: Text message found in RAM");
                 return true;
             }
         }
         //check in db
-        CALL_DB(getLastTextMessage, lownum()-1, mLastTextMsg);
+        CALL_DB(getLastTextMessage, lownum()-1, mLastTextMsg, mLastMsgTs);
         if (mLastTextMsg.isValid())
         {
             CHATID_LOG_DEBUG("lastTextMessage: Text message found in DB");
