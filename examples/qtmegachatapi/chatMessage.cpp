@@ -448,11 +448,12 @@ void ChatMessage::setAuthor(const char *author)
     {
         megachat::MegaChatRoom *chatRoom = megaChatApi->getChatRoom(mChatId);
         const char *msgAuthor = chatRoom->getPeerFirstnameByHandle(mMessage->getUserHandle());
-        if (msgAuthor)
+        const char *autorizationToken = chatRoom->getAuthorizationToken();
+        if (msgAuthor && strlen(msgAuthor) > 0)
         {
             ui->mAuthorDisplay->setText(tr(msgAuthor));
         }
-        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh)))
+        else if ((msgAuthor = mChatWindow->mMainWin->mApp->getFirstname(uh, autorizationToken)))
         {
             ui->mAuthorDisplay->setText(tr(msgAuthor));
             delete [] msgAuthor;
@@ -462,6 +463,7 @@ void ChatMessage::setAuthor(const char *author)
             ui->mAuthorDisplay->setText(tr("Loading firstname..."));
         }
         delete chatRoom;
+        delete []autorizationToken;
     }
 }
 

@@ -766,38 +766,41 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
         }
 
-        QAction *actSetPrivFullAccess = Q_NULLPTR;
-        QAction *actSetPrivStandard = Q_NULLPTR;
-        QAction *actSetPrivReadOnly = Q_NULLPTR;
-
-        auto menuSetPriv = entry->addMenu(tr("Set privilege"));
-        switch (privilege)
+        if (privilege != megachat::MegaChatRoom::PRIV_RM)
         {
-            case megachat::MegaChatRoom::PRIV_MODERATOR:
-                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator <-"));
-                actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-                break;
-            case megachat::MegaChatRoom::PRIV_STANDARD:
-                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-                actSetPrivStandard = menuSetPriv->addAction(tr("Standard <-"));
-                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
-                break;
-            case megachat::MegaChatRoom::PRIV_RO:
-                actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
-                actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
-                actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
-                break;
+            QAction *actSetPrivFullAccess = Q_NULLPTR;
+            QAction *actSetPrivStandard = Q_NULLPTR;
+            QAction *actSetPrivReadOnly = Q_NULLPTR;
+
+            auto menuSetPriv = entry->addMenu(tr("Set privilege"));
+            switch (privilege)
+            {
+                case megachat::MegaChatRoom::PRIV_MODERATOR:
+                    actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator <-"));
+                    actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
+                    actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+                    break;
+                case megachat::MegaChatRoom::PRIV_STANDARD:
+                    actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
+                    actSetPrivStandard = menuSetPriv->addAction(tr("Standard <-"));
+                    actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only"));
+                    break;
+                case megachat::MegaChatRoom::PRIV_RO:
+                    actSetPrivFullAccess = menuSetPriv->addAction(tr("Moderator"));
+                    actSetPrivStandard = menuSetPriv->addAction(tr("Standard"));
+                    actSetPrivReadOnly = menuSetPriv->addAction(tr("Read-only <-"));
+                    break;
+            }
+
+            actSetPrivFullAccess->setProperty("userHandle", userhandle);
+            connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
+
+            actSetPrivStandard->setProperty("userHandle", userhandle);
+            connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
+
+            actSetPrivReadOnly->setProperty("userHandle", userhandle);
+            connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
         }
-
-        actSetPrivFullAccess->setProperty("userHandle", userhandle);
-        connect(actSetPrivFullAccess, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
-
-        actSetPrivStandard->setProperty("userHandle", userhandle);
-        connect(actSetPrivStandard, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
-
-        actSetPrivReadOnly->setProperty("userHandle", userhandle);
-        connect(actSetPrivReadOnly, SIGNAL(triggered()), this, SLOT(onMemberSetPriv()));
     }
 }
 

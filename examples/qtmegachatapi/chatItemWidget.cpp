@@ -121,7 +121,8 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
         else
         {
             const char *msgAuthor = getLastMessageSenderName(lastMessageSender);
-            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender)))
+            const char *autorizationToken = chatRoom->getAuthorizationToken();
+            if (msgAuthor || (msgAuthor = mMainWin->mApp->getFirstname(lastMessageSender, autorizationToken)))
             {
                 mLastMsgAuthor.assign(msgAuthor);
             }
@@ -130,6 +131,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
                 mLastMsgAuthor = "Loading firstname...";
             }
             delete [] msgAuthor;
+            delete [] autorizationToken;
         }
     }
     switch (lastMessageType)

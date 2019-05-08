@@ -138,14 +138,14 @@ string ch_s(c::MegaChatHandle h)
     return (h == 0 || h == c::MEGACHAT_INVALID_HANDLE) ? "<Null>" : k::Id(h).toString();
 }
 
-bool check_err(const char* opName, m::MegaError* e)
+bool check_err(const string& opName, m::MegaError* e)
 {
     bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
     conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
     return success;
 }
 
-bool check_err(const char* opName, c::MegaChatError* e)
+bool check_err(const string& opName, c::MegaChatError* e)
 {
     bool success = e->getErrorCode() == c::MegaChatError::ERROR_OK;
     conlock(cout) << opName << (success ? " succeeded." : " failed. Error: " + string(e->getErrorString())) << endl;
@@ -205,6 +205,7 @@ static void setprompt(prompttype p)
 }
 
 // readline callback - exit if EOF, add to history unless password
+#if !defined(WIN32) || !defined(NO_READLINE)
 static void store_line(char* l)
 {
     if (!l)
@@ -222,6 +223,7 @@ static void store_line(char* l)
 
     line = l;
 }
+#endif
 
 struct CLCListener : public c::MegaChatListener
 {
@@ -680,6 +682,39 @@ bool oneOpenRoom(c::MegaChatHandle room)
 }
 
 
+bool extractflag(const string& flag, vector<ac::ACState::quoted_word>& words)
+{
+    for (auto i = words.begin(); i != words.end(); ++i)
+    {
+        if (i->s == flag)
+        {
+            words.erase(i);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool extractflagparam(const string& flag, string& param, vector<ac::ACState::quoted_word>& words)
+{
+    for (auto i = words.begin(); i != words.end(); ++i)
+    {
+        if (i->s == flag)
+        {
+            auto j = i;
+            ++j;
+            if (j != words.end())
+            {
+                param = j->s;
+                words.erase(i, ++j);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
 static bool quit_flag = false;
 static string login;
 static string password;
@@ -874,7 +909,7 @@ void exec_getuserfirstname(ac::ACState& s)
         }
     });
 
-    g_chatApi->getUserFirstname(userhandle, &g_chatListener);
+    g_chatApi->getUserFirstname(userhandle, NULL, &g_chatListener);
 }
 
 
@@ -890,7 +925,7 @@ void exec_getuserlastname(ac::ACState& s)
         }
     });
 
-    g_chatApi->getUserLastname(userhandle, &g_chatListener);
+    g_chatApi->getUserLastname(userhandle, NULL, &g_chatListener);
 }
 
 void exec_getuseremail(ac::ACState& s)
@@ -1663,6 +1698,11 @@ public:
     std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
     std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
 
+    OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
+        :onRequestFinishFunc(f)
+    {
+    }
+
     void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
     {
         if (onRequestStartFunc) onRequestStartFunc(api, request);
@@ -1711,6 +1751,88 @@ void exec_apiurl(ac::ACState& s)
             delete [] session;
         }
     }
+}
+
+
+void exec_catchup(ac::ACState& s)
+{
+    int count = s.words.size() > 1 ? atoi(s.words[1].s.c_str()) : 1;
+
+    for (int i = 0; i < count; ++i)
+    {
+        static int next_catchup_id = 0;
+        int id = next_catchup_id++;
+
+        g_megaApi->catchup(new OneShotRequestListener([id](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("catchup " + to_string(id), e);
+            }));
+
+        conlock(cout) << "catchup " << id << " requested" << endl;
+    }
+}
+
+
+void exec_recentactions(ac::ACState& s)
+{
+    unique_ptr<m::MegaRecentActionBucketList> ra;
+
+    if (s.words.size() == 3)
+    {
+        ra.reset(g_megaApi->getRecentActions(atoi(s.words[1].s.c_str()), atoi(s.words[2].s.c_str())));
+    }
+    else
+    {
+        ra.reset(g_megaApi->getRecentActions());
+    }
+    
+    auto l = conlock(cout);
+    for (int b = 0; b < ra->size(); ++b)
+    {
+        m::MegaRecentActionBucket* bucket = ra->get(b);
+
+        int64_t ts = bucket->getTimestamp();
+        const char* em = bucket->getUserEmail();
+        m::MegaHandle ph = bucket->getParentHandle();
+        bool isupdate = bucket->isUpdate();
+        bool ismedia = bucket->isMedia();
+        const m::MegaNodeList* nodes = bucket->getNodes();
+        
+        cout << "Bucket " << ts << " email " << (em ? em : "NULL") << " parent " << ph << (isupdate ? " update" : "") << (ismedia ? " media" : " files") << " count: " << nodes->size() << endl;
+
+        for (int i = 0; i < nodes->size(); ++i)
+        {
+            cout << "    ";
+            unique_ptr<char[]> path(g_megaApi->getNodePath(nodes->get(i)));
+            unique_ptr<char[]> handleStr(nodes->get(i)->getBase64Handle());
+            if (path)
+            {
+                cout << path.get();
+            }
+            else
+            {
+                cout << "Path unknown but node name is: " << nodes->get(i)->getName();
+            }
+            cout << " size: " << nodes->get(i)->getSize() << " handle: " << (handleStr ? handleStr.get() : "(NULL)") << endl;
+        }
+    }
+}
+
+void exec_getspecificaccountdetails(ac::ACState& s)
+{
+    bool storage = extractflag("storage", s.words);
+    bool transfer = extractflag("transfer", s.words);
+    bool pro = extractflag("pro", s.words);
+
+    if (!storage && !transfer && !pro)
+    {
+        storage = transfer = pro = true;
+    }
+
+    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+            {
+                check_err("getSpecificAccountDetails", e);
+            }));
 }
 
 
@@ -1811,7 +1933,11 @@ ac::ACN autocompleteSyntax()
 
     // sdk level commands (intermediate layer of megacli commands)
     p->Add(exec_apiurl, sequence(text("apiurl"), param("url"), opt(param("disablepkp"))));
-    
+    p->Add(exec_catchup, sequence(text("catchup"), opt(wholenumber(3))));
+
+    p->Add(exec_recentactions, sequence(text("recentactions"), opt(sequence(param("days"), param("nodecount")))));
+    p->Add(exec_getspecificaccountdetails, sequence(text("getspecificaccountdetails"), repeat(either(flag("-storage"), flag("-transfer"), flag("-pro")))));
+
     return p;
 }
 

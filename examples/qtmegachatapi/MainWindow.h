@@ -202,11 +202,14 @@ class MainWindow :
         void onTwoFactorCheck();
         void onPrintMyInfo();
         void on_mLogout_clicked();
+        void onCatchUp();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();
         void onReconnect(bool disconnect);
+        void onPushReceived(unsigned int type);
         void onUseApiStagingClicked(bool);
+        void onBackgroundStatusClicked(bool status);
 
     signals:
         void esidLogout();

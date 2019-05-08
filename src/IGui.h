@@ -1,8 +1,6 @@
 #ifndef IAPP_H
 #define IAPP_H
-#ifndef KARERE_DISABLE_WEBRTC
-    #include <webrtc.h>
-#endif
+#include "rtcModule/webrtc.h"
 #include <chatd.h>
 #include <presenced.h>
 #include <autoHandle.h>
@@ -125,6 +123,9 @@ public:
          * so that means we were part of the chat before, hence we re-joined
          */
         virtual void onRejoinedChat() {}
+
+        /** @brief We have manually closed a chat preview */
+        virtual void onPreviewClosed() {}
 
         /** @brief The last message in the history sequence has changed.
          * This means that either a new message has been received, or the last
