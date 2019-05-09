@@ -9,25 +9,15 @@ SettingWindow::SettingWindow(::mega::MegaApi *megaApi, QWidget *parent) :
     mMegaApi(megaApi)
 {
     ui->setupUi(this);
-
     ui->chatsView->setModel(&mModel);
-
-    connect(ui->confirmButtons, SIGNAL(accepted()), this, SLOT(accepted()));
-    connect(ui->confirmButtons, SIGNAL(rejected()), this, SLOT(rejected()));
-    mMegaRequestDelegate = new ::mega::QTMegaRequestListener(mMegaApi, this);
-    mMegaApi->fetchTimeZone(mMegaRequestDelegate);
-
-    ui->globalDnd->setValidator(new QIntValidator(0, 31536000, this)); // Max value -> seconds in a year
-    connect(ui->globalEnabled, SIGNAL(clicked(bool)), this, SLOT(onGlobalClicked(bool)));
-    connect(ui->scheduleEnabled, SIGNAL(clicked(bool)), this, SLOT(onScheduleClicked(bool)));
+    init();
 }
 
 SettingWindow::~SettingWindow()
 {
     delete ui;
-    delete mPushNotificationSettings;
-    delete mTimeZoneDetails;
     delete mMegaRequestDelegate;
+    reset();
 }
 
 void SettingWindow::onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e)
@@ -46,24 +36,61 @@ void SettingWindow::onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *r
             }
             break;
         case ::mega::MegaRequest::TYPE_FETCH_TIMEZONE:
-            mTimeZoneDetails = request->getMegaTimeZoneDetails();
-            if (mPushNotificationSettings && mTimeZoneDetails)
+        {
+            ::mega::MegaTimeZoneDetails *aux = request->getMegaTimeZoneDetails();
+            if (aux)
             {
-                ui->pushNotifications->setEnabled(true);
-                fillWidget();
+                mTimeZoneDetails = request->getMegaTimeZoneDetails()->copy();
+                if (mPushNotificationSettings && mTimeZoneDetails)
+                {
+                    ui->pushNotifications->setEnabled(true);
+                    fillWidget();
+                }
             }
             break;
+        }
         default:
             break;
     }
 }
 
+
+void SettingWindow::reset()
+{
+    if (mPushNotificationSettings)
+    {
+        delete mPushNotificationSettings;
+        mPushNotificationSettings = NULL;
+    }
+
+    if (mTimeZoneDetails)
+    {
+        delete mTimeZoneDetails;
+        mTimeZoneDetails = NULL;
+    }
+
+    if (!mMegaRequestDelegate)
+    {
+        mMegaRequestDelegate = new ::mega::QTMegaRequestListener(mMegaApi, this);
+    }
+}
+
+void SettingWindow::init()
+{
+    reset();
+    mMegaApi->fetchTimeZone(mMegaRequestDelegate);
+    mMegaApi->getPushNotificationSettings(mMegaRequestDelegate);
+
+    ui->pushNotifications->setEnabled(false);
+    connect(ui->confirmButtons, SIGNAL(accepted()), this, SLOT(accepted()));
+    connect(ui->confirmButtons, SIGNAL(rejected()), this, SLOT(rejected()));
+    ui->globalDnd->setValidator(new QIntValidator(0, 31536000, this)); // Max value -> seconds in a year
+    connect(ui->globalEnabled, SIGNAL(clicked(bool)), this, SLOT(onGlobalClicked(bool)));
+    connect(ui->scheduleEnabled, SIGNAL(clicked(bool)), this, SLOT(onScheduleClicked(bool)));
+}
+
 void SettingWindow::show()
 {
-    delete mPushNotificationSettings;
-    mPushNotificationSettings = NULL;
-    ui->pushNotifications->setEnabled(false);
-    mMegaApi->getPushNotificationSettings(mMegaRequestDelegate);
     QDialog::show();
 }
 
@@ -88,46 +115,51 @@ void SettingWindow::fillWidget()
     ui->startTime->setTime(QTime(hours, minutes));
 
     QList<QString> stringsList;
-    int index = mTimeZoneDetails->getDefault();
-    for (int i = 0; i < mTimeZoneDetails->getNumTimeZones(); i++)
-    {
-        const char *timeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
-        stringsList.append(QString(mTimeZoneDetails->getTimeZone(i)));
+    int index = 0;
 
-        if (strcmp(mTimeZoneDetails->getTimeZone(i), timeZone) == 0)
+    if (mTimeZoneDetails != NULL)
+    {
+        index = mTimeZoneDetails->getDefault();
+        for (int i = 0; i < mTimeZoneDetails->getNumTimeZones(); i++)
         {
-            index = i;
+            const char *timeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
+            stringsList.append(QString(mTimeZoneDetails->getTimeZone(i)));
+
+            if (strcmp(mTimeZoneDetails->getTimeZone(i), timeZone) == 0)
+            {
+                index = i;
+            }
+
+            delete [] timeZone;
         }
 
-        delete [] timeZone;
-    }
+        ui->timeZones->addItems(stringsList);
+        ui->timeZones->setCurrentIndex(index);
 
-    ui->timeZones->addItems(stringsList);
-    ui->timeZones->setCurrentIndex(index);
+        scheduleTime = (mPushNotificationSettings->getGlobalScheduleEnd() > 0) ? mPushNotificationSettings->getGlobalScheduleEnd() : 0;
+        hours = scheduleTime / 60;
+        minutes = scheduleTime % 60;
+        ui->endTime->setTime(QTime(hours, minutes));
+        onScheduleClicked(mPushNotificationSettings->isGlobalScheduleEnabled());
 
-    scheduleTime = (mPushNotificationSettings->getGlobalScheduleEnd() > 0) ? mPushNotificationSettings->getGlobalScheduleEnd() : 0;
-    hours = scheduleTime / 60;
-    minutes = scheduleTime % 60;
-    ui->endTime->setTime(QTime(hours, minutes));
-    onScheduleClicked(mPushNotificationSettings->isGlobalScheduleEnabled());
-
-    mModel.clear();
-    ::mega::MegaTextChatList *chatList = mMegaApi->getChatList();
-    for (int i = 0; i < chatList->size(); i++)
-    {
-        ::mega::MegaHandle chatid = chatList->get(i)->getHandle();
-        if (mPushNotificationSettings->isChatDndEnabled(chatid))
+        mModel.clear();
+        ::mega::MegaTextChatList *chatList = mMegaApi->getChatList();
+        for (int i = 0; i < chatList->size(); i++)
         {
-            const char *chatid_64 = mMegaApi->handleToBase64(chatid);
-            ::mega::m_time_t differenceChats = mPushNotificationSettings->getChatDnd(chatid) - timestamp;
-            std::string rowContain = std::string(chatid_64) + " -> " + std::to_string(differenceChats);
-            QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
-            mModel.appendRow(chat);
-            delete [] chatid_64;
+            ::mega::MegaHandle chatid = chatList->get(i)->getHandle();
+            if (mPushNotificationSettings->isChatDndEnabled(chatid))
+            {
+                const char *chatid_64 = mMegaApi->handleToBase64(chatid);
+                ::mega::m_time_t differenceChats = mPushNotificationSettings->getChatDnd(chatid) - timestamp;
+                std::string rowContain = std::string(chatid_64) + " -> " + std::to_string(differenceChats);
+                QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
+                mModel.appendRow(chat);
+                delete [] chatid_64;
+            }
         }
-    }
 
-    delete chatList;
+        delete chatList;
+    }
 }
 
 void SettingWindow::accepted()

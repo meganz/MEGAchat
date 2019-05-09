@@ -19,6 +19,8 @@ public:
     explicit SettingWindow(::mega::MegaApi *megaApi, QWidget *parent = 0);
     ~SettingWindow();
     void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e);
+    void init();
+    void reset();
     void show();
 
 private:
@@ -29,7 +31,7 @@ private:
 
     ::mega::m_time_t mGlobalDifference = -1;
     QStandardItemModel mModel;
-    ::mega::QTMegaRequestListener *mMegaRequestDelegate;
+    ::mega::QTMegaRequestListener *mMegaRequestDelegate = NULL;
 
     void fillWidget();
 
