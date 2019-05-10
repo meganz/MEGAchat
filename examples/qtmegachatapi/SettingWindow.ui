@@ -63,7 +63,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="globalEnabled">
+               <widget class="QCheckBox" name="globalNotificationsEnabled">
                 <property name="text">
                  <string/>
                 </property>
