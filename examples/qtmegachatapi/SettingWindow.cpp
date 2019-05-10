@@ -85,7 +85,7 @@ void SettingWindow::init()
     connect(ui->confirmButtons, SIGNAL(accepted()), this, SLOT(accepted()));
     connect(ui->confirmButtons, SIGNAL(rejected()), this, SLOT(rejected()));
     ui->globalDnd->setValidator(new QIntValidator(0, 31536000, this)); // Max value -> seconds in a year
-    connect(ui->globalEnabled, SIGNAL(clicked(bool)), this, SLOT(onGlobalClicked(bool)));
+    connect(ui->globalNotificationsEnabled, SIGNAL(clicked(bool)), this, SLOT(onGlobalClicked(bool)));
     connect(ui->scheduleEnabled, SIGNAL(clicked(bool)), this, SLOT(onScheduleClicked(bool)));
 }
 
@@ -102,7 +102,7 @@ void SettingWindow::fillWidget()
     ui->pcr->setChecked(mPushNotificationSettings->isContactsEnabled());
     ui->shares->setChecked(mPushNotificationSettings->isSharesEnabled());
 
-    ui->globalEnabled->setChecked(mPushNotificationSettings->isGlobalEnabled());
+    ui->globalNotificationsEnabled->setChecked(mPushNotificationSettings->isGlobalEnabled());
     mGlobalDifference = mPushNotificationSettings->getGlobalDnd() - timestamp;
     mGlobalDifference = (mGlobalDifference >= 0) ? mGlobalDifference : 0;
     std::string globalDnd = std::to_string(mGlobalDifference);
@@ -140,6 +140,7 @@ void SettingWindow::fillWidget()
         hours = scheduleTime / 60;
         minutes = scheduleTime % 60;
         ui->endTime->setTime(QTime(hours, minutes));
+        ui->scheduleEnabled->setChecked(mPushNotificationSettings->isGlobalScheduleEnabled());
         onScheduleClicked(mPushNotificationSettings->isGlobalScheduleEnabled());
 
         mModel.clear();
@@ -169,38 +170,45 @@ void SettingWindow::accepted()
     QString stringDnd = ui->globalDnd->text();
     int globalDnd = stringDnd.toInt();
 
-    if (ui->globalEnabled->isChecked() != mPushNotificationSettings->isGlobalEnabled() || mGlobalDifference != globalDnd)
+    /* If globalNotifications checkbox changed respect initial value or if globalNotifications checkbox
+       is disabled and do not disturb period has been changed */
+    if (ui->globalNotificationsEnabled->isChecked() != mPushNotificationSettings->isGlobalEnabled()
+            || !ui->globalNotificationsEnabled->isChecked() && mGlobalDifference != globalDnd)
     {
         updated = true;
-        if (ui->globalEnabled->isChecked())
+        // If we want to enable global notifications by setting mGlobalDND to -1
+        if (ui->globalNotificationsEnabled->isChecked())
         {
             mPushNotificationSettings->disableGlobalDnd();
         }
         else
         {
             if (globalDnd)
-            {
+            {   // If we want to set a valid do not disturb period
                 mPushNotificationSettings->setGlobalDnd(globalDnd + timestamp);
             }
             else
-            {
+            {   // If we want to disable global notifications by setting mGlobalDND to 0
                 mPushNotificationSettings->enableGlobal(false);
             }
         }
     }
 
+    // Enable/disable notifications related to all chats
     if (ui->chats->isChecked() != mPushNotificationSettings->isChatsEnabled())
     {
         mPushNotificationSettings->enableChats(ui->chats->isChecked());
         updated = true;
     }
 
+    // Enable/disable notifications related to all contacts
     if (ui->pcr->isChecked() != mPushNotificationSettings->isContactsEnabled())
     {
         mPushNotificationSettings->enableContacts(ui->pcr->isChecked());
         updated = true;
     }
 
+    // Enable/disable notifications related to all shares
     if (ui->shares->isChecked() != mPushNotificationSettings->isSharesEnabled())
     {
         mPushNotificationSettings->enableShares(ui->shares->isChecked());
@@ -214,6 +222,8 @@ void SettingWindow::accepted()
     std::string timeZone = ui->timeZones->currentText().toStdString();
     const char *auxTimeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
 
+    // If schedule checkbox has changed
+    // If schedule checkbox is enabled and start/end/timezone has changed
     if (ui->scheduleEnabled->isChecked() != mPushNotificationSettings->isGlobalScheduleEnabled() ||
             (ui->scheduleEnabled->isChecked() && (startTime != mPushNotificationSettings->getGlobalScheduleStart() ||
             endTime != mPushNotificationSettings->getGlobalScheduleEnd() || timeZone != auxTimeZone)))
@@ -229,6 +239,7 @@ void SettingWindow::accepted()
         }
     }
 
+    // Update push notification settings
     if (updated)
     {
         mMegaApi->setPushNotificationSettings(mPushNotificationSettings);

@@ -58,14 +58,14 @@
               <item>
                <widget class="QLabel" name="label_4">
                 <property name="text">
-                 <string>Global do not disturb:</string>
+                 <string>Global notifications enabled</string>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QCheckBox" name="globalEnabled">
                 <property name="text">
-                 <string>Enabled</string>
+                 <string/>
                 </property>
                </widget>
               </item>
@@ -85,7 +85,7 @@
               <item>
                <widget class="QLabel" name="label_5">
                 <property name="text">
-                 <string>Period(s):</string>
+                 <string>Do not disturb period(s):</string>
                 </property>
                </widget>
               </item>
