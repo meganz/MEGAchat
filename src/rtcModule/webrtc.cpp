@@ -449,7 +449,7 @@ void RtcModule::removeCall(Call& call)
         RTCM_LOG_WARNING("Call with chatid %s not found", chatid.toString().c_str());
         return;
     }
-    
+
     if (&call != it->second.get() || it->second->id() != call.id()) {
         RTCM_LOG_DEBUG("removeCall: Call has been replaced, not removing");
         return;
@@ -606,7 +606,7 @@ void RtcModule::hangupAll(TermCode code)
     {
         auto& call = callIt->second;
         callIt++;
-        
+
         if (call->state() == Call::kStateRingIn)
         {
             assert(call->mSessions.empty());
@@ -2414,7 +2414,7 @@ std::map<Id, AvFlags> Call::avFlagsRemotePeers() const
 }
 
 std::map<Id, uint8_t> Call::sessionState() const
-{    
+{
     std::map<Id, uint8_t> sessionState;
 
     for (auto& item: mSessions)
@@ -2840,7 +2840,7 @@ void Session::onIceCandidate(std::shared_ptr<artc::IceCandText> cand)
     // mLineIdx.1 midLen.1 mid.midLen candLen.2 cand.candLen
     if (!cand)
         return;
-    
+
     RtMessageComposer msg(OP_RTMSG_ENDPOINT, RTCMD_ICE_CANDIDATE,
         mCall.mChat.chatId(), mPeer, mPeerClient, 10+cand->candidate.size());
     msg.payloadAppend(mSid);
@@ -3044,7 +3044,8 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
 {
     if (mState == Session::kStateTerminating)
     {
-        if (mTermCode != TermCode::kInvalid || (!isTermRetriable(code) && isTermRetriable(mTermCode)))
+        assert(mTermCode != TermCode::kInvalid);
+        if (!isTermRetriable(code) && isTermRetriable(mTermCode))
         {
             mTermCode = code;
         }
