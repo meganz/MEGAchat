@@ -538,8 +538,17 @@ std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
     auto callIt = mCalls.find(chatid);
     if (callIt != mCalls.end())
     {
-        RTCM_LOG_WARNING("There is already a call in this chatroom, destroying it");
-        callIt->second->hangup();
+        if (callIt->second->state() == Call::kStateRingIn)
+        {
+            callIt->second->answer(av);
+            return callIt->second;
+        }
+        else
+        {
+            assert(false);
+            RTCM_LOG_ERROR("There is already a call in this chatroom, destroying it");
+            callIt->second->hangup();
+        }
     }
 
     bool callRecovered = (mRetryCall.find(chatid) != mRetryCall.end());
@@ -607,12 +616,12 @@ void RtcModule::hangupAll(TermCode code)
     }
 }
 
-void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool starter)
+void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool isActiveRetry)
 {
     auto itRetryCall = mRetryCall.find(chatid);
     if (itRetryCall != mRetryCall.end())
     {
-        if (starter && !itRetryCall->second.second)
+        if (isActiveRetry && !itRetryCall->second.second)
         {
             RTCM_LOG_DEBUG("Stop reconnection call in pasive mode and launch in active");
             auto itRetryTimerHandle = mRetryCallTimers.find(chatid);
@@ -623,18 +632,18 @@ void RtcModule::launchCallRetry(Id chatid, AvFlags av, bool starter)
         }
         else
         {
-            RTCM_LOG_DEBUG("Avoid launch other reconnection call. In same mode or pasive %s", starter ? "Active" : "Pasive");
+            RTCM_LOG_DEBUG("Avoid launch other reconnection call. In same mode or pasive %s", isActiveRetry ? "Active" : "Pasive");
             return;
         }
     }
 
-    mRetryCall[chatid] = std::pair<karere::AvFlags, bool>(av, starter);
+    mRetryCall[chatid] = std::pair<karere::AvFlags, bool>(av, isActiveRetry);
 
     auto itHandler = mCallHandlers.find(chatid);
     assert(itHandler != mCallHandlers.end());
     itHandler->second->onReconnectingState(true);
 
-    if (starter)
+    if (isActiveRetry)
     {
         RTCM_LOG_DEBUG("Launch reconnection call at active mode");
 
@@ -2930,10 +2939,10 @@ Promise<void> Session::sendOffer()
     })
     .then([wptr, this]()
     {
-        if (wptr.deleted() || mState != Session::kStateWaitSdpAnswer)
+        if (wptr.deleted())
             return;
 
-
+        assert(mState == Session::kStateWaitSdpAnswer);
         if (mCall.state() != Call::kStateInProgress)
         {
              terminateAndDestroy(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + "Unexpected state");
@@ -2954,7 +2963,6 @@ Promise<void> Session::sendOffer()
             static_cast<uint16_t>(mOwnSdpOffer.size()),
             mOwnSdpOffer
         );
-        assert(mState == Session::kStateWaitSdpAnswer);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -3066,7 +3074,7 @@ Promise<void> Session::terminateAndDestroy(TermCode code, const std::string& msg
         }
     }
 
-    unsigned timeout = 1000;
+    unsigned timeout = RtcModule::kSessFinishTimeout;
     // If peer is offline it's not neccessary wait for the answer
     if ((code & (~TermCode::kPeer)) == TermCode::kErrPeerOffline)
     {

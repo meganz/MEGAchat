@@ -7612,16 +7612,9 @@ void MegaChatCallHandler::setCall(rtcModule::ICall *call)
     }
     else
     {
-        if (chatCall->getId() != call->id())
-        {
-            delete chatCall;
-            chatCall = new MegaChatCallPrivate(*call);
-        }
-        else
-        {
-            chatCall->setStatus(call->state());
-            chatCall->setLocalAudioVideoFlags(call->sentAv());
-        }
+        chatCall->setStatus(call->state());
+        chatCall->setLocalAudioVideoFlags(call->sentAv());
+        assert(chatCall->getId() == call->id());
     }
 }
 
@@ -7711,15 +7704,12 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/,
                 megaChatApi->fireOnChatCallUpdate(chatCall);
             }
         }
-        else
+        else if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
+                 || reason != rtcModule::TermCode::kErrPeerOffline)
         {
-            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
-                    || reason != rtcModule::TermCode::kErrPeerOffline)
-            {
-                chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
-                megaChatApi->fireOnChatCallUpdate(chatCall);
-                megaChatApi->removeCall(chatid);
-            }
+            chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
+            megaChatApi->fireOnChatCallUpdate(chatCall);
+            megaChatApi->removeCall(chatid);
         }
 
         delete peeridParticipants;
@@ -7832,15 +7822,13 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
         }
 
         MegaHandleList *participants = chatCall->getPeeridParticipants();
-        if (participants && participants->size() < 1 && !call)
+        if (participants && participants->size() < 1 &&
+                !call && chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
         {
-            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
-            {
-                chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
-                megaChatApi->fireOnChatCallUpdate(chatCall);
-                delete participants;
-                return true;
-            }
+            chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
+            megaChatApi->fireOnChatCallUpdate(chatCall);
+            delete participants;
+            return true;
         }
 
         delete participants;

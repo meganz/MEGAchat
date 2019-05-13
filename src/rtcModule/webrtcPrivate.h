@@ -236,7 +236,8 @@ public:
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
-        kRetryCallTimeout = 30000
+        kRetryCallTimeout = 30000,
+        kSessFinishTimeout = 1000
     };
 
     enum Resolution
@@ -294,7 +295,7 @@ public:
 //==
     karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
-    void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool starter = true);
+    void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool isActiveRetry = true);
     virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
