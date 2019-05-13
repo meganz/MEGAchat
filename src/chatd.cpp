@@ -270,7 +270,12 @@ promise::Promise<void> Client::sendKeepalive()
         mKeepalivePromise.resolve();
     }
 
-    return mKeepalivePromise;
+    return mKeepalivePromise
+    .fail([this, wptr](const ::promise::Error&)
+    {
+        if (wptr.deleted())
+            return;
+    });
 }
 
 void Client::sendEcho()
