@@ -361,7 +361,7 @@ void RtcModule::handleCallData(Chat &chat, Id chatid, Id userid, uint32_t client
     else if (state == Call::CallDataState::kCallDataEnd)
     {
         // Peer will be removed from call participants with OP_ENDCALL
-        RTCM_LOG_DEBUG("Ingoring kCallDataEnd CALLDATA: %s", callid.toString().c_str());
+        RTCM_LOG_DEBUG("Ignoring kCallDataEnd CALLDATA: %s", callid.toString().c_str());
         return;
     }
 
