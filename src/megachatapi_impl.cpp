@@ -1811,7 +1811,7 @@ void MegaChatApiImpl::resetClientid()
     sdkMutex.lock();
     if (mClient)
     {
-        mClient->resetClientid();
+        mClient->resetMyIdentity();
     }
     sdkMutex.unlock();
 }

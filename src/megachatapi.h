@@ -2186,12 +2186,12 @@ public:
     int init(const char *sid);
 
     /**
-     * @brief Reset the clientid
+     * @brief Reset the Client Id for chatd
      *
      * When the app is running and another instance is launched i.e (share-extension in iOS),
-     * chatd drops the connection if detects that the clientid already exists.
+     * chatd closes the connection if a new connection is established with the same Client Id.
      *
-     * The purpose of this function is reset the clientid in order to avoid that chatd drop
+     * The purpose of this function is reset the Client Id in order to avoid that chatd closes
      * the other connections.
      *
      * This function should be called after MegaChatApi::init.
