@@ -1345,32 +1345,39 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
     }
 }
 
-void ChatWindow::onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e)
+void ChatWindow::onRequestFinish(::mega::MegaApi *, ::mega::MegaRequest *request, ::mega::MegaError *e)
 {
     switch (request->getType())
     {
         case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
             if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
             {
-                ::mega::MegaPushNotificationSettings *pushNotificationSettings = request->getMegaPushNotificationSettings()->copy();
-                if (pushNotificationSettings)
+                int currentDND = -1;
+                ::mega::m_time_t now = ::mega::m_time(NULL);
+                const ::mega::MegaPushNotificationSettings *currentSettings = request->getMegaPushNotificationSettings();
+                if (!currentSettings)
                 {
-                    ::mega::m_time_t timestamp = ::mega::m_time(NULL);
-                    int dndDelay = pushNotificationSettings->getChatDnd(mChatRoom->getChatId()) - timestamp;
-                    dndDelay = (dndDelay > -1) ? dndDelay : -1;
-                    bool ok;
-                    int newDndDelay = QInputDialog::getInt(this, tr("Push notification restriction"),
-                                                             tr("Intro time without notifications (s): "), dndDelay, -1, 2147483647, 1, &ok);
+                    currentSettings = ::mega::MegaPushNotificationSettings::createInstance();
+                }
+                else
+                {
+                    currentDND = currentSettings->getChatDnd(mChatRoom->getChatId()) - now;
+                    currentDND = (currentDND > -1) ? currentDND : -1;
+                }
 
-                    if (ok && dndDelay != newDndDelay)
-                    {
-                        timestamp = ::mega::m_time(NULL);
-                        pushNotificationSettings->setChatDnd(mChatRoom->getChatId(), (newDndDelay > -1) ? timestamp + newDndDelay : -1);
-                        mMegaApi->setPushNotificationSettings(pushNotificationSettings);
-                    }
+                bool ok = false;
+                int newDND = QInputDialog::getInt(this, tr("Push notification restriction - DND"),
+                                                             tr("Enter number of seconds without notifications for this chatroom: "), currentDND, -1, 2147483647, 1, &ok);
+                if (ok && currentDND != newDND)
+                {
+                    now = ::mega::m_time(NULL);
+                    ::mega::MegaPushNotificationSettings *newSettings = currentSettings->copy();
+                    newSettings->setChatDnd(mChatRoom->getChatId(), (newDND > -1) ? now + newDND : -1);
+                    mMegaApi->setPushNotificationSettings(newSettings);
                 }
             }
             break;
+
         default:
             break;
     }
