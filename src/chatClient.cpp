@@ -2075,9 +2075,11 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 getAttr(peer, USER_ATTR_FULLNAME, this,[](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<PeerChatRoom*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
             {
                 self->updateTitle(self->mEmail);
             }
@@ -3596,9 +3598,11 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         [](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));
