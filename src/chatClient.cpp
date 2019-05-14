@@ -1281,6 +1281,13 @@ uint64_t Client::getMyIdentityFromDb()
     return result;
 }
 
+void Client::resetClientid()
+{
+    KR_LOG_WARNING("Reset the clientid_seed");
+    uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+}
+
 promise::Promise<void> Client::loadOwnKeysFromApi()
 {
     return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)

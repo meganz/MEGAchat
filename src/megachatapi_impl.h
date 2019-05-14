@@ -952,6 +952,7 @@ public:
     int init(const char *sid);
     int initAnonymous();
     void createKarereClient();
+    void resetClientid();
     int getInitState();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);

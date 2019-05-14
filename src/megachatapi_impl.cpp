@@ -1806,6 +1806,16 @@ int MegaChatApiImpl::init(const char *sid)
     return MegaChatApiImpl::convertInitState(state);
 }
 
+void MegaChatApiImpl::resetClientid()
+{
+    sdkMutex.lock();
+    if (mClient)
+    {
+        mClient->resetClientid();
+    }
+    sdkMutex.unlock();
+}
+
 void MegaChatApiImpl::createKarereClient()
 {
     if (!mClient)
