@@ -441,50 +441,49 @@ void MainWindow::on_bSettings_clicked()
 
     // Chats
     QMenu *chatMenu = menu.addMenu("Chats");
-    auto actPeerChat = chatMenu->addAction(tr("Create 1on1 chat"));
+
+    auto actPeerChat = chatMenu->addAction(tr("Create 1on1 chat (EKR on)"));
     connect(actPeerChat, &QAction::triggered, this, [=](){onAddChatRoom(false,false);});
 
-    auto actGroupChat = chatMenu->addAction(tr("Create group chat"));
+    auto actGroupChat = chatMenu->addAction(tr("Create group chat (EKR on)"));
     connect(actGroupChat, &QAction::triggered, this, [=](){onAddChatRoom(true, false);});
 
-    auto actPubChat = chatMenu->addAction(tr("Create public chat"));
+    auto actPubChat = chatMenu->addAction(tr("Create public chat (EKR off)"));
     connect(actPubChat, &QAction::triggered, this, [=](){onAddChatRoom(true, true);});
 
-    auto actPreviewChat = chatMenu->addAction(tr("Open chat preview"));
+    auto actPreviewChat = chatMenu->addAction(tr("Preview chat-link"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
 
     auto actCheckLink = chatMenu->addAction(tr("Check chat-link"));
     connect(actCheckLink,  &QAction::triggered, this, [this] {openChatPreview(false);});
+
+
+    // Contacts
+    QMenu *contactsMenu = menu.addMenu("Contacts");
+
+    auto addAction = contactsMenu->addAction(tr("Add user to contacts"));
+    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
+
+
+    // Settings
+    QMenu *settingsMenu = menu.addMenu("Settings");
+
+    auto actSettings = settingsMenu->addAction("Open settings dialog");
+    connect(actSettings, SIGNAL(triggered()), this, SLOT(onChatsSettingsClicked()));
+
+    //TODO: prepare a new tab in SettingsDialog to configure all the presence options
+    auto actWebRTC = settingsMenu->addAction(tr("Set A/V input devices (WebRTC)"));
+    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
 
     auto actArchived = chatMenu->addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
     actArchived->setCheckable(true);
     actArchived->setChecked(mShowArchived);
 
-    // Contacts
-    QMenu *contactsMenu = menu.addMenu("Contacts");
-    auto addAction = contactsMenu->addAction(tr("Add user to contacts"));
-    connect(addAction, SIGNAL(triggered()), this, SLOT(onAddContact()));
-
-    // Settings
-    QMenu *settingsMenu = menu.addMenu("Settings");
-    auto actWebRTC = settingsMenu->addAction(tr("Set audio/video input devices"));
-    connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
-
-    auto actTwoFactCheck = settingsMenu->addAction(tr("Enable/Disable 2FA"));
-    connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
-    actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
-
-    auto actSettings = settingsMenu->addAction("Settings");
-    connect(actSettings, SIGNAL(triggered()), this, SLOT(onChatsSettingsClicked()));
-
-    auto actChatCheckPushNotificationRestriction = settingsMenu->addAction("Check chat push notification restriction");
-    connect(actChatCheckPushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onChatCheckPushNotificationRestrictionClicked()));
-
+    //TODO: prepare a new tab in SettingsDialog to configure all the presence options
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
     auto actlastGreenVisible = settingsMenu->addAction("Enable/Disable Last-Green");
     connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
-
     if (presenceConfig)
     {
         actlastGreenVisible->setCheckable(true);
@@ -496,23 +495,35 @@ void MainWindow::on_bSettings_clicked()
     }
     delete presenceConfig;
 
+    auto actTwoFactCheck = settingsMenu->addAction(tr("Enable/Disable 2FA"));
+    connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
+    actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
+
+
+    // Notifications
+    QMenu *notificationsMenu = menu.addMenu("Notifications");
+
+    auto actChatCheckPushNotificationRestriction = notificationsMenu->addAction("Check PUSH notification setting");
+    connect(actChatCheckPushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onChatCheckPushNotificationRestrictionClicked()));
+
+    auto actPushReceived = notificationsMenu->addAction(tr("Simulate PUSH received (iOS)"));
+    connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived(1);});
+
+    auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
+    connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
+
+
     // Other options
     QMenu *othersMenu = menu.addMenu("Others");
 
     auto actPrintMyInfo = othersMenu->addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
-    auto actForceReconnect = othersMenu->addAction(tr("Force reconnect"));
-    connect(actForceReconnect,  &QAction::triggered, this, [this] {onReconnect(true);});
-
     auto actRetryPendingConn = othersMenu->addAction(tr("Retry pending connections"));
     connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
 
-    auto actPushAndReceived = othersMenu->addAction(tr("Push received (Android)"));
-    connect(actPushAndReceived,  &QAction::triggered, this, [this] {onPushReceived(0);});
-
-    auto actPushReceived = othersMenu->addAction(tr("Push received (iOS)"));
-    connect(actPushReceived,  &QAction::triggered, this, [this] {onPushReceived(1);});
+    auto actForceReconnect = othersMenu->addAction(tr("Force reconnect"));
+    connect(actForceReconnect,  &QAction::triggered, this, [this] {onReconnect(true);});
 
     auto actCatchUp = othersMenu->addAction(tr("Catch-Up with API"));
     connect(actCatchUp, SIGNAL(triggered()), this, SLOT(onCatchUp()));
@@ -523,6 +534,7 @@ void MainWindow::on_bSettings_clicked()
     actUseStaging->setChecked(mApp->isStagingEnabled());
 
     menu.addSeparator();
+
     auto actBackground = menu.addAction("Background status");
     connect(actBackground, SIGNAL(toggled(bool)), this, SLOT(onBackgroundStatusClicked(bool)));
     actBackground->setCheckable(true);
@@ -548,7 +560,7 @@ void MainWindow::onPushReceived(unsigned int type)
     }
     else
     {
-        std::string aux = mApp->getText("Enter chatid (B64)");
+        std::string aux = mApp->getText("Enter chatid (B64):");
         if (!aux.size())
             return;
 
@@ -1247,7 +1259,10 @@ void MainWindow::onCatchUp()
 void MainWindow::onlastGreenVisibleClicked()
 {
     MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    mMegaChatApi->setLastGreenVisible(!presenceConfig->isLastGreenVisible());
+    if (presenceConfig)
+    {
+        mMegaChatApi->setLastGreenVisible(!presenceConfig->isLastGreenVisible());
+    }
     delete presenceConfig;
 }
 
@@ -1266,24 +1281,23 @@ void MainWindow::onChatsSettingsClicked()
 
 void MainWindow::onChatCheckPushNotificationRestrictionClicked()
 {
-    QString text = QInputDialog::getText(this, tr("Introduce chat to check push notification restriction"), tr("Intro chatid: "));
+    QString text = QInputDialog::getText(this, tr("Check PUSH notification settings"), tr("Enter chatid (B64): "));
 
     if (text != "")
     {
         MegaHandle chatid = mMegaApi->base64ToUserHandle(text.toStdString().c_str());
         bool pushNotification = mMegaApi->isChatNotifiable(chatid);
         std::string result;
-        result.append("Push notification for: ").append(text.toStdString()).append(pushNotification ? " IS GENERATED" : " IS NOT GENERATED");
+        result.append("Notification for chat: ").append(text.toStdString()).append(pushNotification ? " is generated" : " is NOT generated");
         if (pushNotification)
         {
-            QMessageBox::information(this, tr("Push Restriction"), result.c_str());
+            QMessageBox::information(this, tr("PUSH notification restriction"), result.c_str());
         }
         else
         {
-            QMessageBox::warning(this, tr("Push Restriction"), result.c_str());
+            QMessageBox::warning(this, tr("PUSH notification restriction"), result.c_str());
         }
     }
-
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)

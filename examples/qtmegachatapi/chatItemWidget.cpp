@@ -418,22 +418,23 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
-    auto actPrintChat = menu.addAction(tr("Print chat info"));
-    connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
 
-    auto actLeave = menu.addAction(tr("Leave group chat"));
+    QMenu *roomMenu = menu.addMenu("Room management");
+
+    auto actLeave = roomMenu->addAction(tr("Leave chat"));
     connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
 
-    auto actTopic = menu.addAction(tr("Set chat topic"));
-    connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
-
-    auto actTruncate = menu.addAction(tr("Truncate chat"));
+    auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), this, SLOT(truncateChat()));
 
-    auto actArchive = menu.addAction("Archive chat");
+    auto actTopic = roomMenu->addAction(tr("Set title"));
+    connect(actTopic, SIGNAL(triggered()), this, SLOT(setTitle()));
+
+    auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(chatRoom->isArchived());
+
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
@@ -449,15 +450,19 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actAutojoinPublicChat = clMenu->addAction(tr("Join chat link"));
     connect(actAutojoinPublicChat, SIGNAL(triggered()), this, SLOT(autojoinChatLink()));
 
-    auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
-    connect(actcloseChatPreview, SIGNAL(triggered()), this, SLOT(closeChatPreview()));
-
     clMenu->addSeparator();
     auto actSetPrivate = clMenu->addAction(tr("Set private mode"));
     connect(actSetPrivate, SIGNAL(triggered()), this, SLOT(setPublicChatToPrivate()));
 
+    auto actcloseChatPreview = clMenu->addAction(tr("Close preview"));
+    connect(actcloseChatPreview, SIGNAL(triggered()), this, SLOT(closeChatPreview()));
+
     clMenu->addSeparator();
-    auto actCopy = menu.addAction(tr("Copy to clipboard chatid"));
+
+    auto actPrintChat = menu.addAction(tr("Print chat info"));
+    connect(actPrintChat, SIGNAL(triggered()), this, SLOT(onPrintChatInfo()));
+
+    auto actCopy = menu.addAction(tr("Copy chatid to clipboard"));
     connect(actCopy, SIGNAL(triggered()), this, SLOT(onCopyHandle()));
 
     delete chatRoom;
@@ -554,7 +559,7 @@ void ChatItemWidget::setTitle()
             QMessageBox::warning(this, tr("Set chat title"), tr("You can't set an empty title"));
             return;
         }
-        this->mMegaChatApi->setChatTitle(mChatId,title.c_str());
+        this->mMegaChatApi->setChatTitle(mChatId, title.c_str());
     }
 }
 

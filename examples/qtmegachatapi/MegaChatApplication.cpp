@@ -436,7 +436,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
                 copyButton->disconnect();
                 connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(request->getText());});
-                QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
                 msg.exec();
 
                 std::string auxcode = this->mMainWin->getAuthCode();

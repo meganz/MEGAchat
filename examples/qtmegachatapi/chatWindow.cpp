@@ -806,28 +806,32 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
 void ChatWindow::createSettingsMenu(QMenu& menu)
 {
+    QMenu *roomMenu = menu.addMenu("Room management");
+
     //Leave
-    auto leave = menu.addAction("Leave chat");
+    auto leave = roomMenu->addAction("Leave chat");
     connect(leave, SIGNAL(triggered()), this, SLOT(onLeaveGroupChat()));
 
     //Truncate
-    auto truncate = menu.addAction("Truncate chat");
+    auto truncate = roomMenu->addAction("Truncate chat");
     connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
 
     //Set topic
-    auto title = menu.addAction("Set title");
+    auto title = roomMenu->addAction("Set title");
     connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
 
-    auto actArchive = menu.addAction("Archive chat");
+    auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(mChatRoom->isArchived());
 
+
     // Attachments
-    auto actAttachments = menu.addAction("List attachments");
+    auto actAttachments = menu.addAction("Show attachments");
     connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));
     actAttachments->setCheckable(true);
     actAttachments->setChecked(mAttachmentList != NULL);
+
 
     QMenu *clMenu = menu.addMenu("Chat links");
 
@@ -851,8 +855,10 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto setPublicChatToPrivate = clMenu->addAction("Set private mode");
     connect(setPublicChatToPrivate, SIGNAL(triggered()), this, SLOT(onSetPublicChatToPrivate()));
 
+    menu.addSeparator();
+
     //Set push notification restriction for chatroom
-    auto pushNotificationRestriction = menu.addAction("Push notification restriction");
+    auto pushNotificationRestriction = menu.addAction("Mute notifications");
     connect(pushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onPushNotificationRestriction()));
 }
 
