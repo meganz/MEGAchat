@@ -2186,6 +2186,19 @@ public:
     int init(const char *sid);
 
     /**
+     * @brief Reset the Client Id for chatd
+     *
+     * When the app is running and another instance is launched i.e (share-extension in iOS),
+     * chatd closes the connection if a new connection is established with the same Client Id.
+     *
+     * The purpose of this function is reset the Client Id in order to avoid that chatd closes
+     * the other connections.
+     *
+     * This function should be called after MegaChatApi::init.
+     */
+    void resetClientid();
+
+    /**
      * @brief Initializes karere in anonymous mode for preview of chat-links
      *
      * The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In

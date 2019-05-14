@@ -277,6 +277,11 @@ int MegaChatApi::init(const char *sid)
     return pImpl->init(sid);
 }
 
+void MegaChatApi::resetClientid()
+{
+   pImpl->resetClientid();
+}
+
 int MegaChatApi::initAnonymous()
 {
     return pImpl->initAnonymous();
