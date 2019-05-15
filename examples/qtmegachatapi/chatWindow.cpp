@@ -806,7 +806,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
 
 void ChatWindow::createSettingsMenu(QMenu& menu)
 {
-    QMenu *roomMenu = menu.addMenu("Room management");
+    QMenu *roomMenu = menu.addMenu("Room's management");
 
     //Leave
     auto leave = roomMenu->addAction("Leave chat");
@@ -824,13 +824,6 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(mChatRoom->isArchived());
-
-
-    // Attachments
-    auto actAttachments = menu.addAction("Show attachments");
-    connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));
-    actAttachments->setCheckable(true);
-    actAttachments->setChecked(mAttachmentList != NULL);
 
 
     QMenu *clMenu = menu.addMenu("Chat links");
@@ -854,6 +847,14 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     //Set private mode
     auto setPublicChatToPrivate = clMenu->addAction("Set private mode");
     connect(setPublicChatToPrivate, SIGNAL(triggered()), this, SLOT(onSetPublicChatToPrivate()));
+
+    menu.addSeparator();
+
+    // Attachments
+    auto actAttachments = menu.addAction("Show attachments");
+    connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));
+    actAttachments->setCheckable(true);
+    actAttachments->setChecked(mAttachmentList != NULL);
 
     menu.addSeparator();
 

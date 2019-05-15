@@ -175,7 +175,7 @@ class MainWindow :
         bool mAllowOrder = false;
         bool mNeedReorder = false;
         QMenu *onlineStatus;
-        ChatSettings *mChatSettings;
+        ChatSettings *mChatSettings;    // dialog to set WebRTC input device/s
         MegaChatApplication *mApp;
         ::mega::MegaApi *mMegaApi;
         megachat::MegaChatApi *mMegaChatApi;

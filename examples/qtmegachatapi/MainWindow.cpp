@@ -1272,10 +1272,6 @@ void MainWindow::onChatsSettingsClicked()
     {
         mSettings = new SettingWindow(mMegaApi, this);
     }
-    else
-    {
-        mSettings->init();
-    }
     mSettings->show();
 }
 

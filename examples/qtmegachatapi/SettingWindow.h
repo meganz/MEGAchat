@@ -19,19 +19,22 @@ public:
     explicit SettingWindow(::mega::MegaApi *megaApi, QWidget *parent = 0);
     ~SettingWindow();
     void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e);
-    void init();
-    void reset();
     void show();
 
 private:
     Ui::SettingWindow *ui;
     ::mega::MegaApi *mMegaApi;
+    ::mega::QTMegaRequestListener *mRequestListener;
+
+    // notification settings
     ::mega::MegaPushNotificationSettings *mPushNotificationSettings = NULL;
     ::mega::MegaTimeZoneDetails *mTimeZoneDetails = NULL;
-
     ::mega::m_time_t mGlobalDifference = -1;
     QStandardItemModel mModel;
-    ::mega::QTMegaRequestListener *mMegaRequestDelegate = NULL;
+
+    void loadPushNotificationSettings();
+    void resetPushNotificationSettings();
+    void updatePushNotificationSettings();
 
     void fillWidget();
 
@@ -39,7 +42,7 @@ private slots:
     void accepted();
     void rejected();
     void onGlobalClicked(bool value);
-    void onScheduleClicked(bool value);
+    void onScheduleEnabled(bool value);
 };
 
 #endif // SETTINGWINDOW_H

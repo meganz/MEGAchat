@@ -419,7 +419,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
 
-    QMenu *roomMenu = menu.addMenu("Room management");
+    QMenu *roomMenu = menu.addMenu("Room's management");
 
     auto actLeave = roomMenu->addAction(tr("Leave chat"));
     connect(actLeave, SIGNAL(triggered()), this, SLOT(leaveGroupChat()));
