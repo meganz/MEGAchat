@@ -227,9 +227,11 @@ void SettingWindow::updatePushNotificationSettings()
 
     // If schedule checkbox has changed
     // If schedule checkbox is enabled and start/end/timezone has changed
-    if (ui->scheduleEnabled->isChecked() != mPushNotificationSettings->isGlobalScheduleEnabled() ||
-            (ui->scheduleEnabled->isChecked() && (startTime != mPushNotificationSettings->getGlobalScheduleStart() ||
-            endTime != mPushNotificationSettings->getGlobalScheduleEnd() || timeZone != auxTimeZone)))
+    if (ui->scheduleEnabled->isChecked() != mPushNotificationSettings->isGlobalScheduleEnabled()
+            || (ui->scheduleEnabled->isChecked()
+                && (startTime != mPushNotificationSettings->getGlobalScheduleStart()
+                    || endTime != mPushNotificationSettings->getGlobalScheduleEnd()
+                    || timeZone != auxTimeZone) ) )
     {
         updated = true;
         if (ui->scheduleEnabled->isChecked())

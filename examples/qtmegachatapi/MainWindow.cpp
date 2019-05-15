@@ -410,7 +410,7 @@ void MainWindow::addChatsBystatus(const int status)
     for (Chat &chat : (*chatList))
     {
         const megachat::MegaChatListItem *auxItem = chat.chatItem;
-        ChatListItemController *itemController = this->getChatControllerById(auxItem->getChatId());
+        ChatListItemController *itemController = getChatControllerById(auxItem->getChatId());
         assert(itemController);
 
         //Add Qt widget
@@ -475,7 +475,7 @@ void MainWindow::on_bSettings_clicked()
     auto actWebRTC = settingsMenu->addAction(tr("Set A/V input devices (WebRTC)"));
     connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
 
-    auto actArchived = chatMenu->addAction(tr("Show archived chats"));
+    auto actArchived = settingsMenu->addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
     actArchived->setCheckable(true);
     actArchived->setChecked(mShowArchived);
@@ -722,7 +722,7 @@ ChatListItemController *MainWindow::addOrUpdateChatControllerItem(MegaChatListIt
     ChatListItemController *itemController;
     if (it == mChatControllers.end())
     {
-         itemController = new ChatListItemController(chatListItem);
+         itemController = new ChatListItemController(this, chatListItem);
          mChatControllers.insert(std::pair<megachat::MegaChatHandle, ChatListItemController *>(chatListItem->getChatId(), itemController));
     }
     else
@@ -773,7 +773,7 @@ ChatItemWidget *MainWindow::addQtChatWidget(const MegaChatListItem *chatListItem
         mActiveChats += 1;
     }
 
-    ChatItemWidget *widget = new ChatItemWidget(this, mMegaChatApi, chatListItem);
+    ChatItemWidget *widget = new ChatItemWidget(this, chatListItem);
     widget->updateToolTip(chatListItem, NULL);
     QListWidgetItem *item = new QListWidgetItem();
     widget->setWidgetItem(item);
@@ -1163,7 +1163,7 @@ void MainWindow::updateChatControllersItems()
 ContactListItemController *MainWindow::getContactControllerById(MegaChatHandle userId)
 {
     std::map<mega::MegaHandle, ContactListItemController *> ::iterator it;
-    it = this->mContactControllers.find(userId);
+    it = mContactControllers.find(userId);
     if (it != mContactControllers.end())
     {
         return it->second;
@@ -1175,7 +1175,7 @@ ContactListItemController *MainWindow::getContactControllerById(MegaChatHandle u
 ChatListItemController *MainWindow::getChatControllerById(MegaChatHandle chatId)
 {
     std::map<mega::MegaHandle, ChatListItemController *> ::iterator it;
-    it = this->mChatControllers.find(chatId);
+    it = mChatControllers.find(chatId);
     if (it != mChatControllers.end())
     {
         return it->second;
@@ -1279,21 +1279,12 @@ void MainWindow::onChatCheckPushNotificationRestrictionClicked()
 {
     QString text = QInputDialog::getText(this, tr("Check PUSH notification settings"), tr("Enter chatid (B64): "));
 
-    if (text != "")
-    {
-        MegaHandle chatid = mMegaApi->base64ToUserHandle(text.toStdString().c_str());
-        bool pushNotification = mMegaApi->isChatNotifiable(chatid);
-        std::string result;
-        result.append("Notification for chat: ").append(text.toStdString()).append(pushNotification ? " is generated" : " is NOT generated");
-        if (pushNotification)
-        {
-            QMessageBox::information(this, tr("PUSH notification restriction"), result.c_str());
-        }
-        else
-        {
-            QMessageBox::warning(this, tr("PUSH notification restriction"), result.c_str());
-        }
-    }
+    if (text == "")
+        return;
+
+    MegaHandle chatid = mMegaApi->base64ToUserHandle(text.toStdString().c_str());
+    ChatListItemController *controller = getChatControllerById(chatid);
+    controller->onCheckPushNotificationRestrictionClicked();
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)

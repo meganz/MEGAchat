@@ -425,6 +425,11 @@ void ChatWindow::setCallGui(CallGui *callGui)
 {
     mCallGui = callGui;
 }
+
+ChatListItemController *ChatWindow::getChatItemController()
+{
+    mMainWin->getChatControllerById(mChatRoom->getChatId());
+}
 #endif
 
 void ChatWindow::onMessageReceived(megachat::MegaChatApi*, megachat::MegaChatMessage *msg)
@@ -757,7 +762,7 @@ void ChatWindow::createMembersMenu(QMenu& menu)
         {
             auto actRemove = entry->addAction(tr("Leave chat"));
             actRemove->setProperty("userHandle", userhandle);
-            connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
+            connect(actRemove, SIGNAL(triggered()), getChatItemController(), SLOT(leaveGroupChat()));
         }
         else
         {
@@ -810,18 +815,18 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     //Leave
     auto leave = roomMenu->addAction("Leave chat");
-    connect(leave, SIGNAL(triggered()), this, SLOT(onLeaveGroupChat()));
+    connect(leave, SIGNAL(triggered()), getChatItemController(), SLOT(leaveGroupChat()));
 
     //Truncate
     auto truncate = roomMenu->addAction("Truncate chat");
-    connect(truncate, SIGNAL(triggered()), this, SLOT(onTruncateChat()));
+    connect(truncate, SIGNAL(triggered()), getChatItemController(), SLOT(truncateChat()));
 
     //Set topic
     auto title = roomMenu->addAction("Set title");
-    connect(title, SIGNAL(triggered()), this, SLOT(onChangeTitle()));
+    connect(title, SIGNAL(triggered()), getChatItemController(), SLOT(setTitle()));
 
     auto actArchive = roomMenu->addAction("Archive chat");
-    connect(actArchive, SIGNAL(toggled(bool)), this, SLOT(onArchiveClicked(bool)));
+    connect(actArchive, SIGNAL(toggled(bool)), getChatItemController(), SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
     actArchive->setChecked(mChatRoom->isArchived());
 
@@ -830,23 +835,40 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
 
     //Create chat link
     auto createChatLink = clMenu->addAction("Create chat link");
-    connect(createChatLink, SIGNAL(triggered()), this, SLOT(onCreateChatLink()));
+    connect(createChatLink, SIGNAL(triggered()), getChatItemController(), SLOT(createChatLink()));
 
     //Query chat link
     auto queryChatLink = clMenu->addAction("Query chat link");
-    connect(queryChatLink, SIGNAL(triggered()), this, SLOT(onQueryChatLink()));
+    connect(queryChatLink, SIGNAL(triggered()), getChatItemController(), SLOT(queryChatLink()));
 
     //Remove chat link
     auto removeChatLink = clMenu->addAction("Remove chat link");
-    connect(removeChatLink, SIGNAL(triggered()), this, SLOT(onRemoveChatLink()));
+    connect(removeChatLink, SIGNAL(triggered()), getChatItemController(), SLOT(removeChatLink()));
 
     //Auto-join chat link
     auto autojoinPublicChat = clMenu->addAction("Join chat link");
-    connect(autojoinPublicChat, SIGNAL(triggered()), this, SLOT(onAutojoinChatLink()));
+    connect(autojoinPublicChat, SIGNAL(triggered()), getChatItemController(), SLOT(autojoinChatLink()));
 
     //Set private mode
     auto setPublicChatToPrivate = clMenu->addAction("Set private mode");
-    connect(setPublicChatToPrivate, SIGNAL(triggered()), this, SLOT(onSetPublicChatToPrivate()));
+    connect(setPublicChatToPrivate, SIGNAL(triggered()), getChatItemController(), SLOT(setPublicChatToPrivate()));
+
+
+    // Notifications
+    QMenu *notificationsMenu = menu.addMenu("Notifications");
+
+    auto actChatCheckPushNotificationRestriction = notificationsMenu->addAction("Check PUSH notification setting");
+    connect(actChatCheckPushNotificationRestriction, SIGNAL(triggered()), getChatItemController(), SLOT(onCheckPushNotificationRestrictionClicked()));
+
+    auto actPushReceived = notificationsMenu->addAction(tr("Simulate PUSH received (iOS)"));
+    connect(actPushReceived, SIGNAL(triggered()), getChatItemController(), SLOT(onPushReceivedIos()));
+
+    auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
+    connect(actPushAndReceived, SIGNAL(triggered()), getChatItemController(), SLOT(onPushReceivedAndroid()));
+
+    //Set push notification restriction for chatroom
+    auto pushNotificationRestriction = notificationsMenu->addAction("Mute notifications");
+    connect(pushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onPushNotificationRestriction()));
 
     menu.addSeparator();
 
@@ -855,80 +877,6 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     connect(actAttachments, SIGNAL(triggered(bool)), this, SLOT(onShowAttachments(bool)));
     actAttachments->setCheckable(true);
     actAttachments->setChecked(mAttachmentList != NULL);
-
-    menu.addSeparator();
-
-    //Set push notification restriction for chatroom
-    auto pushNotificationRestriction = menu.addAction("Mute notifications");
-    connect(pushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onPushNotificationRestriction()));
-}
-
-void ChatWindow::onQueryChatLink()
-{
-    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
-    {
-        mMegaChatApi->queryChatLink(mChatRoom->getChatId());
-    }
-}
-
-void ChatWindow::onCreateChatLink()
-{
-    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
-    {
-        mMegaChatApi->createChatLink(mChatRoom->getChatId());
-    }
-}
-void ChatWindow::onRemoveChatLink()
-{
-    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
-    {
-        mMegaChatApi->removeChatLink(mChatRoom->getChatId());
-    }
-}
-
-void ChatWindow::onSetPublicChatToPrivate()
-{
-    if (mChatRoom->getChatId() != MEGACHAT_INVALID_HANDLE)
-    {
-        mMegaChatApi->setPublicChatToPrivate(mChatRoom->getChatId());
-    }
-}
-
-void ChatWindow::onUnarchiveChat()
-{
-    mMegaChatApi->archiveChat(mChatRoom->getChatId(), false);
-}
-
-void ChatWindow::onArchiveChat()
-{
-    mMegaChatApi->archiveChat(mChatRoom->getChatId(), true);
-}
-
-
-void ChatWindow::onChangeTitle()
-{
-    std::string title;
-    QString qTitle = QInputDialog::getText(this, tr("Change chat topic"), tr("Leave blank for default title"));
-    if (!qTitle.isNull())
-    {
-        title = qTitle.toStdString();
-        if (title.empty())
-        {
-            QMessageBox::warning(this, tr("Set chat title"), tr("You can't set an empty title"));
-            return;
-        }
-        this->mMegaChatApi->setChatTitle(mChatRoom->getChatId(), title.c_str());
-    }
-}
-
-void ChatWindow::onLeaveGroupChat()
-{
-    this->mMegaChatApi->leaveChat(mChatRoom->getChatId());
-}
-
-void ChatWindow::onTruncateChat()
-{
-    this->mMegaChatApi->clearChatHistory(mChatRoom->getChatId());
 }
 
 void ChatWindow::onMemberAdd()
@@ -1195,15 +1143,6 @@ void ChatWindow::hangCall()
 }
 #endif
 
-void ChatWindow::onAutojoinChatLink()
-{
-    auto ret = QMessageBox::question(this, tr("Join chat link"), tr("Do you want to join to this chat?"));
-    if (ret != QMessageBox::Yes)
-        return;
-
-    this->mMegaChatApi->autojoinPublicChat(this->mChatRoom->getChatId());
-}
-
 void ChatWindow::on_mSettingsBtn_clicked()
 {
     QMenu menu(this);
@@ -1289,14 +1228,6 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
     mUploadDlg = NULL;
 }
 
-void ChatWindow::onArchiveClicked(bool checked)
-{
-    if (mChatRoom->isArchived() == checked)
-        return;
-
-    mMegaApi->archiveChat(mChatRoom->getChatId(), checked);
-}
-
 void ChatWindow::onAttachmentsClosed(QObject *)
 {
     mMegaChatApi->closeNodeHistory(mChatRoom->getChatId(), megaChatNodeHistoryListenerDelegate);
@@ -1361,6 +1292,7 @@ void ChatWindow::onRequestFinish(::mega::MegaApi *, ::mega::MegaRequest *request
             {
                 int currentDND = -1;
                 ::mega::m_time_t now = ::mega::m_time(NULL);
+                ::mega::MegaHandle chatid = mChatRoom->getChatId();
                 const ::mega::MegaPushNotificationSettings *currentSettings = request->getMegaPushNotificationSettings();
                 if (!currentSettings)
                 {
@@ -1368,7 +1300,7 @@ void ChatWindow::onRequestFinish(::mega::MegaApi *, ::mega::MegaRequest *request
                 }
                 else
                 {
-                    currentDND = currentSettings->getChatDnd(mChatRoom->getChatId()) - now;
+                    currentDND = currentSettings->getChatDnd(chatid) - now;
                     currentDND = (currentDND > -1) ? currentDND : -1;
                 }
 

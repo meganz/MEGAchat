@@ -46,6 +46,7 @@ struct ChatComparator
 class ChatSettings;
 class ChatSettingsDialog;
 class ChatItemWidget;
+class ChatListItemController;
 class ContactItemWidget;
 class QTMegaChatCallListener;
 class ChatWindow;
@@ -216,6 +217,7 @@ class MainWindow :
         void onAnonymousLogout();
 
      friend class ChatItemWidget;
+     friend class ChatListItemController;
      friend class ContactItemWidget;
      friend class MegaChatApplication;
      friend class ChatSettingsDialog;
