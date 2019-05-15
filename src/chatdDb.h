@@ -155,8 +155,8 @@ public:
     {
         if (msg.type == chatd::Message::kMsgTruncate)
         {
-            mDb.query("update history set type = ?, data = ?, ts = ?, userid = ? where chatid = ? and msgid = ?",
-                msg.type, msg, msg.ts, msg.userid, mChat.chatId(), msgid);
+            mDb.query("update history set type = ?, data = ?, ts = ?, userid = ?, keyid = ? where chatid = ? and msgid = ?",
+                msg.type, msg, msg.ts, msg.userid, msg.keyid, mChat.chatId(), msgid);
         }
         else    // "updated" instead of "ts"
         {
@@ -380,10 +380,10 @@ public:
         return stmt.step();
     }
 
-    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg)
+    virtual void getLastTextMessage(chatd::Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs)
     {
         SqliteStmt stmt(mDb,
-            "select type, idx, data, msgid, userid from history where chatid=?1 and "
+            "select type, idx, data, msgid, userid, ts from history where chatid=?1 and "
             "(length(data) > 0 OR type = ?2) and type != ?3  and type != ?4 and (idx <= ?5)"
             "order by idx desc limit 1");
         stmt << mChat.chatId()
@@ -393,12 +393,22 @@ public:
              << from;
         if (!stmt.step())
         {
-            msg.clear();
+
+            CHATD_LOG_WARNING("chatid %s: getLastTextMessage cannot find any candidate for last-message", mChat.chatId().toString().c_str());
+
+            msg.clear();    // any existing last-msg is now obsolete
+
+            // reset the last-ts to the chat creation's ts
+            SqliteStmt stmt(mDb, "select ts_created from chats where chatid=?");
+            stmt << mChat.chatId();
+            stmt.stepMustHaveData();
+            lastTs = int(stmt.uint64Col(0));
             return;
         }
         Buffer buf(128);
         stmt.blobCol(2, buf);
         msg.assign(buf, stmt.intCol(0), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
+        lastTs = stmt.intCol(5);
     }
 
     //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value

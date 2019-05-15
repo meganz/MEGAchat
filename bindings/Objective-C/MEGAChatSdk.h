@@ -84,6 +84,7 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
 
 - (MEGAChatInit)initKarereWithSid:(NSString *)sid;
 - (MEGAChatInit)initAnonymous;
+- (void)resetClientId;
 
 - (MEGAChatInit)initState;
 
