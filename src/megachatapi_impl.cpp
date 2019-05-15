@@ -8010,7 +8010,12 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 
 void MegaChatSessionHandler::onVideoRecv()
 {
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
+    chatCall->sessionUpdated(session->peer(), session->peerClient(), MegaChatCall::CHANGE_TYPE_CALL_OPERATIVE);
+    API_LOG_INFO("The call is fully operative. ChatId: %s, callid: %s",
+                 ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()));
 
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
