@@ -210,7 +210,7 @@ public:
         CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
         CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100,    /// Session audio level has changed
-        CHANGE_TYPE_SESSION_OPERATIVE = 0x200,      /// Session is fully operative
+        CHANGE_TYPE_SESSION_OPERATIVE = 0x200      /// Session is fully operative
     };
 
     enum
