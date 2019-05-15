@@ -77,6 +77,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatInit) self.megaChatApi->initAnonymous();
 }
 
+- (void)resetClientId {
+    self.megaChatApi->resetClientid();
+}
+
 - (MEGAChatInit)initState {
     return (MEGAChatInit) self.megaChatApi->getInitState();
 }
