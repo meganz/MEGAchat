@@ -145,6 +145,12 @@ void SettingWindow::fillWidget()
             QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
             mModel.appendRow(chat);
         }
+        if (mPushNotificationSettings->isChatAlwaysNotifyEnabled(chatid))
+        {
+            std::string rowContain = std::string(chatid_64) + " -> always-notify";
+            QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
+            mModel.appendRow(chat);
+        }
         delete [] chatid_64;
     }
 

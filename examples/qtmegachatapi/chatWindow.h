@@ -133,7 +133,6 @@ class ChatWindow : public QDialog,
         void onAttachmentsClosed(QObject*);
         void on_mSettingsBtn_clicked();
         void onAttachNode(bool isVoiceClip);
-        void onPushNotificationRestriction();
 
 #ifndef KARERE_DISABLE_WEBRTC
         void onCallBtn(bool video);

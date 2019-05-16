@@ -59,6 +59,9 @@ public slots:
     void onCheckPushNotificationRestrictionClicked();
     void onPushReceivedIos();
     void onPushReceivedAndroid();
+    void onMuteNotifications(bool enabled);
+    void onSetAlwaysNotify(bool enabled);
+    void onSetDND();
 
 private:
     void onPushReceived(unsigned int type);

@@ -188,6 +188,7 @@ class MainWindow :
 
         //Maps UserId to to ContactListItemController
         std::map<mega::MegaHandle, ContactListItemController *> mContactControllers;
+
         SettingWindow *mSettings = NULL;
 
     private slots:

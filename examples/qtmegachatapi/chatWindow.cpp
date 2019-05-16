@@ -866,9 +866,37 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
     connect(actPushAndReceived, SIGNAL(triggered()), getChatItemController(), SLOT(onPushReceivedAndroid()));
 
-    //Set push notification restriction for chatroom
-    auto pushNotificationRestriction = notificationsMenu->addAction("Mute notifications");
-    connect(pushNotificationRestriction, SIGNAL(triggered()), this, SLOT(onPushNotificationRestriction()));
+    ::mega::MegaPushNotificationSettings *notificationSettings = mMainWin->mApp->getNotificationSettings();
+    //Set DND for this chat
+    auto actDoNotDisturb = notificationsMenu->addAction("Mute notifications");
+    connect(actDoNotDisturb, SIGNAL(toggled(bool)), getChatItemController(), SLOT(onMuteNotifications(bool)));
+    if (notificationSettings)
+    {
+        actDoNotDisturb->setCheckable(true);
+        actDoNotDisturb->setChecked(!notificationSettings->isChatEnabled(mChatRoom->getChatId()));
+    }
+    else
+    {
+        actDoNotDisturb->setEnabled(false);
+    }
+
+    //Set always notify for this chat
+    auto actAlwaysNotify = notificationsMenu->addAction("Notify always");
+    connect(actAlwaysNotify, SIGNAL(toggled(bool)), getChatItemController(), SLOT(onSetAlwaysNotify(bool)));
+    if (notificationSettings)
+    {
+        actAlwaysNotify->setCheckable(true);
+        actAlwaysNotify->setChecked(notificationSettings->isChatAlwaysNotifyEnabled(mChatRoom->getChatId()));
+    }
+    else
+    {
+        actAlwaysNotify->setEnabled(false);
+    }
+
+    //Set period to not disturb
+    auto actSetDND = notificationsMenu->addAction("Set do-not-disturb");
+    connect(actSetDND, SIGNAL(triggered()), getChatItemController(), SLOT(onSetDND()));
+    actSetDND->setEnabled(notificationSettings);
 
     menu.addSeparator();
 
@@ -1191,8 +1219,6 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     if (node.isEmpty())
        return;
 
-    QStringList nodeParsed = node.split( "/" );
-    QString nodeName = nodeParsed.value(nodeParsed.length() - 1);
     ::mega::MegaNode *parent = mMegaApi->getNodeByPath("/");
     mUploadDlg = new QMessageBox;
     mUploadDlg->setWindowTitle((tr("Uploading file...")));
@@ -1213,11 +1239,6 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
     }
 
     delete parent;
-}
-
-void ChatWindow::onPushNotificationRestriction()
-{
-    mMegaApi->getPushNotificationSettings(mMegaRequestDelegate);
 }
 
 void ChatWindow::on_mCancelTransfer(QAbstractButton*)
@@ -1290,38 +1311,6 @@ void ChatWindow::onRequestFinish(::mega::MegaApi *, ::mega::MegaRequest *request
         case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
             if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
             {
-                int currentDND = -1;
-                ::mega::m_time_t now = ::mega::m_time(NULL);
-                ::mega::MegaHandle chatid = mChatRoom->getChatId();
-                const ::mega::MegaPushNotificationSettings *currentSettings = request->getMegaPushNotificationSettings();
-                if (!currentSettings)
-                {
-                    currentSettings = ::mega::MegaPushNotificationSettings::createInstance();
-                }
-                else
-                {
-                    currentDND = currentSettings->getChatDnd(chatid) - now;
-                    currentDND = (currentDND > -1) ? currentDND : -1;
-                }
-
-                bool ok = false;
-                int newDND = QInputDialog::getInt(this, tr("Push notification restriction - DND"),
-                                                             tr("Enter number of seconds without notifications for this chatroom: "), currentDND, -1, 2147483647, 1, &ok);
-                if (ok && currentDND != newDND)
-                {
-                    now = ::mega::m_time(NULL);
-                    ::mega::MegaPushNotificationSettings *newSettings = currentSettings->copy();
-                    if (newDND > 0)
-                    {
-                        newSettings->setChatDnd(chatid, now + newDND);
-                    }
-                    else
-                    {
-                        // -1 --> enable, 0 --> disable
-                        newSettings->enableChat(chatid, newDND);
-                    }
-                    mMegaApi->setPushNotificationSettings(newSettings);
-                }
             }
             break;
 

@@ -458,6 +458,38 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
     connect(actPushAndReceived, SIGNAL(triggered()), mController, SLOT(onPushReceivedAndroid()));
 
+    ::mega::MegaPushNotificationSettings *notificationSettings = mMainWin->mApp->getNotificationSettings();
+    //Set DND for this chat
+    auto actDoNotDisturb = notificationsMenu->addAction("Mute notifications");
+    connect(actDoNotDisturb, SIGNAL(toggled(bool)), mController, SLOT(onMuteNotifications(bool)));
+    if (notificationSettings)
+    {
+        actDoNotDisturb->setCheckable(true);
+        actDoNotDisturb->setChecked(!notificationSettings->isChatEnabled(mChatId));
+    }
+    else
+    {
+        actDoNotDisturb->setEnabled(false);
+    }
+
+    //Set always notify for this chat
+    auto actAlwaysNotify = notificationsMenu->addAction("Notify always");
+    connect(actAlwaysNotify, SIGNAL(toggled(bool)), mController, SLOT(onSetAlwaysNotify(bool)));
+    if (notificationSettings)
+    {
+        actAlwaysNotify->setCheckable(true);
+        actAlwaysNotify->setChecked(notificationSettings->isChatAlwaysNotifyEnabled(mChatId));
+    }
+    else
+    {
+        actAlwaysNotify->setEnabled(false);
+    }
+
+    //Set period to not disturb
+    auto actSetDND = notificationsMenu->addAction("Set do-not-disturb");
+    connect(actSetDND, SIGNAL(triggered()), mController, SLOT(onSetDND()));
+    actSetDND->setEnabled(notificationSettings);
+
     clMenu->addSeparator();
 
     auto actPrintChat = menu.addAction(tr("Print chat info"));

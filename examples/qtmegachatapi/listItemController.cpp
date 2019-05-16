@@ -1,4 +1,6 @@
 #include "listItemController.h"
+#include <mega/utils.h>
+#include <QInputDialog>
 
 ChatListItemController::ChatListItemController(MainWindow *mainWindow, megachat::MegaChatListItem *item, ChatItemWidget *widget, ChatWindow *chatWindow)
     : QObject(mainWindow),
@@ -198,6 +200,59 @@ void ChatListItemController::onPushReceivedIos()
 void ChatListItemController::onPushReceivedAndroid()
 {
     onPushReceived(0);
+}
+
+void ChatListItemController::onMuteNotifications(bool enabled)
+{
+    ::mega::MegaPushNotificationSettings *settings = mMainWindow->mApp->getNotificationSettings();
+    if (settings && !settings->isChatEnabled(mItemId) != enabled)
+    {
+        settings->enableChat(mItemId, !enabled);
+        mMegaApi->setPushNotificationSettings(settings);
+    }
+}
+
+void ChatListItemController::onSetAlwaysNotify(bool enabled)
+{
+    ::mega::MegaPushNotificationSettings *settings = mMainWindow->mApp->getNotificationSettings();
+    if (settings && settings->isChatAlwaysNotifyEnabled(mItemId) != enabled)
+    {
+        settings->enableChatAlwaysNotify(mItemId, enabled);
+        mMegaApi->setPushNotificationSettings(settings);
+    }
+}
+
+void ChatListItemController::onSetDND()
+{
+    ::mega::MegaPushNotificationSettings *settings = mMainWindow->mApp->getNotificationSettings();
+    if (!settings)
+    {
+        return;
+    }
+
+    ::mega::m_time_t now = ::mega::m_time(NULL);
+    ::mega::m_time_t currentDND = settings->getChatDnd(mItemId);
+    ::mega::m_time_t currentValue = (currentDND > 0) ? currentDND - now : currentDND;
+
+    bool ok = false;
+    ::mega::m_time_t newValue = QInputDialog::getInt(mMainWindow, tr("Push notification restriction - DND"),
+                                                 tr("Set DND mode for this chatroom for (in seconds)"
+                                                    "\n(0 to disable notifications, -1 to unset DND): "), currentValue, -1, 2147483647, 1, &ok);
+    ::mega::m_time_t newDND = (newValue > 0) ? newValue + now : newValue;
+    if (ok && currentDND != newDND)
+    {
+        if (newDND > 0)
+        {
+            newDND = newValue + ::mega::m_time(NULL);   // update when the user clicks OK
+            settings->setChatDnd(mItemId, newDND);
+        }
+        else
+        {
+            // -1 --> enable, 0 --> disable
+            settings->enableChat(mItemId, newDND);
+        }
+        mMegaApi->setPushNotificationSettings(settings);
+    }
 }
 
 void ChatListItemController::onPushReceived(unsigned int type)
