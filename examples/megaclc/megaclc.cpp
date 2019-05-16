@@ -2183,40 +2183,6 @@ void exec_getfingerprint(ac::ACState& s)
     }
 }
 
-bool extractflag(const string& flag, vector<ac::ACState::quoted_word>& words)
-{
-    for (auto i = words.begin(); i != words.end(); ++i)
-    {
-        if (i->s == flag)
-        {
-            words.erase(i);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool extractflagparam(const string& flag, string& param, vector<ac::ACState::quoted_word>& words)
-{
-    for (auto i = words.begin(); i != words.end(); ++i)
-    {
-        if (i->s == flag)
-        {
-            auto j = i;
-            ++j;
-            if (j != words.end())
-            {
-                param = j->s;
-                words.erase(i, ++j);
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-
-
 void exec_createthumbnail(ac::ACState& s)
 {
     string parallelcount;
