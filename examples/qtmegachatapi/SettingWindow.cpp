@@ -136,15 +136,16 @@ void SettingWindow::fillWidget()
     for (int i = 0; i < chatList->size(); i++)
     {
         ::mega::MegaHandle chatid = chatList->get(i)->getHandle();
+        const char *chatid_64 = mMegaApi->userHandleToBase64(chatid);
         if (mPushNotificationSettings->isChatDndEnabled(chatid))
         {
-            const char *chatid_64 = mMegaApi->userHandleToBase64(chatid);
-            ::mega::m_time_t differenceChats = mPushNotificationSettings->getChatDnd(chatid) - now;
-            std::string rowContain = std::string(chatid_64) + " -> " + std::to_string(differenceChats);
+            ::mega::m_time_t chatDND = mPushNotificationSettings->getChatDnd(chatid);
+            std::string value = (chatDND > 0) ? std::to_string(chatDND - now) : "disabled (0)";
+            std::string rowContain = std::string(chatid_64) + " -> " + value;
             QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
             mModel.appendRow(chat);
-            delete [] chatid_64;
         }
+        delete [] chatid_64;
     }
 
     delete chatList;

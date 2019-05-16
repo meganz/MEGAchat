@@ -1311,7 +1311,15 @@ void ChatWindow::onRequestFinish(::mega::MegaApi *, ::mega::MegaRequest *request
                 {
                     now = ::mega::m_time(NULL);
                     ::mega::MegaPushNotificationSettings *newSettings = currentSettings->copy();
-                    newSettings->setChatDnd(mChatRoom->getChatId(), (newDND > -1) ? now + newDND : -1);
+                    if (newDND > 0)
+                    {
+                        newSettings->setChatDnd(chatid, now + newDND);
+                    }
+                    else
+                    {
+                        // -1 --> enable, 0 --> disable
+                        newSettings->enableChat(chatid, newDND);
+                    }
                     mMegaApi->setPushNotificationSettings(newSettings);
                 }
             }
