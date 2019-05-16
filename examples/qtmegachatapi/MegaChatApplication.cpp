@@ -61,12 +61,15 @@ MegaChatApplication::~MegaChatApplication()
     delete mMegaApi;
     delete mLogger;
     delete [] mSid;
+    delete mNotificationSettings;
 }
 
 void MegaChatApplication::init()
 {
     mFirstnamesMap.clear();
     mFirstnameFetching.clear();
+    delete mNotificationSettings;
+    mNotificationSettings = NULL;
     if (mMainWin)
     {
         mMainWin->deleteLater();
@@ -242,6 +245,22 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
     {
         mMainWin->addOrUpdateContactControllersItems(userList);
         mMainWin->reorderAppContactList();
+
+        // if notification settings have changed, update the value
+        for (int i = 0; i < userList->size(); i++)
+        {
+            ::mega::MegaUser *user = userList->get(i);
+            if (user->getHandle() == mMegaApi->getMyUserHandleBinary())
+            {
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS))
+                {
+                    delete mNotificationSettings;
+                    mNotificationSettings = NULL;
+                    mMegaApi->getPushNotificationSettings();
+                }
+                break;
+            }
+        }
     }
 }
 
@@ -315,6 +334,11 @@ void MegaChatApplication::enableStaging(bool enable)
         mMegaApi->fastLogin(mSid);
         mMegaChatApi->refreshUrl();
     }
+}
+
+::mega::MegaPushNotificationSettings *MegaChatApplication::getNotificationSettings() const
+{
+    return mNotificationSettings;
 }
 
 const char *MegaChatApplication::sid() const
@@ -396,6 +420,8 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     saveSid(mSid);
                 }
 
+                mMegaApi->getPushNotificationSettings();
+
                 if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
                 {
                     mMegaChatApi->connect();
@@ -448,6 +474,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
 
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
+        {
             QString text;
             if (request->getFlag())
             {
@@ -466,6 +493,19 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             {
                 QMessageBox::critical(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
+            break;
+        }
+        case MegaRequest::TYPE_GET_ATTR_USER:
+            if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
+            {
+                const ::mega::MegaPushNotificationSettings *currentSettings = request->getMegaPushNotificationSettings();
+                delete mNotificationSettings;
+                mNotificationSettings = currentSettings
+                        ? currentSettings->copy() : ::mega::MegaPushNotificationSettings::createInstance();
+            }
+            break;
+
+        default:
             break;
     }
 }

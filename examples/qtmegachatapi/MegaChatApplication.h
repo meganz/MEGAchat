@@ -46,7 +46,9 @@ class MegaChatApplication : public QApplication,
         bool isStagingEnabled();
         void enableStaging(bool enable);
 
-    protected:
+        ::mega::MegaPushNotificationSettings *getNotificationSettings() const;
+
+protected:
         const char *mSid;
         std::string mAppDir;
         MainWindow *mMainWin;
@@ -62,6 +64,7 @@ class MegaChatApplication : public QApplication,
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
         bool useStaging = false;
+        ::mega::MegaPushNotificationSettings *mNotificationSettings = NULL;
 
     public slots:
         void onAnonymousLogout();
