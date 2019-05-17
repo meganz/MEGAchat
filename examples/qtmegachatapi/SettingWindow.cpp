@@ -1,127 +1,77 @@
 #include "SettingWindow.h"
+#include "MegaChatApplication.h"
 #include "ui_SettingWindow.h"
 #include "assert.h"
 #include <mega/utils.h>
 
-SettingWindow::SettingWindow(::mega::MegaApi *megaApi, QWidget *parent) :
-    QDialog(parent),
+SettingWindow::SettingWindow(MegaChatApplication *app) :
+    QDialog(app->mainWindow()),
     ui(new Ui::SettingWindow),
-    mMegaApi(megaApi),
-    mRequestListener(new ::mega::QTMegaRequestListener(megaApi, this))
+    mApp(app)
 {
     ui->setupUi(this);
-    ui->chatsView->setModel(&mModel);
 
-    connect(ui->confirmButtons, SIGNAL(accepted()), this, SLOT(accepted()));
-    connect(ui->confirmButtons, SIGNAL(rejected()), this, SLOT(rejected()));
+    // notification settings UI
+    ui->chatsView->setModel(&mNotificationSettingsPerChat);
+    connect(ui->confirmButtons, SIGNAL(clicked(QAbstractButton*)), this, SLOT(onClicked(QAbstractButton*)));
     ui->globalDnd->setValidator(new QIntValidator(0, 31536000, this)); // Max value -> seconds in a year
     connect(ui->globalNotificationsEnabled, SIGNAL(clicked(bool)), this, SLOT(onGlobalClicked(bool)));
     connect(ui->scheduleEnabled, SIGNAL(clicked(bool)), this, SLOT(onScheduleEnabled(bool)));
-
-    resetPushNotificationSettings();
+    if (!mApp->getNotificationSettings() || !mApp->getTimeZoneDetails())
+    {
+        ui->pushNotifications->setEnabled(false);
+    }
 }
 
 SettingWindow::~SettingWindow()
 {
-    resetPushNotificationSettings();
-
-    delete mRequestListener;
     delete ui;
-}
-
-void SettingWindow::onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest *request, ::mega::MegaError* e)
-{
-    switch (request->getType())
-    {
-        case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
-            if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
-            {
-                if (mPushNotificationSettings)
-                {
-                    delete mPushNotificationSettings;
-                    mPushNotificationSettings = NULL;
-                }
-
-                if (e->getErrorCode() == ::mega::MegaError::API_OK)
-                {
-                    mPushNotificationSettings = request->getMegaPushNotificationSettings()->copy();
-                }
-                else if (e->getErrorCode() == ::mega::MegaError::API_ENOENT)
-                {
-                    mPushNotificationSettings = ::mega::MegaPushNotificationSettings::createInstance();
-                }
-            }
-            break;
-        case ::mega::MegaRequest::TYPE_FETCH_TIMEZONE:
-        {
-            if (mTimeZoneDetails)
-            {
-                delete mTimeZoneDetails;
-                mTimeZoneDetails = NULL;
-            }
-
-            if (e->getErrorCode() == ::mega::MegaError::API_OK)
-            {
-                mTimeZoneDetails = request->getMegaTimeZoneDetails()->copy();
-            }
-            break;
-        }
-        default:
-            break;
-    }
-
-    if (mTimeZoneDetails && mPushNotificationSettings)
-    {
-        ui->pushNotifications->setEnabled(true);
-        fillWidget();
-    }
 }
 
 void SettingWindow::show()
 {
-    resetPushNotificationSettings();
-    loadPushNotificationSettings();
-
     QDialog::show();
 }
 
-void SettingWindow::fillWidget()
+void SettingWindow::onPushNotificationSettingsUpdate()
 {
-    assert(mPushNotificationSettings);
-    assert(mTimeZoneDetails);
+    auto notificationSettings = mApp->getNotificationSettings();
+    auto timeZoneDetails = mApp->getTimeZoneDetails();
+    assert(notificationSettings);
+    assert(timeZoneDetails);
 
     ::mega::m_time_t now = ::mega::m_time(NULL);
-    ui->chats->setChecked(mPushNotificationSettings->isChatsEnabled());
-    ui->pcr->setChecked(mPushNotificationSettings->isContactsEnabled());
-    ui->shares->setChecked(mPushNotificationSettings->isSharesEnabled());
+    ui->chats->setChecked(notificationSettings->isChatsEnabled());
+    ui->pcr->setChecked(notificationSettings->isContactsEnabled());
+    ui->shares->setChecked(notificationSettings->isSharesEnabled());
 
-    ui->globalNotificationsEnabled->setChecked(mPushNotificationSettings->isGlobalEnabled());
-    mGlobalDifference = mPushNotificationSettings->getGlobalDnd() - now;
+    ui->globalNotificationsEnabled->setChecked(notificationSettings->isGlobalEnabled());
+    mGlobalDifference = notificationSettings->getGlobalDnd() - now;
     mGlobalDifference = (mGlobalDifference >= 0) ? mGlobalDifference : 0;
     std::string globalDnd = std::to_string(mGlobalDifference);
     ui->globalDnd->setText(globalDnd.c_str());
-    ui->globalDnd->setEnabled(!mPushNotificationSettings->isGlobalEnabled());
+    ui->globalDnd->setEnabled(!notificationSettings->isGlobalEnabled());
 
-    ui->scheduleEnabled->setChecked(mPushNotificationSettings->isGlobalScheduleEnabled());
-    onScheduleEnabled(mPushNotificationSettings->isGlobalScheduleEnabled());
+    ui->scheduleEnabled->setChecked(notificationSettings->isGlobalScheduleEnabled());
+    onScheduleEnabled(notificationSettings->isGlobalScheduleEnabled());
 
-    int scheduleTime = (mPushNotificationSettings->getGlobalScheduleStart() > 0) ? mPushNotificationSettings->getGlobalScheduleStart() : 0;
+    int scheduleTime = (notificationSettings->getGlobalScheduleStart() > 0) ? notificationSettings->getGlobalScheduleStart() : 0;
     int hours = scheduleTime / 60;
     int minutes = scheduleTime % 60;
     ui->startTime->setTime(QTime(hours, minutes));
 
-    scheduleTime = (mPushNotificationSettings->getGlobalScheduleEnd() > 0) ? mPushNotificationSettings->getGlobalScheduleEnd() : 0;
+    scheduleTime = (notificationSettings->getGlobalScheduleEnd() > 0) ? notificationSettings->getGlobalScheduleEnd() : 0;
     hours = scheduleTime / 60;
     minutes = scheduleTime % 60;
     ui->endTime->setTime(QTime(hours, minutes));
 
     QList<QString> stringsList;
-    int index = mTimeZoneDetails->getDefault();
-    const char *timeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
-    for (int i = 0; i < mTimeZoneDetails->getNumTimeZones(); i++)
+    int index = timeZoneDetails->getDefault();
+    const char *timeZone = notificationSettings->getGlobalScheduleTimezone();
+    for (int i = 0; i < timeZoneDetails->getNumTimeZones(); i++)
     {
-        stringsList.append(QString(mTimeZoneDetails->getTimeZone(i)));
-        if (strcmp(mTimeZoneDetails->getTimeZone(i), timeZone) == 0)
+        stringsList.append(QString(timeZoneDetails->getTimeZone(i)));
+        if (strcmp(timeZoneDetails->getTimeZone(i), timeZone) == 0)
         {
             index = i;
         }
@@ -131,97 +81,85 @@ void SettingWindow::fillWidget()
     ui->timeZones->addItems(stringsList);
     ui->timeZones->setCurrentIndex(index);
 
-    mModel.clear();
-    ::mega::MegaTextChatList *chatList = mMegaApi->getChatList();
+    mNotificationSettingsPerChat.clear();
+    ::mega::MegaTextChatList *chatList = mApp->megaApi()->getChatList();
     for (int i = 0; i < chatList->size(); i++)
     {
         ::mega::MegaHandle chatid = chatList->get(i)->getHandle();
-        const char *chatid_64 = mMegaApi->userHandleToBase64(chatid);
-        if (mPushNotificationSettings->isChatDndEnabled(chatid))
+        const char *chatid_64 = ::mega::MegaApi::userHandleToBase64(chatid);
+        if (notificationSettings->isChatDndEnabled(chatid))
         {
-            ::mega::m_time_t chatDND = mPushNotificationSettings->getChatDnd(chatid);
+            ::mega::m_time_t chatDND = notificationSettings->getChatDnd(chatid);
             std::string value = (chatDND > 0) ? std::to_string(chatDND - now) : "disabled (0)";
             std::string rowContain = std::string(chatid_64) + " -> " + value;
             QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
-            mModel.appendRow(chat);
+            mNotificationSettingsPerChat.appendRow(chat);
         }
-        if (mPushNotificationSettings->isChatAlwaysNotifyEnabled(chatid))
+        if (notificationSettings->isChatAlwaysNotifyEnabled(chatid))
         {
             std::string rowContain = std::string(chatid_64) + " -> always-notify";
             QStandardItem *chat = new QStandardItem(QString(rowContain.c_str()));
-            mModel.appendRow(chat);
+            mNotificationSettingsPerChat.appendRow(chat);
         }
         delete [] chatid_64;
     }
 
     delete chatList;
+
+    ui->pushNotifications->setEnabled(true);
 }
 
-void SettingWindow::loadPushNotificationSettings()
-{
-    mMegaApi->fetchTimeZone(mRequestListener);
-    mMegaApi->getPushNotificationSettings(mRequestListener);
-}
-
-void SettingWindow::resetPushNotificationSettings()
-{
-    ui->pushNotifications->setEnabled(false);
-
-    delete mPushNotificationSettings;
-    mPushNotificationSettings = NULL;
-
-    delete mTimeZoneDetails;
-    mTimeZoneDetails = NULL;
- }
-
-void SettingWindow::updatePushNotificationSettings()
+void SettingWindow::savePushNotificationSettings()
 {
     bool updated = false;
     ::mega::m_time_t now = ::mega::m_time(NULL);
     int globalDnd = ui->globalDnd->text().toInt();
 
+    auto notificationSettings = mApp->getNotificationSettings();
+    assert(notificationSettings);
+
     /* If globalNotifications checkbox changed respect initial value or if globalNotifications checkbox
        is disabled and do not disturb period has been changed */
-    if (ui->globalNotificationsEnabled->isChecked() != mPushNotificationSettings->isGlobalEnabled()
+    if (ui->globalNotificationsEnabled->isChecked() != notificationSettings->isGlobalEnabled()
             || (!ui->globalNotificationsEnabled->isChecked() && mGlobalDifference != globalDnd))
     {
         updated = true;
         // If we want to enable global notifications by setting mGlobalDND to -1
         if (ui->globalNotificationsEnabled->isChecked())
         {
-            mPushNotificationSettings->disableGlobalDnd();
+            notificationSettings->disableGlobalDnd();
         }
         else
         {
             if (globalDnd)
             {   // If we want to set a valid do not disturb period
-                mPushNotificationSettings->setGlobalDnd(globalDnd + now);
+                notificationSettings->setGlobalDnd(globalDnd + now);
             }
             else
             {   // If we want to disable global notifications by setting mGlobalDND to 0
-                mPushNotificationSettings->enableGlobal(false);
+                notificationSettings->enableGlobal(false);
             }
         }
     }
 
     // Enable/disable notifications related to all chats
-    if (ui->chats->isChecked() != mPushNotificationSettings->isChatsEnabled())
+    if (ui->chats->isChecked() != notificationSettings->isChatsEnabled())
     {
-        mPushNotificationSettings->enableChats(ui->chats->isChecked());
+        notificationSettings->enableChats(ui->chats->isChecked());
         updated = true;
     }
 
     // Enable/disable notifications related to all contacts
-    if (ui->pcr->isChecked() != mPushNotificationSettings->isContactsEnabled())
+    if (ui->pcr->isChecked() != notificationSettings->isContactsEnabled())
     {
-        mPushNotificationSettings->enableContacts(ui->pcr->isChecked());
+        notificationSettings->enableContacts(ui->pcr->isChecked());
         updated = true;
     }
 
     // Enable/disable notifications related to all shares
-    if (ui->shares->isChecked() != mPushNotificationSettings->isSharesEnabled())
+    if (ui->shares->isChecked() != notificationSettings->isSharesEnabled())
     {
-        mPushNotificationSettings->enableShares(ui->shares->isChecked());
+        notificationSettings->enableShares(ui->shares->isChecked());
         updated = true;
     }
 
@@ -230,46 +168,50 @@ void SettingWindow::updatePushNotificationSettings()
     time = ui->endTime->time();
     int endTime = time.hour() * 60 + time.minute();
     std::string timeZone = ui->timeZones->currentText().toStdString();
-    const char *auxTimeZone = mPushNotificationSettings->getGlobalScheduleTimezone();
+    const char *auxTimeZone = notificationSettings->getGlobalScheduleTimezone();
 
     // If schedule checkbox has changed
     // If schedule checkbox is enabled and start/end/timezone has changed
-    if (ui->scheduleEnabled->isChecked() != mPushNotificationSettings->isGlobalScheduleEnabled()
+    if (ui->scheduleEnabled->isChecked() != notificationSettings->isGlobalScheduleEnabled()
             || (ui->scheduleEnabled->isChecked()
-                && (startTime != mPushNotificationSettings->getGlobalScheduleStart()
-                    || endTime != mPushNotificationSettings->getGlobalScheduleEnd()
+                && (startTime != notificationSettings->getGlobalScheduleStart()
+                    || endTime != notificationSettings->getGlobalScheduleEnd()
                     || timeZone != auxTimeZone) ) )
     {
         updated = true;
         if (ui->scheduleEnabled->isChecked())
         {
-            mPushNotificationSettings->setGlobalSchedule(startTime, endTime, timeZone.c_str());
+            notificationSettings->setGlobalSchedule(startTime, endTime, timeZone.c_str());
         }
         else
         {
-            mPushNotificationSettings->disableGlobalSchedule();
+            notificationSettings->disableGlobalSchedule();
         }
     }
 
     // Update push notification settings
     if (updated)
     {
-        mMegaApi->setPushNotificationSettings(mPushNotificationSettings);
+        mApp->megaApi()->setPushNotificationSettings(notificationSettings.get());
     }
 
     delete [] auxTimeZone;
 }
 
-void SettingWindow::accepted()
+void SettingWindow::onClicked(QAbstractButton *button)
 {
-    if (mTimeZoneDetails && mPushNotificationSettings)
+    if (button->text() == "Apply")
     {
-        updatePushNotificationSettings();
+        savePushNotificationSettings();
     }
-}
-
-void SettingWindow::rejected()
-{
+    else if (button->text() == "Reset")
+    {
+        onPushNotificationSettingsUpdate();
+    }
+    else if (button->text() == "Close")
+    {
+        hide();
+    }
 }
 
 void SettingWindow::onGlobalClicked(bool value)

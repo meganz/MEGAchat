@@ -458,7 +458,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actPushAndReceived = notificationsMenu->addAction(tr("Simulate PUSH received (Android)"));
     connect(actPushAndReceived, SIGNAL(triggered()), mController, SLOT(onPushReceivedAndroid()));
 
-    ::mega::MegaPushNotificationSettings *notificationSettings = mMainWin->mApp->getNotificationSettings();
+    auto notificationSettings = mMainWin->mApp->getNotificationSettings();
     //Set DND for this chat
     auto actDoNotDisturb = notificationsMenu->addAction("Mute notifications");
     connect(actDoNotDisturb, SIGNAL(toggled(bool)), mController, SLOT(onMuteNotifications(bool)));
@@ -488,7 +488,7 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     //Set period to not disturb
     auto actSetDND = notificationsMenu->addAction("Set do-not-disturb");
     connect(actSetDND, SIGNAL(triggered()), mController, SLOT(onSetDND()));
-    actSetDND->setEnabled(notificationSettings);
+    actSetDND->setEnabled(bool(notificationSettings));
 
     clMenu->addSeparator();
 

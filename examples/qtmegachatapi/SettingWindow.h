@@ -4,6 +4,7 @@
 #include <megaapi.h>
 #include <mega/types.h>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <qstandarditemmodel.h>
 #include <QTMegaRequestListener.h>
 
@@ -11,36 +12,30 @@ namespace Ui {
 class SettingWindow;
 }
 
-class SettingWindow : public QDialog, public ::mega::MegaRequestListener
+class MegaChatApplication;
+
+class SettingWindow : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit SettingWindow(::mega::MegaApi *megaApi, QWidget *parent = 0);
+    explicit SettingWindow(MegaChatApplication *app);
     ~SettingWindow();
-    void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e);
     void show();
+    void onPushNotificationSettingsUpdate();    // update the UI with new values
 
 private:
     Ui::SettingWindow *ui;
-    ::mega::MegaApi *mMegaApi;
-    ::mega::QTMegaRequestListener *mRequestListener;
+    MegaChatApplication *mApp;
 
     // notification settings
-    ::mega::MegaPushNotificationSettings *mPushNotificationSettings = NULL;
-    ::mega::MegaTimeZoneDetails *mTimeZoneDetails = NULL;
     ::mega::m_time_t mGlobalDifference = -1;
-    QStandardItemModel mModel;
+    QStandardItemModel mNotificationSettingsPerChat;
 
-    void loadPushNotificationSettings();
-    void resetPushNotificationSettings();
-    void updatePushNotificationSettings();
-
-    void fillWidget();
+    void savePushNotificationSettings();
 
 private slots:
-    void accepted();
-    void rejected();
+    void onClicked(QAbstractButton*);
     void onGlobalClicked(bool value);
     void onScheduleEnabled(bool value);
 };

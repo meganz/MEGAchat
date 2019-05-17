@@ -204,27 +204,27 @@ void ChatListItemController::onPushReceivedAndroid()
 
 void ChatListItemController::onMuteNotifications(bool enabled)
 {
-    ::mega::MegaPushNotificationSettings *settings = mMainWindow->mApp->getNotificationSettings();
+    auto settings = mMainWindow->mApp->getNotificationSettings();
     if (settings && !settings->isChatEnabled(mItemId) != enabled)
     {
         settings->enableChat(mItemId, !enabled);
-        mMegaApi->setPushNotificationSettings(settings);
+        mMegaApi->setPushNotificationSettings(settings.get());
     }
 }
 
 void ChatListItemController::onSetAlwaysNotify(bool enabled)
 {
-    ::mega::MegaPushNotificationSettings *settings = mMainWindow->mApp->getNotificationSettings();
+    auto settings = mMainWindow->mApp->getNotificationSettings();
     if (settings && settings->isChatAlwaysNotifyEnabled(mItemId) != enabled)
     {
         settings->enableChatAlwaysNotify(mItemId, enabled);
-        mMegaApi->setPushNotificationSettings(settings);
+        mMegaApi->setPushNotificationSettings(settings.get());
     }
 }
 
 void ChatListItemController::onSetDND()
 {
-    ::mega::MegaPushNotificationSettings *settings = mMainWindow->mApp->getNotificationSettings();
+    auto settings = mMainWindow->mApp->getNotificationSettings();
     if (!settings)
     {
         return;
@@ -251,7 +251,7 @@ void ChatListItemController::onSetDND()
             // -1 --> enable, 0 --> disable
             settings->enableChat(mItemId, newDND);
         }
-        mMegaApi->setPushNotificationSettings(settings);
+        mMegaApi->setPushNotificationSettings(settings.get());
     }
 }
 

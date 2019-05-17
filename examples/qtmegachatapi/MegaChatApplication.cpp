@@ -61,15 +61,14 @@ MegaChatApplication::~MegaChatApplication()
     delete mMegaApi;
     delete mLogger;
     delete [] mSid;
-    delete mNotificationSettings;
 }
 
 void MegaChatApplication::init()
 {
     mFirstnamesMap.clear();
     mFirstnameFetching.clear();
-    delete mNotificationSettings;
-    mNotificationSettings = NULL;
+    mNotificationSettings.reset();
+    mTimeZoneDetails.reset();
     if (mMainWin)
     {
         mMainWin->deleteLater();
@@ -241,21 +240,22 @@ void MegaChatApplication::configureLogs()
 
 void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
-    if(mMainWin && userList)
+    if (userList)
     {
-        mMainWin->addOrUpdateContactControllersItems(userList);
-        mMainWin->reorderAppContactList();
+        if(mMainWin)
+        {
+            mMainWin->addOrUpdateContactControllersItems(userList);
+            mMainWin->reorderAppContactList();
+        }
 
-        // if notification settings have changed, update the value
+        // if notification settings have changed for our own user, update the value
         for (int i = 0; i < userList->size(); i++)
         {
             ::mega::MegaUser *user = userList->get(i);
             if (user->getHandle() == mMegaApi->getMyUserHandleBinary())
             {
-                if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS))
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS) && !user->isOwnChange())
                 {
-                    delete mNotificationSettings;
-                    mNotificationSettings = NULL;
                     mMegaApi->getPushNotificationSettings();
                 }
                 break;
@@ -336,9 +336,29 @@ void MegaChatApplication::enableStaging(bool enable)
     }
 }
 
-::mega::MegaPushNotificationSettings *MegaChatApplication::getNotificationSettings() const
+shared_ptr<::mega::MegaPushNotificationSettings> MegaChatApplication::getNotificationSettings() const
 {
     return mNotificationSettings;
+}
+
+shared_ptr<::mega::MegaTimeZoneDetails> MegaChatApplication::getTimeZoneDetails() const
+{
+    return mTimeZoneDetails;
+}
+
+MainWindow *MegaChatApplication::mainWindow() const
+{
+    return mMainWin;
+}
+
+::mega::MegaApi *MegaChatApplication::megaApi() const
+{
+    return mMegaApi;
+}
+
+megachat::MegaChatApi *MegaChatApplication::megaChatApi() const
+{
+    return mMegaChatApi;
 }
 
 const char *MegaChatApplication::sid() const
@@ -421,6 +441,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 }
 
                 mMegaApi->getPushNotificationSettings();
+                mMegaApi->fetchTimeZone();
 
                 if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
                 {
@@ -499,11 +520,31 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
             {
                 const ::mega::MegaPushNotificationSettings *currentSettings = request->getMegaPushNotificationSettings();
-                delete mNotificationSettings;
-                mNotificationSettings = currentSettings
-                        ? currentSettings->copy() : ::mega::MegaPushNotificationSettings::createInstance();
+
+                if (currentSettings)
+                {
+                    mNotificationSettings.reset(currentSettings->copy());
+                }
+                else
+                {
+                    mNotificationSettings.reset(::mega::MegaPushNotificationSettings::createInstance());
+                }
+
+                if (mMainWin && mMainWin->mSettings && mTimeZoneDetails)
+                {
+                    mMainWin->mSettings->onPushNotificationSettingsUpdate();
+                }
             }
             break;
+        case MegaRequest::TYPE_FETCH_TIMEZONE:
+        {
+            mTimeZoneDetails.reset(request->getMegaTimeZoneDetails()->copy());
+
+            if (mMainWin && mMainWin->mSettings && mNotificationSettings)
+            {
+                mMainWin->mSettings->onPushNotificationSettingsUpdate();
+            }
+        }
 
         default:
             break;

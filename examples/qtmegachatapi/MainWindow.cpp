@@ -1270,7 +1270,7 @@ void MainWindow::onChatsSettingsClicked()
 {
     if (!mSettings)
     {
-        mSettings = new SettingWindow(mMegaApi, this);
+        mSettings = new SettingWindow(mApp);
     }
     mSettings->show();
 }
