@@ -995,14 +995,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
 }
 
-- (void)enableGroupChatCalls:(BOOL)enable {
-    self.megaChatApi->enableGroupChatCalls(enable);
-}
-
-- (BOOL)areGroupChatCallEnabled {
-    return self.megaChatApi->areGroupChatCallEnabled();
-}
-
 - (NSInteger)getMaxVideoCallParticipants {
     return self.megaChatApi->getMaxVideoCallParticipants();
 }
