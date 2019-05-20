@@ -8033,7 +8033,13 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 
 void MegaChatSessionHandler::onVideoRecv()
 {
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
+    chatCall->sessionUpdated(session->peer(), session->peerClient(), MegaChatCall::CHANGE_TYPE_SESSION_OPERATIVE);
+    API_LOG_INFO("The session is fully operative. ChatId: %s, callid: %s, userid: %s, clientid: %s",
+                 ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()),
+                 ID_CSTR(session->peer()), ID_CSTR(session->peerClient()));
 
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
