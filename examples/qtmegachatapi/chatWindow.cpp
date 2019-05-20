@@ -1229,6 +1229,29 @@ void ChatWindow::onAttachLocation()
     mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
 }
 
+void ChatWindow::enableCallReconnect(bool enable)
+{
+    if (enable)
+    {
+        if (!mReconnectingDlg)
+        {
+            mReconnectingDlg = new QMessageBox;
+            mReconnectingDlg->setWindowTitle((tr("Call reconnection...")));
+            mReconnectingDlg->setIcon(QMessageBox::Information);
+            mReconnectingDlg->setText(tr("Please, wait.\nReconnection in progress."));
+            mReconnectingDlg->setStandardButtons(QMessageBox::Cancel);
+            mReconnectingDlg->setModal(true);
+            connect(mReconnectingDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelReconnection(QAbstractButton*)));
+            mReconnectingDlg->show();
+        }
+    }
+    else if (mReconnectingDlg)
+    {
+        delete mReconnectingDlg;
+        mReconnectingDlg = NULL;
+    }
+}
+
 void ChatWindow::onAttachNode(bool isVoiceClip)
 {
     QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
@@ -1265,6 +1288,13 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
     mUploadDlg->hide();
     delete mUploadDlg;
     mUploadDlg = NULL;
+}
+
+void ChatWindow::on_mCancelReconnection(QAbstractButton *)
+{
+    delete mReconnectingDlg;
+    mReconnectingDlg = NULL;
+    mMegaChatApi->hangChatCall(mChatRoom->getChatId());
 }
 
 void ChatWindow::onArchiveClicked(bool checked)

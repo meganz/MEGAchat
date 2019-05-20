@@ -187,6 +187,9 @@ using namespace megachat;
         case MEGAChatCallStatusUserNoPresent:
             result = @"User no present";
             break;
+        case MEGAChatCallStatusReconnecting:
+            result = @"Reconnecting";
+            break;
             
         default:
             result = @"Default";

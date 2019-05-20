@@ -1574,9 +1574,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 rtcModule::ICall *call = handler->getCall();
                 if (!call)
                 {
-                    API_LOG_ERROR("Hang up call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    assert(false);
+                    API_LOG_DEBUG("There isn't an internal call, abort call retry");
+                    mClient->rtc->abortCallRetry(chatid);
+
                     break;
                 }
 
@@ -5008,7 +5008,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     changed = 0;
     peerId = 0;
     clientid = 0;
-    callerId = call.caller() ? call.caller().val : MEGACHAT_INVALID_HANDLE;
+    callerId = call.caller().val;
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
@@ -7666,14 +7666,16 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
                 break;
             case rtcModule::ICall::kStateTerminating:
-                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
+            {
                 chatCall->setIsRinging(false);
+                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                 chatCall->setTermCode(call->termCode());
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
                              rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
+            }
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 return;
@@ -7691,7 +7693,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     }
 }
 
-void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const string &/*msg*/)
+void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/, const string &/*msg*/)
 {
     assert(chatCall);
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -7706,10 +7708,14 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
         if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant)
         {
-            chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
-            megaChatApi->fireOnChatCallUpdate(chatCall);
+            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
+            {
+                chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
+                megaChatApi->fireOnChatCallUpdate(chatCall);
+            }
         }
-        else
+        else if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
+                 || reason != rtcModule::TermCode::kErrPeerOffline)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7826,7 +7832,8 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
         }
 
         MegaHandleList *participants = chatCall->getPeeridParticipants();
-        if (participants && participants->size() < 1 && !call)
+        if (participants && participants->size() < 1 &&
+                !call && chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7892,6 +7899,22 @@ int64_t MegaChatCallHandler::getInitialTimeStamp()
 bool MegaChatCallHandler::hasBeenNotifiedRinging() const
 {
     return mHasBeenNotifiedRinging;
+}
+
+void MegaChatCallHandler::onReconnectingState(bool start)
+{
+    assert(chatCall);
+    API_LOG_INFO("Reconnecting call. ChatId: %s  - %s", ID_CSTR(chatCall->getChatid()), start ? "Start" : "Finish");
+    if (start)
+    {
+        chatCall->setStatus(MegaChatCall::CALL_STATUS_RECONNECTING);
+    }
+    else
+    {
+        chatCall->setStatus(call ? MegaChatCall::CALL_STATUS_IN_PROGRESS : MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
+    }
+
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()

@@ -195,7 +195,8 @@ public:
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
-        CALL_STATUS_USER_NO_PRESENT                     /// User is no present in the call (Group Calls)
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_RECONNECTING                       /// User is reconnecting to the call
     };
 
     enum
