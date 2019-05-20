@@ -30,6 +30,7 @@ SettingWindow::~SettingWindow()
 
 void SettingWindow::show()
 {
+    onPushNotificationSettingsUpdate();
     QDialog::show();
 }
 
@@ -211,6 +212,7 @@ void SettingWindow::onClicked(QAbstractButton *button)
     else if (button->text() == "Close")
     {
         hide();
+        ui->pushNotifications->setEnabled(false);
     }
 }
 
