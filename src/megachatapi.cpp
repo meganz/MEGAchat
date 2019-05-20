@@ -1365,6 +1365,11 @@ void MegaChatListener::onChatOnlineStatusUpdate(MegaChatApi* /*api*/, MegaChatHa
 
 }
 
+void MegaChatListener::onBusinessStatusChange(MegaChatApi* /*api*/, int /*status*/)
+{
+
+}
+
 void MegaChatListener::onChatPresenceConfigUpdate(MegaChatApi * /*api*/, MegaChatPresenceConfig * /*config*/)
 {
 

@@ -37,6 +37,13 @@ void QTMegaChatListener::onChatOnlineStatusUpdate(MegaChatApi *api, MegaChatHand
     QCoreApplication::postEvent(this, event, INT_MIN);
 }
 
+void QTMegaChatListener::onBusinessStatusChange(MegaChatApi *api, int status)
+{
+    QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnBusinessStatusChanged);
+    event->setStatus(status);
+    QCoreApplication::postEvent(this, event, INT_MIN);
+}
+
 void QTMegaChatListener::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig *config)
 {
     QTMegaChatEvent *event = new QTMegaChatEvent(api, (QEvent::Type)QTMegaChatEvent::OnChatPresenceConfigUpdate);
@@ -73,6 +80,9 @@ void QTMegaChatListener::customEvent(QEvent *e)
             break;
         case QTMegaChatEvent::OnChatOnlineStatusUpdate:
             if (listener) listener->onChatOnlineStatusUpdate(event->getMegaChatApi(), event->getChatHandle(), event->getStatus(), event->getProgress());
+            break;
+        case QTMegaChatEvent::OnBusinessStatusChanged:
+            if (listener) listener->onBusinessStatusChange(event->getMegaChatApi(), event->getStatus());
             break;
         case QTMegaChatEvent::OnChatPresenceConfigUpdate:
             if (listener) listener->onChatPresenceConfigUpdate(event->getMegaChatApi(), event->getPresenceConfig());

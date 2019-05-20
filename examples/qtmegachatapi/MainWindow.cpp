@@ -1046,6 +1046,11 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
     }
 }
 
+void MainWindow::onBusinessStatusChange(MegaChatApi *, int status)
+{
+
+}
+
 void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfig *config)
 {
     int status = config->getOnlineStatus();

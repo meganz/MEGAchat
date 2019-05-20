@@ -2260,6 +2260,14 @@ void MegaChatApiImpl::fireOnChatOnlineStatusUpdate(MegaChatHandle userhandle, in
     }
 }
 
+void MegaChatApiImpl::fireOnBusinessStatusChange(int status)
+{
+    for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
+    {
+        (*it)->onBusinessStatusChange(chatApi, status);
+    }
+}
+
 void MegaChatApiImpl::fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config)
 {
     for(set<MegaChatListener *>::iterator it = listeners.begin(); it != listeners.end() ; it++)
@@ -4433,6 +4441,11 @@ void MegaChatApiImpl::onPresenceChanged(Id userid, Presence pres, bool inProgres
         API_LOG_INFO("Presence of user %s has been changed to %s", ID_CSTR(userid), pres.toString());
     }
     fireOnChatOnlineStatusUpdate(userid.val, pres.status(), inProgress);
+}
+
+void MegaChatApiImpl::onBusinessStatusChanged(int status)
+{
+    fireOnBusinessStatusChange(status);
 }
 
 void MegaChatApiImpl::onPresenceConfigChanged(const presenced::Config &state, bool pending)

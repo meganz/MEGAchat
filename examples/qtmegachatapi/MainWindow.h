@@ -156,6 +156,7 @@ class MainWindow :
         void onChatListItemUpdate(megachat::MegaChatApi *api, megachat::MegaChatListItem *item);
         void onChatConnectionStateUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int newState);
         void onChatOnlineStatusUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
+        void onBusinessStatusChange(megachat::MegaChatApi *api, int status);
         void onChatPresenceConfigUpdate(megachat::MegaChatApi *api, megachat::MegaChatPresenceConfig *config);
         void onChatPresenceLastGreen(megachat::MegaChatApi *api, megachat::MegaChatHandle userhandle, int lastGreen);
 

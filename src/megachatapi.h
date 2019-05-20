@@ -5315,6 +5315,8 @@ public:
      */
     virtual void onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress);
 
+    virtual void onBusinessStatusChange(MegaChatApi* api, int status);
+
     /**
      * @brief This function is called when the presence configuration has changed
      *

@@ -223,6 +223,16 @@ public:
     virtual void onPresenceChanged(Id /*userid*/, Presence /*pres*/, bool /*inProgress*/) {}
 
     /**
+     * @brief Called when the status of our business account has changed.
+     *
+     * This can be used to update the status of our business account
+     * (expired = -1, active = 1, grace period = 2)
+     *
+     * @param status The new status of our business account.
+     */
+    virtual void onBusinessStatusChanged(int /*status*/) {}
+
+    /**
      * @brief Called when the presence preferences have changed due to
      * our or another client of our account updating them.
      * @param state - the new state of the preferences

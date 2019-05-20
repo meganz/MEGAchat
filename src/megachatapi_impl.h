@@ -1015,6 +1015,7 @@ public:
     void fireOnChatPresenceConfigUpdate(MegaChatPresenceConfig *config);
     void fireOnChatPresenceLastGreenUpdated(MegaChatHandle userhandle, int lastGreen);
     void fireOnChatConnectionStateUpdate(MegaChatHandle chatid, int newState);
+    void fireOnBusinessStatusChange(int status);
 
     // MegaChatNotificationListener callbacks
     void fireOnChatNotification(MegaChatHandle chatid, MegaChatMessage *msg);
@@ -1161,6 +1162,8 @@ public:
     virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
     virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
     virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
+    virtual void onBusinessStatusChanged(int status);
+
 #ifndef KARERE_DISABLE_WEBRTC
     virtual rtcModule::ICallHandler *onIncomingCall(rtcModule::ICall& call, karere::AvFlags av);
     virtual rtcModule::ICallHandler *onGroupCallActive(karere::Id chatid, karere::Id callid,  uint32_t duration = 0);

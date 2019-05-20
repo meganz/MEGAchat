@@ -724,6 +724,17 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
         break;
     }
 
+    case mega::MegaEvent::EVENT_BUSINESS_STATUS:
+    {
+        int status = event->getNumber();
+        auto wptr = weakHandle();
+        marshallCall([wptr, this, status]()
+        {
+            app.onBusinessStatusChanged(status);
+        }, appCtx);
+        break;
+    }
+
     default:
         break;
     }
