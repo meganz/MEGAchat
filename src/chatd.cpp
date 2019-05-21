@@ -4651,20 +4651,27 @@ void Chat::onUserJoin(Id userid, Priv priv)
 
 void Chat::onUserLeave(Id userid)
 {
-    if (mOnlineState < kChatStateJoining)
-        throw std::runtime_error("onUserLeave received while not joining and not online");
+    assert(mOnlineState >= kChatStateJoining);
 
-    if (userid == Id::null()) // the handle of a public chat (being previewer) has become invalid
+    bool previewer = (userid == Id::null());  // the handle of a public chat (being previewer) has become invalid
+    if (userid == client().myHandle() || previewer)
     {
         mOwnPrivilege = PRIV_NOTPRESENT;
-        disable(true);    // the ph is invalid -> do not keep trying to login into chatd anymore
+        disable(previewer);    // the ph is invalid -> do not keep trying to login into chatd anymore
         onPreviewersUpdate(0);
-    }
-    else if (userid == client().myHandle())
-    {
-        mOwnPrivilege = PRIV_NOTPRESENT;
 
-#ifndef KARERE_DISABLE_WEBRTC
+        // due to a race-condition at client-side receiving the removal of own user from API and chatd,
+        // if own user was the only moderator, chatd sends the JOIN 3 for remaining peers followed by the
+        // JOIN -1 for own user, but API response might have cleared the peer list already. In that case,
+        // chatd's removal needs to clear the peer list again, since remaining peers would have been
+        // added as moderators
+        for (auto &it: mUsers)
+        {
+            CALL_CRYPTO(onUserLeave, it);
+            CALL_LISTENER(onUserLeave, it);
+        }
+        mUsers.clear();
+
         if (mChatdClient.mRtcHandler && !previewMode())
         {
             mChatdClient.mRtcHandler->onKickedFromChatRoom(mChatId);
@@ -4672,6 +4679,10 @@ void Chat::onUserLeave(Id userid)
     }
     else
     {
+        mUsers.erase(userid);
+        CALL_CRYPTO(onUserLeave, userid);
+        CALL_LISTENER(onUserLeave, userid);
+
         if (mChatdClient.mRtcHandler && !previewMode())
         {
             // the call will usually be terminated by the kicked user, but just in case
@@ -4682,16 +4693,6 @@ void Chat::onUserLeave(Id userid)
                 mChatdClient.mRtcHandler->onClientLeftCall(mChatId, userid, clientid);
             }
         }
-#endif
-    }
-
-
-
-    if (isLoggedIn() || !mIsFirstJoin)
-    {
-        mUsers.erase(userid);
-        CALL_CRYPTO(onUserLeave, userid);
-        CALL_LISTENER(onUserLeave, userid);
     }
 }
 
