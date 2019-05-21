@@ -270,7 +270,12 @@ promise::Promise<void> Client::sendKeepalive()
         mKeepalivePromise.resolve();
     }
 
-    return mKeepalivePromise;
+    return mKeepalivePromise
+    .fail([this, wptr](const ::promise::Error&)
+    {
+        if (wptr.deleted())
+            return;
+    });
 }
 
 void Client::sendEcho()
@@ -693,7 +698,7 @@ void Connection::setState(State state)
 #ifndef KARERE_DISABLE_WEBRTC
             if (mChatdClient.mKarereClient->rtc  && !chat.previewMode())
             {
-                mChatdClient.mKarereClient->rtc->removeCall(chatid);
+                mChatdClient.mKarereClient->rtc->removeCall(chatid, true);
             }
 #endif
         }
@@ -2160,6 +2165,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                if (mChatdClient.mRtcHandler)
+                {
+                    mChatdClient.mRtcHandler->retryCalls(mShardNo);
+                }
                 break;
             }
             case OP_ECHO:

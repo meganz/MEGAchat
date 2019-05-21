@@ -1091,6 +1091,8 @@ public:
     void updateAndNotifyLastGreen(Id userid);
     InitStats &initStats();
     void sendStats();
+    void resetMyIdentity();
+    uint64_t initMyIdentity();
 
 protected:
     void heartbeat();

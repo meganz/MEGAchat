@@ -167,6 +167,22 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         switch (call->getStatus())
         {
+            case megachat::MegaChatCall::CALL_STATUS_RECONNECTING:
+            {
+                window->hangCall();
+                window->enableCallReconnect(true);
+            }
+            case megachat::MegaChatCall::CALL_STATUS_REQUEST_SENT:
+            {
+                std::set<CallGui *> *setCallGui = window->getCallGui();
+
+                if (setCallGui->size() == 0)
+                {
+                    window->createCallGui(call->hasVideoInitialCall(), mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
+                }
+
+                break;
+            }
             case megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
             {
                 window->hangCall();
@@ -184,6 +200,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
+                window->enableCallReconnect(false);
                 std::set<CallGui *> *setOfCallGui = window->getCallGui();
 
                 if (setOfCallGui->size() != 0)
@@ -191,6 +208,22 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                     window->connectPeerCallGui(mMegaChatApi->getMyUserHandle(), mMegaChatApi->getMyClientidHandle(call->getChatid()));
                 }
 
+                break;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT:
+            {
+                window->hangCall();
+                window->enableCallReconnect(false);
+                break;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_DESTROYED:
+            {
+                window->hangCall();
+                window->enableCallReconnect(false);
+                break;
+            }
+            default:
+            {
                 break;
             }
         }

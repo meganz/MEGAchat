@@ -10,7 +10,6 @@
 #include "MainWindow.h"
 #include <QMessageBox>
 #include "QTMegaTransferListener.h"
-#include "QTMegaRequestListener.h"
 
 #ifndef KARERE_DISABLE_WEBRTC
 #include "callGui.h"
@@ -39,8 +38,7 @@ class ChatListItemController;
 class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
         public ::mega::MegaTransferListener,
-        public megachat::MegaChatNodeHistoryListener,
-        public ::mega::MegaRequestListener
+        public megachat::MegaChatNodeHistoryListener
 {
     Q_OBJECT
     public:
@@ -76,13 +74,11 @@ class ChatWindow : public QDialog,
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
 
-        void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request, ::mega::MegaError* e);
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
-        void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
-        bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
 
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
+        void enableCallReconnect(bool enable);
 
 #ifndef KARERE_DISABLE_WEBRTC
         std::set<CallGui *> *getCallGui();
@@ -117,7 +113,7 @@ class ChatWindow : public QDialog,
         MyMessageList *mAttachmentList = NULL;
         QWidget *mFrameAttachments = NULL;
         QMessageBox *mUploadDlg;
-        ::mega::QTMegaRequestListener *mMegaRequestDelegate;
+        QMessageBox *mReconnectingDlg = NULL;
 
     protected slots:
         void onMsgListRequestHistory();
@@ -130,6 +126,7 @@ class ChatWindow : public QDialog,
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
+        void on_mCancelReconnection(QAbstractButton *);
         void onAttachmentsClosed(QObject*);
         void on_mSettingsBtn_clicked();
         void onAttachNode(bool isVoiceClip);

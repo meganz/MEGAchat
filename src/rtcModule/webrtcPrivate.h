@@ -83,6 +83,7 @@ protected:
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
     webrtc::FakeConstraints* pcConstraints();
     int calculateNetworkQuality(const stats::Sample *sample);
+    void removeRtcConnection();
 
 public:
     RtcModule& mManager;
@@ -159,6 +160,7 @@ protected:
     bool mNotSupportedAnswer = false;
     bool mIsRingingOut = false;
     bool mHadRingAck = false;
+    bool mRecovered = false;
     void setState(uint8_t newState);
     void handleMessage(RtMessage& packet);
     void msgSession(RtMessage& packet);
@@ -209,7 +211,7 @@ public:
     chatd::Chat& chat() const { return mChat; }
     Call(RtcModule& rtcModule, chatd::Chat& chat,
         karere::Id callid, bool isGroup, bool isJoiner, ICallHandler* handler,
-        karere::Id callerUser, uint32_t callerClient);
+        karere::Id callerUser, uint32_t callerClient, bool callRecovered = false);
     ~Call();
     virtual karere::AvFlags sentAv() const;
     virtual void hangup(TermCode reason=TermCode::kInvalid);
@@ -233,7 +235,9 @@ public:
         kIncallPingInterval = 4000,
         kMediaGetTimeout = 20000,
         kSessSetupTimeout = 25000,
-        kCallSetupTimeout = 35000
+        kCallSetupTimeout = 35000,
+        kRetryCallTimeout = 30000,
+        kSessFinishTimeout = 1000
     };
 
     enum Resolution
@@ -262,6 +266,7 @@ public:
     virtual void handleCallTime(karere::Id chatid, uint32_t duration);
     virtual void onKickedFromChatRoom(karere::Id chatid);
     virtual uint32_t clientidFromPeer(karere::Id chatid, karere::Id userid);
+    virtual void retryCalls(int shardNo);
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
@@ -273,12 +278,13 @@ public:
     virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
     virtual bool isCallInProgress(karere::Id chatid) const;
     virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
-    virtual void removeCall(karere::Id chatid, bool keepCallHandler = false);
+    virtual void removeCall(karere::Id chatid, bool retry = false);
     virtual void removeCallWithoutParticipants(karere::Id chatid);
     virtual void addCallHandler(karere::Id chatid, ICallHandler *callHandler);
     virtual ICallHandler *findCallHandler(karere::Id chatid);
     virtual int numCalls() const;
     virtual std::vector<karere::Id> chatsWithCall() const;
+    virtual void abortCallRetry(karere::Id chatid);
 //==
     void updatePeerAvState(karere::Id chatid, karere::Id callid, karere::Id userid, uint32_t clientid, karere::AvFlags av);
     void handleCallDataRequest(chatd::Chat &chat, karere::Id userid, uint32_t clientid, karere::Id callid, karere::AvFlags avFlagsRemote);
@@ -289,6 +295,7 @@ public:
 //==
     karere::WebRtcLogger *getWebRtcLogger();
     std::string getDeviceInfo();
+    void launchCallRetry(karere::Id chatid, karere::AvFlags av, bool isActiveRetry = true);
     virtual ~RtcModule();
 protected:
     const char* mStaticIceSever;
@@ -299,7 +306,9 @@ protected:
     webrtc::FakeConstraints mMediaConstraints;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, ICallHandler *> mCallHandlers;
+    std::map<karere::Id, std::pair<karere::AvFlags, bool>> mRetryCall;
     RtcModule &mManager;
+    std::map<karere::Id, megaHandle> mRetryCallTimers;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
@@ -318,6 +327,7 @@ protected:
                       std::string& selected);
 
     void updateConstraints(Resolution resolution);
+    void removeCallRetry(karere::Id chatid);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
     friend class Session;

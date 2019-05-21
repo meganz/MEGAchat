@@ -195,7 +195,8 @@ public:
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
-        CALL_STATUS_USER_NO_PRESENT                     /// User is no present in the call (Group Calls)
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_RECONNECTING                       /// User is reconnecting to the call
     };
 
     enum
@@ -209,7 +210,8 @@ public:
         CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
         CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
-        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100     /// Session audio level has changed
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100,    /// Session audio level has changed
+        CHANGE_TYPE_SESSION_OPERATIVE = 0x200      /// Session is fully operative
     };
 
     enum
@@ -2184,6 +2186,19 @@ public:
      * @return The initialization state
      */
     int init(const char *sid);
+
+    /**
+     * @brief Reset the Client Id for chatd
+     *
+     * When the app is running and another instance is launched i.e (share-extension in iOS),
+     * chatd closes the connection if a new connection is established with the same Client Id.
+     *
+     * The purpose of this function is reset the Client Id in order to avoid that chatd closes
+     * the other connections.
+     *
+     * This function should be called after MegaChatApi::init.
+     */
+    void resetClientid();
 
     /**
      * @brief Initializes karere in anonymous mode for preview of chat-links

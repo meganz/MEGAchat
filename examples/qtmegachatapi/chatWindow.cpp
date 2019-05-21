@@ -85,8 +85,6 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
     megaChatRoomListenerDelegate = new ::megachat::QTMegaChatRoomListener(megaChatApi, this);
     megaTransferListenerDelegate = new ::mega::QTMegaTransferListener(mMegaApi, this);
     mMegaApi->addTransferListener(megaTransferListenerDelegate);
-
-    mMegaRequestDelegate = new ::mega::QTMegaRequestListener(mMegaApi, this);
 }
 
 void ChatWindow::updateMessageFirstname(megachat::MegaChatHandle contactHandle, const char *firstname)
@@ -155,7 +153,6 @@ ChatWindow::~ChatWindow()
     delete mChatRoom;
     delete mUploadDlg;
     delete ui;
-    delete mMegaRequestDelegate;
 }
 
 void ChatWindow::onMsgSendBtn()
@@ -1213,6 +1210,29 @@ void ChatWindow::onAttachLocation()
     mMegaChatApi->sendGeolocation(mChatRoom->getChatId(), -122.3316393, 47.5951518, NULL);
 }
 
+void ChatWindow::enableCallReconnect(bool enable)
+{
+    if (enable)
+    {
+        if (!mReconnectingDlg)
+        {
+            mReconnectingDlg = new QMessageBox;
+            mReconnectingDlg->setWindowTitle((tr("Call reconnection...")));
+            mReconnectingDlg->setIcon(QMessageBox::Information);
+            mReconnectingDlg->setText(tr("Please, wait.\nReconnection in progress."));
+            mReconnectingDlg->setStandardButtons(QMessageBox::Cancel);
+            mReconnectingDlg->setModal(true);
+            connect(mReconnectingDlg, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(on_mCancelReconnection(QAbstractButton*)));
+            mReconnectingDlg->show();
+        }
+    }
+    else if (mReconnectingDlg)
+    {
+        delete mReconnectingDlg;
+        mReconnectingDlg = NULL;
+    }
+}
+
 void ChatWindow::onAttachNode(bool isVoiceClip)
 {
     QString node = QFileDialog::getOpenFileName(this, tr("All Files (*)"));
@@ -1247,6 +1267,13 @@ void ChatWindow::on_mCancelTransfer(QAbstractButton*)
     mUploadDlg->hide();
     delete mUploadDlg;
     mUploadDlg = NULL;
+}
+
+void ChatWindow::on_mCancelReconnection(QAbstractButton *)
+{
+    delete mReconnectingDlg;
+    mReconnectingDlg = NULL;
+    mMegaChatApi->hangChatCall(mChatRoom->getChatId());
 }
 
 void ChatWindow::onAttachmentsClosed(QObject *)
@@ -1302,31 +1329,6 @@ void ChatWindow::onTransferFinish(::mega::MegaApi* , ::mega::MegaTransfer *trans
             QMessageBox::critical(nullptr, tr("Download"), tr("Error in transfer: ").append(e->getErrorString()));
         }
     }
-}
-
-void ChatWindow::onRequestFinish(::mega::MegaApi *, ::mega::MegaRequest *request, ::mega::MegaError *e)
-{
-    switch (request->getType())
-    {
-        case ::mega::MegaRequest::TYPE_GET_ATTR_USER:
-            if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
-            {
-            }
-            break;
-
-        default:
-            break;
-    }
-}
-
-void ChatWindow::onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer)
-{
-
-}
-
-bool ChatWindow::onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size)
-{
-
 }
 
 MegaChatApi *ChatWindow::getMegaChatApi()

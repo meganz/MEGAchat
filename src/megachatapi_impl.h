@@ -583,8 +583,9 @@ public:
     virtual void setInitialTimeStamp(int64_t timeStamp);
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
+    virtual void onReconnectingState(bool start);
+    virtual rtcModule::ICall *getCall();
 
-    rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:
@@ -953,6 +954,7 @@ public:
     int init(const char *sid);
     int initAnonymous();
     void createKarereClient();
+    void resetClientid();
     int getInitState();
 
     MegaChatRoomHandler* getChatRoomHandler(MegaChatHandle chatid);

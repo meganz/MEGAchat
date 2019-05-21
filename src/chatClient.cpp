@@ -645,8 +645,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+    mMyIdentity = initMyIdentity();
 
     mUserAttrCache.reset(new UserAttrCache(*this));
     api.sdk.addGlobalListener(this);
@@ -1265,8 +1264,7 @@ uint64_t Client::getMyIdentityFromDb()
     if (!stmt.step())
     {
         KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
-        result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        result = initMyIdentity();
     }
     else
     {
@@ -1274,10 +1272,23 @@ uint64_t Client::getMyIdentityFromDb()
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
-            result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+            result = initMyIdentity();
         }
     }
+    return result;
+}
+
+void Client::resetMyIdentity()
+{
+   assert(mInitState == kInitWaitingNewSession || mInitState == kInitHasOfflineSession);
+   KR_LOG_WARNING("Reset clientid_seed");
+   mMyIdentity = initMyIdentity();
+}
+
+uint64_t Client::initMyIdentity()
+{
+    uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     return result;
 }
 
@@ -2075,9 +2086,11 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 getAttr(peer, USER_ATTR_FULLNAME, this,[](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<PeerChatRoom*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
             {
                 self->updateTitle(self->mEmail);
             }
@@ -3596,9 +3609,11 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         [](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));
