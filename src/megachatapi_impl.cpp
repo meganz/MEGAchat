@@ -1317,13 +1317,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     // for each chatroom, load all unread messages)
                     for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                     {
-                        // don't want to generate notifications for archived chats
-                        if (it->second->isArchived())
+                        MegaChatHandle chatid = it->first;
+                        // don't want to generate notifications for archived chats or chats with notifications disabled
+                        if (it->second->isArchived() || megaApi->isChatNotifiable(chatid))
                             continue;
 
                         MegaHandleList *msgids = MegaHandleList::createInstance();
 
-                        MegaChatHandle chatid = it->first;
                         const Chat &chat = it->second->chat();
                         Idx lastSeenIdx = chat.lastSeenIdx();
 
@@ -1853,7 +1853,7 @@ MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
     if (it == chatRoomHandler.end())
     {
-        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatApi, chatid);
+        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatApi, megaApi, chatid);
     }
 
     return chatRoomHandler[chatid];
@@ -4307,8 +4307,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
 
 void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
 {
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
-    fireOnChatNotification(chatid, message);
+    if (megaApi->isChatNotifiable(chatid))
+     {
+         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+         fireOnChatNotification(chatid, message);
+     }
 }
 
 int MegaChatApiImpl::convertInitState(int state)
@@ -5605,11 +5608,12 @@ rtcModule::ICallHandler *MegaChatRoomHandler::callHandler()
 }
 #endif
 
-MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid)
+MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaApi *megaApi, MegaChatHandle chatid)
 {
     this->chatApiImpl = chatApiImpl;
     this->chatApi = chatApi;
     this->chatid = chatid;
+    this->megaApi = megaApi;
 
     this->mRoom = NULL;
     this->mChat = NULL;
@@ -5884,7 +5888,10 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
         delete msgToUpdate;
     }
 
-    if (mRoom)
+    // check if notification is required
+    if (mRoom && megaApi->isChatNotifiable(chatid)
+            && ((msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+                || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen)))  // new (unseen) message received from a peer
     {
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onRecvNewMessage(idx, msg, status);
@@ -5962,7 +5969,7 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status,
     message->setStatus(status);
     fireOnMessageUpdate(message);
 
-    if (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (megaApi->isChatNotifiable(chatid) && msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApiImpl->fireOnChatNotification(chatid, message);
@@ -5978,8 +5985,9 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
 
     //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
     // and, if so, remove the block from `onRecvNewMessage()`
-    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
-         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    if (megaApi->isChatNotifiable(chatid) &&
+            ((msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+             || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen)))    // received message from a peer, still unseen, was edited / deleted
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApiImpl->fireOnChatNotification(chatid, message);

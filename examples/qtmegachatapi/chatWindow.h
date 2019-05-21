@@ -31,7 +31,9 @@ class MainWindow;
 namespace Ui{
 class ChatWindowUi;
 }
+
 class ChatItemWidget;
+class ChatListItemController;
 
 class ChatWindow : public QDialog,
         public megachat::MegaChatRoomListener,
@@ -71,9 +73,9 @@ class ChatWindow : public QDialog,
         QListWidgetItem *addMsgWidget (megachat::MegaChatMessage *msg, int index);
         ChatMessage *findChatMessage(megachat::MegaChatHandle msgId);
         megachat::MegaChatHandle getMessageId(megachat::MegaChatMessage *msg);
+
         void onTransferFinish(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError *e);
-        void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
-        bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
+
         megachat::MegaChatApi *getMegaChatApi();
         void onAttachLocation();
         void enableCallReconnect(bool enable);
@@ -82,6 +84,8 @@ class ChatWindow : public QDialog,
         std::set<CallGui *> *getCallGui();
         void setCallGui(CallGui *callGui);
 #endif
+        ChatListItemController *getChatItemController();
+
     protected:
         Ui::ChatWindowUi *ui;
 #ifndef KARERE_DISABLE_WEBRTC
@@ -117,22 +121,12 @@ class ChatWindow : public QDialog,
         void onMemberRemove();
         void onMsgSendBtn();
         void onMemberAdd();
-        void onTruncateChat();
         void onMembersBtn(bool);
-        void onLeaveGroupChat();
-        void onChangeTitle();
-        void onQueryChatLink();
-        void onCreateChatLink();
-        void onRemoveChatLink();
-        void onSetPublicChatToPrivate();
-        void onUnarchiveChat();
-        void onArchiveChat();
         void onShowAttachments(bool active);
         void onAttachmentRequestHistory();
         void on_mAttachBtn_clicked();
         void on_mCancelTransfer(QAbstractButton *);
         void on_mCancelReconnection(QAbstractButton *);
-        void onArchiveClicked(bool);
         void onAttachmentsClosed(QObject*);
         void on_mSettingsBtn_clicked();
         void onAttachNode(bool isVoiceClip);
@@ -145,7 +139,6 @@ class ChatWindow : public QDialog,
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
         void deleteCallGui();
-        void onAutojoinChatLink();
 #endif
 
     friend class CallGui;

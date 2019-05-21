@@ -435,7 +435,7 @@ public:
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
-    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid);
+    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, mega::MegaApi *megaApi, MegaChatHandle chatid);
 
     void addChatRoomListener(MegaChatRoomListener *listener);
     void removeChatRoomListener(MegaChatRoomListener *listener);
@@ -502,6 +502,7 @@ protected:
 private:
     MegaChatApiImpl *chatApiImpl;
     MegaChatApi *chatApi;       // for notifications in callbacks
+    mega::MegaApi *megaApi;
     MegaChatHandle chatid;
 
     chatd::Chat *mChat;

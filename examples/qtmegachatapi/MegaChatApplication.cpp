@@ -67,6 +67,8 @@ void MegaChatApplication::init()
 {
     mFirstnamesMap.clear();
     mFirstnameFetching.clear();
+    mNotificationSettings.reset();
+    mTimeZoneDetails.reset();
     if (mMainWin)
     {
         mMainWin->deleteLater();
@@ -238,10 +240,27 @@ void MegaChatApplication::configureLogs()
 
 void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList *userList)
 {
-    if(mMainWin && userList)
+    if (userList)
     {
-        mMainWin->addOrUpdateContactControllersItems(userList);
-        mMainWin->reorderAppContactList();
+        if(mMainWin)
+        {
+            mMainWin->addOrUpdateContactControllersItems(userList);
+            mMainWin->reorderAppContactList();
+        }
+
+        // if notification settings have changed for our own user, update the value
+        for (int i = 0; i < userList->size(); i++)
+        {
+            ::mega::MegaUser *user = userList->get(i);
+            if (user->getHandle() == mMegaApi->getMyUserHandleBinary())
+            {
+                if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS) && !user->isOwnChange())
+                {
+                    mMegaApi->getPushNotificationSettings();
+                }
+                break;
+            }
+        }
     }
 }
 
@@ -315,6 +334,31 @@ void MegaChatApplication::enableStaging(bool enable)
         mMegaApi->fastLogin(mSid);
         mMegaChatApi->refreshUrl();
     }
+}
+
+shared_ptr<::mega::MegaPushNotificationSettings> MegaChatApplication::getNotificationSettings() const
+{
+    return mNotificationSettings;
+}
+
+shared_ptr<::mega::MegaTimeZoneDetails> MegaChatApplication::getTimeZoneDetails() const
+{
+    return mTimeZoneDetails;
+}
+
+MainWindow *MegaChatApplication::mainWindow() const
+{
+    return mMainWin;
+}
+
+::mega::MegaApi *MegaChatApplication::megaApi() const
+{
+    return mMegaApi;
+}
+
+megachat::MegaChatApi *MegaChatApplication::megaChatApi() const
+{
+    return mMegaChatApi;
 }
 
 const char *MegaChatApplication::sid() const
@@ -396,6 +440,9 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                     saveSid(mSid);
                 }
 
+                mMegaApi->getPushNotificationSettings();
+                mMegaApi->fetchTimeZone();
+
                 if (mMegaChatApi->getConnectionState() == MegaChatApi::DISCONNECTED)
                 {
                     mMegaChatApi->connect();
@@ -436,7 +483,6 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
                 QAbstractButton *copyButton = msg.addButton(tr("Copy to clipboard"), QMessageBox::ActionRole);
                 copyButton->disconnect();
                 connect(copyButton, &QAbstractButton::clicked, this, [=](){clipboard->setText(request->getText());});
-                QAbstractButton *contButton = msg.addButton(tr("Continue"), QMessageBox::ActionRole);
                 msg.exec();
 
                 std::string auxcode = this->mMainWin->getAuthCode();
@@ -449,6 +495,7 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             break;
 
         case MegaRequest::TYPE_MULTI_FACTOR_AUTH_SET:
+        {
             QString text;
             if (request->getFlag())
             {
@@ -467,6 +514,39 @@ void MegaChatApplication::onRequestFinish(MegaApi *api, MegaRequest *request, Me
             {
                 QMessageBox::critical(nullptr, tr(text.toStdString().c_str()), tr(" ").append(e->getErrorString()));
             }
+            break;
+        }
+        case MegaRequest::TYPE_GET_ATTR_USER:
+            if (request->getParamType() == ::mega::MegaApi::USER_ATTR_PUSH_SETTINGS)
+            {
+                const ::mega::MegaPushNotificationSettings *currentSettings = request->getMegaPushNotificationSettings();
+
+                if (currentSettings)
+                {
+                    mNotificationSettings.reset(currentSettings->copy());
+                }
+                else
+                {
+                    mNotificationSettings.reset(::mega::MegaPushNotificationSettings::createInstance());
+                }
+
+                if (mMainWin && mMainWin->mSettings && mTimeZoneDetails)
+                {
+                    mMainWin->mSettings->onPushNotificationSettingsUpdate();
+                }
+            }
+            break;
+        case MegaRequest::TYPE_FETCH_TIMEZONE:
+        {
+            mTimeZoneDetails.reset(request->getMegaTimeZoneDetails()->copy());
+
+            if (mMainWin && mMainWin->mSettings && mNotificationSettings)
+            {
+                mMainWin->mSettings->onPushNotificationSettingsUpdate();
+            }
+        }
+
+        default:
             break;
     }
 }
