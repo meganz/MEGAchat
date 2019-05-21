@@ -201,15 +201,16 @@ void SettingWindow::savePushNotificationSettings()
 
 void SettingWindow::onClicked(QAbstractButton *button)
 {
-    if (button->text() == "Apply")
+    QPushButton *pushButton = static_cast<QPushButton*>(button);
+    if (pushButton == ui->confirmButtons->button(QDialogButtonBox::Apply))
     {
         savePushNotificationSettings();
     }
-    else if (button->text() == "Reset")
+    else if (pushButton == ui->confirmButtons->button(QDialogButtonBox::Reset))
     {
         onPushNotificationSettingsUpdate();
     }
-    else if (button->text() == "Close")
+    else if (pushButton == ui->confirmButtons->button(QDialogButtonBox::Close))
     {
         hide();
         ui->pushNotifications->setEnabled(false);
