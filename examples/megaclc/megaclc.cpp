@@ -2064,11 +2064,11 @@ void exec_backgroundupload(ac::ACState& s)
     {
         string urlSuffix;
         int64_t startPos = atol(s.words[5].s.c_str());
-        unsigned int length = atol(s.words[6].s.c_str());
+        int64_t length = atol(s.words[6].s.c_str());
         bool adjustsizeonly = s.words[7].s == "true";
         if (mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), &urlSuffix, adjustsizeonly))
         {
-            conlock(cout) << "Encrypt complete, URL suffix: " << urlSuffix << endl;
+            conlock(cout) << "Encrypt complete, URL suffix: " << urlSuffix << " and updated length: " << length << endl;
         }
         else
         {
