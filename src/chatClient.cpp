@@ -3995,7 +3995,7 @@ std::string InitStats::toJson()
         mega::dstime elapsed = itStages->second;
 
         // Add stage
-        jsonValue.SetInt64(stage);
+        jsonValue.SetUint(stage);
         jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
 
         std::string tag = stageToString(stage);
@@ -4005,7 +4005,7 @@ std::string InitStats::toJson()
 
         // Add stage elapsed time
         totalElapsed += elapsed;
-        jsonValue.SetInt64(elapsed);
+        jsonValue.SetUint(elapsed);
         jSonStage.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
         stageArray.PushBack(jSonStage, jSonDocument.GetAllocator());
     }
@@ -4030,25 +4030,25 @@ std::string InitStats::toJson()
                 ShardStats &shardStats = itShard->second;
 
                 // Add stage
-                jsonValue.SetInt(shard);
+                jsonValue.SetUint(shard);
                 jSonShard.AddMember(rapidjson::Value("sh"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage elapsed time
-                jsonValue.SetInt(shardStats.elapsed);
+                jsonValue.SetUint(shardStats.elapsed);
                 jSonShard.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage elapsed time
-                jsonValue.SetInt(shardStats.maxElapsed);
+                jsonValue.SetUint(shardStats.maxElapsed);
                 jSonShard.AddMember(rapidjson::Value("max"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage retries
-                jsonValue.SetInt(shardStats.mRetries);
+                jsonValue.SetUint(shardStats.mRetries);
                 jSonShard.AddMember(rapidjson::Value("ret"), jsonValue, jSonDocument.GetAllocator());
                 shardArray.PushBack(jSonShard, jSonDocument.GetAllocator());
             }
         }
 
-        jsonValue.SetInt(stage);
+        jsonValue.SetUint(stage);
         jSonStage.AddMember(rapidjson::Value("stg"), jsonValue, jSonDocument.GetAllocator());
 
         std::string tag = shardStageToString(stage);
@@ -4065,19 +4065,19 @@ std::string InitStats::toJson()
     jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of contacts
-    jsonValue.SetInt64(mNumContacts);
+    jsonValue.SetUint(mNumContacts);
     jSonObject.AddMember(rapidjson::Value("ncn"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of chats
-    jsonValue.SetInt64(mNumChats);
+    jsonValue.SetUint(mNumChats);
     jSonObject.AddMember(rapidjson::Value("nch"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of contacts
-    jsonValue.SetInt64(mInitState);
+    jsonValue.SetUint(mInitState);
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
 
     // Add total elapsed
-    jsonValue.SetInt64(totalElapsed);
+    jsonValue.SetUint(totalElapsed);
     jSonObject.AddMember(rapidjson::Value("telap"), jsonValue, jSonDocument.GetAllocator());
 
     // Add stages array
