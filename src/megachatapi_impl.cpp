@@ -1319,7 +1319,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     {
                         MegaChatHandle chatid = it->first;
                         // don't want to generate notifications for archived chats or chats with notifications disabled
-                        if (it->second->isArchived() || megaApi->isChatNotifiable(chatid))
+                        if (it->second->isArchived() || !megaApi->isChatNotifiable(chatid))
                             continue;
 
                         MegaHandleList *msgids = MegaHandleList::createInstance();
