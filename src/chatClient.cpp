@@ -3785,9 +3785,9 @@ std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t n
         mStageStats[kStatsPostFetchNodes] = 0;
     }
 
-    mNumNodes = numNodes;
-    mNumChats = numChats;
-    mNumContacts = numContacts;
+    mNumNodes = static_cast<uint32_t> (numNodes);
+    mNumChats = static_cast<uint32_t> (numChats);
+    mNumContacts = static_cast<uint32_t> (numContacts);
 
     std::string json = toJson();
 
@@ -3991,7 +3991,7 @@ std::string InitStats::toJson()
     for (StageMap::const_iterator itStages = mStageStats.begin(); itStages != mStageStats.end(); itStages++)
     {
         rapidjson::Value jSonStage(rapidjson::kObjectType);
-        uint8_t stage = itStages->first;
+        uint32_t stage = static_cast<uint32_t> (itStages->first);
         mega::dstime elapsed = itStages->second;
 
         // Add stage
@@ -4017,7 +4017,7 @@ std::string InitStats::toJson()
     {
         rapidjson::Value jSonStage(rapidjson::kObjectType);
         rapidjson::Document shardArray(rapidjson::kArrayType);
-        uint8_t stage = itshstgs->first;
+        uint32_t stage = static_cast<uint32_t> (itshstgs->first);
 
         ShardMap *shardMap = &(itshstgs->second);
         if (shardMap)
@@ -4026,7 +4026,7 @@ std::string InitStats::toJson()
             for (itShard = shardMap->begin(); itShard != shardMap->end(); itShard++)
             {
                 rapidjson::Value jSonShard(rapidjson::kObjectType);
-                uint8_t shard = itShard->first;
+                uint32_t shard = static_cast<uint32_t> (itShard->first);
                 ShardStats &shardStats = itShard->second;
 
                 // Add stage
@@ -4061,7 +4061,7 @@ std::string InitStats::toJson()
     }
 
     // Add number of nodes
-    jsonValue.SetInt64(mNumNodes);
+    jsonValue.SetUint(mNumNodes);
     jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of contacts

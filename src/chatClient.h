@@ -690,7 +690,7 @@ private:
         mega::dstime tsStart = 0;
 
         /** @brief Number of retries */
-        unsigned int mRetries = 0;
+        uint32_t mRetries = 0;
     };
 
     typedef std::map<uint8_t, mega::dstime> StageMap;   // maps stage to elapsed time (first it stores tsStart)
@@ -705,19 +705,19 @@ private:
     StageShardMap mStageShardStats;
 
     /** @brief Number of nodes in the account */
-    long long int mNumNodes = 0;
+    uint32_t mNumNodes = 0;
 
     /** @brief Number of chats in the account */
-    long int mNumChats = 0;
+    uint32_t mNumChats = 0;
 
     /** @brief Number of contacts in the account */
-    long int mNumContacts = 0;
+    uint32_t mNumContacts = 0;
 
     /** @brief Flag that indicates whether the stats have already been sent */
     bool mCompleted = false;
 
     /** @brief Indicates the init state with cache */
-    uint8_t mInitState = kInitNewSession;
+    uint32_t mInitState = kInitNewSession;
 
 
     /* Auxiliar methods */
