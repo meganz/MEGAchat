@@ -1994,7 +1994,7 @@ void synchronousHttpRequest(const string& url, const string& senddata, string& r
         }
     }
 
-    DWORD dwBytesWritten = 0, dwSize = 0;
+    DWORD dwSize = 0;
 
     // End the request.
     if (bResults)
@@ -2049,12 +2049,11 @@ void exec_backgroundupload(ac::ACState& s)
 
     if (s.words[1].s == "new" && s.words.size() == 3)
     {
-        g_megaBackgroundMediaUploads[s.words[2].s].reset(g_megaApi->backgroundMediaUploadNew());
+        g_megaBackgroundMediaUploads[s.words[2].s].reset(m::MegaBackgroundMediaUpload::createInstance(g_megaApi.get()));
     }
     else if (s.words[1].s == "resume" && s.words.size() == 4)
     {
-        string serialised = toBinary(s.words[3].s);
-        g_megaBackgroundMediaUploads[s.words[2].s].reset(g_megaApi->backgroundMediaUploadResume(&serialised));
+        g_megaBackgroundMediaUploads[s.words[2].s].reset(m::MegaBackgroundMediaUpload::unserialize(s.words[3].s.c_str(), g_megaApi.get()));
     }
     else if (s.words[1].s == "analyse" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
@@ -2092,21 +2091,23 @@ void exec_backgroundupload(ac::ACState& s)
     }
     else if (s.words[1].s == "serialize"  && s.words.size() == 3 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
-        conlock(cout) << toHex(mbmu->serialize()) << endl;
+        unique_ptr<char[]> serialized(mbmu->serialize());
+        conlock(cout) << serialized << endl;
     }
     else if (s.words[1].s == "upload"  && s.words.size() == 4)
     {
 #ifdef WIN32
         string responsedata;
         synchronousHttpRequest(s.words[2].s, loadfile(s.words[3].s), responsedata);
-        conlock(cout) << "Synchronous upload response: " << (responsedata.size() <= 3 ? responsedata : toHex(responsedata)) << endl;
+        unique_ptr<char[]> base64(m::MegaApi::binaryToString64(responsedata.data(), responsedata.size()));
+        conlock(cout) << "Synchronous upload response (converted to base 64): " << (responsedata.size() <= 3 ? responsedata : base64.get()) << endl;
 #endif
     }
     else if (s.words[1].s == "complete"  && s.words.size() == 8 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         const char* fingerprint = s.words[5].s.empty() ? NULL : s.words[5].s.c_str();
         const char* fingerprintoriginal = s.words[6].s.empty() ? NULL : s.words[6].s.c_str();
-        string uploadtoken = toBinary(s.words[7].s);
+        const char* uploadtoken64 = s.words[7].s.c_str();
         if (m::MegaNode *parent = g_megaApi->getNodeByPath(s.words[4].s.c_str()))
         {
             auto ln = new OneShotRequestListener;
@@ -2115,7 +2116,7 @@ void exec_backgroundupload(ac::ACState& s)
                 check_err("Background upload completion", e);
             };
 
-            if (g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, &uploadtoken, ln))
+            if (g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, uploadtoken64, ln))
             {
                 conlock(cout) << "completion request sent" << endl;
             }
@@ -2146,8 +2147,6 @@ void exec_ensuremediainfo(ac::ACState& s)
 
 void exec_getfingerprint(ac::ACState& s)
 {
-    m::MegaBackgroundMediaUpload* mbmu = nullptr;
-
     if (s.words[1].s == "local" && s.words.size() == 3)
     {
         char* fp = g_megaApi->getFingerprint(s.words[2].s.c_str());
