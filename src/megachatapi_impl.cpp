@@ -8304,6 +8304,7 @@ MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsM
 MegaChatContainsMetaPrivate::~MegaChatContainsMetaPrivate()
 {
     delete mRichPreview;
+    delete mGeolocation;
 }
 
 MegaChatContainsMeta *MegaChatContainsMetaPrivate::copy() const

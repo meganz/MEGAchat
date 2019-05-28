@@ -57,7 +57,7 @@ using namespace megachat;
 }
 
 - (MEGAChatGeolocation *)geolocation {
-    return self.megaChatContainsMeta->getGeolocation() ? [[MEGAChatGeolocation alloc] initWithMegaChatGeolocation:self.megaChatContainsMeta->getGeolocation() cMemoryOwn:YES] : nil;
+    return self.megaChatContainsMeta->getGeolocation() ? [[MEGAChatGeolocation alloc] initWithMegaChatGeolocation:self.megaChatContainsMeta->getGeolocation()->copy() cMemoryOwn:YES] : nil;
 }
 
 @end
