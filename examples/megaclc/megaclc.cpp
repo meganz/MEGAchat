@@ -468,8 +468,11 @@ public:
         case m::MegaEvent::EVENT_CHANGE_TO_HTTPS: return "EVENT_CHANGE_TO_HTTPS";
         case m::MegaEvent::EVENT_DISCONNECT: return "EVENT_DISCONNECT";
         case m::MegaEvent::EVENT_ACCOUNT_BLOCKED: return "EVENT_ACCOUNT_BLOCKED";
-        default: return "new event type";
+        case m::MegaEvent::EVENT_STORAGE: return "EVENT_STORAGE";
+        case m::MegaEvent::EVENT_NODES_CURRENT: return "EVENT_NODES_CURRENT";
+        case m::MegaEvent::EVENT_MEDIA_INFO_READY: return "EVENT_MEDIA_INFO_READY";
         }
+        return "new event type";
     }
 
     void onEvent(m::MegaApi*, m::MegaEvent *e) override
@@ -503,10 +506,7 @@ public:
 
     void onEvent(m::MegaApi* api, m::MegaEvent *event) override {}
 
-    void onMediaDetectionAvailable() override 
-    {
-        conlock(cout) << "Media Detection now available" << endl;
-    }
+
 };
 
 CLCListener g_clcListener;
@@ -2061,11 +2061,11 @@ void exec_backgroundupload(ac::ACState& s)
     }
     else if (s.words[1].s == "encrypt" && s.words.size() == 8 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
-        string urlSuffix;
         int64_t startPos = atol(s.words[5].s.c_str());
         int64_t length = atol(s.words[6].s.c_str());
         bool adjustsizeonly = s.words[7].s == "true";
-        if (mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), &urlSuffix, adjustsizeonly))
+        string urlSuffix = mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), adjustsizeonly);
+        if (!urlSuffix.empty())
         {
             conlock(cout) << "Encrypt complete, URL suffix: " << urlSuffix << " and updated length: " << length << endl;
         }
@@ -2081,9 +2081,7 @@ void exec_backgroundupload(ac::ACState& s)
         { 
             if (check_err("Get upload URL", e))
             {
-                string uploadUrl;
-                request->getMegaBackgroundMediaUploadPtr()->getUploadURL(&uploadUrl);
-                conlock(cout) << "Upload URL: " << uploadUrl << endl;
+                conlock(cout) << "Upload URL: " << request->getMegaBackgroundMediaUploadPtr()->getUploadURL() << endl;
             }
         };
 
@@ -2092,14 +2090,14 @@ void exec_backgroundupload(ac::ACState& s)
     else if (s.words[1].s == "serialize"  && s.words.size() == 3 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         unique_ptr<char[]> serialized(mbmu->serialize());
-        conlock(cout) << serialized << endl;
+        conlock(cout) << serialized.get() << endl;
     }
     else if (s.words[1].s == "upload"  && s.words.size() == 4)
     {
 #ifdef WIN32
         string responsedata;
         synchronousHttpRequest(s.words[2].s, loadfile(s.words[3].s), responsedata);
-        unique_ptr<char[]> base64(m::MegaApi::binaryToString64(responsedata.data(), responsedata.size()));
+        unique_ptr<char[]> base64(m::MegaApi::binaryToBase64(responsedata.data(), responsedata.size()));
         conlock(cout) << "Synchronous upload response (converted to base 64): " << (responsedata.size() <= 3 ? responsedata : base64.get()) << endl;
 #endif
     }
@@ -2116,10 +2114,7 @@ void exec_backgroundupload(ac::ACState& s)
                 check_err("Background upload completion", e);
             };
 
-            if (g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, uploadtoken64, ln))
-            {
-                conlock(cout) << "completion request sent" << endl;
-            }
+            g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, uploadtoken64, ln);
         }
         else
         {
