@@ -9013,11 +9013,10 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             imagePointer = imagePointer + imageFormat.size() + 1; // remove format.size() + ':'
 
             // Check if the image format in B64 is valid
-            std::string imgBuf;
-            int actualSize = Base64::atob(std::string(imagePointer), imgBuf);
-            int expectedSize = (strlen(imagePointer) * 3) / 4;
-            int difference = expectedSize - actualSize;
-            if (difference >= 0  && difference <= 2)    // considering padding: each set of 3 bytes is converted into 4 chars
+            std::string imgBin, imgB64(imagePointer);
+            size_t binSize = Base64::atob(imgB64, imgBin);
+            size_t paddingSize = std::count(imgB64.begin(), imgB64.end(), '=');
+            if (binSize == (imgB64.size() * 3) / 4 - paddingSize)
             {
                 rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
                 image = std::string(imagePointer, sizeImage);
@@ -9039,12 +9038,11 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             iconFormat = getImageFormat(iconPointer);
             iconPointer = iconPointer + iconFormat.size() + 1; // remove format.size() + ':'
 
-            // Check if the icon format in B64 is valid
-            std::string iconBuf;
-            int actualSize = Base64::atob(std::string(iconPointer), iconBuf);
-            int expectedSize = (strlen(iconPointer) * 3) / 4;
-            int difference = expectedSize - actualSize;
-            if (difference >= 0  && difference <= 2)    // considering padding: each set of 3 bytes is converted into 4 chars
+            // Check if the image format in B64 is valid
+            std::string iconBin, iconB64(iconPointer);
+            size_t binSize = Base64::atob(iconB64, iconBin);
+            size_t paddingSize = std::count(iconB64.begin(), iconB64.end(), '=');
+            if (binSize == (iconB64.size() * 3) / 4 - paddingSize)
             {
                 rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
                 icon = std::string(iconPointer, sizeIcon);
