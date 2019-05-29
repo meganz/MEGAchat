@@ -505,8 +505,6 @@ public:
     void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override {}
 
     void onEvent(m::MegaApi* api, m::MegaEvent *event) override {}
-
-
 };
 
 CLCListener g_clcListener;
@@ -2706,6 +2704,11 @@ int main()
 #endif
 
     megaclc();
+
+    g_megaApi->removeListener(&g_megaclcListener);
+    g_megaApi->removeGlobalListener(&g_globalListener);
+    g_chatApi->removeChatListener(&g_clcListener);
+
     g_chatApi.reset();
     g_megaApi.reset();
 }
