@@ -9013,21 +9013,18 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             imagePointer = imagePointer + imageFormat.size() + 1; // remove format.size() + ':'
 
             // Check if the image format in B64 is valid
-            std::string dest, source;
-            source = std::string(imagePointer);
-            int size = Base64::atob(source, dest);
-            int auxSize = (source.size() * 3) / 4;
-
-            // The size diference between the value calculated above and the returned by the function, can't be bigger than 2 (considering the padding ==)
-            uint32_t diference = static_cast<uint32_t> (auxSize - size);
-            if (diference > 2)
-            {
-                API_LOG_ERROR("Parse rich link: \"i\" field has a invalid format");
-            }
-            else
+            std::string imgBuf;
+            int actualSize = Base64::atob(std::string(imagePointer), imgBuf);
+            int expectedSize = (strlen(imagePointer) * 3) / 4;
+            int difference = expectedSize - actualSize;
+            if (difference >= 0  && difference <= 2)    // considering padding: each set of 3 bytes is converted into 4 chars
             {
                 rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
                 image = std::string(imagePointer, sizeImage);
+            }
+            else
+            {
+                API_LOG_ERROR("Parse rich link: \"i\" field has a invalid format");
             }
         }
         else
@@ -9043,21 +9040,18 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             iconPointer = iconPointer + iconFormat.size() + 1; // remove format.size() + ':'
 
             // Check if the icon format in B64 is valid
-            std::string dest, source;
-            source = std::string(iconPointer);
-            int size = Base64::atob(source, dest);
-            int auxSize = (source.size() * 3) / 4;
-
-            // The size diference between the value calculated above and the returned by the function, can't be bigger than 2 (considering the padding ==)
-            uint32_t diference = static_cast<uint32_t> (auxSize - size);
-            if (diference > 2)
-            {
-                API_LOG_ERROR("Parse rich link: \"ic\" field has a invalid format");
-            }
-            else
+            std::string iconBuf;
+            int actualSize = Base64::atob(std::string(iconPointer), iconBuf);
+            int expectedSize = (strlen(iconPointer) * 3) / 4;
+            int difference = expectedSize - actualSize;
+            if (difference >= 0  && difference <= 2)    // considering padding: each set of 3 bytes is converted into 4 chars
             {
                 rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
                 icon = std::string(iconPointer, sizeIcon);
+            }
+            else
+            {
+                API_LOG_ERROR("Parse rich link: \"ic\" field has a invalid format");
             }
         }
         else
