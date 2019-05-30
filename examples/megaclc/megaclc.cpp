@@ -2099,11 +2099,33 @@ void exec_backgroundupload(ac::ACState& s)
         conlock(cout) << "Synchronous upload response (converted to base 64): " << (responsedata.size() <= 3 ? responsedata : base64.get()) << endl;
 #endif
     }
-    else if (s.words[1].s == "complete"  && s.words.size() == 8 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    else if (s.words[1].s == "putthumbnail"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        g_megaApi->putThumbnail(mbmu, s.words[3].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+        {
+            if (check_err("putthumbnail", e))
+            {
+                conlock(cout) << "thumbnail file attribute handle: " << unique_ptr<char[]>(m::MegaApi::userHandleToBase64(r->getNodeHandle())).get() << endl;
+            }
+        }));
+    }
+    else if (s.words[1].s == "putpreview"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        g_megaApi->putPreview(mbmu, s.words[3].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
+        {
+            if (check_err("putpreview", e))
+            {
+                conlock(cout) << "preview file attribute handle: " << unique_ptr<char[]>(m::MegaApi::userHandleToBase64(r->getNodeHandle())).get() << endl;
+            }
+        }));
+    }
+    else if (s.words[1].s == "complete"  && s.words.size() == 10 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         const char* fingerprint = s.words[5].s.empty() ? NULL : s.words[5].s.c_str();
         const char* fingerprintoriginal = s.words[6].s.empty() ? NULL : s.words[6].s.c_str();
-        const char* uploadtoken64 = s.words[7].s.c_str();
+        m::MegaHandle fingernailhandle = s_ch(s.words[7].s);
+        m::MegaHandle previewhandle = s_ch(s.words[8].s);
+        const char* uploadtoken64 = s.words[9].s.c_str();
         if (m::MegaNode *parent = g_megaApi->getNodeByPath(s.words[4].s.c_str()))
         {
             auto ln = new OneShotRequestListener;
@@ -2112,7 +2134,7 @@ void exec_backgroundupload(ac::ACState& s)
                 check_err("Background upload completion", e);
             };
 
-            g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, uploadtoken64, ln);
+            g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, fingernailhandle, previewhandle, uploadtoken64, ln);
         }
         else
         {
@@ -2189,10 +2211,11 @@ void exec_createthumbnail(ac::ACState& s)
     vector<unique_ptr<thread>> ts;
 
     // investigate thumbnal generation memory usage after reports of memory leaks in iOS
-    for (int i = atoi(parallelcount.c_str()); i--; )
+    int N = atoi(parallelcount.c_str());
+    for (int i = N; i--; )
     {
         string path1 = s.words[1].s;
-        string path2 = s.words[2].s + "-" + to_string(i);
+        string path2 = s.words[2].s + (N > 1 ? "-" + to_string(i) : string());
 
         ts.emplace_back(new thread([path1, path2, tempmegaapi]() {
             bool done = false;
@@ -2214,6 +2237,14 @@ void exec_createthumbnail(ac::ACState& s)
     {
         ts[i]->join();
     }
+}
+
+void exec_createpreview(ac::ACState& s)
+{
+    string path1 = s.words[1].s;
+    string path2 = s.words[2].s;
+    bool done = g_megaApi->createThumbnail(path1.c_str(), path2.c_str());
+    conlock(cout) << (done ? "succeeded" : "failed") << endl;
 }
 
 void exec_testAllocation(ac::ACState& s)
@@ -2398,7 +2429,9 @@ ac::ACN autocompleteSyntax()
         sequence(text("geturl"), param("name"), param("filesize")),
         sequence(text("serialize"), param("name")), 
         sequence(text("upload"), param("url"), localFSFile()),
-        sequence(text("complete"), param("name"), param("nodename"), param("remoteparentpath"), param("fingerprint"), param("originalfingerprint"), param("uploadtoken") ))));
+        sequence(text("putthumbnail"), param("name"), localFSFile()),
+        sequence(text("putpreview"), param("name"), localFSFile()),
+        sequence(text("complete"), param("name"), param("nodename"), param("remoteparentpath"), param("fingerprint"), param("originalfingerprint"), param("uploadtoken"), param("fingerprinthandle"), param("previewhandle")))));
 
     p->Add(exec_ensuremediainfo, sequence(text("ensuremediainfo")));
 
@@ -2408,6 +2441,7 @@ ac::ACN autocompleteSyntax()
         sequence(text("original"), param("remotefile")))));
 
     p->Add(exec_createthumbnail, sequence(text("createthumbnail"), opt(flag("-tempmegaapi")), opt(sequence(flag("-parallel"), param("count"))), localFSFile(), localFSFile()));
+    p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     return p;
 }
