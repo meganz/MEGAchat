@@ -1011,15 +1011,12 @@ public:
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes
-     * @param pres The presence which should be set. This is a forced presence,
-     * i.e. it will be preserved even if the client disconnects. To disable
-     * setting such a forced presence and assume whatever presence was last used,
-     * and/or use only dynamic presence, set this param to \c Presence::kClear
      * @param isInBackground In case the app requests to connect from a service in
-     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY. Hence, it will
-     * avoid to tell chatd that the client is active.
+     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
+     * avoid to tell chatd that the client is active. Also, the presenced client will
+     * prevent to send USERACTIVE 1 in background, since the user is not active.
      */
-    promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
+    promise::Promise<void> connect(bool isInBackground = false);
 
     /**
      * @brief Retry pending connections to chatd and presenced
@@ -1131,7 +1128,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
+    promise::Promise<void> doConnect(bool isInBackground);
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread

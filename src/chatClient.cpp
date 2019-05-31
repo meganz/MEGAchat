@@ -357,6 +357,7 @@ promise::Promise<void> Client::notifyUserStatus(bool background)
 {
     if (mChatdClient)
     {
+        mPresencedClient.setIsInBackground(background);
         return mChatdClient->notifyUserStatus(background);
     }
     return promise::Error("Chatd client not initialized yet");
@@ -1079,7 +1080,7 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::connect(bool isInBackground)
 {
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
@@ -1099,7 +1100,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     switch (sessDone)
     {
         case promise::kSucceeded:   // if session is ready...
-            return doConnect(pres, isInBackground);
+            return doConnect(isInBackground);
 
         case promise::kFailed:      // if session failed...
             return mSessionReadyPromise.error();
@@ -1107,15 +1108,15 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
         default:                    // if session is not ready yet... wait for it and then connect
             assert(sessDone == promise::kNotResolved);
             mConnectPromise = mSessionReadyPromise
-            .then([this, pres, isInBackground]() mutable
+            .then([this, isInBackground]() mutable
             {
-                return doConnect(pres, isInBackground);
+                return doConnect(isInBackground);
             });
             return mConnectPromise;
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::doConnect(bool isInBackground)
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
@@ -1167,7 +1168,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     rtc->init();
 #endif
 
-    auto pms = mPresencedClient.connect(presenced::Config(pres))
+    auto pms = mPresencedClient.connect(isInBackground)
     .then([this, wptr]()
     {
         if (wptr.deleted())

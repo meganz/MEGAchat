@@ -217,7 +217,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             bool isInBackground = request->getFlag();
 
-            mClient->connect(karere::Presence::kInvalid, isInBackground)
+            mClient->connect(isInBackground)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);

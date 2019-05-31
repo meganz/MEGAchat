@@ -39,8 +39,10 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::connect(const Config& config)
+Promise<void> Client::connect(bool isInBackground)
 {
+    mIsInBackground = isInBackground;
+
     if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
         PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
@@ -49,7 +51,6 @@ Promise<void> Client::connect(const Config& config)
 
     assert(!mUrl.isValid());
 
-    mConfig = config;
     setConnState(kFetchingUrl);
 
     auto wptr = getDelTracker();
@@ -256,6 +257,7 @@ void Client::signalActivity()
     }
 
     mTsLastUserActivity = time(NULL);
+    assert(!mIsInBackground);
     sendUserActive(true);
 }
 
@@ -1193,7 +1195,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                         if (autoAwayInEffect())
                         {
                             // signal whether the user is active or inactive
-                            bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            bool isActive = !mIsInBackground && ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
                             sendUserActive(isActive, true);
                         }
                     }
@@ -1237,6 +1239,11 @@ void Client::handleMessage(const StaticBuffer& buf)
           return;
       }
     }
+}
+
+void Client::setIsInBackground(bool isInBackground)
+{
+    mIsInBackground = isInBackground;
 }
 
 void Client::setConnState(ConnState newState)
@@ -1293,9 +1300,9 @@ void Client::setConnState(ConnState newState)
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
         {
-            updatePeerPresence(it->first, Presence::kInvalid);
+            updatePeerPresence(it->first, Presence::kUnknown);
         }
-        updatePeerPresence(mKarereClient->myHandle(), Presence::kInvalid);
+        updatePeerPresence(mKarereClient->myHandle(), Presence::kUnknown);
     }
     else if (mConnState == kConnected)
     {
@@ -1403,7 +1410,7 @@ karere::Presence Client::peerPresence(karere::Id peer) const
     auto it = mPeersPresence.find(peer);
     if (it == mPeersPresence.end())
     {
-        return karere::Presence::kInvalid;
+        return karere::Presence::kUnknown;
     }
     return it->second;
 }
