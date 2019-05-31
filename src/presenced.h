@@ -441,6 +441,7 @@ protected:
     void removePeer(karere::Id peer, bool force=false);
     void pushPeers();
     bool isExContact(uint64_t userid);
+    bool isNeverContact(uint64_t userid);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms);

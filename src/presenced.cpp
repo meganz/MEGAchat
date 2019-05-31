@@ -184,7 +184,7 @@ bool Client::setLastGreenVisible(bool enable)
 bool Client::requestLastGreen(Id userid)
 {
     // Avoid send OP_LASTGREEN if user is ex-contact
-    if (isExContact(userid))
+    if (isExContact(userid) || isNeverContact(userid))
     {
         return false;
     }
@@ -453,6 +453,17 @@ bool Client::isExContact(uint64_t userid)
 {
     auto it = mContacts.find(userid);
     if (it == mContacts.end() || (it != mContacts.end() && it->second != ::mega::MegaUser::VISIBILITY_HIDDEN))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool Client::isNeverContact(uint64_t userid)
+{
+    auto it = mContacts.find(userid);
+    if (it != mContacts.end())
     {
         return false;
     }
@@ -1330,6 +1341,13 @@ void Client::addPeer(karere::Id peer)
 
     if (isExContact(peer))
     {
+        // Notify presence of non-contact that becomes contact again
+        Presence presence = mPeersPresence[peer];
+        if (presence.isValid())
+        {
+            CALL_LISTENER(onPresenceChange, peer, presence);
+        }
+
         PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
         return;
     }
@@ -1397,12 +1415,19 @@ void Client::removePeer(karere::Id peer, bool force)
     cmd.append<uint64_t>(peer.val);
 
     sendCommand(std::move(cmd));
+    updatePeerPresence(peer, Presence::kUnknown);
 }
 
 void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 {
+    assert(!isNeverContact(peer));
     mPeersPresence[peer] = pres;
-    CALL_LISTENER(onPresenceChange, peer, pres);
+
+    // Do not notify if the peer is ex-contact
+    if (!isExContact(peer))
+    {
+        CALL_LISTENER(onPresenceChange, peer, pres);
+    }
 }
 
 karere::Presence Client::peerPresence(karere::Id peer) const
