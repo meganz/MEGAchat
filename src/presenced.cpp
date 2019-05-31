@@ -183,8 +183,8 @@ bool Client::setLastGreenVisible(bool enable)
 
 bool Client::requestLastGreen(Id userid)
 {
-    // Avoid send OP_LASTGREEN if user is ex-contact
-    if (isExContact(userid) || isNeverContact(userid))
+    // Avoid send OP_LASTGREEN if user is ex-contact or has never been a contact
+    if (isExContact(userid) || !isContact(userid))
     {
         return false;
     }
@@ -460,15 +460,9 @@ bool Client::isExContact(uint64_t userid)
     return true;
 }
 
-bool Client::isNeverContact(uint64_t userid)
+bool Client::isContact(uint64_t userid)
 {
-    auto it = mContacts.find(userid);
-    if (it != mContacts.end())
-    {
-        return false;
-    }
-
-    return true;
+    return (mContacts.find(userid) != mContacts.end());
 }
 
 void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *roomsUpdated)
@@ -1422,8 +1416,10 @@ void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 {
     mPeersPresence[peer] = pres;
 
-    // Do not notify if the peer is ex-contact or never has been contact
-    if (!isExContact(peer) || !isNeverContact(peer))
+    // Do not notify if the peer is ex-contact or has never been contact
+    // (except updating to unknown when a contact becomes ex-contact)
+    if ((isContact(peer) && !isExContact(peer))
+            || (isExContact(peer) && pres.status() == Presence::kUnknown))
     {
         CALL_LISTENER(onPresenceChange, peer, pres);
     }
