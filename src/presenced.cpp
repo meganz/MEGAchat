@@ -1420,11 +1420,10 @@ void Client::removePeer(karere::Id peer, bool force)
 
 void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 {
-    assert(!isNeverContact(peer));
     mPeersPresence[peer] = pres;
 
-    // Do not notify if the peer is ex-contact
-    if (!isExContact(peer))
+    // Do not notify if the peer is ex-contact or never has been contact
+    if (!isExContact(peer) || !isNeverContact(peer))
     {
         CALL_LISTENER(onPresenceChange, peer, pres);
     }
