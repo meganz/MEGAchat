@@ -896,6 +896,8 @@ protected:
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
 
+    bool mIsInBackground = false;
+
 public:
 
     /**
@@ -1091,6 +1093,8 @@ public:
     void resetMyIdentity();
     uint64_t initMyIdentity();
 
+    bool isInBackground() const;
+
 protected:
     void heartbeat();
     void setInitState(InitState newState);
@@ -1117,7 +1121,7 @@ protected:
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
-    void connectToChatd(bool isInBackground);
+    void connectToChatd();
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
@@ -1128,7 +1132,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(bool isInBackground);
+    promise::Promise<void> doConnect();
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread

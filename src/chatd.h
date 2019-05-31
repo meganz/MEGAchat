@@ -1363,7 +1363,6 @@ protected:
     // to track changes in the richPreview's user-attribute
     karere::UserAttrCache::Handle mRichPrevAttrCbHandle;
 
-    uint8_t mKeepaliveType = OP_KEEPALIVE;
     int mKeepaliveCount = 0;                    // number of keepalives to be sent (one per connection)
     bool mKeepaliveFailed = false;              // true means any pending keepalive failed to send
     promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
@@ -1422,7 +1421,7 @@ public:
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
     void heartbeat();
 
-    promise::Promise<void> notifyUserStatus(bool background);
+    promise::Promise<void> notifyUserStatus();
 
     /** Changes the Rtc handler, returning the old one */
     IRtcHandler* setRtcHandler(IRtcHandler* handler);

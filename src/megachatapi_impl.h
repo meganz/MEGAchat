@@ -135,7 +135,6 @@ public:
     virtual int64_t getAutoawayTimeout() const;
     virtual bool isPersist() const;
     virtual bool isPending() const;
-    virtual bool isSignalActivityRequired() const;
     virtual bool isLastGreenVisible() const;
 
 private:

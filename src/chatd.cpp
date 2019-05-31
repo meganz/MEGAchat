@@ -289,11 +289,6 @@ void Client::sendEcho()
     }
 }
 
-void Client::setKeepaliveType(bool isInBackground)
-{
-    mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
-}
-
 void Client::onKeepaliveSent()
 {
     mKeepaliveCount--;
@@ -312,7 +307,7 @@ void Client::onKeepaliveSent()
 
 uint8_t Client::keepaliveType()
 {
-    return mKeepaliveType;
+    return mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
 std::shared_ptr<Chat> Client::chatFromId(Id chatid) const
@@ -331,28 +326,17 @@ Chat &Client::chats(Id chatid) const
     return *it->second;
 }
 
-promise::Promise<void> Client::notifyUserStatus(bool background)
+promise::Promise<void> Client::notifyUserStatus()
 {
-    if (background)
+    if (mKarereClient->isInBackground())
     {
-        if (mKeepaliveType == OP_KEEPALIVEAWAY)
-        {
-            return promise::_Void();
-        }
-
         cancelSeenTimers(); // avoid to update SEEN pointer when entering background
     }
     else    // foreground
     {
-        if (mKeepaliveType == OP_KEEPALIVE)
-        {
-            return promise::_Void();
-        }
-
         sendEcho(); // ping to detect dead sockets when returning to foreground
     }
 
-    mKeepaliveType = background ? OP_KEEPALIVEAWAY: OP_KEEPALIVE;
     return sendKeepalive();
 }
 

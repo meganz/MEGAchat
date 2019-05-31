@@ -39,10 +39,8 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::connect(bool isInBackground)
+Promise<void> Client::connect()
 {
-    mIsInBackground = isInBackground;
-
     if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
         PRESENCED_LOG_WARNING("connect() was already called, reconnection is automatic");
@@ -234,7 +232,11 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
-    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive && mConfig.mPresence == Presence::kOnline;
+    return mConfig.mPresence.isValid()
+            && mConfig.mAutoawayActive
+            && mConfig.mAutoawayTimeout
+            && mConfig.mPresence == Presence::kOnline
+            && !mConfig.mPersist;
 }
 
 void Client::signalActivity()
@@ -253,12 +255,68 @@ void Client::signalActivity()
         {
             PRESENCED_LOG_WARNING("signalActivity(): configured status is not online, autoaway shouldn't be used");
         }
+        else if (mConfig.mPersist)
+        {
+            PRESENCED_LOG_WARNING("signalActivity(): configured status is persistent, no need to signal user's activity");
+        }
+        return;
+    }
+    else if (mKarereClient->isInBackground())
+    {
+        PRESENCED_LOG_WARNING("signalActivity(): app is in background, no need to signal user's activity");
         return;
     }
 
     mTsLastUserActivity = time(NULL);
-    assert(!mIsInBackground);
     sendUserActive(true);
+}
+
+void Client::signalInactivity()
+{
+    if (!autoAwayInEffect())
+    {
+        if (!mConfig.mPresence.isValid())
+        {
+            PRESENCED_LOG_DEBUG("signalInactivity(): the current configuration is not yet received");
+        }
+        else if (!mConfig.mAutoawayActive)
+        {
+            PRESENCED_LOG_WARNING("signalInactivity(): autoaway is disabled, no need to signal user's inactivity");
+        }
+        else if (mConfig.mPresence != Presence::kOnline)
+        {
+            PRESENCED_LOG_WARNING("signalInactivity(): configured status is not online, no need to signal user's inactivity");
+        }
+        else if (mConfig.mPersist)
+        {
+            PRESENCED_LOG_WARNING("signalInactivity(): configured status is persistent, no need to signal user's inactivity");
+        }
+        return;
+    }
+    else if (!mKarereClient->isInBackground())
+    {
+        PRESENCED_LOG_WARNING("signalInactivity(): app is not in background, no need to signal user's inactivity");
+        return;
+    }
+
+    sendUserActive(false);
+}
+
+void Client::notifyUserStatus()
+{
+    if (mKarereClient->isInBackground())
+    {
+        signalInactivity();
+    }
+    else
+    {
+        signalActivity();
+    }
+}
+
+bool Client::isSignalActivityRequired()
+{
+    return !mKarereClient->isInBackground() && autoAwayInEffect();
 }
 
 void Client::abortRetryController()
@@ -1200,7 +1258,7 @@ void Client::handleMessage(const StaticBuffer& buf)
                         if (autoAwayInEffect())
                         {
                             // signal whether the user is active or inactive
-                            bool isActive = !mIsInBackground && ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            bool isActive = !mKarereClient->isInBackground() && ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
                             sendUserActive(isActive, true);
                         }
                     }
@@ -1244,11 +1302,6 @@ void Client::handleMessage(const StaticBuffer& buf)
           return;
       }
     }
-}
-
-void Client::setIsInBackground(bool isInBackground)
-{
-    mIsInBackground = isInBackground;
 }
 
 void Client::setConnState(ConnState newState)

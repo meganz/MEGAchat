@@ -63,6 +63,11 @@ bool Client::anonymousMode() const
     return (mInitState == kInitAnonymousMode);
 }
 
+bool Client::isInBackground() const
+{
+    return mIsInBackground;
+}
+
 /* Warning - the database is not initialzed at construction, but only after
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
@@ -355,12 +360,21 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
 {
-    if (mChatdClient)
+    bool oldStatus = mIsInBackground;
+    mIsInBackground = background;
+
+    if (oldStatus == mIsInBackground)
     {
-        mPresencedClient.setIsInBackground(background);
-        return mChatdClient->notifyUserStatus(background);
+        return promise::_Void();
     }
-    return promise::Error("Chatd client not initialized yet");
+
+    mPresencedClient.notifyUserStatus();
+    if (!mChatdClient)
+    {
+        return promise::Error("Chatd client not initialized yet");
+    }
+
+    return mChatdClient->notifyUserStatus();
 }
 
 promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
@@ -1082,6 +1096,8 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 
 promise::Promise<void> Client::connect(bool isInBackground)
 {
+    mIsInBackground = isInBackground;
+
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
@@ -1100,7 +1116,7 @@ promise::Promise<void> Client::connect(bool isInBackground)
     switch (sessDone)
     {
         case promise::kSucceeded:   // if session is ready...
-            return doConnect(isInBackground);
+            return doConnect();
 
         case promise::kFailed:      // if session failed...
             return mSessionReadyPromise.error();
@@ -1108,15 +1124,15 @@ promise::Promise<void> Client::connect(bool isInBackground)
         default:                    // if session is not ready yet... wait for it and then connect
             assert(sessDone == promise::kNotResolved);
             mConnectPromise = mSessionReadyPromise
-            .then([this, isInBackground]() mutable
+            .then([this]() mutable
             {
-                return doConnect(isInBackground);
+                return doConnect();
             });
             return mConnectPromise;
     }
 }
 
-promise::Promise<void> Client::doConnect(bool isInBackground)
+promise::Promise<void> Client::doConnect()
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
@@ -1128,7 +1144,7 @@ promise::Promise<void> Client::doConnect(bool isInBackground)
     // notify user-attr cache
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-    connectToChatd(isInBackground);
+    connectToChatd();
 
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
@@ -1168,7 +1184,7 @@ promise::Promise<void> Client::doConnect(bool isInBackground)
     rtc->init();
 #endif
 
-    auto pms = mPresencedClient.connect(isInBackground)
+    auto pms = mPresencedClient.connect()
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -3411,10 +3427,8 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd(bool isInBackground)
+void Client::connectToChatd()
 {
-    mChatdClient->setKeepaliveType(isInBackground);
-
     for (auto& item: *chats)
     {
         auto& chat = *item.second;

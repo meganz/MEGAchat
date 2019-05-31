@@ -339,8 +339,6 @@ protected:
     Listener* mListener;
     uint8_t mCapabilities;
 
-    bool mIsInBackground = false;
-
     /** Current state of the connection */
     ConnState mConnState = kConnNew;
 
@@ -467,8 +465,7 @@ public:
 
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
-    promise::Promise<void>
-    connect(bool isInBackground);
+    promise::Promise<void> connect();
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect, bool refreshURL = false);
@@ -478,8 +475,17 @@ public:
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
 
+    /** Returns true if apps should signal user's activity */
+    bool isSignalActivityRequired();
+
     /** Tells presenced that there's user's activity (notified by the app) */
     void signalActivity();
+
+    /** Tells presenced that user's activity stopped. Apps don't need to call this method explicitely,
+     * but when the app enters in background mode the user activity is not possible. */
+    void signalInactivity();
+
+    void notifyUserStatus();
 
     // peers management
     void updatePeerPresence(karere::Id peer, karere::Presence pres);
@@ -488,8 +494,8 @@ public:
     /** @brief Updates user last green if it's more recent than the current value.*/
     bool updateLastGreen(karere::Id userid, time_t lastGreen);
     time_t getLastGreen(karere::Id userid);
+
     ~Client();
-    void setIsInBackground(bool isInBackground);
 };
 
 class Listener
