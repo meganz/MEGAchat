@@ -26,6 +26,7 @@
 #include <fstream>
 #include <mutex>
 #include <thread>
+#include <regex>
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -721,7 +722,7 @@ bool extractflag(const string& flag, vector<ac::ACState::quoted_word>& words)
 {
     for (auto i = words.begin(); i != words.end(); ++i)
     {
-        if (i->s == flag)
+        if (i->s == flag && !i->q.quoted)
         {
             words.erase(i);
             return true;
@@ -749,6 +750,26 @@ bool extractflagparam(const string& flag, string& param, vector<ac::ACState::quo
     return false;
 }
 
+unique_ptr<m::MegaNode> GetNodeByPath(const string& path)
+{
+    if (path.find("//handle/") == 0)
+    {
+        m::MegaHandle h = g_megaApi->base64ToHandle(path.c_str() + 9);
+        unique_ptr<m::MegaNode> node(g_megaApi->getNodeByHandle(h));
+        if (!node)
+        {
+            conlock(cout) << "No node found by looking up handle: '" << (path.c_str() + 9) << "'" << endl;
+        }
+        return node;
+    }
+
+    unique_ptr<m::MegaNode> node(g_megaApi->getNodeByPath(path.c_str()));
+    if (!node)
+    {
+        conlock(cout) << "No node found at path: '" << path << "'" << endl;
+    }
+    return node;
+}
 
 static bool quit_flag = false;
 static string login;
@@ -2119,14 +2140,25 @@ void exec_backgroundupload(ac::ACState& s)
             }
         }));
     }
-    else if (s.words[1].s == "complete"  && s.words.size() == 10 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    else if (s.words[1].s == "setthumbnail"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        mbmu->setThumbnail(m::MegaApi::base64ToUserHandle(s.words[3].s.c_str()));
+    }
+    else if (s.words[1].s == "setpreview"  && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        mbmu->setPreview(m::MegaApi::base64ToUserHandle(s.words[3].s.c_str()));
+    }
+    else if (s.words[1].s == "setcoordinates" && s.words.size() == 5 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
+    {
+        bool shareable = extractflag("-shareable", s.words);
+        mbmu->setCoordinates(atof(s.words[3].s.c_str()), atof(s.words[4].s.c_str()), !shareable);
+    }
+    else if (s.words[1].s == "complete" && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         const char* fingerprint = s.words[5].s.empty() ? NULL : s.words[5].s.c_str();
         const char* fingerprintoriginal = s.words[6].s.empty() ? NULL : s.words[6].s.c_str();
-        m::MegaHandle fingernailhandle = s_ch(s.words[7].s);
-        m::MegaHandle previewhandle = s_ch(s.words[8].s);
-        const char* uploadtoken64 = s.words[9].s.c_str();
-        if (m::MegaNode *parent = g_megaApi->getNodeByPath(s.words[4].s.c_str()))
+        const char* uploadtoken64 = s.words[7].s.c_str();
+        if (auto parent = GetNodeByPath(s.words[4].s))
         {
             auto ln = new OneShotRequestListener;
             ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
@@ -2134,16 +2166,38 @@ void exec_backgroundupload(ac::ACState& s)
                 check_err("Background upload completion", e);
             };
 
-            g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent, fingerprint, fingerprintoriginal, fingernailhandle, previewhandle, uploadtoken64, ln);
-        }
-        else
-        {
-            conlock(cout) << "parent folder lookup failed" << endl;
+            g_megaApi->backgroundMediaUploadComplete(mbmu, s.words[3].s.c_str(), parent.get(), fingerprint, fingerprintoriginal, uploadtoken64, ln);
         }
     }
     else
     {
         conlock(cout) << "incorrect subcommand" << endl;
+    }
+}
+
+void exec_setthumbnailbyhandle(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setThumbnailByHandle(node.get(), s_ch(s.words[2].s), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setThumbnailByHandle", e);
+        }));
+    }
+}
+
+void exec_setpreviewbyhandle(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setPreviewByHandle(node.get(), s_ch(s.words[2].s), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setThumbnailByHandle", e);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "Path not found" << endl;
     }
 }
 
@@ -2170,29 +2224,19 @@ void exec_getfingerprint(ac::ACState& s)
     }
     else if (s.words[1].s == "remote" && s.words.size() == 3)
     {
-        if (m::MegaNode *n = g_megaApi->getNodeByPath(s.words[2].s.c_str()))
+        if (auto n = GetNodeByPath(s.words[2].s))
         {
-            char* fp = g_megaApi->getFingerprint(n);
+            char* fp = g_megaApi->getFingerprint(n.get());
             conlock(cout) << (fp ? fp : "<NULL>") << endl;
             delete[] fp;
-            delete n;
-        }
-        else
-        {
-            conlock(cout) << "node not found" << endl;
         }
     }
     else if (s.words[1].s == "original" && s.words.size() == 3)
     {
-        if (m::MegaNode *n = g_megaApi->getNodeByPath(s.words[2].s.c_str()))
+        if (auto n = GetNodeByPath(s.words[2].s))
         {
             const char* fp = n->getOriginalFingerprint();
             conlock(cout) << (fp ? fp : "<NULL>") << endl;
-            delete n;
-        }
-        else
-        {
-            conlock(cout) << "node not found" << endl;
         }
     }
 }
@@ -2318,6 +2362,233 @@ void exec_getspecificaccountdetails(ac::ACState& s)
 }
 
 
+string joinStringList(m::MegaStringList& msl, const string& separator)
+{
+    string s;
+    for (int i = 0; i < msl.size(); ++i)
+    {
+        if (s.empty()) s += separator;
+        s += msl.get(i) ? msl.get(i) : "<null>";
+    }
+    return s;
+}
+
+void exec_setnodecoordinates(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setNodeCoordinates(node.get(), atof(s.words[2].s.c_str()), atof(s.words[3].s.c_str()), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setNodeCoordinates", e);
+        }));
+    }
+}
+
+void exec_setunshareablenodecoordinates(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->setUnshareableNodeCoordinates(node.get(), atof(s.words[2].s.c_str()), atof(s.words[3].s.c_str()), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("setUnshareableNodeCoordinates", e);
+        }));
+    }
+}
+
+void exec_getnodebypath(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        auto guard = conlock(cout);
+
+        cout << "type: " << node->getType() << endl;
+        cout << "name: " << (node->getName() ? node->getName() : "<null>") << endl;
+        cout << "fingerprint: " << (node->getFingerprint() ? node->getFingerprint() : "<null>") << endl;
+        cout << "original fingerprint: " << (node->getOriginalFingerprint() ? node->getOriginalFingerprint() : "<null>") << endl;
+        cout << "has custom attrs: " << node->hasCustomAttrs() << endl;
+        unique_ptr<m::MegaStringList> can(node->getCustomAttrNames());
+        for (int i = 0; i < can->size(); ++i)
+        {
+            cout << "  " << can->get(i) << ": " << node->getCustomAttr(can->get(i)) << endl;
+        }
+        cout << "duration (seconds): " << node->getDuration() << endl;
+        cout << "width: " << node->getWidth() << endl;
+        cout << "height: " << node->getHeight() << endl;
+        cout << "shortformat: " << node->getShortformat() << endl;
+        cout << "videoCodecId: " << node->getVideocodecid() << endl;
+        cout << "latitude: " << node->getLatitude() << endl;
+        cout << "longitude: " << node->getLongitude() << endl;
+        cout << "handle: " << node->getBase64Handle() << endl;
+        cout << "size: " << node->getSize() << endl;
+        cout << "creation time: " << node->getCreationTime() << endl;
+        cout << "modification time: " << node->getModificationTime() << endl;
+        cout << "handle: " << ch_s(node->getHandle()) << endl;
+        cout << "restore handle: " << ch_s(node->getRestoreHandle()) << endl;
+        cout << "parent handle: " << ch_s(node->getParentHandle()) << endl;
+        //getBase64Key();
+        cout << "tag: " << node->getTag() << endl;
+        cout << "expiration time: " << node->getExpirationTime() << endl;
+        cout << "public handle: " << ch_s(node->getPublicHandle()) << endl;
+        //getPublicNode();
+        unique_ptr<char[]> publink(node->getPublicLink(true));
+        cout << "public link: " << (publink.get() ? publink.get() : "<null>") << endl;
+        cout << "is file: " << node->isFile() << endl;
+        cout << "is folder: " << node->isFolder() << endl;
+        cout << "is removed: " << node->isRemoved() << endl;
+        cout << "changes: " << hex << node->getChanges() << dec << endl;
+        cout << "has thumbnail: " << node->hasThumbnail() << endl;
+        cout << "has preview: " << node->hasPreview() << endl;
+        cout << "isPublic: " << node->isPublic() << endl;
+        cout << "isShared: " << node->isShared() << endl;
+        cout << "isOutShare: " << node->isOutShare() << endl;
+        cout << "isInShare: " << node->isInShare() << endl;
+        cout << "isExported: " << node->isExported() << endl;
+        cout << "isExpired: " << node->isExpired() << endl;
+        cout << "isTakenDown: " << node->isTakenDown() << endl;
+        cout << "isForeign: " << node->isForeign() << endl;
+        //getNodeKey();
+        cout << "binary attriutes (hexed): " << (node->getAttrString() ? toHex(*node->getAttrString()) : "<null>") << endl;
+        unique_ptr<char[]> fileattr(node->getFileAttrString());
+        cout << "chatroom file attributes: " << (fileattr ? fileattr.get() : "<null>") << endl;
+        //getPrivateAuth();
+        //setPrivateAuth(const char *privateAuth);
+        //getPublicAuth();
+        //getChatAuth();
+        //getChildren();
+#ifdef ENABLE_SYNC
+        //virtual bool isSyncDeleted();
+        cout << "local sync path: " << node->getLocalPath() << endl;
+#endif
+        cout << "owner handle: " << ch_s(node->getOwner()) << endl;
+        cout << "serialized: " << unique_ptr<char[]>(node->serialize()).get() << endl;
+        //unserialize(const char *d);
+    }
+}
+
+struct ls_flags
+{
+    string regexfilterstring;
+    std::regex re;
+    bool recursive = false;
+    bool regexfilter = false;
+    bool handle = false;
+    bool ctime = false;
+    bool mtime = false;
+    bool size = false;
+    bool versions = false;
+};
+
+string OwnStr(const char* s)
+{
+    // takes ownership of a string from MegaApi, prevents leaks
+    string str(s);
+    delete[] s;
+    return str;
+}
+
+
+void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int depth)
+{
+    bool show = true;
+
+    if (depth > 0 || node->getType() == m::MegaNode::TYPE_FILE)
+    {
+        string utf8path(g_megaApi->getNodePath(node));
+        if (utf8path.size() > basepath.size() && 0 == memcmp(utf8path.data(), basepath.data(), basepath.size()))
+        {
+            utf8path.erase(0, basepath.size());
+        }
+
+        if (flags.regexfilter)
+        {
+            if (!std::regex_search(utf8path, flags.re))
+            {
+                show = false;
+            }
+        }
+
+        if (show)
+        {
+            cout << utf8path;
+            if (node->getType() == m::MegaNode::TYPE_FOLDER) cout << "/";
+
+            if (flags.size) cout << " " << node->getSize();
+            if (flags.ctime) cout << " " << node->getCreationTime();
+            if (flags.mtime) cout << " " << node->getModificationTime();
+            if (flags.handle) cout << " " << OwnStr(g_megaApi->handleToBase64(node->getHandle()));
+        }
+    }
+
+    switch (node->getType())
+    {
+    case m::MegaNode::TYPE_UNKNOWN:
+        if (show) cout << " TYPE_UNKNOWN" << endl;
+        break;
+
+    case m::MegaNode::TYPE_FILE:
+        if (show) cout << endl;
+        break;
+
+    case m::MegaNode::TYPE_FOLDER:
+    case m::MegaNode::TYPE_ROOT:
+    case m::MegaNode::TYPE_INCOMING:
+    case m::MegaNode::TYPE_RUBBISH:
+        if (show && depth > 0) cout << endl;
+        if (flags.recursive || depth == 0)
+        {
+            unique_ptr<m::MegaNodeList> children(g_megaApi->getChildren(node));
+            if (children) for (int i = 0; i < children->size(); ++i)
+            {
+                ls(children->get(i), basepath, flags, depth + 1);
+            }
+        }
+        break;
+    }
+}
+
+void exec_ls(ac::ACState& s)
+{
+    ls_flags flags;
+    flags.recursive = extractflag("-recursive", s.words);
+    flags.regexfilter = extractflagparam("-refilter", flags.regexfilterstring, s.words);
+    flags.handle = extractflag("-handles", s.words);
+    flags.ctime = extractflag("-ctime", s.words);
+    flags.mtime = extractflag("-mtime", s.words);
+    flags.size = extractflag("-size", s.words);
+    flags.versions = extractflag("-versions", s.words);
+
+    if (flags.regexfilter)
+    {
+        flags.re = std::regex(flags.regexfilterstring);
+    }
+
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        string basepath = OwnStr(g_megaApi->getNodePath(node.get()));
+        switch (node->getType())
+        {
+        case m::MegaNode::TYPE_FILE: basepath.clear(); break;
+        case m::MegaNode::TYPE_FOLDER:
+        case m::MegaNode::TYPE_INCOMING:
+        case m::MegaNode::TYPE_RUBBISH: basepath += "/"; break;
+        default:;
+        }
+        auto guard = conlock(cout);
+        ls(node.get(), basepath, flags, 0);
+    }
+}
+
+void exec_renamenode(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->renameNode(node.get(), s.words[2].s.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("renamenode", e);
+        }));
+    }
+}
+
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -2427,11 +2698,14 @@ ac::ACN autocompleteSyntax()
         sequence(text("analyse"), param("name"), localFSFile()),
         sequence(text("encrypt"), param("name"), localFSFile(), localFSFile(), param("startPos"), param("length"), either(text("false"), text("true"))),
         sequence(text("geturl"), param("name"), param("filesize")),
-        sequence(text("serialize"), param("name")), 
+        sequence(text("serialize"), param("name")),
         sequence(text("upload"), param("url"), localFSFile()),
         sequence(text("putthumbnail"), param("name"), localFSFile()),
         sequence(text("putpreview"), param("name"), localFSFile()),
-        sequence(text("complete"), param("name"), param("nodename"), param("remoteparentpath"), param("fingerprint"), param("originalfingerprint"), param("uploadtoken"), param("fingerprinthandle"), param("previewhandle")))));
+        sequence(text("setthumbnail"), param("name"), param("handle")),
+        sequence(text("setpreview"), param("name"), param("handle")),
+        sequence(text("setcoordinates"), param("name"), opt(flag("-shareable")), param("latitude"), param("longitude")),
+        sequence(text("complete"), param("name"), param("nodename"), param("remoteparentpath"), param("fingerprint"), param("originalfingerprint"), param("uploadtoken")))));
 
     p->Add(exec_ensuremediainfo, sequence(text("ensuremediainfo")));
 
@@ -2440,9 +2714,16 @@ ac::ACN autocompleteSyntax()
         sequence(text("remote"), param("remotefile")),
         sequence(text("original"), param("remotefile")))));
 
+    p->Add(exec_setthumbnailbyhandle, sequence(text("setthumbnailbyhandle"), param("remotepath"), param("attributehandle")));
+    p->Add(exec_setpreviewbyhandle, sequence(text("setpreviewbyhandle"), param("remotepath"), param("attributehandle")));
+    p->Add(exec_setnodecoordinates, sequence(text("setnodecoordinates"), param("remotepath"), param("latitude"), param("longitude")));
+    p->Add(exec_setunshareablenodecoordinates, sequence(text("setunshareablenodecoordinates"), param("remotepath"), param("latitude"), param("longitude")));
     p->Add(exec_createthumbnail, sequence(text("createthumbnail"), opt(flag("-tempmegaapi")), opt(sequence(flag("-parallel"), param("count"))), localFSFile(), localFSFile()));
     p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
+    p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
+    p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-refilter"), param("regex")))), param("path")));
+    p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
     return p;
 }
 
