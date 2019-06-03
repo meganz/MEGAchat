@@ -40,10 +40,15 @@ void SettingWindow::show()
 
 void SettingWindow::onPushNotificationSettingsUpdate()
 {
+    ui->pushNotifications->setEnabled(false);
+
     auto notificationSettings = mApp->getNotificationSettings();
     auto timeZoneDetails = mApp->getTimeZoneDetails();
-    assert(notificationSettings);
-    assert(timeZoneDetails);
+
+    if (!notificationSettings || !timeZoneDetails)
+    {
+        return;
+    }
 
     ::mega::m_time_t now = ::mega::m_time(NULL);
     ui->chats->setChecked(notificationSettings->isChatsEnabled());
@@ -245,8 +250,6 @@ void SettingWindow::savePresenceConfig()
     {
         mApp->megaChatApi()->setLastGreenVisible(showLastGreen);
     }
-
-
 }
 
 void SettingWindow::onClicked(QAbstractButton *button)
