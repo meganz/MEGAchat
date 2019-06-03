@@ -760,7 +760,7 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
                 for (int j = 0; j < peerlist->size(); j++)
                 {
                     uint64_t userid = peerlist->getPeerHandle(j);
-                    if (isContact(userid))
+                    if (isContact(userid) && !isExContact(userid))
                     {
                         mCurrentPeers.insert(userid);
                         mChatMembers[chatid].insert(userid);

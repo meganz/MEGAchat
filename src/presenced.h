@@ -485,6 +485,10 @@ public:
      * but when the app enters in background mode the user activity is not possible. */
     void signalInactivity();
 
+    /**
+     * Checks the app's state (background or foreground) and signals user's activity or
+     * inactivity accordingly.
+     */
     void notifyUserStatus();
 
     // peers management
