@@ -21,6 +21,9 @@ SettingWindow::SettingWindow(MegaChatApplication *app) :
     {
         ui->pushNotifications->setEnabled(false);
     }
+
+    // presence config UI
+    ui->presence->setEnabled(false);
 }
 
 SettingWindow::~SettingWindow()
@@ -31,6 +34,7 @@ SettingWindow::~SettingWindow()
 void SettingWindow::show()
 {
     onPushNotificationSettingsUpdate();
+    onPresenceConfigUpdate();
     QDialog::show();
 }
 
@@ -108,6 +112,27 @@ void SettingWindow::onPushNotificationSettingsUpdate()
     delete chatList;
 
     ui->pushNotifications->setEnabled(true);
+}
+
+void SettingWindow::onPresenceConfigUpdate()
+{
+    ui->presence->setEnabled(false);
+
+    delete mPresenceConfig;
+    mPresenceConfig = mApp->megaChatApi()->getPresenceConfig();
+
+    if (!mPresenceConfig || mPresenceConfig->isPending())
+    {
+        return;
+    }
+
+    ui->statusComboBox->setCurrentIndex(mPresenceConfig->getOnlineStatus() - 1);
+    ui->autoAwayCheckBox->setChecked(mPresenceConfig->isAutoawayEnabled());
+    ui->autoAwayTimeoutSLineEdit->setText(QString::number(mPresenceConfig->getAutoawayTimeout()));
+    ui->persistStatusCheckBox->setChecked(mPresenceConfig->isPersist());
+    ui->showLastGreenCheckBox->setChecked(mPresenceConfig->isLastGreenVisible());
+
+    ui->presence->setEnabled(true);
 }
 
 void SettingWindow::savePushNotificationSettings()
@@ -199,16 +224,43 @@ void SettingWindow::savePushNotificationSettings()
     delete [] auxTimeZone;
 }
 
+void SettingWindow::savePresenceConfig()
+{
+    bool autoawayEnabled = ui->autoAwayCheckBox->isChecked();
+    int autoawayTimeout = ui->autoAwayTimeoutSLineEdit->text().toInt();
+    if (autoawayEnabled != mPresenceConfig->isAutoawayEnabled()
+            || autoawayTimeout != mPresenceConfig->getAutoawayTimeout())
+    {
+        mApp->megaChatApi()->setPresenceAutoaway(autoawayEnabled, autoawayTimeout);
+    }
+
+    int status = ui->statusComboBox->currentIndex() + 1;
+    if (status != mPresenceConfig->getOnlineStatus())
+    {
+        mApp->megaChatApi()->setOnlineStatus(status);
+    }
+
+    bool showLastGreen = ui->showLastGreenCheckBox->isChecked();
+    if (showLastGreen != mPresenceConfig->isLastGreenVisible())
+    {
+        mApp->megaChatApi()->setLastGreenVisible(showLastGreen);
+    }
+
+
+}
+
 void SettingWindow::onClicked(QAbstractButton *button)
 {
     QPushButton *pushButton = static_cast<QPushButton*>(button);
     if (pushButton == ui->confirmButtons->button(QDialogButtonBox::Apply))
     {
         savePushNotificationSettings();
+        savePresenceConfig();
     }
     else if (pushButton == ui->confirmButtons->button(QDialogButtonBox::Reset))
     {
         onPushNotificationSettingsUpdate();
+        onPresenceConfigUpdate();
     }
     else if (pushButton == ui->confirmButtons->button(QDialogButtonBox::Close))
     {
@@ -227,4 +279,13 @@ void SettingWindow::onScheduleEnabled(bool value)
     ui->startTime->setEnabled(value);
     ui->endTime->setEnabled(value);
     ui->timeZones->setEnabled(value);
+}
+
+void SettingWindow::on_autoAwayCheckBox_clicked(bool checked)
+{
+    if (checked)
+    {
+        ui->persistStatusCheckBox->setChecked(false);
+        ui->statusComboBox->setCurrentIndex(MegaChatApi::STATUS_ONLINE - 1);
+    }
 }

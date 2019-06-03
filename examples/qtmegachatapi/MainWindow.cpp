@@ -513,21 +513,6 @@ void MainWindow::on_bSettings_clicked()
     actArchived->setCheckable(true);
     actArchived->setChecked(mShowArchived);
 
-    //TODO: prepare a new tab in SettingsDialog to configure all the presence options
-    MegaChatPresenceConfig *presenceConfig = mMegaChatApi->getPresenceConfig();
-    auto actlastGreenVisible = settingsMenu->addAction("Enable/Disable Last-Green");
-    connect(actlastGreenVisible, SIGNAL(triggered()), this, SLOT(onlastGreenVisibleClicked()));
-    if (presenceConfig)
-    {
-        actlastGreenVisible->setCheckable(true);
-        actlastGreenVisible->setChecked(presenceConfig->isLastGreenVisible());
-    }
-    else
-    {
-        actlastGreenVisible->setEnabled(false);
-    }
-    delete presenceConfig;
-
     auto actTwoFactCheck = settingsMenu->addAction(tr("Enable/Disable 2FA"));
     connect(actTwoFactCheck, &QAction::triggered, this, [=](){onTwoFactorCheck();});
     actTwoFactCheck->setEnabled(mMegaApi->multiFactorAuthAvailable());
@@ -1072,9 +1057,15 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
         status = 0;
     }
 
-    if (mMegaChatApi->getMyUserHandle() == userhandle && !inProgress)
+    if (mMegaChatApi->getMyUserHandle() == userhandle)
     {
-        ui->bOnlineStatus->setText(kOnlineSymbol_Set);
+        ui->bOnlineStatus->setText(inProgress
+            ? kOnlineSymbol_InProgress
+            : kOnlineSymbol_Set);
+
+        if (status == megachat::MegaChatApi::STATUS_INVALID)
+            status = 0;
+
         if (status >= 0 && status < NINDCOLORS)
             ui->bOnlineStatus->setStyleSheet(kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
     }
@@ -1098,16 +1089,10 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
 
 void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfig *config)
 {
-    int status = config->getOnlineStatus();
-    if (status == megachat::MegaChatApi::STATUS_INVALID)
-        status = 0;
-
-    ui->bOnlineStatus->setText(config->isPending()
-        ? kOnlineSymbol_InProgress
-        : kOnlineSymbol_Set);
-
-    ui->bOnlineStatus->setStyleSheet(
-                kOnlineStatusBtnStyle.arg(gOnlineIndColors[status]));
+    if (mSettings)
+    {
+        mSettings->onPresenceConfigUpdate();
+    }
 }
 
 void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle userhandle, int lastGreen)

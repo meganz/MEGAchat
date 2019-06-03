@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="pushNotifications">
       <attribute name="title">
@@ -205,6 +205,103 @@
         </layout>
        </item>
       </layout>
+     </widget>
+     <widget class="QWidget" name="presence">
+      <attribute name="title">
+       <string>Presence</string>
+      </attribute>
+      <widget class="QWidget" name="formLayoutWidget">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>951</width>
+         <height>491</height>
+        </rect>
+       </property>
+       <layout class="QFormLayout" name="formLayout">
+        <property name="rowWrapPolicy">
+         <enum>QFormLayout::DontWrapRows</enum>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="statusLabel">
+          <property name="text">
+           <string>Status:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="statusComboBox">
+          <property name="minimumSize">
+           <size>
+            <width>789</width>
+            <height>0</height>
+           </size>
+          </property>
+          <item>
+           <property name="text">
+            <string>Offline</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Away</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Online</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Busy</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="autoAwayLabel">
+          <property name="text">
+           <string>Auto-away:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="autoAwayCheckBox"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="autoAwayTimeoutSLabel">
+          <property name="text">
+           <string>Auto-away timeout (s):</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="autoAwayTimeoutSLineEdit"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="showLastGreenLabel">
+          <property name="text">
+           <string>Show last green:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QCheckBox" name="showLastGreenCheckBox"/>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="persistStatusLabel">
+          <property name="text">
+           <string>Persist status:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QCheckBox" name="persistStatusCheckBox"/>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </widget>
    </item>
