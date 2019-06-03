@@ -733,8 +733,12 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
             {
                 ::mega::MegaUser *user = contacts->get(i);
                 uint64_t userid = user->getHandle();
-                int visibility = user->getVisibility();
+                if (userid == mKarereClient->myHandle())
+                {
+                    continue;
+                }
 
+                int visibility = user->getVisibility();
                 mContacts[userid] = visibility; // add ex-contacts to identify them
                 if (visibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
@@ -756,7 +760,7 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
                 for (int j = 0; j < peerlist->size(); j++)
                 {
                     uint64_t userid = peerlist->getPeerHandle(j);
-                    if (!isExContact(userid))
+                    if (isContact(userid))
                     {
                         mCurrentPeers.insert(userid);
                         mChatMembers[chatid].insert(userid);
@@ -1258,7 +1262,10 @@ void Client::handleMessage(const StaticBuffer& buf)
                         if (autoAwayInEffect())
                         {
                             // signal whether the user is active or inactive
-                            bool isActive = !mKarereClient->isInBackground() && ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            bool isActive = !mKarereClient->isInBackground()    // active is not possible in background
+                                    && (!mTsLastUserActivity                    // first connection, signal active if not in background
+                                        || ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout));    // check autoaway's timeout
+
                             sendUserActive(isActive, true);
                         }
                     }
@@ -1471,8 +1478,11 @@ void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 
     // Do not notify if the peer is ex-contact or has never been contact
     // (except updating to unknown when a contact becomes ex-contact)
-    if ((isContact(peer) && !isExContact(peer))
-            || (isExContact(peer) && pres.status() == Presence::kUnknown))
+    bool exContact = isExContact(peer);
+    bool contact = isContact(peer);
+    if (peer == mKarereClient->myHandle()
+            || (contact && !exContact)
+            || (exContact && pres.status() == Presence::kUnknown))
     {
         CALL_LISTENER(onPresenceChange, peer, pres);
     }
