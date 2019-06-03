@@ -1266,6 +1266,10 @@ void Client::handleMessage(const StaticBuffer& buf)
                                     && (!mTsLastUserActivity                    // first connection, signal active if not in background
                                         || ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout));    // check autoaway's timeout
 
+                            if (isActive)
+                            {
+                                mTsLastUserActivity = time(NULL);
+                            }
                             sendUserActive(isActive, true);
                         }
                     }
