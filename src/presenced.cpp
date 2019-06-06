@@ -1400,7 +1400,7 @@ void Client::addPeer(karere::Id peer)
     if (isExContact(peer))
     {
         // Notify presence of non-contact that becomes contact again
-        Presence presence = mPeersPresence[peer];
+        Presence presence = peerPresence(peer);
         if (presence.isValid())
         {
             CALL_LISTENER(onPresenceChange, peer, presence);
