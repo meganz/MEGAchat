@@ -2533,7 +2533,7 @@ bool Chat::haveAllHistoryNotified() const
     if (!mHaveAllHistory || mHasMoreHistoryInDb)
         return false;
 
-    return (mNextHistFetchIdx < lownum());
+    return (mNextHistFetchIdx < lownum() || empty());
 }
 
 Message *Chat::getMessageFromNodeHistory(Id msgid) const
