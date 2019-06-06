@@ -82,7 +82,7 @@ void WaitMillisec(unsigned n)
 
 struct ConsoleLock
 {
-    static std::mutex outputlock;
+    static std::recursive_mutex outputlock;
     std::ostream& os;
     bool locking = false;
     inline ConsoleLock(std::ostream& o)
@@ -110,7 +110,7 @@ struct ConsoleLock
     }
 };
 
-std::mutex ConsoleLock::outputlock;
+std::recursive_mutex ConsoleLock::outputlock;
 
 ConsoleLock conlock(std::ostream& o)
 {
@@ -159,6 +159,13 @@ bool check_err(const string& opName, c::MegaChatError* e)
     return success;
 }
 
+string OwnStr(const char* s)
+{
+    // takes ownership of a string from MegaApi, prevents leaks
+    string str(s ? s : "");
+    delete[] s;
+    return str;
+}
 
 unique_ptr<m::Console> console;
 
@@ -2083,7 +2090,7 @@ void exec_backgroundupload(ac::ACState& s)
         int64_t startPos = atol(s.words[5].s.c_str());
         int64_t length = atol(s.words[6].s.c_str());
         bool adjustsizeonly = s.words[7].s == "true";
-        string urlSuffix = mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), adjustsizeonly);
+        string urlSuffix = OwnStr(mbmu->encryptFile(s.words[3].s.c_str(), startPos, &length, s.words[4].s.c_str(), adjustsizeonly));
         if (!urlSuffix.empty())
         {
             conlock(cout) << "Encrypt complete, URL suffix: " << urlSuffix << " and updated length: " << length << endl;
@@ -2100,7 +2107,7 @@ void exec_backgroundupload(ac::ACState& s)
         { 
             if (check_err("Get upload URL", e))
             {
-                conlock(cout) << "Upload URL: " << request->getMegaBackgroundMediaUploadPtr()->getUploadURL() << endl;
+                conlock(cout) << "Upload URL: " << OwnStr(request->getMegaBackgroundMediaUploadPtr()->getUploadURL()) << endl;
             }
         };
 
@@ -2478,13 +2485,6 @@ struct ls_flags
     bool versions = false;
 };
 
-string OwnStr(const char* s)
-{
-    // takes ownership of a string from MegaApi, prevents leaks
-    string str(s);
-    delete[] s;
-    return str;
-}
 
 
 void ls(m::MegaNode* node, const string& basepath, const ls_flags& flags, int depth)
