@@ -28,6 +28,7 @@ SettingWindow::SettingWindow(MegaChatApplication *app) :
 
 SettingWindow::~SettingWindow()
 {
+    delete mPresenceConfig;
     delete ui;
 }
 

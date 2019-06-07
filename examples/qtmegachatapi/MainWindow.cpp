@@ -42,6 +42,7 @@ MainWindow::~MainWindow()
 {
     removeListeners();
     delete mChatSettings;
+    delete mSettings;
     clearChatControllers();
     clearContactControllersMap();
     delete ui;
