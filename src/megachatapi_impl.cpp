@@ -217,7 +217,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             bool isInBackground = request->getFlag();
 
-            mClient->connect(karere::Presence::kInvalid, isInBackground)
+            mClient->connect(isInBackground)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2457,7 +2457,7 @@ bool MegaChatApiImpl::isSignalActivityRequired()
 {
     sdkMutex.lock();
 
-    bool enabled = mClient ? mClient->presenced().autoAwayInEffect() : false;
+    bool enabled = mClient ? mClient->presenced().isSignalActivityRequired() : false;
 
     sdkMutex.unlock();
 
@@ -2512,14 +2512,9 @@ void MegaChatApiImpl::setBackgroundStatus(bool background, MegaChatRequestListen
 
 int MegaChatApiImpl::getBackgroundStatus()
 {
-    int status = -1;
-
     sdkMutex.lock();
 
-    if (mClient && mClient->mChatdClient)
-    {
-        status = (mClient->mChatdClient->keepaliveType() == chatd::OP_KEEPALIVE) ? 0 : 1;
-    }
+    int status = mClient ? int(mClient->isInBackground()) : -1;
 
     sdkMutex.unlock();
 
@@ -8184,14 +8179,6 @@ bool MegaChatPresenceConfigPrivate::isPersist() const
 bool MegaChatPresenceConfigPrivate::isPending() const
 {
     return pending;
-}
-
-bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
-{
-    return (!persistEnabled
-            && status != MegaChatApi::STATUS_OFFLINE
-            && status != MegaChatApi::STATUS_AWAY
-            && autoawayEnabled && autoawayTimeout);
 }
 
 bool MegaChatPresenceConfigPrivate::isLastGreenVisible() const

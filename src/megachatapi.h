@@ -1832,8 +1832,8 @@ public:
  * the status is other than online or the user has enabled the persistence of the status.
  * When the autoaway mechanish is enabled, it requires the app calls \c MegaChatApi::signalPresenceActivity
  * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout.
- * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired
- * or also by checking \c MegaChatPresenceConfig::isSignalActivityRequired.
+ * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired.
+ * While the is in background status, without user's activity, there is no need tosignal it.
  *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
  *
