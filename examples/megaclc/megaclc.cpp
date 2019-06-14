@@ -320,7 +320,12 @@ public:
                 }
                 break;
 
-
+            case c::MegaChatRequest::TYPE_LOAD_PREVIEW:
+                if (check_err("OpenChatPreview", e))
+                {
+                    conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(request->getChatHandle()).toString() << endl;
+                }
+                break;
             }
         }
     }
@@ -1309,6 +1314,16 @@ void exec_closechatroom(ac::ACState& s)
     g_roomListeners.erase(room);
 }
 
+void exec_openchatpreview(ac::ACState& s)
+{
+    g_chatApi->openChatPreview(s.words[1].s.c_str(), &g_chatListener);
+}
+
+void exec_closechatpreview(ac::ACState& s)
+{
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->closeChatPreview(room);
+}
 
 void exec_loadmessages(ac::ACState& s)
 {
@@ -1871,6 +1886,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getinactivechatlistitems, sequence(text("getinactivechatlistitems"), param("roomid")));
     p->Add(exec_getunreadchatlistitems, sequence(text("getunreadchatlistitems"), param("roomid")));
     p->Add(exec_getchathandlebyuser, sequence(text("getchathandlebyuser"), param("userid")));
+
     p->Add(exec_createchat,         sequence(text("createchat"), opt(flag("-group")), repeat(param("userid"))));
     p->Add(exec_invitetochat,       sequence(text("invitetochat"), param("roomid"), param("userid")));
     p->Add(exec_removefromchat,     sequence(text("removefromchat"), param("roomid"), param("userid")));
@@ -1879,6 +1895,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_truncatechat,       sequence(text("truncatechat"), param("roomid"), param("msgid")));
     p->Add(exec_clearchathistory,   sequence(text("clearchathistory"), param("roomid")));
     p->Add(exec_setchattitle,       sequence(text("setchattitle"), param("roomid"), param("title")));
+
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
     p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10)));
@@ -1896,6 +1913,9 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_sendtypingnotification, sequence(text("sendtypingnotification"), param("roomid")));
     p->Add(exec_ismessagereceptionconfirmationactive, sequence(text("ismessagereceptionconfirmationactive")));
     p->Add(exec_savecurrentstate, sequence(text("savecurrentstate")));
+
+    p->Add(exec_openchatpreview,    sequence(text("openchatpreview"), param("chatlink")));
+    p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
      
 #ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_getchataudioindevices, sequence(text("getchataudioindevices")));
