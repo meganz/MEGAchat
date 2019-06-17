@@ -320,7 +320,12 @@ public:
                 }
                 break;
 
-
+            case c::MegaChatRequest::TYPE_LOAD_PREVIEW:
+                if (check_err("OpenChatPreview", e))
+                {
+                    conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(request->getChatHandle()).toString() << endl;
+                }
+                break;
             }
         }
     }
@@ -719,9 +724,22 @@ static bool quit_flag = false;
 static string login;
 static string password;
 
+void exec_initanonymous(ac::ACState& s)
+{
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
+    {
+        g_chatApi->initAnonymous();
+        g_chatApi->connect(&g_chatListener);
+    }
+    else
+    {
+        conlock(cout) << "Already initialized. Please log out first." << endl;
+    }
+}
+
 void exec_login(ac::ACState& s)
 {
-    if (!g_megaApi->isLoggedIn())
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
     {
         bool hasemail = s.words[1].s.find_first_of('@') != string::npos;
         if (s.words.size() == 3 && hasemail)
@@ -778,7 +796,11 @@ void exec_login(ac::ACState& s)
 void exec_logout(ac::ACState& s)
 {
     unique_ptr<const char[]>session(g_megaApi->dumpSession());
-    if (g_megaApi->isLoggedIn())
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_ANONYMOUS)
+    {
+        g_chatApi->logout();
+    }
+    else if (g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE)
     {
         setprompt(NOPROMPT);
         g_megaApi->logout();
@@ -1147,6 +1169,29 @@ void exec_getunreadchatlistitems(ac::ACState&)
     }
 }
 
+void exec_chatinfo(ac::ACState& s)
+{
+    c::MegaChatHandle chatid = s_ch(s.words[1].s);
+    c::MegaChatRoom *room = g_chatApi->getChatRoom(chatid);
+    if (room)
+    {
+        conlock(cout) << room->getPeerCount() << " participants in chat " << s.words[1].s << endl;
+        for (unsigned i = 0; i < room->getPeerCount(); i++)
+        {
+            conlock(cout) << ch_s(room->getPeerHandle(i)) << "\t" << room->getPeerFullname(i);
+            if (room->getPeerEmail(i))
+            {
+                conlock(cout) << " (" << room->getPeerEmail(i) << ")";
+            }
+            conlock(cout) << "\tPriv: " << c::MegaChatRoom::privToString(room->getPeerPrivilege(i)) << endl;
+        }
+    }
+    else
+    {
+         conlock(cout) << "Room not found" << endl;
+    }
+}
+
 void exec_getchathandlebyuser(ac::ACState& s)
 {
     c::MegaChatHandle h = s_ch(s.words[1].s);
@@ -1309,6 +1354,16 @@ void exec_closechatroom(ac::ACState& s)
     g_roomListeners.erase(room);
 }
 
+void exec_openchatpreview(ac::ACState& s)
+{
+    g_chatApi->openChatPreview(s.words[1].s.c_str(), &g_chatListener);
+}
+
+void exec_closechatpreview(ac::ACState& s)
+{
+    c::MegaChatHandle room = s_ch(s.words[1].s);
+    g_chatApi->closeChatPreview(room);
+}
 
 void exec_loadmessages(ac::ACState& s)
 {
@@ -1841,6 +1896,7 @@ ac::ACN autocompleteSyntax()
     using namespace ac;
     unique_ptr<Either> p(new Either("      "));
 
+    p->Add(exec_initanonymous, sequence(text("initanonymous")));
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
@@ -1861,8 +1917,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getmylastname,      sequence(text("getmylastname")));
     p->Add(exec_getmyfullname,      sequence(text("getmyfullname")));
     p->Add(exec_getmyemail,         sequence(text("getmyemail")));
-    p->Add(exec_getchatrooms,       sequence(text("getchatrooms")));
 
+    p->Add(exec_getchatrooms,       sequence(text("getchatrooms")));
     p->Add(exec_getchatroom,        sequence(text("getchatroom"), param("roomid")));
     p->Add(exec_getchatroombyuser,  sequence(text("getchatroombyuser"), param("userid")));
     p->Add(exec_getchatlistitems,   sequence(text("getchatlistitems")));
@@ -1871,6 +1927,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getinactivechatlistitems, sequence(text("getinactivechatlistitems"), param("roomid")));
     p->Add(exec_getunreadchatlistitems, sequence(text("getunreadchatlistitems"), param("roomid")));
     p->Add(exec_getchathandlebyuser, sequence(text("getchathandlebyuser"), param("userid")));
+    p->Add(exec_chatinfo,           sequence(text("chatinfo"), param("roomid")));
+
     p->Add(exec_createchat,         sequence(text("createchat"), opt(flag("-group")), repeat(param("userid"))));
     p->Add(exec_invitetochat,       sequence(text("invitetochat"), param("roomid"), param("userid")));
     p->Add(exec_removefromchat,     sequence(text("removefromchat"), param("roomid"), param("userid")));
@@ -1879,6 +1937,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_truncatechat,       sequence(text("truncatechat"), param("roomid"), param("msgid")));
     p->Add(exec_clearchathistory,   sequence(text("clearchathistory"), param("roomid")));
     p->Add(exec_setchattitle,       sequence(text("setchattitle"), param("roomid"), param("title")));
+
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
     p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10)));
@@ -1896,6 +1955,9 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_sendtypingnotification, sequence(text("sendtypingnotification"), param("roomid")));
     p->Add(exec_ismessagereceptionconfirmationactive, sequence(text("ismessagereceptionconfirmationactive")));
     p->Add(exec_savecurrentstate, sequence(text("savecurrentstate")));
+
+    p->Add(exec_openchatpreview,    sequence(text("openchatpreview"), param("chatlink")));
+    p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
      
 #ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_getchataudioindevices, sequence(text("getchataudioindevices")));
