@@ -1884,7 +1884,7 @@ void exec_getspecificaccountdetails(ac::ACState& s)
         storage = transfer = pro = true;
     }
 
-    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+    g_megaApi->getSpecificAccountDetails(storage, transfer, pro, -1, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
             {
                 check_err("getSpecificAccountDetails", e);
             }));
