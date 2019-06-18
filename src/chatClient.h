@@ -527,10 +527,6 @@ public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
 
-    /** @brief Returns the contact object from the specified XMPP jid if one exists,
-     * otherwise returns NULL
-     */
-    Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
     Contact* contactFromEmail(const std::string& email) const;
 
@@ -542,7 +538,6 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
     /** @endcond */
@@ -1040,8 +1035,6 @@ public:
      * disabled in foreground).
      */
     promise::Promise<void> notifyUserStatus(bool background);
-
-    void startKeepalivePings();
 
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state
