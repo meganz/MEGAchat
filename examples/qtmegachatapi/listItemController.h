@@ -1,5 +1,6 @@
 #ifndef LISTITEMCONTROLLER_H
 #define LISTITEMCONTROLLER_H
+#include <QObject>
 #include "megachatapi.h"
 #include "chatWindow.h"
 
@@ -10,6 +11,7 @@ class ContactItemWidget;
 class ListItemController
 {
     public:
+        ListItemController(::megachat::MegaChatHandle itemid) : mItemId(itemid) {}
         virtual ~ListItemController() {}
         virtual megachat::MegaChatHandle getItemId() const = 0;
 
@@ -17,29 +19,55 @@ class ListItemController
         megachat::MegaChatHandle mItemId = megachat::MEGACHAT_INVALID_HANDLE;
 };
 
-class ChatListItemController :
-    public ListItemController
+class ChatListItemController : public QObject,
+        public ListItemController
 {
-    public:
-        ChatListItemController(megachat::MegaChatListItem *item, ChatItemWidget *widget = nullptr, ChatWindow *chatWindow = nullptr);
-        virtual ~ChatListItemController();
-        ChatItemWidget *getWidget() const;
-        megachat::MegaChatListItem *getItem() const;
-        megachat::MegaChatHandle getItemId() const;
-        ChatWindow *getChatWindow() const;
-        void addOrUpdateWidget(ChatItemWidget *widget);
-        void addOrUpdateItem(megachat::MegaChatListItem *item);
-        ChatWindow* showChatWindow();
-        void addOrUpdateChatWindow(ChatWindow *window);
-        void invalidChatWindow();
-    protected:
-        megachat::MegaChatListItem *mItem = nullptr;
-        ChatItemWidget *mWidget = nullptr;
-        ChatWindow *mChatWindow = nullptr;
+    Q_OBJECT
+
+private:
+    megachat::MegaChatListItem *mItem = nullptr;
+    ChatItemWidget *mWidget = nullptr;
+    ChatWindow *mChatWindow = nullptr;
+    MainWindow *mMainWindow = nullptr;
+    ::megachat::MegaChatApi *mMegaChatApi;
+    ::mega::MegaApi *mMegaApi;
+
+public:
+    ChatListItemController(MainWindow *mainWindow, megachat::MegaChatListItem *item, ChatItemWidget *widget = nullptr, ChatWindow *chatWindow = nullptr);
+    virtual ~ChatListItemController();
+    ChatItemWidget *getWidget() const;
+    megachat::MegaChatListItem *getItem() const;
+    megachat::MegaChatHandle getItemId() const;
+    ChatWindow *getChatWindow() const;
+    void addOrUpdateWidget(ChatItemWidget *widget);
+    void addOrUpdateItem(megachat::MegaChatListItem *item);
+    ChatWindow* showChatWindow();
+    void addOrUpdateChatWindow(ChatWindow *window);
+    void invalidChatWindow();
+
+public slots:
+    void leaveGroupChat();
+    void setTitle();
+    void truncateChat();
+    void queryChatLink();
+    void createChatLink();
+    void setPublicChatToPrivate();
+    void closeChatPreview();
+    void removeChatLink();
+    void archiveChat(bool checked);
+    void autojoinChatLink();
+    void onCheckPushNotificationRestrictionClicked();
+    void onPushReceivedIos();
+    void onPushReceivedAndroid();
+    void onMuteNotifications(bool enabled);
+    void onSetAlwaysNotify(bool enabled);
+    void onSetDND();
+
+private:
+    void onPushReceived(unsigned int type);
 };
 
-class ContactListItemController:
-        public ListItemController
+class ContactListItemController: public ListItemController
 {
     public:
         ContactListItemController(mega::MegaUser *item, ContactItemWidget *widget = nullptr);

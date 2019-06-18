@@ -1,6 +1,7 @@
 #ifndef MEGACHATAPPLICATION_H
 #define MEGACHATAPPLICATION_H
 #include <fstream>
+#include <memory>
 #include <QApplication>
 #include "LoginDialog.h"
 #include "MainWindow.h"
@@ -46,7 +47,13 @@ class MegaChatApplication : public QApplication,
         bool isStagingEnabled();
         void enableStaging(bool enable);
 
-    protected:
+        std::shared_ptr<::mega::MegaPushNotificationSettings> getNotificationSettings() const;
+        std::shared_ptr<::mega::MegaTimeZoneDetails> getTimeZoneDetails() const;
+        MainWindow *mainWindow() const;
+        ::mega::MegaApi *megaApi() const;
+        megachat::MegaChatApi *megaChatApi() const;
+
+protected:
         const char *mSid;
         std::string mAppDir;
         MainWindow *mMainWin;
@@ -62,6 +69,8 @@ class MegaChatApplication : public QApplication,
         std::map<megachat::MegaChatHandle, std::string> mFirstnamesMap;
         std::map<megachat::MegaChatHandle, bool> mFirstnameFetching;
         bool useStaging = false;
+        std::shared_ptr<::mega::MegaPushNotificationSettings> mNotificationSettings;
+        std::shared_ptr<::mega::MegaTimeZoneDetails> mTimeZoneDetails;
 
     public slots:
         void onAnonymousLogout();

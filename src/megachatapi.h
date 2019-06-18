@@ -195,7 +195,8 @@ public:
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
-        CALL_STATUS_USER_NO_PRESENT                     /// User is no present in the call (Group Calls)
+        CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call (Group Calls)
+        CALL_STATUS_RECONNECTING                       /// User is reconnecting to the call
     };
 
     enum
@@ -209,7 +210,8 @@ public:
         CHANGE_TYPE_SESSION_STATUS = 0x20,          /// Session status has changed
         CHANGE_TYPE_CALL_COMPOSITION = 0x40,        /// Call composition has changed (User added or removed from call)
         CHANGE_TYPE_SESSION_NETWORK_QUALITY = 0x80, /// Session network quality has changed
-        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100     /// Session audio level has changed
+        CHANGE_TYPE_SESSION_AUDIO_LEVEL = 0x100,    /// Session audio level has changed
+        CHANGE_TYPE_SESSION_OPERATIVE = 0x200      /// Session is fully operative
     };
 
     enum
@@ -1830,8 +1832,8 @@ public:
  * the status is other than online or the user has enabled the persistence of the status.
  * When the autoaway mechanish is enabled, it requires the app calls \c MegaChatApi::signalPresenceActivity
  * in order to prevent becoming MegaChatApi::STATUS_AWAY automatically after the timeout.
- * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired
- * or also by checking \c MegaChatPresenceConfig::isSignalActivityRequired.
+ * You can check if the autoaway mechanism is active by calling \c MegaChatApi::isSignalActivityRequired.
+ * While the is in background status, without user's activity, there is no need tosignal it.
  *
  * - Persist: if enabled, the online status will be preserved, even if user goes offline or closes the app
  *

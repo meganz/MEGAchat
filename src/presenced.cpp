@@ -39,7 +39,7 @@ Client::Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8
     mApi->sdk.addGlobalListener(this);
 }
 
-Promise<void> Client::connect(const Config& config)
+Promise<void> Client::connect()
 {
     if (mConnState != kConnNew)    // connect() was already called, reconnection is automatic
     {
@@ -49,7 +49,6 @@ Promise<void> Client::connect(const Config& config)
 
     assert(!mUrl.isValid());
 
-    mConfig = config;
     setConnState(kFetchingUrl);
 
     auto wptr = getDelTracker();
@@ -182,8 +181,8 @@ bool Client::setLastGreenVisible(bool enable)
 
 bool Client::requestLastGreen(Id userid)
 {
-    // Avoid send OP_LASTGREEN if user is ex-contact
-    if (isExContact(userid))
+    // Avoid send OP_LASTGREEN if user is ex-contact or has never been a contact
+    if (isExContact(userid) || !isContact(userid))
     {
         return false;
     }
@@ -233,7 +232,11 @@ bool Client::setAutoaway(bool enable, time_t timeout)
 
 bool Client::autoAwayInEffect()
 {
-    return mConfig.mPresence.isValid() && mConfig.mAutoawayActive && mConfig.mPresence == Presence::kOnline;
+    return mConfig.mPresence.isValid()
+            && mConfig.mAutoawayActive
+            && mConfig.mAutoawayTimeout
+            && mConfig.mPresence == Presence::kOnline
+            && !mConfig.mPersist;
 }
 
 void Client::signalActivity()
@@ -252,11 +255,68 @@ void Client::signalActivity()
         {
             PRESENCED_LOG_WARNING("signalActivity(): configured status is not online, autoaway shouldn't be used");
         }
+        else if (mConfig.mPersist)
+        {
+            PRESENCED_LOG_WARNING("signalActivity(): configured status is persistent, no need to signal user's activity");
+        }
+        return;
+    }
+    else if (mKarereClient->isInBackground())
+    {
+        PRESENCED_LOG_WARNING("signalActivity(): app is in background, no need to signal user's activity");
         return;
     }
 
     mTsLastUserActivity = time(NULL);
     sendUserActive(true);
+}
+
+void Client::signalInactivity()
+{
+    if (!autoAwayInEffect())
+    {
+        if (!mConfig.mPresence.isValid())
+        {
+            PRESENCED_LOG_DEBUG("signalInactivity(): the current configuration is not yet received");
+        }
+        else if (!mConfig.mAutoawayActive)
+        {
+            PRESENCED_LOG_WARNING("signalInactivity(): autoaway is disabled, no need to signal user's inactivity");
+        }
+        else if (mConfig.mPresence != Presence::kOnline)
+        {
+            PRESENCED_LOG_WARNING("signalInactivity(): configured status is not online, no need to signal user's inactivity");
+        }
+        else if (mConfig.mPersist)
+        {
+            PRESENCED_LOG_WARNING("signalInactivity(): configured status is persistent, no need to signal user's inactivity");
+        }
+        return;
+    }
+    else if (!mKarereClient->isInBackground())
+    {
+        PRESENCED_LOG_WARNING("signalInactivity(): app is not in background, no need to signal user's inactivity");
+        return;
+    }
+
+    sendUserActive(false);
+}
+
+void Client::notifyUserStatus()
+{
+    if (mKarereClient->isInBackground())
+    {
+        signalInactivity();
+    }
+    else
+    {
+        signalActivity();
+    }
+}
+
+bool Client::isSignalActivityRequired()
+{
+    return !mKarereClient->isInBackground() && autoAwayInEffect();
 }
 
 void Client::abortRetryController()
@@ -456,6 +516,11 @@ bool Client::isExContact(uint64_t userid)
     }
 
     return true;
+}
+
+bool Client::isContact(uint64_t userid)
+{
+    return (mContacts.find(userid) != mContacts.end());
 }
 
 void Client::onChatsUpdate(::mega::MegaApi *api, ::mega::MegaTextChatList *roomsUpdated)
@@ -668,8 +733,12 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
             {
                 ::mega::MegaUser *user = contacts->get(i);
                 uint64_t userid = user->getHandle();
-                int visibility = user->getVisibility();
+                if (userid == mKarereClient->myHandle())
+                {
+                    continue;
+                }
 
+                int visibility = user->getVisibility();
                 mContacts[userid] = visibility; // add ex-contacts to identify them
                 if (visibility == ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
@@ -691,7 +760,7 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
                 for (int j = 0; j < peerlist->size(); j++)
                 {
                     uint64_t userid = peerlist->getPeerHandle(j);
-                    if (!isExContact(userid))
+                    if (isContact(userid) && !isExContact(userid))
                     {
                         mCurrentPeers.insert(userid);
                         mChatMembers[chatid].insert(userid);
@@ -1193,7 +1262,14 @@ void Client::handleMessage(const StaticBuffer& buf)
                         if (autoAwayInEffect())
                         {
                             // signal whether the user is active or inactive
-                            bool isActive = ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout);
+                            bool isActive = !mKarereClient->isInBackground()    // active is not possible in background
+                                    && (!mTsLastUserActivity                    // first connection, signal active if not in background
+                                        || ((time(NULL) - mTsLastUserActivity) < mConfig.mAutoawayTimeout));    // check autoaway's timeout
+
+                            if (isActive)
+                            {
+                                mTsLastUserActivity = time(NULL);
+                            }
                             sendUserActive(isActive, true);
                         }
                     }
@@ -1293,9 +1369,9 @@ void Client::setConnState(ConnState newState)
         // if disconnected, we don't really know the presence status anymore
         for (auto it = mCurrentPeers.begin(); it != mCurrentPeers.end(); it++)
         {
-            updatePeerPresence(it->first, Presence::kInvalid);
+            updatePeerPresence(it->first, Presence::kUnknown);
         }
-        updatePeerPresence(mKarereClient->myHandle(), Presence::kInvalid);
+        updatePeerPresence(mKarereClient->myHandle(), Presence::kUnknown);
     }
     else if (mConnState == kConnected)
     {
@@ -1323,6 +1399,13 @@ void Client::addPeer(karere::Id peer)
 
     if (isExContact(peer))
     {
+        // Notify presence of non-contact that becomes contact again
+        Presence presence = peerPresence(peer);
+        if (presence.isValid())
+        {
+            CALL_LISTENER(onPresenceChange, peer, presence);
+        }
+
         PRESENCED_LOG_WARNING("Not sending ADDPEERS for user %s because it's ex-contact", peer.toString().c_str());
         return;
     }
@@ -1390,12 +1473,23 @@ void Client::removePeer(karere::Id peer, bool force)
     cmd.append<uint64_t>(peer.val);
 
     sendCommand(std::move(cmd));
+    updatePeerPresence(peer, Presence::kUnknown);
 }
 
 void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 {
     mPeersPresence[peer] = pres;
-    CALL_LISTENER(onPresenceChange, peer, pres);
+
+    // Do not notify if the peer is ex-contact or has never been contact
+    // (except updating to unknown when a contact becomes ex-contact)
+    bool exContact = isExContact(peer);
+    bool contact = isContact(peer);
+    if (peer == mKarereClient->myHandle()
+            || (contact && !exContact)
+            || (exContact && pres.status() == Presence::kUnknown))
+    {
+        CALL_LISTENER(onPresenceChange, peer, pres);
+    }
 }
 
 karere::Presence Client::peerPresence(karere::Id peer) const
@@ -1403,7 +1497,7 @@ karere::Presence Client::peerPresence(karere::Id peer) const
     auto it = mPeersPresence.find(peer);
     if (it == mPeersPresence.end())
     {
-        return karere::Presence::kInvalid;
+        return karere::Presence::kUnknown;
     }
     return it->second;
 }

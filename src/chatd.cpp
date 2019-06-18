@@ -270,7 +270,12 @@ promise::Promise<void> Client::sendKeepalive()
         mKeepalivePromise.resolve();
     }
 
-    return mKeepalivePromise;
+    return mKeepalivePromise
+    .fail([this, wptr](const ::promise::Error&)
+    {
+        if (wptr.deleted())
+            return;
+    });
 }
 
 void Client::sendEcho()
@@ -282,11 +287,6 @@ void Client::sendEcho()
             conn.second->sendEcho();
         }
     }
-}
-
-void Client::setKeepaliveType(bool isInBackground)
-{
-    mKeepaliveType = isInBackground ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
 void Client::onKeepaliveSent()
@@ -307,7 +307,7 @@ void Client::onKeepaliveSent()
 
 uint8_t Client::keepaliveType()
 {
-    return mKeepaliveType;
+    return mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
 std::shared_ptr<Chat> Client::chatFromId(Id chatid) const
@@ -326,28 +326,17 @@ Chat &Client::chats(Id chatid) const
     return *it->second;
 }
 
-promise::Promise<void> Client::notifyUserStatus(bool background)
+promise::Promise<void> Client::notifyUserStatus()
 {
-    if (background)
+    if (mKarereClient->isInBackground())
     {
-        if (mKeepaliveType == OP_KEEPALIVEAWAY)
-        {
-            return promise::_Void();
-        }
-
         cancelSeenTimers(); // avoid to update SEEN pointer when entering background
     }
     else    // foreground
     {
-        if (mKeepaliveType == OP_KEEPALIVE)
-        {
-            return promise::_Void();
-        }
-
         sendEcho(); // ping to detect dead sockets when returning to foreground
     }
 
-    mKeepaliveType = background ? OP_KEEPALIVEAWAY: OP_KEEPALIVE;
     return sendKeepalive();
 }
 
@@ -693,7 +682,7 @@ void Connection::setState(State state)
 #ifndef KARERE_DISABLE_WEBRTC
             if (mChatdClient.mKarereClient->rtc  && !chat.previewMode())
             {
-                mChatdClient.mKarereClient->rtc->removeCall(chatid);
+                mChatdClient.mKarereClient->rtc->removeCall(chatid, true);
             }
 #endif
         }
@@ -2160,6 +2149,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 mClientId = clientid;
                 CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                if (mChatdClient.mRtcHandler)
+                {
+                    mChatdClient.mRtcHandler->retryCalls(mShardNo);
+                }
                 break;
             }
             case OP_ECHO:
@@ -2524,7 +2517,7 @@ bool Chat::haveAllHistoryNotified() const
     if (!mHaveAllHistory || mHasMoreHistoryInDb)
         return false;
 
-    return (mNextHistFetchIdx < lownum());
+    return (mNextHistFetchIdx < lownum() || empty());
 }
 
 Message *Chat::getMessageFromNodeHistory(Id msgid) const

@@ -135,7 +135,6 @@ public:
     virtual int64_t getAutoawayTimeout() const;
     virtual bool isPersist() const;
     virtual bool isPending() const;
-    virtual bool isSignalActivityRequired() const;
     virtual bool isLastGreenVisible() const;
 
 private:
@@ -435,7 +434,7 @@ public:
 class MegaChatRoomHandler :public karere::IApp::IChatHandler
 {
 public:
-    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid);
+    MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, mega::MegaApi *megaApi, MegaChatHandle chatid);
 
     void addChatRoomListener(MegaChatRoomListener *listener);
     void removeChatRoomListener(MegaChatRoomListener *listener);
@@ -502,6 +501,7 @@ protected:
 private:
     MegaChatApiImpl *chatApiImpl;
     MegaChatApi *chatApi;       // for notifications in callbacks
+    mega::MegaApi *megaApi;
     MegaChatHandle chatid;
 
     chatd::Chat *mChat;
@@ -582,8 +582,9 @@ public:
     virtual void setInitialTimeStamp(int64_t timeStamp);
     virtual int64_t getInitialTimeStamp();
     virtual bool hasBeenNotifiedRinging() const;
+    virtual void onReconnectingState(bool start);
+    virtual rtcModule::ICall *getCall();
 
-    rtcModule::ICall *getCall();
     MegaChatCallPrivate *getMegaChatCall();
     void setCallNotPresent(karere::Id chatid, karere::Id callid, uint32_t duration);
 private:

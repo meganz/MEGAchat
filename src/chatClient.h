@@ -527,10 +527,6 @@ public:
     /** @brief The Client object that this contactlist belongs to */
     Client& client;
 
-    /** @brief Returns the contact object from the specified XMPP jid if one exists,
-     * otherwise returns NULL
-     */
-    Contact* contactFromJid(const std::string& jid) const;
     Contact* contactFromUserId(uint64_t userid) const;
     Contact* contactFromEmail(const std::string& email) const;
 
@@ -542,7 +538,6 @@ public:
     void onUserAddRemove(mega::MegaUser& user); //called for actionpackets
     promise::Promise<void> removeContactFromServer(uint64_t userid);
     void syncWithApi(mega::MegaUserList& users);
-    void onContactOnlineState(const std::string& jid);
     const std::string* getUserEmail(uint64_t userid) const;
     bool isExContact(karere::Id userid);
     /** @endcond */
@@ -896,6 +891,8 @@ protected:
     megaHandle mHeartbeatTimer = 0;
     InitStats mInitStats;
 
+    bool mIsInBackground = false;
+
 public:
 
     /**
@@ -1011,15 +1008,12 @@ public:
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initNewSession() or \c initExistingSession() completes
-     * @param pres The presence which should be set. This is a forced presence,
-     * i.e. it will be preserved even if the client disconnects. To disable
-     * setting such a forced presence and assume whatever presence was last used,
-     * and/or use only dynamic presence, set this param to \c Presence::kClear
      * @param isInBackground In case the app requests to connect from a service in
-     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY. Hence, it will
-     * avoid to tell chatd that the client is active.
+     * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
+     * avoid to tell chatd that the client is active. Also, the presenced client will
+     * prevent to send USERACTIVE 1 in background, since the user is not active.
      */
-    promise::Promise<void> connect(Presence pres=Presence::kClear, bool isInBackground = false);
+    promise::Promise<void> connect(bool isInBackground = false);
 
     /**
      * @brief Retry pending connections to chatd and presenced
@@ -1041,8 +1035,6 @@ public:
      * disabled in foreground).
      */
     promise::Promise<void> notifyUserStatus(bool background);
-
-    void startKeepalivePings();
 
     /** Terminates the karere client, logging it out, hanging up calls,
      * and cleaning up state
@@ -1094,6 +1086,8 @@ public:
     void resetMyIdentity();
     uint64_t initMyIdentity();
 
+    bool isInBackground() const;
+
 protected:
     void heartbeat();
     void setInitState(InitState newState);
@@ -1120,7 +1114,7 @@ protected:
             std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
 
     // connection-related methods
-    void connectToChatd(bool isInBackground);
+    void connectToChatd();
     promise::Promise<void> connectToPresenced(Presence pres);
     promise::Promise<int> initializeContactList();
 
@@ -1131,7 +1125,7 @@ protected:
      * connect() waits for the mCanConnect promise to be resolved and then calls
      * this method
      */
-    promise::Promise<void> doConnect(Presence pres, bool isInBackground);
+    promise::Promise<void> doConnect();
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread
