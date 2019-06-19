@@ -39,6 +39,7 @@
 #include <megachatapi.h>
 #include <karereId.h>
 #include <mega/autocomplete.h>
+#include <mega/utils.h>
 
 using namespace std;
 namespace m = ::mega;
@@ -540,8 +541,128 @@ bool oneOpenRoom(c::MegaChatHandle room);
 
 bool g_detailHigh = false;
 
+bool g_reportMessagesDeveloper = false;
+
+void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
+{
+    auto cl = conlock(cout);
+    if (!msg)
+    {
+        cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
+        return;
+    }
+
+    const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
+    const std::string room_title = room ? room->getTitle() : "<No Title>";
+
+    auto fullname = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* fullname_ptr = nullptr;
+        if (room)
+        {
+            fullname_ptr = room->getPeerFullnameByHandle(handle);
+        }
+        return fullname_ptr ? std::string{fullname_ptr} : std::string{"<No Fullname>"};
+    };
+
+    auto email = [chatid,room](const c::MegaChatHandle handle)
+    {
+        const char* email_ptr = nullptr;
+        if (room)
+        {
+            email_ptr = room->getPeerEmailByHandle(handle);
+        }
+        return email_ptr ? std::string{email_ptr} : std::string{"<No Email>"};
+    };
+
+    auto time_to_string_utc = [](const int64_t time)
+    {
+        struct tm dt;
+        m::m_gmtime(time, &dt);
+        char buffer[40];
+        std::strftime(buffer, 40, "%FT%T", &dt);
+        return std::string{buffer};
+    };
+
+    if (msg->getType() == c::MegaChatMessage::TYPE_NORMAL)
+    {
+        cout << room_title
+             << " | " << "TEXT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getUserHandle())
+             << " | " << fullname(msg->getUserHandle())
+             << " | " << email(msg->getUserHandle())
+             << " | " << (msg->isEdited() ? "edited" : "not edited")
+             << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
+             << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
+                ;
+        cout << endl;
+    }
+    else if (msg->getType() == c::MegaChatMessage::TYPE_ALTER_PARTICIPANTS)
+    {
+        auto joined_or_left = [msg](const c::MegaChatHandle handle)
+        {
+            for (int i = 0; i < msg->getUsersCount(); ++i)
+            {
+                if (handle == msg->getUserHandle(i))
+                {
+                    return std::string{"left"};
+                }
+            }
+            return std::string{"joined"};
+        };
+
+        cout << room_title
+             << " | " << "PARTICIPANTS"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getHandleOfAction())
+             << " | " << fullname(msg->getHandleOfAction())
+             << " | " << email(msg->getHandleOfAction())
+             << " | " << joined_or_left(msg->getHandleOfAction())
+           ;
+        cout << endl;
+    }
+    else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
+    {
+        auto nodeinfo = [](mega::MegaNodeList* list)
+        {
+            if (!list || list->size() == 0)
+            {
+                return std::string{"<No Attachement>"};
+            }
+            std::stringstream ss;
+            for (int i = 0; i < list->size(); ++i)
+            {
+                const auto node = list->get(i);
+                ss << node->getName() << "(" << node->getSize() << ")";
+                if (i + 1 < list->size())
+                {
+                    ss << ", ";
+                }
+            }
+            return ss.str();
+        };
+
+        cout << room_title
+             << " | " << "ATTACHEMENT"
+             << " | " << time_to_string_utc(msg->getTimestamp()) << " UTC"
+             << " | " << ch_s(msg->getUserHandle())
+             << " | " << fullname(msg->getUserHandle())
+             << " | " << email(msg->getUserHandle())
+             << " | " << nodeinfo(msg->getMegaNodeList())
+           ;
+        cout << endl;
+    }
+}
+
 void reportMessage(c::MegaChatHandle room, c::MegaChatMessage *msg, const char* loadorreceive)
 {
+    if (!g_reportMessagesDeveloper)
+    {
+        reportMessageHuman(room, msg, loadorreceive);
+        return;
+    }
+
     auto cl = conlock(cout);
 
     if (!msg)
@@ -1367,6 +1488,8 @@ void exec_closechatpreview(ac::ACState& s)
 
 void exec_loadmessages(ac::ACState& s)
 {
+    g_reportMessagesDeveloper = s.words.size() > 3 && s.words[3].s == "developer";
+
     auto source = g_chatApi->loadMessages(s_ch(s.words[1].s), stoi(s.words[2].s));
 
     auto cl = conlock(cout);
@@ -1940,7 +2063,7 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
-    p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10)));
+    p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10), opt(either(text("human"), text("developer")))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage,         sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage, sequence(text("getmanualsendingmessage"), param("roomid"), param("tempmsgid")));
