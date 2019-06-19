@@ -40,6 +40,29 @@ private:
 
 class Session: public ISession
 {
+public:
+    class SentSessionInfo
+    {
+    public:
+        SentSessionInfo()
+        {
+        }
+
+        SentSessionInfo(karere::Id sessionId, SdpKey ownHashKey, bool peerSupportsRenego)
+            : mSessionId(sessionId), mOwnHashKey(ownHashKey), mPeerSupportRenegotiation(peerSupportsRenego)
+        {
+        }
+
+        SentSessionInfo(const SentSessionInfo &sessInfo)
+            : mSessionId(sessInfo.mSessionId), mOwnHashKey(sessInfo.mOwnHashKey), mPeerSupportRenegotiation(sessInfo.mPeerSupportRenegotiation)
+        {
+        }
+
+        karere::Id mSessionId;
+        SdpKey mOwnHashKey;
+        bool mPeerSupportRenegotiation;
+    };
+
 protected:
     static const StateDesc sStateDesc;
     artc::tspMediaStream mRemoteStream;
@@ -138,12 +161,16 @@ class Call: public ICall
         kFlagRinging = 0x04
     };
 
+    enum
+    {
+        kSupportsStreamReneg = 0x04
+    };
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
     std::map<chatd::EndpointId, megaHandle> mSessRetries;
     std::map<chatd::EndpointId, int> mIceFails;
-    std::map<chatd::EndpointId, std::pair<karere::Id, SdpKey> > mSentSessions;
+    std::map<chatd::EndpointId, Session::SentSessionInfo> mSentSessions;
     std::string mName;
     megaHandle mCallOutTimer = 0;
     bool mCallStartingSignalled = false;

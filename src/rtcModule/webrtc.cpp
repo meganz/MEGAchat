@@ -1350,9 +1350,8 @@ void Call::msgSdpOffer(RtMessage& packet)
         return;
     }
 
-    SdpKey sdpKey = sentSessionsIt->second.second;
-    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, sdpKey);
-    mSessions[sentSessionsIt->second.first] = sess;
+    std::shared_ptr<Session> sess = std::make_shared<Session>(*this, packet, sentSessionsIt->second);
+    mSessions[sentSessionsIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConn();
     sess->veryfySdpOfferSendAnswer();
@@ -1475,11 +1474,12 @@ void Call::msgSession(RtMessage& packet)
         }
     }
 
-    SdpKey sdpKey;
-    auto sess = std::make_shared<Session>(*this, packet, sdpKey);
+    Session::SentSessionInfo sessionParameters;
+    auto sess = std::make_shared<Session>(*this, packet, sessionParameters);
     mSessions[sess->sessionId()] = sess;
     notifyCallStarting(*sess);
-    sess->sendOffer();
+    sess->mPeerSupportRenegotiation = packet.payload.buf()[kRenegotationPositionSession] & kSupportsStreamReneg;
+    sess->createRtcConnSendOffer();
 
     cancelSessionRetryTimer(sess->mPeer, sess->mPeerClient);
 }
@@ -1550,15 +1550,19 @@ void Call::msgJoin(RtMessage& packet)
         SdpKey ownHashKey;
         mManager.random(ownHashKey);
         mManager.crypto().encryptKeyTo(packet.userid, ownHashKey, encKey);
+        uint8_t flags = kSupportsStreamReneg;
         // SESSION callid.8 sid.8 anonId.8 encHashKey.32
         mManager.cmdEndpoint(RTCMD_SESSION, packet,
             packet.callid,
             newSid,
             mManager.mOwnAnonId,
             encKey,
-            mId);
+            mId,
+            flags);
 
-        mSentSessions[endPointId] = std::make_pair(newSid, ownHashKey);
+        bool supportRenegotiation = ((packet.payload.buf()[kRenegotationPositionJoin] & kSupportsStreamReneg) != 0);
+
+        mSentSessions[endPointId] = Session::SentSessionInfo(newSid, ownHashKey, supportRenegotiation);
         cancelSessionRetryTimer(endPointId.userid, endPointId.clientid);
     }
     else
@@ -1938,9 +1942,10 @@ bool Call::join(Id userid)
     // if userid is not specified, join all clients in the chat, otherwise
     // join a specific user (used when a session gets broken)
     setState(Call::kStateJoining);
+    uint8_t flags = sentAv() | kSupportsStreamReneg;
     bool sent = userid
-            ? cmd(RTCMD_JOIN, userid, 0, mId, mManager.mOwnAnonId)
-            : cmdBroadcast(RTCMD_JOIN, mId, mManager.mOwnAnonId);
+            ? cmd(RTCMD_JOIN, userid, 0, mId, mManager.mOwnAnonId, flags)
+            : cmdBroadcast(RTCMD_JOIN, mId, mManager.mOwnAnonId, flags);
 
     if (!sent)
     {
@@ -2590,7 +2595,7 @@ It is send when the client mutes/unmutes camera or mic. Currently this CALLDATA 
 message, but in the future we may want to only rely on the CALLDATA packet.
 
 */
-Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
+Session::Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameters)
 :ISession(call, packet.userid, packet.clientid), mManager(call.mManager)
 {
     // Packet can be RTCMD_SESSION or RTCMD_SDP_OFFER
@@ -2603,7 +2608,7 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
         mSid = packet.payload.read<uint64_t>(0);
         setState(kStateWaitLocalSdpAnswer);
         mPeerAnonId = packet.payload.read<uint64_t>(8);
-        mOwnHashKey = sdpkey;
+        mOwnHashKey = sessionParameters.mOwnHashKey;
         // The peer is likely to send ICE candidates immediately after the offer,
         // but we can't process them until setRemoteDescription is ready, so
         // we have to store them in a queue
@@ -2615,6 +2620,7 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
         uint16_t sdpLen = packet.payload.read<uint16_t>(81);
         assert((int) packet.payload.dataSize() >= 83 + sdpLen);
         packet.payload.read(83, sdpLen, mPeerSdpOffer);
+        mPeerSupportRenegotiation = sessionParameters.mPeerSupportRenegotiation;
     }
     else if (packet.type == RTCMD_SESSION)
     {
@@ -2628,6 +2634,7 @@ Session::Session(Call& call, RtMessage& packet, SdpKey sdpkey)
         SdpKey encKey;
         packet.payload.read(24, encKey);
         call.mManager.crypto().decryptKeyFrom(mPeer, encKey, mPeerHashKey);
+        mPeerSupportRenegotiation = ((packet.payload.buf()[Call::kRenegotationPositionSession] & Call::kSupportsStreamReneg) != 0);
     }
     else
     {
