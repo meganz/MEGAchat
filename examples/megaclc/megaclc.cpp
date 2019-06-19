@@ -1213,6 +1213,76 @@ string chatlistDetails(const c::MegaChatListItem& cli)
     return s.str();
 };
 
+class OneShotRequestListener : public m::MegaRequestListener
+{
+public:
+    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
+    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
+    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
+    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
+
+    explicit OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
+
+class OneShotChatRequestListener : public c::MegaChatRequestListener
+{
+public:
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request)> onRequestStartFunc;
+    std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> onRequestFinishFunc;
+    std::function<void(c::MegaChatApi*api, c::MegaChatRequest *request)> onRequestUpdateFunc;
+    std::function<void(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error)> onRequestTemporaryErrorFunc;
+
+    explicit OneShotChatRequestListener(std::function<void(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)> f = {})
+        :onRequestFinishFunc(f)
+    {
+    }
+
+    void onRequestStart(c::MegaChatApi* api, c::MegaChatRequest *request) override
+    {
+        if (onRequestStartFunc) onRequestStartFunc(api, request);
+    }
+
+    void onRequestFinish(c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e) override
+    {
+        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
+        delete this;  // one-shot is done so auto-delete
+    }
+
+    void onRequestUpdate(c::MegaChatApi*api, c::MegaChatRequest *request) override
+    {
+        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
+    }
+
+    void onRequestTemporaryError(c::MegaChatApi *api, c::MegaChatRequest *request, c::MegaChatError* error) override
+    {
+        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
+    }
+};
+
 void exec_getchatlistitems(ac::ACState&)
 {
     unique_ptr<c::MegaChatListItemList> clil(g_chatApi->getChatListItems());
@@ -1500,6 +1570,75 @@ void exec_loadmessages(ac::ACState& s)
     case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
     case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
     }
+}
+
+void exec_reviewpublicchat(ac::ACState& s)
+{
+    const auto chat_link = s.words[1].s;
+    const int msg_count = s.words.size() > 2 ? stoi(s.words[2].s) : 100;
+
+    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
+    {
+        g_chatApi->initAnonymous();
+    }
+
+    auto connect_listener = new OneShotChatRequestListener;
+    auto open_chat_preview_listener = new OneShotChatRequestListener;
+
+    connect_listener->onRequestFinishFunc =
+            [chat_link, open_chat_preview_listener](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+            {
+                if (request->getType() != c::MegaChatRequest::TYPE_CONNECT || !check_err("Connect", e))
+                {
+                    return;
+                }
+                conlock(cout) << "Connection state " << api->getConnectionState() << endl;
+                g_chatApi->openChatPreview(chat_link.c_str(), open_chat_preview_listener);
+            };
+
+    open_chat_preview_listener->onRequestFinishFunc =
+            [msg_count](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+            {
+                if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("OpenChatPreview", e))
+                {
+                    return;
+                }
+                conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(request->getChatHandle()).toString() << endl;
+
+                const c::MegaChatHandle room = request->getChatHandle();
+                auto& rec = g_roomListeners[room];
+                if (!rec.open)
+                {
+                    if (!g_chatApi->openChatRoom(room, rec.listener.get()))
+                    {
+                        conlock(cout) << "Failed to open chat room." << endl;
+                        g_roomListeners.erase(room);
+                    }
+                    else
+                    {
+                        rec.listener->room = room;
+                        rec.open = true;
+                    }
+                }
+
+                if (rec.open)
+                {
+                    g_reportMessagesDeveloper = false;
+
+                    const auto source = g_chatApi->loadMessages(room, msg_count);
+
+                    auto cl = conlock(cout);
+                    switch (source)
+                    {
+                    case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
+                    case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
+                    case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
+                    case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
+                    }
+                }
+            };
+
+    g_chatApi->connect(connect_listener);
 }
 
 void exec_isfullhistoryloaded(ac::ACState& s)
@@ -1868,41 +2007,6 @@ void exec_getchatcallsids(ac::ACState&)
 
 #endif
 
-class OneShotRequestListener : public m::MegaRequestListener
-{
-public:
-    std::function<void(m::MegaApi* api, m::MegaRequest *request)> onRequestStartFunc;
-    std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> onRequestFinishFunc;
-    std::function<void(m::MegaApi*api, m::MegaRequest *request)> onRequestUpdateFunc;
-    std::function<void(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error)> onRequestTemporaryErrorFunc;
-
-    OneShotRequestListener(std::function<void(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)> f)
-        :onRequestFinishFunc(f)
-    {
-    }
-
-    void onRequestStart(m::MegaApi* api, m::MegaRequest *request) override
-    {
-        if (onRequestStartFunc) onRequestStartFunc(api, request);
-    }
-
-    void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
-    {
-        if (onRequestFinishFunc) onRequestFinishFunc(api, request, e);
-        delete this;  // one-shot is done so auto-delete
-    }
-
-    void onRequestUpdate(m::MegaApi*api, m::MegaRequest *request) override
-    {
-        if (onRequestUpdateFunc) onRequestUpdateFunc(api, request);
-    }
-
-    void onRequestTemporaryError(m::MegaApi *api, m::MegaRequest *request, m::MegaError* error) override
-    {
-        if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
-    }
-};
-
 
 void exec_apiurl(ac::ACState& s)
 {
@@ -2064,6 +2168,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_openchatroom,       sequence(text("openchatroom"), param("roomid")));
     p->Add(exec_closechatroom,      sequence(text("closechatroom"), param("roomid")));
     p->Add(exec_loadmessages,       sequence(text("loadmessages"), param("roomid"), wholenumber(10), opt(either(text("human"), text("developer")))));
+    p->Add(exec_reviewpublicchat,   sequence(text("cb"), param("chatlink"), opt(wholenumber(100))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage,         sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage, sequence(text("getmanualsendingmessage"), param("roomid"), param("tempmsgid")));
