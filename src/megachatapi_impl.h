@@ -1129,7 +1129,7 @@ public:
     mega::MegaStringList *getChatAudioInDevices();
     mega::MegaStringList *getChatVideoInDevices();
     bool setChatAudioInDevice(const char *device);
-    bool setChatVideoInDevice(const char *device);
+    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true, MegaChatRequestListener *listener = NULL);

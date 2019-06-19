@@ -42,7 +42,6 @@ ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent, ChatSettings *chatSe
     }
 
     delete videoInDevices;
-    setDevices();
 #endif
 }
 
@@ -82,11 +81,7 @@ void ChatSettingsDialog::setDevices()
     if (videoInIdx != deviceListInvalidIndex)
     {
         std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
-        bool result = mMainWin->mMegaChatApi->setChatVideoInDevice(device.c_str());
-        if (!result)
-        {
-            QMessageBox::critical(this, "Call settings", "The video device could not be set");
-        }
+        mMainWin->mMegaChatApi->setChatVideoInDevice(device.c_str());
     }
 }
 #endif

@@ -799,9 +799,9 @@ bool MegaChatApi::setChatAudioInDevice(const char *device)
     return pImpl->setChatAudioInDevice(device);
 }
 
-bool MegaChatApi::setChatVideoInDevice(const char *device)
+void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    return pImpl->setChatVideoInDevice(device);
+    return pImpl->setChatVideoInDevice(device, listener);
 }
 
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)

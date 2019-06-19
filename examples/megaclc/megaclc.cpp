@@ -1612,10 +1612,8 @@ void exec_setchataudioindevice(ac::ACState& s)
 
 void exec_setchatvideoindevice(ac::ACState& s)
 {
-    if (!g_chatApi->setChatVideoInDevice(s.words[1].s.c_str()))
-    {
-        cout << "setChatVideoInDevice failed" << endl;
-    }
+     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
+    g_chatApi->setChatVideoInDevice(s.words[1].s.c_str(), listener);
 }
 
 void exec_startchatcall(ac::ACState& s)

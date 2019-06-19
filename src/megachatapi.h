@@ -1523,7 +1523,7 @@ public:
         TYPE_LOAD_AUDIO_VIDEO_DEVICES, TYPE_ARCHIVE_CHATROOM,
         TYPE_PUSH_RECEIVED, TYPE_SET_LAST_GREEN_VISIBLE, TYPE_LAST_GREEN,
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
-        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT,
+        TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4206,13 +4206,14 @@ public:
      *
      * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
      *
-     * @note Video device must be configured before starting a call. It cannot be changed
-     * once the call has started.
+     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the device
      *
      * @param device Identifier of device to be selected
-     * @return True if device has been selected. False in other case
+     * @param listener MegaChatRequestListener to track this request
      */
-    bool setChatVideoInDevice(const char *device);
+    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
 
     // Call management
     /**

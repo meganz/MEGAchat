@@ -1672,6 +1672,21 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+
+        case MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM:
+        {
+            if (!mClient->rtc)
+            {
+                API_LOG_ERROR("Change video streaming source - WebRTC is not initialized");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            mClient->rtc->selectVideoInDevice(request->getText());
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
 #endif
         case MegaChatRequest::TYPE_ARCHIVE_CHATROOM:
         {
@@ -3727,21 +3742,26 @@ bool MegaChatApiImpl::setChatAudioInDevice(const char *device)
     return returnedValue;
 }
 
-bool MegaChatApiImpl::setChatVideoInDevice(const char *device)
+void MegaChatApiImpl::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    bool returnedValue = false;
-    sdkMutex.lock();
-    if (mClient && mClient->rtc)
-    {
-        returnedValue = mClient->rtc->selectVideoInDevice(device);
-    }
-    else
-    {
-        API_LOG_ERROR("Failed to set video-in devices");
-    }
-    sdkMutex.unlock();
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM, listener);
+    request->setText(device);
+    requestQueue.push(request);
+    waiter->notify();
 
-    return returnedValue;
+//    bool returnedValue = false;
+//    sdkMutex.lock();
+//    if (mClient && mClient->rtc)
+//    {
+//        returnedValue = mClient->rtc->selectVideoInDevice(device);
+//    }
+//    else
+//    {
+//        API_LOG_ERROR("Failed to set video-in devices");
+//    }
+//    sdkMutex.unlock();
+
+//    return returnedValue;
 }
 
 void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
@@ -4663,6 +4683,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_AUTOJOIN_PUBLIC_CHAT: return "TYPE_AUTOJOIN_PUBLIC_CHAT";
         case TYPE_SET_LAST_GREEN_VISIBLE: return "SET_LAST_GREEN_VISIBLE";
         case TYPE_LAST_GREEN: return "TYPE_LAST_GREEN";
+        case TYPE_CHANGE_VIDEO_STREAM: return "TYPE_CHANGE_VIDEO_STREAM";
     }
     return "UNKNOWN";
 }
