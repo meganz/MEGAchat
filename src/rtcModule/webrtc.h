@@ -102,7 +102,8 @@ enum TermCode: uint8_t
     kAppTerminating = 7,        // < The application is terminating
     kCallerGone = 8,
     kBusy = 9,                  // < Peer is in another call
-    kNotFinished = 10,          // < It is no finished value, it is TermCode value while call is in progress
+    kStreamChange = 10,         // < Session was force closed by a client because it wants to change the media stream
+    kNotFinished = 11,          // < It is no finished value, it is TermCode value while call is in progress
     kDestroyByCallCollision = 19,// < The call has finished by a call collision
     kNormalHangupLast = 20,     // < Last enum specifying a normal call termination
     kErrorFirst = 21,           // < First enum specifying call termination due to error
@@ -127,6 +128,8 @@ enum TermCode: uint8_t
     kErrCallSetupTimeout =  38, // < Timed out waiting for a connected session after the call was answered/joined
     kErrKickedFromChat = 39,    // < Call terminated because we were removed from the group chat
     kErrIceTimeout = 40,        // < Sesion setup timed out, because ICE stuck at the 'checking' stage
+    kErrStreamRenegotation = 41,// < SDP error during stream renegotiation
+    kErrStreamRenegotationTimeout = 42, // < Timed out waiting for completion of offer-answer exchange
     kErrorLast = 40,            // < Last enum indicating call termination due to error
     kLast = 40,                 // < Last call terminate enum value
     kPeer = 128,                // < If this flag is set, the condition specified by the code happened at the peer,
@@ -411,9 +414,7 @@ public:
     /**
      * @brief Search all audio and video devices at system at that moment.
      */
-    virtual void loadDeviceList() = 0;
-    virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
-    virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional=false) = 0;
+    virtual std::vector<std::string> loadDeviceList() const = 0;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
     virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
     virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;

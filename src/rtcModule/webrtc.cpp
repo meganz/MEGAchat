@@ -1,4 +1,4 @@
-﻿#ifdef WIN32
+#ifdef WIN32
 #include <WinSock2.h> // for htonll, needed in webrtc\rtc_base\byteorder.h
 #endif
 
@@ -9,6 +9,8 @@
 #include "rtcCrypto.h"
 #include "streamPlayer.h"
 #include "rtcStats.h"
+
+#include <modules/video_capture/video_capture_factory.h>
 
 #define SUB_LOG_DEBUG(fmtString,...) RTCM_LOG_DEBUG("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
 #define SUB_LOG_INFO(fmtString,...) RTCM_LOG_INFO("%s: " fmtString, mName.c_str(), ##__VA_ARGS__)
@@ -46,8 +48,6 @@ const char* termCodeFirstArgToString(TermCode code, Args...)
 template <class... Args>
 const char* termCodeFirstArgToString(Args...) { return nullptr; }
 const char* iceStateToStr(webrtc::PeerConnectionInterface::IceConnectionState);
-void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
-    bool optional);
 
 struct CallerInfo
 {
@@ -71,8 +71,8 @@ RtMessage::RtMessage(chatd::Chat &aChat, const StaticBuffer& msg)
 RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
   IRtcCrypto* crypto, const char* iceServers)
 : IRtcModule(client, handler, crypto, crypto->anonymizeId(client.myHandle())),
-  mIceServerProvider(client.api, "turn"),
   mStaticIceSever(iceServers),
+  mIceServerProvider(client.api, "turn"),
   mManager(*this)
 {
     if (!artc::isInitialized())
@@ -80,11 +80,7 @@ RtcModule::RtcModule(karere::Client& client, IGlobalHandler& handler,
         artc::init(client.appCtx);
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
-    mPcConstraints.SetMandatoryReceiveAudio(true);
-    mPcConstraints.SetMandatoryReceiveVideo(true);
-    mPcConstraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, true);
 
-  //preload ice servers to make calls faster
     initInputDevices();
 
     mWebRtcLogger.reset(new WebRtcLogger(mKarereClient.api, mOwnAnonId.toString(), getDeviceInfo()));
@@ -130,80 +126,10 @@ void RtcModule::random(T& result) const
 
 void RtcModule::initInputDevices()
 {
-    auto& devices = mDeviceManager.inputDevices();
-    if (!devices.audio.empty())
-        selectAudioInDevice(devices.audio[0].name);
-    if (!devices.video.empty())
-        selectVideoInDevice(devices.video[0].name);
-    RTCM_LOG_INFO("Input devices on this system:");
-    for (const auto& dev: devices.audio)
-        RTCM_LOG_INFO("\tAudio: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
-    for (const auto& dev: devices.video)
-        RTCM_LOG_INFO("\tVideo: %s [id=%s]", dev.name.c_str(), dev.id.c_str());
-}
-const cricket::Device* RtcModule::getDevice(const string& name, const artc::DeviceList& devices)
-{
-    for (size_t i=0; i<devices.size(); i++)
+    std::vector<std::string> videoDevices = loadDeviceList();
+    if (!videoDevices.empty())
     {
-        auto device = &devices[i];
-        if (device->name == name)
-            return device;
-    }
-    return nullptr;
-}
-
-bool RtcModule::selectDevice(const std::string& devname,
-            const artc::DeviceList& devices, string& selected)
-{
-    if (devices.empty())
-    {
-        selected.clear();
-        return devname.empty();
-    }
-    if (devname.empty())
-    {
-        selected = devices[0].name;
-        return true;
-    }
-
-    if (!getDevice(devname, devices))
-    {
-        selected = devices[0].name;
-        return false;
-    }
-    else
-    {
-        selected = devname;
-        return true;
-    }
-}
-
-void RtcModule::updateConstraints(RtcModule::Resolution resolution)
-{
-    switch (resolution)
-    {
-        case Resolution::hd:
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 1080);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 576);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 1920);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 1024);
-            break;
-
-        case Resolution::low:
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 288);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 240);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 352);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 320);
-            break;
-
-        case Resolution::vga:
-        case Resolution::notDefined:
-        default:
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxHeight, 480);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinHeight, 480);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMaxWidth, 640);
-            mMediaConstraints.SetMandatory(webrtc::MediaConstraintsInterface::kMinWidth, 640);
-            break;
+        mVideoDeviceSelected = videoDevices[0];
     }
 }
 
@@ -221,16 +147,35 @@ void RtcModule::removeCallRetry(karere::Id chatid)
 
 bool RtcModule::selectAudioInDevice(const string &devname)
 {
-    return selectDevice(devname, mDeviceManager.inputDevices().audio, mAudioInDeviceName);
+    return false;
 }
 
-void RtcModule::loadDeviceList()
+std::vector<std::string> RtcModule::loadDeviceList() const
 {
-    mDeviceManager.enumInputDevices();
+    return artc::CapturerTrackSource::getVideoDevices();
 }
+
 bool RtcModule::selectVideoInDevice(const string &devname)
 {
-    return selectDevice(devname, mDeviceManager.inputDevices().video, mVideoInDeviceName);
+    std::vector<std::string> videoDevices = loadDeviceList();
+    for (uint32_t i = 0; i < videoDevices.size(); i++)
+    {
+        if (devname == videoDevices[i])
+        {
+            mVideoDeviceSelected = devname;
+            for (auto callIt : mCalls)
+            {
+                if (callIt.second->state() == Call::kStateInProgress)
+                {
+                    callIt.second->changeVideoStreaming();
+                }
+            }
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void RtcModule::onDisconnect(chatd::Connection& conn)
@@ -456,78 +401,15 @@ void RtcModule::removeCall(Call& call)
     }
     mCalls.erase(chatid);
 }
-std::shared_ptr<artc::LocalStreamHandle>
-RtcModule::getLocalStream(AvFlags av, std::string& errors, Resolution resolution)
+
+void RtcModule::getAudioInDevices(std::vector<std::string>& /*devices*/) const
 {
-    artc::InputVideoDevice videoInput;
-    artc::InputAudioDevice audioInput;
-    const auto& devices = mDeviceManager.inputDevices();
 
-    if (!devices.video.empty() && !mVideoInDeviceName.empty())
-    {
-        try
-         {
-            auto device = getDevice(mVideoInDeviceName, devices.video);
-            if (!device)
-            {
-                device = &devices.video[0];
-                errors.append("Configured video input device '").append(mVideoInDeviceName)
-                      .append("' not present, using default device\n");
-            }
-
-            updateConstraints(resolution);
-            auto opts = std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints);
-            videoInput = mDeviceManager.getUserVideo(opts);
-        }
-        catch(exception& e)
-        {
-            videoInput.reset();
-            errors.append("Error getting video device: ")
-                  .append(e.what()?e.what():"Unknown error")+='\n';
-        }
-    }
-
-    if (!devices.audio.empty() && !mAudioInDeviceName.empty())
-     {
-        try
-         {
-            auto device = getDevice(mAudioInDeviceName, devices.audio);
-            if (!device)
-            {
-                errors.append("Configured audio input device '").append(mAudioInDeviceName)
-                      .append("' not present, using default device\n");
-                device = &devices.audio[0];
-            }
-
-            audioInput = mDeviceManager.getUserAudio(
-                    std::make_shared<artc::MediaGetOptions>(*device, mMediaConstraints));
-        }
-        catch(exception& e)
-        {
-            audioInput.reset();
-            errors.append("Error getting audio device: ")
-                  .append(e.what()?e.what():"Unknown error")+='\n';
-         }
-     }
-
-    std::shared_ptr<artc::LocalStreamHandle> localStream =
-            std::make_shared<artc::LocalStreamHandle>(
-                audioInput ? audioInput.getTrack() : nullptr,
-                videoInput ? videoInput.getTrack() : nullptr);
-
-    localStream->setAv(av);
-    return localStream;
-}
-void RtcModule::getAudioInDevices(std::vector<std::string>& devices) const
-{
-    for (auto& dev:mDeviceManager.inputDevices().audio)
-        devices.push_back(dev.name);
 }
 
 void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
 {
-    for(auto& dev:mDeviceManager.inputDevices().video)
-        devices.push_back(dev.name);
+    devices = loadDeviceList();
 }
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,
@@ -775,14 +657,6 @@ void RtcModule::sendCommand(Chat &chat, uint8_t opcode, uint8_t command, Id chat
         RTCM_LOG_ERROR("cmdEndpoint: Send error trying to send command: RTCMD_CALL_REQ_DECLINE");
     }
     return;
-}
-void RtcModule::setMediaConstraint(const string& name, const string &value, bool optional)
-{
-    rtcModule::setConstraint(mMediaConstraints, name, value, optional);
-}
-void RtcModule::setPcConstraint(const string& name, const string &value, bool optional)
-{
-    rtcModule::setConstraint(mPcConstraints, name, value, optional);
 }
 
 bool RtcModule::isCallInProgress(Id chatid) const
@@ -1107,33 +981,6 @@ void RtcModule::handleCallDataRequest(Chat &chat, Id userid, uint32_t clientid, 
     }
 }
 
-void setConstraint(webrtc::FakeConstraints& constr, const string &name, const std::string& value,
-    bool optional)
-{
-    if (optional)
-    {
-        //TODO: why webrtc has no SetOptional?
-        auto& optional = (webrtc::MediaConstraintsInterface::Constraints&)(constr.GetOptional());
-        auto it = optional.begin();
-        for (; it != optional.end(); it++)
-        {
-            if (it->key == name)
-            {
-                it->value = value;
-                break;
-            }
-        }
-        if (it == optional.end())
-        {
-            constr.AddOptional(name, value);
-        }
-    }
-    else
-    {
-        constr.SetMandatory(name, value);
-    }
-}
-
 Call::Call(RtcModule& rtcModule, chatd::Chat& chat, karere::Id callid, bool isGroup,
     bool isJoiner, ICallHandler* handler, Id callerUser, uint32_t callerClient, bool callRecovered)
 : ICall(rtcModule, chat, callid, isGroup, isJoiner, handler,
@@ -1247,9 +1094,9 @@ void Call::setState(uint8_t newState)
 
 void Call::getLocalStream(AvFlags av, std::string& errors)
 {
-    // getLocalStream currently never fails - if there is error, stream is a string with the error message
-    RtcModule::Resolution resolution = chat().isGroup() ? RtcModule::Resolution::low : RtcModule::Resolution::notDefined;
-    mLocalStream = mManager.getLocalStream(av, errors, resolution);
+    mLocalStream = std::make_shared<artc::LocalStreamHandle>();
+    mLocalStream->setAv(av);
+
     if (!errors.empty())
     {
         SUB_LOG_WARNING("There were some errors getting local stream: %s", errors.c_str());
@@ -1257,13 +1104,21 @@ void Call::getLocalStream(AvFlags av, std::string& errors)
     setState(Call::kStateHasLocalStream);
     IVideoRenderer* renderer = NULL;
     FIRE_EVENT(SESSION, onLocalStreamObtained, renderer);
-    mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx));
-    if (mLocalStream && mLocalStream->video())
+    mLocalPlayer.reset(new artc::StreamPlayer(renderer, mManager.mKarereClient.appCtx, nullptr, nullptr, true));
+    if (av.video())
     {
-        mLocalPlayer->attachVideo(mLocalStream->video());
+        enableVideo(true);
     }
 
     mLocalPlayer->enableVideo(av.video());
+
+    mAudioTrack = artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+    if (!av.audio())
+    {
+        mAudioTrack->set_enabled(false);
+    }
+
+    mLocalStream->addAudioTrack(mAudioTrack);
 }
 
 void Call::msgCallReqDecline(RtMessage& packet)
@@ -1354,7 +1209,7 @@ void Call::msgSdpOffer(RtMessage& packet)
     mSessions[sentSessionsIt->second.mSessionId] = sess;
     notifyCallStarting(*sess);
     sess->createRtcConn();
-    sess->veryfySdpOfferSendAnswer();
+    sess->processSdpOfferSendAnswer();
 }
 
 void Call::handleReject(RtMessage& packet)
@@ -2200,6 +2055,97 @@ void Call::monitorCallSetupTimeout()
     }, RtcModule::kCallSetupTimeout, mManager.mKarereClient.appCtx);
 }
 
+void Call::enableAudio(bool enable)
+{
+    if (mState >= Call::kStateTerminating)
+    {
+        return;
+    }
+
+    mLocalStream->audio()->set_enabled(enable);
+}
+
+void Call::enableVideo(bool enable)
+{
+    if (mState >= Call::kStateTerminating)
+    {
+        return;
+    }
+
+    if (enable)
+    {
+        if (!mVideoDevice)
+        {
+            webrtc::VideoCaptureCapability capabilities;
+            capabilities.width = 640;
+            capabilities.height = 480;
+            capabilities.maxFPS = 30;
+            if (mChat.isGroup())
+            {
+                capabilities.width = 320;
+                capabilities.height = 240;
+                capabilities.maxFPS = 25;
+            }
+
+            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected));
+            assert(mVideoDevice);
+
+            mVideoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice.get());
+            mLocalStream->addVideoTrack(mVideoTrack);
+        }
+
+        mLocalPlayer->attachVideo(mVideoDevice.get());
+        mVideoDevice->openDevice(mManager.mVideoDeviceSelected);
+        std::vector<std::string> vector;
+        vector.push_back("stream_id");
+        for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
+        {
+            if (session.second->mPeerSupportRenegotiation)
+            {
+                if (session.second->mVideoSender)
+                {
+                    session.second->mVideoSender->SetTrack(mVideoTrack);
+                }
+                else
+                {
+                    webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = session.second->mRtcConn->AddTrack(mVideoTrack.get(), vector);
+                    if (!error.ok())
+                    {
+                        SUB_LOG_WARNING("Error: %s", error.MoveError().message());
+                        session.second->destroy(TermCode::kErrInternal);
+                        return;
+                    }
+
+                    session.second->mVideoSender = error.MoveValue();
+                }
+            }
+            else
+            {
+                session.second->terminateAndDestroy(TermCode::kStreamChange);
+            }
+        }
+    }
+    else
+    {
+        mLocalPlayer->detachVideo();
+        for(std::pair<karere::Id, shared_ptr<Session>> session : mSessions)
+        {
+            if (session.second->mPeerSupportRenegotiation)
+            {
+                assert(session.second->mVideoSender);
+                session.second->mVideoSender->SetTrack(nullptr);
+            }
+            else
+            {
+                session.second->terminateAndDestroy(TermCode::kStreamChange);
+            }
+        }
+
+        mVideoDevice->releaseDevice();
+    }
+
+}
+
 bool Call::answer(AvFlags av)
 {
     if (mState != Call::kStateRingIn)
@@ -2305,6 +2251,8 @@ Call::~Call()
         cancelInterval(mStatsTimer, mManager.mKarereClient.appCtx);
     }
 
+    mVideoTrack.release();
+
     SUB_LOG_DEBUG("Destroyed");
 }
 void Call::onClientLeftCall(Id userid, uint32_t clientid)
@@ -2388,6 +2336,17 @@ AvFlags Call::muteUnmute(AvFlags av)
         return AvFlags(0);
 
     AvFlags oldAv = mLocalStream->effectiveAv();
+
+    if (oldAv.video() != av.video())
+    {
+        enableVideo(av.video());
+    }
+
+    if (oldAv.audio() != av.audio())
+    {
+        enableAudio(av.audio());
+    }
+
     mLocalStream->setAv(av);
     av = mLocalStream->effectiveAv();
     if (av == oldAv)
@@ -2466,6 +2425,13 @@ void Call::updateAvFlags(Id userid, uint32_t clientid, AvFlags flags)
 bool Call::isCaller(Id userid, uint32_t clientid)
 {
     return (userid == mCallerUser && clientid == mCallerClient);
+}
+
+void Call::changeVideoStreaming()
+{
+    enableVideo(false);
+    mVideoDevice.reset();
+    enableVideo(true);
 }
 
 AvFlags Call::sentAv() const
@@ -2656,9 +2622,10 @@ Session::Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameter
         mSetupTimer = 0;
 
         TermCode terminationCode = TermCode::kErrSessSetupTimeout;
-        if (mRtcConn && mRtcConn->ice_connection_state() == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionChecking)
+        if ((time(nullptr) - mTsSdpHandshakeCompleted) > RtcModule::kIceTimeout)
         {
             terminationCode = TermCode::kErrIceTimeout;
+            SUB_LOG_WARNING("ICE connect timed out. Terminating session with kErrIceTimeout");
         }
 
         terminateAndDestroy(terminationCode);
@@ -2683,11 +2650,6 @@ void Session::setState(uint8_t newState)
     }
 
     FIRE_EVENT(SESSION, onSessStateChange, mState);
-}
-
-webrtc::FakeConstraints* Session::pcConstraints()
-{
-    return &mCall.mManager.mPcConstraints;
 }
 
 void Session::handleMessage(RtMessage& packet)
@@ -2731,25 +2693,50 @@ void Session::createRtcConn()
         mCall.mManager.addIceServers(iceServerStatic);
     }
 
-    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this, pcConstraints());
+    mRtcConn = artc::myPeerConnection<Session>(mCall.mManager.mIceServers, *this);
     if (mCall.mLocalStream)
     {
-        if (!mRtcConn->AddStream(*mCall.mLocalStream))
+        std::vector<std::string> vector;
+        vector.push_back("stream_id");
+
+        if (mCall.sentAv().video())
         {
-            RTCM_LOG_ERROR("mRtcConn->AddStream() returned false");
+            webrtc::VideoTrackInterface *interface = mCall.mLocalStream->video();
+            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+            if (!error.ok())
+            {
+                SUB_LOG_WARNING("Error: %s", error.MoveError().message());
+                destroy(TermCode::kErrInternal);
+                return;
+            }
+
+            mVideoSender = error.MoveValue();
+        }
+
+        if (mCall.sentAv().audio())
+        {
+            webrtc::AudioTrackInterface *interface = mCall.mLocalStream->audio();
+            webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> error = mRtcConn->AddTrack(interface, vector);
+            if (!error.ok())
+            {
+                SUB_LOG_WARNING("Error: %s", error.MoveError().message());
+            }
+
+            rtc::scoped_refptr<webrtc::RtpSenderInterface>audioSender = error.MoveValue();
         }
     }
+
     mStatRecorder.reset(new stats::Recorder(*this, kStatsPeriod, kMaxStatsPeriod));
     mStatRecorder->start();
 }
 
-void Session::veryfySdpOfferSendAnswer()
+promise::Promise<void> Session:: processSdpOfferSendAnswer()
 {
     if (!verifySdpFingerprints(mPeerSdpOffer))
     {
         SUB_LOG_WARNING("Fingerprint verification error, immediately terminating session");
         terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forge attempt");
-        return;
+        return ::promise::_Void();
     }
 
     webrtc::SdpParseError error;
@@ -2757,11 +2744,11 @@ void Session::veryfySdpOfferSendAnswer()
     if (!sdp)
     {
         terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP offer: line="+error.line+"\nError: "+error.description);
-        return;
+        return ::promise::_Void();;
     }
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdp)
-    .fail([this](const ::promise::Error& err)
+    return mRtcConn.setRemoteDescription(sdp)
+    .fail([](const ::promise::Error& err)
     {
         return ::promise::Error(err.msg(), 1, kErrSetSdp); //we signal 'remote' (i.e. protocol) error with errCode == 1
     })
@@ -2769,7 +2756,9 @@ void Session::veryfySdpOfferSendAnswer()
     {
         if (wptr.deleted() || (mState > Session::kStateInProgress))
             return ::promise::Error("Session killed");
-        return mRtcConn.createAnswer(pcConstraints());
+
+        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+        return mRtcConn.createAnswer(options);
     })
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
@@ -2923,6 +2912,49 @@ void Session::onSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
 void Session::onDataChannel(webrtc::DataChannelInterface*)
 {}
 
+void Session::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
+{
+    SUB_LOG_DEBUG("onTrack:");
+    if (mState != kStateInProgress)
+    {
+        return;
+    }
+
+    if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO)
+    {
+        mRemotePlayer->attachVideo(transceiver->receiver()->streams()[0]->GetVideoTracks()[0]->GetSource());
+        mRemotePlayer->enableVideo(mPeerAv.video());
+    }
+    else if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO)
+    {
+        mRemotePlayer->getAudioTrack()->AddSink(mAudioLevelMonitor.get());
+    }
+}
+
+void Session::onRenegotiationNeeded()
+{
+    if (mState != kStateInProgress)
+    {
+        if (mState < kStateInProgress)
+        {
+            mRenegotiationAfterInitialConnect = true;
+        }
+
+        return;
+    }
+
+    if (mRenegotiationInProgress)
+    {
+        SUB_LOG_WARNING("Ignoring multiple calls of onNegotiationNeeded");
+        return;
+    }
+
+    mRenegotiationInProgress = true;
+    setStreamRenegotiationTimeout();
+    SUB_LOG_DEBUG("Renegotiation while in progress, sending sdp offer");
+    sendOffer();
+}
+
 void Session::updateAvFlags(AvFlags flags)
 {
     auto oldAv = mPeerAv;
@@ -2943,14 +2975,21 @@ void Session::sendAv(AvFlags av)
 {
     cmd(RTCMD_MUTE, av.value());
 }
-Promise<void> Session::sendOffer()
+
+promise::Promise<void> Session::createRtcConnSendOffer()
 {
     assert(mIsJoiner); // the joiner sends the SDP offer
     assert(mPeerAnonId);
     createRtcConn();
+    return sendOffer();
+}
+
+Promise<void> Session::sendOffer()
+{
     auto wptr = weakHandle();
-    return mRtcConn.createOffer(pcConstraints())
     bool firstOffer = mState < kStateInProgress;
+    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
+    return mRtcConn.createOffer(options)
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted())

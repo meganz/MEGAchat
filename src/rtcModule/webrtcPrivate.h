@@ -8,6 +8,8 @@
 #include <base/trackDelete.h>
 #include <streamPlayer.h>
 
+#include <modules/video_capture/device_info_impl.h>
+
 namespace rtcModule
 {
 namespace stats { class IRtcStats; }
@@ -75,6 +77,7 @@ protected:
     SdpKey mOwnHashKey;
     SdpKey mPeerHashKey;
     artc::myPeerConnection<Session> mRtcConn;
+    rtc::scoped_refptr<webrtc::RtpSenderInterface> mVideoSender;
     std::string mName;
     ISessionHandler* mHandler = NULL;
     std::unique_ptr<stats::Recorder> mStatRecorder;
@@ -87,15 +90,23 @@ protected:
     unsigned int mPreviousStatsSize = 0;
     std::unique_ptr<AudioLevelMonitor> mAudioLevelMonitor;
     TermCode mTermCode = TermCode::kInvalid;
+    bool mPeerSupportRenegotiation = false;
+    bool mRenegotiationAfterInitialConnect = false;
+    bool mRenegotiationInProgress = false;
+    megaHandle mStreamRenegotiationTimer = 0;
+    time_t mTsSdpHandshakeCompleted = 0;
     void setState(uint8_t state);
     void handleMessage(RtMessage& packet);
     void sendAv(karere::AvFlags av);
+    promise::Promise<void> createRtcConnSendOffer();
     promise::Promise<void> sendOffer();
     void msgSdpAnswer(RtMessage& packet);
     void msgSessTerminateAck(RtMessage& packet);
     void msgSessTerminate(RtMessage& packet);
     void msgIceCandidate(RtMessage& packet);
     void msgMute(RtMessage& packet);
+    void msgSdpOfferRenegotiate(RtMessage& packet);
+    void msgSdpAnswerRenegotiate(RtMessage& packet);
     void onVideoRecv();
     void submitStats(TermCode termCode, const std::string& errInfo);
     bool verifySdpFingerprints(const std::string& sdp);
@@ -104,9 +115,11 @@ protected:
     void destroy(TermCode code, const std::string& msg="");
     void asyncDestroy(TermCode code, const std::string& msg="");
     promise::Promise<void> terminateAndDestroy(TermCode code, const std::string& msg="");
-    webrtc::FakeConstraints* pcConstraints();
     int calculateNetworkQuality(const stats::Sample *sample);
     void removeRtcConnection();
+    void setStreamRenegotiationTimeout();
+    void renegotiationComplete();
+    promise::Promise<void> setRemoteAnswerSdp(RtMessage& packet);
 
 public:
     RtcModule& mManager;
@@ -117,7 +130,7 @@ public:
     virtual bool videoReceived() const { return mVideoReceived; }
     void manageNetworkQuality(stats::Sample* sample);
     void createRtcConn();
-    void veryfySdpOfferSendAnswer();
+    promise::Promise<void> processSdpOfferSendAnswer();
     //PeerConnection events
     void onAddStream(artc::tspMediaStream stream);
     void onRemoveStream(artc::tspMediaStream stream);
@@ -126,6 +139,7 @@ public:
     void onIceComplete();
     void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState);
     void onDataChannel(webrtc::DataChannelInterface* data_channel);
+    void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onRenegotiationNeeded();
     void onError() {}
     void updateAvFlags(karere::AvFlags flags);
@@ -186,6 +200,10 @@ protected:
     promise::Promise<void> mDestroyPromise;
     std::shared_ptr<artc::LocalStreamHandle> mLocalStream;
     std::shared_ptr<artc::StreamPlayer> mLocalPlayer;
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> mVideoTrack;
+    std::shared_ptr<artc::CapturerTrackSource> mVideoDevice;
+    std::shared_ptr<webrtc::AudioSourceInterface> mAudioSource;
+    rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudioTrack;
     megaHandle mDestroySessionTimer = 0;
     unsigned int mTotalSessionRetry = 0;
     uint8_t mPredestroyState;
@@ -239,6 +257,8 @@ protected:
     uint8_t convertTermCodeToCallDataCode();
     bool cancelSessionRetryTimer(karere::Id userid, uint32_t clientid);
     void monitorCallSetupTimeout();
+    void enableAudio(bool enable);
+    void enableVideo(bool enable);
     friend class RtcModule;
     friend class Session;
 public:
@@ -258,6 +278,7 @@ public:
     uint32_t clientidFromSession(karere::Id userid);
     void updateAvFlags(karere::Id userid, uint32_t clientid, karere::AvFlags flags);
     bool isCaller(karere::Id userid, uint32_t clientid);
+    void changeVideoStreaming();
 };
 
 class RtcModule: public IRtcModule, public chatd::IRtcHandler
@@ -309,9 +330,7 @@ public:
     virtual void getVideoInDevices(std::vector<std::string>& devices) const;
     virtual bool selectVideoInDevice(const std::string& devname);
     virtual bool selectAudioInDevice(const std::string& devname);
-    virtual void loadDeviceList();
-    virtual void setMediaConstraint(const std::string& name, const std::string &value, bool optional);
-    virtual void setPcConstraint(const std::string& name, const std::string &value, bool optional);
+    virtual std::vector<std::string> loadDeviceList() const;
     virtual bool isCallInProgress(karere::Id chatid) const;
     virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
     virtual void removeCall(karere::Id chatid, bool retry = false);
@@ -337,32 +356,26 @@ protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
-    artc::DeviceManager mDeviceManager;
-    webrtc::FakeConstraints mPcConstraints;
-    webrtc::FakeConstraints mMediaConstraints;
+    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> mInfo;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, ICallHandler *> mCallHandlers;
     std::map<karere::Id, std::pair<karere::AvFlags, bool>> mRetryCall;
     RtcModule &mManager;
     std::map<karere::Id, megaHandle> mRetryCallTimers;
+    std::string mVideoDeviceSelected;
     IRtcCrypto& crypto() const { return *mCrypto; }
     template <class... Args>
     void cmdEndpoint(chatd::Chat &chat, uint8_t type, karere::Id chatid, karere::Id userid, uint32_t clientid, Args... args);
     template <class... Args>
     void cmdEndpoint(uint8_t type, const RtMessage& info, Args... args);
     void removeCall(Call& call);
-    std::shared_ptr<artc::LocalStreamHandle> getLocalStream(karere::AvFlags av, std::string& errors, Resolution resolution);
     // no callid provided --> start call
     std::shared_ptr<Call> startOrJoinCall(karere::Id chatid, karere::AvFlags av, ICallHandler& handler, karere::Id callid = karere::Id::inval());
     template <class T> T random() const;
     template <class T> void random(T& result) const;
     //=== Implementation methods
     void initInputDevices();
-    const cricket::Device *getDevice(const std::string& name, const artc::DeviceList& devices);
-    bool selectDevice(const std::string& devname, const artc::DeviceList& devices,
-                      std::string& selected);
 
-    void updateConstraints(Resolution resolution);
     void removeCallRetry(karere::Id chatid);
     std::shared_ptr<karere::WebRtcLogger> mWebRtcLogger;
     friend class Call;
