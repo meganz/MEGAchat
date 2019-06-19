@@ -110,7 +110,7 @@ protected:
 
 public:
     RtcModule& mManager;
-    Session(Call& call, RtMessage& packet, SdpKey sdpkey);
+    Session(Call& call, RtMessage& packet, SentSessionInfo sessionParameters);
     ~Session();
     void pollStats();
     artc::myPeerConnection<Session> rtcConn() const { return mRtcConn; }
@@ -126,7 +126,7 @@ public:
     void onIceComplete();
     void onSignalingChange(webrtc::PeerConnectionInterface::SignalingState newState);
     void onDataChannel(webrtc::DataChannelInterface* data_channel);
-    void onRenegotiationNeeded() {}
+    void onRenegotiationNeeded();
     void onError() {}
     void updateAvFlags(karere::AvFlags flags);
     //====
@@ -165,6 +165,13 @@ class Call: public ICall
     {
         kSupportsStreamReneg = 0x04
     };
+
+    enum
+    {
+        kRenegotationPositionJoin = 16,
+        kRenegotationPositionSession = 64
+    };
+
 protected:
     static const StateDesc sStateDesc;
     std::map<karere::Id, std::shared_ptr<Session>> mSessions;
@@ -264,7 +271,9 @@ public:
         kSessSetupTimeout = 25000,
         kCallSetupTimeout = 35000,
         kRetryCallTimeout = 30000,
-        kSessFinishTimeout = 1000
+        kSessFinishTimeout = 1000,
+        kStreamRenegotiationTimeout = 10000,
+        kIceTimeout = 18000
     };
 
     enum Resolution

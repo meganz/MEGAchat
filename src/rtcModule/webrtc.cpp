@@ -2709,6 +2709,12 @@ void Session::handleMessage(RtMessage& packet)
         case RTCMD_MUTE:
             msgMute(packet);
             return;
+        case RTCMD_SDP_OFFER_RENEGOTIATE:
+            msgSdpOfferRenegotiate(packet);
+            return;
+        case RTCMD_SDP_ANSWER_RENEGOTIATE:
+            msgSdpAnswerRenegotiate(packet);
+            return;
         default:
             SUB_LOG_WARNING("Don't know how to handle", packet.typeStr());
             return;
@@ -2778,16 +2784,26 @@ void Session::veryfySdpOfferSendAnswer()
         if (wptr.deleted() || (mState > Session::kStateInProgress))
             return;
 
+        uint8_t opcode;
+        if (mState < kStateInProgress)
+        {
+            mTsSdpHandshakeCompleted = time(nullptr);
+            setState(kStateConnecting);
+            opcode = RTCMD_SDP_ANSWER;
+        }
+        else
+        {
+            opcode = RTCMD_SDP_ANSWER_RENEGOTIATE;
+        }
+
         SdpKey ownFprHash;
         // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
         mCall.mManager.crypto().mac(mOwnSdpAnswer, mPeerHashKey, ownFprHash);
-        cmd(
-            RTCMD_SDP_ANSWER,
+        cmd(opcode,
             ownFprHash,
             mCall.mLocalStream->effectiveAv().value(),
             static_cast<uint16_t>(mOwnSdpAnswer.size()),
-            mOwnSdpAnswer
-        );
+            mOwnSdpAnswer);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -2807,7 +2823,6 @@ void Session::veryfySdpOfferSendAnswer()
 void Session::onAddStream(artc::tspMediaStream stream)
 {
     mRemoteStream = stream;
-    setState(kStateInProgress);
     if (mRemotePlayer)
     {
         SUB_LOG_ERROR("onRemoteStreamAdded: Session already has a remote player, ignoring event");
@@ -2890,6 +2905,7 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
     {
+        setState(kStateInProgress);
         mTsIceConn = time(NULL);
         mAudioPacketLostAverage = 0;
         mCall.notifySessionConnected(*this);
@@ -2934,6 +2950,7 @@ Promise<void> Session::sendOffer()
     createRtcConn();
     auto wptr = weakHandle();
     return mRtcConn.createOffer(pcConstraints())
+    bool firstOffer = mState < kStateInProgress;
     .then([wptr, this](webrtc::SessionDescriptionInterface* sdp) -> Promise<void>
     {
         if (wptr.deleted())
@@ -2945,25 +2962,35 @@ Promise<void> Session::sendOffer()
         KR_THROW_IF_FALSE(sdp->ToString(&mOwnSdpOffer));
         return mRtcConn.setLocalDescription(sdp);
     })
-    .then([wptr, this]()
+    .then([wptr, firstOffer, this]()
     {
         if (wptr.deleted())
             return;
 
-        assert(mState == Session::kStateWaitSdpAnswer);
         if (mCall.state() != Call::kStateInProgress)
         {
              terminateAndDestroy(TermCode::kErrSdp, std::string("Error creating SDP offer: ") + "Unexpected state");
              return;
         }
 
-        SdpKey encKey;
-        mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
         SdpKey hash;
         mCall.mManager.crypto().mac(mOwnSdpOffer, mPeerHashKey, hash);
 
-        // SDP_OFFER sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
-        cmd(RTCMD_SDP_OFFER,
+        SdpKey encKey;
+        uint8_t command = 0;
+        if (firstOffer)
+        {
+            command = RTCMD_SDP_OFFER;
+            mCall.mManager.crypto().encryptKeyTo(mPeer, mOwnHashKey, encKey);
+        }
+        else
+        {
+            command = RTCMD_SDP_OFFER_RENEGOTIATE;
+            memset(encKey.data, 0, sizeof(encKey.data));
+        }
+
+        // SDP_OFFER/RTCMD_SDP_OFFER_RENEGOTIATE sid.8 anonId.8 encHashKey.32 fprHash.32 av.1 sdpLen.2 sdpOffer.sdpLen
+        cmd(command,
             mCall.mManager.mOwnAnonId,
             encKey,
             hash,
@@ -2987,38 +3014,16 @@ void Session::msgSdpAnswer(RtMessage& packet)
         SUB_LOG_WARNING("Ingoring unexpected SDP_ANSWER");
         return;
     }
-    // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
-    mPeerAv.set(packet.payload.read<uint8_t>(40));
-    auto sdpLen = packet.payload.read<uint16_t>(41);
-    assert((int)packet.payload.dataSize() >= sdpLen + 43);
-    packet.payload.read(43, sdpLen, mPeerSdpAnswer);
-    packet.payload.read(8, mPeerHash);
-    if (!verifySdpFingerprints(mPeerSdpAnswer))
-    {
-        terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forgery");
-        return;
-    }
 
-    webrtc::SdpParseError error;
-    webrtc::SessionDescriptionInterface *sdp = webrtc::CreateSessionDescription("answer", mPeerSdpAnswer, &error);
-    if (!sdp)
-    {
-        terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
-        return;
-    }
+    setState(kStateConnecting);
     auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(sdp)
-    .then([this, wptr]() -> Promise<void>
+    setRemoteAnswerSdp(packet)
+    .then([wptr, this]
     {
-        if (mState > Session::kStateInProgress)
-            return ::promise::Error("Session killed");
-        setState(Session::kStateInProgress);
-        return ::promise::_Void();
-    })
-    .fail([wptr, this](const ::promise::Error& err)
-    {
-        std::string msg = "Error setting SDP answer: " + err.msg();
-        terminateAndDestroy(TermCode::kErrSdp, msg);
+        if (!wptr.deleted())
+            return;
+
+        mTsSdpHandshakeCompleted = time(nullptr);
     });
 }
 
@@ -3277,6 +3282,49 @@ void Session::msgMute(RtMessage& packet)
     updateAvFlags(flags);
 }
 
+void Session::msgSdpOfferRenegotiate(RtMessage &packet)
+{
+    if (mState != kStateInProgress)
+    {
+        SUB_LOG_ERROR("Ignoring SDP_OFFER_RENEGOTIATE received for a session not in kSessInProgress state");
+        return;
+    }
+
+    uint16_t sdpLen = packet.payload.read<uint16_t>(81);
+    assert(packet.payload.size() >= 83 + sdpLen);
+    packet.payload.read(83, sdpLen, mPeerSdpOffer);
+    packet.payload.read(48, mPeerHash);
+    setStreamRenegotiationTimeout();
+    auto wptr = weakHandle();
+    processSdpOfferSendAnswer()
+    .then([this, wptr]()
+    {
+        renegotiationComplete();
+    });
+}
+
+void Session::msgSdpAnswerRenegotiate(RtMessage &packet)
+{
+    if (!mStreamRenegotiationTimer)
+    {
+        SUB_LOG_WARNING("Ingoring SDP_ANSWER_RENEGOTIATE - not in renegotiation state");
+        return;
+    }
+
+    if (mState != kStateInProgress)
+    {
+         SUB_LOG_WARNING("Ignoring SDP_ANSWER_RENEGOTIATE received for a session not in kSessInProgress state");
+         return;
+    }
+
+    auto wptr = weakHandle();
+    setRemoteAnswerSdp(packet)
+    .then([this, wptr]()
+    {
+        renegotiationComplete();
+    });
+}
+
 Session::~Session()
 {
     removeRtcConnection();
@@ -3341,6 +3389,7 @@ const char* ISession::stateToStr(uint8_t state)
         RET_ENUM_NAME(kStateWaitSdpOffer);
         RET_ENUM_NAME(kStateWaitSdpAnswer);
         RET_ENUM_NAME(kStateWaitLocalSdpAnswer);
+        RET_ENUM_NAME(kStateConnecting);
         RET_ENUM_NAME(kStateInProgress);
         RET_ENUM_NAME(kStateTerminating);
         RET_ENUM_NAME(kStateDestroyed);
@@ -3382,8 +3431,9 @@ const StateDesc Session::sStateDesc = {
     {
         { kStateWaitSdpOffer, kStateWaitSdpAnswer, kStateWaitLocalSdpAnswer},
         { kStateWaitLocalSdpAnswer, kStateTerminating }, //for kStateWaitSdpOffer
-        { kStateInProgress, kStateTerminating },         //for kStateWaitLocalSdpAnswer
-        { kStateInProgress, kStateTerminating },         //for kStateWaitSdpAnswer
+        { kStateConnecting, kStateTerminating },         //for kStateWaitLocalSdpAnswer
+        { kStateConnecting, kStateTerminating },         //for kStateWaitSdpAnswer
+        { kStateInProgress, kStateTerminating},          //for kStateConnecting
         { kStateTerminating },                           //for kStateInProgress
         { kStateDestroyed },                             //for kStateTerminating
         {}                                               //for kStateDestroyed
@@ -3408,6 +3458,8 @@ const char* rtcmdTypeToStr(uint8_t type)
         RET_ENUM_NAME(RTCMD_SESS_TERMINATE_ACK); // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
         // it will not be detected as an error by the receiver
         RET_ENUM_NAME(RTCMD_MUTE);
+        RET_ENUM_NAME(RTCMD_SDP_OFFER_RENEGOTIATE);
+        RET_ENUM_NAME(RTCMD_SDP_ANSWER_RENEGOTIATE);
         default: return "(invalid RTCMD)";
     }
 }
@@ -3643,6 +3695,64 @@ void Session::removeRtcConnection()
         mRtcConn.release();
     }
 
+}
+
+void Session::setStreamRenegotiationTimeout()
+{
+    assert(!mStreamRenegotiationTimer);
+    auto wptr = weakHandle();
+
+    mStreamRenegotiationTimer = setTimeout([wptr, this]()
+    {
+        mRenegotiationInProgress = false;
+        if (wptr.deleted() || !mStreamRenegotiationTimer || mState >= kStateTerminating)
+        {
+            mStreamRenegotiationTimer = 0;
+            return;
+        }
+
+        mStreamRenegotiationTimer = 0;
+        terminateAndDestroy(TermCode::kErrStreamRenegotationTimeout);
+    }, RtcModule::kStreamRenegotiationTimeout, mManager.mKarereClient.appCtx);
+
+}
+
+void Session::renegotiationComplete()
+{
+    assert(mStreamRenegotiationTimer);
+    cancelTimeout(mStreamRenegotiationTimer, mManager.mKarereClient.appCtx);
+    mStreamRenegotiationTimer = 0;
+    mRenegotiationInProgress = false;
+}
+
+promise::Promise<void> Session::setRemoteAnswerSdp(RtMessage &packet)
+{
+    // SDP_ANSWER sid.8 fprHash.32 av.1 sdpLen.2 sdpAnswer.sdpLen
+    mPeerAv.set(packet.payload.read<uint8_t>(40));
+    auto sdpLen = packet.payload.read<uint16_t>(41);
+    assert((int)packet.payload.dataSize() >= sdpLen + 43);
+    packet.payload.read(43, sdpLen, mPeerSdpAnswer);
+    packet.payload.read(8, mPeerHash);
+    if (!verifySdpFingerprints(mPeerSdpAnswer))
+    {
+        terminateAndDestroy(TermCode::kErrFprVerifFailed, "Fingerprint verification failed, possible forgery");
+        return promise::_Void();
+    }
+
+    webrtc::SdpParseError error;
+    webrtc::SessionDescriptionInterface *sdp = webrtc::CreateSessionDescription("answer", mPeerSdpAnswer, &error);
+    if (!sdp)
+    {
+        terminateAndDestroy(TermCode::kErrSdp, "Error parsing peer SDP answer: line="+error.line+"\nError: "+error.description);
+        return promise::_Void();
+    }
+    auto wptr = weakHandle();
+    return mRtcConn.setRemoteDescription(sdp)
+    .fail([wptr, this](const ::promise::Error& err)
+    {
+        std::string msg = "Error setting SDP answer: " + err.msg();
+        terminateAndDestroy(TermCode::kErrSdp, msg);
+    });
 }
 
 AudioLevelMonitor::AudioLevelMonitor(const Session &session, ISessionHandler &sessionHandler)

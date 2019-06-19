@@ -83,7 +83,9 @@ enum: uint8_t
     RTCMD_SESS_TERMINATE = 10, // initiate termination of a session | <sessionId><termCode>
     RTCMD_SESS_TERMINATE_ACK = 11, // acknowledge the receipt of SESS_TERMINATE, so the sender can safely stop the stream and
     // it will not be detected as an error by the receiver
-    RTCMD_MUTE = 12 // Change audio-video call  <av>
+    RTCMD_MUTE = 12, // Change audio-video call  <av>
+    RTCMD_SDP_OFFER_RENEGOTIATE = 13, // SDP offer, generated after changing the local stream. Used to renegotiate the stream
+    RTCMD_SDP_ANSWER_RENEGOTIATE = 14 // SDP answer, resulting from SDP_OFFER_RENEGOTIATE
 };
 enum TermCode: uint8_t
 {
@@ -258,7 +260,8 @@ public:
         kStateWaitSdpOffer,         // < Session just created, waiting for SDP offer from initiator
         kStateWaitLocalSdpAnswer,   // < Remote SDP offer has been set, and we are generating SDP answer
         kStateWaitSdpAnswer,        // < SDP offer has been sent by initiator, waiting for SDP answer
-        kStateInProgress,
+        kStateConnecting,           // < The SDP handshake has completed at this endpoint, and media connection is to be established
+        kStateInProgress,           // < Media connection established
         kStateTerminating,          // < Session is in terminate handshake
         kStateDestroyed             // < Session object is not valid anymore
     };
