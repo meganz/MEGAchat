@@ -334,7 +334,7 @@ public:
     static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &videoDevice);
     virtual void OnFrame(const webrtc::VideoFrame& frame) override;
     ~CapturerTrackSource() override;
-    static std::vector<std::string> getVideoDevices();
+    static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice);
     void releaseDevice();
 

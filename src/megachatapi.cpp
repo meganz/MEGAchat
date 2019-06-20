@@ -804,6 +804,11 @@ void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListen
     return pImpl->setChatVideoInDevice(device, listener);
 }
 
+char *MegaChatApi::getVideoDeviceSelected()
+{
+    return pImpl->getVideoDeviceSelected();
+}
+
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
 {
     pImpl->startChatCall(chatid, enableVideo, listener);

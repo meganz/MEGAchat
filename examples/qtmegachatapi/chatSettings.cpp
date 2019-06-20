@@ -2,12 +2,11 @@
 
 #include <vector>
 
-ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent, ChatSettings *chatSettings)
+ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent)
     :QDialog(parent),
     ui(new Ui::SettingsDialog)
 {
     mMainWin = (MainWindow *) parent;
-    mChatSettings = chatSettings;
     ui->setupUi(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -17,31 +16,20 @@ ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent, ChatSettings *chatSe
         ui->audioInCombo->addItem(audioInDevices->get(i));
     }
 
-    if(mChatSettings->getAudioInIdx() == deviceListInvalidIndex)
-    {
-        ui->audioInCombo->setCurrentIndex(0);
-    }
-    else
-    {
-        ui->audioInCombo->setCurrentIndex(mChatSettings->getAudioInIdx());
-    }
     delete audioInDevices;
 
     ::mega::MegaStringList *videoInDevices = mMainWin->mMegaChatApi->getChatVideoInDevices();
-    for (int i=0; i<videoInDevices->size(); i++)
+    char *videoDeviceSelected = mMainWin->mMegaChatApi->getVideoDeviceSelected();
+    for (int i = 0; i < videoInDevices->size(); i++)
     {
-        ui->videoInCombo->addItem(videoInDevices->get(i));
-    }
-    if(mChatSettings->getAudioInIdx() == deviceListInvalidIndex)
-    {
-        ui->videoInCombo->setCurrentIndex(0);
-    }
-    else
-    {
-        ui->videoInCombo->setCurrentIndex(mChatSettings->getVideoInIdx());
+        ui->videoInCombo->addItem(videoInDevices->get(i), videoInDevices->get(i));
     }
 
+    int index = ui->videoInCombo->findData(videoDeviceSelected);
+    ui->videoInCombo->setCurrentIndex(index);
+
     delete videoInDevices;
+    delete []videoDeviceSelected;
 #endif
 }
 
@@ -53,66 +41,23 @@ ChatSettingsDialog::~ChatSettingsDialog()
 void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    if (ui->audioInCombo->currentIndex() != mChatSettings->getAudioInIdx()
-            || ui->videoInCombo->currentIndex() != mChatSettings->getVideoInIdx())
-    {
-        mChatSettings->setAudioInIdx(ui->audioInCombo->currentIndex());
-        mChatSettings->setVideoInIdx(ui->videoInCombo->currentIndex());
-        setDevices();
-    }
+    std::string audio = ui->audioInCombo->itemText(ui->audioInCombo->currentIndex()).toLatin1().data();
+    std::string video = ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
+    setDevices(audio, video);
+
 #endif
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-void ChatSettingsDialog::setDevices()
+void ChatSettingsDialog::setDevices(const std::string &audio, const std::string &video)
 {
-    int audioInIdx = ui->audioInCombo->currentIndex();
-    if (audioInIdx != deviceListInvalidIndex)
+    std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
+    char *videoDeviceSelected = mMainWin->mMegaChatApi->getVideoDeviceSelected();
+    if (device != videoDeviceSelected)
     {
-        std::string device =  ui->audioInCombo->itemText(ui->audioInCombo->currentIndex()).toLatin1().data();
-        bool result = mMainWin->mMegaChatApi->setChatAudioInDevice(device.c_str());
-        if (!result)
-        {
-            QMessageBox::critical(this, "Call settings", "The audio device could not be set");
-        }
+        mMainWin->mMegaChatApi->setChatVideoInDevice(video.c_str());
     }
 
-    int videoInIdx =  ui->videoInCombo->currentIndex();;
-    if (videoInIdx != deviceListInvalidIndex)
-    {
-        std::string device =  ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data();
-        mMainWin->mMegaChatApi->setChatVideoInDevice(device.c_str());
-    }
+    delete []videoDeviceSelected;
 }
 #endif
-
-ChatSettings::ChatSettings()
-{
-    mAudioInIdx = deviceListInvalidIndex;
-    mVideoInIdx = deviceListInvalidIndex;
-}
-
-ChatSettings::~ChatSettings()
-{
-
-}
-
-int ChatSettings::getAudioInIdx() const
-{
-    return mAudioInIdx;
-}
-
-void ChatSettings::setAudioInIdx(int audioInIdx)
-{
-    mAudioInIdx = audioInIdx;
-}
-
-int ChatSettings::getVideoInIdx() const
-{
-    return mVideoInIdx;
-}
-
-void ChatSettings::setVideoInIdx(int videoInIdx)
-{
-    mVideoInIdx = videoInIdx;
-}

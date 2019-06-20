@@ -4215,6 +4215,15 @@ public:
      */
     void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
 
+    /**
+     * @brief Returns the video selected device name
+     *
+     * You take the ownership of the returned value
+     *
+     * @return Device selected name
+     */
+    char *getVideoDeviceSelected();
+
     // Call management
     /**
      * @brief Start a call in a chat room

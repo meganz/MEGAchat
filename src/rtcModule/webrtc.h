@@ -393,7 +393,7 @@ public:
     virtual void getAudioInDevices(std::vector<std::string>& devices) const = 0;
 
     /** @brief Returns a list of all detected video input devices on the system */
-    virtual void getVideoInDevices(std::vector<std::string>& devices) const = 0;
+    virtual void getVideoInDevices(std::set<std::string>& devices) const = 0;
 
     /** @brief Selects a video input device to be used for subsequent calls. This can be
      * changed just before a call is made, to allow different calls to use different
@@ -411,10 +411,11 @@ public:
      */
     virtual bool selectAudioInDevice(const std::string& devname) = 0;
 
+    virtual std::string getVideoDeviceSelected() = 0;
     /**
      * @brief Search all audio and video devices at system at that moment.
      */
-    virtual std::vector<std::string> loadDeviceList() const = 0;
+    virtual  std::set<std::pair<std::string, std::string>> loadDeviceList() const = 0;
     virtual void removeCall(karere::Id chatid, bool keepCallHandler = false) = 0;
     virtual void removeCallWithoutParticipants(karere::Id chatid) = 0;
     virtual bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const = 0;

@@ -126,10 +126,10 @@ void RtcModule::random(T& result) const
 
 void RtcModule::initInputDevices()
 {
-    std::vector<std::string> videoDevices = loadDeviceList();
+     std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
     if (!videoDevices.empty())
     {
-        mVideoDeviceSelected = videoDevices[0];
+        mVideoDeviceSelected = videoDevices.begin()->second;
     }
 }
 
@@ -150,22 +150,36 @@ bool RtcModule::selectAudioInDevice(const string &devname)
     return false;
 }
 
-std::vector<std::string> RtcModule::loadDeviceList() const
+std::set<std::pair<std::string, std::string>> RtcModule::loadDeviceList() const
 {
     return artc::CapturerTrackSource::getVideoDevices();
 }
 
+string RtcModule::getVideoDeviceSelected()
+{
+    std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
+    for (const std::pair<std::string, std::string> &device : videoDevices)
+    {
+        if (mVideoDeviceSelected == device.second)
+        {
+            return device.first;
+        }
+    }
+
+    return std::string();
+}
+
 bool RtcModule::selectVideoInDevice(const string &devname)
 {
-    std::vector<std::string> videoDevices = loadDeviceList();
-    for (uint32_t i = 0; i < videoDevices.size(); i++)
+    std::set<std::pair<std::string, std::string>> videoDevices = loadDeviceList();
+    for (const std::pair<std::string, std::string> &device : videoDevices)
     {
-        if (devname == videoDevices[i])
+        if (devname == device.first)
         {
-            mVideoDeviceSelected = devname;
+            mVideoDeviceSelected = device.second;
             for (auto callIt : mCalls)
             {
-                if (callIt.second->state() == Call::kStateInProgress)
+                if (callIt.second->state() == Call::kStateInProgress && callIt.second->sentAv().video())
                 {
                     callIt.second->changeVideoStreaming();
                 }
@@ -407,9 +421,14 @@ void RtcModule::getAudioInDevices(std::vector<std::string>& /*devices*/) const
 
 }
 
-void RtcModule::getVideoInDevices(std::vector<std::string>& devices) const
+void RtcModule::getVideoInDevices(std::set<std::string>& devices) const
 {
-    devices = loadDeviceList();
+    std::set<std::pair<std::string, std::string>> devicesNameId;
+    devicesNameId = loadDeviceList();
+    for (const std::pair<std::string, std::string> &dev : devicesNameId)
+    {
+        devices.insert(dev.first);
+    }
 }
 
 std::shared_ptr<Call> RtcModule::startOrJoinCall(karere::Id chatid, AvFlags av,

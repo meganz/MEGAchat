@@ -27,7 +27,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
     onlineStatus = NULL;
     mShowArchived = false;
     mLogger = logger;
-    mChatSettings = new ChatSettings();
     qApp->installEventFilter(this);
 
     megaChatListenerDelegate = new QTMegaChatListener(mMegaChatApi, this);
@@ -41,7 +40,6 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
 MainWindow::~MainWindow()
 {
     removeListeners();
-    delete mChatSettings;
     delete mSettings;
     clearChatControllers();
     clearContactControllersMap();
@@ -645,7 +643,7 @@ void MainWindow::onWebRTCsetting()
 
 void MainWindow::createSettingsMenu()
 {
-    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this, mChatSettings);
+    ChatSettingsDialog *chatSettings = new ChatSettingsDialog(this);
     chatSettings->exec();
     chatSettings->deleteLater();
 }

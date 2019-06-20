@@ -3688,27 +3688,14 @@ void MegaChatApiImpl::pushReceived(bool beep, MegaChatHandle chatid, int type, M
 
 MegaStringList *MegaChatApiImpl::getChatAudioInDevices()
 {
-    std::vector<std::string> devicesVector;
-    sdkMutex.lock();
-    if (mClient && mClient->rtc)
-    {
-        mClient->rtc->getAudioInDevices(devicesVector);
-    }
-    else
-    {
-        API_LOG_ERROR("Failed to get audio-in devices");
-    }
-    sdkMutex.unlock();
-
-    MegaStringList *devices = getChatInDevices(devicesVector);
+    MegaStringList *devices = new MegaStringListPrivate();
 
     return devices;
-
 }
 
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
-    std::vector<std::string> devicesVector;
+    std::set<std::string> devicesVector;
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
@@ -3748,20 +3735,23 @@ void MegaChatApiImpl::setChatVideoInDevice(const char *device, MegaChatRequestLi
     request->setText(device);
     requestQueue.push(request);
     waiter->notify();
+}
 
-//    bool returnedValue = false;
-//    sdkMutex.lock();
-//    if (mClient && mClient->rtc)
-//    {
-//        returnedValue = mClient->rtc->selectVideoInDevice(device);
-//    }
-//    else
-//    {
-//        API_LOG_ERROR("Failed to set video-in devices");
-//    }
-//    sdkMutex.unlock();
+char *MegaChatApiImpl::getVideoDeviceSelected()
+{
+    char *deviceName = nullptr;
+    sdkMutex.lock();
+    if (mClient && mClient->rtc)
+    {
+        deviceName = MegaApi::strdup(mClient->rtc->getVideoDeviceSelected().c_str());
+    }
+    else
+    {
+        API_LOG_ERROR("Failed to get selected video-in device");
+    }
+    sdkMutex.unlock();
 
-//    return returnedValue;
+    return deviceName;
 }
 
 void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, MegaChatRequestListener *listener)
@@ -4211,17 +4201,19 @@ rtcModule::ICallHandler *MegaChatApiImpl::onGroupCallActive(Id chatid, Id callid
     return chatCallHandler;
 }
 
-MegaStringList *MegaChatApiImpl::getChatInDevices(const std::vector<string> &devicesVector)
+MegaStringList *MegaChatApiImpl::getChatInDevices(const std::set<string> &devicesVector)
 {
-    int devicesNumber = devicesVector.size();
-    char **devicesArray = NULL;
+    uint64_t devicesNumber = devicesVector.size();
+    char **devicesArray = nullptr;
     if (devicesNumber > 0)
     {
         devicesArray = new char*[devicesNumber];
-        for (int i = 0; i < devicesNumber; ++i)
+        uint32_t i = 0;
+        for (const std::string &device : devicesVector)
         {
-            char *device = MegaApi::strdup(devicesVector[i].c_str());
-            devicesArray[i] = device;
+            char *temp = MegaApi::strdup(device.c_str());
+            devicesArray[i] = temp;
+            i++;
         }
     }
 

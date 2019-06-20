@@ -327,10 +327,11 @@ public:
 //Implementation of virtual methods of IRtcModule
     virtual void init();
     virtual void getAudioInDevices(std::vector<std::string>& devices) const;
-    virtual void getVideoInDevices(std::vector<std::string>& devices) const;
+    virtual void getVideoInDevices(std::set<std::string> &devices) const;
     virtual bool selectVideoInDevice(const std::string& devname);
     virtual bool selectAudioInDevice(const std::string& devname);
-    virtual std::vector<std::string> loadDeviceList() const;
+    virtual std::set<std::pair<std::string, std::string>> loadDeviceList() const;
+    virtual std::string getVideoDeviceSelected();
     virtual bool isCallInProgress(karere::Id chatid) const;
     virtual bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
     virtual void removeCall(karere::Id chatid, bool retry = false);
@@ -356,7 +357,6 @@ protected:
     const char* mStaticIceSever;
     karere::GelbProvider mIceServerProvider;
     webrtc::PeerConnectionInterface::IceServers mIceServers;
-    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> mInfo;
     std::map<karere::Id, std::shared_ptr<Call>> mCalls;
     std::map<karere::Id, ICallHandler *> mCallHandlers;
     std::map<karere::Id, std::pair<karere::AvFlags, bool>> mRetryCall;

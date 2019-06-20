@@ -208,9 +208,9 @@ CapturerTrackSource::~CapturerTrackSource()
     destroy();
 }
 
-std::vector<std::string> CapturerTrackSource::getVideoDevices()
+std::set<std::pair<std::string, std::string>> CapturerTrackSource::getVideoDevices()
 {
-    std::vector<std::string> videoDevices;
+    std::set<std::pair<std::string, std::string>> videoDevices;
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
     if (!info) {
         return videoDevices;
@@ -222,7 +222,7 @@ std::vector<std::string> CapturerTrackSource::getVideoDevices()
         char uniqueName[256];
         std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> deviceInfo(webrtc::VideoCaptureFactory::CreateDeviceInfo());
         deviceInfo->GetDeviceName(i, deviceName, sizeof(deviceName), uniqueName, sizeof(uniqueName));
-        videoDevices.push_back(uniqueName);
+        videoDevices.insert(std::pair<std::string, std::string>(deviceName, uniqueName));
     }
 
     return videoDevices;
@@ -230,36 +230,6 @@ std::vector<std::string> CapturerTrackSource::getVideoDevices()
 
 void CapturerTrackSource::openDevice(const std::string &videoDevice)
 {
-    std::vector<std::string> videoDevices = getVideoDevices();
-    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> deviceInfo(webrtc::VideoCaptureFactory::CreateDeviceInfo());
-
-    int index = -1;
-    uint32_t i = 0;
-    for (const std::string &device: videoDevices)
-    {
-        if (device == videoDevice)
-        {
-            index = static_cast<int>(i);
-            break;
-        }
-
-        i++;
-    }
-
-    if (index < 0)
-    {
-        return;
-    }
-
-    char deviceName[256];
-    char uniqueName[256];
-    if (deviceInfo->GetDeviceName(static_cast<uint32_t>(index), deviceName, sizeof(deviceName), uniqueName, sizeof(uniqueName)) != 0)
-    {
-        destroy();
-        return;
-
-    }
-
     mCameraCapturer = webrtc::VideoCaptureFactory::Create(videoDevice.c_str());
     if (!mCameraCapturer)
     {
@@ -268,6 +238,7 @@ void CapturerTrackSource::openDevice(const std::string &videoDevice)
 
     mCameraCapturer->RegisterCaptureDataCallback(this);
 
+    std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> deviceInfo(webrtc::VideoCaptureFactory::CreateDeviceInfo());
     webrtc::VideoCaptureCapability capabilities;
     deviceInfo->GetCapability(mCameraCapturer->CurrentDeviceName(), 0, capabilities);
     mCapabilities.interlaced = capabilities.interlaced;
