@@ -2890,6 +2890,12 @@ void Session::onIceConnectionChange(webrtc::PeerConnectionInterface::IceConnecti
     }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionDisconnected)
     {
+        if (mRenegotiationInProgress)
+        {
+            SUB_LOG_DEBUG("Skip Ice connection closed, renegotiation in progress");
+            return;
+        }
+
         terminateAndDestroy(TermCode::kErrIceDisconn);
     }
     else if (state == webrtc::PeerConnectionInterface::kIceConnectionConnected)
@@ -3333,6 +3339,7 @@ void Session::msgSdpOfferRenegotiate(RtMessage &packet)
     assert(packet.payload.size() >= 83 + sdpLen);
     packet.payload.read(83, sdpLen, mPeerSdpOffer);
     packet.payload.read(48, mPeerHash);
+    mRenegotiationInProgress = true;
     setStreamRenegotiationTimeout();
     auto wptr = weakHandle();
     processSdpOfferSendAnswer()
@@ -3743,8 +3750,13 @@ void Session::setStreamRenegotiationTimeout()
 
     mStreamRenegotiationTimer = setTimeout([wptr, this]()
     {
+        if (wptr.deleted())
+        {
+            return;
+        }
+
         mRenegotiationInProgress = false;
-        if (wptr.deleted() || !mStreamRenegotiationTimer || mState >= kStateTerminating)
+        if (!mStreamRenegotiationTimer || mState >= kStateTerminating)
         {
             mStreamRenegotiationTimer = 0;
             return;
