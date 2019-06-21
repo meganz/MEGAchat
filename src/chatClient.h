@@ -639,7 +639,7 @@ class InitStats
 
         std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
-
+        void onCanceled();
 
         /*  Stages Methods */
 

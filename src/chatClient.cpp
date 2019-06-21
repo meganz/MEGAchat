@@ -362,6 +362,10 @@ promise::Promise<void> Client::notifyUserStatus(bool background)
 {
     bool oldStatus = mIsInBackground;
     mIsInBackground = background;
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
 
     if (oldStatus == mIsInBackground)
     {
@@ -1097,6 +1101,11 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
 promise::Promise<void> Client::connect(bool isInBackground)
 {
     mIsInBackground = isInBackground;
+
+    if (mIsInBackground && !mInitStats.isCompleted())
+    {
+        mInitStats.onCanceled();
+    }
 
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
@@ -3785,6 +3794,12 @@ std::string encodeFirstName(const std::string& first)
 bool InitStats::isCompleted() const
 {
     return mCompleted;
+}
+
+void InitStats::onCanceled()
+{
+    mCompleted = true;
+    KR_LOG_WARNING("Init stats have been cancelled");
 }
 
 std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t numContacts)
