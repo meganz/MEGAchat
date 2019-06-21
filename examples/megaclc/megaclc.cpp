@@ -1572,6 +1572,67 @@ void exec_loadmessages(ac::ACState& s)
     }
 }
 
+class ReviewPublicChat_ChatConnection_Listener : public c::MegaChatListener
+{
+public:
+    ReviewPublicChat_ChatConnection_Listener(bool& open_chat_preview_success, int msg_count)
+    : m_openChatPreviewSuccess{open_chat_preview_success}
+    , m_msgCount{msg_count}
+    {
+        g_chatApi->addChatListener(this);
+    }
+
+    ~ReviewPublicChat_ChatConnection_Listener()
+    {
+        g_chatApi->removeChatListener(this);
+    }
+
+    void onChatConnectionStateUpdate(c::MegaChatApi*, c::MegaChatHandle chatid, int newState) override
+    {
+        if (newState == c::MegaChatApi::CHAT_CONNECTION_ONLINE && m_openChatPreviewSuccess)
+        {
+            auto& rec = g_roomListeners[chatid];
+            if (!rec.open)
+            {
+                if (!g_chatApi->openChatRoom(chatid, rec.listener.get()))
+                {
+                    conlock(cout) << "Failed to open chat room." << endl;
+                    g_roomListeners.erase(chatid);
+                }
+                else
+                {
+                    rec.listener->room = chatid;
+                    rec.open = true;
+                }
+            }
+
+            if (rec.open)
+            {
+                g_reportMessagesDeveloper = false;
+
+                const auto source = g_chatApi->loadMessages(chatid, m_msgCount);
+
+                auto cl = conlock(cout);
+                switch (source)
+                {
+                case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
+                case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
+                case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
+                case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
+                }
+            }
+        }
+        else if (newState == c::MegaChatApi::CHAT_CONNECTION_OFFLINE)
+        {
+            delete this;
+        }
+    }
+
+private:
+    bool& m_openChatPreviewSuccess;
+    int m_msgCount;
+};
+
 void exec_reviewpublicchat(ac::ACState& s)
 {
     const auto chat_link = s.words[1].s;
@@ -1581,6 +1642,10 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         g_chatApi->initAnonymous();
     }
+
+    bool open_chat_preview_success = true;
+
+    new ReviewPublicChat_ChatConnection_Listener{open_chat_preview_success, msg_count};
 
     auto connect_listener = new OneShotChatRequestListener;
     auto open_chat_preview_listener = new OneShotChatRequestListener;
@@ -1597,45 +1662,14 @@ void exec_reviewpublicchat(ac::ACState& s)
             };
 
     open_chat_preview_listener->onRequestFinishFunc =
-            [msg_count](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+            [msg_count, &open_chat_preview_success](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
             {
                 if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("OpenChatPreview", e))
                 {
+                    open_chat_preview_success = false;
                     return;
                 }
                 conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(request->getChatHandle()).toString() << endl;
-
-                const c::MegaChatHandle room = request->getChatHandle();
-                auto& rec = g_roomListeners[room];
-                if (!rec.open)
-                {
-                    if (!g_chatApi->openChatRoom(room, rec.listener.get()))
-                    {
-                        conlock(cout) << "Failed to open chat room." << endl;
-                        g_roomListeners.erase(room);
-                    }
-                    else
-                    {
-                        rec.listener->room = room;
-                        rec.open = true;
-                    }
-                }
-
-                if (rec.open)
-                {
-                    g_reportMessagesDeveloper = false;
-
-                    const auto source = g_chatApi->loadMessages(room, msg_count);
-
-                    auto cl = conlock(cout);
-                    switch (source)
-                    {
-                    case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
-                    case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
-                    case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
-                    case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
-                    }
-                }
             };
 
     g_chatApi->connect(connect_listener);
