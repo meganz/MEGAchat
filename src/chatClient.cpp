@@ -3943,7 +3943,6 @@ void InitStats::stageStart(uint8_t stage)
     }
 
     mStageStats[stage] = currentTime();
-    KR_LOG_DEBUG("Stage: %d Start: %ld", stage, mStageStats[stage]);
 }
 
 void InitStats::stageEnd(uint8_t stage)
@@ -3954,9 +3953,7 @@ void InitStats::stageEnd(uint8_t stage)
     }
 
     assert(mStageStats[stage]);
-    mega::dstime aux = currentTime();
-    mStageStats[stage] = aux - mStageStats[stage];
-    KR_LOG_DEBUG("Stage: %d End: %ld Elap: %ld", stage, aux, mStageStats[stage]);
+    mStageStats[stage] = currentTime() - mStageStats[stage];
 }
 
 void InitStats::setInitState(uint8_t state)
@@ -4112,6 +4109,11 @@ std::string InitStats::toJson()
     // Add number of contacts
     jsonValue.SetInt64(mInitState);
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
+
+    // Add init stats version
+    uint32_t version = 2;
+    jsonValue.SetUint(version);
+    jSonObject.AddMember(rapidjson::Value("v"), jsonValue, jSonDocument.GetAllocator());
 
     // Add total elapsed
     jsonValue.SetInt64(totalElapsed);
