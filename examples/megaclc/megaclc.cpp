@@ -1662,12 +1662,17 @@ void exec_reviewpublicchat(ac::ACState& s)
             };
 
     open_chat_preview_listener->onRequestFinishFunc =
-            [msg_count, &open_chat_preview_success](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+            [msg_count, &open_chat_preview_success](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
             {
                 if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("OpenChatPreview", e))
                 {
                     open_chat_preview_success = false;
                     return;
+                }
+                auto room = api->getChatRoom(request->getChatHandle());
+                if (room)
+                {
+                    conlock(cout) << "++++++++++++++++++ Number of chat participants: " << room->getPeerCount() << endl;
                 }
                 conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(request->getChatHandle()).toString() << endl;
             };
