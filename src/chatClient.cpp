@@ -3799,6 +3799,10 @@ bool InitStats::isCompleted() const
 void InitStats::onCanceled()
 {
     mCompleted = true;
+
+    // clear maps to free some memory
+    mStageShardStats.clear();
+    mStageStats.clear();
     KR_LOG_WARNING("Init stats have been cancelled");
 }
 
@@ -3939,6 +3943,7 @@ void InitStats::stageStart(uint8_t stage)
     }
 
     mStageStats[stage] = currentTime();
+    KR_LOG_WARNING("Stage: %d Start: %ld", stage, mStageStats[stage]);
 }
 
 void InitStats::stageEnd(uint8_t stage)
@@ -3949,7 +3954,9 @@ void InitStats::stageEnd(uint8_t stage)
     }
 
     assert(mStageStats[stage]);
-    mStageStats[stage] = currentTime() - mStageStats[stage];
+    mega::dstime aux = currentTime();
+    mStageStats[stage] = aux - mStageStats[stage];
+    KR_LOG_WARNING("Stage: %d End: %ld Elap: %ld", stage, aux, mStageStats[stage]);
 }
 
 void InitStats::setInitState(uint8_t state)
