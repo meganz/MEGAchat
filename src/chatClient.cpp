@@ -3943,7 +3943,7 @@ void InitStats::stageStart(uint8_t stage)
     }
 
     mStageStats[stage] = currentTime();
-    KR_LOG_WARNING("Stage: %d Start: %ld", stage, mStageStats[stage]);
+    KR_LOG_DEBUG("Stage: %d Start: %ld", stage, mStageStats[stage]);
 }
 
 void InitStats::stageEnd(uint8_t stage)
