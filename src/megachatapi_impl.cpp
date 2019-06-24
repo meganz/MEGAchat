@@ -8491,13 +8491,6 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
             delete [] fingerprint;
         }
 
-        if (const char *originalFingerprint = megaNode->getOriginalFingerprint())
-        {
-            rapidjson::Value fpValue(rapidjson::kStringType);
-            fpValue.SetString(originalFingerprint, strlen(originalFingerprint), jSonAttachmentNodes.GetAllocator());
-            jsonNode.AddMember(rapidjson::Value("ohash"), fpValue, jSonAttachmentNodes.GetAllocator());
-        }
-
         // fa -> image thumbnail/preview/mediainfo
         const char *fa = megaNode->getFileAttrString();
         if (fa)
@@ -8632,14 +8625,6 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         // convert MEGA's fingerprint to the internal format used by SDK (includes size)
         char *sdkFingerprint = !fp.empty() ? MegaApiImpl::getSdkFingerprintFromMegaFingerprint(fp.c_str(), size) : NULL;
 
-        // original fingerprint
-        iteratorFp = file.FindMember("ohash");
-        std::string originalfp;
-        if (!(iteratorFp == file.MemberEnd()) && iteratorFp->value.IsString())
-        {
-            originalfp = iteratorFp->value.GetString();
-        }
-
         // nodetype
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
@@ -8671,8 +8656,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
                              megaHandle, &key, &attrstring, &fa, sdkFingerprint, 
-                             originalfp.empty() ? NULL : originalfp.c_str(), INVALID_HANDLE, 
-                             INVALID_HANDLE, NULL, NULL, false, true);
+                             NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
 
