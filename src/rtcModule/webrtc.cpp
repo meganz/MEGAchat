@@ -2106,7 +2106,7 @@ void Call::enableVideo(bool enable)
                 capabilities.maxFPS = 25;
             }
 
-            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities, mManager.mVideoDeviceSelected));
+            mVideoDevice = std::shared_ptr<artc::CapturerTrackSource>(artc::CapturerTrackSource::Create(capabilities));
             assert(mVideoDevice);
 
             mVideoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mVideoDevice.get());
@@ -2270,7 +2270,10 @@ Call::~Call()
         cancelInterval(mStatsTimer, mManager.mKarereClient.appCtx);
     }
 
+    mVideoDevice.reset();
+    // TODO: Review possible memory leak
     mVideoTrack.release();
+    mAudioTrack.release();
 
     SUB_LOG_DEBUG("Destroyed");
 }
@@ -3258,6 +3261,8 @@ void Session::destroy(TermCode code, const std::string& msg)
 
     submitStats(code, msg);
 
+    mRtcConn->RemoveTrackNew(mVideoSender);
+
     removeRtcConnection();
 
     mRemotePlayer.reset();
@@ -3757,6 +3762,7 @@ void Session::removeRtcConnection()
         {
             mRtcConn->Close();
         }
+
         mRtcConn.release();
     }
 

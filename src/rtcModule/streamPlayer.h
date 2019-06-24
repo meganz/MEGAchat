@@ -18,7 +18,6 @@ protected:
     void *appCtx;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> mAudio;
     webrtc::VideoTrackSourceInterface *mVideo;
-    rtc::scoped_refptr<webrtc::VideoCaptureModule> mVideoCapture = nullptr;
     IVideoRenderer* mRenderer;
     bool mMediaStartSignalled = false;
     std::function<void()> mOnMediaStart;

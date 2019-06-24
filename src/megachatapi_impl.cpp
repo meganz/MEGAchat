@@ -7626,6 +7626,7 @@ MegaChatCallHandler::~MegaChatCallHandler()
     }
 
     delete chatCall;
+    delete localVideoReceiver;
 }
 
 void MegaChatCallHandler::setCall(rtcModule::ICall *call)

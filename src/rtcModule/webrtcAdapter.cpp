@@ -168,6 +168,10 @@ VideoTrackSource::VideoTrackSource(bool remote)
     mWorkerThreadChecker.Detach();
 }
 
+VideoTrackSource::~VideoTrackSource()
+{
+}
+
 void VideoTrackSource::SetState(webrtc::MediaSourceInterface::SourceState new_state)
 {
     if (mState != new_state) {
@@ -193,9 +197,9 @@ bool VideoTrackSource::remote() const
     return mRemote;
 }
 
-CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &videoDevice)
+CapturerTrackSource* CapturerTrackSource::Create(const webrtc::VideoCaptureCapability &capabilities)
 {
-    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities, videoDevice);
+    return new rtc::RefCountedObject<CapturerTrackSource>(capabilities);
 }
 
 void CapturerTrackSource::OnFrame(const webrtc::VideoFrame& frame)
@@ -258,7 +262,7 @@ void CapturerTrackSource::releaseDevice()
     destroy();
 }
 
-CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &videoDevice)
+CapturerTrackSource::CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities)
     : VideoTrackSource(false)
 {
     mCapabilities = capabilities;

@@ -138,7 +138,6 @@ class myPeerConnection: public
         rtc::scoped_refptr<webrtc::PeerConnectionInterface>
 {
 protected:
-
     //PeerConnectionObserver implementation
     struct Observer: public webrtc::PeerConnectionObserver
     {
@@ -201,8 +200,7 @@ protected:
     std::shared_ptr<Observer> mObserver;
 public:
     myPeerConnection():Base(){}
-    myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers,
-     C& handler)
+    myPeerConnection(const webrtc::PeerConnectionInterface::IceServers& servers, C& handler)
         :mObserver(new Observer(handler))
     {
         webrtc::PeerConnectionInterface::RTCConfiguration config;
@@ -248,7 +246,6 @@ public:
   }
 };
 
-
 class LocalStreamHandle
 {
 protected:
@@ -282,7 +279,6 @@ public:
     void addAudioTrack(const rtc::scoped_refptr<webrtc::AudioTrackInterface>& audio)
     {
         mAudio = audio;
-        //mStream->AddTrack(*audio);
     }
 
     void addVideoTrack(const rtc::scoped_refptr<webrtc::VideoTrackInterface>& video)
@@ -293,7 +289,6 @@ public:
         }
 
         mVideo = video;
-        //mStream->AddTrack(*video);
     }
 
     webrtc::AudioTrackInterface* audio() { return mAudio ? mAudio.get() : (webrtc::AudioTrackInterface*)nullptr; }
@@ -304,6 +299,7 @@ class VideoTrackSource : public webrtc::Notifier<webrtc::VideoTrackSourceInterfa
 {
 public:
     explicit VideoTrackSource(bool remote);
+    ~VideoTrackSource() override;
     void SetState(webrtc::MediaSourceInterface::SourceState new_state);
 
     webrtc::MediaSourceInterface::SourceState state() const override { return mState; }
@@ -331,7 +327,7 @@ protected:
 class CapturerTrackSource : public VideoTrackSource, rtc::VideoSinkInterface<webrtc::VideoFrame>
 {
 public:
-    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &videoDevice);
+    static CapturerTrackSource* Create(const webrtc::VideoCaptureCapability &capabilities);
     virtual void OnFrame(const webrtc::VideoFrame& frame) override;
     ~CapturerTrackSource() override;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
@@ -339,7 +335,7 @@ public:
     void releaseDevice();
 
 protected:
-    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities, const std::string &videoDevice);
+    explicit CapturerTrackSource(const webrtc::VideoCaptureCapability &capabilities);
 private:
     rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override;
     void destroy();
