@@ -4111,7 +4111,7 @@ std::string InitStats::toJson()
     jSonObject.AddMember(rapidjson::Value("sid"), jsonValue, jSonDocument.GetAllocator());
 
     // Add init stats version
-    uint32_t version = 2;
+    uint32_t version = INITSTATSVERSION;
     jsonValue.SetUint(version);
     jSonObject.AddMember(rapidjson::Value("v"), jsonValue, jSonDocument.GetAllocator());
 
