@@ -3956,7 +3956,7 @@ void InitStats::stageEnd(uint8_t stage)
     assert(mStageStats[stage]);
     mega::dstime aux = currentTime();
     mStageStats[stage] = aux - mStageStats[stage];
-    KR_LOG_WARNING("Stage: %d End: %ld Elap: %ld", stage, aux, mStageStats[stage]);
+    KR_LOG_DEBUG("Stage: %d End: %ld Elap: %ld", stage, aux, mStageStats[stage]);
 }
 
 void InitStats::setInitState(uint8_t state)
