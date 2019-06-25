@@ -1668,7 +1668,7 @@ void exec_reviewpublicchat(ac::ACState& s)
             };
 
     open_chat_preview_listener->onRequestFinishFunc =
-            [&send_event_listener](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+            [](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
             {
                 // Called on Mega Chat API thread
                 if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("openChatPreview", e))
