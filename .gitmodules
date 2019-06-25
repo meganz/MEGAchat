@@ -1,3 +1,0 @@
-[submodule "third-party/mega"]
-	path = third-party/mega
-	url = git@github.com:meganz/sdk.git
