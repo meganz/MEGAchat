@@ -602,7 +602,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     {
         auto joined_or_left = [msg](const c::MegaChatHandle handle)
         {
-            for (int i = 0; i < msg->getUsersCount(); ++i)
+            for (unsigned i = 0; i < msg->getUsersCount(); ++i)
             {
                 if (handle == msg->getUserHandle(i))
                 {
@@ -624,7 +624,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     }
     else if (msg->getType() == c::MegaChatMessage::TYPE_NODE_ATTACHMENT)
     {
-        auto nodeinfo = [](mega::MegaNodeList* list)
+        auto nodeinfo = [](m::MegaNodeList* list)
         {
             if (!list || list->size() == 0)
             {
