@@ -608,6 +608,10 @@ public:
 class InitStats
 {
     public:
+
+        /** @brief MEGAchat init stats version */
+        const uint32_t INITSTATSVERSION = 2;
+
         /** @brief Init states in init stats */
         enum
         {
@@ -639,7 +643,7 @@ class InitStats
 
         std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
-
+        void onCanceled();
 
         /*  Stages Methods */
 
