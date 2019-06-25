@@ -1584,10 +1584,11 @@ public:
 
     // This assumes that we receive a single SEND_EVENT response from the Mega API after a call
     // to openChatPreview. Receiving this event is used as an indicator that loadMessages
-    // can now be safely called. This is used as a workaround for a lack of being signalled
+    // can now be safely called. This is used as a workaround for a lack of being signaled
     // for when openChatPreview has actually finished all its requests.
     void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
     {
+        // Called on Mega API thread
         if (request->getType() != m::MegaRequest::TYPE_SEND_EVENT || !check_err("SEND_EVENT", e))
         {
             return;
@@ -1657,6 +1658,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     connect_listener->onRequestFinishFunc =
             [chat_link, open_chat_preview_listener](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
             {
+                // Called on Mega Chat API thread
                 if (request->getType() != c::MegaChatRequest::TYPE_CONNECT || !check_err("connect", e))
                 {
                     return;
@@ -1668,6 +1670,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     open_chat_preview_listener->onRequestFinishFunc =
             [&send_event_listener](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
             {
+                // Called on Mega Chat API thread
                 if (request->getType() != c::MegaChatRequest::TYPE_LOAD_PREVIEW || !check_err("openChatPreview", e))
                 {
                     return;
