@@ -548,13 +548,25 @@ promise::Promise<void> Client::pushReceived(Id chatid)
             return promise::Error("Up to date with API, but instance was removed");
 
         // if already sent SYNCs or we are not logged in right now...
-        if (mSyncTimer || !mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        if (mSyncTimer)
         {
+            KR_LOG_WARNING("pushReceived: a previous PUSH is being processed. Both will finish at the same time");
+            assert(!mSyncPromise.done());
             return mSyncPromise;
             // promise will resolve once logged in for all chats or after receive all SYNCs back
         }
 
-        mSyncPromise = Promise<void>();
+        if (mSyncPromise.done())
+        {
+            KR_LOG_WARNING("pushReceived: previous PUSH was already resolved. New promise to track the progress");
+            mSyncPromise = Promise<void>();
+        }
+        if (!mChatdClient || !mChatdClient->areAllChatsLoggedIn())
+        {
+            KR_LOG_WARNING("pushReceived: not logged in into all chats");
+            return mSyncPromise;
+        }
+
         mSyncCount = 0;
         mSyncTimer = karere::setTimeout([this, wptr]()
         {
