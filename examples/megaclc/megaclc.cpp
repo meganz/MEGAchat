@@ -1572,63 +1572,93 @@ void exec_loadmessages(ac::ACState& s)
     }
 }
 
-class ReviewPublicChat_SendEvent_Listener : public m::MegaRequestListener
+class ReviewPublicChat_GetUserEmail_Listener : public m::MegaListener
 {
 public:
-    explicit ReviewPublicChat_SendEvent_Listener(int msg_count)
+    explicit ReviewPublicChat_GetUserEmail_Listener(int msg_count)
     : m_msgCount{msg_count}
     {}
 
-    ReviewPublicChat_SendEvent_Listener(const ReviewPublicChat_SendEvent_Listener&) = delete;
-    ReviewPublicChat_SendEvent_Listener& operator=(const ReviewPublicChat_SendEvent_Listener&) = delete;
+    ReviewPublicChat_GetUserEmail_Listener(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
+    ReviewPublicChat_GetUserEmail_Listener& operator=(const ReviewPublicChat_GetUserEmail_Listener&) = delete;
 
-    // This assumes that we receive a single SEND_EVENT response from the Mega API after a call
-    // to openChatPreview. Receiving this event is used as an indicator that loadMessages
-    // can now be safely called. This is used as a workaround for a lack of being signaled
-    // for when openChatPreview has actually finished all its requests.
     void onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e) override
     {
         // Called on Mega API thread
-        if (request->getType() != m::MegaRequest::TYPE_SEND_EVENT || !check_err("SEND_EVENT", e))
+        if (request->getType() != m::MegaRequest::TYPE_GET_USER_EMAIL || !check_err("TYPE_GET_USER_EMAIL", e))
         {
             return;
         }
-        conlock(cout) << "ReviewPublicChat SEND_EVENT finished" << endl;
-        api->removeRequestListener(this);
+        conlock(cout) << "ReviewPublicChat: TYPE_GET_USER_EMAIL finished" << endl;
+        if (!request->getEmail())
+        {
+            return;
+        }
+        conlock(cout) << "ReviewPublicChat: Email: " << request->getEmail() << endl;
+        m_emails.emplace(request->getEmail());
+        if (m_emails.size() < static_cast<size_t>(m_userCount.load()))
+        {
+            // Wait until we've received emails for all users
+            return;
+        }
+
+        api->removeListener(this);
 
         const auto chatid = m_chatId.load();
-        // Access to g_roomListeners is safe because no other thread accesses this map
-        // while the Mega API thread is using it here.
-        auto& rec = g_roomListeners[chatid];
-        if (!rec.open)
-        {
-            if (!g_chatApi->openChatRoom(chatid, rec.listener.get()))
-            {
-                conlock(cout) << "Failed to open chat room." << endl;
-                g_roomListeners.erase(chatid);
-            }
-            else
-            {
-                rec.listener->room = chatid;
-                rec.open = true;
-            }
-        }
+        const auto msg_count = m_msgCount;
 
-        if (rec.open)
-        {
-            g_reportMessagesDeveloper = false;
+        auto push_received_listener = new OneShotChatRequestListener;
 
-            const auto source = g_chatApi->loadMessages(chatid, m_msgCount);
+        push_received_listener->onRequestFinishFunc =
+                [chatid, msg_count](c::MegaChatApi* api, c::MegaChatRequest *request, c::MegaChatError* e)
+                {
+                    // Called on Mega Chat API thread
+                    if (request->getType() != c::MegaChatRequest::TYPE_PUSH_RECEIVED || !check_err("TYPE_PUSH_RECEIVED", e))
+                    {
+                        return;
+                    }
+                    conlock(cout) << "ReviewPublicChat: TYPE_PUSH_RECEIVED finished" << endl;
 
-            auto cl = conlock(cout);
-            switch (source)
-            {
-            case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
-            case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
-            case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
-            case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
-            }
-        }
+                    // Access to g_roomListeners is safe because no other thread accesses this map
+                    // while the Mega Chat API thread is using it here.
+                    auto& rec = g_roomListeners[chatid];
+                    if (!rec.open)
+                    {
+                        if (!api->openChatRoom(chatid, rec.listener.get()))
+                        {
+                            conlock(cout) << "Failed to open chat room." << endl;
+                            g_roomListeners.erase(chatid);
+                        }
+                        else
+                        {
+                            rec.listener->room = chatid;
+                            rec.open = true;
+                        }
+                    }
+
+                    if (rec.open)
+                    {
+                        g_reportMessagesDeveloper = false;
+
+                        const auto source = api->loadMessages(chatid, msg_count);
+
+                        auto cl = conlock(cout);
+                        switch (source)
+                        {
+                        case c::MegaChatApi::SOURCE_ERROR: cout << "Load failed as we are offline." << endl; break;
+                        case c::MegaChatApi::SOURCE_NONE: cout << "No more messages." << endl; break;
+                        case c::MegaChatApi::SOURCE_LOCAL: cout << "Loading from local store." << endl; break;
+                        case c::MegaChatApi::SOURCE_REMOTE: cout << "Loading from server." << endl; break;
+                        }
+                    }
+                };
+
+        g_chatApi->pushReceived(false, push_received_listener);
+    }
+
+    void setUserCount(int count)
+    {
+        m_userCount = count;
     }
 
     void setChatId(c::MegaChatHandle chatid)
@@ -1637,20 +1667,24 @@ public:
     }
 
 private:
+
+    std::set<std::string> m_emails;
     int m_msgCount;
+    std::atomic<int> m_userCount{0};
     std::atomic<c::MegaChatHandle> m_chatId{0};
 };
 
 void exec_reviewpublicchat(ac::ACState& s)
 {
+    if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        conlock(cout) << "Error: Not logged in" << endl;
+        return;
+    }
+
     const auto chat_link = s.words[1].s;
     const int msg_count = s.words.size() > 2 ? stoi(s.words[2].s) : 100;
-    static ReviewPublicChat_SendEvent_Listener send_event_listener{msg_count};
-
-    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
-    {
-        g_chatApi->initAnonymous();
-    }
+    static ReviewPublicChat_GetUserEmail_Listener get_user_email_listener{msg_count};
 
     auto connect_listener = new OneShotChatRequestListener;
     auto open_chat_preview_listener = new OneShotChatRequestListener;
@@ -1676,9 +1710,12 @@ void exec_reviewpublicchat(ac::ACState& s)
                     return;
                 }
                 const auto chatid = request->getChatHandle();
-                conlock(cout) << "openchatpreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
-                send_event_listener.setChatId(chatid);
-                g_megaApi->addRequestListener(&send_event_listener);
+                conlock(cout) << "openChatPreview: chatlink loaded. Chatid: " << k::Id(chatid).toString() << endl;
+                const int user_count = request->getNumber();
+                conlock(cout) << "openChatPreview: User count: " << user_count << endl;
+                get_user_email_listener.setUserCount(user_count);
+                get_user_email_listener.setChatId(chatid);
+                g_megaApi->addListener(&get_user_email_listener);
             };
 
     g_chatApi->connect(connect_listener);
