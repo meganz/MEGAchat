@@ -206,20 +206,21 @@ public:
     virtual void onRingOut(karere::Id /*peer*/) {}
     virtual void onCallStarting() {}
     virtual void onCallStarted() {}
-
     virtual void addParticipant(karere::Id userid, uint32_t clientid, karere::AvFlags flags) = 0;
     virtual bool removeParticipant(karere::Id userid, uint32_t clientid) = 0;
     virtual int callParticipants() = 0;
     virtual bool isParticipating(karere::Id userid) = 0;
     virtual void removeAllParticipants() = 0;
-
     virtual karere::Id getCallId() const = 0;
     virtual void setCallId(karere::Id callid) = 0;
+    virtual rtcModule::ICall *getCall() = 0;
 
     virtual void setInitialTimeStamp(int64_t timeStamp) = 0;
     virtual int64_t getInitialTimeStamp() = 0;
 
     virtual bool hasBeenNotifiedRinging() const = 0;
+
+    virtual void onReconnectingState(bool start) = 0;
 };
 class IGlobalHandler
 {
@@ -297,7 +298,7 @@ protected:
     bool mIsGroup;
     bool mIsJoiner;
     ICallHandler* mHandler;
-    karere::Id mCallerUser;
+    karere::Id mCallerUser = karere::Id::inval();
     uint32_t mCallerClient;
     TermCode mTermCode;
     ICall(RtcModule& rtcModule, chatd::Chat& chat,
@@ -423,6 +424,7 @@ public:
     virtual ICallHandler* findCallHandler(karere::Id chatid) = 0;
     virtual int numCalls() const = 0;
     virtual std::vector<karere::Id> chatsWithCall() const = 0;
+    virtual void abortCallRetry(karere::Id chatid) = 0;
 };
 IRtcModule* create(karere::Client& client, IGlobalHandler& handler,
     IRtcCrypto* crypto, const char* iceServers);

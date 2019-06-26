@@ -63,6 +63,11 @@ bool Client::anonymousMode() const
     return (mInitState == kInitAnonymousMode);
 }
 
+bool Client::isInBackground() const
+{
+    return mIsInBackground;
+}
+
 /* Warning - the database is not initialzed at construction, but only after
  * init() is called. Therefore, no code in this constructor should access or
  * depend on the database
@@ -277,6 +282,14 @@ bool Client::openDb(const std::string& sid)
                     KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
                 }
             }
+            else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
+            {
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+            }
         }
     }
 
@@ -347,11 +360,21 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 
 promise::Promise<void> Client::notifyUserStatus(bool background)
 {
-    if (mChatdClient)
+    bool oldStatus = mIsInBackground;
+    mIsInBackground = background;
+
+    if (oldStatus == mIsInBackground)
     {
-        return mChatdClient->notifyUserStatus(background);
+        return promise::_Void();
     }
-    return promise::Error("Chatd client not initialized yet");
+
+    mPresencedClient.notifyUserStatus();
+    if (!mChatdClient)
+    {
+        return promise::Error("Chatd client not initialized yet");
+    }
+
+    return mChatdClient->notifyUserStatus();
 }
 
 promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
@@ -637,8 +660,7 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mMyEmail = getMyEmailFromSdk();
     db.query("insert or replace into vars(name,value) values('my_email', ?)", mMyEmail);
 
-    mMyIdentity = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", mMyIdentity);
+    mMyIdentity = initMyIdentity();
 
     mUserAttrCache.reset(new UserAttrCache(*this));
     api.sdk.addGlobalListener(this);
@@ -1072,8 +1094,10 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("== Contactlist end ==");
 }
 
-promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::connect(bool isInBackground)
 {
+    mIsInBackground = isInBackground;
+
 // only the first connect() needs to wait for the mSessionReadyPromise.
 // Any subsequent connect()-s (preceded by disconnect()) can initiate
 // the connect immediately
@@ -1092,7 +1116,7 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
     switch (sessDone)
     {
         case promise::kSucceeded:   // if session is ready...
-            return doConnect(pres, isInBackground);
+            return doConnect();
 
         case promise::kFailed:      // if session failed...
             return mSessionReadyPromise.error();
@@ -1100,15 +1124,15 @@ promise::Promise<void> Client::connect(Presence pres, bool isInBackground)
         default:                    // if session is not ready yet... wait for it and then connect
             assert(sessDone == promise::kNotResolved);
             mConnectPromise = mSessionReadyPromise
-            .then([this, pres, isInBackground]() mutable
+            .then([this]() mutable
             {
-                return doConnect(pres, isInBackground);
+                return doConnect();
             });
             return mConnectPromise;
     }
 }
 
-promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
+promise::Promise<void> Client::doConnect()
 {
     KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
@@ -1120,7 +1144,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     // notify user-attr cache
     assert(mUserAttrCache);
     mUserAttrCache->onLogin();
-    connectToChatd(isInBackground);
+    connectToChatd();
 
     auto wptr = weakHandle();
     assert(!mHeartbeatTimer);
@@ -1160,7 +1184,7 @@ promise::Promise<void> Client::doConnect(Presence pres, bool isInBackground)
     rtc->init();
 #endif
 
-    auto pms = mPresencedClient.connect(presenced::Config(pres))
+    auto pms = mPresencedClient.connect()
     .then([this, wptr]()
     {
         if (wptr.deleted())
@@ -1257,8 +1281,7 @@ uint64_t Client::getMyIdentityFromDb()
     if (!stmt.step())
     {
         KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
-        result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-        db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+        result = initMyIdentity();
     }
     else
     {
@@ -1266,10 +1289,23 @@ uint64_t Client::getMyIdentityFromDb()
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
-            result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
-            db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
+            result = initMyIdentity();
         }
     }
+    return result;
+}
+
+void Client::resetMyIdentity()
+{
+   assert(mInitState == kInitWaitingNewSession || mInitState == kInitHasOfflineSession);
+   KR_LOG_WARNING("Reset clientid_seed");
+   mMyIdentity = initMyIdentity();
+}
+
+uint64_t Client::initMyIdentity()
+{
+    uint64_t result = (static_cast<uint64_t>(rand()) << 32) | ::mega::m_time();
+    db.query("insert or replace into vars(name,value) values('clientid_seed', ?)", result);
     return result;
 }
 
@@ -2067,9 +2103,11 @@ void PeerChatRoom::initContact(const uint64_t& peer)
                 getAttr(peer, USER_ATTR_FULLNAME, this,[](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<PeerChatRoom*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
             {
                 self->updateTitle(self->mEmail);
             }
@@ -3389,10 +3427,8 @@ promise::Promise<void> GroupChatRoom::Member::nameResolved() const
     return mNameResolved;
 }
 
-void Client::connectToChatd(bool isInBackground)
+void Client::connectToChatd()
 {
-    mChatdClient->setKeepaliveType(isInBackground);
-
     for (auto& item: *chats)
     {
         auto& chat = *item.second;
@@ -3588,9 +3624,11 @@ Contact::Contact(ContactList& clist, const uint64_t& userid,
         [](Buffer* data, void* userp)
         {
             //even if both first and last name are null, the data is at least
-            //one byte - the firstname-size-prefix, which will be zero
+            //one byte - the firstname-size-prefix, which will be zero but
+            //if lastname is not null the first byte will contain the
+            //firstname-size-prefix but datasize will be bigger than 1 byte.
             auto self = static_cast<Contact*>(userp);
-            if (!data || data->empty() || (*data->buf() == 0))
+            if (!data || data->empty() || (*data->buf() == 0 && data->size() == 1))
                 self->updateTitle(encodeFirstName(self->mEmail));
             else
                 self->updateTitle(std::string(data->buf(), data->dataSize()));

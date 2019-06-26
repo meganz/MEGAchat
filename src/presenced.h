@@ -31,24 +31,24 @@ class Presence
 {
 public:
     typedef uint8_t Code;
+    // Code has 8 bits: the most significant 4 bits are used for flags (capabilities), the least significant 4 for the status
     enum: Code
     {
-        kClear = 0,
         kOffline = 1,
         kAway = 2,
         kOnline = 3,
         kBusy = 4,
         kLast = kBusy,
-        kInvalid = 0xff,
+        kUnknown = 0x0f,    // this is a local status, not used in presenced
         kFlagsMask = 0xf0
     };
 
-    Presence(Code pres = kInvalid): mPres(pres){}
+    Presence(Code pres = kUnknown): mPres(pres){}
     Code code() const { return mPres & ~kFlagsMask; }
     Code status() const { return code(); }
     operator Code() const { return code(); }
     Code raw() const { return mPres; }
-    bool isValid() const { return mPres != kInvalid; }
+    bool isValid() const { return status() != kUnknown; }
     inline static const char* toString(Code pres);
     const char* toString() const { return toString(mPres); }
 
@@ -69,9 +69,8 @@ inline const char* Presence::toString(Code pres)
         case kOnline: return "Online";
         case kAway: return "Away";
         case kBusy: return "Busy";
-        case kClear: return "kClear";
-        case kInvalid: return "kInvalid";
-        default: return "(unknown)";
+        case kUnknown: return "Unknown";
+        default: return "(invalid)";
     }
 }
 }
@@ -252,20 +251,17 @@ enum: uint8_t
 class Config
 {
 protected:
-    karere::Presence mPresence = karere::Presence::kInvalid;
+    karere::Presence mPresence = karere::Presence::kUnknown;
     bool mPersist = false;
-    bool mAutoawayActive = false;
-    time_t mAutoawayTimeout = 0;
+    bool mAutoawayActive = true;
+    time_t mAutoawayTimeout = 600;
     bool mLastGreenVisible = false;
 
 public:
     enum { kMaxAutoawayTimeout = 87420 };   // (in seconds, 1.447 minutes + 600 seconds)
     enum { kLastGreenVisibleMask = 0x8000 }; // mask for bit 15 in prefs
 
-    Config(karere::Presence pres=karere::Presence::kInvalid,
-          bool persist=false, bool aaEnabled=true, time_t aaTimeout=600, bool lastGreenVisible = false)
-        : mPresence(pres), mPersist(persist), mAutoawayActive(aaEnabled),
-          mAutoawayTimeout(aaTimeout), mLastGreenVisible(lastGreenVisible){}
+    Config(){}
     explicit Config(uint16_t code) { fromCode(code); }
 
     karere::Presence presence() const { return mPresence; }
@@ -443,6 +439,7 @@ protected:
     void removePeer(karere::Id peer, bool force=false);
     void pushPeers();
     bool isExContact(uint64_t userid);
+    bool isContact(uint64_t userid);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms);
@@ -468,8 +465,7 @@ public:
 
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
-    promise::Promise<void>
-    connect(const Config& Config);
+    promise::Promise<void> connect();
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect, bool refreshURL = false);
@@ -479,8 +475,21 @@ public:
      * perform pings at a single moment, to reduce mobile radio wakeup frequency */
     void heartbeat();
 
+    /** Returns true if apps should signal user's activity */
+    bool isSignalActivityRequired();
+
     /** Tells presenced that there's user's activity (notified by the app) */
     void signalActivity();
+
+    /** Tells presenced that user's activity stopped. Apps don't need to call this method explicitely,
+     * but when the app enters in background mode the user activity is not possible. */
+    void signalInactivity();
+
+    /**
+     * Checks the app's state (background or foreground) and signals user's activity or
+     * inactivity accordingly.
+     */
+    void notifyUserStatus();
 
     // peers management
     void updatePeerPresence(karere::Id peer, karere::Presence pres);
@@ -489,6 +498,7 @@ public:
     /** @brief Updates user last green if it's more recent than the current value.*/
     bool updateLastGreen(karere::Id userid, time_t lastGreen);
     time_t getLastGreen(karere::Id userid);
+
     ~Client();
 };
 

@@ -217,7 +217,7 @@ void MegaChatApiImpl::sendPendingRequests()
         {
             bool isInBackground = request->getFlag();
 
-            mClient->connect(karere::Presence::kInvalid, isInBackground)
+            mClient->connect(isInBackground)
             .then([request, this]()
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -1317,13 +1317,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     // for each chatroom, load all unread messages)
                     for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
                     {
-                        // don't want to generate notifications for archived chats
-                        if (it->second->isArchived())
+                        MegaChatHandle chatid = it->first;
+                        // don't want to generate notifications for archived chats or chats with notifications disabled
+                        if (it->second->isArchived() || !megaApi->isChatNotifiable(chatid))
                             continue;
 
                         MegaHandleList *msgids = MegaHandleList::createInstance();
 
-                        MegaChatHandle chatid = it->first;
                         const Chat &chat = it->second->chat();
                         Idx lastSeenIdx = chat.lastSeenIdx();
 
@@ -1574,9 +1574,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 rtcModule::ICall *call = handler->getCall();
                 if (!call)
                 {
-                    API_LOG_ERROR("Hang up call - There is not any MegaChatCallPrivate associated to MegaChatCallHandler");
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    assert(false);
+                    API_LOG_DEBUG("There isn't an internal call, abort call retry");
+                    mClient->rtc->abortCallRetry(chatid);
+
                     break;
                 }
 
@@ -1806,6 +1806,16 @@ int MegaChatApiImpl::init(const char *sid)
     return MegaChatApiImpl::convertInitState(state);
 }
 
+void MegaChatApiImpl::resetClientid()
+{
+    sdkMutex.lock();
+    if (mClient)
+    {
+        mClient->resetMyIdentity();
+    }
+    sdkMutex.unlock();
+}
+
 void MegaChatApiImpl::createKarereClient()
 {
     if (!mClient)
@@ -1843,7 +1853,7 @@ MegaChatRoomHandler *MegaChatApiImpl::getChatRoomHandler(MegaChatHandle chatid)
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
     if (it == chatRoomHandler.end())
     {
-        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatApi, chatid);
+        chatRoomHandler[chatid] = new MegaChatRoomHandler(this, chatApi, megaApi, chatid);
     }
 
     return chatRoomHandler[chatid];
@@ -2447,7 +2457,7 @@ bool MegaChatApiImpl::isSignalActivityRequired()
 {
     sdkMutex.lock();
 
-    bool enabled = mClient ? mClient->presenced().autoAwayInEffect() : false;
+    bool enabled = mClient ? mClient->presenced().isSignalActivityRequired() : false;
 
     sdkMutex.unlock();
 
@@ -2502,14 +2512,9 @@ void MegaChatApiImpl::setBackgroundStatus(bool background, MegaChatRequestListen
 
 int MegaChatApiImpl::getBackgroundStatus()
 {
-    int status = -1;
-
     sdkMutex.lock();
 
-    if (mClient && mClient->mChatdClient)
-    {
-        status = (mClient->mChatdClient->keepaliveType() == chatd::OP_KEEPALIVE) ? 0 : 1;
-    }
+    int status = mClient ? int(mClient->isInBackground()) : -1;
 
     sdkMutex.unlock();
 
@@ -4297,8 +4302,11 @@ void MegaChatApiImpl::onInitStateChange(int newState)
 
 void MegaChatApiImpl::onChatNotification(karere::Id chatid, const Message &msg, Message::Status status, Idx idx)
 {
-    MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
-    fireOnChatNotification(chatid, message);
+    if (megaApi->isChatNotifiable(chatid))
+     {
+         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
+         fireOnChatNotification(chatid, message);
+     }
 }
 
 int MegaChatApiImpl::convertInitState(int state)
@@ -4998,7 +5006,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall& call)
     changed = 0;
     peerId = 0;
     clientid = 0;
-    callerId = call.caller() ? call.caller().val : MEGACHAT_INVALID_HANDLE;
+    callerId = call.caller().val;
     // At this point, there aren't any Session. It isn't neccesary create `sessionStatus` from Icall::sessionState()
 }
 
@@ -5595,11 +5603,12 @@ rtcModule::ICallHandler *MegaChatRoomHandler::callHandler()
 }
 #endif
 
-MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaChatHandle chatid)
+MegaChatRoomHandler::MegaChatRoomHandler(MegaChatApiImpl *chatApiImpl, MegaChatApi *chatApi, MegaApi *megaApi, MegaChatHandle chatid)
 {
     this->chatApiImpl = chatApiImpl;
     this->chatApi = chatApi;
     this->chatid = chatid;
+    this->megaApi = megaApi;
 
     this->mRoom = NULL;
     this->mChat = NULL;
@@ -5874,7 +5883,10 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
         delete msgToUpdate;
     }
 
-    if (mRoom)
+    // check if notification is required
+    if (mRoom && megaApi->isChatNotifiable(chatid)
+            && ((msg.type == chatd::Message::kMsgTruncate)   // truncate received from a peer or from myself in another client
+                || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen)))  // new (unseen) message received from a peer
     {
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onRecvNewMessage(idx, msg, status);
@@ -5952,7 +5964,7 @@ void MegaChatRoomHandler::onMessageStatusChange(Idx idx, Message::Status status,
     message->setStatus(status);
     fireOnMessageUpdate(message);
 
-    if (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
+    if (megaApi->isChatNotifiable(chatid) && msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kSeen)  // received message from a peer changed to seen
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApiImpl->fireOnChatNotification(chatid, message);
@@ -5968,8 +5980,9 @@ void MegaChatRoomHandler::onMessageEdited(const Message &msg, chatd::Idx idx)
 
     //TODO: check a truncate always comes as an edit, even if no history exist at all (new chat)
     // and, if so, remove the block from `onRecvNewMessage()`
-    if ( (msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
-         || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen) )    // received message from a peer, still unseen, was edited / deleted
+    if (megaApi->isChatNotifiable(chatid) &&
+            ((msg.type == chatd::Message::kMsgTruncate) // truncate received from a peer or from myself in another client
+             || (msg.userid != chatApi->getMyUserHandle() && status == chatd::Message::kNotSeen)))    // received message from a peer, still unseen, was edited / deleted
     {
         MegaChatMessagePrivate *message = new MegaChatMessagePrivate(msg, status, idx);
         chatApiImpl->fireOnChatNotification(chatid, message);
@@ -7656,14 +7669,16 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
                 state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
                 break;
             case rtcModule::ICall::kStateTerminating:
-                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
+            {
                 chatCall->setIsRinging(false);
+                state = MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
                 chatCall->setTermCode(call->termCode());
                 API_LOG_INFO("Terminating call. ChatId: %s, callid: %s, termCode: %s , isLocal: %d, duration: %d (s)",
                              karere::Id(chatCall->getChatid()).toString().c_str(),
                              karere::Id(chatCall->getId()).toString().c_str(),
                              rtcModule::termCodeToStr(call->termCode() & (~rtcModule::TermCode::kPeer)),
                              chatCall->isLocalTermCode(), chatCall->getDuration());
+            }
                 break;
             case rtcModule::ICall::kStateDestroyed:
                 return;
@@ -7681,7 +7696,7 @@ void MegaChatCallHandler::onStateChange(uint8_t newState)
     }
 }
 
-void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPeer*/, const string &/*msg*/)
+void MegaChatCallHandler::onDestroy(rtcModule::TermCode reason, bool /*byPeer*/, const string &/*msg*/)
 {
     assert(chatCall);
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
@@ -7696,10 +7711,14 @@ void MegaChatCallHandler::onDestroy(rtcModule::TermCode /*reason*/, bool /*byPee
                                   clientidParticipants->get(0) == megaChatApi->getMyClientidHandle(chatid));
         if (peeridParticipants && peeridParticipants->size() > 0 && !uniqueParticipant)
         {
-            chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
-            megaChatApi->fireOnChatCallUpdate(chatCall);
+            if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
+            {
+                chatCall->setStatus(MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
+                megaChatApi->fireOnChatCallUpdate(chatCall);
+            }
         }
-        else
+        else if (chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING
+                 || reason != rtcModule::TermCode::kErrPeerOffline)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7816,7 +7835,8 @@ bool MegaChatCallHandler::removeParticipant(Id userid, uint32_t clientid)
         }
 
         MegaHandleList *participants = chatCall->getPeeridParticipants();
-        if (participants && participants->size() < 1 && !call)
+        if (participants && participants->size() < 1 &&
+                !call && chatCall->getStatus() != MegaChatCall::CALL_STATUS_RECONNECTING)
         {
             chatCall->setStatus(MegaChatCall::CALL_STATUS_DESTROYED);
             megaChatApi->fireOnChatCallUpdate(chatCall);
@@ -7882,6 +7902,22 @@ int64_t MegaChatCallHandler::getInitialTimeStamp()
 bool MegaChatCallHandler::hasBeenNotifiedRinging() const
 {
     return mHasBeenNotifiedRinging;
+}
+
+void MegaChatCallHandler::onReconnectingState(bool start)
+{
+    assert(chatCall);
+    API_LOG_INFO("Reconnecting call. ChatId: %s  - %s", ID_CSTR(chatCall->getChatid()), start ? "Start" : "Finish");
+    if (start)
+    {
+        chatCall->setStatus(MegaChatCall::CALL_STATUS_RECONNECTING);
+    }
+    else
+    {
+        chatCall->setStatus(call ? MegaChatCall::CALL_STATUS_IN_PROGRESS : MegaChatCall::CALL_STATUS_USER_NO_PRESENT);
+    }
+
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 rtcModule::ICall *MegaChatCallHandler::getCall()
@@ -8000,7 +8036,13 @@ void MegaChatSessionHandler::onPeerMute(karere::AvFlags av, karere::AvFlags oldA
 
 void MegaChatSessionHandler::onVideoRecv()
 {
+    MegaChatCallPrivate *chatCall = callHandler->getMegaChatCall();
+    chatCall->sessionUpdated(session->peer(), session->peerClient(), MegaChatCall::CHANGE_TYPE_SESSION_OPERATIVE);
+    API_LOG_INFO("The session is fully operative. ChatId: %s, callid: %s, userid: %s, clientid: %s",
+                 ID_CSTR(chatCall->getChatid()), ID_CSTR(chatCall->getId()),
+                 ID_CSTR(session->peer()), ID_CSTR(session->peerClient()));
 
+    megaChatApi->fireOnChatCallUpdate(chatCall);
 }
 
 void MegaChatSessionHandler::onSessionNetworkQualityChange(int currentQuality)
@@ -8139,14 +8181,6 @@ bool MegaChatPresenceConfigPrivate::isPending() const
     return pending;
 }
 
-bool MegaChatPresenceConfigPrivate::isSignalActivityRequired() const
-{
-    return (!persistEnabled
-            && status != MegaChatApi::STATUS_OFFLINE
-            && status != MegaChatApi::STATUS_AWAY
-            && autoawayEnabled && autoawayTimeout);
-}
-
 bool MegaChatPresenceConfigPrivate::isLastGreenVisible() const
 {
     return lastGreenVisible;
@@ -8257,6 +8291,7 @@ MegaChatContainsMetaPrivate::MegaChatContainsMetaPrivate(const MegaChatContainsM
 MegaChatContainsMetaPrivate::~MegaChatContainsMetaPrivate()
 {
     delete mRichPreview;
+    delete mGeolocation;
 }
 
 MegaChatContainsMeta *MegaChatContainsMetaPrivate::copy() const
@@ -8963,8 +8998,24 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             const char *imagePointer = iteratorImage->value.GetString();
             imageFormat = getImageFormat(imagePointer);
             imagePointer = imagePointer + imageFormat.size() + 1; // remove format.size() + ':'
-            rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
-            image = std::string(imagePointer, sizeImage);
+
+            // Check if the image format in B64 is valid
+            std::string imgBin, imgB64(imagePointer);
+            size_t binSize = Base64::atob(imgB64, imgBin);
+            size_t paddingSize = std::count(imgB64.begin(), imgB64.end(), '=');
+            if (binSize == (imgB64.size() * 3) / 4 - paddingSize)
+            {
+                rapidjson::SizeType sizeImage = iteratorImage->value.GetStringLength() - (imageFormat.size() + 1);
+                image = std::string(imagePointer, sizeImage);
+            }
+            else
+            {
+                API_LOG_ERROR("Parse rich link: \"i\" field has a invalid format");
+            }
+        }
+        else
+        {
+            API_LOG_ERROR("Parse rich link: invalid JSON struct - \"i\" field not found");
         }
 
         rapidjson::Value::ConstMemberIterator iteratorIcon = richPreview.FindMember("ic");
@@ -8973,8 +9024,24 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
             const char *iconPointer = iteratorIcon->value.GetString();
             iconFormat = getImageFormat(iconPointer);
             iconPointer = iconPointer + iconFormat.size() + 1; // remove format.size() + ':'
-            rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
-            icon = std::string(iconPointer, sizeIcon);
+
+            // Check if the image format in B64 is valid
+            std::string iconBin, iconB64(iconPointer);
+            size_t binSize = Base64::atob(iconB64, iconBin);
+            size_t paddingSize = std::count(iconB64.begin(), iconB64.end(), '=');
+            if (binSize == (iconB64.size() * 3) / 4 - paddingSize)
+            {
+                rapidjson::SizeType sizeIcon = iteratorIcon->value.GetStringLength() - (iconFormat.size() + 1);
+                icon = std::string(iconPointer, sizeIcon);
+            }
+            else
+            {
+                API_LOG_ERROR("Parse rich link: \"ic\" field has a invalid format");
+            }
+        }
+        else
+        {
+            API_LOG_ERROR("Parse rich link: invalid JSON struct - \"ic\" field not found");
         }
 
         rapidjson::Value::ConstMemberIterator iteratorURL = richPreview.FindMember("url");
