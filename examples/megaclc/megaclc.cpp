@@ -22,6 +22,7 @@
 // This program is intended for exploring the chat API, performing testing and so on.
 // It's not well tested and should be considered alpha at best. 
 
+#include <atomic>
 #include <iomanip>
 #include <fstream>
 #include <mutex>
