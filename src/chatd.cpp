@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <random>
 #include <regex>
-#include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
 
 using namespace std;
 using namespace promise;

@@ -15,14 +15,16 @@ else()
 endif()
 
 # create these cache variables first, these must be on for MEGAchat.  The default in the SDK is off, but it will see they are already on in the CMakeCache.txt
-set (USE_SODIUM 1 CACHE TYPE BOOL)
-set (ENABLE_CHAT 1 CACHE TYPE BOOL)
-set (USE_WEBRTC 1 CACHE TYPE BOOL)
+set (USE_SODIUM 1 CACHE STRING "Sodium is a requirement for MEGAchat, turn on in the MEGA SDK")
+set (ENABLE_CHAT 1 CACHE STRING "Turn on ENBABLE_CHAT in the MEGA SDK")
+set (USE_WEBRTC 1 CACHE STRING "Turn on WEBRTC to support voice and/or video calls, turn off for much simpler dependencies")
 
-set (UNCHECKED_ITERATORS 0 CACHE TYPE BOOL)  # to use libwebrtc on windows with checked iterators turned off in the debug VC++ runtime, modify your stl headers first to disable that, and then build it
+if (WIN32)
+set (UNCHECKED_ITERATORS 0 CACHE STRING "Turn off UNCHECKED_ITERATORS if your third party dependencies were built without them (only relevant for DEBUG)")  # to use libwebrtc on windows with checked iterators turned off in the debug VC++ runtime, modify your stl headers first to disable that, and then build it
+endif()
 
 #specify where 3rd party libraries are available
-set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party"  CACHE TYPE STRING)
+set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../third-party"  CACHE STRING "Controllable third party library location")
 set(KarereDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
 message("CONFIG: ${CONFIG}")

@@ -47,13 +47,16 @@ private:
 class WebsocketsIO : public ::mega::EventTrigger
 {
 public:
-    WebsocketsIO(::mega::Mutex *mutex, ::mega::MegaApi *megaApi, void *ctx);
+    using Mutex = std::recursive_mutex;
+    using MutexGuard = std::lock_guard<Mutex>;
+
+    WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
     virtual ~WebsocketsIO();
 
     DNScache mDnsCache;
     
 protected:
-    ::mega::Mutex *mutex;
+    Mutex &mutex;
     MyMegaApi mApi;
     void *appCtx;
     
@@ -102,11 +105,11 @@ class WebsocketsClientImpl
 {
 protected:
     WebsocketsClient *client;
-    ::mega::Mutex *mutex;
+    WebsocketsIO::Mutex &mutex;
     bool disconnecting;
     
 public:
-    WebsocketsClientImpl(::mega::Mutex *mutex, WebsocketsClient *client);
+    WebsocketsClientImpl(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);
     virtual ~WebsocketsClientImpl();
     void wsConnectCb();
     void wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len);

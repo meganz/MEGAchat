@@ -307,7 +307,7 @@ public:
             auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
                 stmt.int64Col(3), stmt.intCol(4), std::move(buf), true,
                 CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
-            items.emplace_back(msg, stmt.uint64Col(0), stmt.intCol(6), (chatd::ManualSendReason)stmt.intCol(7));
+            items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
         }
     }
     virtual bool deleteManualSendItem(uint64_t rowid)

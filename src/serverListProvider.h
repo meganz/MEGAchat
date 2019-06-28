@@ -3,9 +3,20 @@
 #include <string>
 #include <vector>
 #include <promise.h>
-#include <rapidjson/document.h>
 #include "retryHandler.h"
 #include "sdkApi.h"
+
+#ifdef WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
+#include <rapidjson/document.h>
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
+
 
 namespace karere
 {
