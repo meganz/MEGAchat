@@ -31,16 +31,25 @@
 #define PREFER_STDARG
 
 #include <megaapi_impl.h>
-
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
-
 #include "megachatapi_impl.h"
 #include <base/cservices.h>
 #include <base/logger.h>
 #include <IGui.h>
 #include <chatClient.h>
 #include <mega/base64.h>
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/document.h>
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 #ifndef _WIN32
 #include <signal.h>
@@ -59,7 +68,6 @@ using namespace chatd;
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
-: sdkMutex(true), videoMutex(true)
 {
     init(chatApi, megaApi);
 }
@@ -102,7 +110,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     this->mClient = NULL;
     this->terminating = false;
     this->waiter = new MegaChatWaiter();
-    this->websocketsIO = new MegaWebsocketsIO(&sdkMutex, waiter, megaApi, this);
+    this->websocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     this->reqtag = 0;
 
     //Start blocking thread
@@ -4444,11 +4452,6 @@ void MegaChatApiImpl::onPresenceLastGreenUpdated(Id userid, uint16_t lastGreen)
     fireOnChatPresenceLastGreenUpdated(userid, lastGreen);
 }
 
-ChatRequestQueue::ChatRequestQueue()
-{
-    mutex.init(false);
-}
-
 void ChatRequestQueue::push(MegaChatRequestPrivate *request)
 {
     mutex.lock();
@@ -4491,11 +4494,6 @@ void ChatRequestQueue::removeListener(MegaChatRequestListener *listener)
     }
 
     mutex.unlock();
-}
-
-EventQueue::EventQueue()
-{
-    mutex.init(false);
 }
 
 void EventQueue::push(void *transfer)
@@ -7520,7 +7518,6 @@ int MegaChatMessagePrivate::getTermCode() const
 LoggerHandler::LoggerHandler()
     : ILoggerBackend(MegaChatApi::LOG_LEVEL_INFO)
 {
-    mutex.init(true);
     this->megaLogger = NULL;
 
     gLogger.addUserLogger("MegaChatApi", this);
@@ -8655,8 +8652,8 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
         std::string attrstring;
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &attrstring, &fa, sdkFingerprint, INVALID_HANDLE,
-                             INVALID_HANDLE, NULL, NULL, false, true);
+                             megaHandle, &key, &attrstring, &fa, sdkFingerprint, 
+                             NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
 

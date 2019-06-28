@@ -15,7 +15,7 @@ public:
     struct lws_context *wscontext;
     uv_loop_t* eventloop;
 
-    LibwebsocketsIO(::mega::Mutex *mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
+    LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     virtual ~LibwebsocketsIO();
     
     virtual void addevents(::mega::Waiter*, int);
@@ -30,7 +30,7 @@ protected:
 class LibwebsocketsClient : public WebsocketsClientImpl
 {
 public:
-    LibwebsocketsClient(::mega::Mutex *mutex, WebsocketsClient *client);
+    LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);
     virtual ~LibwebsocketsClient();
     
 protected:
