@@ -14,10 +14,20 @@
 #include "IGui.h"
 #include <base/trackDelete.h>
 #include "rtcModule/webrtc.h"
+#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#endif
+
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-#include "stringUtils.h"
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 namespace mega { class MegaTextChat; class MegaTextChatList; }
 
